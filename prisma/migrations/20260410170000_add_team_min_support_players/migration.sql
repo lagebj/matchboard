@@ -1,0 +1,2 @@
+ALTER TABLE "Team"
+ADD COLUMN "minSupportPlayers" INTEGER NOT NULL DEFAULT 0;
