@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Team {
+  id                String            @id @default(cuid())
+  name              String            @unique
+  minSupportPlayers Int               @default(0)
+  developmentSlots  Int               @default(0)
+  archivedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  corePlayers                Player[]                 @relation("CoreTeam")
+  floatPlayers               PlayerFloatTeam[]
+  matches                    Match[]
+  supportTargetRelationships TeamSupportSource[]      @relation("SupportTargetTeam")
+  supportSourceRelationships TeamSupportSource[]      @relation("SupportSourceTeam")
+  developmentTargetRelationships TeamDevelopmentSource[] @relation("DevelopmentTargetTeam")
+  developmentSourceRelationships TeamDevelopmentSource[] @relation("DevelopmentSourceTeam")
+
+  @@index([archivedAt, name])
+}
+
+model Player {
+  id                  String             @id @default(cuid())
+  playerCode          Int                @unique
+  firstName           String
+  lastName            String?
+  active              Boolean            @default(true)
+  removedAt           DateTime?
+  coreTeamId          String
+  isFloating          Boolean            @default(false)
+  canDropCoreMatch    Boolean            @default(false)
+  maxDevelopmentMatches Int?
+  primaryPosition     String
+  secondaryPosition   String?
+  tertiaryPosition    String?
+  preferredFoot       FootPreference
+  secondaryFoot       SecondaryFoot
+  bestSide            BestSide
+  currentAvailability AvailabilityStatus @default(AVAILABLE)
+  ballControl         Int                @default(0)
+  passing             Int                @default(0)
+  firstTouch          Int                @default(0)
+  oneVOneAttacking    Int                @default(0)
+  positioning         Int                @default(0)
+  oneVOneDefending    Int                @default(0)
+  decisionMaking      Int                @default(0)
+  effort              Int                @default(0)
+  teamplay            Int                @default(0)
+  concentration       Int                @default(0)
+  speed               Int                @default(0)
+  strength            Int                @default(0)
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  coreTeam          Team                  @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
+  allowedFloatTeams PlayerFloatTeam[]
+  selectionPlayers  MatchSelectionPlayer[]
+
+  @@index([coreTeamId, active, removedAt])
+  @@index([removedAt, firstName, lastName])
+}
+
+model PlayerFloatTeam {
+  playerId String
+  teamId   String
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@id([playerId, teamId])
+  @@index([teamId])
+}
+
+model Match {
+  id            String    @id @default(cuid())
+  startsAt      DateTime
+  endsAt        DateTime?
+  targetTeamId  String
+  homeOrAway    MatchVenue
+  opponent      String
+  squadSize     Int
+  matchType     String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  targetTeam  Team             @relation(fields: [targetTeamId], references: [id], onDelete: Restrict)
+  selections  MatchSelection[]
+
+  @@index([startsAt, createdAt])
+  @@index([targetTeamId, startsAt])
+}
+
+model TeamSupportSource {
+  targetTeamId String
+  sourceTeamId String
+
+  targetTeam Team @relation("SupportTargetTeam", fields: [targetTeamId], references: [id], onDelete: Restrict)
+  sourceTeam Team @relation("SupportSourceTeam", fields: [sourceTeamId], references: [id], onDelete: Restrict)
+
+  @@id([targetTeamId, sourceTeamId])
+  @@index([sourceTeamId])
+}
+
+model TeamDevelopmentSource {
+  targetTeamId String
+  sourceTeamId String
+
+  targetTeam Team @relation("DevelopmentTargetTeam", fields: [targetTeamId], references: [id], onDelete: Restrict)
+  sourceTeam Team @relation("DevelopmentSourceTeam", fields: [sourceTeamId], references: [id], onDelete: Restrict)
+
+  @@id([targetTeamId, sourceTeamId])
+  @@index([sourceTeamId])
+}
+
+model RuleConfig {
+  id                                 String   @id @default(cuid())
+  name                               String   @default("Default ruleset")
+  enforceCorePlayers                 Boolean  @default(true)
+  allowCoreMatchDrop                 Boolean  @default(true)
+  maxCoreMatchDropsPerPlayer         Int      @default(1)
+  maxTotalFloatMatches               Int      @default(3)
+  preventConsecutiveFloat            Boolean  @default(true)
+  minDaysBetweenAnyMatches           Int      @default(3)
+  blockCoreMatchIfFloatingWithinDays Int      @default(2)
+  preferPositionBalance              Boolean  @default(true)
+  preferLowRecentLoad                Boolean  @default(true)
+  preferLowerFloatCount              Boolean  @default(true)
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime @updatedAt
+}
+
+model MatchSelection {
+  id            String          @id @default(cuid())
+  matchId        String
+  status         SelectionStatus @default(DRAFT)
+  overrideNotes  String?
+  createdAt      DateTime        @default(now())
+  finalizedAt    DateTime?
+
+  match    Match                 @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  players  MatchSelectionPlayer[]
+
+  @@index([matchId, createdAt])
+  @@index([status, finalizedAt])
+}
+
+model MatchSelectionPlayer {
+  id                     String        @id @default(cuid())
+  selectionId            String
+  playerId               String
+  roleType               SelectionRole
+  sourceTeamNameSnapshot String
+  targetTeamNameSnapshot String
+  explanation            String?
+  chosenPosition         String?
+  wasAutoSelected        Boolean       @default(false)
+  wasManuallyAdded       Boolean       @default(false)
+  wasManuallyRemoved     Boolean       @default(false)
+  createdAt              DateTime      @default(now())
+
+  selection MatchSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  player    Player         @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@index([playerId, createdAt])
+  @@index([selectionId, wasManuallyRemoved])
+}
+
+enum FootPreference {
+  LEFT
+  RIGHT
+}
+
+enum SecondaryFoot {
+  LEFT
+  RIGHT
+  WEAK
+}
+
+enum BestSide {
+  LEFT
+  CENTER
+  RIGHT
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  INJURED
+  SICK
+  AWAY
+}
+
+enum SelectionStatus {
+  DRAFT
+  FINALIZED
+}
+
+enum SelectionRole {
+  CORE
+  FLOAT
+  SUPPORT
+  DEVELOPMENT
+  MANUAL
+}
+
+enum MatchVenue {
+  HOME
+  AWAY
+}
