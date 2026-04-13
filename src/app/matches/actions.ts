@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { MatchVenue, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
-import { formatShortDate, parseDateInputToUtcMidday } from "@/lib/date-utils";
+import { formatIsoWeekKey, formatShortDate, parseDateInputToUtcMidday } from "@/lib/date-utils";
 import { matchTypeValues } from "@/lib/player-form-options";
 import { refreshDraftSelection, refreshDraftSelections } from "@/lib/selection/refresh-draft-selection";
 
@@ -79,6 +79,16 @@ function readSelectedMatchIds(formData: FormData): string[] {
   );
 }
 
+function readReturnPath(formData: FormData, fallbackPath = "/matches"): string {
+  const returnPath = readText(formData, "returnPath");
+
+  if (returnPath.startsWith("/")) {
+    return returnPath;
+  }
+
+  return fallbackPath;
+}
+
 function readMatchVenue(formData: FormData): MatchVenue {
   const venue = formData.get("homeOrAway");
 
@@ -108,6 +118,82 @@ function formatFinalizeWarning(
   reason: string,
 ) {
   return `${match.targetTeam.name} vs ${match.opponent} on ${formatShortDate(match.startsAt)}: ${reason}`;
+}
+
+type ResetSelectionScope = "all" | "match" | "week";
+
+type ResetSelectionResult = {
+  deletedSelectionCount: number;
+  matchIds: string[];
+  weekKeys: string[];
+};
+
+async function resetSavedSelections(matchIds?: string[]): Promise<ResetSelectionResult> {
+  const uniqueMatchIds = [...new Set(matchIds ?? [])];
+  const affectedMatches = await db.match.findMany({
+    where: uniqueMatchIds.length > 0 ? { id: { in: uniqueMatchIds } } : undefined,
+    select: {
+      id: true,
+      startsAt: true,
+    },
+  });
+
+  if (uniqueMatchIds.length > 0 && affectedMatches.length === 0) {
+    throw new Error("Choose at least one match to reset.");
+  }
+
+  const deleted = await db.matchSelection.deleteMany({
+    where: uniqueMatchIds.length > 0 ? { matchId: { in: uniqueMatchIds } } : undefined,
+  });
+
+  return {
+    deletedSelectionCount: deleted.count,
+    matchIds: affectedMatches.map((match) => match.id),
+    weekKeys: [...new Set(affectedMatches.map((match) => formatIsoWeekKey(match.startsAt)))],
+  };
+}
+
+function revalidateMatchboardPaths(matchIds: string[], weekKeys: string[]) {
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/matches");
+  revalidatePath("/players");
+  revalidatePath("/weeks");
+
+  for (const weekKey of weekKeys) {
+    revalidatePath(`/weeks/${weekKey}`);
+  }
+
+  for (const matchId of matchIds) {
+    revalidatePath(`/selection/${matchId}`);
+  }
+}
+
+export async function resetSelectionsAction(formData: FormData) {
+  const selectedMatchIds = readSelectedMatchIds(formData);
+  const returnPath = readReturnPath(formData);
+  const scope = (readText(formData, "resetScope") || "all") as ResetSelectionScope;
+
+  try {
+    const { deletedSelectionCount, matchIds, weekKeys } = await resetSavedSelections(
+      selectedMatchIds.length > 0 ? selectedMatchIds : undefined,
+    );
+
+    revalidateMatchboardPaths(matchIds, weekKeys);
+
+    redirect(
+      buildPathWithSearch(returnPath, {
+        reset: scope,
+        resetCount: deletedSelectionCount,
+      }),
+    );
+  } catch (error) {
+    redirect(
+      buildPathWithSearch(returnPath, {
+        error: error instanceof Error ? error.message : "Could not reset the saved selections.",
+      }),
+    );
+  }
 }
 
 export async function createMatchAction(formData: FormData) {

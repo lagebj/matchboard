@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SelectionStatus } from "@/generated/prisma/client";
+import { resetSelectionsAction } from "@/app/matches/actions";
 import { WeekOverviewBoard } from "@/components/weeks/week-overview-board";
 import { db } from "@/lib/db";
 import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRangeFromIsoWeekKey } from "@/lib/date-utils";
@@ -12,6 +13,8 @@ type WeekOverviewPageProps = {
   }>;
   searchParams: Promise<{
     error?: string;
+    reset?: string;
+    resetCount?: string;
     savedMatchId?: string;
     savedStatus?: string;
   }>;
@@ -29,11 +32,27 @@ function formatSavedMessage(savedStatus?: string): string | null {
   return null;
 }
 
+function formatResetMessage(reset?: string, resetCount?: string): string | null {
+  if (reset === "week") {
+    return `Saved selections cleared for this week${resetCount ? ` (${resetCount} snapshot${resetCount === "1" ? "" : "s"} removed).` : "."}`;
+  }
+
+  if (reset === "match") {
+    return "Saved selections cleared for one match on this week board.";
+  }
+
+  if (reset === "all") {
+    return `Saved selections cleared across the whole queue${resetCount ? ` (${resetCount} snapshot${resetCount === "1" ? "" : "s"} removed).` : "."}`;
+  }
+
+  return null;
+}
+
 export default async function WeekOverviewPage({
   params,
   searchParams,
 }: WeekOverviewPageProps) {
-  const [{ weekKey }, { error, savedMatchId, savedStatus }] = await Promise.all([
+  const [{ weekKey }, { error, reset, resetCount, savedMatchId, savedStatus }] = await Promise.all([
     params,
     searchParams,
   ]);
@@ -174,6 +193,7 @@ export default async function WeekOverviewPage({
   const savedMatch = savedMatchId
     ? weekMatches.find((match) => match.id === savedMatchId) ?? null
     : null;
+  const resetMessage = formatResetMessage(reset, resetCount);
 
   return (
     <main className="flex min-h-full flex-col gap-6 text-foreground">
@@ -203,6 +223,19 @@ export default async function WeekOverviewPage({
               >
                 Back to match queue
               </Link>
+              <form action={resetSelectionsAction}>
+                <input name="resetScope" type="hidden" value="week" />
+                <input name="returnPath" type="hidden" value={returnPath} />
+                {weekMatches.map((match) => (
+                  <input key={match.id} name="selectedMatchIds" type="hidden" value={match.id} />
+                ))}
+                <button
+                  className="inline-flex h-11 items-center rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-5 text-sm font-medium text-[#f0cbc5] hover:bg-[rgba(185,128,119,0.14)] hover:text-white"
+                  type="submit"
+                >
+                  Reset this week
+                </button>
+              </form>
             </div>
           </div>
 
@@ -247,6 +280,12 @@ export default async function WeekOverviewPage({
         <div className="rounded-2xl border app-hairline bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-[var(--accent-strong)]">
           {formatSavedMessage(savedStatus)}
           {savedMatch ? ` ${savedMatch.targetTeam.name} vs. ${savedMatch.opponent}.` : ""}
+        </div>
+      ) : null}
+
+      {resetMessage ? (
+        <div className="rounded-2xl border border-[rgba(185,128,119,0.34)] bg-[rgba(185,128,119,0.12)] px-4 py-3 text-sm text-[#f0cbc5]">
+          {resetMessage}
         </div>
       ) : null}
 
