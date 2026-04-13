@@ -18,6 +18,9 @@ export type PlayerHistoryRow = {
   coreTeamAppearances: number;
   firstName: string;
   floatCount: number;
+  latestMovementDate: Date | null;
+  latestMovementReason: string;
+  latestMovementSummary: string;
   lastFinalizedMatchDate: Date | null;
   lastName: string | null;
   playerCode: number;
@@ -82,15 +85,30 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
       );
     }
 
+    if (sortKey === "movement") {
+      return applySortDirection(
+        compareDate(left.latestMovementDate, right.latestMovementDate),
+        sortDirection,
+      );
+    }
+
+    if (sortKey === "movementReason") {
+      return applySortDirection(
+        compareText(left.latestMovementReason, right.latestMovementReason),
+        sortDirection,
+      );
+    }
+
     return applySortDirection(compareText(formatPlayerName(left), formatPlayerName(right)), sortDirection);
   });
 
   const playersWithFloatHistory = rows.filter((row) => row.floatCount > 0).length;
   const playersWithCoreHistory = rows.filter((row) => row.coreTeamAppearances > 0).length;
+  const recentMovers = rows.filter((row) => row.latestMovementDate !== null).length;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
             Core History
@@ -111,17 +129,26 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+            Recent Movers
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-zinc-50">{recentMovers}</p>
+          <p className="mt-2 text-sm app-copy-soft">
+            Players with a visible finalized move between teams in the current history.
+          </p>
+        </div>
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
             Scan Tip
           </p>
-          <p className="mt-2 text-sm font-medium text-zinc-100">Sort by float count or last match first.</p>
+          <p className="mt-2 text-sm font-medium text-zinc-100">Sort by latest move or why moved first.</p>
           <p className="mt-2 text-sm app-copy-soft">
-            That usually reveals the most important rotation fairness signals faster than name order.
+            That exposes who shifted teams most recently and why without opening player pages.
           </p>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
-        <table className="w-full min-w-[1160px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[1440px] border-collapse text-left text-sm">
           <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
             <tr>
               <SortableHeader
@@ -180,6 +207,20 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
                 onSort={updateSort}
                 sortKey="pattern"
               />
+              <SortableHeader
+                activeKey={sortKey}
+                direction={sortDirection}
+                label="Latest Move"
+                onSort={updateSort}
+                sortKey="movement"
+              />
+              <SortableHeader
+                activeKey={sortKey}
+                direction={sortDirection}
+                label="Why Moved"
+                onSort={updateSort}
+                sortKey="movementReason"
+              />
               <th className="px-4 py-3 font-semibold">Action</th>
             </tr>
           </thead>
@@ -207,6 +248,18 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
                 </td>
                 <td className="max-w-sm px-4 py-3 app-copy-soft">{row.recentSelectionPattern}</td>
                 <td className="px-4 py-3">
+                  {row.latestMovementDate ? (
+                    <span className="inline-flex rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-xs font-medium text-[var(--warning)]">
+                      {row.latestMovementSummary}
+                    </span>
+                  ) : (
+                    <span className="app-copy-soft">-</span>
+                  )}
+                </td>
+                <td className="max-w-md px-4 py-3 app-copy-soft">
+                  {row.latestMovementDate ? row.latestMovementReason : "-"}
+                </td>
+                <td className="px-4 py-3">
                   <Link
                     className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
                     href={`/players/${row.playerId}`}
@@ -219,7 +272,7 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
 
             {sortedRows.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={9}>
+                <td className="px-4 py-10 text-center app-copy-muted" colSpan={11}>
                   No players in the registry yet.
                 </td>
               </tr>

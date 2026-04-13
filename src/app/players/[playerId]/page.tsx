@@ -143,6 +143,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         },
       },
       select: {
+        id: true,
         roleType: true,
         targetTeamNameSnapshot: true,
         selection: {
@@ -381,7 +382,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                 <div className="mt-3 flex flex-col gap-3">
                   {finalizedHistory.slice(0, 5).map((entry) => (
                     <div
-                      key={`${entry.selection.match.id}-${entry.roleType}`}
+                      key={entry.id}
                       className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
                     >
                       <p className="text-sm font-medium text-zinc-100">

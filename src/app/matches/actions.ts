@@ -368,6 +368,87 @@ export async function finalizeAllMatchesAction() {
   );
 }
 
+export async function markAllMatchesAsDraftAction() {
+  const affectedMatchIds: string[] = [];
+
+  try {
+    const matches = await db.match.findMany({
+      include: {
+        selections: {
+          include: {
+            players: {
+              select: {
+                chosenPosition: true,
+                explanation: true,
+                playerId: true,
+                roleType: true,
+                sourceTeamNameSnapshot: true,
+                targetTeamNameSnapshot: true,
+                wasAutoSelected: true,
+                wasManuallyAdded: true,
+                wasManuallyRemoved: true,
+              },
+            },
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 1,
+        },
+      },
+    });
+
+    for (const match of matches) {
+      const latestSelection = match.selections[0] ?? null;
+
+      if (!latestSelection || latestSelection.status === SelectionStatus.DRAFT) {
+        continue;
+      }
+
+      await db.matchSelection.create({
+        data: {
+          matchId: match.id,
+          overrideNotes: latestSelection.overrideNotes,
+          players: {
+            create: latestSelection.players.map((player) => ({
+              chosenPosition: player.chosenPosition,
+              explanation: player.explanation,
+              playerId: player.playerId,
+              roleType: player.roleType,
+              sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
+              targetTeamNameSnapshot: player.targetTeamNameSnapshot,
+              wasAutoSelected: player.wasAutoSelected,
+              wasManuallyAdded: player.wasManuallyAdded,
+              wasManuallyRemoved: player.wasManuallyRemoved,
+            })),
+          },
+          status: SelectionStatus.DRAFT,
+        },
+      });
+
+      affectedMatchIds.push(match.id);
+    }
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/matches", {
+        error: error instanceof Error ? error.message : "Could not mark saved selections as draft.",
+      }),
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/matches");
+
+  for (const matchId of affectedMatchIds) {
+    revalidatePath(`/selection/${matchId}`);
+  }
+
+  redirect(
+    buildPathWithSearch("/matches", {
+      markedDraftAll: affectedMatchIds.length,
+    }),
+  );
+}
+
 export async function recalculateMatchAction(matchId: string) {
   try {
     const match = await db.match.findUnique({
