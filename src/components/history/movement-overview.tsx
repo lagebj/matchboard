@@ -10,6 +10,7 @@ export type MovementOverviewRow = {
   movementCount: number;
   movements: Array<{
     explanation: string;
+    key: string;
     matchId: string;
     matchLabel: string;
     roleType: SelectionRole;
@@ -44,7 +45,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
           </p>
           <h2 className="mt-2 text-xl font-semibold text-zinc-50">Saved movement at a glance</h2>
           <p className="mt-2 max-w-3xl text-sm app-copy-soft">
-            Read player movement totals first, then check the week, match, and status trail under each player.
+            Read player movement totals first, then check the week, match, and status trail from the latest saved snapshot for each match.
           </p>
         </div>
         <div className="text-sm app-copy-soft">
@@ -110,7 +111,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
               <div className="mt-4 grid gap-3">
                 {row.movements.map((movement) => (
                   <div
-                    key={`${movement.matchId}:${movement.status}:${movement.roleType}:${movement.startsAt.toISOString()}`}
+                    key={movement.key}
                     className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4"
                   >
                     <div className="flex flex-wrap items-center gap-2">

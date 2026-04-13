@@ -257,6 +257,13 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       When the player detail page is viewed
       Then the page must show the overall average as a star rating on a one-to-five scale
 
+    Scenario: Player detail page shows only the current saved involvement per match
+      Given a player is involved in one or more matches with saved draft or finalized selections
+      And one of those matches has multiple saved snapshots over time
+      When the coach opens the player detail page
+      Then the current involvement overview must show only the latest saved snapshot for each match
+      And the current involvement overview must not repeat superseded saved snapshots from the same match
+
     Scenario: Coach can move to the next player from the player detail page
       Given multiple active players exist in the player registry
       When the coach opens one player's detail page
@@ -872,6 +879,12 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And the movement overview must show movement counts per player
       And the movement overview must list the related matches and calendar weeks for each visible movement
       And the movement overview must show whether each visible movement comes from a draft or a finalized selection
+
+    Scenario: History overview collapses superseded snapshots to the current saved state per match
+      Given one or more matches have multiple saved draft or finalized snapshots over time
+      When the coach reviews the history overview
+      Then the main history table must reflect only the latest saved snapshot for each match
+      And the movement overview must not repeat superseded movement rows from the same latest saved-state match
 
   Rule: Manual override handling
 

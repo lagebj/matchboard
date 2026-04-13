@@ -1,21 +1,24 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { getLatestSelectionSnapshots } from "@/lib/selection/get-latest-selection-snapshots";
 
 type PlayerSelectionInvolvementRow = {
-  explanation: string | null;
-  roleType: SelectionRole;
-  selection: {
-    createdAt: Date;
-    finalizedAt: Date | null;
-    match: {
-      id: string;
-      opponent: string;
-      startsAt: Date;
-      targetTeam: {
-        name: string;
-      };
+  createdAt: Date;
+  finalizedAt: Date | null;
+  id: string;
+  match: {
+    id: string;
+    opponent: string;
+    startsAt: Date;
+    targetTeam: {
+      name: string;
     };
-    status: SelectionStatus;
   };
+  matchId: string;
+  players: Array<{
+    explanation: string | null;
+    roleType: SelectionRole;
+  }>;
+  status: SelectionStatus;
 };
 
 export type PlayerSelectionInvolvement = {
@@ -33,25 +36,24 @@ export type PlayerSelectionInvolvement = {
 export function getPlayerSelectionInvolvement(
   rows: PlayerSelectionInvolvementRow[],
 ): PlayerSelectionInvolvement[] {
-  const latestInvolvementByMatchId = new Map<string, PlayerSelectionInvolvement>();
+  const latestSnapshots = getLatestSelectionSnapshots(rows);
+  const involvement: PlayerSelectionInvolvement[] = [];
 
-  for (const row of rows) {
-    const involvement = {
-      explanation: row.explanation,
-      matchId: row.selection.match.id,
-      matchStartsAt: row.selection.match.startsAt,
-      opponent: row.selection.match.opponent,
-      roleType: row.roleType,
-      selectionCreatedAt: row.selection.createdAt,
-      selectionFinalizedAt: row.selection.finalizedAt,
-      status: row.selection.status,
-      targetTeamName: row.selection.match.targetTeam.name,
-    } satisfies PlayerSelectionInvolvement;
-
-    if (!latestInvolvementByMatchId.has(involvement.matchId)) {
-      latestInvolvementByMatchId.set(involvement.matchId, involvement);
+  for (const row of latestSnapshots) {
+    for (const player of row.players) {
+      involvement.push({
+        explanation: player.explanation,
+        matchId: row.match.id,
+        matchStartsAt: row.match.startsAt,
+        opponent: row.match.opponent,
+        roleType: player.roleType,
+        selectionCreatedAt: row.createdAt,
+        selectionFinalizedAt: row.finalizedAt,
+        status: row.status,
+        targetTeamName: row.match.targetTeam.name,
+      });
     }
   }
 
-  return [...latestInvolvementByMatchId.values()];
+  return involvement;
 }
