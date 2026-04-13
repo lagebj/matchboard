@@ -4,13 +4,43 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigationItems = [
-  { href: "/", label: "Home" },
-  { href: "/players", label: "Players" },
-  { href: "/teams", label: "Teams" },
-  { href: "/matches", label: "Matches" },
-  { href: "/history", label: "History" },
-  { href: "/rules", label: "Rules" },
-];
+  {
+    href: "/",
+    kicker: "Desk",
+    label: "Coach Desk",
+    note: "Start from the next decision and recent loop context.",
+  },
+  {
+    href: "/matches",
+    kicker: "Queue",
+    label: "Match Queue",
+    note: "Work fixtures by week, status, and selection pressure.",
+  },
+  {
+    href: "/players",
+    kicker: "Registry",
+    label: "Players",
+    note: "Scan availability, position fit, and floating readiness.",
+  },
+  {
+    href: "/teams",
+    kicker: "Setup",
+    label: "Teams",
+    note: "Configure support and development relationships.",
+  },
+  {
+    href: "/history",
+    kicker: "Review",
+    label: "History",
+    note: "Track movement, workload, and fairness outcomes.",
+  },
+  {
+    href: "/rules",
+    kicker: "Controls",
+    label: "Rules",
+    note: "Tune runtime limits and soft selection preferences.",
+  },
+] as const;
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/") {
@@ -24,22 +54,37 @@ export function AppNavigation() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Primary" className="overflow-x-auto">
-      <ul className="flex min-w-max gap-2 rounded-full border app-hairline bg-[rgba(255,255,255,0.02)] p-1.5">
+    <nav aria-label="Primary" className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
+          Coach Loop
+        </p>
+        <p className="text-[11px] uppercase tracking-[0.18em] app-copy-muted">
+          Desk / Queue / Registry / Review / Controls
+        </p>
+      </div>
+      <ul className="grid min-w-max gap-2 md:grid-cols-3 xl:grid-cols-6">
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
 
           return (
             <li key={item.href}>
               <Link
-                className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-medium transition-colors ${
+                aria-current={isActive ? "page" : undefined}
+                className={`flex h-full min-h-[7rem] flex-col justify-between rounded-[1.35rem] border p-4 ${
                   isActive
-                    ? "border border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(148,175,155,0.22),rgba(98,118,109,0.18))] text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    : "border border-transparent text-[var(--text-soft)] hover:border-[var(--border-soft)] hover:bg-[rgba(255,255,255,0.04)] hover:text-zinc-50"
+                    ? "border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(148,175,155,0.22),rgba(34,41,53,0.82))] text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)] text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[rgba(255,255,255,0.045)] hover:text-zinc-50"
                 }`}
                 href={item.href}
               >
-                {item.label}
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
+                    {item.kicker}
+                  </p>
+                  <p className="mt-2 text-base font-semibold">{item.label}</p>
+                </div>
+                <p className="mt-3 text-sm leading-6 app-copy-soft">{item.note}</p>
               </Link>
             </li>
           );

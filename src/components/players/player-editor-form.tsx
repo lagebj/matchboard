@@ -92,11 +92,13 @@ function SelectField({
   label,
   name,
   options,
+  required = true,
 }: {
   defaultValue: string;
   label: string;
   name: string;
   options: ReadonlyArray<{ label: string; value: string }>;
+  required?: boolean;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
@@ -105,7 +107,7 @@ function SelectField({
         className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
         defaultValue={defaultValue}
         name={name}
-        required
+        required={required}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -201,12 +203,14 @@ export function PlayerEditorForm({
           label="Secondary Position"
           name="secondaryPosition"
           options={optionalPlayerPositionOptions}
+          required={false}
         />
         <SelectField
           defaultValue={player?.tertiaryPosition ?? ""}
           label="Tertiary Position"
           name="tertiaryPosition"
           options={optionalPlayerPositionOptions}
+          required={false}
         />
 
         <SelectField

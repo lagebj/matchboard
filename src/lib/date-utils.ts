@@ -11,6 +11,33 @@ export function formatShortDate(date: Date): string {
   }).format(date);
 }
 
+function getIsoWeekParts(date: Date): { week: number; year: number } {
+  const isoDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const weekday = isoDate.getUTCDay() || 7;
+
+  isoDate.setUTCDate(isoDate.getUTCDate() + 4 - weekday);
+
+  const year = isoDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const dayOffset = Math.floor((isoDate.getTime() - yearStart.getTime()) / (24 * 60 * 60 * 1000));
+  const week = Math.ceil((dayOffset + 1) / 7);
+
+  return {
+    week,
+    year,
+  };
+}
+
+export function formatIsoWeekLabel(date: Date): string {
+  const { week, year } = getIsoWeekParts(date);
+  return `W${String(week).padStart(2, "0")} ${year}`;
+}
+
+export function getIsoWeekSortValue(date: Date): number {
+  const { week, year } = getIsoWeekParts(date);
+  return year * 100 + week;
+}
+
 export function getTodayDateInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
