@@ -718,8 +718,8 @@ export function SelectionBuilder({
               <p className="text-sm font-semibold text-zinc-100">Rebuild the wider draft picture</p>
               <p className="mt-2 text-sm leading-6 app-copy-soft">
                 When you save manual changes, other draft matches are recalculated around this saved
-                state. Use a manual recalc here when you want a fresh engine pass without touching
-                the finalized history.
+                state. Use a manual recalc here when you want a fresh engine pass that still checks
+                every other saved draft and finalized match before it writes the new draft.
               </p>
               <form action={recalculateAction} className="mt-4">
                 <button
@@ -1063,7 +1063,8 @@ export function SelectionBuilder({
               <p className="max-w-3xl text-sm leading-6 app-copy-soft">
                 Confirm the final player list, adjust roles where needed, and leave a short note if
                 the saved squad differs from the engine recommendation. Saving here also refreshes
-                the remaining draft matches around this saved state.
+                the remaining draft matches around this saved state, with the wider saved draft and
+                finalized board taken into account.
               </p>
             </div>
 

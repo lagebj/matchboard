@@ -33,6 +33,7 @@ type MatchRow = {
 
 type MatchTableProps = {
   matches: MatchRow[];
+  recalculateMatchesAction: (formData: FormData) => Promise<void>;
 };
 
 function formatSelectionStatus(status: MatchRow["latestSelectionStatus"]) {
@@ -61,6 +62,7 @@ function getSelectionPillClassName(status: MatchRow["latestSelectionStatus"]) {
 
 export function MatchTable({
   matches,
+  recalculateMatchesAction,
 }: MatchTableProps) {
   const [sortKey, setSortKey] = useState("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -148,6 +150,37 @@ export function MatchTable({
           <p className="mt-2 text-sm app-copy-soft">Locked for context.</p>
         </div>
       </div>
+
+      <div className="flex flex-col gap-3 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-zinc-100">Draft recalculation</p>
+          <p className="mt-1 text-sm app-copy-soft">
+            Every recalculation checks the rest of the saved draft and finalized board before it writes new draft work.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <form action={recalculateMatchesAction}>
+            <input name="scope" type="hidden" value="all" />
+            <button
+              className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+              type="submit"
+            >
+              Recalculate all draft matches
+            </button>
+          </form>
+          <button
+            className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
+            form="recalculate-matches"
+            name="scope"
+            type="submit"
+            value="selected"
+          >
+            Recalculate selected drafts
+          </button>
+        </div>
+      </div>
+
+      <form action={recalculateMatchesAction} id="recalculate-matches" />
 
       <div className="overflow-hidden rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
         <table className="w-full min-w-[1100px] border-collapse text-left text-sm">

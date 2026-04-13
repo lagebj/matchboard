@@ -1,8 +1,10 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { MovementOverview, type MovementOverviewRow } from "@/components/history/movement-overview";
 import { HistoryTable, type PlayerHistoryRow } from "@/components/history/history-table";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
+import { isSelectionMovementRow } from "@/lib/selection/get-selection-movement";
 
 function formatPatternRole(roleType: SelectionRole): string {
   return formatSelectionRole(roleType);
@@ -17,7 +19,7 @@ function formatPatternDate(matchDate: Date): string {
 }
 
 export default async function HistoryPage() {
-  const [players, finalizedSelectionPlayers] = await Promise.all([
+  const [players, selectionPlayers] = await Promise.all([
     db.player.findMany({
       where: {
         removedAt: null,
@@ -43,21 +45,33 @@ export default async function HistoryPage() {
     db.matchSelectionPlayer.findMany({
       where: {
         wasManuallyRemoved: false,
-        selection: {
-          status: SelectionStatus.FINALIZED,
-        },
       },
       select: {
         explanation: true,
+        player: {
+          select: {
+            firstName: true,
+            id: true,
+            lastName: true,
+          },
+        },
         playerId: true,
         roleType: true,
         sourceTeamNameSnapshot: true,
         targetTeamNameSnapshot: true,
         selection: {
           select: {
+            matchId: true,
+            status: true,
             match: {
               select: {
+                opponent: true,
                 startsAt: true,
+                targetTeam: {
+                  select: {
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -88,8 +102,11 @@ export default async function HistoryPage() {
       totalFinalizedAppearances: number;
     }
   >();
+  const playerCoreTeamNameById = new Map(players.map((player) => [player.id, player.coreTeam.name]));
 
-  for (const selectionPlayer of finalizedSelectionPlayers) {
+  for (const selectionPlayer of selectionPlayers.filter(
+    (row) => row.selection.status === SelectionStatus.FINALIZED,
+  )) {
     const existingHistory = finalizedHistoryByPlayerId.get(selectionPlayer.playerId) ?? {
       coreTeamAppearances: 0,
       floatCount: 0,
@@ -170,6 +187,65 @@ export default async function HistoryPage() {
         (right.latestMovementDate?.getTime() ?? 0) - (left.latestMovementDate?.getTime() ?? 0),
     )
     .slice(0, 6);
+  const movementOverviewByPlayerId = [...selectionPlayers]
+    .filter((row) =>
+      isSelectionMovementRow({
+        roleType: row.roleType,
+        sourceTeamNameSnapshot: row.sourceTeamNameSnapshot,
+        targetTeamNameSnapshot: row.targetTeamNameSnapshot,
+      }),
+    )
+    .reduce<Map<string, MovementOverviewRow>>((movementByPlayerId, selectionPlayer) => {
+      const playerName = selectionPlayer.player.lastName
+        ? `${selectionPlayer.player.firstName} ${selectionPlayer.player.lastName}`
+        : selectionPlayer.player.firstName;
+      const existingRow = movementByPlayerId.get(selectionPlayer.playerId) ?? {
+        coreTeamName:
+          playerCoreTeamNameById.get(selectionPlayer.playerId) ??
+          selectionPlayer.sourceTeamNameSnapshot,
+        draftMovementCount: 0,
+        finalizedMovementCount: 0,
+        movementCount: 0,
+        movements: [],
+        playerId: selectionPlayer.playerId,
+        playerName,
+      };
+
+      existingRow.movementCount += 1;
+
+      if (selectionPlayer.selection.status === SelectionStatus.FINALIZED) {
+        existingRow.finalizedMovementCount += 1;
+      } else {
+        existingRow.draftMovementCount += 1;
+      }
+
+      existingRow.movements.push({
+        explanation: selectionPlayer.explanation?.trim() || "No saved explanation for this movement.",
+        matchId: selectionPlayer.selection.matchId,
+        matchLabel: `${selectionPlayer.selection.match.targetTeam.name} vs. ${selectionPlayer.selection.match.opponent}`,
+        roleType: selectionPlayer.roleType,
+        sourceTeamName: selectionPlayer.sourceTeamNameSnapshot,
+        startsAt: selectionPlayer.selection.match.startsAt,
+        status: selectionPlayer.selection.status,
+        targetTeamName: selectionPlayer.targetTeamNameSnapshot,
+      });
+
+      movementByPlayerId.set(selectionPlayer.playerId, existingRow);
+      return movementByPlayerId;
+    }, new Map<string, MovementOverviewRow>());
+
+  const sortedMovementOverviewRows = [...movementOverviewByPlayerId.values()]
+    .map((row) => ({
+      ...row,
+      movements: [...row.movements].sort((left, right) => right.startsAt.getTime() - left.startsAt.getTime()),
+    }))
+    .sort((left, right) => {
+      if (left.movementCount !== right.movementCount) {
+        return right.movementCount - left.movementCount;
+      }
+
+      return left.playerName.localeCompare(right.playerName);
+    });
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -311,6 +387,8 @@ export default async function HistoryPage() {
           </div>
         </section>
       </section>
+
+      <MovementOverview rows={sortedMovementOverviewRows} />
 
       <section className="app-panel rounded-[1.75rem] p-6">
         <HistoryTable rows={rows} />
