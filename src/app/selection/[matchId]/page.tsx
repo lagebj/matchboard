@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { SelectionBuilder } from "@/components/selection/selection-builder";
 import { db } from "@/lib/db";
+import { isInSameWeek } from "@/lib/date-utils";
 import { generateSelection } from "@/lib/selection/generate-selection";
+import { getWeeklyPlayerCoverage } from "@/lib/selection/get-weekly-player-coverage";
 
 type SelectionPageProps = {
   params: Promise<{
@@ -63,13 +65,23 @@ export default async function SelectionPage({
 
   const shouldShowGeneratedSelection = generated === "1";
 
-  const [players, teams, latestSelection, orderedMatchIds] = await Promise.all([
+  const [players, teams, latestSelection, orderedMatches, selectionSnapshots] = await Promise.all([
     db.player.findMany({
       where: {
         active: true,
         removedAt: null,
       },
       include: {
+        allowedFloatTeams: {
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         coreTeam: {
           select: {
             id: true,
@@ -126,12 +138,33 @@ export default async function SelectionPage({
       ],
     }),
     db.match.findMany({
-      select: {
-        id: true,
+      include: {
+        targetTeam: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: [
         { startsAt: "desc" },
         { createdAt: "desc" },
+      ],
+    }),
+    db.matchSelection.findMany({
+      include: {
+        players: {
+          where: {
+            wasManuallyRemoved: false,
+          },
+          select: {
+            playerId: true,
+          },
+        },
+      },
+      orderBy: [
+        { createdAt: "desc" },
+        { finalizedAt: "desc" },
       ],
     }),
   ]);
@@ -159,13 +192,55 @@ export default async function SelectionPage({
     team,
     players: players.filter((player) => player.coreTeamId === team.id),
   }));
-  const matchOrder = orderedMatchIds.map((entry) => entry.id);
+  const latestSelectionSnapshotByMatchId = new Map<string, (typeof selectionSnapshots)[number]>();
+
+  for (const selectionSnapshot of selectionSnapshots) {
+    if (!latestSelectionSnapshotByMatchId.has(selectionSnapshot.matchId)) {
+      latestSelectionSnapshotByMatchId.set(selectionSnapshot.matchId, selectionSnapshot);
+    }
+  }
+
+  const matchOrder = orderedMatches.map((entry) => entry.id);
   const currentMatchIndex = matchOrder.indexOf(match.id);
   const previousMatchId =
     currentMatchIndex >= 0 && currentMatchIndex < matchOrder.length - 1
       ? matchOrder[currentMatchIndex + 1]
       : null;
   const nextMatchId = currentMatchIndex > 0 ? matchOrder[currentMatchIndex - 1] : null;
+  const sameWeekMatches = orderedMatches
+    .filter((registeredMatch) => isInSameWeek(match.startsAt, registeredMatch.startsAt))
+    .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime())
+    .map((registeredMatch) => ({
+      id: registeredMatch.id,
+      latestSelectionStatus:
+        latestSelectionSnapshotByMatchId.get(registeredMatch.id)?.status ?? null,
+      opponent: registeredMatch.opponent,
+      startsAt: registeredMatch.startsAt,
+      targetTeam: registeredMatch.targetTeam,
+    }));
+  const selectedPlayerIdsByMatchId = new Map<string, string[]>(
+    [...latestSelectionSnapshotByMatchId.entries()].map(([savedMatchId, selectionSnapshot]) => [
+      savedMatchId,
+      selectionSnapshot.players.map((player) => player.playerId),
+    ]),
+  );
+
+  if (!latestSelection && generatedSelection) {
+    selectedPlayerIdsByMatchId.set(
+      match.id,
+      generatedSelection.selectedPlayers.map((player) => player.playerId),
+    );
+  }
+
+  const weeklyCoverage = getWeeklyPlayerCoverage(
+    players,
+    sameWeekMatches.map((sameWeekMatch) => ({
+      id: sameWeekMatch.id,
+      opponent: sameWeekMatch.opponent,
+      targetTeam: sameWeekMatch.targetTeam,
+    })),
+    selectedPlayerIdsByMatchId,
+  );
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -181,7 +256,9 @@ export default async function SelectionPage({
           previousMatchId={previousMatchId}
           recalculated={recalculated === "1"}
           savedMessage={saved === "draft" || saved === "final" ? saved : undefined}
+          sameWeekMatches={sameWeekMatches}
           selectionAnalysis={selectionAnalysis}
+          weeklyCoverage={weeklyCoverage}
         />
       </div>
     </main>

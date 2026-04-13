@@ -11,6 +11,7 @@ import { MatchTable } from "@/components/matches/match-table";
 import { db } from "@/lib/db";
 import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatMatchVenue } from "@/lib/match-utils";
+import { getWeeklyPlayerCoverage } from "@/lib/selection/get-weekly-player-coverage";
 
 type MatchesPageProps = {
   searchParams: Promise<{
@@ -54,7 +55,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   } = await searchParams;
   const bulkFinalizeWarnings = finalizeWarnings?.split("\n").filter(Boolean) ?? [];
 
-  const [matches, teams, selections] = await Promise.all([
+  const [matches, teams, players, selections] = await Promise.all([
     db.match.findMany({
       include: {
         targetTeam: {
@@ -81,14 +82,55 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
         name: "asc",
       },
     }),
-    db.matchSelection.findMany({
-      select: {
-        createdAt: true,
-        finalizedAt: true,
-        matchId: true,
-        status: true,
+    db.player.findMany({
+      where: {
+        active: true,
+        removedAt: null,
       },
-      orderBy: [{ createdAt: "desc" }],
+      include: {
+        coreTeam: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        allowedFloatTeams: {
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        {
+          coreTeam: {
+            name: "asc",
+          },
+        },
+        { firstName: "asc" },
+        { lastName: "asc" },
+        { playerCode: "asc" },
+      ],
+    }),
+    db.matchSelection.findMany({
+      include: {
+        players: {
+          where: {
+            wasManuallyRemoved: false,
+          },
+          select: {
+            playerId: true,
+          },
+        },
+      },
+      orderBy: [
+        { createdAt: "desc" },
+        { finalizedAt: "desc" },
+      ],
     }),
   ]);
 
@@ -117,9 +159,33 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
     (match) => match.latestSelectionStatus === SelectionStatus.FINALIZED,
   ).length;
   const recentMatchCount = enrichedMatches.length;
+  const selectedPlayerIdsByMatchId = new Map<string, string[]>(
+    [...latestSelectionByMatchId.entries()].map(([savedMatchId, selection]) => [
+      savedMatchId,
+      selection.players.map((player) => player.playerId),
+    ]),
+  );
+  const matchesByWeekLabel = new Map(
+    groupMatchesByWeek(
+      [...enrichedMatches].sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime()),
+    ).map((week) => [week.label, week.matches]),
+  );
   const weekQueue = groupMatchesByWeek(
     [...actionableMatches].sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime()),
-  ).slice(0, 4);
+  )
+    .slice(0, 4)
+    .map((week) => ({
+      ...week,
+      coverage: getWeeklyPlayerCoverage(
+        players,
+        (matchesByWeekLabel.get(week.label) ?? week.matches).map((match) => ({
+          id: match.id,
+          opponent: match.opponent,
+          targetTeam: match.targetTeam,
+        })),
+        selectedPlayerIdsByMatchId,
+      ),
+    }));
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -270,6 +336,10 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                       <p className="mt-2 text-lg font-semibold text-zinc-50">
                         {week.matches.length} open fixture{week.matches.length === 1 ? "" : "s"}
                       </p>
+                      <p className="mt-2 text-sm app-copy-soft">
+                        {week.coverage.filter((row) => row.severity === "warning").length} warning
+                        · {week.coverage.filter((row) => row.severity === "info").length} info
+                      </p>
                     </div>
                     <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-muted">
                       {week.matches.filter((match) => match.latestSelectionStatus === SelectionStatus.DRAFT).length} draft
@@ -291,6 +361,36 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                       </Link>
                     ))}
                   </div>
+                  {week.coverage.length > 0 ? (
+                    <div className="mt-4 rounded-2xl border border-[rgba(208,176,127,0.2)] bg-[rgba(0,0,0,0.12)] px-4 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--warning)]">
+                        Week coverage
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        {week.coverage.slice(0, 3).map((row) => (
+                          <div key={row.playerId} className="text-sm">
+                            <p className="font-medium text-zinc-100">
+                              {row.playerName}
+                              <span className="ml-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
+                                {row.severity}
+                              </span>
+                            </p>
+                            <p className="mt-1 leading-6 app-copy-soft">{row.reason}</p>
+                          </div>
+                        ))}
+                        {week.coverage.length > 3 ? (
+                          <p className="text-sm app-copy-muted">
+                            {week.coverage.length - 3} more week-level player signal(s) stay visible
+                            inside the match workspaces.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border app-hairline bg-[rgba(0,0,0,0.12)] px-4 py-4 text-sm app-copy-soft">
+                      No uncovered active available players for this week.
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
