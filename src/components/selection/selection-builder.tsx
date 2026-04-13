@@ -512,6 +512,14 @@ export function SelectionBuilder({
                   <p className="app-copy-muted">Target team</p>
                   <p className="mt-1 text-zinc-100">{match.targetTeam.name}</p>
                 </div>
+                <div>
+                  <p className="app-copy-muted">Development work</p>
+                  <p className="mt-1 text-zinc-100">
+                    {match.availableForDevelopmentSlot
+                      ? `${match.targetTeam.developmentSlots} slot${match.targetTeam.developmentSlots === 1 ? "" : "s"} open`
+                      : "Closed for this match"}
+                  </p>
+                </div>
               </div>
             </div>
 

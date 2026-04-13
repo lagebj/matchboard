@@ -8,49 +8,49 @@ const navigationItems = [
     href: "/",
     kicker: "Step 1",
     label: "Coach Desk",
-    note: "Start with the next call.",
+    note: "Choose the next job.",
     stage: "Desk",
   },
   {
     href: "/matches",
     kicker: "Step 2",
     label: "Week Flow",
-    note: "Run the queue by week.",
+    note: "Work one week card at a time.",
     stage: "Queue",
   },
   {
     href: "/matches",
     kicker: "Step 3",
     label: "Match Rooms",
-    note: "Open one workspace and lock it forward.",
+    note: "Open one match and adjust the squad.",
     stage: "Work",
   },
   {
     href: "/players",
     kicker: "Registry",
     label: "Players",
-    note: "Check availability and fit.",
+    note: "Update availability and roles.",
     stage: "Setup",
   },
   {
     href: "/teams",
     kicker: "Setup",
     label: "Teams",
-    note: "Set support and development links.",
+    note: "Set support and development paths.",
     stage: "Setup",
   },
   {
     href: "/history",
     kicker: "Review",
     label: "History",
-    note: "Check load and movement.",
+    note: "Review load and movement.",
     stage: "Review",
   },
   {
     href: "/rules",
     kicker: "Controls",
     label: "Rules",
-    note: "Adjust the engine limits.",
+    note: "Adjust selection limits.",
     stage: "Controls",
   },
 ] as const;
@@ -83,7 +83,7 @@ export function AppNavigation() {
           Coach Loop
         </p>
         <p className="text-[11px] uppercase tracking-[0.18em] app-copy-muted">
-          Desk / Week flow / Match room / Support pages
+          Desk / Weekly cards / Match room / Setup and review
         </p>
       </div>
       <ul className="grid gap-2 xl:grid-cols-3">
