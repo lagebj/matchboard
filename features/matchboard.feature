@@ -1,6 +1,6 @@
-Feature: Player registry, team management, and single-match selection history
+Feature: Weekly match workflow, team fairness visibility, and single-match selection history
   This feature describes how the application maintains teams and players,
-  generates a suggested squad for one match at a time,
+  guides the coach through weekly match work one match at a time,
   applies configurable selection rules,
   and stores finalized selections as history for future decisions.
 
@@ -16,6 +16,13 @@ Feature: Player registry, team management, and single-match selection history
 
   Rule: Coach-desk workflow experience
 
+    Scenario: App behaves like an assistant manager from the first session
+      Given the coach opens the app on day 1
+      When the landing page loads
+      Then the app must explain the operating flow in plain language
+      And the app must suggest a sensible next action based on the current state of data
+      And the same guidance pattern must remain visible throughout the main workflow pages
+
     Scenario: Landing page surfaces the next decision before raw registry data
       Given matches, players, teams, and finalized history may exist in the app
       When the coach opens the landing page
@@ -26,7 +33,8 @@ Feature: Player registry, team management, and single-match selection history
     Scenario: Overview pages show workflow context before deep tables or forms
       Given the coach opens an overview page such as players, teams, matches, history, or rules
       When the page loads
-      Then the page must show summary signals and next-action guidance before the main table or form
+      Then the page must show one compact workflow summary and next-action guidance before the main table or form
+      And the page must avoid splitting the overview into unnecessary parallel panels
       And the table or form must remain available as a secondary operational surface
 
     Scenario: Match workflow is organized around calendar weeks
@@ -35,6 +43,14 @@ Feature: Player registry, team management, and single-match selection history
       Then the app must group operational match work by calendar week
       And the current week must be readable before the coach scans the deeper match ledger
       And week-level warnings and informational signals must be visible without opening every match
+
+    Scenario: Coach desk highlights fairness deviations inside each team
+      Given saved draft or finalized selections exist across one or more teams
+      When the coach opens the landing page
+      Then the coach desk must clearly identify any player with fewer saved match involvements than another player in the same core team
+      And the comparison must count core, support, development, and other floating appearances together
+      And players marked as allowed to drop a core match may be excluded from the fairness warning list
+      And the desk must keep the affected team visible without requiring the coach to open history first
 
     Scenario: App navigation keeps the operating loop visible
       Given the coach is moving between pages in the app
@@ -106,6 +122,14 @@ Feature: Player registry, team management, and single-match selection history
       When the coach opens the player's page
       Then the app must show that player's full profile on an individual player page
       And the coach must be able to review and edit the player's stored details there
+
+    Scenario: Player detail page shows current match involvement at a glance
+      Given a player exists in the player registry
+      And the player is involved in one or more saved draft or finalized selections
+      When the coach opens the player's page
+      Then the page must show a compact overview of that player's match involvement
+      And the overview must include both draft and finalized selections
+      And the coach must be able to tell quickly which matches are still drafts and which are finalized
 
     Scenario: Player code is generated automatically
       When the coach creates a player
@@ -457,8 +481,16 @@ Feature: Player registry, team management, and single-match selection history
       And generated or saved selection data exists for that week
       When the coach reviews the match selection screen
       Then the app must show an early week-level section before the detailed selection tables
+      And the section must show one readable column or lane per match in that week
       And the section must identify active available players who are not currently included in any match that week
       And each uncovered player must show whether the state is a warning or informational
+
+    Scenario: Match selection screen marks fully finalized weeks clearly
+      Given one or more matches exist in the same calendar week as the current match
+      When the coach reviews the week workflow section
+      Then the app must clearly show whether that week is fully finalized
+      And a week must count as fully finalized only when every match in that week is finalized
+      And partially finalized weeks must remain visibly in progress
 
     Scenario: Weekly uncovered player without core-match-drop permission is warned early
       Given an active available player is not included in any current saved or generated match selection in that calendar week
@@ -602,6 +634,13 @@ Feature: Player registry, team management, and single-match selection history
       And any non-finalized match with unfilled slots must remain non-finalized
       And the overview must show a warning that explains which matches need attention and why they were not finalized
 
+    Scenario: Batch work from the overview is performed week by week
+      Given registered matches exist in more than one calendar week
+      When the coach uses bulk actions from the match overview
+      Then the overview must present those actions within weekly workflow groups
+      And the coach must not need to treat the whole fixture list as one undifferentiated batch
+      And the UI must keep the currently active week readable while deeper weeks stay secondary
+
     Scenario: Match overview shows current saved-selection state
       Given matches exist in the match overview
       When the coach reviews the match list
@@ -612,6 +651,12 @@ Feature: Player registry, team management, and single-match selection history
       When the coach reviews the match list
       Then each match must show the match date's calendar week number
       And the week number must be visible without opening the match detail page
+
+    Scenario: Match overview marks finalized weeks clearly
+      Given matches exist in the match overview
+      When the coach reviews the weekly grouping
+      Then each calendar week must show whether it is fully finalized or still in progress
+      And a week must only be marked finalized when all matches in that week are finalized
 
     Scenario: Match overview rows can open selection detail directly
       Given matches exist in the match overview

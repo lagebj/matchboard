@@ -32,10 +32,7 @@ type MatchRow = {
 };
 
 type MatchTableProps = {
-  finalizeAllAction: () => Promise<void>;
-  markAllDraftAction: () => Promise<void>;
   matches: MatchRow[];
-  recalculateAction: (formData: FormData) => Promise<void>;
 };
 
 function formatSelectionStatus(status: MatchRow["latestSelectionStatus"]) {
@@ -63,10 +60,7 @@ function getSelectionPillClassName(status: MatchRow["latestSelectionStatus"]) {
 }
 
 export function MatchTable({
-  finalizeAllAction,
-  markAllDraftAction,
   matches,
-  recalculateAction,
 }: MatchTableProps) {
   const [sortKey, setSortKey] = useState("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -117,54 +111,18 @@ export function MatchTable({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+      <div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Match Board
+            Full Ledger
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-50">
-            Review the queue before opening a workspace
+            Deeper table for sorting and cleanup
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-7 app-copy-soft">
-            Sort the board, pick draft-eligible rows for recalculation, and use the status lane to
-            decide whether to resume a draft or start a new selection.
+            Use this after the weekly cards. It stays available for sorting, row-level opening, and
+            deeper cleanup, but it is no longer the primary batch workflow surface.
           </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <form action={markAllDraftAction}>
-            <button
-              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-              type="submit"
-            >
-              Mark all as draft
-            </button>
-          </form>
-          <form action={recalculateAction} className="flex flex-wrap gap-2" id="recalculate-matches">
-            <button
-              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-              formAction={finalizeAllAction}
-              type="submit"
-            >
-              Finalize all ready matches
-            </button>
-            <button
-              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-              name="scope"
-              type="submit"
-              value="selected"
-            >
-              Recalculate selected
-            </button>
-            <button
-              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-              name="scope"
-              type="submit"
-              value="all"
-            >
-              Recalculate all drafts
-            </button>
-          </form>
         </div>
       </div>
 

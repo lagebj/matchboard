@@ -55,6 +55,7 @@ type SelectionBuilderProps = {
   errorMessage?: string;
   generatedSelection: GeneratedSelection | null;
   groupedPlayers: PlayerGroup[];
+  isWeekFullyFinalized: boolean;
   latestSelection: SelectionWithPlayers | null;
   match: MatchWithTeam;
   nextMatchId: string | null;
@@ -222,6 +223,7 @@ export function SelectionBuilder({
   errorMessage,
   generatedSelection,
   groupedPlayers,
+  isWeekFullyFinalized,
   latestSelection,
   match,
   nextMatchId,
@@ -540,50 +542,65 @@ export function SelectionBuilder({
 
       <section id="week-coverage" className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <section className="app-panel rounded-[1.5rem] p-5">
-          <div className="flex flex-col gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Week Workflow
-            </p>
-            <h2 className="text-xl font-semibold text-zinc-50">Keep the whole week in view</h2>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                  Week Workflow
+                </p>
+                <h2 className="text-xl font-semibold text-zinc-50">Keep the whole week in view</h2>
+              </div>
+              <span
+                className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                  isWeekFullyFinalized
+                    ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                    : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+                }`}
+              >
+                {isWeekFullyFinalized ? "Week finalized" : "Week in progress"}
+              </span>
+            </div>
             <p className="text-sm leading-6 app-copy-soft">
-              Use the week board to see what is already drafted, what is finalized, and where
-              uncovered players still need attention before you dive into deeper tables.
+              Read one lane per match so the whole week stays visible before you move into detailed
+              selection tables.
             </p>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {sameWeekMatches.map((sameWeekMatch) => (
-              <div
-                key={sameWeekMatch.id}
-                className={`rounded-2xl border px-4 py-4 ${
-                  sameWeekMatch.id === match.id
-                    ? "border-[var(--border-strong)] bg-[rgba(140,167,146,0.1)]"
-                    : "app-hairline bg-[rgba(255,255,255,0.025)]"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-100">
-                      {sameWeekMatch.targetTeam.name} vs. {sameWeekMatch.opponent}
-                    </p>
-                    <p className="mt-1 text-sm app-copy-soft">{formatDate(sameWeekMatch.startsAt)}</p>
+          <div className="mt-4 overflow-x-auto">
+            <div className="flex min-w-full gap-3">
+              {sameWeekMatches.map((sameWeekMatch) => (
+                <div
+                  key={sameWeekMatch.id}
+                  className={`min-w-[15rem] flex-1 rounded-2xl border px-4 py-4 ${
+                    sameWeekMatch.id === match.id
+                      ? "border-[var(--border-strong)] bg-[rgba(140,167,146,0.1)]"
+                      : "app-hairline bg-[rgba(255,255,255,0.025)]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-100">
+                        {sameWeekMatch.targetTeam.name} vs. {sameWeekMatch.opponent}
+                      </p>
+                      <p className="mt-1 text-sm app-copy-soft">{formatDate(sameWeekMatch.startsAt)}</p>
+                    </div>
+                    <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em] app-copy-soft">
+                      {formatWeekMatchState(sameWeekMatch.latestSelectionStatus)}
+                    </span>
                   </div>
-                  <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em] app-copy-soft">
-                    {formatWeekMatchState(sameWeekMatch.latestSelectionStatus)}
-                  </span>
+                  {sameWeekMatch.id !== match.id ? (
+                    <Link
+                      className="mt-4 inline-flex text-sm font-medium text-[var(--accent-strong)] hover:text-zinc-50"
+                      href={`/selection/${sameWeekMatch.id}`}
+                    >
+                      Open workspace
+                    </Link>
+                  ) : (
+                    <p className="mt-4 text-sm text-[var(--accent-strong)]">Current workspace</p>
+                  )}
                 </div>
-                {sameWeekMatch.id !== match.id ? (
-                  <Link
-                    className="mt-4 inline-flex text-sm font-medium text-[var(--accent-strong)] hover:text-zinc-50"
-                    href={`/selection/${sameWeekMatch.id}`}
-                  >
-                    Open workspace
-                  </Link>
-                ) : (
-                  <p className="mt-4 text-sm text-[var(--accent-strong)]">Current workspace</p>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 

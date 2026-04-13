@@ -241,6 +241,9 @@ export default async function SelectionPage({
     })),
     selectedPlayerIdsByMatchId,
   );
+  const isWeekFullyFinalized =
+    sameWeekMatches.length > 0 &&
+    sameWeekMatches.every((sameWeekMatch) => sameWeekMatch.latestSelectionStatus === "FINALIZED");
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -258,6 +261,7 @@ export default async function SelectionPage({
           savedMessage={saved === "draft" || saved === "final" ? saved : undefined}
           sameWeekMatches={sameWeekMatches}
           selectionAnalysis={selectionAnalysis}
+          isWeekFullyFinalized={isWeekFullyFinalized}
           weeklyCoverage={weeklyCoverage}
         />
       </div>
