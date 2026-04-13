@@ -40,7 +40,7 @@ function buildNextActionSummary(input: {
 }) {
   if (!input.hasTeams) {
     return {
-      body: "Start by creating the active teams so player ownership and match targets have somewhere to attach.",
+      body: "Set the teams first.",
       ctaHref: "/teams?create=1",
       ctaLabel: "Create first team",
       title: "Set up the team registry",
@@ -49,7 +49,7 @@ function buildNextActionSummary(input: {
 
   if (!input.hasPlayers) {
     return {
-      body: "Build the player registry next. Availability, positions, and floating permissions need to exist before the queue becomes useful.",
+      body: "Build the player group next.",
       ctaHref: "/players?create=1",
       ctaLabel: "Create first player",
       title: "Build the player registry",
@@ -58,7 +58,7 @@ function buildNextActionSummary(input: {
 
   if (!input.hasMatches) {
     return {
-      body: "The registry is ready. Create the first match so the assistant can move you into the weekly workflow.",
+      body: "The group is ready. Put the first match on the board.",
       ctaHref: "/matches?create=1",
       ctaLabel: "Create first match",
       title: "Create the first week workspace",
@@ -67,7 +67,7 @@ function buildNextActionSummary(input: {
 
   if (input.nextActionMatch) {
     return {
-      body: "Open the next unresolved workspace, then use the weekly board and fairness watch to spot deviations before finalizing.",
+      body: "Open the next unresolved match and keep the week in view.",
       ctaHref: `/selection/${input.nextActionMatch.id}`,
       ctaLabel: "Open next workspace",
       title: "Work the next unresolved match",
@@ -75,7 +75,7 @@ function buildNextActionSummary(input: {
   }
 
   return {
-    body: "Every saved match is finalized. Review fairness or recent history before the next week starts.",
+    body: "Everything is locked. Review fairness or history before the next week starts.",
     ctaHref: "/history",
     ctaLabel: "Review history",
     title: "Review the locked rotation story",
@@ -220,10 +220,8 @@ export default async function HomePage() {
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
               Work the week, spot fairness drift, then lock decisions forward.
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 app-copy-soft sm:text-base">
-              This desk should guide the whole operating loop from day 1. It suggests the next
-              move, keeps the live week readable, and surfaces team deviations before you disappear
-              into tables.
+            <p className="mt-4 max-w-3xl text-sm app-copy-soft sm:text-base">
+              Next call first. The week and the fairness gaps stay nearby.
             </p>
 
             <div className="mt-6 rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.03)] p-5">
@@ -231,7 +229,7 @@ export default async function HomePage() {
                 Suggested next action
               </p>
               <p className="mt-3 text-2xl font-semibold text-zinc-50">{nextActionSummary.title}</p>
-              <p className="mt-3 max-w-2xl text-sm leading-7 app-copy-soft">{nextActionSummary.body}</p>
+              <p className="mt-3 max-w-2xl text-sm app-copy-soft">{nextActionSummary.body}</p>
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link
@@ -378,9 +376,8 @@ export default async function HomePage() {
               Fairness Watch
             </p>
             <h2 className="mt-2 text-xl font-semibold text-zinc-50">Teams with saved match deviations</h2>
-            <p className="mt-2 text-sm leading-6 app-copy-soft">
-              Counts combine core, support, development, and other floating appearances from the
-              current saved draft or finalized picture.
+            <p className="mt-2 text-sm app-copy-soft">
+              Counts include core and floating work together.
             </p>
           </div>
 
