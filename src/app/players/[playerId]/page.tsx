@@ -75,7 +75,7 @@ function RoleBreakdownCard({ count, label }: RoleBreakdownCardProps) {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementRows] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots] = await Promise.all([
     db.player.findFirst({
       where: {
         id: playerId,
@@ -169,44 +169,42 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         },
       ],
     }),
-    db.matchSelectionPlayer.findMany({
-      where: {
-        playerId,
-        wasManuallyRemoved: false,
-      },
+    db.matchSelection.findMany({
       select: {
-        explanation: true,
-        roleType: true,
-        selection: {
+        createdAt: true,
+        finalizedAt: true,
+        id: true,
+        match: {
           select: {
-            createdAt: true,
-            finalizedAt: true,
-            match: {
+            id: true,
+            opponent: true,
+            startsAt: true,
+            targetTeam: {
               select: {
-                id: true,
-                opponent: true,
-                startsAt: true,
-                targetTeam: {
-                  select: {
-                    name: true,
-                  },
-                },
+                name: true,
               },
             },
-            status: true,
           },
         },
+        matchId: true,
+        players: {
+          where: {
+            playerId,
+            wasManuallyRemoved: false,
+          },
+          select: {
+            explanation: true,
+            roleType: true,
+          },
+        },
+        status: true,
       },
       orderBy: [
         {
-          selection: {
-            createdAt: "desc",
-          },
+          createdAt: "desc",
         },
         {
-          selection: {
-            finalizedAt: "desc",
-          },
+          finalizedAt: "desc",
         },
       ],
     }),
@@ -239,7 +237,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const floatAppearances = formatRoleCount(finalizedHistory, SelectionRole.FLOAT);
   const lastFinalizedAppearance = finalizedHistory[0] ?? null;
   const availableFloatTeams = player.allowedFloatTeams.map((entry) => entry.team.name).join(", ");
-  const savedInvolvement = getPlayerSelectionInvolvement(savedInvolvementRows);
+  const savedInvolvement = getPlayerSelectionInvolvement(savedInvolvementSnapshots);
   const draftInvolvement = savedInvolvement
     .filter((entry) => entry.status === SelectionStatus.DRAFT)
     .sort((left, right) => left.matchStartsAt.getTime() - right.matchStartsAt.getTime());
@@ -247,6 +245,13 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
     .filter((entry) => entry.status === SelectionStatus.FINALIZED)
     .sort((left, right) => right.matchStartsAt.getTime() - left.matchStartsAt.getTime());
   const involvementPreview = [...draftInvolvement, ...finalizedInvolvement];
+  const nextFixture = involvementPreview[0] ?? null;
+  const currentSelectionMessage =
+    nextFixture === null
+      ? "No current saved assignment exists for this player."
+      : nextFixture.status === SelectionStatus.DRAFT
+        ? `Next saved touchpoint is a draft on ${formatDate(nextFixture.matchStartsAt)} for ${nextFixture.targetTeamName}.`
+        : `Latest locked touchpoint is ${formatDate(nextFixture.matchStartsAt)} for ${nextFixture.targetTeamName}.`;
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -402,9 +407,13 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
           <section className="app-panel rounded-[1.6rem] p-5">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                Selection Context
+                Selection Desk
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Match involvement at a glance</h2>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Current saved match picture</h2>
+              <p className="mt-2 text-sm app-copy-soft">
+                This lane shows only the latest saved snapshot for each match, so superseded drafts and
+                older saved states stay out of the conversation.
+              </p>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -414,65 +423,87 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             </div>
 
             <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-sm font-semibold text-zinc-100">Role totals in locked history</p>
-              <p className="mt-2 text-sm app-copy-soft">
-                {totalFinalizedAppearances} finalized appearance{totalFinalizedAppearances === 1 ? "" : "s"} ·{" "}
-                {coreAppearances} core · {supportAppearances} support · {developmentAppearances} development ·{" "}
-                {floatAppearances} float.
-              </p>
+              <p className="text-sm font-semibold text-zinc-100">Assistant note</p>
+              <p className="mt-2 text-sm app-copy-soft">{currentSelectionMessage}</p>
             </div>
 
-            <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-sm font-semibold text-zinc-100">Current involvement overview</p>
-              {involvementPreview.length > 0 ? (
-                <div className="mt-3 flex max-h-[34rem] flex-col gap-3 overflow-y-auto pr-1">
-                  {involvementPreview.map((entry) => (
-                    <div
-                      key={`${entry.matchId}-${entry.status}`}
-                      className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <Link
-                          className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
-                          href={`/selection/${entry.matchId}`}
-                        >
-                          {formatDate(entry.matchStartsAt)} · {entry.targetTeamName}
-                        </Link>
-                        <span
-                          className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                            entry.status === SelectionStatus.FINALIZED
-                              ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
-                              : "border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
-                          }`}
-                        >
-                          {entry.status === SelectionStatus.FINALIZED ? "Finalized" : "Draft"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {entry.opponent} · {formatSelectionRole(entry.roleType)}
-                      </p>
-                      {entry.explanation ? (
-                        <p className="mt-2 text-sm app-copy-soft">{entry.explanation}</p>
-                      ) : null}
-                    </div>
-                  ))}
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-zinc-100">Current involvement overview</p>
+                  <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em] app-copy-soft">
+                    Latest snapshot only
+                  </span>
                 </div>
-              ) : (
-                <p className="mt-2 text-sm app-copy-soft">No saved draft or finalized match involvement recorded yet.</p>
-              )}
+                {involvementPreview.length > 0 ? (
+                  <div className="mt-3 flex max-h-[34rem] flex-col gap-3 overflow-y-auto pr-1">
+                    {involvementPreview.map((entry) => (
+                      <div
+                        key={`${entry.matchId}-${entry.selectionCreatedAt.toISOString()}`}
+                        className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <Link
+                            className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
+                            href={`/selection/${entry.matchId}`}
+                          >
+                            {formatDate(entry.matchStartsAt)} · {entry.targetTeamName}
+                          </Link>
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                              entry.status === SelectionStatus.FINALIZED
+                                ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                                : "border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+                            }`}
+                          >
+                            {entry.status === SelectionStatus.FINALIZED ? "Finalized" : "Draft"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm app-copy-soft">
+                          {entry.opponent} · {formatSelectionRole(entry.roleType)}
+                        </p>
+                        {entry.explanation ? (
+                          <p className="mt-2 text-sm app-copy-soft">{entry.explanation}</p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm app-copy-soft">
+                    No saved draft or finalized match involvement recorded yet.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <p className="text-sm font-semibold text-zinc-100">Locked history snapshot</p>
+                <p className="mt-2 text-sm app-copy-soft">
+                  {totalFinalizedAppearances} finalized appearance{totalFinalizedAppearances === 1 ? "" : "s"} ·{" "}
+                  {coreAppearances} core · {supportAppearances} support · {developmentAppearances} development ·{" "}
+                  {floatAppearances} float.
+                </p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <SnapshotCard
+                    label="Latest locked match"
+                    value={
+                      lastFinalizedAppearance
+                        ? `${formatDate(lastFinalizedAppearance.selection.match.startsAt)} · ${lastFinalizedAppearance.targetTeamNameSnapshot}`
+                        : "No finalized appearance history yet"
+                    }
+                  />
+                  <SnapshotCard
+                    label="Floating in locked history"
+                    value={String(totalFloatingAppearances)}
+                  />
+                </div>
+
+                <p className="mt-4 text-sm app-copy-soft">
+                  Use this panel for long-term load, and use the current involvement lane for what is saved right now.
+                </p>
+              </div>
             </div>
 
-            <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-sm font-semibold text-zinc-100">Latest finalized appearance</p>
-              <p className="mt-2 text-sm app-copy-soft">
-                {lastFinalizedAppearance
-                  ? `${formatDate(lastFinalizedAppearance.selection.match.startsAt)} · ${lastFinalizedAppearance.targetTeamNameSnapshot} vs. ${lastFinalizedAppearance.selection.match.opponent} · ${formatSelectionRole(lastFinalizedAppearance.roleType)}`
-                  : "No finalized appearance history yet."}
-              </p>
-              <p className="mt-3 text-sm app-copy-soft">
-                Floating history in locked matches: {totalFloatingAppearances}.
-              </p>
-            </div>
           </section>
         </section>
 
