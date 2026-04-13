@@ -6,6 +6,7 @@ import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { generateSelection } from "@/lib/selection/generate-selection";
+import { refreshDraftSelections } from "@/lib/selection/refresh-draft-selection";
 import { createGeneratedDraftSelection } from "@/lib/selection/save-generated-draft";
 
 type SelectionPlayerWriteInput = {
@@ -359,6 +360,30 @@ export async function saveManualSelectionAction(matchId: string, formData: FormD
       status,
       selectionPlayers,
       overrideNotes || null,
+    );
+
+    const draftMatchesToRefresh = await db.match.findMany({
+      where: {
+        id: {
+          not: match.id,
+        },
+      },
+      include: {
+        selections: {
+          select: {
+            status: true,
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 1,
+        },
+      },
+      orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
+    });
+
+    await refreshDraftSelections(
+      draftMatchesToRefresh
+        .filter((draftMatch) => draftMatch.selections[0]?.status !== SelectionStatus.FINALIZED)
+        .map((draftMatch) => draftMatch.id),
     );
   } catch (error) {
     redirect(

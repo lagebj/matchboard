@@ -29,11 +29,19 @@ Feature: Player registry, team management, and single-match selection history
       Then the page must show summary signals and next-action guidance before the main table or form
       And the table or form must remain available as a secondary operational surface
 
+    Scenario: Match workflow is organized around calendar weeks
+      Given one or more registered matches exist
+      When the coach works the match workflow
+      Then the app must group operational match work by calendar week
+      And the current week must be readable before the coach scans the deeper match ledger
+      And week-level warnings and informational signals must be visible without opening every match
+
     Scenario: App navigation keeps the operating loop visible
       Given the coach is moving between pages in the app
       When the navigation is shown
       Then the app must keep the main operating loop visible
       And the current page must still be easy to identify within that loop
+      And the loop must stay inside the viewport without horizontal overflow
 
   Rule: Team registry
 
@@ -444,6 +452,29 @@ Feature: Player registry, team management, and single-match selection history
       Then the app must show which target-team core players are not currently picked
       And each omitted core player must show the current reason for omission in a dedicated early-visibility section
 
+    Scenario: Match selection screen shows week-level player coverage signals early
+      Given one or more matches exist in the same calendar week as the current match
+      And generated or saved selection data exists for that week
+      When the coach reviews the match selection screen
+      Then the app must show an early week-level section before the detailed selection tables
+      And the section must identify active available players who are not currently included in any match that week
+      And each uncovered player must show whether the state is a warning or informational
+
+    Scenario: Weekly uncovered player without core-match-drop permission is warned early
+      Given an active available player is not included in any current saved or generated match selection in that calendar week
+      And the player is not marked as allowed to drop one core-team match
+      When the coach reviews the week-level coverage section
+      Then that player must appear as a warning
+      And the warning must be visible before the detailed player tables
+
+    Scenario: Weekly uncovered player with core-match-drop permission is informational
+      Given an active available player is not included in any current saved or generated match selection in that calendar week
+      And the player is marked as allowed to drop one core-team match
+      When the coach reviews the week-level coverage section
+      Then that player must still be shown clearly
+      And the state may be informational instead of warning
+      And the app must explain that one dropped core-team match is allowed for that player
+
     Scenario: Saved core omissions without manual removal rows still explain the omission
       Given a saved selection exists for a match
       And one or more target-team core players are omitted without a saved manual-removal row
@@ -598,6 +629,27 @@ Feature: Player registry, team management, and single-match selection history
       When the coach recalculates that match from its detail page
       Then the app must generate a new draft selection for that match using the current rules
       And finalized selections must remain unchanged
+
+    Scenario: Saving manual draft changes recalculates all draft matches
+      Given one or more registered matches exist without a finalized selection
+      And at least one match has saved manual draft changes
+      When the coach saves manual changes on a match
+      Then the app must recalculate all current draft matches using the latest saved state
+      And finalized selections must remain unchanged
+
+    Scenario: Manual draft additions and removals are non-negotiable during recalculation
+      Given a draft selection contains manually added players or manually removed players
+      When the app recalculates draft matches
+      Then those manual additions and removals must be treated as locked inputs for that match
+      And the automatic selection engine must adapt the remaining draft matches around those locked inputs
+      And the recalculated draft for that match must preserve the manual additions and removals
+
+    Scenario: Match detail shows assistant suggestions before deeper tables
+      Given the coach opens a match selection detail page
+      When the page loads
+      Then the app must show assistant suggestions before the detailed selection tables
+      And each suggestion must explain the proposed action in plain language
+      And the coach must be able to apply or ignore the suggestion from that workflow surface
 
     Scenario: Coach can mark all saved selections as draft from the match overview
       Given one or more registered matches already have a saved selection

@@ -13,6 +13,7 @@ export async function createGeneratedDraftSelection(
       finalizedAt: null,
       players: {
         create: generatedSelection.selectedPlayers.map((player) => ({
+          chosenPosition: player.chosenPosition ?? null,
           explanation: player.selectionReason,
           playerId: player.playerId,
           roleType:

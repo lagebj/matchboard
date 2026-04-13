@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Match, MatchSelection, MatchSelectionPlayer, Player, SelectionRole, Team } from "@/generated/prisma/client";
+import type { Match, MatchSelection, MatchSelectionPlayer, Player, SelectionRole, SelectionStatus, Team } from "@/generated/prisma/client";
 import {
   acceptGeneratedSelectionAction,
   generateSuggestedSelectionAction,
@@ -14,9 +14,10 @@ import {
 } from "@/components/selection/generated-selected-table";
 import { PlayerPickList } from "@/components/selection/player-pick-list";
 import { SavedSelectionTable } from "@/components/selection/saved-selection-table";
-import { formatDate } from "@/lib/date-utils";
+import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
+import type { WeeklyCoverageRow } from "@/lib/selection/get-weekly-player-coverage";
 import type { GeneratedSelection } from "@/lib/selection/types";
 
 type PlayerGroup = {
@@ -60,7 +61,15 @@ type SelectionBuilderProps = {
   previousMatchId: string | null;
   recalculated: boolean;
   savedMessage?: string;
+  sameWeekMatches: Array<{
+    id: string;
+    latestSelectionStatus: SelectionStatus | null;
+    opponent: string;
+    startsAt: Date;
+    targetTeam: Pick<Team, "id" | "name">;
+  }>;
   selectionAnalysis: GeneratedSelection | null;
+  weeklyCoverage: WeeklyCoverageRow[];
 };
 
 type OmittedCorePlayerRow = {
@@ -105,6 +114,18 @@ function formatWarningTitle(code: string): string {
     default:
       return code.replaceAll("_", " ");
   }
+}
+
+function formatWeekMatchState(status: SelectionStatus | null): string {
+  if (status === "FINALIZED") {
+    return "Finalized";
+  }
+
+  if (status === "DRAFT") {
+    return "Draft";
+  }
+
+  return "Not started";
 }
 
 function buildSavedOmissionExplanation(
@@ -207,7 +228,9 @@ export function SelectionBuilder({
   previousMatchId,
   recalculated,
   savedMessage,
+  sameWeekMatches,
   selectionAnalysis,
+  weeklyCoverage,
 }: SelectionBuilderProps) {
   const acceptGeneratedAction = acceptGeneratedSelectionAction.bind(null, match.id);
   const generateAction = generateSuggestedSelectionAction.bind(null, match.id);
@@ -226,10 +249,10 @@ export function SelectionBuilder({
   const supportSourceTeams = match.targetTeam.supportTargetRelationships.map(
     (relationship) => relationship.sourceTeam.name,
   );
-  const developmentSourceTeams = match.targetTeam.developmentTargetRelationships.map(
-    (relationship) => relationship.sourceTeam.name,
-  );
   const savedSelectionGap = match.squadSize - activeSavedPlayers.length;
+  const weeklyWarningCount = weeklyCoverage.filter((row) => row.severity === "warning").length;
+  const weeklyInfoCount = weeklyCoverage.length - weeklyWarningCount;
+  const weekLabel = formatIsoWeekLabel(match.startsAt);
   const targetTeamPlayers =
     groupedPlayers.find((group) => group.team.id === match.targetTeamId)?.players ?? [];
   const generatedSelectedPlayerIds = new Set(
@@ -367,8 +390,8 @@ export function SelectionBuilder({
                 {match.targetTeam.name} vs. {match.opponent}
               </h1>
               <p className="mt-3 text-sm leading-7 app-copy-soft">
-                Review the decision pressure first, then adjust the squad only where the current
-                suggestion or saved draft needs intervention.
+                Work the current calendar week first, then decide whether this match needs a fresh
+                engine pass, a manual correction, or a final lock.
               </p>
             </div>
 
@@ -401,6 +424,16 @@ export function SelectionBuilder({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Week
+              </p>
+              <p className="mt-2 text-lg font-semibold text-zinc-50">{weekLabel}</p>
+              <p className="mt-2 text-sm app-copy-soft">
+                {sameWeekMatches.length} registered fixture{sameWeekMatches.length === 1 ? "" : "s"} in
+                this operating window.
+              </p>
+            </div>
+            <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
                 Match State
               </p>
               <p className="mt-2 text-lg font-semibold text-zinc-50">{latestSelectionStateLabel}</p>
@@ -423,26 +456,15 @@ export function SelectionBuilder({
             </div>
             <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                Support Plan
+                Week Coverage
               </p>
               <p className="mt-2 text-lg font-semibold text-zinc-50">
-                {match.targetTeam.minSupportPlayers} minimum
+                {weeklyWarningCount} warning{weeklyWarningCount === 1 ? "" : "s"}
               </p>
               <p className="mt-2 text-sm app-copy-soft">
-                {supportSourceTeams.length > 0 ? supportSourceTeams.join(", ") : "No configured support sources."}
-              </p>
-            </div>
-            <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                Development Plan
-              </p>
-              <p className="mt-2 text-lg font-semibold text-zinc-50">
-                {match.targetTeam.developmentSlots} slot(s)
-              </p>
-              <p className="mt-2 text-sm app-copy-soft">
-                {developmentSourceTeams.length > 0
-                  ? developmentSourceTeams.join(", ")
-                  : "No configured development sources."}
+                {weeklyInfoCount > 0
+                  ? `${weeklyInfoCount} informational uncovered player signal(s) also exist.`
+                  : "Every currently eligible player is placed in at least one saved or generated match this week."}
               </p>
             </div>
           </div>
@@ -515,6 +537,205 @@ export function SelectionBuilder({
           Draft selection recalculated for this match.
         </div>
       ) : null}
+
+      <section id="week-coverage" className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <section className="app-panel rounded-[1.5rem] p-5">
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Week Workflow
+            </p>
+            <h2 className="text-xl font-semibold text-zinc-50">Keep the whole week in view</h2>
+            <p className="text-sm leading-6 app-copy-soft">
+              Use the week board to see what is already drafted, what is finalized, and where
+              uncovered players still need attention before you dive into deeper tables.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {sameWeekMatches.map((sameWeekMatch) => (
+              <div
+                key={sameWeekMatch.id}
+                className={`rounded-2xl border px-4 py-4 ${
+                  sameWeekMatch.id === match.id
+                    ? "border-[var(--border-strong)] bg-[rgba(140,167,146,0.1)]"
+                    : "app-hairline bg-[rgba(255,255,255,0.025)]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-100">
+                      {sameWeekMatch.targetTeam.name} vs. {sameWeekMatch.opponent}
+                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">{formatDate(sameWeekMatch.startsAt)}</p>
+                  </div>
+                  <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em] app-copy-soft">
+                    {formatWeekMatchState(sameWeekMatch.latestSelectionStatus)}
+                  </span>
+                </div>
+                {sameWeekMatch.id !== match.id ? (
+                  <Link
+                    className="mt-4 inline-flex text-sm font-medium text-[var(--accent-strong)] hover:text-zinc-50"
+                    href={`/selection/${sameWeekMatch.id}`}
+                  >
+                    Open workspace
+                  </Link>
+                ) : (
+                  <p className="mt-4 text-sm text-[var(--accent-strong)]">Current workspace</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[1.5rem] border border-[rgba(208,176,127,0.24)] bg-[rgba(255,255,255,0.03)] p-5">
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--warning)]">
+              Week Coverage
+            </p>
+            <h2 className="text-xl font-semibold text-zinc-50">Players still missing a match this week</h2>
+            <p className="text-sm leading-6 app-copy-soft">
+              Warning rows need action. Informational rows stay visible when a one-match core drop
+              is allowed for that player.
+            </p>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3">
+            {weeklyCoverage.length > 0 ? (
+              weeklyCoverage.map((row) => (
+                <div
+                  key={row.playerId}
+                  className={`rounded-2xl border px-4 py-4 text-sm ${
+                    row.severity === "warning"
+                      ? "border-[rgba(208,176,127,0.28)] bg-[rgba(208,176,127,0.1)] text-[#f3dfc1]"
+                      : "app-hairline bg-[rgba(255,255,255,0.03)] app-copy-soft"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="font-medium text-zinc-100">{row.playerName}</p>
+                    <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
+                      {row.severity === "warning" ? "Warning" : "Info"}
+                    </span>
+                    <span className="text-xs uppercase tracking-[0.18em] app-copy-muted">
+                      {row.teamName}
+                    </span>
+                  </div>
+                  <p className="mt-2 leading-6">{row.reason}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
+                    Eligible this week: {row.eligibleMatchLabels.join(" · ")}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm app-copy-soft">
+                No uncovered active available players in this week. The current saved or generated
+                picture covers every eligible player.
+              </div>
+            )}
+          </div>
+        </section>
+      </section>
+
+      <section className="app-panel rounded-[1.5rem] p-5">
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Assistant Suggestions
+          </p>
+          <h2 className="text-xl font-semibold text-zinc-50">Suggested next actions for this workspace</h2>
+          <p className="text-sm leading-6 app-copy-soft">
+            The assistant surface should narrow the next move instead of forcing you through every
+            detail block in sequence.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+          {!generatedSelection && !latestSelection ? (
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Run a first pass</p>
+              <p className="mt-2 text-sm leading-6 app-copy-soft">
+                My suggestion is to generate a first draft before editing manually, so the week
+                pressure and omissions become visible immediately.
+              </p>
+              <form action={generateAction} className="mt-4">
+                <button
+                  className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  type="submit"
+                >
+                  Generate suggestion
+                </button>
+              </form>
+            </div>
+          ) : null}
+
+          {generatedSelection && !latestSelectionIsFinalized ? (
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Promote the current suggestion</p>
+              <p className="mt-2 text-sm leading-6 app-copy-soft">
+                If the suggestion is close enough, use it as the draft baseline and only spend
+                manual edits where the week still needs judgement.
+              </p>
+              <form action={acceptGeneratedAction} className="mt-4">
+                <button
+                  className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.07)] hover:text-zinc-50"
+                  type="submit"
+                >
+                  Use suggestion as draft
+                </button>
+              </form>
+            </div>
+          ) : null}
+
+          {weeklyWarningCount > 0 ? (
+            <div className="rounded-2xl border border-[rgba(208,176,127,0.28)] bg-[rgba(208,176,127,0.1)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Review uncovered week players</p>
+              <p className="mt-2 text-sm leading-6 text-[#f3dfc1]">
+                {weeklyWarningCount} player{weeklyWarningCount === 1 ? "" : "s"} still have no match
+                this week and are not covered by a core-drop allowance.
+              </p>
+              <Link
+                className="mt-4 inline-flex text-sm font-medium text-[#f8ead4] hover:text-zinc-50"
+                href="#week-coverage"
+              >
+                Open week coverage
+              </Link>
+            </div>
+          ) : null}
+
+          {latestSelection && !latestSelectionIsFinalized ? (
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Rebuild the wider draft picture</p>
+              <p className="mt-2 text-sm leading-6 app-copy-soft">
+                When you save manual changes, other draft matches are recalculated around this saved
+                state. Use a manual recalc here when you want a fresh engine pass without touching
+                the finalized history.
+              </p>
+              <form action={recalculateAction} className="mt-4">
+                <button
+                  className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.07)] hover:text-zinc-50"
+                  type="submit"
+                >
+                  Recalculate draft
+                </button>
+              </form>
+            </div>
+          ) : null}
+
+          {latestSelection && !latestSelectionIsFinalized && earlyWarnings.length === 0 && savedSelectionGap === 0 ? (
+            <div className="rounded-2xl border border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.1)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Ready to finalize</p>
+              <p className="mt-2 text-sm leading-6 app-copy-soft">
+                This draft currently matches squad size and has no early warning banners. Move to
+                the edit lane if you want to lock it into history now.
+              </p>
+              <Link
+                className="mt-4 inline-flex text-sm font-medium text-[var(--accent-strong)] hover:text-zinc-50"
+                href="#manual-workspace"
+              >
+                Open edit lane
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       {(earlyWarnings.length > 0 || savedOmittedCorePlayers.length > 0 || generatedOmittedCorePlayers.length > 0) ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
@@ -819,7 +1040,7 @@ export function SelectionBuilder({
           </>
         ) : null}
 
-        <section className="app-panel-raised rounded-[1.6rem] p-5">
+        <section id="manual-workspace" className="app-panel-raised rounded-[1.6rem] p-5">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
@@ -828,7 +1049,8 @@ export function SelectionBuilder({
               <h2 className="text-xl font-semibold text-zinc-50">Manual selection workspace</h2>
               <p className="max-w-3xl text-sm leading-6 app-copy-soft">
                 Confirm the final player list, adjust roles where needed, and leave a short note if
-                the saved squad differs from the engine recommendation.
+                the saved squad differs from the engine recommendation. Saving here also refreshes
+                the remaining draft matches around this saved state.
               </p>
             </div>
 

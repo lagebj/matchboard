@@ -55,7 +55,7 @@ export function AppNavigation() {
 
   return (
     <nav aria-label="Primary" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
           Coach Loop
         </p>
@@ -63,7 +63,7 @@ export function AppNavigation() {
           Desk / Queue / Registry / Review / Controls
         </p>
       </div>
-      <ul className="grid min-w-max gap-2 md:grid-cols-3 xl:grid-cols-6">
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
 
