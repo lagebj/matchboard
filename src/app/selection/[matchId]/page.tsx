@@ -3,6 +3,7 @@ import { SelectionBuilder } from "@/components/selection/selection-builder";
 import { db } from "@/lib/db";
 import { isInSameWeek } from "@/lib/date-utils";
 import { generateSelection } from "@/lib/selection/generate-selection";
+import { getLatestSelectionSnapshotByMatchId } from "@/lib/selection/get-latest-selection-snapshots";
 import { getWeeklyPlayerCoverage } from "@/lib/selection/get-weekly-player-coverage";
 
 type SelectionPageProps = {
@@ -192,13 +193,7 @@ export default async function SelectionPage({
     team,
     players: players.filter((player) => player.coreTeamId === team.id),
   }));
-  const latestSelectionSnapshotByMatchId = new Map<string, (typeof selectionSnapshots)[number]>();
-
-  for (const selectionSnapshot of selectionSnapshots) {
-    if (!latestSelectionSnapshotByMatchId.has(selectionSnapshot.matchId)) {
-      latestSelectionSnapshotByMatchId.set(selectionSnapshot.matchId, selectionSnapshot);
-    }
-  }
+  const latestSelectionSnapshotByMatchId = getLatestSelectionSnapshotByMatchId(selectionSnapshots);
 
   const matchOrder = orderedMatches.map((entry) => entry.id);
   const currentMatchIndex = matchOrder.indexOf(match.id);
