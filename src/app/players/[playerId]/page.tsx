@@ -6,6 +6,7 @@ import { PlayerEditorForm, PlayerSummaryCard } from "@/components/players/player
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
+import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
 import {
   formatAvailabilityStatus,
   formatBestSide,
@@ -74,7 +75,7 @@ function RoleBreakdownCard({ count, label }: RoleBreakdownCardProps) {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementRows] = await Promise.all([
     db.player.findFirst({
       where: {
         id: playerId,
@@ -168,6 +169,47 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         },
       ],
     }),
+    db.matchSelectionPlayer.findMany({
+      where: {
+        playerId,
+        wasManuallyRemoved: false,
+      },
+      select: {
+        explanation: true,
+        roleType: true,
+        selection: {
+          select: {
+            createdAt: true,
+            finalizedAt: true,
+            match: {
+              select: {
+                id: true,
+                opponent: true,
+                startsAt: true,
+                targetTeam: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            status: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          selection: {
+            createdAt: "desc",
+          },
+        },
+        {
+          selection: {
+            finalizedAt: "desc",
+          },
+        },
+      ],
+    }),
   ]);
 
   if (!player) {
@@ -197,6 +239,14 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const floatAppearances = formatRoleCount(finalizedHistory, SelectionRole.FLOAT);
   const lastFinalizedAppearance = finalizedHistory[0] ?? null;
   const availableFloatTeams = player.allowedFloatTeams.map((entry) => entry.team.name).join(", ");
+  const savedInvolvement = getPlayerSelectionInvolvement(savedInvolvementRows);
+  const draftInvolvement = savedInvolvement
+    .filter((entry) => entry.status === SelectionStatus.DRAFT)
+    .sort((left, right) => left.matchStartsAt.getTime() - right.matchStartsAt.getTime());
+  const finalizedInvolvement = savedInvolvement
+    .filter((entry) => entry.status === SelectionStatus.FINALIZED)
+    .sort((left, right) => right.matchStartsAt.getTime() - left.matchStartsAt.getTime());
+  const involvementPreview = [...draftInvolvement, ...finalizedInvolvement].slice(0, 6);
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -357,14 +407,62 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
                 Selection Context
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-zinc-50">History and usage</h2>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Match involvement at a glance</h2>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <RoleBreakdownCard count={totalFinalizedAppearances} label="Finalized appearances" />
-              <RoleBreakdownCard count={totalFloatingAppearances} label="Floating appearances" />
-              <RoleBreakdownCard count={coreAppearances} label="Core appearances" />
-              <RoleBreakdownCard count={supportAppearances + developmentAppearances + floatAppearances} label="Non-core appearances" />
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <RoleBreakdownCard count={savedInvolvement.length} label="Saved matches" />
+              <RoleBreakdownCard count={draftInvolvement.length} label="Draft matches" />
+              <RoleBreakdownCard count={finalizedInvolvement.length} label="Finalized matches" />
+            </div>
+
+            <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Role totals in locked history</p>
+              <p className="mt-2 text-sm leading-7 app-copy-soft">
+                {totalFinalizedAppearances} finalized appearance{totalFinalizedAppearances === 1 ? "" : "s"} ·{" "}
+                {coreAppearances} core · {supportAppearances} support · {developmentAppearances} development ·{" "}
+                {floatAppearances} float.
+              </p>
+            </div>
+
+            <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <p className="text-sm font-semibold text-zinc-100">Current involvement overview</p>
+              {involvementPreview.length > 0 ? (
+                <div className="mt-3 flex flex-col gap-3">
+                  {involvementPreview.map((entry) => (
+                    <div
+                      key={`${entry.matchId}-${entry.status}`}
+                      className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <Link
+                          className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
+                          href={`/selection/${entry.matchId}`}
+                        >
+                          {formatDate(entry.matchStartsAt)} · {entry.targetTeamName}
+                        </Link>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                            entry.status === SelectionStatus.FINALIZED
+                              ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                              : "border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+                          }`}
+                        >
+                          {entry.status === SelectionStatus.FINALIZED ? "Finalized" : "Draft"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm app-copy-soft">
+                        {entry.opponent} · {formatSelectionRole(entry.roleType)}
+                      </p>
+                      {entry.explanation ? (
+                        <p className="mt-2 text-sm leading-6 app-copy-soft">{entry.explanation}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm app-copy-soft">No saved draft or finalized match involvement recorded yet.</p>
+              )}
             </div>
 
             <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
@@ -374,29 +472,9 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                   ? `${formatDate(lastFinalizedAppearance.selection.match.startsAt)} · ${lastFinalizedAppearance.targetTeamNameSnapshot} vs. ${lastFinalizedAppearance.selection.match.opponent} · ${formatSelectionRole(lastFinalizedAppearance.roleType)}`
                   : "No finalized appearance history yet."}
               </p>
-            </div>
-
-            <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-sm font-semibold text-zinc-100">Recent pattern</p>
-              {finalizedHistory.length > 0 ? (
-                <div className="mt-3 flex flex-col gap-3">
-                  {finalizedHistory.slice(0, 5).map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
-                    >
-                      <p className="text-sm font-medium text-zinc-100">
-                        {formatDate(entry.selection.match.startsAt)} · {entry.targetTeamNameSnapshot}
-                      </p>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {entry.selection.match.opponent} · {formatSelectionRole(entry.roleType)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm app-copy-soft">No finalized selections recorded for this player yet.</p>
-              )}
+              <p className="mt-3 text-sm leading-7 app-copy-soft">
+                Floating history in locked matches: {totalFloatingAppearances}.
+              </p>
             </div>
           </section>
         </section>
