@@ -137,22 +137,124 @@ export default async function HistoryPage() {
     };
   });
 
-  return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-8 text-zinc-950 sm:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-        <header className="flex flex-col gap-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-            Matchboard
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">History</h1>
-          <p className="max-w-3xl text-sm leading-6 text-zinc-600">
-            Inspect finalized player history to see how appearances, floating, and recent rotation
-            are distributed across the squad.
-          </p>
-        </header>
+  const totalFinalizedAppearances = rows.reduce((sum, row) => sum + row.totalFinalizedAppearances, 0);
+  const totalFloatAppearances = rows.reduce((sum, row) => sum + row.floatCount, 0);
+  const recentlyUsedPlayers = rows.filter((row) => row.lastFinalizedMatchDate !== null).length;
+  const mostUsedPlayer = [...rows].sort(
+    (left, right) => right.totalFinalizedAppearances - left.totalFinalizedAppearances,
+  )[0] ?? null;
 
+  return (
+    <main className="flex min-h-full flex-col gap-8 text-foreground">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]">
+        <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
+                Rotation History
+              </span>
+              <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
+                Pass 7 workflow
+              </span>
+            </div>
+
+            <div className="max-w-3xl">
+              <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
+                Read workload and floating patterns without digging through raw history.
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
+                This board should make it easier to spot which players carry most of the finalized load,
+                who has floated the most, and how recent patterns are distributed before you open an individual profile.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Players Tracked
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-zinc-50">{rows.length}</p>
+                <p className="mt-2 text-sm app-copy-soft">Players currently visible in the active registry history view.</p>
+              </div>
+              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Finalized Appearances
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-zinc-50">{totalFinalizedAppearances}</p>
+                <p className="mt-2 text-sm app-copy-soft">Total finalized appearances across all visible players.</p>
+              </div>
+              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Float Appearances
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-zinc-50">{totalFloatAppearances}</p>
+                <p className="mt-2 text-sm app-copy-soft">Finalized floating appearances currently present in history.</p>
+              </div>
+              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Recently Used
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-zinc-50">{recentlyUsedPlayers}</p>
+                <p className="mt-2 text-sm app-copy-soft">Players with at least one finalized appearance in the retained history.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside className="app-panel rounded-[1.75rem] p-6">
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Rotation Focus
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">What to look for here</h2>
+            </div>
+
+            {mostUsedPlayer ? (
+              <div className="rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,255,255,0.03)] p-4">
+                <p className="text-xs uppercase tracking-[0.2em] app-copy-muted">Highest current load</p>
+                <p className="mt-2 text-lg font-semibold text-zinc-50">
+                  {mostUsedPlayer.lastName
+                    ? `${mostUsedPlayer.firstName} ${mostUsedPlayer.lastName}`
+                    : mostUsedPlayer.firstName}
+                </p>
+                <p className="mt-1 text-sm app-copy-soft">
+                  {mostUsedPlayer.totalFinalizedAppearances} finalized appearances · {mostUsedPlayer.floatCount} float appearance(s)
+                </p>
+                <p className="mt-3 text-sm app-copy-soft">
+                  Use this view to sanity-check fairness and recent usage before you rely on generator suggestions.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] p-4">
+                <p className="text-sm font-medium text-zinc-100">No finalized history yet.</p>
+                <p className="mt-2 text-sm app-copy-soft">
+                  History starts to matter once selections are finalized and written back into rotation tracking.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3">
+                <p className="text-sm font-medium text-zinc-100">Recent pattern is the fast signal.</p>
+                <p className="mt-1 text-sm app-copy-soft">
+                  You should be able to glance at the pattern column and see role sequence without opening a profile.
+                </p>
+              </div>
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3">
+                <p className="text-sm font-medium text-zinc-100">Floating deserves separate attention.</p>
+                <p className="mt-1 text-sm app-copy-soft">
+                  Core appearances and float appearances should stay visibly distinct on this page.
+                </p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section className="app-panel rounded-[1.75rem] p-6">
         <HistoryTable rows={rows} />
-      </div>
+      </section>
     </main>
   );
 }
