@@ -7,8 +7,7 @@ import { db } from "@/lib/db";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatShortDate, parseDateInputToUtcMidday } from "@/lib/date-utils";
 import { matchTypeValues } from "@/lib/player-form-options";
-import { generateSelection } from "@/lib/selection/generate-selection";
-import { createGeneratedDraftSelection } from "@/lib/selection/save-generated-draft";
+import { refreshDraftSelection, refreshDraftSelections } from "@/lib/selection/refresh-draft-selection";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -231,10 +230,7 @@ export async function recalculateMatchesAction(formData: FormData) {
       throw new Error("Choose at least one draft-eligible match to recalculate.");
     }
 
-    for (const match of candidateMatches) {
-      const generatedSelection = await generateSelection(match.id);
-      await createGeneratedDraftSelection(match.id, generatedSelection);
-    }
+    await refreshDraftSelections(candidateMatches.map((match) => match.id));
   } catch (error) {
     redirect(
       buildPathWithSearch("/matches", {
@@ -451,31 +447,7 @@ export async function markAllMatchesAsDraftAction() {
 
 export async function recalculateMatchAction(matchId: string) {
   try {
-    const match = await db.match.findUnique({
-      where: {
-        id: matchId,
-      },
-      include: {
-        selections: {
-          select: {
-            status: true,
-          },
-          orderBy: [{ createdAt: "desc" }],
-          take: 1,
-        },
-      },
-    });
-
-    if (!match) {
-      throw new Error("Match not found.");
-    }
-
-    if (match.selections[0]?.status === SelectionStatus.FINALIZED) {
-      throw new Error("Finalized matches cannot be recalculated.");
-    }
-
-    const generatedSelection = await generateSelection(match.id);
-    await createGeneratedDraftSelection(match.id, generatedSelection);
+    await refreshDraftSelection(matchId);
   } catch (error) {
     redirect(
       buildPathWithSearch(`/selection/${matchId}`, {
