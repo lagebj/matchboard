@@ -344,222 +344,279 @@ export function SelectionBuilder({
 
       return left.title.localeCompare(right.title);
     });
+  const latestSelectionStateLabel = latestSelection
+    ? latestSelection.status === "FINALIZED"
+      ? "Finalized"
+      : "Draft in progress"
+    : "No saved selection";
+  const selectedCountLabel = `${selectedCount} / ${match.squadSize}`;
+  const suggestedSelectedCount = generatedSelection?.selectedPlayers.length ?? 0;
+  const suggestedExcludedCount = generatedSelection?.excludedPlayers.length ?? 0;
+  const suggestedWarningCount = generatedSelection?.warnings.length ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">Matchboard</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Selection</h1>
-          <p className="text-sm leading-6 text-zinc-600">
-            Manual selection for {match.targetTeam.name} on {formatDate(match.startsAt)}.
-          </p>
+      <section className="app-panel-raised rounded-[1.9rem] p-6 sm:p-8">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
+                Match Workspace
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-4xl">
+                {match.targetTeam.name} vs. {match.opponent}
+              </h1>
+              <p className="mt-3 text-sm leading-7 app-copy-soft">
+                Review the decision pressure first, then adjust the squad only where the current
+                suggestion or saved draft needs intervention.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              {previousMatchId ? (
+                <Link
+                  className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                  href={`/selection/${previousMatchId}`}
+                >
+                  Previous match
+                </Link>
+              ) : null}
+              {nextMatchId ? (
+                <Link
+                  className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                  href={`/selection/${nextMatchId}`}
+                >
+                  Next match
+                </Link>
+              ) : null}
+              <Link
+                className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                href="/matches"
+              >
+                Back to matches
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Match State
+              </p>
+              <p className="mt-2 text-lg font-semibold text-zinc-50">{latestSelectionStateLabel}</p>
+              <p className="mt-2 text-sm app-copy-soft">
+                {latestSelectionIsFinalized
+                  ? "History is locked in for future decisions."
+                  : latestSelection
+                    ? "A saved draft exists and can still be adjusted."
+                    : "No selection has been saved for this match yet."}
+              </p>
+            </div>
+            <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Squad Coverage
+              </p>
+              <p className="mt-2 text-lg font-semibold text-zinc-50">{selectedCountLabel}</p>
+              <p className="mt-2 text-sm app-copy-soft">
+                Current saved or baseline squad size against the match target.
+              </p>
+            </div>
+            <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Support Plan
+              </p>
+              <p className="mt-2 text-lg font-semibold text-zinc-50">
+                {match.targetTeam.minSupportPlayers} minimum
+              </p>
+              <p className="mt-2 text-sm app-copy-soft">
+                {supportSourceTeams.length > 0 ? supportSourceTeams.join(", ") : "No configured support sources."}
+              </p>
+            </div>
+            <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Development Plan
+              </p>
+              <p className="mt-2 text-lg font-semibold text-zinc-50">
+                {match.targetTeam.developmentSlots} slot(s)
+              </p>
+              <p className="mt-2 text-sm app-copy-soft">
+                {developmentSourceTeams.length > 0
+                  ? developmentSourceTeams.join(", ")
+                  : "No configured development sources."}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Match Snapshot
+              </p>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                <div>
+                  <p className="app-copy-muted">Date</p>
+                  <p className="mt-1 text-zinc-100">{formatDate(match.startsAt)}</p>
+                </div>
+                <div>
+                  <p className="app-copy-muted">Venue</p>
+                  <p className="mt-1 text-zinc-100">{formatMatchVenue(match.homeOrAway)}</p>
+                </div>
+                <div>
+                  <p className="app-copy-muted">Match type</p>
+                  <p className="mt-1 text-zinc-100">{match.matchType ?? "-"}</p>
+                </div>
+                <div>
+                  <p className="app-copy-muted">Squad size</p>
+                  <p className="mt-1 text-zinc-100">{match.squadSize}</p>
+                </div>
+                <div>
+                  <p className="app-copy-muted">Active players</p>
+                  <p className="mt-1 text-zinc-100">{activePlayerCount}</p>
+                </div>
+                <div>
+                  <p className="app-copy-muted">Target team</p>
+                  <p className="mt-1 text-zinc-100">{match.targetTeam.name}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                Notes
+              </p>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 app-copy-soft">
+                {match.notes ?? "No match notes recorded."}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          {previousMatchId ? (
-            <Link
-              className="inline-flex h-10 items-center rounded border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
-              href={`/selection/${previousMatchId}`}
-            >
-              Previous match
-            </Link>
-          ) : null}
-          {nextMatchId ? (
-            <Link
-              className="inline-flex h-10 items-center rounded border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
-              href={`/selection/${nextMatchId}`}
-            >
-              Next match
-            </Link>
-          ) : null}
-          <Link
-            className="inline-flex h-10 items-center rounded border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
-            href="/matches"
-          >
-            Back to matches
-          </Link>
-        </div>
-      </header>
+      </section>
 
       {savedMessage ? (
-        <div className="border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+        <div className="rounded-2xl border app-hairline bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-[var(--accent-strong)]">
           {formatSavedStatus(savedMessage)}
         </div>
       ) : null}
 
       {errorMessage ? (
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-2xl border border-[rgba(185,128,119,0.4)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[#f0cbc5]">
           {errorMessage}
         </div>
       ) : null}
 
       {acceptedGenerated ? (
-        <div className="border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm app-copy-soft">
           Suggested squad saved as the current draft. You can adjust it below before finalizing.
         </div>
       ) : null}
 
       {recalculated ? (
-        <div className="border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm app-copy-soft">
           Draft selection recalculated for this match.
         </div>
       ) : null}
 
-      {earlyWarnings.length > 0 ? (
-        <section className="border border-amber-300 bg-amber-50 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-950">
-            Early Warnings
-          </h2>
-          <div className="mt-3 flex flex-col gap-3 text-sm text-amber-950">
-            {earlyWarnings.map((warning) => (
-              <div key={warning.code + warning.message} className="border border-amber-200 bg-white/70 px-4 py-3">
-                <p className="font-medium">{warning.title}</p>
-                <p className="mt-1">{warning.message}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {savedOmittedCorePlayers.length > 0 || generatedOmittedCorePlayers.length > 0 ? (
-        <section className="grid gap-4 lg:grid-cols-2">
-          {savedOmittedCorePlayers.length > 0 ? (
-            <div className="border border-zinc-200 bg-white p-5">
-              <h2 className="text-base font-semibold">Current Saved Core Omissions</h2>
-              <p className="mt-1 text-sm text-zinc-600">
-                {match.targetTeam.name} core players not currently in the saved selection.
-              </p>
-              <div className="mt-4 flex flex-col divide-y divide-zinc-200 border border-zinc-200">
-                {savedOmittedCorePlayers.map((player) => (
-                  <div key={player.playerId} className="px-4 py-3 text-sm">
-                    <p className="font-medium text-zinc-950">{player.playerName}</p>
-                    <p className="mt-1 text-zinc-700">{player.explanation}</p>
+      {(earlyWarnings.length > 0 || savedOmittedCorePlayers.length > 0 || generatedOmittedCorePlayers.length > 0) ? (
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+          {earlyWarnings.length > 0 ? (
+            <section className="rounded-[1.5rem] border border-[rgba(208,176,127,0.35)] bg-[rgba(208,176,127,0.1)] p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--warning)]">
+                Early Warnings
+              </h2>
+              <div className="mt-4 flex flex-col gap-3 text-sm text-[#f3dfc1]">
+                {earlyWarnings.map((warning) => (
+                  <div
+                    key={warning.code + warning.message}
+                    className="rounded-2xl border border-[rgba(208,176,127,0.22)] bg-[rgba(18,22,30,0.42)] px-4 py-3"
+                  >
+                    <p className="font-medium text-[#f8ead4]">{warning.title}</p>
+                    <p className="mt-1 leading-6">{warning.message}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           ) : null}
 
-          {generatedOmittedCorePlayers.length > 0 ? (
-            <div className="border border-zinc-200 bg-white p-5">
-              <h2 className="text-base font-semibold">Suggested Core Omissions</h2>
-              <p className="mt-1 text-sm text-zinc-600">
-                {match.targetTeam.name} core players the current suggestion did not pick.
-              </p>
-              <div className="mt-4 flex flex-col divide-y divide-zinc-200 border border-zinc-200">
-                {generatedOmittedCorePlayers.map((player) => (
-                  <div key={player.playerId} className="px-4 py-3 text-sm">
-                    <p className="font-medium text-zinc-950">{player.playerName}</p>
-                    <p className="mt-1 text-zinc-700">{player.explanation}</p>
+          {(savedOmittedCorePlayers.length > 0 || generatedOmittedCorePlayers.length > 0) ? (
+            <section className="app-panel rounded-[1.5rem] p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Core Omissions
+              </h2>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {savedOmittedCorePlayers.length > 0 ? (
+                  <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                    <h3 className="text-base font-semibold text-zinc-50">Saved selection</h3>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      {match.targetTeam.name} core players not currently in the saved selection.
+                    </p>
+                    <div className="mt-4 flex flex-col gap-3">
+                      {savedOmittedCorePlayers.map((player) => (
+                        <div key={player.playerId} className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3 text-sm">
+                          <p className="font-medium text-zinc-100">{player.playerName}</p>
+                          <p className="mt-1 leading-6 app-copy-soft">{player.explanation}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                ) : null}
+
+                {generatedOmittedCorePlayers.length > 0 ? (
+                  <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                    <h3 className="text-base font-semibold text-zinc-50">Current suggestion</h3>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      {match.targetTeam.name} core players the current suggestion did not pick.
+                    </p>
+                    <div className="mt-4 flex flex-col gap-3">
+                      {generatedOmittedCorePlayers.map((player) => (
+                        <div key={player.playerId} className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3 text-sm">
+                          <p className="font-medium text-zinc-100">{player.playerName}</p>
+                          <p className="mt-1 leading-6 app-copy-soft">{player.explanation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            </div>
+            </section>
           ) : null}
         </section>
       ) : null}
-
-      <section className="grid gap-4 border border-zinc-200 bg-white p-5 sm:grid-cols-2 xl:grid-cols-4">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Date</p>
-          <p className="mt-1 text-sm text-zinc-900">{formatDate(match.startsAt)}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Team</p>
-          <p className="mt-1 text-sm text-zinc-900">{match.targetTeam.name}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Opponent</p>
-          <p className="mt-1 text-sm text-zinc-900">{match.opponent}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Home / Away</p>
-          <p className="mt-1 text-sm text-zinc-900">{formatMatchVenue(match.homeOrAway)}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Squad Size</p>
-          <p className="mt-1 text-sm text-zinc-900">{match.squadSize}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Min Support</p>
-          <p className="mt-1 text-sm text-zinc-900">{match.targetTeam.minSupportPlayers}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Support Sources</p>
-          <p className="mt-1 text-sm text-zinc-900">
-            {supportSourceTeams.length > 0 ? supportSourceTeams.join(", ") : "-"}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Development Slots</p>
-          <p className="mt-1 text-sm text-zinc-900">{match.targetTeam.developmentSlots}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Development Sources</p>
-          <p className="mt-1 text-sm text-zinc-900">
-            {developmentSourceTeams.length > 0 ? developmentSourceTeams.join(", ") : "-"}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Match Type</p>
-          <p className="mt-1 text-sm text-zinc-900">{match.matchType ?? "-"}</p>
-        </div>
-        <div className="sm:col-span-2 xl:col-span-2">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Notes</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-900">{match.notes ?? "-"}</p>
-        </div>
-      </section>
-
-      <section className="grid gap-4 border border-zinc-200 bg-white p-5 sm:grid-cols-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Active Players</p>
-          <p className="mt-1 text-sm text-zinc-900">{activePlayerCount}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Latest Selection</p>
-          <p className="mt-1 text-sm text-zinc-900">{latestSelection?.status ?? "None yet"}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Selected Players</p>
-          <p className="mt-1 text-sm text-zinc-900">
-            {selectedCount} / {match.squadSize}
-          </p>
-        </div>
-      </section>
 
       {latestSelection ? (
-        <section className="flex flex-col gap-3 border border-zinc-200 bg-white p-5">
+        <section className="app-panel rounded-[1.6rem] p-5">
           <div>
-            <h2 className="text-lg font-semibold">Current Saved Selection</h2>
-            <p className="mt-1 text-sm text-zinc-600">
+            <h2 className="text-lg font-semibold text-zinc-50">Current Saved Selection</h2>
+            <p className="mt-1 text-sm app-copy-soft">
               Latest saved rows for this match, including role, source team, explanation, and
               whether each row came from generation or manual changes.
             </p>
           </div>
 
           {latestSelection.overrideNotes ? (
-            <div className="border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
-              <p className="font-medium text-zinc-950">Override note</p>
+            <div className="mt-4 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3 text-sm app-copy-soft">
+              <p className="font-medium text-zinc-100">Override note</p>
               <p className="mt-1 whitespace-pre-wrap">{latestSelection.overrideNotes}</p>
             </div>
           ) : null}
 
-          <SavedSelectionTable
-            rows={activeSavedPlayers.map((player) => ({
-              explanation: player.explanation ?? "-",
-              id: player.id,
-              playerName: formatPlayerName(player.player),
-              role: formatSelectionRole(player.roleType),
-              sourceTeam: player.sourceTeamNameSnapshot,
-              trace: formatSelectionTrace(player),
-            }))}
-          />
+          <div className="mt-4">
+            <SavedSelectionTable
+              rows={activeSavedPlayers.map((player) => ({
+                explanation: player.explanation ?? "-",
+                id: player.id,
+                playerName: formatPlayerName(player.player),
+                role: formatSelectionRole(player.roleType),
+                sourceTeam: player.sourceTeamNameSnapshot,
+                trace: formatSelectionTrace(player),
+              }))}
+            />
+          </div>
 
           {removedSavedPlayers.length > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="mt-6 flex flex-col gap-3">
               <div>
-                <h3 className="text-base font-semibold">Removed Players</h3>
-                <p className="mt-1 text-sm text-zinc-600">
+                <h3 className="text-base font-semibold text-zinc-50">Removed Players</h3>
+                <p className="mt-1 text-sm app-copy-soft">
                   Players preserved in the saved record as explicit manual removals.
                 </p>
               </div>
@@ -579,27 +636,31 @@ export function SelectionBuilder({
         </section>
       ) : null}
 
-      <section className="border border-zinc-200 bg-white p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <section className="app-panel rounded-[1.6rem] p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Suggested Squad</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Generate a first-pass squad using the current backend selection engine.
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Review Lane
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Suggested Squad</h2>
+            <p className="mt-1 text-sm leading-6 app-copy-soft">
+              Generate or recalculate the current engine view, inspect the warnings, then adopt it
+              as a draft only if it gives you a solid starting point.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <form action={generateAction}>
               <button
-                className="h-10 rounded border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 type="submit"
               >
-                Generate suggested squad
+                Generate suggestion
               </button>
             </form>
             <form action={recalculateAction}>
               <button
-                className="h-10 rounded border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400"
+                className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.07)] hover:text-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={latestSelectionIsFinalized}
                 type="submit"
               >
@@ -612,60 +673,67 @@ export function SelectionBuilder({
         {generatedSelection ? (
           <div className="mt-6 flex flex-col gap-6">
             <section className="grid gap-4 sm:grid-cols-3">
-              <div className="border border-zinc-200 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Selected</p>
-                <p className="mt-1 text-sm text-zinc-900">
-                  {generatedSelection.selectedPlayers.length}
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Suggested selected
                 </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-50">{suggestedSelectedCount}</p>
               </div>
-              <div className="border border-zinc-200 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Excluded</p>
-                <p className="mt-1 text-sm text-zinc-900">
-                  {generatedSelection.excludedPlayers.length}
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Suggested excluded
                 </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-50">{suggestedExcludedCount}</p>
               </div>
-              <div className="border border-zinc-200 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Warnings</p>
-                <p className="mt-1 text-sm text-zinc-900">{generatedSelection.warnings.length}</p>
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+                  Generated warnings
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-50">{suggestedWarningCount}</p>
               </div>
             </section>
 
             <form action={acceptGeneratedAction}>
-              <div className="flex flex-col gap-2">
-                <button
-                  className="h-10 rounded bg-zinc-950 px-4 text-sm font-semibold text-white"
-                  type="submit"
-                >
-                  Use suggestion as draft
-                </button>
-                <p className="text-sm text-zinc-600">
-                  This saves the suggested squad as the current draft for the match so you can edit
-                  it manually before finalizing.
-                </p>
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-100">Promote this suggestion into the edit lane</p>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      Save the suggestion as the current draft so manual changes and final review
+                      happen against a stored baseline.
+                    </p>
+                  </div>
+                  <button
+                    className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    type="submit"
+                  >
+                    Use suggestion as draft
+                  </button>
+                </div>
               </div>
             </form>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-base font-semibold">Warnings</h3>
+              <h3 className="text-base font-semibold text-zinc-50">Suggestion warnings</h3>
               {generatedSelection.warnings.length > 0 ? (
-                <div className="border border-zinc-200">
+                <div className="grid gap-3">
                   {generatedSelection.warnings.map((warning) => (
                     <div
                       key={warning.code + warning.message}
-                      className="border-b border-zinc-200 px-4 py-3 text-sm text-zinc-700 last:border-b-0"
+                      className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3 text-sm"
                     >
-                      <p className="font-medium text-zinc-950">{warning.code}</p>
-                      <p className="mt-1">{warning.message}</p>
+                      <p className="font-medium text-zinc-100">{warning.code}</p>
+                      <p className="mt-1 leading-6 app-copy-soft">{warning.message}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-zinc-500">No warnings for this suggestion.</p>
+                <p className="text-sm app-copy-muted">No warnings for this suggestion.</p>
               )}
             </section>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-base font-semibold">Selected Players</h3>
+              <h3 className="text-base font-semibold text-zinc-50">Selected players</h3>
               {generatedSelection.selectedPlayers.length > 0 ? (
                 <GeneratedSelectedTable
                   rows={generatedSelection.selectedPlayers.map((player) => ({
@@ -683,12 +751,12 @@ export function SelectionBuilder({
                   }))}
                 />
               ) : (
-                <p className="text-sm text-zinc-500">No players were selected by this first pass.</p>
+                <p className="text-sm app-copy-muted">No players were selected by this first pass.</p>
               )}
             </section>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-base font-semibold">Excluded Players</h3>
+              <h3 className="text-base font-semibold text-zinc-50">Excluded players</h3>
               {generatedSelection.excludedPlayers.length > 0 ? (
                 <GeneratedExcludedTable
                   rows={generatedSelection.excludedPlayers.map((player) => ({
@@ -704,14 +772,15 @@ export function SelectionBuilder({
                   }))}
                 />
               ) : (
-                <p className="text-sm text-zinc-500">No players were excluded by this first pass.</p>
+                <p className="text-sm app-copy-muted">No players were excluded by this first pass.</p>
               )}
             </section>
           </div>
         ) : (
-          <p className="mt-6 text-sm text-zinc-500">
-            No suggestion generated yet. Use the button above to create a basic squad suggestion.
-          </p>
+          <div className="mt-6 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
+            No suggestion generated yet. Start with a first-pass squad, then decide whether it is
+            worth promoting into the editable draft.
+          </div>
         )}
       </section>
 
@@ -750,60 +819,75 @@ export function SelectionBuilder({
           </>
         ) : null}
 
-        <section className="border border-zinc-200 bg-white p-5">
-          <div className="flex flex-col gap-2">
-            <label
-              className="text-xs font-medium uppercase tracking-wide text-zinc-500"
-              htmlFor="overrideNotes"
-            >
-              Override note
-            </label>
-            <textarea
-              className="min-h-24 border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900"
-              defaultValue={latestSelection?.overrideNotes ?? ""}
-              id="overrideNotes"
-              name="overrideNotes"
-              placeholder="Optional note about why the squad was adjusted manually."
+        <section className="app-panel-raised rounded-[1.6rem] p-5">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Edit Lane
+              </p>
+              <h2 className="text-xl font-semibold text-zinc-50">Manual selection workspace</h2>
+              <p className="max-w-3xl text-sm leading-6 app-copy-soft">
+                Confirm the final player list, adjust roles where needed, and leave a short note if
+                the saved squad differs from the engine recommendation.
+              </p>
+            </div>
+
+            <section className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <div className="flex flex-col gap-2">
+                <label
+                  className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted"
+                  htmlFor="overrideNotes"
+                >
+                  Override note
+                </label>
+                <textarea
+                  className="min-h-24 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
+                  defaultValue={latestSelection?.overrideNotes ?? ""}
+                  id="overrideNotes"
+                  name="overrideNotes"
+                  placeholder="Optional note about why the squad was adjusted manually."
+                />
+              </div>
+            </section>
+
+            <PlayerPickList
+              developmentSourceTeamIds={match.targetTeam.developmentTargetRelationships.map(
+                (relationship) => relationship.sourceTeam.id,
+              )}
+              groupedPlayers={groupedPlayers}
+              selectedRoleByPlayerId={selectedRoleByPlayerId}
+              supportSourceTeamIds={match.targetTeam.supportTargetRelationships.map(
+                (relationship) => relationship.sourceTeam.id,
+              )}
+              targetTeamId={match.targetTeamId}
             />
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.07)] hover:text-zinc-50"
+                name="intent"
+                type="submit"
+                value="DRAFT"
+              >
+                Save draft
+              </button>
+              <button
+                className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                name="intent"
+                type="submit"
+                value="FINALIZED"
+              >
+                Finalize selection
+              </button>
+              <Link
+                className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                href="/matches"
+              >
+                Back to matches
+              </Link>
+            </div>
           </div>
         </section>
-
-        <PlayerPickList
-          developmentSourceTeamIds={match.targetTeam.developmentTargetRelationships.map(
-            (relationship) => relationship.sourceTeam.id,
-          )}
-          groupedPlayers={groupedPlayers}
-          selectedRoleByPlayerId={selectedRoleByPlayerId}
-          supportSourceTeamIds={match.targetTeam.supportTargetRelationships.map(
-            (relationship) => relationship.sourceTeam.id,
-          )}
-          targetTeamId={match.targetTeamId}
-        />
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="h-10 rounded border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-            name="intent"
-            type="submit"
-            value="DRAFT"
-          >
-            Save draft
-          </button>
-          <button
-            className="h-10 rounded bg-zinc-950 px-4 text-sm font-semibold text-white"
-            name="intent"
-            type="submit"
-            value="FINALIZED"
-          >
-            Finalize selection
-          </button>
-          <Link
-            className="inline-flex h-10 items-center rounded border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
-            href="/matches"
-          >
-            Back to matches
-          </Link>
-        </div>
       </form>
     </div>
   );

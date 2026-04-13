@@ -168,8 +168,8 @@ export default async function SelectionPage({
   const nextMatchId = currentMatchIndex > 0 ? matchOrder[currentMatchIndex - 1] : null;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-8 text-zinc-950 sm:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+    <main className="flex min-h-full flex-col gap-8 text-foreground">
+      <div className="flex flex-col gap-8">
         <SelectionBuilder
           acceptedGenerated={accepted === "generated"}
           errorMessage={generatedErrorMessage}

@@ -64,9 +64,9 @@ export function GeneratedSelectedTable({
   });
 
   return (
-    <div className="overflow-x-auto border border-zinc-200">
+    <div className="overflow-x-auto rounded-2xl border app-hairline bg-[rgba(255,255,255,0.02)]">
       <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-        <thead className="border-b border-zinc-200 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600">
+        <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
           <tr>
             <SortableHeader activeKey={sortKey} direction={sortDirection} label="Player" onSort={updateSort} sortKey="player" />
             <SortableHeader activeKey={sortKey} direction={sortDirection} label="Role" onSort={updateSort} sortKey="role" />
@@ -77,16 +77,16 @@ export function GeneratedSelectedTable({
             <SortableHeader activeKey={sortKey} direction={sortDirection} label="Explanation" onSort={updateSort} sortKey="explanation" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 bg-white">
+        <tbody className="divide-y app-hairline bg-transparent text-zinc-100">
           {sortedRows.map((row) => (
             <tr key={row.playerId} className="align-top">
-              <td className="px-4 py-3 font-medium text-zinc-950">{row.playerName}</td>
-              <td className="px-4 py-3">{row.role}</td>
-              <td className="px-4 py-3">{row.sourceTeam}</td>
-              <td className="px-4 py-3">{row.trace}</td>
-              <td className="px-4 py-3">{row.coreTeam}</td>
-              <td className="px-4 py-3">{row.position}</td>
-              <td className="px-4 py-3 text-zinc-700">{row.explanation}</td>
+              <td className="px-4 py-3 font-medium text-zinc-50">{row.playerName}</td>
+              <td className="px-4 py-3 app-copy-soft">{row.role}</td>
+              <td className="px-4 py-3 app-copy-soft">{row.sourceTeam}</td>
+              <td className="px-4 py-3 app-copy-soft">{row.trace}</td>
+              <td className="px-4 py-3 app-copy-soft">{row.coreTeam}</td>
+              <td className="px-4 py-3 app-copy-soft">{row.position}</td>
+              <td className="px-4 py-3 app-copy-soft">{row.explanation}</td>
             </tr>
           ))}
         </tbody>
