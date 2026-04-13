@@ -78,10 +78,8 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
                   Tune the engine with operational consequences visible before the form.
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
-                  This page should explain how the engine thinks before it asks you to edit numbers
-                  and toggles. Show the hard limits, show the soft preferences, then let the form
-                  act as the secondary control surface.
+                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
+                  Change the limits carefully. The form is below.
                 </p>
               </div>
 
@@ -93,7 +91,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{enabledPreferenceCount} preference toggle(s) enabled</p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      Preferences only break ties between otherwise valid candidates.
+                      Preferences only break ties.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
@@ -101,7 +99,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
                       {rules.preventConsecutiveFloat ? "Consecutive floating blocked" : "Consecutive floating allowed"}
                     </p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      This directly shapes how the engine reuses floating-capable players.
+                      Directly shapes repeat floating.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
@@ -109,7 +107,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
                       {rules.allowCoreMatchDrop ? "Marked players may skip one core match" : "Marked players cannot skip core matches"}
                     </p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      Treat this as a direct policy choice, not a decorative toggle.
+                      Direct policy choice.
                     </p>
                   </div>
                 </div>

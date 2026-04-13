@@ -19,9 +19,10 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
     Scenario: App behaves like an assistant manager from the first session
       Given the coach opens the app on day 1
       When the landing page loads
-      Then the app must explain the operating flow in plain language
-      And the app must suggest a sensible next action based on the current state of data
+      Then the app must suggest a sensible next action based on the current state of data
+      And the app must keep guidance short and operational
       And the same guidance pattern must remain visible throughout the main workflow pages
+      And the app must avoid long explanatory app-usage text
 
     Scenario: Landing page surfaces the next decision before raw registry data
       Given matches, players, teams, and finalized history may exist in the app
@@ -36,6 +37,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Then the page must show one compact workflow summary and next-action guidance before the main table or form
       And the page must avoid splitting the overview into unnecessary parallel panels
       And the table or form must remain available as a secondary operational surface
+      And the page copy must read like short face-to-face guidance from an assistant manager
 
     Scenario: Match workflow is organized around calendar weeks
       Given one or more registered matches exist
@@ -43,6 +45,22 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Then the app must group operational match work by calendar week
       And the current week must be readable before the coach scans the deeper match ledger
       And week-level warnings and informational signals must be visible without opening every match
+
+    Scenario: Match queue shows weekly floating movement across saved work
+      Given one or more weeks contain saved draft or finalized selections
+      When the coach opens the match queue overview
+      Then each week summary must show floating players used in each match
+      And the floating summary must include both draft and finalized selections
+      And the week summary must remain visible alongside the existing week-coverage information
+      And the coach must be able to scan week-level selection movement without opening every match
+
+    Scenario: Coach can open an editable week board
+      Given one or more registered matches exist in the same calendar week
+      When the coach opens the week overview for that week
+      Then the app must show that week's matches as separate columns or lanes
+      And the coach must be able to review each match's current selection status in that week overview
+      And the coach must be able to adjust player selection from that week overview
+      And the week overview must exist in addition to the match queue overview
 
     Scenario: Coach desk highlights fairness deviations inside each team
       Given saved draft or finalized selections exist across one or more teams
@@ -130,6 +148,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Then the page must show a compact overview of that player's match involvement
       And the overview must include both draft and finalized selections
       And the coach must be able to tell quickly which matches are still drafts and which are finalized
+      And the overview must list every saved involved match rather than a fixed preview count
 
     Scenario: Player code is generated automatically
       When the coach creates a player

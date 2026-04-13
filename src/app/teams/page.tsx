@@ -129,10 +129,8 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
                   Configure team pathways where the downstream match pressure stays visible.
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
-                  This page should read like a relationship map, not a neutral admin registry. Show
-                  who needs support, where development capacity exists, and which targets still need
-                  their source-team setup before the editable table begins.
+                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
+                  Keep the team links clear before the next selection run.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -158,21 +156,15 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
                 <div className="mt-4 grid gap-3">
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{teams.length} active team record(s)</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      These teams drive player ownership, matches, and selection relationships.
-                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">Current team base.</p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{supportConfiguredTeams.length} target team(s) with support demand</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Keep their source-team lists explicit so support stays deliberate.
-                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">Need clear source teams.</p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{developmentConfiguredTeams.length} target team(s) with development pathways</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Development capacity should stay distinct from support demand.
-                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">Growth lanes in play.</p>
                   </div>
                 </div>
               </div>

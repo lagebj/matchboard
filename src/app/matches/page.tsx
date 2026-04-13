@@ -9,8 +9,9 @@ import {
 import { MatchCreateLayover } from "@/components/matches/match-create-layover";
 import { MatchTable } from "@/components/matches/match-table";
 import { db } from "@/lib/db";
-import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
+import { formatDate, formatIsoWeekKey } from "@/lib/date-utils";
 import { formatMatchVenue } from "@/lib/match-utils";
+import { getSelectionMovementPlayers } from "@/lib/selection/get-selection-movement";
 import { getWeeklyPlayerCoverage } from "@/lib/selection/get-weekly-player-coverage";
 import { getMatchWeekGroups } from "@/lib/workflow/get-match-week-groups";
 
@@ -115,7 +116,17 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
             wasManuallyRemoved: false,
           },
           select: {
+            player: {
+              select: {
+                firstName: true,
+                id: true,
+                lastName: true,
+              },
+            },
             playerId: true,
+            roleType: true,
+            sourceTeamNameSnapshot: true,
+            targetTeamNameSnapshot: true,
           },
         },
       },
@@ -138,6 +149,12 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
     [...latestSelectionByMatchId.entries()].map(([matchId, selection]) => [
       matchId,
       selection.players.map((player) => player.playerId),
+    ]),
+  );
+  const movementPlayersByMatchId = new Map(
+    [...latestSelectionByMatchId.entries()].map(([matchId, selection]) => [
+      matchId,
+      getSelectionMovementPlayers(selection.players),
     ]),
   );
 
@@ -187,10 +204,8 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
               Batch the queue by week, not by the whole fixture list.
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 app-copy-soft sm:text-base">
-              The weekly cards are the operating surface now. Use them to reopen, recalculate, and
-              finalize one week at a time, then fall back to the deeper ledger only when you need
-              sorting or cleanup.
+            <p className="mt-4 max-w-3xl text-sm app-copy-soft sm:text-base">
+              Keep the week on top. Drop into the ledger only for cleanup.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -333,7 +348,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
                   Weekly Workflow
                 </p>
-                <h2 className="mt-2 text-xl font-semibold text-zinc-50">One card per week, one batch decision at a time</h2>
+                <h2 className="mt-2 text-xl font-semibold text-zinc-50">One card per week</h2>
               </div>
               <Link
                 className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
@@ -349,6 +364,10 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                   const warningCount = week.coverage.filter((row) => row.severity === "warning").length;
                   const infoCount = week.coverage.length - warningCount;
                   const weekMatchIds = week.matches.map((match) => match.id);
+                  const weekMovementCount = week.matches.reduce(
+                    (sum, match) => sum + (movementPlayersByMatchId.get(match.id)?.length ?? 0),
+                    0,
+                  );
 
                   return (
                     <div
@@ -364,18 +383,27 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                             {week.matches.length} match{week.matches.length === 1 ? "" : "es"}
                           </p>
                           <p className="mt-2 text-sm app-copy-soft">
-                            {warningCount} warning{warningCount === 1 ? "" : "s"} · {infoCount} info
+                            {warningCount} warning{warningCount === 1 ? "" : "s"} · {infoCount} info ·{" "}
+                            {weekMovementCount} mover{weekMovementCount === 1 ? "" : "s"}
                           </p>
                         </div>
-                        <span
-                          className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                            week.isFullyFinalized
-                              ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
-                              : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
-                          }`}
-                        >
-                          {week.isFullyFinalized ? "Week finalized" : "Week in progress"}
-                        </span>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <Link
+                            className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                            href={`/weeks/${formatIsoWeekKey(week.matches[0].startsAt)}`}
+                          >
+                            Open week board
+                          </Link>
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                              week.isFullyFinalized
+                                ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                                : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+                            }`}
+                          >
+                            {week.isFullyFinalized ? "Week finalized" : "Week in progress"}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -433,29 +461,77 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                         </form>
                       </div>
 
-                      <div className="mt-4 rounded-2xl border app-hairline bg-[rgba(0,0,0,0.12)] px-4 py-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                          Week coverage
-                        </p>
-                        {week.coverage.length > 0 ? (
-                          <div className="mt-3 flex flex-col gap-2">
-                            {week.coverage.slice(0, 3).map((row) => (
-                              <div key={row.playerId} className="text-sm">
-                                <p className="font-medium text-zinc-100">
-                                  {row.playerName}
-                                  <span className="ml-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
-                                    {row.severity}
-                                  </span>
-                                </p>
-                                <p className="mt-1 leading-6 app-copy-soft">{row.reason}</p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="mt-3 text-sm app-copy-soft">
-                            No uncovered active available players for this week.
+                      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                        <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.12)] px-4 py-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                            Week coverage
                           </p>
-                        )}
+                          {week.coverage.length > 0 ? (
+                            <div className="mt-3 flex flex-col gap-2">
+                              {week.coverage.slice(0, 3).map((row) => (
+                                <div key={row.playerId} className="text-sm">
+                                  <p className="font-medium text-zinc-100">
+                                    {row.playerName}
+                                    <span className="ml-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
+                                      {row.severity}
+                                    </span>
+                                  </p>
+                                  <p className="mt-1 leading-6 app-copy-soft">{row.reason}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-sm app-copy-soft">
+                              No uncovered active available players for this week.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.12)] px-4 py-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                            Selection movement
+                          </p>
+                          <div className="mt-3 flex flex-col gap-3">
+                            {week.matches.map((match) => {
+                              const movementPlayers = movementPlayersByMatchId.get(match.id) ?? [];
+
+                              return (
+                                <div key={match.id} className="rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3 text-sm">
+                                  <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <p className="font-medium text-zinc-100">
+                                      {match.targetTeam.name} vs. {match.opponent}
+                                    </p>
+                                    <span className="text-xs uppercase tracking-[0.18em] app-copy-muted">
+                                      {match.latestSelectionStatus === SelectionStatus.FINALIZED
+                                        ? "Finalized"
+                                        : match.latestSelectionStatus === SelectionStatus.DRAFT
+                                          ? "Draft"
+                                          : "No saved selection"}
+                                    </span>
+                                  </div>
+                                  {movementPlayers.length > 0 ? (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {movementPlayers.map((player) => (
+                                        <span
+                                          key={player.playerId}
+                                          className="rounded-full border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-1 text-xs text-zinc-100"
+                                        >
+                                          {player.playerName}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="mt-2 app-copy-soft">
+                                      {match.latestSelectionStatus
+                                        ? "No floating players saved in this match."
+                                        : "No saved draft yet."}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
