@@ -295,7 +295,9 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
 
         {recalculated ? (
           <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.045)] px-4 py-3 text-sm text-zinc-100">
-            Selected draft-eligible matches recalculated.
+            {recalculated === "all"
+              ? "All current draft-eligible matches recalculated across the full queue."
+              : "Selected draft-eligible matches recalculated."}
           </div>
         ) : null}
 
@@ -550,6 +552,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                 ...match,
                 deleteAction: deleteMatchAction.bind(null, match.id),
               }))}
+              recalculateMatchesAction={recalculateMatchesAction}
             />
           </section>
         </>

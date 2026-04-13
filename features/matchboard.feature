@@ -686,12 +686,23 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Given one or more registered matches exist without a finalized selection
       When the coach recalculates all draft-eligible matches or a marked subset of them
       Then the app must generate new draft selections for those matches using the current rules
+      And each recalculated match must evaluate against every other registered match in the app
+      And those other registered matches must include both saved draft and finalized selections
+      And finalized selections must remain unchanged
+
+    Scenario: Coach can recalculate all current draft matches across all weeks
+      Given draft-eligible matches exist in more than one calendar week
+      When the coach recalculates every current draft match from the match overview
+      Then the app must run one full draft recalculation pass across all weeks
+      And each recalculated match must evaluate against every other registered match in the app
       And finalized selections must remain unchanged
 
     Scenario: Coach can recalculate a single match from match detail
       Given a registered match exists without a finalized selection
       When the coach recalculates that match from its detail page
       Then the app must generate a new draft selection for that match using the current rules
+      And that recalculation must still evaluate against every other registered match in the app
+      And those other registered matches must include both saved draft and finalized selections
       And finalized selections must remain unchanged
 
     Scenario: Saving manual draft changes recalculates all draft matches
@@ -699,6 +710,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And at least one match has saved manual draft changes
       When the coach saves manual changes on a match
       Then the app must recalculate all current draft matches using the latest saved state
+      And each recalculated match must evaluate against every other registered match in the app
       And finalized selections must remain unchanged
 
     Scenario: Manual draft additions and removals are non-negotiable during recalculation
@@ -781,6 +793,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And one or more of those matches already has a saved draft or finalized selection
       When the coach generates or recalculates a selection for another match
       Then the engine must take the other registered matches into account
+      And the engine must do that even when only one match is being recalculated
       And the engine must avoid planning the same player into conflicting registered matches
 
     Scenario: Unselected locked core players are warned early
@@ -851,6 +864,14 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Then the app must show which players most recently moved between teams
       And the overview must show where each visible movement went
       And the overview must show the saved explanation for the latest visible movement without requiring the player detail page
+
+    Scenario: History overview provides a dedicated movement overview across saved work
+      Given saved draft or finalized selections contain floating, support, or development movement
+      When the coach reviews the history overview
+      Then the app must show a separate movement overview in addition to the main history table
+      And the movement overview must show movement counts per player
+      And the movement overview must list the related matches and calendar weeks for each visible movement
+      And the movement overview must show whether each visible movement comes from a draft or a finalized selection
 
   Rule: Manual override handling
 

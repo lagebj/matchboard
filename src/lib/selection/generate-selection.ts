@@ -125,6 +125,7 @@ type FloatingCandidate = EvaluatedPlayer & {
   floatingHistory: Awaited<ReturnType<typeof getFloatingHistory>>;
   missedCoreMatchThisWeek: RegisteredSelectionSnapshot | null;
   priorityScore: number;
+  registeredAppearanceCount: number;
   recentLoadScore: number;
 };
 
@@ -133,6 +134,7 @@ type CoreCandidate = EvaluatedPlayer & {
     kind: "development" | "support";
     match: MatchRecord;
   } | null;
+  registeredAppearanceCount: number;
 };
 
 type MostRecentRegisteredAppearance = {
@@ -305,6 +307,23 @@ function getRepeatFloatingBlockCode(candidateCategory: FloatingCandidate["candid
   }
 
   return "prevent_consecutive_float";
+}
+
+function getRegisteredAppearanceCounts(
+  latestSavedSelections: RegisteredSelectionSnapshot[],
+) {
+  const registeredAppearanceCountByPlayerId = new Map<string, number>();
+
+  for (const selection of latestSavedSelections) {
+    for (const selectionPlayer of selection.players) {
+      registeredAppearanceCountByPlayerId.set(
+        selectionPlayer.playerId,
+        (registeredAppearanceCountByPlayerId.get(selectionPlayer.playerId) ?? 0) + 1,
+      );
+    }
+  }
+
+  return registeredAppearanceCountByPlayerId;
 }
 
 function buildRepeatFloatingBlockReason(
@@ -551,6 +570,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
   }
 
   const latestSavedSelections = [...latestSavedSelectionByMatchId.values()];
+  const registeredAppearanceCountByPlayerId = getRegisteredAppearanceCounts(latestSavedSelections);
   const registeredPlansByPlayerId = new Map<string, RegisteredSelectionSnapshot[]>();
 
   for (const selection of latestSavedSelections) {
@@ -711,6 +731,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
           normalizedRegisteredMatches,
           rules,
         ),
+        registeredAppearanceCount: registeredAppearanceCountByPlayerId.get(player.id) ?? 0,
       });
       continue;
     }
@@ -750,6 +771,10 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       .sort((left, right) => {
         if (left.inferredDroppedCoreMatches !== right.inferredDroppedCoreMatches) {
           return left.inferredDroppedCoreMatches - right.inferredDroppedCoreMatches;
+        }
+
+        if (left.candidate.registeredAppearanceCount !== right.candidate.registeredAppearanceCount) {
+          return right.candidate.registeredAppearanceCount - left.candidate.registeredAppearanceCount;
         }
 
         return left.candidate.playerName.localeCompare(right.candidate.playerName);
@@ -905,6 +930,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       player,
       playerName,
       playerPosition,
+      registeredAppearanceCount: registeredAppearanceCountByPlayerId.get(player.id) ?? 0,
       recentLoadScore: getRecentLoadScore(finalizedHistory),
     });
   }
@@ -931,6 +957,10 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
 
     if (leftPriority !== rightPriority) {
       return leftPriority - rightPriority;
+    }
+
+    if (left.registeredAppearanceCount !== right.registeredAppearanceCount) {
+      return left.registeredAppearanceCount - right.registeredAppearanceCount;
     }
 
     return left.playerName.localeCompare(right.playerName);
@@ -975,7 +1005,12 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
     ),
   );
 
-  for (const { player, playerName, playerPosition } of selectedCorePlayers.slice(0, coreSelectionLimit)) {
+  for (const {
+    player,
+    playerName,
+    playerPosition,
+    registeredAppearanceCount,
+  } of selectedCorePlayers.slice(0, coreSelectionLimit)) {
     const selectionReason = `Selected as an eligible core player for ${match.targetTeam.name}.`;
     const explanations = [
       buildExplanation("eligible_core_player", selectionReason, true),
@@ -1005,6 +1040,14 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         ),
       );
     }
+
+    explanations.push(
+      buildExplanation(
+        "registered_match_fairness",
+        `Total planned match load was considered across every other saved draft or finalized match. ${playerName} currently has ${registeredAppearanceCount} other saved involvement(s).`,
+        true,
+      ),
+    );
 
     selectedPlayers.push({
       autoSelected: true,
@@ -1119,6 +1162,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       (candidate.candidateCategory === "SUPPORT" ? 40 : 0) +
       (candidate.candidateCategory === "DEVELOPMENT" ? 25 : 0) +
       (candidate.missedCoreMatchThisWeek ? 30 : 0) -
+      candidate.registeredAppearanceCount * 4 -
       (rules.preferLowerFloatCount ? candidate.floatingHistory.totalFloatingMatches * 5 : 0) -
       (rules.preferLowRecentLoad ? candidate.recentLoadScore * 2 : 0) -
       (rules.preferPositionBalance
@@ -1228,6 +1272,14 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
           ),
         );
       }
+
+      explanations.push(
+        buildExplanation(
+          "registered_match_fairness",
+          `Total planned match load was considered across every other saved draft or finalized match. ${candidate.playerName} currently has ${candidate.registeredAppearanceCount} other saved involvement(s).`,
+          true,
+        ),
+      );
 
       selectedPlayers.push({
         autoSelected: true,
