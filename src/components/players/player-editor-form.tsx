@@ -260,13 +260,13 @@ export function PlayerEditorForm({
       </div>
 
       <label className="flex max-w-xs flex-col gap-1 text-sm font-medium text-zinc-100">
-        Max Development Matches
+        Development Match Target
         <input
           className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
           defaultValue={player?.maxDevelopmentMatches ?? ""}
           min={0}
           name="maxDevelopmentMatches"
-          placeholder="Leave empty for no cap"
+          placeholder="Leave empty for no target"
           type="number"
         />
       </label>
@@ -405,9 +405,9 @@ export function PlayerSummaryCard({ player }: { player: PlayerWithTeams }) {
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide app-copy-muted">Development Limit</p>
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Development Target</p>
           <p className="mt-1 text-sm text-zinc-100">
-            {player.maxDevelopmentMatches ?? "No individual cap"}
+            {player.maxDevelopmentMatches ?? "No individual target"}
           </p>
         </div>
       </div>

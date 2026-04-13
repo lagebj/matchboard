@@ -81,17 +81,18 @@ model PlayerFloatTeam {
 }
 
 model Match {
-  id            String    @id @default(cuid())
-  startsAt      DateTime
-  endsAt        DateTime?
-  targetTeamId  String
-  homeOrAway    MatchVenue
-  opponent      String
-  squadSize     Int
-  matchType     String?
-  notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                          String    @id @default(cuid())
+  startsAt                    DateTime
+  endsAt                      DateTime?
+  targetTeamId                String
+  homeOrAway                  MatchVenue
+  opponent                    String
+  squadSize                   Int
+  availableForDevelopmentSlot Boolean   @default(false)
+  matchType                   String?
+  notes                       String?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   targetTeam  Team             @relation(fields: [targetTeamId], references: [id], onDelete: Restrict)
   selections  MatchSelection[]

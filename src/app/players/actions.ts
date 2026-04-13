@@ -246,7 +246,7 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
     maxDevelopmentMatches: readOptionalNonNegativeInteger(
       formData,
       "maxDevelopmentMatches",
-      "Maximum development matches",
+      "Development match target",
     ),
     notes: readOptionalText(formData, "notes"),
     oneVOneAttacking: readRequiredInteger(formData, "oneVOneAttacking"),

@@ -174,6 +174,9 @@ export function WeekOverviewBoard({
                     <p className="mt-1 text-sm app-copy-soft">
                       {formatDate(match.startsAt)} · {formatMatchVenue(match.homeOrAway)}
                     </p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
+                      {match.availableForDevelopmentSlot ? "Development open" : "Development closed"}
+                    </p>
                   </div>
                   <span
                     className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${getSelectionStateClassName(latestSelectionStatus)}`}
