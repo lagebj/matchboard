@@ -119,9 +119,8 @@ export function MatchTable({
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-50">
             Deeper table for sorting and cleanup
           </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 app-copy-soft">
-            Use this after the weekly cards. It stays available for sorting, row-level opening, and
-            deeper cleanup, but it is no longer the primary batch workflow surface.
+          <p className="mt-3 max-w-3xl text-sm app-copy-soft">
+            Use this after the weekly cards.
           </p>
         </div>
       </div>
@@ -132,27 +131,21 @@ export function MatchTable({
             Drafts Ready
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{draftCount}</p>
-          <p className="mt-2 text-sm app-copy-soft">
-            Saved selections that should usually be resumed before you start a new one.
-          </p>
+          <p className="mt-2 text-sm app-copy-soft">Resume these first.</p>
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
             First Draft Needed
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{unstartedCount}</p>
-          <p className="mt-2 text-sm app-copy-soft">
-            Fixtures with no saved selection yet. Open these when nearer-term work is covered.
-          </p>
+          <p className="mt-2 text-sm app-copy-soft">No saved draft yet.</p>
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
             Locked History
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{finalizedCount}</p>
-          <p className="mt-2 text-sm app-copy-soft">
-            Finalized selections stay on the board for context, but they are not bulk-editable.
-          </p>
+          <p className="mt-2 text-sm app-copy-soft">Locked for context.</p>
         </div>
       </div>
 

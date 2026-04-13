@@ -246,7 +246,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const finalizedInvolvement = savedInvolvement
     .filter((entry) => entry.status === SelectionStatus.FINALIZED)
     .sort((left, right) => right.matchStartsAt.getTime() - left.matchStartsAt.getTime());
-  const involvementPreview = [...draftInvolvement, ...finalizedInvolvement].slice(0, 6);
+  const involvementPreview = [...draftInvolvement, ...finalizedInvolvement];
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -272,9 +272,8 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                     {player.active ? "Active" : "Inactive"}
                   </span>
                 </div>
-                <p className="mt-3 max-w-3xl text-sm leading-7 app-copy-soft">
-                  Inspect the player first, then edit the record below. This page is meant to give
-                  a quick football profile readout before you start changing registry data.
+                <p className="mt-3 max-w-3xl text-sm app-copy-soft">
+                  Scan the player, then change the record.
                 </p>
               </div>
 
@@ -324,9 +323,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                       {"★".repeat(overallStars)}
                       <span className="text-zinc-600">{"★".repeat(5 - overallStars)}</span>
                     </p>
-                    <p className="mt-4 text-sm app-copy-soft">
-                      Based on the tracked technical, tactical, mental, and physical attributes.
-                    </p>
+                    <p className="mt-4 text-sm app-copy-soft">Built from the tracked ratings.</p>
                   </div>
                 </div>
               </div>
@@ -388,13 +385,13 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
                 <p className="text-sm font-semibold text-zinc-100">Profile fit</p>
-                <p className="mt-2 text-sm leading-7 app-copy-soft">
+                <p className="mt-2 text-sm app-copy-soft">
                   {player.primaryPosition} is the leading role, backed by {player.secondaryPosition ?? "no secondary position"} and {player.tertiaryPosition ?? "no tertiary position"}.
                 </p>
               </div>
               <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
                 <p className="text-sm font-semibold text-zinc-100">Availability context</p>
-                <p className="mt-2 text-sm leading-7 app-copy-soft">
+                <p className="mt-2 text-sm app-copy-soft">
                   Registry status is {player.active ? "active" : "inactive"} and the current
                   availability flag is {formatAvailabilityStatus(player.currentAvailability).toLowerCase()}.
                 </p>
@@ -418,7 +415,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
             <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-sm font-semibold text-zinc-100">Role totals in locked history</p>
-              <p className="mt-2 text-sm leading-7 app-copy-soft">
+              <p className="mt-2 text-sm app-copy-soft">
                 {totalFinalizedAppearances} finalized appearance{totalFinalizedAppearances === 1 ? "" : "s"} ·{" "}
                 {coreAppearances} core · {supportAppearances} support · {developmentAppearances} development ·{" "}
                 {floatAppearances} float.
@@ -428,7 +425,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-sm font-semibold text-zinc-100">Current involvement overview</p>
               {involvementPreview.length > 0 ? (
-                <div className="mt-3 flex flex-col gap-3">
+                <div className="mt-3 flex max-h-[34rem] flex-col gap-3 overflow-y-auto pr-1">
                   {involvementPreview.map((entry) => (
                     <div
                       key={`${entry.matchId}-${entry.status}`}
@@ -455,7 +452,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                         {entry.opponent} · {formatSelectionRole(entry.roleType)}
                       </p>
                       {entry.explanation ? (
-                        <p className="mt-2 text-sm leading-6 app-copy-soft">{entry.explanation}</p>
+                        <p className="mt-2 text-sm app-copy-soft">{entry.explanation}</p>
                       ) : null}
                     </div>
                   ))}
@@ -467,12 +464,12 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
             <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-sm font-semibold text-zinc-100">Latest finalized appearance</p>
-              <p className="mt-2 text-sm leading-7 app-copy-soft">
+              <p className="mt-2 text-sm app-copy-soft">
                 {lastFinalizedAppearance
                   ? `${formatDate(lastFinalizedAppearance.selection.match.startsAt)} · ${lastFinalizedAppearance.targetTeamNameSnapshot} vs. ${lastFinalizedAppearance.selection.match.opponent} · ${formatSelectionRole(lastFinalizedAppearance.roleType)}`
                   : "No finalized appearance history yet."}
               </p>
-              <p className="mt-3 text-sm leading-7 app-copy-soft">
+              <p className="mt-3 text-sm app-copy-soft">
                 Floating history in locked matches: {totalFloatingAppearances}.
               </p>
             </div>
@@ -514,9 +511,8 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               Edit Lane
             </p>
             <h2 className="mt-2 text-xl font-semibold text-zinc-50">Edit player record</h2>
-            <p className="mt-1 text-sm leading-6 app-copy-soft">
-              Update the profile, positions, availability, floating permissions, and attribute
-              ratings while keeping the read-only profile context above.
+            <p className="mt-1 text-sm app-copy-soft">
+              Update the profile, availability, floating setup, and ratings here.
             </p>
           </div>
 

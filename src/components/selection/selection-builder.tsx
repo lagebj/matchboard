@@ -14,7 +14,7 @@ import {
 } from "@/components/selection/generated-selected-table";
 import { PlayerPickList } from "@/components/selection/player-pick-list";
 import { SavedSelectionTable } from "@/components/selection/saved-selection-table";
-import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
+import { formatDate, formatIsoWeekKey, formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import type { WeeklyCoverageRow } from "@/lib/selection/get-weekly-player-coverage";
@@ -391,9 +391,8 @@ export function SelectionBuilder({
               <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-4xl">
                 {match.targetTeam.name} vs. {match.opponent}
               </h1>
-              <p className="mt-3 text-sm leading-7 app-copy-soft">
-                Work the current calendar week first, then decide whether this match needs a fresh
-                engine pass, a manual correction, or a final lock.
+              <p className="mt-3 text-sm app-copy-soft">
+                Work the week first, then decide whether this one needs a fresh pass, an edit, or a lock.
               </p>
             </div>
 
@@ -441,10 +440,10 @@ export function SelectionBuilder({
               <p className="mt-2 text-lg font-semibold text-zinc-50">{latestSelectionStateLabel}</p>
               <p className="mt-2 text-sm app-copy-soft">
                 {latestSelectionIsFinalized
-                  ? "History is locked in for future decisions."
+                  ? "Locked."
                   : latestSelection
-                    ? "A saved draft exists and can still be adjusted."
-                    : "No selection has been saved for this match yet."}
+                    ? "Draft saved."
+                    : "No saved selection yet."}
               </p>
             </div>
             <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
@@ -452,9 +451,7 @@ export function SelectionBuilder({
                 Squad Coverage
               </p>
               <p className="mt-2 text-lg font-semibold text-zinc-50">{selectedCountLabel}</p>
-              <p className="mt-2 text-sm app-copy-soft">
-                Current saved or baseline squad size against the match target.
-              </p>
+              <p className="mt-2 text-sm app-copy-soft">Current count against target.</p>
             </div>
             <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
@@ -465,8 +462,8 @@ export function SelectionBuilder({
               </p>
               <p className="mt-2 text-sm app-copy-soft">
                 {weeklyInfoCount > 0
-                  ? `${weeklyInfoCount} informational uncovered player signal(s) also exist.`
-                  : "Every currently eligible player is placed in at least one saved or generated match this week."}
+                  ? `${weeklyInfoCount} softer signal(s) also sit in the week.`
+                  : "Every eligible player is covered this week."}
               </p>
             </div>
           </div>
@@ -508,7 +505,7 @@ export function SelectionBuilder({
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
                 Notes
               </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 app-copy-soft">
+              <p className="mt-3 whitespace-pre-wrap text-sm app-copy-soft">
                 {match.notes ?? "No match notes recorded."}
               </p>
             </div>
@@ -560,10 +557,15 @@ export function SelectionBuilder({
                 {isWeekFullyFinalized ? "Week finalized" : "Week in progress"}
               </span>
             </div>
-            <p className="text-sm leading-6 app-copy-soft">
-              Read one lane per match so the whole week stays visible before you move into detailed
-              selection tables.
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm app-copy-soft">Read the lanes here, or switch to the full week board.</p>
+              <Link
+                className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                href={`/weeks/${formatIsoWeekKey(match.startsAt)}`}
+              >
+                Open week board
+              </Link>
+            </div>
           </div>
 
           <div className="mt-4 overflow-x-auto">
@@ -610,10 +612,7 @@ export function SelectionBuilder({
               Week Coverage
             </p>
             <h2 className="text-xl font-semibold text-zinc-50">Players still missing a match this week</h2>
-            <p className="text-sm leading-6 app-copy-soft">
-              Warning rows need action. Informational rows stay visible when a one-match core drop
-              is allowed for that player.
-            </p>
+          <p className="text-sm app-copy-soft">Warnings need action. Info rows are softer week context.</p>
           </div>
 
           <div className="mt-4 flex flex-col gap-3">
@@ -658,10 +657,7 @@ export function SelectionBuilder({
             Assistant Suggestions
           </p>
           <h2 className="text-xl font-semibold text-zinc-50">Suggested next actions for this workspace</h2>
-          <p className="text-sm leading-6 app-copy-soft">
-            The assistant surface should narrow the next move instead of forcing you through every
-            detail block in sequence.
-          </p>
+          <p className="text-sm app-copy-soft">Take the next move from here.</p>
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">

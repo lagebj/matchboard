@@ -122,10 +122,8 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
                   Keep the roster readable enough that you know which profile to open next.
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
-                  This page should behave like a squad attention board. Show the availability
-                  pressure, the floating pool, and the team context first, then leave the table as
-                  a secondary scanning surface for deeper maintenance.
+                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
+                  Start with availability and floating pressure, then open the profile you need.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -164,10 +162,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                         {nextProfilePlayer.coreTeam.name} · {formatAvailabilityStatus(nextProfilePlayer.currentAvailability)}
                       </p>
                     </div>
-                    <p className="text-sm leading-6 app-copy-soft">
-                      Open the full player page when you need the attribute view, floating setup,
-                      and finalized appearance context in one place.
-                    </p>
+                    <p className="text-sm app-copy-soft">Open the full profile when this player needs work.</p>
                     <Link
                       className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
                       href={`/players/${nextProfilePlayer.id}`}
@@ -196,22 +191,16 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                   Active players
                 </p>
                 <p className="mt-2 text-3xl font-semibold text-zinc-50">{activeCount}</p>
-                <p className="mt-2 text-sm app-copy-soft">
-                  Normal selection candidates currently available in the registry.
-                </p>
+                <p className="mt-2 text-sm app-copy-soft">Live selection pool.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
                   <p className="text-sm font-medium text-zinc-100">{floatingPlayers.length} floating profile(s)</p>
-                  <p className="mt-1 text-sm app-copy-soft">
-                    Explicit float permissions are configured and visible.
-                  </p>
+                <p className="mt-1 text-sm app-copy-soft">Ready to move.</p>
                 </div>
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
                   <p className="text-sm font-medium text-zinc-100">{inactiveCount} inactive record(s)</p>
-                  <p className="mt-1 text-sm app-copy-soft">
-                    Retained for reference but not live in selection.
-                  </p>
+                <p className="mt-1 text-sm app-copy-soft">Out of the live pool.</p>
                 </div>
               </div>
             </div>
@@ -224,10 +213,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
                 <p className="text-sm font-medium text-zinc-100">Use this page to decide who needs a closer look.</p>
-                <p className="mt-1 text-sm app-copy-soft">
-                  Availability changes, floating eligibility, and team context should be readable
-                  before you need the detailed profile editor.
-                </p>
+                <p className="mt-1 text-sm app-copy-soft">Use this page to decide who needs a closer look.</p>
               </div>
             </div>
           </section>

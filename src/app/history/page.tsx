@@ -190,10 +190,8 @@ export default async function HistoryPage() {
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
                   Keep floating movement and workload legible without opening player detail pages.
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
-                  History should read like a rotation feed before it reads like a spreadsheet. Show
-                  the latest movers, keep the saved reasons visible, and leave the full table for
-                  sorting and deeper fairness checks.
+                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
+                  Read the movement first, then sort the table if you need more.
                 </p>
               </div>
 
@@ -241,10 +239,7 @@ export default async function HistoryPage() {
                 <p className="mt-1 text-sm app-copy-soft">
                   {mostUsedPlayer.totalFinalizedAppearances} finalized appearance(s) · {mostUsedPlayer.floatCount} floating appearance(s)
                 </p>
-                <p className="mt-3 text-sm leading-6 app-copy-soft">
-                  Use the table below to sort by total load, float count, and the timing of the last
-                  finalized match when you want a fuller fairness check.
-                </p>
+                <p className="mt-3 text-sm app-copy-soft">Use the table below for the deeper load check.</p>
               </div>
             ) : (
               <div className="mt-4 rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft">
