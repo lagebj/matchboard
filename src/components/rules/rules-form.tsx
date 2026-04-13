@@ -11,10 +11,10 @@ function RuleSection({
   title: string;
 }) {
   return (
-    <section className="border border-zinc-200 bg-white p-5">
+    <section className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-zinc-950">{title}</h2>
-        <p className="mt-1 text-sm text-zinc-600">{description}</p>
+        <h2 className="text-base font-semibold text-zinc-50">{title}</h2>
+        <p className="mt-1 text-sm app-copy-soft">{description}</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </section>
@@ -33,11 +33,11 @@ function CheckboxField({
   name: string;
 }) {
   return (
-    <label className="flex items-start gap-3 border border-zinc-200 p-3">
+    <label className="flex items-start gap-3 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] p-4">
       <input defaultChecked={defaultChecked} name={name} type="checkbox" />
       <span className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-zinc-950">{label}</span>
-        <span className="text-sm text-zinc-600">{description}</span>
+        <span className="text-sm font-medium text-zinc-100">{label}</span>
+        <span className="text-sm app-copy-soft">{description}</span>
       </span>
     </label>
   );
@@ -55,17 +55,17 @@ function NumberField({
   name: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium">
-      {label}
+    <label className="flex flex-col gap-2 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] p-4 text-sm font-medium text-zinc-100">
+      <span>{label}</span>
       <input
-        className="h-10 border border-zinc-300 bg-white px-3 font-normal"
+        className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 font-normal text-zinc-50"
         defaultValue={defaultValue}
         min={0}
         name={name}
         required
         type="number"
       />
-      <span className="text-sm font-normal text-zinc-600">{description}</span>
+      <span className="text-sm font-normal app-copy-soft">{description}</span>
     </label>
   );
 }
@@ -80,7 +80,7 @@ export function RulesForm({
   return (
     <form action={saveRulesAction} className="flex flex-col gap-6">
       {saved ? (
-        <div className="border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+        <div className="rounded-2xl border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
           Rule configuration saved.
         </div>
       ) : null}
@@ -165,7 +165,7 @@ export function RulesForm({
 
       <div className="flex">
         <button
-          className="h-10 rounded bg-zinc-950 px-4 text-sm font-semibold text-white"
+          className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
           type="submit"
         >
           Save rules
