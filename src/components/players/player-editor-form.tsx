@@ -49,10 +49,10 @@ function TextField({
   required?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium">
+    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
       <input
-        className="h-10 border border-zinc-300 bg-white px-3 font-normal"
+        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
         defaultValue={defaultValue}
         name={name}
         placeholder={placeholder}
@@ -72,10 +72,10 @@ function RatingField({
   name: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium">
+    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
       <input
-        className="h-10 border border-zinc-300 bg-white px-3 font-normal"
+        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
         defaultValue={defaultValue}
         max={5}
         min={1}
@@ -99,10 +99,10 @@ function SelectField({
   options: ReadonlyArray<{ label: string; value: string }>;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium">
+    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
       <select
-        className="h-10 border border-zinc-300 bg-white px-3 font-normal"
+        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
         defaultValue={defaultValue}
         name={name}
         required
@@ -128,14 +128,14 @@ function FloatTeamChecklist({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-zinc-950">Allowed Float Teams</p>
+      <p className="text-sm font-medium text-zinc-100">Allowed Float Teams</p>
       <div className="grid gap-2 md:grid-cols-2">
         {teams
           .filter((team) => team.id !== coreTeamId)
           .map((team) => (
             <label
               key={team.id}
-              className="flex items-center gap-2 border border-zinc-200 px-3 py-2 text-sm"
+              className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-2 text-sm text-zinc-100"
             >
               <input
                 defaultChecked={selectedTeamIds.includes(team.id)}
@@ -147,7 +147,7 @@ function FloatTeamChecklist({
             </label>
           ))}
       </div>
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm app-copy-soft">
         Floating is explicit. Only checked teams are allowed in addition to the player&apos;s core
         team.
       </p>
@@ -174,10 +174,10 @@ export function PlayerEditorForm({
           required
         />
         <TextField defaultValue={player?.lastName ?? ""} label="Last Name" name="lastName" />
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
           Core Team
           <select
-            className="h-10 border border-zinc-300 bg-white px-3 font-normal"
+            className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
             defaultValue={player?.coreTeamId ?? teams[0]?.id}
             name="coreTeamId"
             required
@@ -236,16 +236,16 @@ export function PlayerEditorForm({
         />
       </section>
 
-      <div className="grid gap-3 text-sm md:grid-cols-3">
-        <label className="flex items-center gap-2">
+      <div className="grid gap-3 text-sm text-zinc-100 md:grid-cols-3">
+        <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
           <input defaultChecked={player?.active ?? true} name="active" type="checkbox" />
           Active
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
           <input defaultChecked={player?.isFloating ?? false} name="isFloating" type="checkbox" />
           Floating
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
           <input
             defaultChecked={player?.canDropCoreMatch ?? false}
             name="canDropCoreMatch"
@@ -255,10 +255,10 @@ export function PlayerEditorForm({
         </label>
       </div>
 
-      <label className="flex max-w-xs flex-col gap-1 text-sm font-medium">
+      <label className="flex max-w-xs flex-col gap-1 text-sm font-medium text-zinc-100">
         Max Development Matches
         <input
-          className="h-10 border border-zinc-300 bg-white px-3 font-normal"
+          className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
           defaultValue={player?.maxDevelopmentMatches ?? ""}
           min={0}
           name="maxDevelopmentMatches"
@@ -274,10 +274,10 @@ export function PlayerEditorForm({
       />
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <div className="flex flex-col gap-4 border border-zinc-200 bg-zinc-50 p-4">
+        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-950">Technical</h2>
-            <p className="mt-1 text-sm text-zinc-600">Ball mastery and attacking quality.</p>
+            <h2 className="text-base font-semibold text-zinc-50">Technical</h2>
+            <p className="mt-1 text-sm app-copy-soft">Ball mastery and attacking quality.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <RatingField defaultValue={player?.ballControl ?? 5} label="Ball Control" name="ballControl" />
@@ -291,10 +291,10 @@ export function PlayerEditorForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 border border-zinc-200 bg-zinc-50 p-4">
+        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-950">Tactical</h2>
-            <p className="mt-1 text-sm text-zinc-600">Positioning, defending, and decisions.</p>
+            <h2 className="text-base font-semibold text-zinc-50">Tactical</h2>
+            <p className="mt-1 text-sm app-copy-soft">Positioning, defending, and decisions.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <RatingField defaultValue={player?.positioning ?? 5} label="Positioning" name="positioning" />
@@ -311,10 +311,10 @@ export function PlayerEditorForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 border border-zinc-200 bg-zinc-50 p-4">
+        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-950">Mental</h2>
-            <p className="mt-1 text-sm text-zinc-600">Effort, concentration, and team play.</p>
+            <h2 className="text-base font-semibold text-zinc-50">Mental</h2>
+            <p className="mt-1 text-sm app-copy-soft">Effort, concentration, and team play.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <RatingField defaultValue={player?.effort ?? 5} label="Effort" name="effort" />
@@ -327,10 +327,10 @@ export function PlayerEditorForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 border border-zinc-200 bg-zinc-50 p-4">
+        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-950">Physical</h2>
-            <p className="mt-1 text-sm text-zinc-600">Speed and strength.</p>
+            <h2 className="text-base font-semibold text-zinc-50">Physical</h2>
+            <p className="mt-1 text-sm app-copy-soft">Speed and strength.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <RatingField defaultValue={player?.speed ?? 5} label="Speed" name="speed" />
@@ -339,10 +339,10 @@ export function PlayerEditorForm({
         </div>
       </section>
 
-      <label className="flex flex-col gap-1 text-sm font-medium">
+      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
         Notes
         <textarea
-          className="min-h-28 border border-zinc-300 bg-white px-3 py-2 font-normal"
+          className="min-h-28 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 py-2 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
           defaultValue={player?.notes ?? ""}
           name="notes"
           placeholder="Optional notes about the player."
@@ -351,14 +351,14 @@ export function PlayerEditorForm({
 
       <div className="flex flex-wrap gap-3">
         <button
-          className="h-10 rounded bg-zinc-950 px-4 text-sm font-semibold text-white"
+          className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
           type="submit"
         >
           {submitLabel}
         </button>
         {cancelHref ? (
           <Link
-            className="inline-flex h-10 items-center rounded border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+            className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
             href={cancelHref}
           >
             Cancel
@@ -371,38 +371,38 @@ export function PlayerEditorForm({
 
 export function PlayerSummaryCard({ player }: { player: PlayerWithTeams }) {
   return (
-    <section className="border border-zinc-200 bg-white p-5">
+    <section className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">Player</p>
-        <h1 className="text-3xl font-semibold tracking-tight">{formatPlayerName(player)}</h1>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm font-medium uppercase tracking-wide app-copy-muted">Player</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-50">{formatPlayerName(player)}</h1>
+        <p className="text-sm app-copy-soft">
           {player.coreTeam.name} · {formatAvailabilityStatus(player.currentAvailability)}
         </p>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Primary Position</p>
-          <p className="mt-1 text-sm text-zinc-900">{player.primaryPosition}</p>
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Primary Position</p>
+          <p className="mt-1 text-sm text-zinc-100">{player.primaryPosition}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Secondary Position</p>
-          <p className="mt-1 text-sm text-zinc-900">{player.secondaryPosition ?? "-"}</p>
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Secondary Position</p>
+          <p className="mt-1 text-sm text-zinc-100">{player.secondaryPosition ?? "-"}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Tertiary Position</p>
-          <p className="mt-1 text-sm text-zinc-900">{player.tertiaryPosition ?? "-"}</p>
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Tertiary Position</p>
+          <p className="mt-1 text-sm text-zinc-100">{player.tertiaryPosition ?? "-"}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Float Teams</p>
-          <p className="mt-1 text-sm text-zinc-900">
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Float Teams</p>
+          <p className="mt-1 text-sm text-zinc-100">
             {player.allowedFloatTeams.length > 0
               ? player.allowedFloatTeams.map((entry) => entry.team.name).join(", ")
               : "None"}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Development Limit</p>
-          <p className="mt-1 text-sm text-zinc-900">
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Development Limit</p>
+          <p className="mt-1 text-sm text-zinc-100">
             {player.maxDevelopmentMatches ?? "No individual cap"}
           </p>
         </div>
