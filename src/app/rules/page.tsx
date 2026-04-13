@@ -18,9 +18,50 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
     rules.preferLowerFloatCount,
   ].filter(Boolean).length;
 
+  const hardLimitCards = [
+    {
+      label: "Core drops",
+      value: rules.allowCoreMatchDrop ? "On" : "Off",
+      note: `Max ${rules.maxCoreMatchDropsPerPlayer} inferred core-match drop(s) per marked player.`,
+    },
+    {
+      label: "Float cap",
+      value: String(rules.maxTotalFloatMatches),
+      note: "Maximum finalized floating matches allowed per player.",
+    },
+    {
+      label: "Spacing",
+      value: `${rules.minDaysBetweenAnyMatches}d`,
+      note: "Minimum gap between finalized appearances for the same player.",
+    },
+    {
+      label: "Float block",
+      value: `${rules.blockCoreMatchIfFloatingWithinDays}d`,
+      note: "Nearby core match block window after a finalized floating appearance.",
+    },
+  ];
+
+  const preferenceCards = [
+    {
+      enabled: rules.preferPositionBalance,
+      label: "Position balance",
+      note: "Break ties by protecting squad shape and role coverage.",
+    },
+    {
+      enabled: rules.preferLowRecentLoad,
+      label: "Recent load",
+      note: "Break ties by protecting players carrying more recent minutes.",
+    },
+    {
+      enabled: rules.preferLowerFloatCount,
+      label: "Float count",
+      note: "Break ties by spreading floating duty more evenly.",
+    },
+  ];
+
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
         <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center gap-3">
@@ -28,95 +69,128 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
                 Rules Control Room
               </span>
               <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Pass 8 workflow
+                Runtime tuning, not behavior invention
               </span>
             </div>
 
-            <div className="max-w-3xl">
-              <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                Tune the engine in the same calm workspace as the rest of the app.
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
-                These settings do not invent match behavior on their own. They adjust the thresholds
-                and toggles the selection engine already respects, so the page should read like a control room, not a generic settings form.
-              </p>
-            </div>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
+              <div>
+                <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
+                  Tune the engine with operational consequences visible before the form.
+                </h1>
+                <p className="mt-4 max-w-2xl text-sm leading-7 app-copy-soft sm:text-base">
+                  This page should explain how the engine thinks before it asks you to edit numbers
+                  and toggles. Show the hard limits, show the soft preferences, then let the form
+                  act as the secondary control surface.
+                </p>
+              </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
+              <div className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.035)] p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Core Drops
+                  Current posture
                 </p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-50">
-                  {rules.allowCoreMatchDrop ? "On" : "Off"}
-                </p>
-                <p className="mt-2 text-sm app-copy-soft">
-                  Current toggle for inferred core-match drops.
-                </p>
-              </div>
-              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Float Cap
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-50">{rules.maxTotalFloatMatches}</p>
-                <p className="mt-2 text-sm app-copy-soft">
-                  Maximum finalized floating matches currently allowed per player.
-                </p>
-              </div>
-              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Match Spacing
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-50">{rules.minDaysBetweenAnyMatches}</p>
-                <p className="mt-2 text-sm app-copy-soft">
-                  Minimum gap in days between finalized appearances.
-                </p>
-              </div>
-              <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Active Preferences
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-50">{enabledPreferenceCount}</p>
-                <p className="mt-2 text-sm app-copy-soft">
-                  Soft preference toggles currently enabled.
-                </p>
+                <div className="mt-4 grid gap-3">
+                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
+                    <p className="text-sm font-medium text-zinc-100">{enabledPreferenceCount} preference toggle(s) enabled</p>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      Preferences only break ties between otherwise valid candidates.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
+                    <p className="text-sm font-medium text-zinc-100">
+                      {rules.preventConsecutiveFloat ? "Consecutive floating blocked" : "Consecutive floating allowed"}
+                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      This directly shapes how the engine reuses floating-capable players.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
+                    <p className="text-sm font-medium text-zinc-100">
+                      {rules.allowCoreMatchDrop ? "Marked players may skip one core match" : "Marked players cannot skip core matches"}
+                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      Treat this as a direct policy choice, not a decorative toggle.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <aside className="app-panel rounded-[1.75rem] p-6">
-          <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                Rule Notes
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-zinc-50">How to treat this page</h2>
+        <aside className="grid gap-4">
+          <section className="app-panel rounded-[1.75rem] p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Control Notes
+            </p>
+            <div className="mt-4 grid gap-3">
+              {[
+                "The feature file still defines behavior. This page only edits thresholds and tie-break preferences.",
+                "Hard limits should change sparingly because they can invalidate large parts of the candidate pool.",
+                "Soft preferences are safest to tweak when you want better tie-break behavior without changing eligibility.",
+              ].map((note) => (
+                <div
+                  key={note}
+                  className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft"
+                >
+                  {note}
+                </div>
+              ))}
             </div>
-
-            <div className="rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,255,255,0.03)] p-4">
-              <p className="text-sm font-medium text-zinc-100">This page edits thresholds, not behavior definitions.</p>
-              <p className="mt-2 text-sm app-copy-soft">
-                The feature file still defines the behavioral source of truth. These values only tune the runtime rule config the engine applies.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3">
-                <p className="text-sm font-medium text-zinc-100">Hard limits and soft preferences are different.</p>
-                <p className="mt-1 text-sm app-copy-soft">
-                  Spacing, float caps, and blocking windows are thresholds. Preferences only break ties among otherwise valid candidates.
-                </p>
-              </div>
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3">
-                <p className="text-sm font-medium text-zinc-100">Change one idea at a time.</p>
-                <p className="mt-1 text-sm app-copy-soft">
-                  This page is easiest to reason about when you adjust a single lever, then review the next generated selection against history.
-                </p>
-              </div>
-            </div>
-          </div>
+          </section>
         </aside>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <section className="app-panel rounded-[1.75rem] p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Hard Limits
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">These values block or allow candidate sets outright</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {hardLimitCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                  {card.label}
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-50">{card.value}</p>
+                <p className="mt-2 text-sm leading-6 app-copy-soft">{card.note}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="app-panel rounded-[1.75rem] p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Soft Preferences
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">These only shape tie-breaks among valid options</h2>
+          <div className="mt-6 grid gap-4">
+            {preferenceCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-zinc-100">{card.label}</p>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                      card.enabled
+                        ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                        : "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-[var(--text-soft)]"
+                    }`}
+                  >
+                    {card.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 app-copy-soft">{card.note}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </section>
 
       <div className="flex flex-col gap-3">
@@ -125,9 +199,11 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
             {error}
           </div>
         ) : null}
-
-        <RulesForm rules={rules} saved={saved === "1"} />
       </div>
+
+      <section className="app-panel rounded-[1.75rem] p-6">
+        <RulesForm rules={rules} saved={saved === "1"} />
+      </section>
     </main>
   );
 }
