@@ -73,6 +73,12 @@ function readMatchType(formData: FormData): string | null {
   throw new Error(`Match type must be one of ${matchTypeValues.join(", ")}.`);
 }
 
+function readSelectedMatchIds(formData: FormData): string[] {
+  return [...new Set(formData.getAll("selectedMatchIds"))].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+}
+
 function readMatchVenue(formData: FormData): MatchVenue {
   const venue = formData.get("homeOrAway");
 
@@ -193,9 +199,7 @@ export async function deleteMatchAction(matchId: string) {
 
 export async function recalculateMatchesAction(formData: FormData) {
   const scope = readText(formData, "scope");
-  const selectedMatchIds = [...new Set(formData.getAll("selectedMatchIds"))].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
+  const selectedMatchIds = readSelectedMatchIds(formData);
 
   try {
     const matches = await db.match.findMany({
@@ -249,97 +253,151 @@ export async function recalculateMatchesAction(formData: FormData) {
   );
 }
 
-export async function finalizeAllMatchesAction() {
+async function finalizeMatches(matchIds?: string[]) {
   const finalizedMatchIds: string[] = [];
   const warnings: string[] = [];
 
-  try {
-    const matches = await db.match.findMany({
-      include: {
-        selections: {
-          include: {
-            players: {
-              select: {
-                explanation: true,
-                playerId: true,
-                roleType: true,
-                sourceTeamNameSnapshot: true,
-                targetTeamNameSnapshot: true,
-                wasAutoSelected: true,
-                wasManuallyAdded: true,
-                wasManuallyRemoved: true,
-              },
+  const matches = await db.match.findMany({
+    where: matchIds ? { id: { in: matchIds } } : undefined,
+    include: {
+      selections: {
+        include: {
+          players: {
+            select: {
+              explanation: true,
+              playerId: true,
+              roleType: true,
+              sourceTeamNameSnapshot: true,
+              targetTeamNameSnapshot: true,
+              wasAutoSelected: true,
+              wasManuallyAdded: true,
+              wasManuallyRemoved: true,
             },
           },
-          orderBy: [{ createdAt: "desc" }],
-          take: 1,
         },
-        targetTeam: {
-          select: {
-            name: true,
-          },
+        orderBy: [{ createdAt: "desc" }],
+        take: 1,
+      },
+      targetTeam: {
+        select: {
+          name: true,
         },
       },
-      orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
+    },
+    orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
+  });
+
+  for (const match of matches) {
+    const latestSelection = match.selections[0] ?? null;
+
+    if (latestSelection?.status === SelectionStatus.FINALIZED) {
+      continue;
+    }
+
+    if (!latestSelection) {
+      warnings.push(formatFinalizeWarning(match, "No saved selection exists yet."));
+      continue;
+    }
+
+    const activePlayerCount = getActiveSelectionPlayerCount(latestSelection);
+
+    if (activePlayerCount < match.squadSize) {
+      warnings.push(
+        formatFinalizeWarning(
+          match,
+          `Selection is ${match.squadSize - activePlayerCount} player(s) short of the ${match.squadSize}-slot squad.`,
+        ),
+      );
+      continue;
+    }
+
+    if (activePlayerCount > match.squadSize) {
+      warnings.push(
+        formatFinalizeWarning(
+          match,
+          `Selection has ${activePlayerCount} players for a ${match.squadSize}-slot squad.`,
+        ),
+      );
+      continue;
+    }
+
+    await db.matchSelection.create({
+      data: {
+        finalizedAt: new Date(),
+        matchId: match.id,
+        overrideNotes: latestSelection.overrideNotes,
+        players: {
+          create: latestSelection.players.map((player) => ({
+            explanation: player.explanation,
+            playerId: player.playerId,
+            roleType: player.roleType,
+            sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
+            targetTeamNameSnapshot: player.targetTeamNameSnapshot,
+            wasAutoSelected: player.wasAutoSelected,
+            wasManuallyAdded: player.wasManuallyAdded,
+            wasManuallyRemoved: player.wasManuallyRemoved,
+          })),
+        },
+        status: SelectionStatus.FINALIZED,
+      },
     });
 
-    for (const match of matches) {
-      const latestSelection = match.selections[0] ?? null;
+    finalizedMatchIds.push(match.id);
+  }
 
-      if (latestSelection?.status === SelectionStatus.FINALIZED) {
-        continue;
-      }
+  return {
+    finalizedMatchIds,
+    warnings,
+  };
+}
 
-      if (!latestSelection) {
-        warnings.push(formatFinalizeWarning(match, "No saved selection exists yet."));
-        continue;
-      }
+export async function finalizeMatchesAction(formData: FormData) {
+  const selectedMatchIds = readSelectedMatchIds(formData);
 
-      const activePlayerCount = getActiveSelectionPlayerCount(latestSelection);
+  try {
+    const { finalizedMatchIds, warnings } = await finalizeMatches(selectedMatchIds);
 
-      if (activePlayerCount < match.squadSize) {
-        warnings.push(
-          formatFinalizeWarning(
-            match,
-            `Selection is ${match.squadSize - activePlayerCount} player(s) short of the ${match.squadSize}-slot squad.`,
-          ),
-        );
-        continue;
-      }
+    revalidatePath("/");
+    revalidatePath("/history");
+    revalidatePath("/matches");
 
-      if (activePlayerCount > match.squadSize) {
-        warnings.push(
-          formatFinalizeWarning(
-            match,
-            `Selection has ${activePlayerCount} players for a ${match.squadSize}-slot squad.`,
-          ),
-        );
-        continue;
-      }
-
-      await db.matchSelection.create({
-        data: {
-          finalizedAt: new Date(),
-          matchId: match.id,
-          overrideNotes: latestSelection.overrideNotes,
-          players: {
-            create: latestSelection.players.map((player) => ({
-              explanation: player.explanation,
-              playerId: player.playerId,
-              roleType: player.roleType,
-              sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
-              targetTeamNameSnapshot: player.targetTeamNameSnapshot,
-              wasAutoSelected: player.wasAutoSelected,
-              wasManuallyAdded: player.wasManuallyAdded,
-              wasManuallyRemoved: player.wasManuallyRemoved,
-            })),
-          },
-          status: SelectionStatus.FINALIZED,
-        },
-      });
-
-      finalizedMatchIds.push(match.id);
+    for (const matchId of finalizedMatchIds) {
+      revalidatePath(`/selection/${matchId}`);
     }
+
+    redirect(
+      buildPathWithSearch("/matches", {
+        finalizedAll: finalizedMatchIds.length,
+        finalizeWarnings: warnings.join("\n"),
+      }),
+    );
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/matches", {
+        error: error instanceof Error ? error.message : "Could not finalize the selected matches.",
+      }),
+    );
+  }
+}
+
+export async function finalizeAllMatchesAction() {
+  try {
+    const { finalizedMatchIds, warnings } = await finalizeMatches();
+
+    revalidatePath("/");
+    revalidatePath("/history");
+    revalidatePath("/matches");
+
+    for (const matchId of finalizedMatchIds) {
+      revalidatePath(`/selection/${matchId}`);
+    }
+
+    redirect(
+      buildPathWithSearch("/matches", {
+        finalizedAll: finalizedMatchIds.length,
+        finalizeWarnings: warnings.join("\n"),
+      }),
+    );
   } catch (error) {
     redirect(
       buildPathWithSearch("/matches", {
@@ -347,81 +405,115 @@ export async function finalizeAllMatchesAction() {
       }),
     );
   }
-
-  revalidatePath("/");
-  revalidatePath("/history");
-  revalidatePath("/matches");
-
-  for (const matchId of finalizedMatchIds) {
-    revalidatePath(`/selection/${matchId}`);
-  }
-
-  redirect(
-    buildPathWithSearch("/matches", {
-      finalizedAll: finalizedMatchIds.length,
-      finalizeWarnings: warnings.join("\n"),
-    }),
-  );
 }
 
-export async function markAllMatchesAsDraftAction() {
+async function markMatchesAsDraft(matchIds?: string[]) {
   const affectedMatchIds: string[] = [];
 
-  try {
-    const matches = await db.match.findMany({
-      include: {
-        selections: {
-          include: {
-            players: {
-              select: {
-                chosenPosition: true,
-                explanation: true,
-                playerId: true,
-                roleType: true,
-                sourceTeamNameSnapshot: true,
-                targetTeamNameSnapshot: true,
-                wasAutoSelected: true,
-                wasManuallyAdded: true,
-                wasManuallyRemoved: true,
-              },
+  const matches = await db.match.findMany({
+    where: matchIds ? { id: { in: matchIds } } : undefined,
+    include: {
+      selections: {
+        include: {
+          players: {
+            select: {
+              chosenPosition: true,
+              explanation: true,
+              playerId: true,
+              roleType: true,
+              sourceTeamNameSnapshot: true,
+              targetTeamNameSnapshot: true,
+              wasAutoSelected: true,
+              wasManuallyAdded: true,
+              wasManuallyRemoved: true,
             },
           },
-          orderBy: [{ createdAt: "desc" }],
-          take: 1,
         },
+        orderBy: [{ createdAt: "desc" }],
+        take: 1,
+      },
+    },
+  });
+
+  for (const match of matches) {
+    const latestSelection = match.selections[0] ?? null;
+
+    if (!latestSelection || latestSelection.status === SelectionStatus.DRAFT) {
+      continue;
+    }
+
+    await db.matchSelection.create({
+      data: {
+        matchId: match.id,
+        overrideNotes: latestSelection.overrideNotes,
+        players: {
+          create: latestSelection.players.map((player) => ({
+            chosenPosition: player.chosenPosition,
+            explanation: player.explanation,
+            playerId: player.playerId,
+            roleType: player.roleType,
+            sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
+            targetTeamNameSnapshot: player.targetTeamNameSnapshot,
+            wasAutoSelected: player.wasAutoSelected,
+            wasManuallyAdded: player.wasManuallyAdded,
+            wasManuallyRemoved: player.wasManuallyRemoved,
+          })),
+        },
+        status: SelectionStatus.DRAFT,
       },
     });
 
-    for (const match of matches) {
-      const latestSelection = match.selections[0] ?? null;
+    affectedMatchIds.push(match.id);
+  }
 
-      if (!latestSelection || latestSelection.status === SelectionStatus.DRAFT) {
-        continue;
-      }
+  return affectedMatchIds;
+}
 
-      await db.matchSelection.create({
-        data: {
-          matchId: match.id,
-          overrideNotes: latestSelection.overrideNotes,
-          players: {
-            create: latestSelection.players.map((player) => ({
-              chosenPosition: player.chosenPosition,
-              explanation: player.explanation,
-              playerId: player.playerId,
-              roleType: player.roleType,
-              sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
-              targetTeamNameSnapshot: player.targetTeamNameSnapshot,
-              wasAutoSelected: player.wasAutoSelected,
-              wasManuallyAdded: player.wasManuallyAdded,
-              wasManuallyRemoved: player.wasManuallyRemoved,
-            })),
-          },
-          status: SelectionStatus.DRAFT,
-        },
-      });
+export async function markMatchesAsDraftAction(formData: FormData) {
+  const selectedMatchIds = readSelectedMatchIds(formData);
 
-      affectedMatchIds.push(match.id);
+  try {
+    const affectedMatchIds = await markMatchesAsDraft(selectedMatchIds);
+
+    revalidatePath("/");
+    revalidatePath("/history");
+    revalidatePath("/matches");
+
+    for (const matchId of affectedMatchIds) {
+      revalidatePath(`/selection/${matchId}`);
     }
+
+    redirect(
+      buildPathWithSearch("/matches", {
+        markedDraftAll: affectedMatchIds.length,
+      }),
+    );
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/matches", {
+        error: error instanceof Error ? error.message : "Could not reopen the selected matches.",
+      }),
+    );
+  }
+}
+
+export async function markAllMatchesAsDraftAction() {
+  try {
+    const affectedMatchIds = await markMatchesAsDraft();
+
+    revalidatePath("/");
+    revalidatePath("/history");
+    revalidatePath("/matches");
+
+    for (const matchId of affectedMatchIds) {
+      revalidatePath(`/selection/${matchId}`);
+    }
+
+    redirect(
+      buildPathWithSearch("/matches", {
+        markedDraftAll: affectedMatchIds.length,
+      }),
+    );
   } catch (error) {
     redirect(
       buildPathWithSearch("/matches", {
@@ -429,20 +521,6 @@ export async function markAllMatchesAsDraftAction() {
       }),
     );
   }
-
-  revalidatePath("/");
-  revalidatePath("/history");
-  revalidatePath("/matches");
-
-  for (const matchId of affectedMatchIds) {
-    revalidatePath(`/selection/${matchId}`);
-  }
-
-  redirect(
-    buildPathWithSearch("/matches", {
-      markedDraftAll: affectedMatchIds.length,
-    }),
-  );
 }
 
 export async function recalculateMatchAction(matchId: string) {
