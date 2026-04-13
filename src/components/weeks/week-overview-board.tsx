@@ -8,6 +8,7 @@ import type {
   SelectionStatus,
   Team,
 } from "@/generated/prisma/client";
+import { resetSelectionsAction } from "@/app/matches/actions";
 import { saveManualSelectionAction } from "@/app/selection/[matchId]/actions";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
@@ -179,6 +180,26 @@ export function WeekOverviewBoard({
                   >
                     {formatSelectionState(latestSelectionStatus)}
                   </span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    className="inline-flex h-9 items-center justify-center rounded-full border app-hairline px-3 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                    href={`/selection/${match.id}`}
+                  >
+                    Open workspace
+                  </Link>
+                  <form action={resetSelectionsAction}>
+                    <input name="resetScope" type="hidden" value="match" />
+                    <input name="returnPath" type="hidden" value={returnPath} />
+                    <input name="selectedMatchIds" type="hidden" value={match.id} />
+                    <button
+                      className="h-9 rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-3 text-xs font-medium text-[#f0cbc5] hover:bg-[rgba(185,128,119,0.14)] hover:text-white"
+                      type="submit"
+                    >
+                      Reset match
+                    </button>
+                  </form>
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
