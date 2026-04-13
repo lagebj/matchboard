@@ -47,8 +47,11 @@ export default async function HistoryPage() {
         },
       },
       select: {
+        explanation: true,
         playerId: true,
         roleType: true,
+        sourceTeamNameSnapshot: true,
+        targetTeamNameSnapshot: true,
         selection: {
           select: {
             match: {
@@ -76,6 +79,9 @@ export default async function HistoryPage() {
     {
       coreTeamAppearances: number;
       floatCount: number;
+      latestMovementDate: Date | null;
+      latestMovementReason: string;
+      latestMovementSummary: string;
       lastFinalizedMatchDate: Date | null;
       recentSelectionPattern: string;
       totalFinalizedAppearances: number;
@@ -86,6 +92,9 @@ export default async function HistoryPage() {
     const existingHistory = finalizedHistoryByPlayerId.get(selectionPlayer.playerId) ?? {
       coreTeamAppearances: 0,
       floatCount: 0,
+      latestMovementDate: null,
+      latestMovementReason: "-",
+      latestMovementSummary: "-",
       lastFinalizedMatchDate: null,
       recentSelectionPattern: "",
       totalFinalizedAppearances: 0,
@@ -102,6 +111,13 @@ export default async function HistoryPage() {
 
     if (isFloatingSelectionRole(selectionPlayer.roleType)) {
       existingHistory.floatCount += 1;
+
+      if (!existingHistory.latestMovementDate) {
+        existingHistory.latestMovementDate = matchDate;
+        existingHistory.latestMovementSummary = `${selectionPlayer.sourceTeamNameSnapshot} -> ${selectionPlayer.targetTeamNameSnapshot} · ${formatPatternRole(selectionPlayer.roleType)} · ${formatPatternDate(matchDate)}`;
+        existingHistory.latestMovementReason =
+          selectionPlayer.explanation?.trim() || "No saved explanation for the latest movement.";
+      }
     }
 
     existingHistory.totalFinalizedAppearances += 1;
@@ -128,6 +144,9 @@ export default async function HistoryPage() {
       coreTeamName: player.coreTeam.name,
       firstName: player.firstName,
       floatCount: history?.floatCount ?? 0,
+      latestMovementDate: history?.latestMovementDate ?? null,
+      latestMovementReason: history?.latestMovementReason ?? "-",
+      latestMovementSummary: history?.latestMovementSummary ?? "-",
       lastFinalizedMatchDate: history?.lastFinalizedMatchDate ?? null,
       lastName: player.lastName,
       playerCode: player.playerCode,
@@ -139,10 +158,16 @@ export default async function HistoryPage() {
 
   const totalFinalizedAppearances = rows.reduce((sum, row) => sum + row.totalFinalizedAppearances, 0);
   const totalFloatAppearances = rows.reduce((sum, row) => sum + row.floatCount, 0);
-  const recentlyUsedPlayers = rows.filter((row) => row.lastFinalizedMatchDate !== null).length;
+  const recentMovers = rows.filter((row) => row.latestMovementDate !== null).length;
   const mostUsedPlayer = [...rows].sort(
     (left, right) => right.totalFinalizedAppearances - left.totalFinalizedAppearances,
   )[0] ?? null;
+  const latestMovementPlayer = [...rows]
+    .filter((row) => row.latestMovementDate !== null)
+    .sort(
+      (left, right) =>
+        (right.latestMovementDate?.getTime() ?? 0) - (left.latestMovementDate?.getTime() ?? 0),
+    )[0] ?? null;
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -192,10 +217,10 @@ export default async function HistoryPage() {
               </div>
               <div className="rounded-2xl border app-hairline bg-[var(--surface-muted)] px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Recently Used
+                  Recent Movers
                 </p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-50">{recentlyUsedPlayers}</p>
-                <p className="mt-2 text-sm app-copy-soft">Players with at least one finalized appearance in the retained history.</p>
+                <p className="mt-2 text-3xl font-semibold text-zinc-50">{recentMovers}</p>
+                <p className="mt-2 text-sm app-copy-soft">Players with at least one visible finalized movement between teams.</p>
               </div>
             </div>
           </div>
@@ -210,19 +235,19 @@ export default async function HistoryPage() {
               <h2 className="mt-2 text-xl font-semibold text-zinc-50">What to look for here</h2>
             </div>
 
-            {mostUsedPlayer ? (
+            {latestMovementPlayer ? (
               <div className="rounded-2xl border border-[var(--border-strong)] bg-[rgba(255,255,255,0.03)] p-4">
-                <p className="text-xs uppercase tracking-[0.2em] app-copy-muted">Highest current load</p>
+                <p className="text-xs uppercase tracking-[0.2em] app-copy-muted">Latest visible move</p>
                 <p className="mt-2 text-lg font-semibold text-zinc-50">
-                  {mostUsedPlayer.lastName
-                    ? `${mostUsedPlayer.firstName} ${mostUsedPlayer.lastName}`
-                    : mostUsedPlayer.firstName}
+                  {latestMovementPlayer.lastName
+                    ? `${latestMovementPlayer.firstName} ${latestMovementPlayer.lastName}`
+                    : latestMovementPlayer.firstName}
                 </p>
                 <p className="mt-1 text-sm app-copy-soft">
-                  {mostUsedPlayer.totalFinalizedAppearances} finalized appearances · {mostUsedPlayer.floatCount} float appearance(s)
+                  {latestMovementPlayer.latestMovementSummary}
                 </p>
                 <p className="mt-3 text-sm app-copy-soft">
-                  Use this view to sanity-check fairness and recent usage before you rely on generator suggestions.
+                  {latestMovementPlayer.latestMovementReason}
                 </p>
               </div>
             ) : (
@@ -241,6 +266,16 @@ export default async function HistoryPage() {
                   You should be able to glance at the pattern column and see role sequence without opening a profile.
                 </p>
               </div>
+              {mostUsedPlayer ? (
+                <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3">
+                  <p className="text-sm font-medium text-zinc-100">Highest current load: {mostUsedPlayer.lastName
+                    ? `${mostUsedPlayer.firstName} ${mostUsedPlayer.lastName}`
+                    : mostUsedPlayer.firstName}</p>
+                  <p className="mt-1 text-sm app-copy-soft">
+                    {mostUsedPlayer.totalFinalizedAppearances} finalized appearances and {mostUsedPlayer.floatCount} floating appearance(s).
+                  </p>
+                </div>
+              ) : null}
               <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3">
                 <p className="text-sm font-medium text-zinc-100">Floating deserves separate attention.</p>
                 <p className="mt-1 text-sm app-copy-soft">

@@ -3,12 +3,13 @@ import { SelectionStatus } from "@/generated/prisma/client";
 import {
   deleteMatchAction,
   finalizeAllMatchesAction,
+  markAllMatchesAsDraftAction,
   recalculateMatchesAction,
 } from "@/app/matches/actions";
 import { MatchCreateLayover } from "@/components/matches/match-create-layover";
 import { MatchTable } from "@/components/matches/match-table";
 import { db } from "@/lib/db";
-import { formatDate } from "@/lib/date-utils";
+import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatMatchVenue } from "@/lib/match-utils";
 
 type MatchesPageProps = {
@@ -19,12 +20,22 @@ type MatchesPageProps = {
     error?: string;
     finalizedAll?: string;
     finalizeWarnings?: string;
+    markedDraftAll?: string;
     recalculated?: string;
   }>;
 };
 
 export default async function MatchesPage({ searchParams }: MatchesPageProps) {
-  const { create, created, deleted, error, finalizedAll, finalizeWarnings, recalculated } = await searchParams;
+  const {
+    create,
+    created,
+    deleted,
+    error,
+    finalizedAll,
+    finalizeWarnings,
+    markedDraftAll,
+    recalculated,
+  } = await searchParams;
   const bulkFinalizeWarnings = finalizeWarnings?.split("\n").filter(Boolean) ?? [];
 
   const [matches, teams, selections] = await Promise.all([
@@ -192,7 +203,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                   {nextActionMatch.targetTeam.name} vs. {nextActionMatch.opponent}
                 </p>
                 <p className="mt-1 text-sm app-copy-soft">
-                  {formatDate(nextActionMatch.startsAt)} · {formatMatchVenue(nextActionMatch.homeOrAway)}
+                  {formatDate(nextActionMatch.startsAt)} · {formatIsoWeekLabel(nextActionMatch.startsAt)} · {formatMatchVenue(nextActionMatch.homeOrAway)}
                 </p>
                 <div className="mt-4 rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-3 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] app-copy-muted">
@@ -268,6 +279,14 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
           </div>
         ) : null}
 
+        {markedDraftAll ? (
+          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.045)] px-4 py-3 text-sm text-zinc-100">
+            {Number.parseInt(markedDraftAll, 10) > 0
+              ? `Marked ${markedDraftAll} finalized match selection${markedDraftAll === "1" ? "" : "s"} as draft.`
+              : "No finalized selections needed to be marked as draft."}
+          </div>
+        ) : null}
+
         {finalizedAll && Number.parseInt(finalizedAll, 10) > 0 ? (
           <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.045)] px-4 py-3 text-sm text-zinc-100">
             Finalized {finalizedAll} match{finalizedAll === "1" ? "" : "es"} from the current non-finalized set.
@@ -304,6 +323,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
       ) : (
         <section className="app-panel rounded-[1.75rem] p-6">
           <MatchTable
+            markAllDraftAction={markAllMatchesAsDraftAction}
             matches={enrichedMatches.map((match) => ({
               ...match,
               deleteAction: deleteMatchAction.bind(null, match.id),
