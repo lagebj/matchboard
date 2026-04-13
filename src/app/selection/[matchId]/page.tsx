@@ -15,16 +15,34 @@ type SelectionPageProps = {
     error?: string;
     generated?: string;
     recalculated?: string;
+    reset?: string;
+    resetCount?: string;
     saved?: string;
   }>;
 };
+
+function formatResetMessage(reset?: string, resetCount?: string): string | undefined {
+  if (!reset) {
+    return undefined;
+  }
+
+  if (reset === "match") {
+    return "Saved selections cleared for this match. The workspace is back to an empty restart.";
+  }
+
+  if (reset === "week") {
+    return `Saved selections cleared for this week${resetCount ? ` (${resetCount} snapshot${resetCount === "1" ? "" : "s"} removed).` : "."}`;
+  }
+
+  return `Saved selections cleared across the queue${resetCount ? ` (${resetCount} snapshot${resetCount === "1" ? "" : "s"} removed).` : "."}`;
+}
 
 export default async function SelectionPage({
   params,
   searchParams,
 }: SelectionPageProps) {
   const { matchId } = await params;
-  const { accepted, error, generated, recalculated, saved } = await searchParams;
+  const { accepted, error, generated, recalculated, reset, resetCount, saved } = await searchParams;
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -253,6 +271,7 @@ export default async function SelectionPage({
           nextMatchId={nextMatchId}
           previousMatchId={previousMatchId}
           recalculated={recalculated === "1"}
+          resetMessage={formatResetMessage(reset, resetCount)}
           savedMessage={saved === "draft" || saved === "final" ? saved : undefined}
           sameWeekMatches={sameWeekMatches}
           selectionAnalysis={selectionAnalysis}

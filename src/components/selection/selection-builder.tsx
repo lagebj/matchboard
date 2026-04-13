@@ -5,7 +5,7 @@ import {
   generateSuggestedSelectionAction,
   saveManualSelectionAction,
 } from "@/app/selection/[matchId]/actions";
-import { recalculateMatchAction } from "@/app/matches/actions";
+import { recalculateMatchAction, resetSelectionsAction } from "@/app/matches/actions";
 import {
   GeneratedExcludedTable,
 } from "@/components/selection/generated-excluded-table";
@@ -61,6 +61,7 @@ type SelectionBuilderProps = {
   nextMatchId: string | null;
   previousMatchId: string | null;
   recalculated: boolean;
+  resetMessage?: string;
   savedMessage?: string;
   sameWeekMatches: Array<{
     id: string;
@@ -229,6 +230,7 @@ export function SelectionBuilder({
   nextMatchId,
   previousMatchId,
   recalculated,
+  resetMessage,
   savedMessage,
   sameWeekMatches,
   selectionAnalysis,
@@ -237,6 +239,7 @@ export function SelectionBuilder({
   const acceptGeneratedAction = acceptGeneratedSelectionAction.bind(null, match.id);
   const generateAction = generateSuggestedSelectionAction.bind(null, match.id);
   const recalculateAction = recalculateMatchAction.bind(null, match.id);
+  const resetAction = resetSelectionsAction;
   const saveAction = saveManualSelectionAction.bind(null, match.id);
   const selectedRoleByPlayerId = buildSelectedRoleByPlayerId(latestSelection, generatedSelection);
   const activeSavedPlayers = getActiveSavedPlayers(latestSelection);
@@ -419,6 +422,17 @@ export function SelectionBuilder({
               >
                 Back to matches
               </Link>
+              <form action={resetAction}>
+                <input name="resetScope" type="hidden" value="match" />
+                <input name="returnPath" type="hidden" value={`/selection/${match.id}`} />
+                <input name="selectedMatchIds" type="hidden" value={match.id} />
+                <button
+                  className="inline-flex h-10 items-center rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-4 text-sm font-medium text-[#f0cbc5] hover:bg-[rgba(185,128,119,0.14)] hover:text-white"
+                  type="submit"
+                >
+                  Reset this match
+                </button>
+              </form>
             </div>
           </div>
 
@@ -516,6 +530,12 @@ export function SelectionBuilder({
       {savedMessage ? (
         <div className="rounded-2xl border app-hairline bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-[var(--accent-strong)]">
           {formatSavedStatus(savedMessage)}
+        </div>
+      ) : null}
+
+      {resetMessage ? (
+        <div className="rounded-2xl border border-[rgba(185,128,119,0.34)] bg-[rgba(185,128,119,0.12)] px-4 py-3 text-sm text-[#f0cbc5]">
+          {resetMessage}
         </div>
       ) : null}
 

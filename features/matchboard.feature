@@ -28,6 +28,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Given matches, players, teams, and finalized history may exist in the app
       When the coach opens the landing page
       Then the app must show the next operational decision first
+      And the page must show the broader operating sequence as a short step flow
       And the page must keep recent finalized outcomes visible as context
       And the page must present the broader selection loop without forcing the coach to start from raw tables
 
@@ -43,6 +44,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Given one or more registered matches exist
       When the coach works the match workflow
       Then the app must group operational match work by calendar week
+      And the weekly workflow should read like a sequence of live week slides rather than one flat batch
       And the current week must be readable before the coach scans the deeper match ledger
       And week-level warnings and informational signals must be visible without opening every match
 
@@ -74,8 +76,16 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Given the coach is moving between pages in the app
       When the navigation is shown
       Then the app must keep the main operating loop visible
+      And the navigation must still provide direct access to the existing overview pages
       And the current page must still be easy to identify within that loop
       And the loop must stay inside the viewport without horizontal overflow
+
+    Scenario: Match queue keeps one assistant-manager call on the active week
+      Given one or more registered matches exist
+      When the coach opens the match queue overview
+      Then the page must highlight one short assistant-manager suggestion for the active week
+      And that suggestion must point toward the next unresolved match when one exists
+      And the page must keep deeper weeks available without making them compete equally with the active week
 
   Rule: Team registry
 
@@ -667,6 +677,13 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And the coach must not need to treat the whole fixture list as one undifferentiated batch
       And the UI must keep the currently active week readable while deeper weeks stay secondary
 
+    Scenario: Match overview presents each week as a guided flow card
+      Given registered matches exist in one or more calendar weeks
+      When the coach reviews the match overview
+      Then each week must be presented as its own guided flow card or slide
+      And each week card must show its matches, current progress, and the next suggested operational action
+      And each week card must provide a direct way to open that week's board or next unresolved match
+
     Scenario: Match overview shows current saved-selection state
       Given matches exist in the match overview
       When the coach reviews the match list
@@ -740,6 +757,27 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Then every match with a saved selection must end with a latest saved status of draft
       And the latest draft must preserve the latest saved player rows and override note for each affected match
       And matches without any saved selection must remain unchanged
+
+    Scenario: Coach can reset one match back to no saved selection
+      Given a registered match already has one or more saved draft or finalized selections
+      When the coach resets that match from the match workspace or week board
+      Then every saved selection snapshot for that match must be removed
+      And that match must return to having no saved selection
+      And future selection runs must no longer count that removed match history
+
+    Scenario: Coach can reset one week back to no saved selections
+      Given one or more matches in the same calendar week already have saved draft or finalized selections
+      When the coach resets that week
+      Then every saved selection snapshot for matches in that week must be removed
+      And each affected match in that week must return to having no saved selection
+      And matches in other weeks must remain unchanged
+
+    Scenario: Coach can reset all saved selections across the queue
+      Given one or more registered matches already have saved draft or finalized selections
+      When the coach resets all selections from the match overview
+      Then every saved selection snapshot for every registered match must be removed
+      And every registered match must return to having no saved selection
+      And the match records themselves must remain in the schedule
 
     Scenario: Coach can browse to previous and next matches from match detail
       Given multiple matches exist in the match registry ordering
