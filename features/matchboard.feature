@@ -14,6 +14,27 @@ Feature: Player registry, team management, and single-match selection history
     And manual changes to a generated selection must be allowed
     And the selection engine loads its rules from the configured ruleset
 
+  Rule: Coach-desk workflow experience
+
+    Scenario: Landing page surfaces the next decision before raw registry data
+      Given matches, players, teams, and finalized history may exist in the app
+      When the coach opens the landing page
+      Then the app must show the next operational decision first
+      And the page must keep recent finalized outcomes visible as context
+      And the page must present the broader selection loop without forcing the coach to start from raw tables
+
+    Scenario: Overview pages show workflow context before deep tables or forms
+      Given the coach opens an overview page such as players, teams, matches, history, or rules
+      When the page loads
+      Then the page must show summary signals and next-action guidance before the main table or form
+      And the table or form must remain available as a secondary operational surface
+
+    Scenario: App navigation keeps the operating loop visible
+      Given the coach is moving between pages in the app
+      When the navigation is shown
+      Then the app must keep the main operating loop visible
+      And the current page must still be easy to identify within that loop
+
   Rule: Team registry
 
     Scenario: Coach can create a team
@@ -126,6 +147,13 @@ Feature: Player registry, team management, and single-match selection history
       And secondary position must be "None" or one of "GK", "CB", "CM", "W", or "ST"
       And tertiary position must be "None" or one of "GK", "CB", "CM", "W", or "ST"
       And the player form must offer those positions as dropdown choices
+
+    Scenario: Coach can clear optional player positions back to None
+      Given a player exists in the player registry
+      And the player already has a secondary or tertiary position recorded
+      When the coach changes secondary position or tertiary position to "None"
+      Then the app must save that field as empty
+      And the player profile must show that no optional position is recorded for that field
 
     Scenario: Player profile stores footedness and best side
       Given a player exists in the player registry
@@ -548,6 +576,12 @@ Feature: Player registry, team management, and single-match selection history
       When the coach reviews the match list
       Then each match must show whether it currently has no saved selection, a draft selection, or a finalized selection
 
+    Scenario: Match overview shows calendar week numbers
+      Given matches exist in the match overview
+      When the coach reviews the match list
+      Then each match must show the match date's calendar week number
+      And the week number must be visible without opening the match detail page
+
     Scenario: Match overview rows can open selection detail directly
       Given matches exist in the match overview
       When the coach clicks a match row or primary match cell in the overview
@@ -564,6 +598,13 @@ Feature: Player registry, team management, and single-match selection history
       When the coach recalculates that match from its detail page
       Then the app must generate a new draft selection for that match using the current rules
       And finalized selections must remain unchanged
+
+    Scenario: Coach can mark all saved selections as draft from the match overview
+      Given one or more registered matches already have a saved selection
+      When the coach marks all saved selections as draft from the match overview
+      Then every match with a saved selection must end with a latest saved status of draft
+      And the latest draft must preserve the latest saved player rows and override note for each affected match
+      And matches without any saved selection must remain unchanged
 
     Scenario: Coach can browse to previous and next matches from match detail
       Given multiple matches exist in the match registry ordering
@@ -687,6 +728,13 @@ Feature: Player registry, team management, and single-match selection history
       And one player has fewer total floating appearances in finalized history
       When the engine scores floating candidates
       Then the player with fewer floating appearances should receive better priority
+
+    Scenario: History overview highlights recent movement between teams
+      Given finalized history contains players who have recently floated, supported, or filled development slots for another team
+      When the coach reviews the history overview
+      Then the app must show which players most recently moved between teams
+      And the overview must show where each visible movement went
+      And the overview must show the saved explanation for the latest visible movement without requiring the player detail page
 
   Rule: Manual override handling
 

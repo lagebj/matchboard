@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { SortableHeader } from "@/components/sortable-header";
-import { formatDate } from "@/lib/date-utils";
+import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatMatchVenue } from "@/lib/match-utils";
 import {
   applySortDirection,
@@ -33,6 +33,7 @@ type MatchRow = {
 
 type MatchTableProps = {
   finalizeAllAction: () => Promise<void>;
+  markAllDraftAction: () => Promise<void>;
   matches: MatchRow[];
   recalculateAction: (formData: FormData) => Promise<void>;
 };
@@ -61,7 +62,12 @@ function getSelectionPillClassName(status: MatchRow["latestSelectionStatus"]) {
   return "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-[var(--text-soft)]";
 }
 
-export function MatchTable({ finalizeAllAction, matches, recalculateAction }: MatchTableProps) {
+export function MatchTable({
+  finalizeAllAction,
+  markAllDraftAction,
+  matches,
+  recalculateAction,
+}: MatchTableProps) {
   const [sortKey, setSortKey] = useState("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -125,31 +131,41 @@ export function MatchTable({ finalizeAllAction, matches, recalculateAction }: Ma
           </p>
         </div>
 
-        <form action={recalculateAction} className="flex flex-wrap gap-2" id="recalculate-matches">
-          <button
-            className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-            formAction={finalizeAllAction}
-            type="submit"
-          >
-            Finalize all ready matches
-          </button>
-          <button
-            className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-            name="scope"
-            type="submit"
-            value="selected"
-          >
-            Recalculate selected
-          </button>
-          <button
-            className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
-            name="scope"
-            type="submit"
-            value="all"
-          >
-            Recalculate all drafts
-          </button>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          <form action={markAllDraftAction}>
+            <button
+              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
+              type="submit"
+            >
+              Mark all as draft
+            </button>
+          </form>
+          <form action={recalculateAction} className="flex flex-wrap gap-2" id="recalculate-matches">
+            <button
+              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
+              formAction={finalizeAllAction}
+              type="submit"
+            >
+              Finalize all ready matches
+            </button>
+            <button
+              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
+              name="scope"
+              type="submit"
+              value="selected"
+            >
+              Recalculate selected
+            </button>
+            <button
+              className="h-10 rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.08)] hover:text-zinc-50"
+              name="scope"
+              type="submit"
+              value="all"
+            >
+              Recalculate all drafts
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -194,6 +210,7 @@ export function MatchTable({ finalizeAllAction, matches, recalculateAction }: Ma
                 onSort={updateSort}
                 sortKey="date"
               />
+              <th className="px-4 py-3 font-semibold">Week</th>
               <SortableHeader
                 activeKey={sortKey}
                 direction={sortDirection}
@@ -273,6 +290,7 @@ export function MatchTable({ finalizeAllAction, matches, recalculateAction }: Ma
                       {formatDate(match.startsAt)}
                     </Link>
                   </td>
+                  <td className="px-4 py-3 app-copy-soft">{formatIsoWeekLabel(match.startsAt)}</td>
                   <td className="px-4 py-3">
                     <Link
                       className="block rounded-xl px-2 py-2 -mx-2 -my-2 text-zinc-100 hover:bg-[rgba(255,255,255,0.05)]"
@@ -323,7 +341,7 @@ export function MatchTable({ finalizeAllAction, matches, recalculateAction }: Ma
 
             {sortedMatches.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={10}>
+                <td className="px-4 py-10 text-center app-copy-muted" colSpan={11}>
                   No matches created yet.
                 </td>
               </tr>
