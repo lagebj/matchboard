@@ -61,14 +61,17 @@ export function PlayerPickList({
   return (
     <div className="flex flex-col gap-5">
       {groupedPlayers.map((group) => (
-        <section key={group.team.id} className="border border-zinc-200 bg-white">
-          <header className="border-b border-zinc-200 bg-zinc-100 px-4 py-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-700">
+        <section
+          key={group.team.id}
+          className="overflow-hidden rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)]"
+        >
+          <header className="border-b app-hairline bg-[rgba(255,255,255,0.04)] px-4 py-3">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] app-copy-soft">
               {group.team.name}
             </h3>
           </header>
 
-          <div className="divide-y divide-zinc-200">
+          <div className="divide-y app-hairline">
             {group.players.map((player) => {
               const selectedRole =
                 selectedRoleByPlayerId[player.id] ??
@@ -92,17 +95,17 @@ export function PlayerPickList({
                       value={player.id}
                     />
                     <div className="min-w-0">
-                      <p className="font-medium text-zinc-950">{formatPlayerName(player)}</p>
-                      <p className="text-sm text-zinc-600">
+                      <p className="font-medium text-zinc-50">{formatPlayerName(player)}</p>
+                      <p className="text-sm app-copy-soft">
                         {getPlayerPositionSummary(player)} · {formatAvailabilityStatus(player.currentAvailability)}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs uppercase tracking-wide text-zinc-500">Role</span>
+                    <span className="text-xs uppercase tracking-wide app-copy-muted">Role</span>
                     <select
-                      className="h-10 border border-zinc-300 bg-white px-3 text-sm"
+                      className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 text-sm text-zinc-100"
                       defaultValue={selectedRole}
                       name={`roleType:${player.id}`}
                     >
@@ -118,7 +121,7 @@ export function PlayerPickList({
             })}
 
             {group.players.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-zinc-500">No active players in this team.</div>
+              <div className="px-4 py-6 text-sm app-copy-muted">No active players in this team.</div>
             ) : null}
           </div>
         </section>
