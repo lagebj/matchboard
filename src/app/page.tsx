@@ -82,6 +82,43 @@ function buildNextActionSummary(input: {
   };
 }
 
+function getSequenceSteps(input: {
+  hasMatches: boolean;
+  hasPlayers: boolean;
+  hasTeams: boolean;
+  nextActionMatchId: string | null;
+}) {
+  return [
+    {
+      detail: input.hasTeams ? "Teams are in place." : "Create the teams that define the ladder.",
+      href: "/teams",
+      label: "Registry truth",
+      status: input.hasTeams ? "ready" : "active",
+    },
+    {
+      detail: input.hasPlayers ? "Player pool is available." : "Add the active player pool next.",
+      href: "/players",
+      label: "Player group",
+      status: input.hasPlayers ? "ready" : input.hasTeams ? "active" : "waiting",
+    },
+    {
+      detail: input.hasMatches ? "Weeks are on the board." : "Put the next week on the board.",
+      href: "/matches",
+      label: "Week board",
+      status:
+        input.hasMatches ? "ready" : input.hasTeams && input.hasPlayers ? "active" : "waiting",
+    },
+    {
+      detail: input.nextActionMatchId
+        ? "A live match workspace is waiting."
+        : "Nothing unresolved is waiting right now.",
+      href: input.nextActionMatchId ? `/selection/${input.nextActionMatchId}` : "/history",
+      label: "Lock decision",
+      status: input.nextActionMatchId ? "active" : input.hasMatches ? "ready" : "waiting",
+    },
+  ] as const;
+}
+
 export default async function HomePage() {
   const [matches, selections, recentFinalizedSelections, players, teamCount] = await Promise.all([
     db.match.findMany({
@@ -202,6 +239,12 @@ export default async function HomePage() {
     hasTeams: teamCount > 0,
     nextActionMatch,
   });
+  const sequenceSteps = getSequenceSteps({
+    hasMatches: matches.length > 0,
+    hasPlayers: players.length > 0,
+    hasTeams: teamCount > 0,
+    nextActionMatchId: nextActionMatch?.id ?? null,
+  });
 
   return (
     <main className="flex min-h-full flex-col gap-6 text-foreground">
@@ -300,6 +343,47 @@ export default async function HomePage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <section className="app-panel rounded-[1.75rem] p-6 xl:col-span-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Operating Sequence
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">The assistant manager keeps the loop short</h2>
+              <p className="mt-2 text-sm app-copy-soft">
+                Work from left to right, then loop back when the next week needs attention.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-4">
+            {sequenceSteps.map((step, index) => (
+              <Link
+                key={step.label}
+                className={`rounded-[1.45rem] border px-4 py-4 ${
+                  step.status === "active"
+                    ? "border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(146,171,151,0.18),rgba(24,30,40,0.92))]"
+                    : step.status === "ready"
+                      ? "border-[rgba(140,167,146,0.24)] bg-[rgba(140,167,146,0.08)]"
+                      : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"
+                }`}
+                href={step.href}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
+                    Step {index + 1}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.18em] app-copy-muted">
+                    {step.status}
+                  </span>
+                </div>
+                <p className="mt-4 text-lg font-semibold text-zinc-50">{step.label}</p>
+                <p className="mt-2 text-sm app-copy-soft">{step.detail}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         <section className="app-panel rounded-[1.75rem] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -316,53 +400,68 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="mt-6 overflow-x-auto">
             {weekGroups.length > 0 ? (
-              weekGroups.map((week) => (
-                <div
-                  key={week.label}
-                  className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                        {week.label}
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-zinc-50">
-                        {week.matches.length} match{week.matches.length === 1 ? "" : "es"}
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                        week.isFullyFinalized
-                          ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
-                          : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+              <div className="flex min-w-full gap-4 pb-2">
+                {weekGroups.map((week, index) => {
+                  const unresolvedMatch = week.matches.find(
+                    (match) => match.latestSelectionStatus !== SelectionStatus.FINALIZED,
+                  );
+
+                  return (
+                    <div
+                      key={week.label}
+                      className={`w-[22rem] shrink-0 rounded-[1.5rem] border p-4 ${
+                        index === 0
+                          ? "border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(146,171,151,0.16),rgba(24,30,40,0.92))]"
+                          : "app-hairline bg-[rgba(255,255,255,0.025)]"
                       }`}
                     >
-                      {week.isFullyFinalized ? "Week finalized" : "Week in progress"}
-                    </span>
-                  </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
+                            Slide {index + 1}
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-zinc-50">{week.label}</p>
+                          <p className="mt-2 text-sm app-copy-soft">
+                            {unresolvedMatch
+                              ? `Assistant manager: ${unresolvedMatch.targetTeam.name} vs. ${unresolvedMatch.opponent} is the next call.`
+                              : "Assistant manager: this week is fully locked."}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                            week.isFullyFinalized
+                              ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                              : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+                          }`}
+                        >
+                          {week.isFullyFinalized ? "Week finalized" : "Week in progress"}
+                        </span>
+                      </div>
 
-                  <div className="mt-4 flex flex-col gap-3">
-                    {week.matches.map((match) => (
-                      <Link
-                        key={match.id}
-                        className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
-                        href={`/selection/${match.id}`}
-                      >
-                        <p className="text-sm font-semibold text-zinc-100">
-                          {match.targetTeam.name} vs. {match.opponent}
-                        </p>
-                        <p className="mt-1 text-sm app-copy-soft">
-                          {formatDate(match.startsAt)} · {formatSelectionState(match.latestSelectionStatus)}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ))
+                      <div className="mt-4 flex flex-col gap-3">
+                        {week.matches.map((match) => (
+                          <Link
+                            key={match.id}
+                            className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
+                            href={`/selection/${match.id}`}
+                          >
+                            <p className="text-sm font-semibold text-zinc-100">
+                              {match.targetTeam.name} vs. {match.opponent}
+                            </p>
+                            <p className="mt-1 text-sm app-copy-soft">
+                              {formatDate(match.startsAt)} · {formatSelectionState(match.latestSelectionStatus)}
+                            </p>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft lg:col-span-2">
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
                 No registered matches yet. Once a match exists, it should land here as part of a
                 week, not as an isolated ledger row.
               </div>
