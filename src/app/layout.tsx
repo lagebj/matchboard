@@ -28,23 +28,39 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-zinc-50 font-sans text-zinc-950">
-        <div className="flex min-h-full flex-col">
-          <header className="border-b border-zinc-200 bg-white">
+      <body className="min-h-full bg-background font-sans text-foreground">
+        <div className="app-shell flex min-h-full flex-col">
+          <header className="sticky top-0 z-20 border-b app-hairline bg-[rgba(13,16,22,0.82)] backdrop-blur-xl">
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-5 sm:px-10">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-                  Matchboard
-                </p>
-                <p className="text-sm text-zinc-600">
-                  Local match selection, rotation history, and rules in one place.
-                </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--accent-strong)]">
+                    Matchboard
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-zinc-100">
+                      Local-first match selection and rotation history.
+                    </p>
+                    <p className="text-sm app-copy-muted">
+                      One match at a time, with the current decision carried forward into history.
+                    </p>
+                  </div>
+                </div>
+                <div className="app-panel rounded-full px-4 py-2 text-[11px] font-medium uppercase tracking-[0.22em] app-copy-soft">
+                  Operational Workspace
+                </div>
               </div>
-              <AppNavigation />
+              <div className="border-t app-hairline pt-4">
+                <AppNavigation />
+              </div>
             </div>
           </header>
 
-          <div className="flex-1">{children}</div>
+          <div className="flex-1">
+            <div className="mx-auto flex w-full max-w-7xl flex-col px-6 py-8 sm:px-10">
+              <div className="min-h-[calc(100vh-11rem)]">{children}</div>
+            </div>
+          </div>
         </div>
       </body>
     </html>
