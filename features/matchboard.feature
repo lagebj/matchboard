@@ -14,6 +14,27 @@ Feature: Player registry, team management, and single-match selection history
     And manual changes to a generated selection must be allowed
     And the selection engine loads its rules from the configured ruleset
 
+  Rule: Coach-desk workflow experience
+
+    Scenario: Landing page surfaces the next decision before raw registry data
+      Given matches, players, teams, and finalized history may exist in the app
+      When the coach opens the landing page
+      Then the app must show the next operational decision first
+      And the page must keep recent finalized outcomes visible as context
+      And the page must present the broader selection loop without forcing the coach to start from raw tables
+
+    Scenario: Overview pages show workflow context before deep tables or forms
+      Given the coach opens an overview page such as players, teams, matches, history, or rules
+      When the page loads
+      Then the page must show summary signals and next-action guidance before the main table or form
+      And the table or form must remain available as a secondary operational surface
+
+    Scenario: App navigation keeps the operating loop visible
+      Given the coach is moving between pages in the app
+      When the navigation is shown
+      Then the app must keep the main operating loop visible
+      And the current page must still be easy to identify within that loop
+
   Rule: Team registry
 
     Scenario: Coach can create a team
