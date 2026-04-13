@@ -19,10 +19,10 @@ export const metadata: Metadata = {
 };
 
 const workflowSteps = [
-  "Set registry truth",
-  "Work the active queue",
-  "Review pressure and reasons",
-  "Lock history forward",
+  "Check players and teams",
+  "Plan this week's matches",
+  "Pick and adjust squads",
+  "Lock or reset selections",
 ];
 
 export default function RootLayout({
@@ -38,25 +38,24 @@ export default function RootLayout({
       <body className="min-h-full bg-background font-sans text-foreground">
         <div className="app-shell flex min-h-full flex-col">
           <header className="sticky top-0 z-20 border-b app-hairline bg-[rgba(10,13,19,0.82)] backdrop-blur-2xl">
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-5 sm:px-10">
+            <div className="mx-auto flex w-full max-w-[96rem] flex-col gap-6 px-6 py-5 sm:px-10">
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] xl:items-end">
                 <div className="flex flex-col gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--accent-strong)]">
                     Matchboard
                   </p>
                   <p className="max-w-3xl text-2xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-3xl">
-                    Run one match at a time without losing the rotation story.
+                    What needs doing this week?
                   </p>
                   <p className="max-w-3xl text-sm leading-7 app-copy-soft">
-                    The shell should orient the coach around the live operating loop: keep the
-                    registries trustworthy, work the queue, read the pressure signals, and push the
-                    final decision into history.
+                    Start from the next action, keep the weekly board readable, and lock decisions
+                    when they are ready.
                   </p>
                 </div>
 
                 <div className="app-panel rounded-[1.5rem] p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                    Live Workflow
+                    Quick Loop
                   </p>
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {workflowSteps.map((step, index) => (
@@ -81,7 +80,7 @@ export default function RootLayout({
           </header>
 
           <div className="flex-1">
-            <div className="mx-auto flex w-full max-w-7xl flex-col px-6 py-8 sm:px-10">
+            <div className="mx-auto flex w-full max-w-[96rem] flex-col px-6 py-8 sm:px-10">
               <div className="min-h-[calc(100vh-14rem)]">{children}</div>
             </div>
           </div>

@@ -15,6 +15,7 @@ import {
 } from "@/lib/table-sort";
 
 type MatchRow = {
+  availableForDevelopmentSlot: boolean;
   createdAt: Date;
   deleteAction: () => Promise<void>;
   homeOrAway: "HOME" | "AWAY";
@@ -29,6 +30,7 @@ type MatchRow = {
     id: string;
     name: string;
   };
+  updateDevelopmentAvailabilityAction: (formData: FormData) => Promise<void>;
 };
 
 type MatchTableProps = {
@@ -237,6 +239,7 @@ export function MatchTable({
                 onSort={updateSort}
                 sortKey="selection"
               />
+              <th className="px-4 py-3 font-semibold">Development</th>
               <th className="px-4 py-3 font-semibold">Notes</th>
               <th className="px-4 py-3 font-semibold">Actions</th>
             </tr>
@@ -294,6 +297,24 @@ export function MatchTable({
                       {formatSelectionStatus(match.latestSelectionStatus)}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <form action={match.updateDevelopmentAvailabilityAction} className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 text-xs text-zinc-100">
+                        <input
+                          defaultChecked={match.availableForDevelopmentSlot}
+                          name="availableForDevelopmentSlot"
+                          type="checkbox"
+                        />
+                        Development open
+                      </label>
+                      <button
+                        className="h-8 rounded-full border app-hairline px-3 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
+                        type="submit"
+                      >
+                        Save
+                      </button>
+                    </form>
+                  </td>
                   <td className="max-w-sm px-4 py-3 app-copy-soft">
                     {match.notes ? (
                       <span className="line-clamp-3 whitespace-pre-wrap">{match.notes}</span>
@@ -325,7 +346,7 @@ export function MatchTable({
 
             {sortedMatches.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={11}>
+                <td className="px-4 py-10 text-center app-copy-muted" colSpan={12}>
                   No matches created yet.
                 </td>
               </tr>

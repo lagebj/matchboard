@@ -352,7 +352,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                 />
                 <SnapshotCard
                   label="Special flags"
-                  value={`${player.canDropCoreMatch ? "Can drop one core match" : "No core-match drop"}${player.maxDevelopmentMatches !== null ? ` · Dev cap ${player.maxDevelopmentMatches}` : " · No development cap"}`}
+                  value={`${player.canDropCoreMatch ? "Can drop one core match" : "No core-match drop"}${player.maxDevelopmentMatches !== null ? ` · Dev target ${player.maxDevelopmentMatches}` : " · No development target"}`}
                 />
               </div>
             </div>

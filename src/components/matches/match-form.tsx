@@ -81,6 +81,15 @@ export function MatchForm({ teams }: { teams: Pick<Team, "id" | "name">[] }) {
         />
       </label>
 
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input
+          defaultChecked={false}
+          name="availableForDevelopmentSlot"
+          type="checkbox"
+        />
+        Available for development slot work
+      </label>
+
       <label className="flex flex-col gap-1 text-sm font-medium">
         Match Type
         <select
