@@ -28,6 +28,8 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Given matches, players, teams, and finalized history may exist in the app
       When the coach opens the landing page
       Then the app must show the next operational decision first
+      And the first visible prompt should ask what the coach wants to do next
+      And the page must offer direct operational actions such as clearing saved selections, picking squads, or reviewing current selections
       And the page must show the broader operating sequence as a short step flow
       And the page must keep recent finalized outcomes visible as context
       And the page must present the broader selection loop without forcing the coach to start from raw tables
@@ -44,7 +46,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Given one or more registered matches exist
       When the coach works the match workflow
       Then the app must group operational match work by calendar week
-      And the weekly workflow should read like a sequence of live week slides rather than one flat batch
+      And the weekly workflow should show one primary card per week rather than separate slide and workflow sections
       And the current week must be readable before the coach scans the deeper match ledger
       And week-level warnings and informational signals must be visible without opening every match
 
@@ -55,6 +57,12 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And the floating summary must include both draft and finalized selections
       And the week summary must remain visible alongside the existing week-coverage information
       And the coach must be able to scan week-level selection movement without opening every match
+
+    Scenario: Weekly movement summary shows whether movement displaced the player's own core-team appearance
+      Given one or more weeks contain saved draft or finalized selections with floating movement
+      When the coach reviews the weekly workflow movement summary
+      Then each moved player must show whether the player was left out of the player's own core-team selection in that same week
+      And the summary must distinguish between movement that replaced the player's own core-team appearance and movement that did not
 
     Scenario: Coach can open an editable week board
       Given one or more registered matches exist in the same calendar week
@@ -86,6 +94,12 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       Then the page must highlight one short assistant-manager suggestion for the active week
       And that suggestion must point toward the next unresolved match when one exists
       And the page must keep deeper weeks available without making them compete equally with the active week
+
+    Scenario: Workflow pages use wider horizontal space for boards and week lanes
+      Given the coach is using the main workflow pages
+      When a page presents weekly cards, week boards, or selection lanes
+      Then the main page shell should use a wider content width than a narrow document layout
+      And the wider layout must still remain readable on smaller screens
 
   Rule: Team registry
 
@@ -186,11 +200,11 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
 
   Rule: Structured player profile
 
-    Scenario: Player profile can store an individual development-match limit
+    Scenario: Player profile can store an individual development-match target
       Given a player exists in the player registry
-      When the coach records a maximum allowed development-match amount for that player
-      Then the player must store that individual development-match limit
-      And the selection engine must use that player-specific limit when considering development selection
+      When the coach records a target development-match amount for that player
+      Then the player must store that individual development-match target
+      And the selection engine must use that player-specific target when considering development selection
 
     Scenario: Player positions are stored in separate ordered fields
       Given a player exists in the player registry
@@ -433,6 +447,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
 
     Scenario: Development slots are prioritized before own core-team coverage when matches are close together
       Given a match exists for a team from the team registry
+      And the match is marked as available for development slots
       And that team has a development-slot amount greater than 0
       And that team has one or more configured development source teams
       And eligible development players exist from those teams
@@ -443,22 +458,42 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
 
     Scenario: Development slots reserve team capacity before floating core coverage
       Given a match exists for a team from the team registry
+      And the match is marked as available for development slots
       And that team has a development-slot amount greater than 0
       And eligible development players exist from configured development source teams
       When the coach generates a selection for that match
       Then the suggested selection should reserve that many development slots when possible
       And those development slots must be prioritized after support slots and before own core-team coverage
 
-    Scenario: Individual development-match limit blocks additional development selection
+    Scenario: Individual development-match target blocks additional development selection once the target is reached
       Given a player belongs to a configured development source team
-      And the player has an individual development-match limit
+      And the player has an individual development-match target
       And the player has already reached that amount in finalized development history
       When the coach generates a selection for a target team that could use that player in a development slot
       Then the player must not be auto-selected into another development slot
-      And the exclusion must explain that the player's development-match limit has been reached
+      And the exclusion must explain that the player's development-match target has already been reached
+
+    Scenario: Development-targeted players should be pulled toward the exact count
+      Given a match exists for a team from the team registry
+      And the match is marked as available for development slots
+      And eligible development players exist from configured development source teams
+      And one or more eligible players have an individual development-match target that is not yet reached
+      When the coach generates a selection for that match
+      Then the engine should prioritize those players toward hitting the exact target amount
+      And the engine should not treat the stored amount as a loose maximum only
+
+    Scenario: Development slots stay unused on matches that are not marked for development work
+      Given a match exists for a team from the team registry
+      And the match is not marked as available for development slots
+      And that team has a development-slot amount greater than 0
+      And eligible development players exist from configured development source teams
+      When the coach generates a selection for that match
+      Then the engine must not reserve development slots for that match
+      And eligible development players may still only be considered through other allowed non-development selection paths
 
     Scenario: Support, development, then core order is used when squad capacity is contested
       Given a match exists for a team from the team registry
+      And the match is marked as available for development slots
       And eligible support players exist
       And eligible development players exist
       And eligible own-team core players exist
@@ -606,6 +641,12 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       When the coach creates a match with date, team, opponent, home-or-away status, and match type
       And the coach runs the selection engine
       Then the system should generate a suggested squad for that match only
+
+    Scenario: Coach can mark whether a match is available for development slots
+      Given the coach is creating or editing a match
+      When the coach records whether development slots are allowed for that match
+      Then the match must store whether development-slot usage is allowed for that match
+      And the selection engine must only use team development slots on matches where that flag is enabled
 
     Scenario: Coach can create a match from a layover flow
       When the coach starts match creation from the match overview
@@ -887,6 +928,13 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       When the coach generates another match that could use the player in a development slot
       Then the player must not be auto-selected into another development slot
       And the exclusion must explain that the player must play an own core-team match before another development assignment
+
+    Scenario: Development-targeted players should not finish below the stored target when enough eligible matches exist
+      Given a player has an individual development-match target greater than 0
+      And one or more future matches are marked as available for development slots
+      And the player stays eligible for enough of those matches to hit the target
+      When the coach works those matches through the selection flow
+      Then the app should keep steering development selection so the player finishes on the exact stored target
 
     Scenario: No replacement means the slot stays empty instead of reusing the same source player consecutively
       Given a target team has a required support or development slot

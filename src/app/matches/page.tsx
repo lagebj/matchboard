@@ -6,6 +6,7 @@ import {
   markMatchesAsDraftAction,
   recalculateMatchesAction,
   resetSelectionsAction,
+  updateMatchDevelopmentAvailabilityAction,
 } from "@/app/matches/actions";
 import { MatchCreateLayover } from "@/components/matches/match-create-layover";
 import { MatchTable } from "@/components/matches/match-table";
@@ -28,6 +29,7 @@ type MatchesPageProps = {
     recalculated?: string;
     reset?: string;
     resetCount?: string;
+    saved?: string;
   }>;
 };
 
@@ -55,6 +57,14 @@ function formatResetMessage(reset?: string, resetCount?: string): string | null 
   }
 
   return "Saved selections cleared for the selected match.";
+}
+
+function formatSavedMessage(saved?: string): string | null {
+  if (saved === "development-availability-updated") {
+    return "Match development availability updated.";
+  }
+
+  return null;
 }
 
 function buildAssistantManagerNote(input: {
@@ -105,6 +115,74 @@ function buildAssistantManagerNote(input: {
   };
 }
 
+function getMovementOwnTeamStatus(input: {
+  matchId: string;
+  playerId: string;
+  playerById: Map<
+    string,
+    {
+      coreTeamId: string;
+      coreTeam: {
+        name: string;
+      };
+    }
+  >;
+  selectedPlayerIdsByMatchId: Map<string, string[]>;
+  weekMatches: Array<{
+    id: string;
+    latestSelectionStatus: SelectionStatus | null;
+    targetTeam: {
+      id: string;
+      name: string;
+    };
+  }>;
+}) {
+  const player = input.playerById.get(input.playerId);
+
+  if (!player) {
+    return {
+      tone: "neutral",
+      text: "Own-team context unavailable",
+    } as const;
+  }
+
+  const coreMatch = input.weekMatches.find((match) => match.targetTeam.id === player.coreTeamId);
+
+  if (!coreMatch) {
+    return {
+      tone: "neutral",
+      text: `No ${player.coreTeam.name} match this week`,
+    } as const;
+  }
+
+  if (coreMatch.id === input.matchId) {
+    return {
+      tone: "neutral",
+      text: "Own-team match",
+    } as const;
+  }
+
+  if (coreMatch.latestSelectionStatus === null) {
+    return {
+      tone: "neutral",
+      text: `${player.coreTeam.name} not saved yet`,
+    } as const;
+  }
+
+  const selectedInCoreMatch =
+    input.selectedPlayerIdsByMatchId.get(coreMatch.id)?.includes(input.playerId) ?? false;
+
+  return selectedInCoreMatch
+    ? {
+        tone: "settled",
+        text: `Still selected for ${player.coreTeam.name}`,
+      }
+    : {
+        tone: "warning",
+        text: `Left out of ${player.coreTeam.name}`,
+      };
+}
+
 export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const {
     create,
@@ -117,6 +195,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
     recalculated,
     reset,
     resetCount,
+    saved,
   } = await searchParams;
   const bulkFinalizeWarnings = finalizeWarnings?.split("\n").filter(Boolean) ?? [];
 
@@ -226,6 +305,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
       getSelectionMovementPlayers(selection.players),
     ]),
   );
+  const playerById = new Map(players.map((player) => [player.id, player]));
 
   const enrichedMatches = matches.map((match) => ({
     ...match,
@@ -262,6 +342,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
     openWeekCount,
   });
   const resetMessage = formatResetMessage(reset, resetCount);
+  const savedMessage = formatSavedMessage(saved);
 
   return (
     <main className="flex min-h-full flex-col gap-6 text-foreground">
@@ -273,16 +354,15 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                 Match Queue
               </span>
               <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Weekly batch workflow
+                Weekly board
               </span>
             </div>
 
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-              Run the queue as a guided week-by-week sequence.
+              Plan the week from one board.
             </h1>
             <p className="mt-4 max-w-3xl text-sm app-copy-soft sm:text-base">
-              Keep the active week in front, let the assistant manager call the next step, and drop
-              to the ledger only for cleanup.
+              Keep the active week brightest, move match by match when needed, and use the ledger for cleanup only.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -363,6 +443,12 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
           </div>
         ) : null}
 
+        {savedMessage ? (
+          <div className="rounded-2xl border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
+            {savedMessage}
+          </div>
+        ) : null}
+
         {deleted ? (
           <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.045)] px-4 py-3 text-sm text-zinc-100">
             Match removed.
@@ -430,160 +516,12 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                  Week Slides
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-zinc-50">Move through the season one live lane at a time</h2>
-                <p className="mt-2 text-sm app-copy-soft">
-                  Each week card carries the next suggestion, restart controls, and the quickest path
-                  back into the work.
-                </p>
-              </div>
-              <p className="text-[11px] uppercase tracking-[0.18em] app-copy-muted">
-                Step 1 set the week / Step 2 shape squads / Step 3 lock history
-              </p>
-            </div>
-
-            <div className="mt-6 overflow-x-auto">
-              <div className="flex min-w-full gap-4 pb-2">
-                {weekGroups.length > 0 ? (
-                  weekGroups.map((week, index) => {
-                    const weekMatchIds = week.matches.map((match) => match.id);
-                    const unresolvedMatch = week.matches.find(
-                      (match) => match.latestSelectionStatus !== SelectionStatus.FINALIZED,
-                    );
-                    const slideTone = week.isFullyFinalized
-                      ? "border-[rgba(140,167,146,0.26)] bg-[linear-gradient(180deg,rgba(140,167,146,0.12),rgba(17,22,31,0.78))]"
-                      : index === 0
-                        ? "border-[rgba(205,219,210,0.26)] bg-[linear-gradient(180deg,rgba(146,171,151,0.18),rgba(20,26,36,0.9))]"
-                        : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]";
-
-                    return (
-                      <section
-                        key={week.label}
-                        className={`flex w-[24rem] shrink-0 flex-col rounded-[1.6rem] border p-5 ${slideTone}`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                              Slide {index + 1}
-                            </p>
-                            <h3 className="mt-2 text-xl font-semibold text-zinc-50">{week.label}</h3>
-                          </div>
-                          <span
-                            className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                              week.isFullyFinalized
-                                ? "border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
-                                : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
-                            }`}
-                          >
-                            {week.isFullyFinalized ? "Locked" : "Live"}
-                          </span>
-                        </div>
-
-                        <p className="mt-4 text-sm app-copy-soft">
-                          {unresolvedMatch
-                            ? `Assistant manager: reopen ${unresolvedMatch.targetTeam.name} vs. ${unresolvedMatch.opponent} and keep the rest of the week visible.`
-                            : "Assistant manager: this week is clean. Either review history or reset the week for a fresh run."}
-                        </p>
-
-                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                              Matches
-                            </p>
-                            <p className="mt-2 text-lg font-semibold text-zinc-50">{week.matches.length}</p>
-                          </div>
-                          <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                              Drafts
-                            </p>
-                            <p className="mt-2 text-lg font-semibold text-zinc-50">
-                              {
-                                week.matches.filter(
-                                  (match) => match.latestSelectionStatus === SelectionStatus.DRAFT,
-                                ).length
-                              }
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                              Finalized
-                            </p>
-                            <p className="mt-2 text-lg font-semibold text-zinc-50">
-                              {
-                                week.matches.filter(
-                                  (match) =>
-                                    match.latestSelectionStatus === SelectionStatus.FINALIZED,
-                                ).length
-                              }
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-5 flex flex-col gap-2">
-                          {week.matches.map((match) => (
-                            <Link
-                              key={match.id}
-                              className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
-                              href={`/selection/${match.id}`}
-                            >
-                              <p className="text-sm font-semibold text-zinc-100">
-                                {match.targetTeam.name} vs. {match.opponent}
-                              </p>
-                              <p className="mt-1 text-sm app-copy-soft">
-                                {formatDate(match.startsAt)} · {formatMatchVenue(match.homeOrAway)}
-                              </p>
-                            </Link>
-                          ))}
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap gap-2">
-                          <Link
-                            className="inline-flex h-10 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                            href={`/weeks/${formatIsoWeekKey(week.matches[0].startsAt)}`}
-                          >
-                            Open week board
-                          </Link>
-                          <Link
-                            className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-                            href={
-                              unresolvedMatch ? `/selection/${unresolvedMatch.id}` : "/history"
-                            }
-                          >
-                            {unresolvedMatch ? "Open next match" : "Review history"}
-                          </Link>
-                          <form action={resetSelectionsAction}>
-                            <input name="resetScope" type="hidden" value="week" />
-                            <input name="returnPath" type="hidden" value="/matches" />
-                            <WeekMatchInputs matchIds={weekMatchIds} />
-                            <button
-                              className="h-10 rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-4 text-sm font-medium text-[#f0cbc5] hover:bg-[rgba(185,128,119,0.14)] hover:text-white"
-                              type="submit"
-                            >
-                              Reset week
-                            </button>
-                          </form>
-                        </div>
-                      </section>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
-                    No registered matches yet. Once they exist, each week becomes its own flow slide
-                    instead of one long ledger.
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className="app-panel rounded-[1.75rem] p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
                   Weekly Workflow
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-zinc-50">One card per week</h2>
+                <p className="mt-2 text-sm app-copy-soft">
+                  Keep the live week brightest. Coverage, movement, and next actions stay on the same card.
+                </p>
               </div>
               <Link
                 className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
@@ -595,7 +533,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
               {weekGroups.length > 0 ? (
-                weekGroups.map((week) => {
+                weekGroups.map((week, index) => {
                   const warningCount = week.coverage.filter((row) => row.severity === "warning").length;
                   const infoCount = week.coverage.length - warningCount;
                   const weekMatchIds = week.matches.map((match) => match.id);
@@ -603,23 +541,30 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                     (sum, match) => sum + (movementPlayersByMatchId.get(match.id)?.length ?? 0),
                     0,
                   );
+                  const unresolvedMatch = week.matches.find(
+                    (match) => match.latestSelectionStatus !== SelectionStatus.FINALIZED,
+                  );
+                  const cardTone = week.isFullyFinalized
+                    ? "border-[rgba(140,167,146,0.26)] bg-[linear-gradient(180deg,rgba(140,167,146,0.12),rgba(17,22,31,0.82))]"
+                    : index === 0
+                      ? "border-[rgba(205,219,210,0.28)] bg-[linear-gradient(180deg,rgba(146,171,151,0.18),rgba(20,26,36,0.92))]"
+                      : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]";
 
                   return (
                     <div
                       key={week.label}
-                      className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4"
+                      className={`rounded-[1.5rem] border p-4 ${cardTone}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                            {week.label}
+                            {index === 0 && !week.isFullyFinalized ? "Active week" : "Weekly card"}
                           </p>
-                          <p className="mt-2 text-lg font-semibold text-zinc-50">
-                            {week.matches.length} match{week.matches.length === 1 ? "" : "es"}
-                          </p>
+                          <p className="mt-2 text-lg font-semibold text-zinc-50">{week.label}</p>
                           <p className="mt-2 text-sm app-copy-soft">
-                            {warningCount} warning{warningCount === 1 ? "" : "s"} · {infoCount} info ·{" "}
-                            {weekMovementCount} mover{weekMovementCount === 1 ? "" : "s"}
+                            {unresolvedMatch
+                              ? `Next call: ${unresolvedMatch.targetTeam.name} vs. ${unresolvedMatch.opponent}.`
+                              : "This week is locked. Review history or reopen the week if you need another pass."}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -641,6 +586,35 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                         </div>
                       </div>
 
+                      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                        <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                            Matches
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-zinc-50">
+                            {week.matches.length}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                            Warnings
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-zinc-50">{warningCount}</p>
+                        </div>
+                        <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                            Info
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-zinc-50">{infoCount}</p>
+                        </div>
+                        <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                            Movers
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-zinc-50">{weekMovementCount}</p>
+                        </div>
+                      </div>
+
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         {week.matches.map((match) => (
                           <Link
@@ -648,12 +622,19 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                             className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
                             href={`/selection/${match.id}`}
                           >
-                            <p className="text-sm font-semibold text-zinc-100">
-                              {match.targetTeam.name} vs. {match.opponent}
-                            </p>
-                            <p className="mt-1 text-sm app-copy-soft">
-                              {formatDate(match.startsAt)} · {formatMatchVenue(match.homeOrAway)}
-                            </p>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-zinc-100">
+                                  {match.targetTeam.name} vs. {match.opponent}
+                                </p>
+                                <p className="mt-1 text-sm app-copy-soft">
+                                  {formatDate(match.startsAt)} · {formatMatchVenue(match.homeOrAway)}
+                                </p>
+                              </div>
+                              <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em] app-copy-soft">
+                                {match.availableForDevelopmentSlot ? "Development open" : "No development"}
+                              </span>
+                            </div>
                             <p className="mt-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
                               {match.latestSelectionStatus === SelectionStatus.FINALIZED
                                 ? "Finalized"
@@ -745,15 +726,43 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                                     </span>
                                   </div>
                                   {movementPlayers.length > 0 ? (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      {movementPlayers.map((player) => (
-                                        <span
-                                          key={player.playerId}
-                                          className="rounded-full border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-1 text-xs text-zinc-100"
-                                        >
-                                          {player.playerName}
-                                        </span>
-                                      ))}
+                                    <div className="mt-3 flex flex-col gap-2">
+                                      {movementPlayers.map((player) => {
+                                        const ownTeamStatus = getMovementOwnTeamStatus({
+                                          matchId: match.id,
+                                          playerById,
+                                          playerId: player.playerId,
+                                          selectedPlayerIdsByMatchId,
+                                          weekMatches: week.matches,
+                                        });
+
+                                        return (
+                                          <div
+                                            key={player.playerId}
+                                            className="rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-3"
+                                          >
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <span className="font-medium text-zinc-100">{player.playerName}</span>
+                                              <span className="text-xs app-copy-soft">
+                                                {player.sourceTeamName} to {player.targetTeamName}
+                                              </span>
+                                            </div>
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                              <span
+                                                className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${
+                                                  ownTeamStatus.tone === "warning"
+                                                    ? "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
+                                                    : ownTeamStatus.tone === "settled"
+                                                      ? "border-[rgba(140,167,146,0.24)] bg-[rgba(140,167,146,0.12)] text-[var(--accent-strong)]"
+                                                      : "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-[var(--text-soft)]"
+                                                }`}
+                                              >
+                                                {ownTeamStatus.text}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   ) : (
                                     <p className="mt-2 app-copy-soft">
@@ -784,6 +793,10 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
               matches={enrichedMatches.map((match) => ({
                 ...match,
                 deleteAction: deleteMatchAction.bind(null, match.id),
+                updateDevelopmentAvailabilityAction: updateMatchDevelopmentAvailabilityAction.bind(
+                  null,
+                  match.id,
+                ),
               }))}
               recalculateMatchesAction={recalculateMatchesAction}
             />

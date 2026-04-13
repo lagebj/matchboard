@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SelectionStatus } from "@/generated/prisma/client";
+import { resetSelectionsAction } from "@/app/matches/actions";
 import { db } from "@/lib/db";
 import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatMatchVenue } from "@/lib/match-utils";
@@ -256,37 +257,53 @@ export default async function HomePage() {
                 Coach Desk
               </span>
               <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Assistant-manager flow
+                Start here
               </span>
             </div>
 
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-              Work the week, spot fairness drift, then lock decisions forward.
+              What do you want to do?
             </h1>
             <p className="mt-4 max-w-3xl text-sm app-copy-soft sm:text-base">
-              Next call first. The week and the fairness gaps stay nearby.
+              Pick a route, keep the week visible, and come back here when the next choice changes.
             </p>
 
             <div className="mt-6 rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.03)] p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                Suggested next action
+                Assistant manager
               </p>
               <p className="mt-3 text-2xl font-semibold text-zinc-50">{nextActionSummary.title}</p>
               <p className="mt-3 max-w-2xl text-sm app-copy-soft">{nextActionSummary.body}</p>
 
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="mt-5 grid gap-3 lg:grid-cols-2">
                 <Link
-                  className="inline-flex h-11 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  className="rounded-[1.25rem] border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 py-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                   href={nextActionSummary.ctaHref}
                 >
                   {nextActionSummary.ctaLabel}
                 </Link>
                 <Link
-                  className="inline-flex h-11 items-center rounded-full border app-hairline bg-[rgba(255,255,255,0.03)] px-5 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
+                  className="rounded-[1.25rem] border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
                   href="/matches"
                 >
-                  Open weekly queue
+                  Pick squads for all matches
                 </Link>
+                <Link
+                  className="rounded-[1.25rem] border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
+                  href={nextActionMatch ? `/selection/${nextActionMatch.id}` : "/matches"}
+                >
+                  View current match selections
+                </Link>
+                <form action={resetSelectionsAction}>
+                  <input name="resetScope" type="hidden" value="all" />
+                  <input name="returnPath" type="hidden" value="/matches" />
+                  <button
+                    className="w-full rounded-[1.25rem] border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-4 py-4 text-left text-sm font-medium text-[#f0cbc5] hover:bg-[rgba(185,128,119,0.14)] hover:text-white"
+                    type="submit"
+                  >
+                    Clear all selections
+                  </button>
+                </form>
               </div>
             </div>
           </div>
@@ -320,20 +337,20 @@ export default async function HomePage() {
 
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                  Open workspaces
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                  Open matches
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-50">{actionableMatches.length}</p>
               </div>
               <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
                   Drafts
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-50">{draftCount}</p>
               </div>
               <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                  Finalized
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
+                  Locked
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-50">{finalizedCount}</p>
               </div>

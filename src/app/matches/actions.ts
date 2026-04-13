@@ -24,6 +24,11 @@ function readOptionalText(formData: FormData, fieldName: string): string | null 
   return value ? value : null;
 }
 
+function readCheckbox(formData: FormData, fieldName: string): boolean {
+  const value = formData.get(fieldName);
+  return value === "on" || value === "true" || value === "1";
+}
+
 async function readTargetTeamId(formData: FormData): Promise<string> {
   const targetTeamId = readText(formData, "targetTeamId");
 
@@ -205,6 +210,7 @@ export async function createMatchAction(formData: FormData) {
     const homeOrAway = readMatchVenue(formData);
     const opponent = readText(formData, "opponent");
     const squadSize = readRequiredSquadSize(formData, "squadSize");
+    const availableForDevelopmentSlot = readCheckbox(formData, "availableForDevelopmentSlot");
     const matchType = readMatchType(formData);
     const notes = readOptionalText(formData, "notes");
 
@@ -219,6 +225,7 @@ export async function createMatchAction(formData: FormData) {
         homeOrAway,
         opponent,
         squadSize,
+        availableForDevelopmentSlot,
         matchType,
         notes,
       },
@@ -240,6 +247,52 @@ export async function createMatchAction(formData: FormData) {
   redirect(
     buildPathWithSearch("/matches", {
       created: matchId,
+    }),
+  );
+}
+
+export async function updateMatchDevelopmentAvailabilityAction(matchId: string, formData: FormData) {
+  try {
+    const match = await db.match.findUnique({
+      where: {
+        id: matchId,
+      },
+      select: {
+        id: true,
+        startsAt: true,
+      },
+    });
+
+    if (!match) {
+      throw new Error("Match not found.");
+    }
+
+    const availableForDevelopmentSlot = readCheckbox(formData, "availableForDevelopmentSlot");
+
+    await db.match.update({
+      where: {
+        id: match.id,
+      },
+      data: {
+        availableForDevelopmentSlot,
+      },
+    });
+
+    revalidateMatchboardPaths([match.id], [formatIsoWeekKey(match.startsAt)]);
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/matches", {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not update match development availability.",
+      }),
+    );
+  }
+
+  redirect(
+    buildPathWithSearch("/matches", {
+      saved: "development-availability-updated",
     }),
   );
 }

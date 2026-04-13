@@ -91,6 +91,7 @@ type PlayerRecord = Player & {
 };
 
 type MatchRecord = Pick<Match, "id" | "startsAt" | "targetTeamId"> & {
+  availableForDevelopmentSlot: boolean;
   targetTeam: Pick<Team, "developmentSlots" | "id" | "name">;
   developmentSlots: number;
   developmentSourceTeamIds: string[];
@@ -121,6 +122,7 @@ type EligibleFloatingPlayer = EvaluatedPlayer & {
 type FloatingCandidate = EvaluatedPlayer & {
   candidateCategory: "DEVELOPMENT" | "FLOAT" | "SUPPORT";
   chosenPosition: string;
+  developmentTargetRemaining: number | null;
   eligibilityExplanation: string;
   floatingHistory: Awaited<ReturnType<typeof getFloatingHistory>>;
   missedCoreMatchThisWeek: RegisteredSelectionSnapshot | null;
@@ -232,7 +234,10 @@ function getFloatingCandidateCategory(
     return "SUPPORT";
   }
 
-  if (targetMatch.developmentSourceTeamIds.includes(player.coreTeamId)) {
+  if (
+    targetMatch.availableForDevelopmentSlot &&
+    targetMatch.developmentSourceTeamIds.includes(player.coreTeamId)
+  ) {
     return "DEVELOPMENT";
   }
 
@@ -549,6 +554,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
 
     latestSavedSelectionByMatchId.set(selection.matchId, {
       match: {
+        availableForDevelopmentSlot: selection.match.availableForDevelopmentSlot,
         developmentSlots: selection.match.targetTeam.developmentSlots,
         id: selection.match.id,
         developmentSourceTeamIds: selection.match.targetTeam.developmentTargetRelationships.map(
@@ -586,6 +592,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
   }
 
   const currentMatchRecord: MatchRecord = {
+    availableForDevelopmentSlot: match.availableForDevelopmentSlot,
     developmentSlots: match.targetTeam.developmentSlots,
     developmentSourceTeamIds: match.targetTeam.developmentTargetRelationships.map(
       (relationship) => relationship.sourceTeamId,
@@ -602,6 +609,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
     targetTeamId: match.targetTeamId,
   };
   const normalizedRegisteredMatches: MatchRecord[] = registeredMatches.map((registeredMatch) => ({
+    availableForDevelopmentSlot: registeredMatch.availableForDevelopmentSlot,
     developmentSlots: registeredMatch.targetTeam.developmentSlots,
     developmentSourceTeamIds: registeredMatch.targetTeam.developmentTargetRelationships.map(
       (relationship) => relationship.sourceTeamId,
@@ -894,7 +902,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       totalDevelopmentMatches >= player.maxDevelopmentMatches
     ) {
       const exclusionReason =
-        `Excluded because ${playerName} already has ${totalDevelopmentMatches} finalized development match(es), which reaches the player's individual limit of ${player.maxDevelopmentMatches}.`;
+        `Excluded because ${playerName} already has ${totalDevelopmentMatches} finalized development match(es), which reaches the player's individual target of ${player.maxDevelopmentMatches}.`;
 
       excludedPlayers.push({
         autoSelected: false,
@@ -920,6 +928,10 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
     availableFloatingCandidates.push({
       candidateCategory,
       chosenPosition: getPrimaryChosenPosition(player.primaryPosition),
+      developmentTargetRemaining:
+        candidateCategory === "DEVELOPMENT" && player.maxDevelopmentMatches !== null
+          ? Math.max(player.maxDevelopmentMatches - totalDevelopmentMatches, 0)
+          : null,
       eligibilityExplanation,
       floatingHistory,
       missedCoreMatchThisWeek: findMissedCoreMatchThisWeek(
@@ -991,7 +1003,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
   const reservedSupportPlayers = Math.min(effectiveSupportTarget, supportCandidateCount);
   const extraReservedSupportPlayers = Math.max(reservedSupportPlayers - reservedDirectSupportPlayers, 0);
   const effectiveDevelopmentTarget = Math.min(
-    currentMatchRecord.developmentSlots,
+    currentMatchRecord.availableForDevelopmentSlot ? currentMatchRecord.developmentSlots : 0,
     Math.max(match.squadSize - reservedSupportPlayers, 0),
   );
   const reservedDevelopmentPlayers = Math.min(effectiveDevelopmentTarget, developmentCandidateCount);
@@ -1161,6 +1173,9 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       50 +
       (candidate.candidateCategory === "SUPPORT" ? 40 : 0) +
       (candidate.candidateCategory === "DEVELOPMENT" ? 25 : 0) +
+      (candidate.candidateCategory === "DEVELOPMENT" && (candidate.developmentTargetRemaining ?? 0) > 0
+        ? 35 + (candidate.developmentTargetRemaining ?? 0) * 5
+        : 0) +
       (candidate.missedCoreMatchThisWeek ? 30 : 0) -
       candidate.registeredAppearanceCount * 4 -
       (rules.preferLowerFloatCount ? candidate.floatingHistory.totalFloatingMatches * 5 : 0) -
@@ -1261,6 +1276,16 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
             true,
           ),
         );
+
+        if ((candidate.developmentTargetRemaining ?? 0) > 0 && candidate.player.maxDevelopmentMatches !== null) {
+          explanations.push(
+            buildExplanation(
+              "development_target_tracking",
+              `${candidate.playerName} is still working toward the player's development target of ${candidate.player.maxDevelopmentMatches}, so the engine pulled this player forward while the player remained below that count.`,
+              true,
+            ),
+          );
+        }
       }
 
       if (candidate.missedCoreMatchThisWeek) {
