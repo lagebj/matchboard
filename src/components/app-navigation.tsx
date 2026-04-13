@@ -8,37 +8,37 @@ const navigationItems = [
     href: "/",
     kicker: "Desk",
     label: "Coach Desk",
-    note: "Start from the next decision and recent loop context.",
+    note: "Start with the next call.",
   },
   {
     href: "/matches",
     kicker: "Queue",
     label: "Match Queue",
-    note: "Work fixtures by week, status, and selection pressure.",
+    note: "Run the queue by week.",
   },
   {
     href: "/players",
     kicker: "Registry",
     label: "Players",
-    note: "Scan availability, position fit, and floating readiness.",
+    note: "Check availability and fit.",
   },
   {
     href: "/teams",
     kicker: "Setup",
     label: "Teams",
-    note: "Configure support and development relationships.",
+    note: "Set support and development links.",
   },
   {
     href: "/history",
     kicker: "Review",
     label: "History",
-    note: "Track movement, workload, and fairness outcomes.",
+    note: "Check load and movement.",
   },
   {
     href: "/rules",
     kicker: "Controls",
     label: "Rules",
-    note: "Tune runtime limits and soft selection preferences.",
+    note: "Adjust the engine limits.",
   },
 ] as const;
 

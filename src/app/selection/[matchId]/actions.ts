@@ -42,6 +42,16 @@ function readSelectionStatus(formData: FormData): SelectionStatus {
   throw new Error("Selection intent must be DRAFT or FINALIZED.");
 }
 
+function readReturnPath(formData: FormData, matchId: string): string {
+  const returnPath = readText(formData, "returnPath");
+
+  if (returnPath.startsWith("/")) {
+    return returnPath;
+  }
+
+  return `/selection/${matchId}`;
+}
+
 function readSelectionRole(formData: FormData, playerId: string): SelectionRole {
   const value = formData.get(`roleType:${playerId}`);
 
@@ -233,6 +243,7 @@ export async function acceptGeneratedSelectionAction(matchId: string) {
 export async function saveManualSelectionAction(matchId: string, formData: FormData) {
   let status: SelectionStatus;
   const shouldReturnToGenerated = readText(formData, "returnToGenerated") === "1";
+  const returnPath = readReturnPath(formData, matchId);
 
   try {
     status = readSelectionStatus(formData);
@@ -387,18 +398,26 @@ export async function saveManualSelectionAction(matchId: string, formData: FormD
     );
   } catch (error) {
     redirect(
-      buildPathWithSearch(`/selection/${matchId}`, {
+      buildPathWithSearch(returnPath, {
         error: error instanceof Error ? error.message : "Could not save the selection.",
-        generated: shouldReturnToGenerated,
+        ...(returnPath === `/selection/${matchId}` ? { generated: shouldReturnToGenerated } : {}),
       }),
     );
   }
 
   revalidatePath(`/selection/${matchId}`);
+  if (returnPath !== `/selection/${matchId}`) {
+    revalidatePath(returnPath);
+  }
   redirect(
-    buildPathWithSearch(`/selection/${matchId}`, {
-      saved: status === SelectionStatus.FINALIZED ? "final" : "draft",
-      generated: shouldReturnToGenerated,
-    }),
+    returnPath === `/selection/${matchId}`
+      ? buildPathWithSearch(returnPath, {
+          saved: status === SelectionStatus.FINALIZED ? "final" : "draft",
+          generated: shouldReturnToGenerated,
+        })
+      : buildPathWithSearch(returnPath, {
+          savedMatchId: matchId,
+          savedStatus: status === SelectionStatus.FINALIZED ? "final" : "draft",
+        }),
   );
 }
