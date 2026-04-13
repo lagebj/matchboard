@@ -4,6 +4,10 @@ import { HistoryTable, type PlayerHistoryRow } from "@/components/history/histor
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
+import {
+  compareSelectionSnapshotRecency,
+  getLatestSelectionSnapshots,
+} from "@/lib/selection/get-latest-selection-snapshots";
 import { isSelectionMovementRow } from "@/lib/selection/get-selection-movement";
 
 function formatPatternRole(roleType: SelectionRole): string {
@@ -19,7 +23,7 @@ function formatPatternDate(matchDate: Date): string {
 }
 
 export default async function HistoryPage() {
-  const [players, selectionPlayers] = await Promise.all([
+  const [players, selectionSnapshots] = await Promise.all([
     db.player.findMany({
       where: {
         removedAt: null,
@@ -42,52 +46,54 @@ export default async function HistoryPage() {
         { playerCode: "asc" },
       ],
     }),
-    db.matchSelectionPlayer.findMany({
-      where: {
-        wasManuallyRemoved: false,
-      },
+    db.matchSelection.findMany({
       select: {
-        explanation: true,
-        player: {
+        createdAt: true,
+        finalizedAt: true,
+        id: true,
+        match: {
           select: {
-            firstName: true,
-            id: true,
-            lastName: true,
-          },
-        },
-        playerId: true,
-        roleType: true,
-        sourceTeamNameSnapshot: true,
-        targetTeamNameSnapshot: true,
-        selection: {
-          select: {
-            matchId: true,
-            status: true,
-            match: {
+            opponent: true,
+            startsAt: true,
+            targetTeam: {
               select: {
-                opponent: true,
-                startsAt: true,
-                targetTeam: {
-                  select: {
-                    name: true,
-                  },
-                },
+                name: true,
               },
             },
           },
         },
-      },
-      orderBy: [
-        {
-          selection: {
-            match: {
-              startsAt: "desc",
+        matchId: true,
+        players: {
+          where: {
+            wasManuallyRemoved: false,
+          },
+          select: {
+            explanation: true,
+            player: {
+              select: {
+                firstName: true,
+                id: true,
+                lastName: true,
+              },
             },
+            playerId: true,
+            roleType: true,
+            sourceTeamNameSnapshot: true,
+            targetTeamNameSnapshot: true,
           },
         },
+        status: true,
+      },
+      orderBy: [
+        { createdAt: "desc" },
+        { finalizedAt: "desc" },
       ],
     }),
   ]);
+  const latestSelectionSnapshots = getLatestSelectionSnapshots(selectionSnapshots);
+  const finalizedSelectionSnapshots = latestSelectionSnapshots
+    .filter((snapshot) => snapshot.status === SelectionStatus.FINALIZED)
+    .sort(compareSelectionSnapshotRecency);
 
   const finalizedHistoryByPlayerId = new Map<
     string,
@@ -104,54 +110,54 @@ export default async function HistoryPage() {
   >();
   const playerCoreTeamNameById = new Map(players.map((player) => [player.id, player.coreTeam.name]));
 
-  for (const selectionPlayer of selectionPlayers.filter(
-    (row) => row.selection.status === SelectionStatus.FINALIZED,
-  )) {
-    const existingHistory = finalizedHistoryByPlayerId.get(selectionPlayer.playerId) ?? {
-      coreTeamAppearances: 0,
-      floatCount: 0,
-      latestMovementDate: null,
-      latestMovementReason: "-",
-      latestMovementSummary: "-",
-      lastFinalizedMatchDate: null,
-      recentSelectionPattern: "",
-      totalFinalizedAppearances: 0,
-    };
+  for (const selectionSnapshot of finalizedSelectionSnapshots) {
+    for (const selectionPlayer of selectionSnapshot.players) {
+      const existingHistory = finalizedHistoryByPlayerId.get(selectionPlayer.playerId) ?? {
+        coreTeamAppearances: 0,
+        floatCount: 0,
+        latestMovementDate: null,
+        latestMovementReason: "-",
+        latestMovementSummary: "-",
+        lastFinalizedMatchDate: null,
+        recentSelectionPattern: "",
+        totalFinalizedAppearances: 0,
+      };
 
-    const matchDate = selectionPlayer.selection.match.startsAt;
-    const recentPatternParts = existingHistory.recentSelectionPattern
-      ? existingHistory.recentSelectionPattern.split(" | ")
-      : [];
+      const matchDate = selectionSnapshot.match.startsAt;
+      const recentPatternParts = existingHistory.recentSelectionPattern
+        ? existingHistory.recentSelectionPattern.split(" | ")
+        : [];
 
-    if (selectionPlayer.roleType === SelectionRole.CORE) {
-      existingHistory.coreTeamAppearances += 1;
-    }
-
-    if (isFloatingSelectionRole(selectionPlayer.roleType)) {
-      existingHistory.floatCount += 1;
-
-      if (!existingHistory.latestMovementDate) {
-        existingHistory.latestMovementDate = matchDate;
-        existingHistory.latestMovementSummary = `${selectionPlayer.sourceTeamNameSnapshot} -> ${selectionPlayer.targetTeamNameSnapshot} · ${formatPatternRole(selectionPlayer.roleType)} · ${formatPatternDate(matchDate)}`;
-        existingHistory.latestMovementReason =
-          selectionPlayer.explanation?.trim() || "No saved explanation for the latest movement.";
+      if (selectionPlayer.roleType === SelectionRole.CORE) {
+        existingHistory.coreTeamAppearances += 1;
       }
+
+      if (isFloatingSelectionRole(selectionPlayer.roleType)) {
+        existingHistory.floatCount += 1;
+
+        if (!existingHistory.latestMovementDate) {
+          existingHistory.latestMovementDate = matchDate;
+          existingHistory.latestMovementSummary = `${selectionPlayer.sourceTeamNameSnapshot} -> ${selectionPlayer.targetTeamNameSnapshot} · ${formatPatternRole(selectionPlayer.roleType)} · ${formatPatternDate(matchDate)}`;
+          existingHistory.latestMovementReason =
+            selectionPlayer.explanation?.trim() || "No saved explanation for the latest movement.";
+        }
+      }
+
+      existingHistory.totalFinalizedAppearances += 1;
+
+      if (!existingHistory.lastFinalizedMatchDate) {
+        existingHistory.lastFinalizedMatchDate = matchDate;
+      }
+
+      if (recentPatternParts.length < 5) {
+        recentPatternParts.push(
+          `${formatPatternDate(matchDate)} ${formatPatternRole(selectionPlayer.roleType)}`,
+        );
+        existingHistory.recentSelectionPattern = recentPatternParts.join(" | ");
+      }
+
+      finalizedHistoryByPlayerId.set(selectionPlayer.playerId, existingHistory);
     }
-
-    existingHistory.totalFinalizedAppearances += 1;
-
-    if (!existingHistory.lastFinalizedMatchDate) {
-      existingHistory.lastFinalizedMatchDate = matchDate;
-    }
-
-    if (recentPatternParts.length < 5) {
-      recentPatternParts.push(
-        `${formatPatternDate(matchDate)} ${formatPatternRole(selectionPlayer.roleType)}`,
-      );
-      existingHistory.recentSelectionPattern = recentPatternParts.join(" | ");
-    }
-
-    finalizedHistoryByPlayerId.set(selectionPlayer.playerId, existingHistory);
   }
 
   const rows: PlayerHistoryRow[] = players.map((player) => {
@@ -177,6 +183,10 @@ export default async function HistoryPage() {
   const totalFinalizedAppearances = rows.reduce((sum, row) => sum + row.totalFinalizedAppearances, 0);
   const totalFloatAppearances = rows.reduce((sum, row) => sum + row.floatCount, 0);
   const recentMovers = rows.filter((row) => row.latestMovementDate !== null).length;
+  const currentDraftMatches = latestSelectionSnapshots.filter(
+    (snapshot) => snapshot.status === SelectionStatus.DRAFT,
+  ).length;
+  const currentFinalizedMatches = finalizedSelectionSnapshots.length;
   const mostUsedPlayer = [...rows].sort(
     (left, right) => right.totalFinalizedAppearances - left.totalFinalizedAppearances,
   )[0] ?? null;
@@ -187,52 +197,62 @@ export default async function HistoryPage() {
         (right.latestMovementDate?.getTime() ?? 0) - (left.latestMovementDate?.getTime() ?? 0),
     )
     .slice(0, 6);
-  const movementOverviewByPlayerId = [...selectionPlayers]
-    .filter((row) =>
-      isSelectionMovementRow({
-        roleType: row.roleType,
-        sourceTeamNameSnapshot: row.sourceTeamNameSnapshot,
-        targetTeamNameSnapshot: row.targetTeamNameSnapshot,
-      }),
-    )
-    .reduce<Map<string, MovementOverviewRow>>((movementByPlayerId, selectionPlayer) => {
-      const playerName = selectionPlayer.player.lastName
-        ? `${selectionPlayer.player.firstName} ${selectionPlayer.player.lastName}`
-        : selectionPlayer.player.firstName;
-      const existingRow = movementByPlayerId.get(selectionPlayer.playerId) ?? {
-        coreTeamName:
-          playerCoreTeamNameById.get(selectionPlayer.playerId) ??
-          selectionPlayer.sourceTeamNameSnapshot,
-        draftMovementCount: 0,
-        finalizedMovementCount: 0,
-        movementCount: 0,
-        movements: [],
-        playerId: selectionPlayer.playerId,
-        playerName,
-      };
+  const movementOverviewByPlayerId = latestSelectionSnapshots.reduce<Map<string, MovementOverviewRow>>(
+    (movementByPlayerId, selectionSnapshot) => {
+      for (const selectionPlayer of selectionSnapshot.players) {
+        if (
+          !isSelectionMovementRow({
+            roleType: selectionPlayer.roleType,
+            sourceTeamNameSnapshot: selectionPlayer.sourceTeamNameSnapshot,
+            targetTeamNameSnapshot: selectionPlayer.targetTeamNameSnapshot,
+          })
+        ) {
+          continue;
+        }
 
-      existingRow.movementCount += 1;
+        const playerName = selectionPlayer.player.lastName
+          ? `${selectionPlayer.player.firstName} ${selectionPlayer.player.lastName}`
+          : selectionPlayer.player.firstName;
+        const existingRow = movementByPlayerId.get(selectionPlayer.playerId) ?? {
+          coreTeamName:
+            playerCoreTeamNameById.get(selectionPlayer.playerId) ??
+            selectionPlayer.sourceTeamNameSnapshot,
+          draftMovementCount: 0,
+          finalizedMovementCount: 0,
+          movementCount: 0,
+          movements: [],
+          playerId: selectionPlayer.playerId,
+          playerName,
+        };
 
-      if (selectionPlayer.selection.status === SelectionStatus.FINALIZED) {
-        existingRow.finalizedMovementCount += 1;
-      } else {
-        existingRow.draftMovementCount += 1;
+        existingRow.movementCount += 1;
+
+        if (selectionSnapshot.status === SelectionStatus.FINALIZED) {
+          existingRow.finalizedMovementCount += 1;
+        } else {
+          existingRow.draftMovementCount += 1;
+        }
+
+        existingRow.movements.push({
+          explanation:
+            selectionPlayer.explanation?.trim() || "No saved explanation for this movement.",
+          key: `${selectionSnapshot.id}:${selectionPlayer.playerId}:${selectionPlayer.roleType}:${selectionPlayer.sourceTeamNameSnapshot}:${selectionPlayer.targetTeamNameSnapshot}`,
+          matchId: selectionSnapshot.matchId,
+          matchLabel: `${selectionSnapshot.match.targetTeam.name} vs. ${selectionSnapshot.match.opponent}`,
+          roleType: selectionPlayer.roleType,
+          sourceTeamName: selectionPlayer.sourceTeamNameSnapshot,
+          startsAt: selectionSnapshot.match.startsAt,
+          status: selectionSnapshot.status,
+          targetTeamName: selectionPlayer.targetTeamNameSnapshot,
+        });
+
+        movementByPlayerId.set(selectionPlayer.playerId, existingRow);
       }
 
-      existingRow.movements.push({
-        explanation: selectionPlayer.explanation?.trim() || "No saved explanation for this movement.",
-        matchId: selectionPlayer.selection.matchId,
-        matchLabel: `${selectionPlayer.selection.match.targetTeam.name} vs. ${selectionPlayer.selection.match.opponent}`,
-        roleType: selectionPlayer.roleType,
-        sourceTeamName: selectionPlayer.sourceTeamNameSnapshot,
-        startsAt: selectionPlayer.selection.match.startsAt,
-        status: selectionPlayer.selection.status,
-        targetTeamName: selectionPlayer.targetTeamNameSnapshot,
-      });
-
-      movementByPlayerId.set(selectionPlayer.playerId, existingRow);
       return movementByPlayerId;
-    }, new Map<string, MovementOverviewRow>());
+    },
+    new Map<string, MovementOverviewRow>(),
+  );
 
   const sortedMovementOverviewRows = [...movementOverviewByPlayerId.values()]
     .map((row) => ({
@@ -264,10 +284,10 @@ export default async function HistoryPage() {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
               <div>
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  Keep floating movement and workload legible without opening player detail pages.
+                  Review the current saved state like you are walking the squad room wall with an assistant.
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Read the movement first, then sort the table if you need more.
+                  Every card and count on this page is collapsed to the latest saved snapshot for each match.
                 </p>
               </div>
 
@@ -279,19 +299,25 @@ export default async function HistoryPage() {
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalized appearance(s)</p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      All locked appearances currently visible across the active registry.
+                      Locked history from the latest saved snapshot per match.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{totalFloatAppearances} floating appearance(s)</p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      Support, development, and floating usage currently retained in history.
+                      Support, development, and floating usage retained in the current locked state.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{recentMovers} player(s) with visible movement history</p>
                     <p className="mt-1 text-sm app-copy-soft">
                       These are the players you can review here before opening their individual pages.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
+                    <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalized match(es)</p>
+                    <p className="mt-1 text-sm app-copy-soft">
+                      This is the live saved match state before you drill into movement details.
                     </p>
                   </div>
                 </div>
@@ -330,39 +356,33 @@ export default async function HistoryPage() {
         <section className="app-panel rounded-[1.75rem] p-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Movement Feed
+              Meeting Flow
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Latest visible movement between teams</h2>
+            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Review path for the current saved picture</h2>
+            <p className="mt-2 text-sm app-copy-soft">
+              Start with saved-state posture, then check the latest player movement cards, then open the deeper trail.
+            </p>
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            {latestMovementRows.length > 0 ? (
-              latestMovementRows.map((row) => (
-                <div
-                  key={row.playerId}
-                  className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-100">
-                        {row.lastName ? `${row.firstName} ${row.lastName}` : row.firstName}
-                      </p>
-                      <p className="mt-1 text-sm app-copy-soft">{row.coreTeamName}</p>
-                    </div>
-                    <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--warning)]">
-                      {row.latestMovementDate ? formatDate(row.latestMovementDate) : "No move"}
-                    </span>
-                  </div>
-                  <p className="mt-4 text-sm font-medium text-zinc-100">{row.latestMovementSummary}</p>
-                  <p className="mt-2 text-sm leading-6 app-copy-soft">{row.latestMovementReason}</p>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft lg:col-span-2">
-                No visible movement feed yet. Once support, development, or floating appearances are
-                finalized, they should surface here as reviewable cards.
-              </div>
-            )}
+          <div className="mt-6 grid gap-3">
+            <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+              <p className="text-sm font-semibold text-zinc-100">1. Read the saved match state</p>
+              <p className="mt-2 text-sm app-copy-soft">
+                {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalized.
+              </p>
+            </div>
+            <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+              <p className="text-sm font-semibold text-zinc-100">2. Review the latest move per player</p>
+              <p className="mt-2 text-sm app-copy-soft">
+                The movement feed below shows one latest visible move per player from the current saved state.
+              </p>
+            </div>
+            <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+              <p className="text-sm font-semibold text-zinc-100">3. Open the trail only if you need detail</p>
+              <p className="mt-2 text-sm app-copy-soft">
+                Use the movement overview for per-player timelines and the table for workload or fairness checks.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -373,8 +393,8 @@ export default async function HistoryPage() {
           <h2 className="mt-2 text-xl font-semibold text-zinc-50">Read the story before you sort the table</h2>
           <div className="mt-6 grid gap-3">
             {[
-              "Start with the movement feed when you want to see who shifted teams most recently and why.",
-              "Use recent pattern strings to see whether a player is carrying a run of core or floating assignments.",
+              "This page is current-state first: superseded snapshots are collapsed away before anything is counted.",
+              "Use recent pattern strings to see whether a player is carrying a run of core or floating assignments in the current locked history.",
               "Drop into the full table only after you know whether you are checking fairness, workload, or movement reasons.",
             ].map((note) => (
               <div
@@ -386,6 +406,45 @@ export default async function HistoryPage() {
             ))}
           </div>
         </section>
+      </section>
+
+      <section className="app-panel rounded-[1.75rem] p-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Movement Feed
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Latest visible move per player</h2>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {latestMovementRows.length > 0 ? (
+            latestMovementRows.map((row) => (
+              <div
+                key={row.playerId}
+                className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-100">
+                      {row.lastName ? `${row.firstName} ${row.lastName}` : row.firstName}
+                    </p>
+                    <p className="mt-1 text-sm app-copy-soft">{row.coreTeamName}</p>
+                  </div>
+                  <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--warning)]">
+                    {row.latestMovementDate ? formatDate(row.latestMovementDate) : "No move"}
+                  </span>
+                </div>
+                <p className="mt-4 text-sm font-medium text-zinc-100">{row.latestMovementSummary}</p>
+                <p className="mt-2 text-sm leading-6 app-copy-soft">{row.latestMovementReason}</p>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft lg:col-span-2">
+              No visible movement feed yet. Once support, development, or floating appearances are
+              saved in the latest match state, they surface here as reviewable cards.
+            </div>
+          )}
+        </div>
       </section>
 
       <MovementOverview rows={sortedMovementOverviewRows} />

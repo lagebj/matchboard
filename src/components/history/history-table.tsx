@@ -115,7 +115,7 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{playersWithCoreHistory}</p>
           <p className="mt-2 text-sm app-copy-soft">
-            Players with at least one finalized core-team appearance in the visible history.
+            Players with at least one finalized core-team appearance in the current locked history.
           </p>
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
@@ -124,7 +124,7 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{playersWithFloatHistory}</p>
           <p className="mt-2 text-sm app-copy-soft">
-            Players who have at least one finalized floating appearance recorded.
+            Players who have at least one finalized floating appearance in the latest saved match state.
           </p>
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
@@ -133,7 +133,7 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{recentMovers}</p>
           <p className="mt-2 text-sm app-copy-soft">
-            Players with a visible finalized move between teams in the current history.
+            Players with a visible finalized move between teams in the current locked history.
           </p>
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
