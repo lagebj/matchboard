@@ -502,6 +502,16 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And the engine must prioritize development slots second
       And the engine must prioritize own-team core coverage after those reserved slots
 
+    Scenario: Rule-blocked remaining slots stay open for manual additions
+      Given a match exists for a team from the team registry
+      And the team still has open squad slots after support, development, and core priorities are applied
+      And one or more remaining eligible players are blocked by spacing, in-between-match, or other selection rules
+      When the coach generates a selection for that match
+      Then the engine must leave those blocked slots unfilled rather than auto-selecting outside the ruleset
+      And the generated result must warn early and clearly that the match is still missing slots
+      And the warning must name the rule-driven reasons that stopped automatic filling
+      And the app must also suggest best-effort manual additions from outside the ruleset for the coach to review
+
     Scenario: Team support shortfall should be reported clearly
       Given a match exists for a team from the team registry
       And that team has a minimum support requirement greater than 0
@@ -593,6 +603,14 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
       And the warnings must explain why the remaining slots could not be filled automatically
       And the warnings must distinguish between support shortfall, development shortfall, and general eligibility shortage when applicable
 
+    Scenario: Match selection screen suggests manual additions for unfilled slots
+      Given a generated or saved selection exists for a match
+      And one or more squad slots remain unfilled
+      When the coach reviews the match selection screen
+      Then the app must show the missing-slot warning before the detailed selection tables
+      And the app must suggest best-effort player additions that were left out only because rules blocked automatic involvement
+      And each suggestion must explain which rule blocked the player from automatic selection
+
   Rule: Positional balance in floating selection
 
     Scenario: Floating selection should preserve positional balance
@@ -661,7 +679,7 @@ Feature: Weekly match workflow, team fairness visibility, and single-match selec
 
     Scenario: Match type must come from the supported match-type list
       Given the coach is creating or editing a match
-      Then match type must be chosen from "League", "Friendly", or "Cup"
+      Then match type must be chosen from "League", "Friendly", "Cup", or "Development"
       And the match form must offer those match types as a dropdown
 
     Scenario: Coach can remove a match
