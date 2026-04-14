@@ -1,4 +1,5 @@
 export type SelectionCategory = "CORE" | "FLOAT" | "SUPPORT" | "DEVELOPMENT" | "MANUAL";
+export type AutomaticSelectionCategory = Exclude<SelectionCategory, "MANUAL">;
 
 export type ExplanationRecord = {
   code: string;
@@ -34,6 +35,7 @@ export type SelectedPlayer = SelectionPlayerBase & {
 };
 
 export type ExcludedPlayer = SelectionPlayerBase & {
+  automaticSelectionCategory: AutomaticSelectionCategory | null;
   exclusionReason: string;
   selectionCategory: "EXCLUDED";
 };

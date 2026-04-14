@@ -13,6 +13,7 @@ import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-
 import { getFloatingHistory } from "@/lib/selection/get-floating-history";
 import { getTargetTeamEligibility } from "@/lib/selection/get-target-team-eligibility";
 import type {
+  AutomaticSelectionCategory,
   ExcludedPlayer,
   ExplanationRecord,
   GeneratedSelection,
@@ -66,6 +67,20 @@ function getPositionNeedScore(selectedPlayers: SelectedPlayer[], chosenPosition:
   return selectedPlayers.filter((player) => player.chosenPosition === chosenPosition).length;
 }
 
+function getAutomaticSelectionCategoryForFloatingCandidate(
+  candidateCategory: FloatingCandidate["candidateCategory"],
+): AutomaticSelectionCategory {
+  if (candidateCategory === "SUPPORT") {
+    return "SUPPORT";
+  }
+
+  if (candidateCategory === "DEVELOPMENT") {
+    return "DEVELOPMENT";
+  }
+
+  return "FLOAT";
+}
+
 function formatSelectionStatus(status: SelectionStatus) {
   return status === SelectionStatus.FINALIZED ? "finalized" : "draft";
 }
@@ -80,6 +95,56 @@ function buildShortSquadWarningMessage(
   }
 
   return `Only ${selectedCount} player(s) could be filled automatically for a target squad size of ${squadSize}. Automatic filling stopped because ${blockers.join(" ")}`;
+}
+
+function getFloatingCandidatePriorityScore(
+  candidate: Omit<FloatingCandidate, "priorityScore">,
+  selectedPlayers: SelectedPlayer[],
+  rules: Awaited<ReturnType<typeof getRules>>,
+) {
+  return (
+    50 +
+    (candidate.candidateCategory === "SUPPORT" ? 40 : 0) +
+    (candidate.candidateCategory === "DEVELOPMENT" ? 25 : 0) +
+    (candidate.candidateCategory === "DEVELOPMENT" && (candidate.developmentTargetRemaining ?? 0) > 0
+      ? 35 + (candidate.developmentTargetRemaining ?? 0) * 5
+      : 0) +
+    (candidate.missedCoreMatchThisWeek ? 30 : 0) -
+    candidate.registeredAppearanceCount * 4 -
+    (rules.preferLowerFloatCount ? candidate.floatingHistory.totalFloatingMatches * 5 : 0) -
+    (rules.preferLowRecentLoad ? candidate.recentLoadScore * 2 : 0) -
+    (rules.preferPositionBalance
+      ? getPositionNeedScore(selectedPlayers, candidate.chosenPosition) * 3
+      : 0)
+  );
+}
+
+function getRankedFloatingCandidates(
+  candidates: Array<Omit<FloatingCandidate, "priorityScore">>,
+  selectedPlayers: SelectedPlayer[],
+  rules: Awaited<ReturnType<typeof getRules>>,
+) {
+  return candidates
+    .map((candidate) => ({
+      ...candidate,
+      priorityScore: getFloatingCandidatePriorityScore(candidate, selectedPlayers, rules),
+    }))
+    .sort((left, right) => {
+      const leftCategoryPriority =
+        left.candidateCategory === "SUPPORT" ? 2 : left.candidateCategory === "DEVELOPMENT" ? 1 : 0;
+      const rightCategoryPriority =
+        right.candidateCategory === "SUPPORT" ? 2 : right.candidateCategory === "DEVELOPMENT" ? 1 : 0;
+
+      if (leftCategoryPriority !== rightCategoryPriority) {
+        return rightCategoryPriority - leftCategoryPriority;
+      }
+
+      if (left.priorityScore !== right.priorityScore) {
+        return right.priorityScore - left.priorityScore;
+      }
+
+      return left.playerName.localeCompare(right.playerName);
+    });
 }
 
 type PlayerRecord = Player & {
@@ -657,6 +722,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: null,
         exclusionReason,
       });
       continue;
@@ -677,6 +743,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: null,
         exclusionReason,
       });
       continue;
@@ -698,6 +765,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: null,
         exclusionReason: eligibility.explanation,
       });
       continue;
@@ -725,6 +793,12 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory:
+          eligibility.selectionCategory === "CORE"
+            ? "CORE"
+            : getAutomaticSelectionCategoryForFloatingCandidate(
+                getFloatingCandidateCategory(player, currentMatchRecord),
+              ),
         exclusionReason: registeredConflict.reason,
       });
       continue;
@@ -809,6 +883,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition: candidate.playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: "CORE",
         exclusionReason: "Dropped by the core-match drop rule.",
       });
 
@@ -866,6 +941,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: getAutomaticSelectionCategoryForFloatingCandidate(candidateCategory),
         exclusionReason,
       });
       continue;
@@ -891,6 +967,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: getAutomaticSelectionCategoryForFloatingCandidate(candidateCategory),
         exclusionReason,
       });
       continue;
@@ -920,6 +997,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
+        automaticSelectionCategory: getAutomaticSelectionCategoryForFloatingCandidate(candidateCategory),
         exclusionReason,
       });
       continue;
@@ -1016,6 +1094,169 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       (candidate) => candidate.higherPriorityOpportunity?.match.targetTeam.name ?? "",
     ),
   );
+  let remainingFloatingCandidates = [...availableFloatingCandidates];
+
+  function selectFloatingCandidate(candidate: FloatingCandidate) {
+    const alreadySelectedSupportPlayers = selectedPlayers.filter(
+      (player) => player.selectionCategory === "SUPPORT",
+    ).length;
+    const alreadySelectedDevelopmentPlayers = selectedPlayers.filter(
+      (player) => player.selectionCategory === "DEVELOPMENT",
+    ).length;
+    const fillsReservedDirectSupportSlot =
+      candidate.candidateCategory === "SUPPORT" &&
+      alreadySelectedSupportPlayers < reservedDirectSupportPlayers;
+    const fillsReservedSupportSlot =
+      candidate.candidateCategory === "SUPPORT" &&
+      alreadySelectedSupportPlayers < reservedSupportPlayers;
+    const fillsReservedDevelopmentSlot =
+      candidate.candidateCategory === "DEVELOPMENT" &&
+      alreadySelectedDevelopmentPlayers < reservedDevelopmentPlayers;
+    const selectionReason = fillsReservedDirectSupportSlot
+      ? `Selected as a support player for ${currentMatchRecord.targetTeam.name}.`
+      : fillsReservedSupportSlot
+        ? `Selected as an extra support player for ${currentMatchRecord.targetTeam.name} to backfill core players preserved for higher-priority support work elsewhere.`
+      : candidate.candidateCategory === "SUPPORT"
+        ? `Selected as an eligible support player for ${currentMatchRecord.targetTeam.name}.`
+      : candidate.candidateCategory === "DEVELOPMENT"
+        ? `Selected as a development player for ${currentMatchRecord.targetTeam.name}.`
+      : `Selected as an eligible floating player for ${currentMatchRecord.targetTeam.name}.`;
+    const explanations = [
+      buildExplanation("floating_allowed", candidate.eligibilityExplanation, true),
+      buildExplanation(
+        "support_development_then_core_priority",
+        `Support slots were applied first, development slots second, and core-team coverage after those reservations.`,
+        true,
+      ),
+    ];
+
+    if (fillsReservedDirectSupportSlot) {
+      explanations.push(
+        buildExplanation(
+          "team_support_requirement",
+          `${currentMatchRecord.targetTeam.name} has a configured minimum support requirement of ${directSupportTarget}, so this slot was reserved for direct support coverage from configured support teams.`,
+          true,
+        ),
+      );
+    }
+
+    if (fillsReservedSupportSlot && !fillsReservedDirectSupportSlot) {
+      explanations.push(
+        buildExplanation(
+          "indirect_support_backfill",
+          `${candidate.playerName} was selected as extra support because ${currentMatchRecord.targetTeam.name} is preserving core players for higher-priority support work in ${preservedSupportTargetTeams}.`,
+          true,
+        ),
+      );
+    }
+
+    if (candidate.candidateCategory === "SUPPORT") {
+      explanations.push(
+        buildExplanation(
+          "support_priority_over_core",
+          `${candidate.playerName} was prioritized because ${candidate.player.coreTeam.name} is configured as a support team for ${currentMatchRecord.targetTeam.name}.`,
+          true,
+        ),
+      );
+    }
+
+    if (candidate.candidateCategory === "DEVELOPMENT") {
+      explanations.push(
+        buildExplanation(
+          "development_priority_over_core",
+          fillsReservedDevelopmentSlot
+            ? `${candidate.playerName} was prioritized to fill one of ${reservedDevelopmentPlayers} reserved development slot(s) for ${currentMatchRecord.targetTeam.name}.`
+            : `${candidate.playerName} was prioritized as a development player because ${candidate.player.coreTeam.name} is configured as a development source team for ${currentMatchRecord.targetTeam.name}.`,
+          true,
+        ),
+      );
+
+      if ((candidate.developmentTargetRemaining ?? 0) > 0 && candidate.player.maxDevelopmentMatches !== null) {
+        explanations.push(
+          buildExplanation(
+            "development_target_tracking",
+            `${candidate.playerName} is still working toward the player's development target of ${candidate.player.maxDevelopmentMatches}, so the engine pulled this player forward while the player remained below that count.`,
+            true,
+          ),
+        );
+      }
+    }
+
+    if (candidate.missedCoreMatchThisWeek) {
+      explanations.push(
+        buildExplanation(
+          "same_week_missed_core_priority",
+          `${candidate.playerName} was prioritized because the player missed a saved core-team selection earlier in the same week and should be prioritized for a floating opportunity.`,
+          true,
+        ),
+      );
+    }
+
+    explanations.push(
+      buildExplanation(
+        "registered_match_fairness",
+        `Total planned match load was considered across every other saved draft or finalized match. ${candidate.playerName} currently has ${candidate.registeredAppearanceCount} other saved involvement(s).`,
+        true,
+      ),
+    );
+
+    selectedPlayers.push({
+      autoSelected: true,
+      chosenPosition: candidate.chosenPosition,
+      coreMatchDropAllowed: candidate.player.canDropCoreMatch,
+      coreTeamName: candidate.player.coreTeam.name,
+      eligibility: true,
+      explanations,
+      finalSelected: false,
+      manualOverride: false,
+      playerId: candidate.player.id,
+      playerName: candidate.playerName,
+      playerPosition: candidate.playerPosition,
+      priorityScore: candidate.priorityScore,
+      selectionCategory: candidate.candidateCategory,
+      selectionReason,
+    });
+  }
+
+  function takeTopFloatingCandidate(
+    filter: (candidate: Omit<FloatingCandidate, "priorityScore">) => boolean,
+  ) {
+    const candidate = getRankedFloatingCandidates(
+      remainingFloatingCandidates.filter(filter),
+      selectedPlayers,
+      rules,
+    )[0];
+
+    if (!candidate) {
+      return false;
+    }
+
+    remainingFloatingCandidates = remainingFloatingCandidates.filter(
+      (entry) => entry.player.id !== candidate.player.id,
+    );
+    selectFloatingCandidate(candidate);
+    return true;
+  }
+
+  while (
+    selectedPlayers.filter((player) => player.selectionCategory === "SUPPORT").length <
+      reservedSupportPlayers &&
+    selectedPlayers.length < match.squadSize
+  ) {
+    if (!takeTopFloatingCandidate((candidate) => candidate.candidateCategory === "SUPPORT")) {
+      break;
+    }
+  }
+
+  while (
+    selectedPlayers.filter((player) => player.selectionCategory === "DEVELOPMENT").length <
+      reservedDevelopmentPlayers &&
+    selectedPlayers.length < match.squadSize
+  ) {
+    if (!takeTopFloatingCandidate((candidate) => candidate.candidateCategory === "DEVELOPMENT")) {
+      break;
+    }
+  }
 
   for (const {
     player,
@@ -1118,6 +1359,7 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
       playerPosition: candidate.playerPosition,
       priorityScore: null,
       selectionCategory: "EXCLUDED",
+      automaticSelectionCategory: "CORE",
       exclusionReason: overflowExplanation,
     });
   }
@@ -1167,162 +1409,11 @@ export async function generateSelection(matchId: string): Promise<GeneratedSelec
     });
   }
 
-  const rankedFloatingCandidates: FloatingCandidate[] = availableFloatingCandidates.map((candidate) => ({
-    ...candidate,
-    priorityScore:
-      50 +
-      (candidate.candidateCategory === "SUPPORT" ? 40 : 0) +
-      (candidate.candidateCategory === "DEVELOPMENT" ? 25 : 0) +
-      (candidate.candidateCategory === "DEVELOPMENT" && (candidate.developmentTargetRemaining ?? 0) > 0
-        ? 35 + (candidate.developmentTargetRemaining ?? 0) * 5
-        : 0) +
-      (candidate.missedCoreMatchThisWeek ? 30 : 0) -
-      candidate.registeredAppearanceCount * 4 -
-      (rules.preferLowerFloatCount ? candidate.floatingHistory.totalFloatingMatches * 5 : 0) -
-      (rules.preferLowRecentLoad ? candidate.recentLoadScore * 2 : 0) -
-      (rules.preferPositionBalance
-        ? getPositionNeedScore(selectedPlayers, candidate.chosenPosition) * 3
-        : 0),
-  }));
-
-  rankedFloatingCandidates.sort((left, right) => {
-    const leftCategoryPriority =
-      left.candidateCategory === "SUPPORT" ? 2 : left.candidateCategory === "DEVELOPMENT" ? 1 : 0;
-    const rightCategoryPriority =
-      right.candidateCategory === "SUPPORT" ? 2 : right.candidateCategory === "DEVELOPMENT" ? 1 : 0;
-
-    if (leftCategoryPriority !== rightCategoryPriority) {
-      return rightCategoryPriority - leftCategoryPriority;
+  while (selectedPlayers.length < match.squadSize) {
+    if (!takeTopFloatingCandidate(() => true)) {
+      break;
     }
-
-    if (left.priorityScore !== right.priorityScore) {
-      return right.priorityScore - left.priorityScore;
-    }
-
-    return left.playerName.localeCompare(right.playerName);
-  });
-
-  rankedFloatingCandidates
-    .slice(0, Math.max(match.squadSize - selectedPlayers.length, 0))
-    .forEach((candidate) => {
-      const alreadySelectedSupportPlayers = selectedPlayers.filter(
-        (player) => player.selectionCategory === "SUPPORT",
-      ).length;
-      const alreadySelectedDevelopmentPlayers = selectedPlayers.filter(
-        (player) => player.selectionCategory === "DEVELOPMENT",
-      ).length;
-      const fillsReservedDirectSupportSlot =
-        candidate.candidateCategory === "SUPPORT" &&
-        alreadySelectedSupportPlayers < reservedDirectSupportPlayers;
-      const fillsReservedSupportSlot =
-        candidate.candidateCategory === "SUPPORT" &&
-        alreadySelectedSupportPlayers < reservedSupportPlayers;
-      const fillsReservedDevelopmentSlot =
-        candidate.candidateCategory === "DEVELOPMENT" &&
-        alreadySelectedDevelopmentPlayers < reservedDevelopmentPlayers;
-      const selectionReason = fillsReservedDirectSupportSlot
-        ? `Selected as a support player for ${match.targetTeam.name}.`
-        : fillsReservedSupportSlot
-          ? `Selected as an extra support player for ${match.targetTeam.name} to backfill core players preserved for higher-priority support work elsewhere.`
-        : candidate.candidateCategory === "DEVELOPMENT"
-          ? `Selected as a development player for ${match.targetTeam.name}.`
-        : `Selected as an eligible floating player for ${match.targetTeam.name}.`;
-      const explanations = [
-        buildExplanation("floating_allowed", candidate.eligibilityExplanation, true),
-        buildExplanation(
-          "support_development_then_core_priority",
-          `Support slots were applied first, development slots second, and core-team coverage after those reservations.`,
-          true,
-        ),
-      ];
-
-      if (fillsReservedDirectSupportSlot) {
-        explanations.push(
-          buildExplanation(
-            "team_support_requirement",
-            `${match.targetTeam.name} has a configured minimum support requirement of ${directSupportTarget}, so this slot was reserved for direct support coverage from configured support teams.`,
-            true,
-          ),
-        );
-      }
-
-      if (fillsReservedSupportSlot && !fillsReservedDirectSupportSlot) {
-        explanations.push(
-          buildExplanation(
-            "indirect_support_backfill",
-            `${candidate.playerName} was selected as extra support because ${match.targetTeam.name} is preserving core players for higher-priority support work in ${preservedSupportTargetTeams}.`,
-            true,
-          ),
-        );
-      }
-
-      if (candidate.candidateCategory === "SUPPORT") {
-        explanations.push(
-          buildExplanation(
-            "support_priority_over_core",
-            `${candidate.playerName} was prioritized because ${candidate.player.coreTeam.name} is configured as a support team for ${match.targetTeam.name}.`,
-            true,
-          ),
-        );
-      }
-
-      if (candidate.candidateCategory === "DEVELOPMENT") {
-        explanations.push(
-          buildExplanation(
-            "development_priority_over_core",
-            fillsReservedDevelopmentSlot
-              ? `${candidate.playerName} was prioritized to fill one of ${reservedDevelopmentPlayers} reserved development slot(s) for ${match.targetTeam.name}.`
-              : `${candidate.playerName} was prioritized as a development player because ${candidate.player.coreTeam.name} is configured as a development source team for ${match.targetTeam.name}.`,
-            true,
-          ),
-        );
-
-        if ((candidate.developmentTargetRemaining ?? 0) > 0 && candidate.player.maxDevelopmentMatches !== null) {
-          explanations.push(
-            buildExplanation(
-              "development_target_tracking",
-              `${candidate.playerName} is still working toward the player's development target of ${candidate.player.maxDevelopmentMatches}, so the engine pulled this player forward while the player remained below that count.`,
-              true,
-            ),
-          );
-        }
-      }
-
-      if (candidate.missedCoreMatchThisWeek) {
-        explanations.push(
-          buildExplanation(
-            "same_week_missed_core_priority",
-            `${candidate.playerName} was prioritized because the player missed a saved core-team selection earlier in the same week and should be prioritized for a floating opportunity.`,
-            true,
-          ),
-        );
-      }
-
-      explanations.push(
-        buildExplanation(
-          "registered_match_fairness",
-          `Total planned match load was considered across every other saved draft or finalized match. ${candidate.playerName} currently has ${candidate.registeredAppearanceCount} other saved involvement(s).`,
-          true,
-        ),
-      );
-
-      selectedPlayers.push({
-        autoSelected: true,
-        chosenPosition: candidate.chosenPosition,
-        coreMatchDropAllowed: candidate.player.canDropCoreMatch,
-        coreTeamName: candidate.player.coreTeam.name,
-        eligibility: true,
-        explanations,
-        finalSelected: false,
-        manualOverride: false,
-        playerId: candidate.player.id,
-        playerName: candidate.playerName,
-        playerPosition: candidate.playerPosition,
-        priorityScore: candidate.priorityScore,
-        selectionCategory: candidate.candidateCategory,
-        selectionReason,
-      });
-    });
+  }
 
   if (selectedPlayers.length < match.squadSize) {
     const blockers = [

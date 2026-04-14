@@ -48,7 +48,7 @@ export const optionalPlayerPositionOptions = [
   ...playerPositionOptions,
 ] as const;
 
-export const matchTypeValues = ["League", "Friendly", "Cup"] as const;
+export const matchTypeValues = ["League", "Friendly", "Cup", "Development"] as const;
 
 export const matchTypeOptions = matchTypeValues.map((matchType) => ({
   label: matchType,

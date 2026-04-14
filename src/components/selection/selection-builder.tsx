@@ -18,7 +18,7 @@ import { formatDate, formatIsoWeekKey, formatIsoWeekLabel } from "@/lib/date-uti
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import type { WeeklyCoverageRow } from "@/lib/selection/get-weekly-player-coverage";
-import type { GeneratedSelection } from "@/lib/selection/types";
+import type { AutomaticSelectionCategory, GeneratedSelection } from "@/lib/selection/types";
 
 type PlayerGroup = {
   players: Array<
@@ -86,6 +86,13 @@ type EarlyWarningRow = {
   title: string;
 };
 
+type ManualAddSuggestionRow = {
+  explanation: string;
+  playerId: string;
+  playerName: string;
+  role: string;
+};
+
 function formatSavedStatus(savedMessage: string): string {
   return savedMessage === "final" ? "Final selection saved." : "Draft selection saved.";
 }
@@ -116,6 +123,22 @@ function formatWarningTitle(code: string): string {
     default:
       return code.replaceAll("_", " ");
   }
+}
+
+function getManualSuggestionPriority(category: AutomaticSelectionCategory | null) {
+  if (category === "SUPPORT") {
+    return 0;
+  }
+
+  if (category === "DEVELOPMENT") {
+    return 1;
+  }
+
+  if (category === "CORE") {
+    return 2;
+  }
+
+  return 3;
 }
 
 function formatWeekMatchState(status: SelectionStatus | null): string {
@@ -381,6 +404,41 @@ export function SelectionBuilder({
   const suggestedSelectedCount = generatedSelection?.selectedPlayers.length ?? 0;
   const suggestedExcludedCount = generatedSelection?.excludedPlayers.length ?? 0;
   const suggestedWarningCount = generatedSelection?.warnings.length ?? 0;
+  const currentShortfall =
+    latestSelection && savedSelectionGap > 0
+      ? savedSelectionGap
+      : !latestSelection && generatedSelection
+        ? Math.max(match.squadSize - generatedSelection.selectedPlayers.length, 0)
+        : 0;
+  const currentSelectedPlayerIds = latestSelection ? activeSavedPlayerIds : generatedSelectedPlayerIds;
+  const manualAddSuggestions: ManualAddSuggestionRow[] =
+    currentShortfall > 0
+      ? (selectionAnalysis?.excludedPlayers ?? [])
+          .filter(
+            (player) =>
+              player.eligibility &&
+              player.automaticSelectionCategory !== null &&
+              !currentSelectedPlayerIds.has(player.playerId),
+          )
+          .sort((left, right) => {
+            const priorityDifference =
+              getManualSuggestionPriority(left.automaticSelectionCategory) -
+              getManualSuggestionPriority(right.automaticSelectionCategory);
+
+            if (priorityDifference !== 0) {
+              return priorityDifference;
+            }
+
+            return left.playerName.localeCompare(right.playerName);
+          })
+          .slice(0, Math.min(Math.max(currentShortfall, 3), 6))
+          .map((player) => ({
+            explanation: player.exclusionReason,
+            playerId: player.playerId,
+            playerName: player.playerName,
+            role: formatSelectionRole(player.automaticSelectionCategory as SelectionRole),
+          }))
+      : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -778,9 +836,14 @@ export function SelectionBuilder({
         </div>
       </section>
 
-      {(earlyWarnings.length > 0 || savedOmittedCorePlayers.length > 0 || generatedOmittedCorePlayers.length > 0) ? (
+      {(
+        earlyWarnings.length > 0 ||
+        currentShortfall > 0 ||
+        savedOmittedCorePlayers.length > 0 ||
+        generatedOmittedCorePlayers.length > 0
+      ) ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          {earlyWarnings.length > 0 ? (
+          {(earlyWarnings.length > 0 || currentShortfall > 0) ? (
             <section className="rounded-[1.5rem] border border-[rgba(208,176,127,0.35)] bg-[rgba(208,176,127,0.1)] p-5">
               <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--warning)]">
                 Early Warnings
@@ -795,6 +858,40 @@ export function SelectionBuilder({
                     <p className="mt-1 leading-6">{warning.message}</p>
                   </div>
                 ))}
+
+                {currentShortfall > 0 ? (
+                  <div className="rounded-2xl border border-[rgba(208,176,127,0.22)] bg-[rgba(18,22,30,0.42)] px-4 py-3">
+                    <p className="font-medium text-[#f8ead4]">Best-effort manual additions</p>
+                    <p className="mt-1 leading-6">
+                      This match is still {currentShortfall} player(s) short. These players were
+                      blocked by the rules engine, but they are the clearest manual-add candidates if
+                      you want to override those rules.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-3">
+                      {manualAddSuggestions.length > 0 ? (
+                        manualAddSuggestions.map((player) => (
+                          <div
+                            key={player.playerId}
+                            className="rounded-xl border border-[rgba(208,176,127,0.18)] bg-[rgba(255,255,255,0.03)] px-4 py-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-3">
+                              <p className="font-medium text-[#f8ead4]">{player.playerName}</p>
+                              <span className="rounded-full border border-[rgba(208,176,127,0.2)] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#f3dfc1]">
+                                {player.role}
+                              </span>
+                            </div>
+                            <p className="mt-2 leading-6">{player.explanation}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="leading-6">
+                          No rule-blocked fallback candidates are available right now. Any remaining
+                          additions will need pure manual judgment.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}
