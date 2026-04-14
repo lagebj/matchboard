@@ -632,7 +632,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
                                 </p>
                               </div>
                               <span className="rounded-full border app-hairline px-3 py-1 text-[11px] uppercase tracking-[0.18em] app-copy-soft">
-                                {match.availableForDevelopmentSlot ? "Development open" : "No development"}
+                                {match.availableForDevelopmentSlot ? "Development open" : "Development closed"}
                               </span>
                             </div>
                             <p className="mt-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
