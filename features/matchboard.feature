@@ -1,1017 +1,1516 @@
-Feature: Weekly match workflow, team fairness visibility, and single-match selection history
-  This feature describes how the application maintains teams and players,
-  guides the coach through weekly match work one match at a time,
-  applies configurable selection rules,
-  and stores finalized selections as history for future decisions.
+Feature: Matchboard football operations workspace
+
+  Matchboard is a local-first web app for youth football match planning.
+  The app helps coaches plan weekly match rounds across multiple teams, manage player movement, protect fairness over time, and explain why selections were made.
+
+  The app must not optimize for winning.
+  The app must optimize for match function, player development, fairness, support coverage, team continuity, and explainable coach decisions.
+
+  The app must treat teams as configurable planning units.
+  It must not hardcode Team A, Team B, Team C, goalkeepers, strongest team, weakest team, or fixed hierarchy.
+  Those meanings are configured by the coach through teams, rules, paths, priorities, and player flags.
 
   Background:
-    Given teams can be maintained in the team registry
-    And active players exist in the player registry
-    And each player is assigned to exactly one core team
-    And player profile data is available for selection decisions
-    And some players may be marked as floating with explicit allowed float teams
-    And finalized match selections are stored as historical records
-    And manual changes to a generated selection must be allowed
-    And the selection engine loads its rules from the configured ruleset
+    Given the app has a local database
+    And the coach can configure seasons
+    And the coach can configure planning periods
+    And the coach can configure teams
+    And the coach can configure players
+    And each player has exactly one core team
+    And each match belongs to exactly one team
+    And match selections are generated from configured rules
+    And every finalized selection stores a snapshot of rule configuration, availability, warnings, explanations, and manual overrides
 
-  Rule: Coach-desk workflow experience
 
-    Scenario: App behaves like an assistant manager from the first session
-      Given the coach opens the app on day 1
-      When the landing page loads
-      Then the app must suggest a sensible next action based on the current state of data
-      And the app must keep guidance short and operational
-      And the same guidance pattern must remain visible throughout the main workflow pages
-      And the app must avoid long explanatory app-usage text
+  Rule: Main domain hierarchy
 
-    Scenario: Landing page surfaces the next decision before raw registry data
-      Given matches, players, teams, and finalized history may exist in the app
-      When the coach opens the landing page
-      Then the app must show the next operational decision first
-      And the first visible prompt should ask what the coach wants to do next
-      And the page must offer direct operational actions such as clearing saved selections, picking squads, or reviewing current selections
-      And the page must show the broader operating sequence as a short step flow
-      And the page must keep recent finalized outcomes visible as context
-      And the page must present the broader selection loop without forcing the coach to start from raw tables
+    The app uses Season, Planning Period, Match Round, Match, Selection, Movement Ledger, Rule Configuration, Warning, and Manual Override as the core planning hierarchy.
 
-    Scenario: Overview pages show workflow context before deep tables or forms
-      Given the coach opens an overview page such as players, teams, matches, history, or rules
-      When the page loads
-      Then the page must show one compact workflow summary and next-action guidance before the main table or form
-      And the page must avoid splitting the overview into unnecessary parallel panels
-      And the table or form must remain available as a secondary operational surface
-      And the page copy must read like short face-to-face guidance from an assistant manager
+    Scenario: Matchboard uses planning hierarchy
+      Given a season exists
+      And a planning period belongs to the season
+      And a match round belongs to the planning period
+      And a match belongs to the match round
+      When the coach opens the match round
+      Then the app must show the match round inside its planning period
+      And the app must show every match belonging to the match round
 
-    Scenario: Match workflow is organized around calendar weeks
-      Given one or more registered matches exist
-      When the coach works the match workflow
-      Then the app must group operational match work by calendar week
-      And the weekly workflow should show one primary card per week rather than separate slide and workflow sections
-      And the current week must be readable before the coach scans the deeper match ledger
-      And week-level warnings and informational signals must be visible without opening every match
+    Scenario: Planning period tracks fairness across match rounds
+      Given planning period "Spring Block 1" contains match rounds "R1", "R2", and "R3"
+      When the coach opens planning period review
+      Then the app must include selections, movements, drops, warnings, match fit feedback, and overrides from all match rounds in the planning period
 
-    Scenario: Match queue shows weekly floating movement across saved work
-      Given one or more weeks contain saved draft or finalized selections
-      When the coach opens the match queue overview
-      Then each week summary must show floating players used in each match
-      And the floating summary must include both draft and finalized selections
-      And the week summary must remain visible alongside the existing week-coverage information
-      And the coach must be able to scan week-level selection movement without opening every match
+    Scenario: Finalized match round stores snapshot
+      Given match round "R1" has generated selections
+      When the coach finalizes match round "R1"
+      Then the app must store selected players
+      And the app must store availability at finalization time
+      And the app must store rule configuration version
+      And the app must store warnings
+      And the app must store manual overrides
+      And the app must store movement ledger entries
+      And the app must preserve enough information to explain the finalized round later
 
-    Scenario: Weekly movement summary shows whether movement displaced the player's own core-team appearance
-      Given one or more weeks contain saved draft or finalized selections with floating movement
-      When the coach reviews the weekly workflow movement summary
-      Then each moved player must show whether the player was left out of the player's own core-team selection in that same week
-      And the summary must distinguish between movement that replaced the player's own core-team appearance and movement that did not
+    Scenario: Unfinalized drafts can change freely
+      Given match round "R1" is in draft state
+      When the coach regenerates selections
+      Then the app may replace draft selections
+      And the app must show what changed after regeneration
 
-    Scenario: Coach can open an editable week board
-      Given one or more registered matches exist in the same calendar week
-      When the coach opens the week overview for that week
-      Then the app must show that week's matches as separate columns or lanes
-      And the coach must be able to review each match's current selection status in that week overview
-      And the coach must be able to adjust player selection from that week overview
-      And the week overview must exist in addition to the match queue overview
+    Scenario: Finalized selections are protected from silent mutation
+      Given match round "R1" has been finalized
+      When the coach edits a finalized selection
+      Then the app must create an audit entry
+      And must record the reason for the change
+      And must preserve the original finalized snapshot
 
-    Scenario: Coach desk highlights fairness deviations inside each team
-      Given saved draft or finalized selections exist across one or more teams
-      When the coach opens the landing page
-      Then the coach desk must clearly identify any player with fewer saved match involvements than another player in the same core team
-      And the comparison must count core, support, development, and other floating appearances together
-      And players marked as allowed to drop a core match may be excluded from the fairness warning list
-      And the desk must keep the affected team visible without requiring the coach to open history first
 
-    Scenario: App navigation keeps the operating loop visible
-      Given the coach is moving between pages in the app
-      When the navigation is shown
-      Then the app must keep the main operating loop visible
-      And the navigation must still provide direct access to the existing overview pages
-      And the current page must still be easy to identify within that loop
-      And the loop must stay inside the viewport without horizontal overflow
+  Rule: Player identity
 
-    Scenario: Match queue keeps one assistant-manager call on the active week
-      Given one or more registered matches exist
-      When the coach opens the match queue overview
-      Then the page must highlight one short assistant-manager suggestion for the active week
-      And that suggestion must point toward the next unresolved match when one exists
-      And the page must keep deeper weeks available without making them compete equally with the active week
-
-    Scenario: Workflow pages use wider horizontal space for boards and week lanes
-      Given the coach is using the main workflow pages
-      When a page presents weekly cards, week boards, or selection lanes
-      Then the main page shell should use a wider content width than a narrow document layout
-      And the wider layout must still remain readable on smaller screens
-
-  Rule: Team registry
-
-    Scenario: Coach can create a team
-      When the coach creates a team with a name
-      Then the team must be available for player core-team assignment
-      And the team must be available when creating a match
-
-    Scenario: Coach can create a team from a layover flow
-      When the coach starts team creation from the team registry
-      Then the team form should open as a layover flow
-      And the coach should stay in the team-registry context
-
-    Scenario: Coach can set a minimum support requirement for a team
-      Given a team exists in the team registry
-      When the coach records a minimum support requirement for that team
-      Then the team must store that minimum support amount
-      And the amount must be available to the selection engine for future matches
-
-    Scenario: Coach can set a development-slot amount for a team
-      Given a team exists in the team registry
-      When the coach records a development-slot amount for that team
-      Then the team must store that development-slot amount
-      And the amount must be available to the selection engine for future matches
-
-    Scenario: Coach can restrict which teams may supply support to a team
-      Given teams exist in the team registry
-      When the coach records which teams are allowed to supply support for a target team
-      Then the target team must store that allowed support-team list
-      And the selection engine must use only those support-team relationships for support coverage
-
-    Scenario: Coach can remove an unused team
-      Given a team exists in the team registry
-      And the team is not referenced by any active player, active float permission, support-team relationship, development-team relationship, or match
-      When the coach removes the team
-      Then the team must be removed from the team registry
-      And the team must no longer be available for new player assignments
-      And the team must no longer be available for new match creation
-
-    Scenario: Coach cannot remove a team that is still in use
-      Given a team exists in the team registry
-      And the team is referenced by an active player, float permission, support-team relationship, development-team relationship, or match
-      When the coach removes the team
-      Then the app must block the removal
-      And the app must explain that existing references must be cleared first
-
-    Scenario: Player core team must come from the team registry
-      Given a player exists in the player registry
-      When I inspect the player's core team assignment
-      Then the player must be assigned to exactly one team from the team registry
-      And the player must not belong to more than one core team
-
-  Rule: Player registry and identity
-
-    Scenario: Coach can create a player from a layover flow
-      When the coach starts player creation from the player registry
-      Then the player form should open as a layover flow
-      And the coach should stay in the player-registry context
-
-    Scenario: Player has an individual detail page
-      Given a player exists in the player registry
-      When the coach opens the player's page
-      Then the app must show that player's full profile on an individual player page
-      And the coach must be able to review and edit the player's stored details there
-
-    Scenario: Player detail page shows current match involvement at a glance
-      Given a player exists in the player registry
-      And the player is involved in one or more saved draft or finalized selections
-      When the coach opens the player's page
-      Then the page must show a compact overview of that player's match involvement
-      And the overview must include both draft and finalized selections
-      And the coach must be able to tell quickly which matches are still drafts and which are finalized
-      And the overview must list every saved involved match rather than a fixed preview count
+    Players need stable backend identity independent of team membership.
 
     Scenario: Player code is generated automatically
       When the coach creates a player
-      Then the system must populate a player code automatically
+      Then the app must generate a stable player code automatically
       And the player code must be stored as a backend reference identifier
-      And the code must not be derived from the player's current core team
+      And the player code must not be derived from the player's current core team
 
-    Scenario: Player code does not need to be shown in normal UI flows
-      Given a player exists in the player registry
-      When the coach uses the normal app interface
-      Then the app does not need to present the player code in normal UI flows
-      And the player code must still remain available for backend reference
+    Scenario: Player code is hidden from normal UI
+      Given a player exists
+      When the coach uses normal app screens
+      Then the app does not need to show the player code
+      And the player code must remain available for backend reference, import, export, debugging, and history
 
-    Scenario: Coach can remove a player from the app
-      Given a player exists in the player registry
+    Scenario: Player code remains stable when core team changes
+      Given player "p1" exists with player code "P001"
+      When the coach changes player "p1" core team
+      Then player "p1" must still have player code "P001"
+
+
+  Rule: Team registry
+
+    Teams are operational planning units.
+    Teams may represent internal development contexts, but the app must not infer hierarchy from team name.
+
+    Scenario: Coach creates a team
+      When the coach creates a team
+      Then the team must have a name
+      And the team may have target squad size
+      And the team may have minimum accepted squad size
+      And the team may have maximum squad size
+      And the team may have minimum core player count
+      And the team may have support priority
+      And the team must be available for player core-team assignment
+
+    Scenario: Coach edits a team
+      Given a team exists
+      When the coach edits the team
+      Then the app must save updated team configuration
+      And future match generation must use the updated configuration
+      And finalized historical selections must remain explainable using the rule version active at finalization time
+
+    Scenario: Coach cannot remove a team that is still in use
+      Given a team is referenced by active players, rotation paths, matches, selections, movement ledger, or finalized history
+      When the coach removes the team
+      Then the app must block removal
+      And explain that existing references must be cleared or archived first
+
+    Scenario: Coach can remove an unused team
+      Given a team is not referenced by players, paths, matches, selections, movement ledger, or history
+      When the coach removes the team
+      Then the team must no longer be available for player assignments
+      And the team must no longer be available for match creation
+      And the team must no longer be available for new rotation paths
+
+
+  Rule: Player registry
+
+    Player registry stores football profile data, planning flags, positions, availability, and history.
+
+    Scenario: Coach creates a player
+      Given at least one team exists
+      When the coach creates a player
+      Then the coach must assign exactly one core team
+      And the app must generate a stable player code
+      And the player must become available for future match planning unless inactive or unavailable
+
+    Scenario: Coach edits a player
+      Given a player exists
+      When the coach edits the player profile
+      Then the app must save updated profile details
+      And future rule generation must use the updated profile details
+      And finalized historical selections must remain explainable
+
+    Scenario: Coach can remove a player from the active registry
+      Given a player exists
       When the coach removes the player
       Then the player must no longer appear in the active player registry
       And the player must not be available for future match selection
+      And historical finalized selections must remain explainable
 
-    Scenario: Coach can remove a player directly from the player registry overview
-      Given a player exists in the player registry
-      When the coach removes the player from the player-registry overview
-      Then the player must no longer appear in the active player registry
-      And the player must not be available for future match selection
+    Scenario: Removed player remains in historical finalized selections
+      Given player "p1" was selected in finalized match round "R1"
+      When the coach removes player "p1" from the active registry
+      Then match round "R1" must still show player "p1" in historical selection
+      And the app must mark the player as inactive or removed in current context
 
-  Rule: Structured player profile
 
-    Scenario: Player profile can store an individual development-match target
-      Given a player exists in the player registry
-      When the coach records a target development-match amount for that player
-      Then the player must store that individual development-match target
-      And the selection engine must use that player-specific target when considering development selection
+  Rule: Player positions
 
-    Scenario: Player positions are stored in separate ordered fields
-      Given a player exists in the player registry
-      When the coach records the player's positions
-      Then the player must have a primary position field
-      And the player may have a secondary position field
-      And the player may have a tertiary position field
-      And each position field must store at most one position
-      And the app must not require multiple positions to be packed into one field
+    Players have primary, secondary, and tertiary positions.
+    Primary position must be considered first.
+    Secondary and tertiary positions are fallback options.
+    Position values are configurable later, but the default supported position list is GK, CB, CM, W, and ST.
 
-    Scenario: Player positions must come from the supported football position list
-      Given a player exists in the player registry
-      When the coach records the player's positions
+    Scenario: Player positions use supported position list
+      Given a player exists
+      When the coach records positions
       Then primary position must be one of "GK", "CB", "CM", "W", or "ST"
       And secondary position must be "None" or one of "GK", "CB", "CM", "W", or "ST"
       And tertiary position must be "None" or one of "GK", "CB", "CM", "W", or "ST"
-      And the player form must offer those positions as dropdown choices
 
-    Scenario: Coach can clear optional player positions back to None
-      Given a player exists in the player registry
-      And the player already has a secondary or tertiary position recorded
-      When the coach changes secondary position or tertiary position to "None"
+    Scenario: Primary position is required
+      Given a player exists
+      When the coach saves the player profile
+      Then the player must have a primary position
+
+    Scenario: Optional positions can be cleared
+      Given a player has secondary or tertiary position recorded
+      When the coach changes that field to "None"
       Then the app must save that field as empty
-      And the player profile must show that no optional position is recorded for that field
+      And the player profile must show that no optional position is recorded
+
+    Scenario: Position does not imply non-rotatable
+      Given player "p1" has primary position "GK"
+      And player "p1" is not marked non_rotatable
+      When the app evaluates rotation eligibility
+      Then player "p1" must still be treated as rotatable unless explicitly marked non_rotatable
+
+
+  Rule: Player football profile details
+
+    Player profile may store details useful for coaching and tactics without making those details automatic selection law.
 
     Scenario: Player profile stores footedness and best side
-      Given a player exists in the player registry
+      Given a player exists
       When the coach records footedness and side preference
       Then preferred foot must be one of "Left" or "Right"
       And secondary foot must be one of "Left", "Right", or "Weak"
       And best side must be one of "Left", "Center", or "Right"
 
-    Scenario Outline: Player has a current availability status
-      Given a player exists in the player registry
-      When the coach records availability as "<status>"
-      Then the player's current availability must be stored as "<status>"
+    Scenario: Player profile stores coach notes
+      Given a player exists
+      When the coach writes a private player note
+      Then the note must be stored on the player profile
+      And the note must only be visible in coach view
 
-      Examples:
-        | status    |
-        | Available |
-        | Injured   |
-        | Sick      |
-        | Away      |
+    Scenario: Player profile stores support instruction notes
+      Given a player exists
+      When the coach records a support instruction
+      Then the instruction may be shown when the player is selected for support
+      And the instruction must not be shown in parent/player export unless explicitly included by the coach
 
-    Scenario: Player profile stores detailed attribute ratings
-      Given a player exists in the player registry
+    Scenario: Player profile stores development instruction notes
+      Given a player exists
+      When the coach records a development instruction
+      Then the instruction may be shown when the player is selected for development
+      And the instruction must remain coach-facing by default
+
+
+  Rule: Player attribute ratings
+
+    Attribute ratings are useful for profile overview and coaching judgement.
+    They must not automatically override explicit planning flags such as support suitability, development readiness, non_rotatable, or reduced_match_load_allowed.
+
+    Scenario: Player profile stores detailed attributes
+      Given a player exists
       When the coach records player attributes
       Then the profile must store technical attributes for "Ball Control", "Passing", "First Touch", and "1v1 Attacking"
       And the profile must store tactical attributes for "Positioning", "1v1 Defending", and "Decision Making"
       And the profile must store mental attributes for "Effort", "Teamplay", and "Concentration"
       And the profile must store physical attributes for "Speed" and "Strength"
 
-    Scenario: Player attribute ratings use a one-to-five scale
-      Given a player exists in the player registry
+    Scenario: Attribute ratings use one-to-five scale
+      Given a player exists
       When the coach records player attributes
-      Then every tracked player attribute must be a whole number between 1 and 5
+      Then every tracked attribute must be a whole number between 1 and 5
       And the player form must block values outside that range
 
-    Scenario: Player profile derives category averages
-      Given a player has recorded attribute ratings in every category
-      When the player profile is viewed or evaluated
-      Then the profile must provide a technical average
-      And the profile must provide a tactical average
-      And the profile must provide a mental average
-      And the profile must provide a physical average
+    Scenario: Attribute averages are derived for profile display
+      Given a player has recorded attributes
+      When the player profile is viewed
+      Then the profile must show category averages
+      And the profile may show an overall average
+      And the profile may visualize the overall average with stars
 
-    Scenario: Player profile derives an overall average
-      Given a player has recorded attribute ratings across all tracked attributes
-      When the player profile is viewed or evaluated
-      Then the profile must provide one overall average across all tracked attributes
+    Scenario: Attribute ratings do not automatically override explicit support suitability
+      Given a player has high attribute ratings
+      And the player has support suitability "avoid"
+      When the app ranks support candidates
+      Then the explicit support suitability must take precedence over raw attribute average
 
-    Scenario: Player detail page visualizes overall rating with stars
-      Given a player has recorded attribute ratings across all tracked attributes
-      When the player detail page is viewed
-      Then the page must show the overall average as a star rating on a one-to-five scale
+    Scenario: Attribute ratings do not automatically override development readiness
+      Given a player has high attribute ratings
+      And the player has development readiness "not_ready"
+      When the app ranks development candidates
+      Then the explicit development readiness must take precedence over raw attribute average
 
-    Scenario: Player detail page shows only the current saved involvement per match
-      Given a player is involved in one or more matches with saved draft or finalized selections
-      And one of those matches has multiple saved snapshots over time
-      When the coach opens the player detail page
-      Then the current involvement overview must show only the latest saved snapshot for each match
-      And the current involvement overview must not repeat superseded saved snapshots from the same match
 
-    Scenario: Coach can move to the next player from the player detail page
-      Given multiple active players exist in the player registry
-      When the coach opens one player's detail page
-      Then the page must provide a way to move to the next player record without returning to the registry
+  Rule: Match registry
 
-    Scenario: Player registry rows can open player detail directly
-      Given players exist in the player registry
-      When the coach clicks a player row or primary player cell in the registry
-      Then the app must open that player's detail page without requiring a separate open button
+    Matches belong to match rounds.
+    Match metadata must be available in planning, exports, history, and matchday mode.
 
-  Rule: Floating permissions and team eligibility
-
-    Scenario: Non-floating player is only eligible for own core team
-      Given a player has a core team
-      And the player is marked as not floating
-      When the selection engine evaluates eligibility for a match
-      Then the player must only be eligible for matches for the player's own core team
-
-    Scenario: Floating player is eligible for explicitly allowed teams
-      Given a player has a core team
-      And the player is marked as floating
-      And one or more allowed float teams are recorded for that player
-      When the selection engine evaluates eligibility for a match
-      Then the player must be eligible for matches for the player's own core team
-      And the player must be eligible for matches for each explicitly allowed float team
-
-    Scenario: Floating player is blocked from teams outside the allowed float list
-      Given a player has a core team
-      And the player is marked as floating
-      And one or more allowed float teams are recorded for that player
-      When the selection engine evaluates eligibility for a match for a team outside that allowed list
-      Then the player must not be eligible for that match
-      And the player must not be auto-selected for that team
-
-    Scenario: Floating behavior is explicit and not inferred as up or down
-      Given a player has a core team
-      And the player is marked as floating
-      And one or more allowed float teams are recorded for that player
-      When the selection engine evaluates eligibility
-      Then the backend must treat floating as explicit team eligibility only
-      And the backend must not require an "up" or "down" floating direction
-
-  Rule: Development source configuration
-
-    Scenario: Coach can restrict which teams may supply development players to a team
-      Given teams exist in the team registry
-      When the coach records which teams are allowed to supply development players for a target team
-      Then the target team must store that allowed development-team list
-      And the selection engine must use that list together with player floating permissions when filling development slots
-
-  Rule: Availability rules
-
-    Scenario: Available player can be considered
-      Given a player has current availability status "Available"
-      When a match selection is generated
-      Then the player may be included if all other eligibility rules are satisfied
-
-    Scenario Outline: Unavailable player is excluded
-      Given a player has current availability status "<status>"
-      When a match selection is generated
-      Then the player must not be auto-selected
-      And the player must not appear as eligible for that match
-
-      Examples:
-        | status  |
-        | Injured |
-        | Sick    |
-        | Away    |
-
-  Rule: Core-team participation exceptions
-
-    Scenario: Player may be marked to drop one core-team match
-      Given a player belongs to a core team
-      And the player is marked as allowed to drop one core-team match
-      And no previous dropped core-team match has been recorded for the player
-      When the selection engine evaluates a later eligible core-team match
-      Then the player may be excluded because of the core-match-drop rule
-      And the exclusion must be stored in history
-
-    Scenario: Player not marked for drop must remain eligible for all core-team matches
-      Given a player belongs to a core team
-      And the player is not marked as allowed to drop one core-team match
-      When the selection engine evaluates an eligible core-team match
-      Then the player must be treated as eligible for that match unless other exclusion rules apply
-
-    Scenario: Dropped core-team match must not exceed one per marked player
-      Given a player is marked as allowed to drop one core-team match
-      And one dropped eligible core-team match has already been recorded for the player
-      When a later core-team match is evaluated
-      Then the player must not be dropped again only because of the core-match-drop rule
-
-    Scenario: Floating-capable core player may be held out when another same-week match can use that player
-      Given a player belongs to a core team
-      And the player is marked as floating
-      And the player is not marked as allowed to drop one core-team match
-      And the player has an allowed floating opportunity in another registered match during the same calendar week
-      When the coach generates a selection for the player's own core-team match
-      Then the player may be deprioritized for the core-team squad when core-player slots are limited
-      And the engine must explain that the player is being preserved for a same-week floating opportunity
-
-    Scenario: Missed core-team player gets same-week floating priority
-      Given a player belongs to a core team
-      And the player is marked as floating
-      And the player is not marked as allowed to drop one core-team match
-      And the player was left out of the player's own core-team selection earlier in the same calendar week
-      When the coach generates a later match for one of that player's allowed float teams in the same calendar week
-      Then that player should receive better floating priority than otherwise comparable candidates
-      And the explanation must state that the player is being prioritized after missing the core-team match that week
-
-    Scenario: Drop-one-match player does not require a compensating float match
-      Given a player is marked as allowed to drop one core-team match
-      When the player is left out of a core-team selection
-      Then the engine must not require a compensating floating selection in the same week
-
-    Scenario: Drop-one-match marking does not force a dropped match
-      Given a player belongs to a core team
-      And the player is marked as allowed to drop one core-team match
-      When the coach generates a selection for the player's own core-team match
-      Then the player may still be selected for that match
-      And the marker must only permit exclusion when higher-priority support or development coverage needs the slot
-
-  Rule: Squad sizing
-
-    Scenario: Suggested squad should use the configured target size
-      Given a match exists for a team from the team registry
-      And a target squad size is configured for that match context
-      When the coach generates a selection for that match
-      Then the suggested selection should target that configured squad size
-
-    Scenario: Final squad must not exceed the configured maximum size
-      Given a match exists for a team from the team registry
-      And a maximum squad size is configured for that match context
-      When the coach generates or finalizes a selection for that match
-      Then no more than that maximum number of players may be included in the final selection
-
-    Scenario: Team support requirement reserves support-player slots
-      Given a match exists for a team from the team registry
-      And that team has a minimum support requirement greater than 0
-      When the coach generates a selection for that match
-      Then the suggested selection should reserve at least that many slots for eligible floating players when possible
-      And the remaining slots may be filled by eligible core players
-
-    Scenario: Team support must come from configured support teams only
-      Given a match exists for a team from the team registry
-      And that team has one or more configured support teams
-      When the coach generates a selection for that match
-      Then support slots must be filled only by eligible players whose core team is on that support-team list
-      And eligible floating players from other teams must not satisfy the support requirement
-
-    Scenario: Support players are prioritized before core-match-drop players
-      Given a match exists for a team from the team registry
-      And that team has a minimum support requirement greater than 0
-      And eligible support players exist
-      And one or more core players are marked as allowed to drop one core-team match
-      When the coach generates a selection for that match
-      Then the engine must prioritize satisfying the support requirement before relying on own-team players who are marked as allowed to drop a core match
-
-    Scenario: Development slots are prioritized before own core-team coverage when matches are close together
-      Given a match exists for a team from the team registry
-      And the match is marked as available for development slots
-      And that team has a development-slot amount greater than 0
-      And that team has one or more configured development source teams
-      And eligible development players exist from those teams
-      And close-date own-team and development opportunities compete for the same player window
-      When the coach generates a selection for that match
-      Then the engine must prioritize development slots before own core-team coverage
-      And the explanation must state that development priority was applied because of date proximity
-
-    Scenario: Development slots reserve team capacity before floating core coverage
-      Given a match exists for a team from the team registry
-      And the match is marked as available for development slots
-      And that team has a development-slot amount greater than 0
-      And eligible development players exist from configured development source teams
-      When the coach generates a selection for that match
-      Then the suggested selection should reserve that many development slots when possible
-      And those development slots must be prioritized after support slots and before own core-team coverage
-
-    Scenario: Individual development-match target blocks additional development selection once the target is reached
-      Given a player belongs to a configured development source team
-      And the player has an individual development-match target
-      And the player has already reached that amount in finalized development history
-      When the coach generates a selection for a target team that could use that player in a development slot
-      Then the player must not be auto-selected into another development slot
-      And the exclusion must explain that the player's development-match target has already been reached
-
-    Scenario: Development-targeted players should be pulled toward the exact count
-      Given a match exists for a team from the team registry
-      And the match is marked as available for development slots
-      And eligible development players exist from configured development source teams
-      And one or more eligible players have an individual development-match target that is not yet reached
-      When the coach generates a selection for that match
-      Then the engine should prioritize those players toward hitting the exact target amount
-      And the engine should not treat the stored amount as a loose maximum only
-
-    Scenario: Development slots stay unused on matches that are not marked for development work
-      Given a match exists for a team from the team registry
-      And the match is not marked as available for development slots
-      And that team has a development-slot amount greater than 0
-      And eligible development players exist from configured development source teams
-      When the coach generates a selection for that match
-      Then the engine must not reserve development slots for that match
-      And eligible development players may still only be considered through other allowed non-development selection paths
-
-    Scenario: Support, development, then core order is used when squad capacity is contested
-      Given a match exists for a team from the team registry
-      And the match is marked as available for development slots
-      And eligible support players exist
-      And eligible development players exist
-      And eligible own-team core players exist
-      When the coach generates a selection for that match
-      Then the engine must prioritize support players first
-      And the engine must prioritize development slots second
-      And the engine must prioritize own-team core coverage after those reserved slots
-
-    Scenario: Rule-blocked remaining slots stay open for manual additions
-      Given a match exists for a team from the team registry
-      And the team still has open squad slots after support, development, and core priorities are applied
-      And one or more remaining eligible players are blocked by spacing, in-between-match, or other selection rules
-      When the coach generates a selection for that match
-      Then the engine must leave those blocked slots unfilled rather than auto-selecting outside the ruleset
-      And the generated result must warn early and clearly that the match is still missing slots
-      And the warning must name the rule-driven reasons that stopped automatic filling
-      And the app must also suggest best-effort manual additions from outside the ruleset for the coach to review
-
-    Scenario: Team support shortfall should be reported clearly
-      Given a match exists for a team from the team registry
-      And that team has a minimum support requirement greater than 0
-      And fewer eligible floating players exist than the configured support amount
-      When the coach generates a selection for that match
-      Then the app must still generate the best available squad
-      And the generated result must include a warning that the support requirement could not be fully satisfied
-      And the warning must explain which support sources were configured
-      And the warning must explain why additional support players were not eligible or available
-
-    Scenario: Support shortfall warning is shown early on match details
-      Given a generated or saved selection exists for a match
-      And that match's team has a minimum support requirement greater than 0
-      And the current selection fills fewer support slots than required
-      When the coach reviews the match selection screen
-      Then the app must show an early warning before the detailed selection tables
-      And the warning must clearly state how many support slots are still missing
-      And the warning must show which support teams are configured for that match
-
-    Scenario: Extra support players may be selected when indirect support pressure requires it
-      Given a match exists for a team from the team registry
-      And that team has a minimum support requirement greater than 0
-      And direct support players are selected into those reserved support slots
-      And one or more of those support-source teams also have support obligations in other registered matches
-      When the coach generates selections for those related matches
-      Then the engine may select more than the minimum number of support players from an upstream support team
-      And the explanation must state that the additional support player was needed to keep downstream support coverage intact
-
-    Scenario: Chained support priority follows the support path before upstream backfill
-      Given "Blå" is configured to support "Hvit"
-      And "Hvit" is configured to support "Rød"
-      And a "Rød" match requires at least 3 support players
-      And eligible floating "Hvit" core players exist for "Rød"
-      And eligible floating "Blå" core players exist for "Hvit"
-      When the coach generates selections for the related matches
-      Then the "Rød" support slots must prioritize eligible "Hvit" core players before any indirect upstream backfill
-      And if those "Hvit" players are used to support "Rød", the engine must select enough eligible "Blå" support players to cover "Hvit"
-      And that may require selecting more than "Hvit"'s own minimum direct support amount
-
-    Scenario: Match selection screen highlights omitted core-team players early
-      Given a generated or saved selection exists for a match
-      When the coach reviews the match selection screen
-      Then the app must show which target-team core players are not currently picked
-      And each omitted core player must show the current reason for omission in a dedicated early-visibility section
-
-    Scenario: Match selection screen shows week-level player coverage signals early
-      Given one or more matches exist in the same calendar week as the current match
-      And generated or saved selection data exists for that week
-      When the coach reviews the match selection screen
-      Then the app must show an early week-level section before the detailed selection tables
-      And the section must show one readable column or lane per match in that week
-      And the section must identify active available players who are not currently included in any match that week
-      And each uncovered player must show whether the state is a warning or informational
-
-    Scenario: Match selection screen marks fully finalized weeks clearly
-      Given one or more matches exist in the same calendar week as the current match
-      When the coach reviews the week workflow section
-      Then the app must clearly show whether that week is fully finalized
-      And a week must count as fully finalized only when every match in that week is finalized
-      And partially finalized weeks must remain visibly in progress
-
-    Scenario: Weekly uncovered player without core-match-drop permission is warned early
-      Given an active available player is not included in any current saved or generated match selection in that calendar week
-      And the player is not marked as allowed to drop one core-team match
-      When the coach reviews the week-level coverage section
-      Then that player must appear as a warning
-      And the warning must be visible before the detailed player tables
-
-    Scenario: Weekly uncovered player with core-match-drop permission is informational
-      Given an active available player is not included in any current saved or generated match selection in that calendar week
-      And the player is marked as allowed to drop one core-team match
-      When the coach reviews the week-level coverage section
-      Then that player must still be shown clearly
-      And the state may be informational instead of warning
-      And the app must explain that one dropped core-team match is allowed for that player
-
-    Scenario: Saved core omissions without manual removal rows still explain the omission
-      Given a saved selection exists for a match
-      And one or more target-team core players are omitted without a saved manual-removal row
-      When the coach reviews the "Current Saved Core Omissions" section
-      Then each omitted core player must still show a concrete omission explanation
-      And the app must not fall back to an undefined placeholder explanation
-
-    Scenario: Unfilled squad slots must explain why automatic filling stopped
-      Given a generated selection exists for a match
-      And one or more squad slots remain unfilled
-      When the coach reviews the generated result
-      Then the warnings must state that the squad is short
-      And the warnings must explain why the remaining slots could not be filled automatically
-      And the warnings must distinguish between support shortfall, development shortfall, and general eligibility shortage when applicable
-
-    Scenario: Match selection screen suggests manual additions for unfilled slots
-      Given a generated or saved selection exists for a match
-      And one or more squad slots remain unfilled
-      When the coach reviews the match selection screen
-      Then the app must show the missing-slot warning before the detailed selection tables
-      And the app must suggest best-effort player additions that were left out only because rules blocked automatic involvement
-      And each suggestion must explain which rule blocked the player from automatic selection
-
-  Rule: Positional balance in floating selection
-
-    Scenario: Floating selection should preserve positional balance
-      Given a match exists
-      And eligible floating players are being considered
-      When the coach generates a selection for that match
-      Then the engine should consider player positions before choosing who floats
-      And the engine should avoid overloading the squad with too many players in the same position
-
-    Scenario: Position priority should respect ordered position fields
-      Given two floating candidates are otherwise equally eligible
-      And one candidate fills an underrepresented primary, secondary, or tertiary position in the target squad
-      When candidate priority is evaluated
-      Then the positionally needed player should receive better priority than the other candidate
-
-  Rule: Match date spacing and overlap rules
-
-    Scenario: Player cannot play both floating match and core match within two days
-      Given a player is selected as a floating player for one match
-      And the player's own core-team match is scheduled within 0 to 2 days of that match
-      When both matches are finalized
-      Then the player must only be selected for the floating match
-      And the player must not be selected for the core-team match
-
-    Scenario: Player may play both matches if interval is at least three days
-      Given a player is selected as a floating player for one match
-      And the player's own core-team match is scheduled 3 or more days later
-      When both matches are evaluated
-      Then the player may be selected for both matches if all other rules are satisfied
-
-    Scenario: Overlapping match dates must not share players
-      Given two matches overlap in date and time
-      When the coach generates or finalizes selections for those matches
-      Then the same player must not be included in both finalized selections
-
-    Scenario: Same-day fixtures must not share players when dual participation is impossible
-      Given two matches are scheduled on the same date
-      And the schedule makes dual participation impossible
-      When the coach generates or finalizes selections for those matches
-      Then the same player must not be included in both finalized selections
-
-  Rule: Single-match generation and persistence
-
-    Scenario: Coach can create one match and generate one suggested selection
-      Given no future matches need to exist in advance
-      When the coach creates a match with date, team, opponent, home-or-away status, and match type
-      And the coach runs the selection engine
-      Then the system should generate a suggested squad for that match only
-
-    Scenario: Coach can mark whether a match is available for development slots
-      Given the coach is creating or editing a match
-      When the coach records whether development slots are allowed for that match
-      Then the match must store whether development-slot usage is allowed for that match
-      And the selection engine must only use team development slots on matches where that flag is enabled
-
-    Scenario: Coach can create a match from a layover flow
-      When the coach starts match creation from the match overview
-      Then the match form should open as a layover flow
-      And the coach should stay in the match-overview context
-
-    Scenario: Match stores whether it is home or away
-      Given the coach is creating or editing a match
+    Scenario: Match stores home-or-away status
+      Given the coach creates or edits a match
       When the coach records home-or-away status
       Then the match must store either "Home" or "Away"
-      And the match detail, match overview, and exports must show that status
+      And match detail, match overview, exports, and matchday mode must show that status
 
-    Scenario: Match type must come from the supported match-type list
-      Given the coach is creating or editing a match
+    Scenario: Match type uses supported list
+      Given the coach creates or edits a match
       Then match type must be chosen from "League", "Friendly", "Cup", or "Development"
-      And the match form must offer those match types as a dropdown
 
-    Scenario: Coach can remove a match
-      Given a match exists
+    Scenario: Match stores opponent name
+      Given the coach creates or edits a match
+      When the coach records opponent name
+      Then the match must store the opponent name
+      And the opponent name must appear in match overview, match detail, matchday mode, and export
+
+    Scenario: Coach can remove an unfinalized match
+      Given a match exists without finalized selection history
       When the coach removes the match
       Then the match must be removed from the schedule
-      And the match must no longer be available from the match list or selection workspace
-      And any saved selection records for that match must be removed with it
+      And it must no longer appear in match round planning
 
-    Scenario: Selection result contains required information
-      Given a suggested selection exists for a match
-      Then the result must include Match ID
-      And the result must include Match Date
-      And the result must include Team
-      And the result must include Opponent
-      And the result must include Player ID
-      And the result must include Player Name
-      And the result must include Core Team
-      And the result must include Primary Position
-      And the result may include Secondary Position
-      And the result may include Tertiary Position
-      And the result must include Eligibility
-      And the result must include Selection Reason
-      And the result must include Selection Category
-      And the result must include Priority Score
-      And the result must include Auto Selected
-      And the result must include Manual Override
-      And the result must include Final Selected
-      And the result must include Core Match Drop Allowed
+    Scenario: Removing finalized match requires explicit confirmation
+      Given a match has finalized selection history
+      When the coach removes the match
+      Then the app must require confirmation
+      And must preserve enough historical information for planning-period review unless the coach explicitly deletes history
 
-    Scenario: Coach can turn the current suggestion into a draft selection
-      Given a suggested selection exists for a match
-      When the coach accepts the suggestion as a draft
-      Then the app must save the suggested squad as the current draft selection for that match
-      And the coach must still be able to adjust the saved draft manually before finalizing
 
-    Scenario: Finalized selection is saved as history
-      Given a suggested selection exists for a match
-      When the coach finalizes the selection
-      Then the finalized selection must be stored in match history
-      And future selection runs must use that history when evaluating players
+  Rule: Match round is the weekly selection unit
 
-    Scenario: Coach can finalize all ready matches from the match overview
-      Given one or more registered matches exist without a finalized selection
-      When the coach finalizes all ready matches from the match overview
-      Then the app must finalize every currently non-finalized match whose selection fills every squad slot
-      And any non-finalized match with unfilled slots must remain non-finalized
-      And the overview must show a warning that explains which matches need attention and why they were not finalized
+    The selection engine must treat a match round as the planning unit.
+    A player can only be selected once in the same match round.
 
-    Scenario: Batch work from the overview is performed week by week
-      Given registered matches exist in more than one calendar week
-      When the coach uses bulk actions from the match overview
-      Then the overview must present those actions within weekly workflow groups
-      And the coach must not need to treat the whole fixture list as one undifferentiated batch
-      And the UI must keep the currently active week readable while deeper weeks stay secondary
+    Scenario: Coach creates match round containing several team matches
+      Given teams exist in the team registry
+      When the coach creates a match round
+      And the coach adds one match for each participating team
+      Then the match round must store every included match
+      And each match must keep its team, opponent, date, home-or-away status, and match type
 
-    Scenario: Match overview presents each week as a guided flow card
-      Given registered matches exist in one or more calendar weeks
-      When the coach reviews the match overview
-      Then each week must be presented as its own guided flow card or slide
-      And each week card must show its matches, current progress, and the next suggested operational action
-      And each week card must provide a direct way to open that week's board or next unresolved match
+    Scenario: App generates all selections in a match round together
+      Given match round "R1" contains matches for Team A, Team B, and Team C
+      When the coach generates selections for match round "R1"
+      Then the app must evaluate all matches in the match round together
+      And the app must resolve player conflicts across all matches before finalizing any match selection
 
-    Scenario: Match overview shows current saved-selection state
-      Given matches exist in the match overview
-      When the coach reviews the match list
-      Then each match must show whether it currently has no saved selection, a draft selection, or a finalized selection
+    Scenario: Player can only be selected once per match round
+      Given player "p1" has Team A as core team
+      And match round "R1" contains a Team A match and a Team B match
+      When player "p1" is selected for Team B
+      Then player "p1" must not be selected for Team A in match round "R1"
+      And player "p1" must be unavailable for all other matches in match round "R1"
 
-    Scenario: Match overview shows calendar week numbers
-      Given matches exist in the match overview
-      When the coach reviews the match list
-      Then each match must show the match date's calendar week number
-      And the week number must be visible without opening the match detail page
+    Scenario: Match-round uniqueness overrides date spacing
+      Given player "p2" is selected for Team B in match round "R1"
+      And player "p2" has Team A as core team
+      And Team A has a match in match round "R1" at least 3 days later
+      When match round "R1" is validated
+      Then player "p2" must not be selected for Team A
+      And the app must explain that match-round uniqueness overrides date spacing inside the same match round
 
-    Scenario: Match overview marks finalized weeks clearly
-      Given matches exist in the match overview
-      When the coach reviews the weekly grouping
-      Then each calendar week must show whether it is fully finalized or still in progress
-      And a week must only be marked finalized when all matches in that week are finalized
+    Scenario: Date spacing applies outside same match round
+      Given player "p3" is selected for a match in match round "R1"
+      And player "p3" is considered for another match outside match round "R1"
+      When the app evaluates both matches
+      Then the app must apply configured date-spacing rules
+      And the app must not apply match-round uniqueness unless both matches belong to the same match round
 
-    Scenario: Match overview rows can open selection detail directly
-      Given matches exist in the match overview
-      When the coach clicks a match row or primary match cell in the overview
-      Then the app must open that match's detail and selection page without requiring a separate view button
 
-    Scenario: Coach can recalculate draft selections for registered matches
-      Given one or more registered matches exist without a finalized selection
-      When the coach recalculates all draft-eligible matches or a marked subset of them
-      Then the app must generate new draft selections for those matches using the current rules
-      And each recalculated match must evaluate against every other registered match in the app
-      And those other registered matches must include both saved draft and finalized selections
+  Rule: Selection roles
+
+    A selection can be core, support, backfill, development, confidence_rebuild, core_match_drop, reduced_match_load_drop, or manual_override.
+
+    Scenario: Core selection
+      Given player "p1" has Team A as core team
+      When player "p1" is selected for Team A
+      Then the selection role must be "core"
+
+    Scenario: Support selection
+      Given player "p2" has Team B as core team
+      And Team B can support Team C through a configured rotation path
+      When player "p2" is selected for Team C to make Team C functional
+      Then the selection role must be "support"
+      And the movement ledger must record from team "B" and to team "C"
+
+    Scenario: Backfill selection
+      Given Team B supplied player "b1" to Team C as support
+      And Team A supplies player "a1" to Team B because Team B was weakened by that support
+      When selections are finalized
+      Then player "a1" selection role must be "backfill"
+      And the movement ledger entry for player "a1" must reference the support movement that caused the backfill
+
+    Scenario: Development selection
+      Given player "c1" has Team C as core team
+      And Team C can supply development players to Team B
+      When player "c1" is selected for Team B to receive harder match context
+      Then the selection role must be "development"
+
+    Scenario: Confidence rebuild selection
+      Given player "p4" is selected outside their normal context to receive a safer match experience
+      When the coach marks the selection purpose as confidence rebuild
+      Then the selection role must be "confidence_rebuild"
+      And the app must record the coach-provided reason
+
+    Scenario: Manual override selection
+      Given a coach manually changes a generated selection
+      When the manual change breaks or bends a configured rule
+      Then the app must require an override reason
+      And the selection must be marked as "manual_override"
+
+
+  Rule: Role precedence
+
+    Support chains have precedence over development and core selections.
+    Required support for higher-priority receiving teams must be resolved before lower-priority support.
+    Backfill caused by required support must be resolved before optional development.
+
+    Scenario: Support is selected before development and core
+      Given Team C requires support
+      And player "b1" is eligible for Team C support
+      And player "b1" is also eligible for Team A development
+      And player "b1" is available for Team B core selection
+      When the app resolves player assignment
+      Then player "b1" must be considered for Team C support before Team A development
+      And player "b1" must be considered for Team A development before Team B core
+
+    Scenario: Development beats core when no support applies
+      Given player "c1" has Team C as core team
+      And player "c1" is eligible for Team B development
+      And no support role applies to player "c1"
+      When the app resolves match round selections
+      Then player "c1" must be considered for Team B development before Team C core
+
+    Scenario: Core is used when no higher-precedence role applies
+      Given player "p1" has Team B as core team
+      And player "p1" is not selected for support
+      And player "p1" is not selected for backfill
+      And player "p1" is not selected for development
+      When the app fills remaining squad slots
+      Then player "p1" may be selected for Team B core
+
+
+  Rule: Rule severity
+
+    Rules can be hard_block, requires_override, warning, or scoring_preference.
+
+    Scenario: Hard block prevents finalization
+      Given player "p1" is selected twice in the same match round
+      When the app validates the match round
+      Then validation must fail with severity "hard_block"
+
+    Scenario: Requires override allows coach decision with reason
+      Given Team C falls below minimum support count
+      When the coach attempts to finalize the match round
+      Then the app must require a manual override reason
+      And the warning severity must be "requires_override"
+
+    Scenario: Warning does not block finalization
+      Given Team A is below target squad size but above minimum accepted squad size
+      When the app validates the match round
+      Then the app must show a warning
+      And the app may allow finalization
+
+    Scenario: Scoring preference affects ranking
+      Given two players are eligible for the same support role
+      And one player has primary position matching the support need
+      When the app ranks support candidates
+      Then the primary position match should rank higher as a scoring preference
+
+
+  Rule: Rotation graph
+
+    Player movement between teams must follow configured rotation paths.
+    Teams are nodes and paths are directed edges.
+    The app must not infer movement that has not been configured.
+
+    Scenario: Coach defines rotation paths
+      Given Team A, Team B, and Team C exist
+      When the coach defines these paths:
+        | from_team | to_team | role        | purpose                 |
+        | A         | B       | backfill    | stabilize donor team     |
+        | B         | C       | support     | leadership and support   |
+        | B         | A       | development | harder match context     |
+        | C         | B       | development | harder match context     |
+      Then players may only move along those configured paths
+      And every non-core selection must reference a valid path unless manually overridden
+
+    Scenario: Rotation paths are directional
+      Given a path exists from Team C to Team B for development
+      When the app generates selections
+      Then Team C players may be considered for Team B development
+      But Team B players must not be considered for Team C development unless a separate path exists
+
+    Scenario: Rotation graph supports any number of teams
+      Given teams Team A, Team B, Team C, Team D, Team E, and Team F exist
+      And configured paths exist between some of those teams
+      When the app generates selections
+      Then the app must use the configured paths
+      And the app must not assume built-in meaning for any team name
+
+    Scenario: Rotation path cannot reference unknown team
+      Given Team A and Team B exist
+      When the coach creates a path from Team X to Team B
+      Then the app must reject the path
+      And explain that Team X does not exist
+
+    Scenario: Rotation path cannot use same source and target team
+      Given Team A exists
+      When the coach creates a path from Team A to Team A
+      Then the app must reject the path
+      And explain that source and target team must differ
+
+
+  Rule: Non-rotatable players
+
+    Players are rotatable by default.
+    A coach may explicitly mark any player as non_rotatable.
+    The app must not infer non_rotatable from position, role, skill level, attribute rating, or team.
+
+    Scenario: Player is rotatable by default
+      Given player "p1" has Team B as core team
+      And player "p1" is not marked non_rotatable
+      And Team B can support Team C
+      When the app ranks support candidates for Team C
+      Then player "p1" may be considered for Team C support
+
+    Scenario: Non-rotatable player is excluded from non-core selection
+      Given player "p2" has Team B as core team
+      And player "p2" is marked non_rotatable
+      And Team B can support Team C
+      And Team B can supply development players to Team A
+      When the app generates match round selections
+      Then player "p2" must not be considered for Team C support
+      And player "p2" must not be considered for Team A development
+      And player "p2" may still be considered for Team B core
+
+    Scenario: Position does not automatically make player non-rotatable
+      Given player "p3" has primary position "GK"
+      And player "p3" is not marked non_rotatable
+      And player "p3" has Team B as core team
+      And Team B can support Team C
+      When the app ranks support candidates for Team C
+      Then player "p3" may be considered for Team C support
+
+    Scenario: Coach can override non-rotatable restriction
+      Given player "p4" is marked non_rotatable
+      And Team A can support Team B
+      When the coach manually selects player "p4" outside their core team
+      Then the app must require an override reason
+      And warn that non_rotatable restriction was overridden
+
+
+  Rule: Availability and reliability
+
+    Availability beats all football logic.
+    Unknown or tentative players must not satisfy critical support unless manually confirmed.
+
+    Scenario: Unavailable player cannot be selected
+      Given player "p1" is marked unavailable for match round "R1"
+      When the app generates selections for match round "R1"
+      Then player "p1" must not be selected
+
+    Scenario: Unknown availability cannot satisfy required support
+      Given Team C requires 3 support players
+      And player "b1" is eligible for Team C support
+      And player "b1" has availability "unknown"
+      When the app generates selections
+      Then player "b1" must not count toward Team C required support
+      And the app should warn that player "b1" needs confirmation
+
+    Scenario: Tentative player can be used only with warning
+      Given player "b2" is eligible for Team C support
+      And player "b2" has availability "tentative"
+      When the app selects player "b2"
+      Then the app must warn that the player is tentative
+
+    Scenario: No-show affects support reliability
+      Given player "b3" was selected as support and did not show up
+      When the app updates player history
+      Then player "b3" support reliability should be lowered
+      And future critical support use should require confirmation or warning
+
+    Scenario: Fairness ignores unavailable rounds
+      Given player "p5" was unavailable for 3 match rounds
+      And available for 2 match rounds
+      When the app calculates fairness
+      Then the app must calculate fairness from available rounds
+      And not from calendar rounds
+
+
+  Rule: Team squad size configuration
+
+    Each team can have target squad size, minimum accepted squad size, maximum squad size, and minimum core players.
+    Stronger teams may be configured to tolerate smaller squads than weaker teams.
+
+    Scenario: Team can be selected below target but above minimum
+      Given Team A has target squad size 11
+      And Team A has minimum accepted squad size 9
+      When Team A supplies players downstream
+      Then Team A may be selected with 9 or 10 players
+      And the app must warn that Team A is below target
+      But the app must not block finalization unless Team A falls below 9 players
+
+    Scenario: Team cannot fall below minimum accepted squad size
+      Given Team B has minimum accepted squad size 10
+      When the app generates Team B selection
+      Then Team B must not be selected with fewer than 10 players unless manually overridden
+
+    Scenario: Team cannot exceed maximum squad size
+      Given Team C has maximum squad size 12
+      When the app generates Team C selection
+      Then Team C must not have more than 12 selected players unless manually overridden
+
+    Scenario: Minimum core players must be respected
+      Given Team C has minimum core players 8
+      When Team C receives support players
+      Then the app must not reduce Team C core players below 8 unless manually overridden
+
+
+  Rule: Support counts and receiving team priority
+
+    Teams can define minimum, target, and maximum support counts.
+    The app must aim for target support, accept minimum only when target cannot be reached, and require override below minimum.
+    Receiving teams can have different support priority.
+
+    Scenario: App aims for target support count
+      Given Team C has minimum support count 2
+      And Team C has target support count 3
+      And Team C has maximum support count 4
+      And 3 eligible support players are available
+      When the app generates Team C selection
+      Then Team C should receive 3 support players
+      And the app must not stop after selecting only 2 support players
+
+    Scenario: App accepts minimum support count when target cannot be reached
+      Given Team C has minimum support count 2
+      And Team C has target support count 3
+      And only 2 eligible support players are available after hard rules are applied
+      When the app generates Team C selection
+      Then Team C may receive 2 support players
+      And the app must warn that target support was not reached
+
+    Scenario: App requires override below minimum support
+      Given Team C has minimum support count 2
+      And only 1 eligible support player is available
+      When the app generates Team C selection
+      Then the app must flag support below minimum
+      And require manual override before finalization
+
+    Scenario: Higher-priority support is resolved first
+      Given Team C has support priority 100
+      And Team B has support priority 50
+      And both Team B and Team C need support in the same match round
+      When the app generates support selections
+      Then Team C support needs must be resolved before Team B support needs
+
+
+  Rule: Support chains and backfill
+
+    A team may support a downstream team and then be backfilled by an upstream team.
+    Support chains may cascade only through configured paths.
+    A support chain must not cycle.
+
+    Scenario: Team B supports Team C before Team B is backfilled
+      Given Team C has higher support priority than Team B
+      And Team C needs 3 support players from Team B
+      And Team A can backfill Team B
+      When the app generates selections
+      Then the app should first select eligible Team B players for Team C support
+      And then select eligible Team A players to backfill Team B if Team B falls below target squad size or minimum accepted squad size
+
+    Scenario: Upstream team may be weakened within accepted floor
+      Given Team B requires backfill from Team A
+      And Team A has target squad size 11
+      And Team A has minimum accepted squad size 9
+      When Team A supplies backfill players to Team B
+      Then Team A may be left with 9 or 10 players
+      But Team A must not be left with fewer than 9 players unless manually overridden
+
+    Scenario: Support chain fails when upstream minimum is broken
+      Given Team C needs support from Team B
+      And Team B needs backfill from Team A
+      And selecting Team A backfill would leave Team A below minimum accepted squad size
+      When the app generates the match round
+      Then the app must not automatically complete the full backfill chain
+      And the app must explain which team would fall below minimum accepted squad size
+      And the app must require manual override or reduced support or larger squad size
+
+    Scenario: Backfill chain cannot cycle
+      Given Team A can backfill Team B
+      And Team B can backfill Team A
+      When the app resolves a backfill chain
+      Then the app must stop if a team would appear twice in the same chain
+      And warn that the backfill configuration creates a cycle
+
+
+  Rule: Core match drops and downstream routing
+
+    A core_match_drop happens when a core team has more available core players than target squad size.
+    A core_match_drop candidate should be routed downstream through valid configured paths when possible.
+
+    Scenario: Surplus core player becomes core match drop candidate
+      Given Team A has target squad size 11
+      And Team A has 12 available core players
+      When the app generates selections
+      Then 11 Team A core players should be selected for Team A
+      And 1 Team A core player should be marked as core_match_drop candidate
+
+    Scenario: Core match drop is prioritized downstream
+      Given player "a1" is a Team A core_match_drop candidate
+      And Team A can supply Team B through a configured downstream path
+      And Team B has a valid slot
+      When the app selects Team B players
+      Then player "a1" should be considered before ordinary development candidates
+      And player "a1" should be selected for Team B if no hard rule blocks the selection
+
+    Scenario: Core match drop respects position fit
+      Given player "a1" is a Team A core_match_drop candidate
+      And player "a1" has primary position "ST"
+      And Team B needs a "CB"
+      And player "a2" is eligible and has primary position "CB"
+      When the app selects Team B backfill
+      Then player "a2" should rank above player "a1"
+
+    Scenario: Core match drop cannot be forced into invalid slot
+      Given player "a1" is a Team A core_match_drop candidate
+      And Team B has no valid slot
+      When the app generates selections
+      Then player "a1" must not be forced into Team B
+      And the app should warn that player "a1" could not be routed downstream
+
+
+  Rule: Reduced match load
+
+    A coach can mark a player as reduced_match_load_allowed.
+    This means the player may occasionally sit out when squad pressure exists.
+    The app must not infer this from skill, team, position, or attribute rating.
+    A reduced-load player may not be automatically dropped twice in a row.
+    After being dropped, the player must play before becoming eligible for automatic drop again.
+
+    Scenario: Reduced-load player may be dropped once
+      Given player "c1" has Team C as core team
+      And player "c1" is marked reduced_match_load_allowed
+      And player "c1" played in the previous match round
+      And Team C exceeds target squad size because required support players are selected
+      When the app chooses Team C core_match_drop players
+      Then player "c1" may be selected as core_match_drop
+
+    Scenario: Reduced-load player cannot be dropped twice before playing
+      Given player "c1" has Team C as core team
+      And player "c1" is marked reduced_match_load_allowed
+      And player "c1" was selected as core_match_drop in the previous match round
+      And player "c1" has not played since
+      When the app chooses Team C core_match_drop players
+      Then player "c1" must not be automatically dropped
+      And player "c1" should be protected for core selection
+
+    Scenario: Reduced-load player becomes eligible after playing again
+      Given player "c1" has Team C as core team
+      And player "c1" is marked reduced_match_load_allowed
+      And player "c1" was selected as core_match_drop two match rounds ago
+      And player "c1" played in the previous match round
+      When Team C exceeds target squad size
+      Then player "c1" may be considered for core_match_drop again
+
+    Scenario: Reduced-load flag does not override manual lock-in
+      Given player "c2" is marked reduced_match_load_allowed
+      And player "c2" is manually locked in for Team C
+      When the app generates selections
+      Then player "c2" must remain selected unless a hard rule is broken
+
+    Scenario: Reduced-load flag does not override position structure
+      Given Team C needs a required position
+      And player "c3" is the only selected player covering that required position
+      And player "c3" is marked reduced_match_load_allowed
+      When the app chooses core_match_drop players
+      Then player "c3" should not be automatically dropped
+      And the app should preserve required position structure
+
+
+  Rule: Position-aware selection
+
+    Primary position must be considered first.
+    Secondary and tertiary positions are fallback options.
+    Non-matching position is last resort and must produce warning when selected for a position-sensitive role.
+
+    Scenario: Primary position is prioritized for support
+      Given Team C needs 1 support player with position "CB"
+      And player "b1" has primary position "CB"
+      And player "b2" has primary position "ST"
+      And both players are eligible to support Team C
+      When the app ranks support candidates
+      Then player "b1" should rank above player "b2"
+
+    Scenario: Secondary position is fallback
+      Given Team C needs 1 support player with position "CB"
+      And no eligible player has primary position "CB"
+      And player "b1" has secondary position "CB"
+      And player "b2" has tertiary position "CB"
+      When the app ranks support candidates
+      Then player "b1" should rank above player "b2"
+
+    Scenario: Tertiary position is fallback after secondary
+      Given Team C needs 1 support player with position "CB"
+      And no eligible player has primary or secondary position "CB"
+      And player "b1" has tertiary position "CB"
+      When the app ranks support candidates
+      Then player "b1" may be selected as positional fallback
+
+    Scenario: Non-matching position is last resort
+      Given Team C needs 1 support player with position "CB"
+      And no eligible player has primary, secondary, or tertiary position "CB"
+      And player "b1" is eligible for support but has no "CB" position
+      When the app selects player "b1"
+      Then the app must warn that the selected support player does not match requested position
+
+    Scenario: Backfill tries to replace lost position
+      Given player "b1" has Team B as core team
+      And player "b1" has primary position "CB"
+      And player "b1" is selected to support Team C
+      And Team B needs backfill from Team A
+      And player "a1" has primary position "CB"
+      And player "a2" has primary position "ST"
+      When the app selects Team B backfill
+      Then player "a1" should rank above player "a2"
+
+
+  Rule: Player suitability and readiness
+
+    Support suitability and development readiness are explicit coach-controlled fields.
+    The app must not infer these solely from skill level or attributes.
+
+    Scenario: Support selection prefers strong support suitability
+      Given player "b1" has support suitability "strong"
+      And player "b2" has support suitability "avoid"
+      And both players are eligible for Team C support
+      When the app ranks support candidates
+      Then player "b1" should rank above player "b2"
+
+    Scenario: Player with support suitability avoid is last resort
+      Given player "b2" has support suitability "avoid"
+      And Team C needs support
+      When other eligible support players are available
+      Then player "b2" should not be selected automatically
+
+    Scenario: Development rotation requires readiness
+      Given player "c1" has development readiness "not_ready"
+      And Team C can supply development players to Team B
+      When the app ranks development candidates
+      Then player "c1" should not be selected unless manually overridden
+
+    Scenario: Weak but hungry player can be development ready
+      Given player "c2" has current skill level "low"
+      And player "c2" has development readiness "ready"
+      And player "c2" has regular attendance
+      And player "c2" has strong effort
+      When the app ranks Team C to Team B development candidates
+      Then player "c2" may be considered for development rotation
+
+
+  Rule: Support cooldown and rotation fairness
+
+    Support roles must rotate.
+    A player who supported the same path in the previous configured cooldown window should not be selected for that same path again.
+
+    Scenario: Support player is blocked by path cooldown
+      Given player "b1" supported Team C from Team B in match round "R1"
+      And support cooldown for path Team B to Team C is 1 match round
+      When the app generates match round "R2"
+      Then player "b1" must not be automatically eligible for Team B to Team C support
+      And player "b1" may be eligible for Team B core selection
+
+    Scenario: Support cooldown applies per path
+      Given player "b1" supported Team C from Team B in match round "R1"
+      And Team B can also support Team D
+      When the app generates match round "R2"
+      Then player "b1" must not be eligible for Team B to Team C support
+      But player "b1" may be eligible for Team B to Team D support if allowed by configuration
+
+    Scenario: App rotates support players when alternatives exist
+      Given player "b1" supported Team C last match round
+      And player "b2" is eligible to support Team C
+      When the app selects Team C support
+      Then player "b2" should rank above player "b1"
+
+
+  Rule: Planning period fairness
+
+    The app must track fairness using available rounds, not calendar rounds.
+    Players must not build selection debt for rounds where they were unavailable.
+
+    Scenario: Player with fewer support duties is preferred
+      Given player "b1" and player "b2" are eligible to support Team C
+      And player "b1" has supported Team C 2 times in the active planning period
+      And player "b2" has supported Team C 0 times in the active planning period
+      When the app ranks support candidates
+      Then player "b2" should rank above player "b1"
+
+    Scenario: Development candidate with no exposure is preferred
+      Given player "c1" and player "c2" are eligible for Team B development
+      And player "c1" has received 0 development rotations in the active planning period
+      And player "c2" has received 2 development rotations in the active planning period
+      When the app ranks development candidates
+      Then player "c1" should rank above player "c2"
+
+    Scenario: Player with too few core matches is protected
+      Given player "b1" is eligible to support Team C
+      And player "b1" has fewer than minimum core matches while available in the active planning period
+      When the app ranks Team C support candidates
+      Then player "b1" should be deprioritized for support
+      And player "b1" should be prioritized for Team B core selection
+
+    Scenario: Player repeatedly used downwards is flagged
+      Given player "b1" has played more support matches than core matches in the active planning period
+      When the coach opens planning period review
+      Then the app must flag player "b1" for support burden review
+
+    Scenario: Player repeatedly used upwards is flagged
+      Given player "c1" has played more development matches than core matches in the active planning period
+      When the coach opens planning period review
+      Then the app must flag player "c1" for hidden promotion review
+
+    Scenario: Player with no core matches is flagged
+      Given player "p1" was available for several match rounds
+      And player "p1" has no core selections in the active planning period
+      When the coach opens planning period review
+      Then the app must flag player "p1" for core exposure review
+
+
+  Rule: Team burden and continuity
+
+    The app must protect teams, not only individual players.
+    A donor team can be hollowed out even if individual rotation seems fair.
+
+    Scenario: Donor team burden is tracked
+      Given Team B has donated players to Team C in every match round of the active planning period
+      When the app opens Team B health
+      Then the app must show high donor burden
+      And recommend backfill or reduced optional movement if configured
+
+    Scenario: High-priority downstream support still wins
+      Given Team C has highest support priority
+      And Team B has high donor burden
+      And Team C still requires support
+      When the app generates the next match round
+      Then Team C support must still be prioritized
+      And the app should try to reduce Team B burden through Team A backfill
+
+    Scenario: Team continuity warning
+      Given Team B has more than configured maximum player changes from previous round
+      When the app validates the match round
+      Then the app must warn that Team B continuity is low
+
+    Scenario: Team receives too little support over time
+      Given Team C has missed target support in several match rounds in the active planning period
+      When the coach opens Team C health
+      Then the app must flag repeated support shortage
+
+
+  Rule: Manual locks and overrides
+
+    Coaches can lock players in or out.
+    Manual locks are applied before automatic generation but still validated against hard rules.
+
+    Scenario: Locked-out player cannot be selected
+      Given player "p1" is manually locked out of match round "R1"
+      When the app generates selections
+      Then player "p1" must not be selected
+
+    Scenario: Locked-in player is preserved
+      Given player "p2" is manually locked in for Team C support
+      When the app generates selections
+      Then player "p2" must remain selected unless a hard rule is broken
+
+    Scenario: Manual override requires reason category
+      Given the coach manually overrides a rule
+      When the coach saves the override
+      Then the app must require a reason category
+      And may allow free-text explanation
+      And must store who changed it and when
+
+    Scenario: Manual override cannot select player twice
+      Given player "p3" is selected for Team C support
+      When the coach manually selects player "p3" for Team B core in the same match round
+      Then the app must reject the selection
+      And explain that a player can only be selected once per match round
+
+
+  Rule: Late dropout repair
+
+    The app must repair generated selections with minimal disruption when a selected player drops out.
+
+    Scenario: Late dropout replaces same role from same source
+      Given player "b1" drops out from Team C support
+      And player "b2" is eligible for the same Team B to Team C support path
+      When the coach runs repair mode
+      Then the app should replace "b1" with "b2"
+      And avoid changing unrelated selections
+
+    Scenario: Repair mode can reduce target to minimum
+      Given Team C target support count is 3
+      And Team C minimum support count is 2
+      And a support player drops out
+      And no eligible replacement exists
+      When the coach runs repair mode
+      Then the app may reduce Team C support to 2
+      And warn that target support was not reached
+
+    Scenario: Repair mode explains impossible repair
+      Given Team C falls below minimum support after dropout
+      And no eligible replacement exists
+      When the coach runs repair mode
+      Then the app must explain why repair failed
+      And require manual override or manual selection change
+
+    Scenario: Repair mode changes as little as possible
+      Given match round "R1" has a draft selection
+      And one selected player drops out
+      When the coach runs repair mode
+      Then the app should only change selections affected by the dropout
+      And must preserve unrelated selections unless a hard rule requires change
+
+
+  Rule: Rule configuration validation
+
+    Bad rule configuration must be caught before match generation.
+
+    Scenario: Support requirement must have valid source path
+      Given Team C has minimum support count 2
+      And no rotation path allows any team to support Team C
+      When the app validates rule configuration
+      Then the app must reject the configuration
+      And explain that Team C requires support but has no valid support source
+
+    Scenario: Minimum core plus minimum support cannot exceed maximum squad
+      Given Team C has minimum core players 9
+      And Team C has minimum support count 3
+      And Team C has maximum squad size 11
+      When the app validates rule configuration
+      Then the app must reject the configuration
+      And explain that minimum core plus minimum support exceeds maximum squad size
+
+    Scenario: Target squad cannot be below minimum accepted squad
+      Given Team A has target squad size 9
+      And Team A has minimum accepted squad size 10
+      When the app validates rule configuration
+      Then the app must reject the configuration
+      And explain that target squad size cannot be lower than minimum accepted squad size
+
+    Scenario: Backfill configuration cannot create unresolved cycle
+      Given Team A can backfill Team B
+      And Team B can backfill Team A
+      When the app validates backfill configuration
+      Then the app must warn that the configuration creates a potential cycle
+
+
+  Rule: Explanation and audit
+
+    The app must explain selections, non-selections, warnings, relaxed rules, and manual changes.
+
+    Scenario: App explains why player was selected
+      Given player "b1" is selected for Team C support
+      When the coach opens selection explanation
+      Then the app must show the valid path
+      And the support need
+      And position fit
+      And cooldown status
+      And planning period burden
+      And consequences for player "b1"'s core team
+
+    Scenario: App explains why player was not selected
+      Given player "c1" was not selected in match round "R1"
+      When the coach opens non-selection explanation
+      Then the app must show structured reasons for non-selection
+
+    Scenario: App explains relaxed rule
+      Given Team C target support is 3
+      And Team C selected support count is 2
+      When the coach opens warnings
+      Then the app must explain which rule was relaxed
+      And why the target could not be reached
+
+    Scenario: App shows what changed after regeneration
+      Given match round "R1" already has a draft selection
+      When the coach regenerates the match round
+      Then the app must show which players were added
+      And which players were removed
+      And which roles changed
+      And which warnings changed
+
+
+  Rule: Match fit feedback
+
+    The app does not predict opponent strength.
+    Coaches may record post-match fit feedback after a match.
+    Match fit feedback informs review but does not automatically change future selections.
+
+    Scenario: Coach records match fit
+      Given match "M1" has been completed
+      When the coach records match fit as "too_hard"
+      Then the app must store match fit value
+      And make it available in planning period review
+
+    Scenario: Match fit uses supported values
+      Given a completed match exists
+      When the coach records match fit
+      Then match fit must be one of "too_easy", "good_fit", "too_hard", "chaotic", "support_overpowered", "support_too_low", or "unknown"
+
+    Scenario: Match fit does not automatically change rules
+      Given Team C match "M1" was recorded as "too_hard"
+      When the app generates the next match round
+      Then the app must not automatically change Team C support targets
+      And the app should show previous match fit as review context
+
+    Scenario: Missing match fit does not block future selection
+      Given match "M1" has no recorded match fit
+      When the app generates the next match round
+      Then the app must continue using configured rules
+      And treat match fit as "unknown"
+
+
+  Rule: Draft reset
+
+    Draft selections can be reset without damaging finalized history.
+
+    Scenario: Coach can reset a draft match round
+      Given match round "R1" has draft selections
+      When the coach resets the draft for match round "R1"
+      Then all draft selections for matches in "R1" must be removed
+      And the matches themselves must remain in the schedule
+      And finalized historical selections must not be removed
+
+    Scenario: Coach can reset all draft selections in active planning period
+      Given active planning period has draft selections
+      When the coach resets all drafts in the planning period
+      Then every draft selection in the planning period must be removed
       And finalized selections must remain unchanged
 
-    Scenario: Coach can recalculate all current draft matches across all weeks
-      Given draft-eligible matches exist in more than one calendar week
-      When the coach recalculates every current draft match from the match overview
-      Then the app must run one full draft recalculation pass across all weeks
-      And each recalculated match must evaluate against every other registered match in the app
-      And finalized selections must remain unchanged
+    Scenario: Resetting draft removes draft movement ledger entries
+      Given match round "R1" has draft selections and draft movement ledger entries
+      When the coach resets the draft for match round "R1"
+      Then draft movement ledger entries for "R1" must be removed
+      And finalized movement ledger entries must remain unchanged
 
-    Scenario: Coach can recalculate a single match from match detail
-      Given a registered match exists without a finalized selection
-      When the coach recalculates that match from its detail page
-      Then the app must generate a new draft selection for that match using the current rules
-      And that recalculation must still evaluate against every other registered match in the app
-      And those other registered matches must include both saved draft and finalized selections
-      And finalized selections must remain unchanged
 
-    Scenario: Saving manual draft changes recalculates all draft matches
-      Given one or more registered matches exist without a finalized selection
-      And at least one match has saved manual draft changes
-      When the coach saves manual changes on a match
-      Then the app must recalculate all current draft matches using the latest saved state
-      And each recalculated match must evaluate against every other registered match in the app
-      And finalized selections must remain unchanged
+  Rule: Human-readable exports
 
-    Scenario: Manual draft additions and removals are non-negotiable during recalculation
-      Given a draft selection contains manually added players or manually removed players
-      When the app recalculates draft matches
-      Then those manual additions and removals must be treated as locked inputs for that match
-      And the automatic selection engine must adapt the remaining draft matches around those locked inputs
-      And the recalculated draft for that match must preserve the manual additions and removals
+    Coaches can export finalized match information without exposing internal planning tags by default.
 
-    Scenario: Match detail shows assistant suggestions before deeper tables
-      Given the coach opens a match selection detail page
-      When the page loads
-      Then the app must show assistant suggestions before the detailed selection tables
-      And each suggestion must explain the proposed action in plain language
-      And the coach must be able to apply or ignore the suggestion from that workflow surface
-
-    Scenario: Coach can mark all saved selections as draft from the match overview
-      Given one or more registered matches already have a saved selection
-      When the coach marks all saved selections as draft from the match overview
-      Then every match with a saved selection must end with a latest saved status of draft
-      And the latest draft must preserve the latest saved player rows and override note for each affected match
-      And matches without any saved selection must remain unchanged
-
-    Scenario: Coach can reset one match back to no saved selection
-      Given a registered match already has one or more saved draft or finalized selections
-      When the coach resets that match from the match workspace or week board
-      Then every saved selection snapshot for that match must be removed
-      And that match must return to having no saved selection
-      And future selection runs must no longer count that removed match history
-
-    Scenario: Coach can reset one week back to no saved selections
-      Given one or more matches in the same calendar week already have saved draft or finalized selections
-      When the coach resets that week
-      Then every saved selection snapshot for matches in that week must be removed
-      And each affected match in that week must return to having no saved selection
-      And matches in other weeks must remain unchanged
-
-    Scenario: Coach can reset all saved selections across the queue
-      Given one or more registered matches already have saved draft or finalized selections
-      When the coach resets all selections from the match overview
-      Then every saved selection snapshot for every registered match must be removed
-      And every registered match must return to having no saved selection
-      And the match records themselves must remain in the schedule
-
-    Scenario: Coach can browse to previous and next matches from match detail
-      Given multiple matches exist in the match registry ordering
-      When the coach opens one match's detail page
-      Then the page must provide a way to move to the previous match record
-      And the page must provide a way to move to the next match record
-
-    Scenario: Coach can export finalized match selections for human review
-      Given one or more finalized match selections exist
-      When the coach exports finalized match selections
-      Then the export must include match date, target team, opponent, home-or-away status, and selected player names
+    Scenario: Coach can export finalized match selections
+      Given one or more finalized match round selections exist
+      When the coach exports finalized selections
+      Then the export must include match date, team, opponent, home-or-away status, and selected player names
       And the export must be readable for humans without requiring automation
 
-    Scenario: Coach can choose between multiple human-readable export formats
-      Given one or more finalized match selections exist
-      When the coach exports finalized match selections
-      Then the app must offer at least two human-readable export format options
-      And each option must present the same finalized selection facts in a format meant for manual review
+    Scenario: Coach can choose export format
+      Given finalized selections exist
+      When the coach exports selections
+      Then the app must offer at least two human-readable export formats
+      And each format must present the same finalized selection facts
 
-  Rule: Core and floating selection logic
+    Scenario: Parent/player export hides internal planning tags
+      Given finalized selections exist
+      When the coach exports parent/player-facing match information
+      Then the export must not include reduced_match_load_allowed
+      And must not include support suitability
+      And must not include development readiness
+      And must not include internal warnings unless explicitly chosen by the coach
 
-    Scenario: Core players fill own team first
-      Given a player belongs to a core team
-      And the player is not floating
-      When a match exists for that same core team
-      And the coach generates a selection for that match
-      Then the player should be treated as a core candidate for that match
-      And core candidates should be prioritized before floating candidates unless team-size or spacing rules block them
+    Scenario: Coach export can include internal explanation
+      Given finalized selections exist
+      When the coach exports coach-facing planning information
+      Then the export may include roles, warnings, movement paths, explanations, and override reasons
 
-    Scenario: Floating player may be considered for an allowed team
-      Given a player belongs to a core team
-      And the player is floating
-      And a team is listed in that player's allowed float teams
-      When a match exists for that allowed team
-      And the coach generates a selection for that match
-      Then the player may be considered as a floating candidate for that team
-      And the player's position and match-date spacing must be considered before inclusion
 
-    Scenario: Support coverage is prioritized over own core-team priority
-      Given a player belongs to a team that is configured as a support team for another team
-      And the player is eligible to float to that supported team
-      And the supported team has unmet required support slots
-      When close-date match opportunities compete for selection priority
-      Then the engine must prioritize the supported team's minimum support need before the player's own core-team preference
-      And the explanation must state that support priority overrode own-team preference
+  Rule: Record-to-record navigation
 
-    Scenario: Player blocked from a non-allowed team
-      Given a player belongs to a core team
-      And the player is floating
-      And a team is not listed in that player's allowed float teams
-      When a match exists for that non-allowed team
-      And the coach generates a selection for that match
-      Then the player must not be eligible
-      And the player must not be auto-selected
+    The app must support fast browsing without forcing the coach back to overview pages.
 
-    Scenario: Auto selection must account for other registered matches
-      Given multiple registered matches exist
-      And one or more of those matches already has a saved draft or finalized selection
-      When the coach generates or recalculates a selection for another match
-      Then the engine must take the other registered matches into account
-      And the engine must do that even when only one match is being recalculated
-      And the engine must avoid planning the same player into conflicting registered matches
+    Scenario: Coach can move to next player from player profile
+      Given multiple active players exist
+      When the coach opens one player profile
+      Then the page must provide a way to move to the previous and next player without returning to the registry
 
-    Scenario: Unselected locked core players are warned early
-      Given a player belongs to the target team's core team
-      And the player is not floating
-      And the player is not marked as allowed to drop one core-team match
-      And the player is not selected for that match
-      When the coach views the generated or saved selection interface
-      Then the app must show an early warning about that player
-      And the warning must explain why the player was not selected
+    Scenario: Coach can move to previous or next match from match detail
+      Given multiple matches exist in match registry ordering
+      When the coach opens one match detail page
+      Then the page must provide a way to move to previous and next match without returning to overview
 
-    Scenario: Incomplete auto selection is warned early with reasons
-      Given a match exists
-      And auto selection cannot fill every squad slot
-      When the coach views the generated or saved selection interface
-      Then the app must show an early warning that the squad is incomplete
-      And the warning must explain why the missing slot or slots could not be filled
+    Scenario: Coach can move to previous or next match round
+      Given multiple match rounds exist in a planning period
+      When the coach opens one match round
+      Then the page must provide a way to move to previous and next match round without returning to overview
 
-  Rule: Rules overview
 
-    Scenario: Fixed core-team priority is not exposed as an editable rule
-      Given the coach opens the rules overview
-      When the coach reviews the editable RuleConfig controls
-      Then the app must not show a toggle for whether core players should be enforced for their own team
-      And the app must treat core-team-first behavior as fixed feature logic unless another higher-priority rule blocks it
+  Rule: Manager Desk
 
-  Rule: Floating history and fairness
+    The Manager Desk is the main entry point.
+    It surfaces decisions instead of forcing the coach to search through data.
 
-    Scenario: Player cannot float in consecutive floating opportunities
-      Given a player was included as a floating player in the most recent eligible floating opportunity
-      When a later match is generated for the same target team context
-      Then the player must not be selected again as a floating player if another valid floating option exists
+    Scenario: Coach sees current operational state
+      Given an active match round exists
+      When the coach opens Manager Desk
+      Then the app must show the active match round
+      And selection status for each team
+      And unresolved warnings
+      And availability problems
+      And primary actions for review, generation, assistant meeting, and finalization
 
-    Scenario: Support player must return to own core team before another support match
-      Given a player belongs to a support-source core team
-      And the player was selected into a support slot for another team in the player's most recent registered or finalized match
-      And the player has not played for the player's own core team since that support match
-      When the coach generates another match that could use the player in a support slot
-      Then the player must not be auto-selected into another support slot
-      And the exclusion must explain that the player must play an own core-team match before another support assignment
+    Scenario: Manager Desk shows decision inbox
+      Given match round "R1" has unresolved decisions
+      When the coach opens Manager Desk
+      Then the app must show cards for decisions needing attention
+      And each card must link to the affected match, player, team, or rule
 
-    Scenario: Development player must return to own core team before another development match
-      Given a player belongs to a development-source core team
-      And the player was selected into a development slot for another team in the player's most recent registered or finalized match
-      And the player has not played for the player's own core team since that development match
-      When the coach generates another match that could use the player in a development slot
-      Then the player must not be auto-selected into another development slot
-      And the exclusion must explain that the player must play an own core-team match before another development assignment
+    Scenario: Manager Desk separates setup and match-week work
+      Given the coach opens Manager Desk
+      Then setup work must be separated from match-week work
+      And match-week actions must be visually prioritized during an active match round
 
-    Scenario: Development-targeted players should not finish below the stored target when enough eligible matches exist
-      Given a player has an individual development-match target greater than 0
-      And one or more future matches are marked as available for development slots
-      And the player stays eligible for enough of those matches to hit the target
-      When the coach works those matches through the selection flow
-      Then the app should keep steering development selection so the player finishes on the exact stored target
 
-    Scenario: No replacement means the slot stays empty instead of reusing the same source player consecutively
-      Given a target team has a required support or development slot
-      And only one eligible player exists from a particular source team for that slot type
-      And that player already filled that slot type in the player's most recent registered or finalized match
-      And the player has not played for the player's own core team since then
-      When the coach generates the next match for that target team
-      Then the engine must leave that support or development slot unfilled instead of reusing the same player consecutively
-      And the warning must explain that the source team had no rotation-safe player available
+  Rule: Availability command center
 
-    Scenario: Floating history contributes to future priority
-      Given two floating candidates are otherwise equally eligible
-      And one player has fewer total floating appearances in finalized history
-      When the engine scores floating candidates
-      Then the player with fewer floating appearances should receive better priority
+    Availability is a first-class planning concern.
 
-    Scenario: History overview highlights recent movement between teams
-      Given finalized history contains players who have recently floated, supported, or filled development slots for another team
-      When the coach reviews the history overview
-      Then the app must show which players most recently moved between teams
-      And the overview must show where each visible movement went
-      And the overview must show the saved explanation for the latest visible movement without requiring the player detail page
+    Scenario: Coach views availability by status
+      Given players have availability statuses for match round "R1"
+      When the coach opens availability command center
+      Then players must be grouped by "confirmed", "tentative", "unknown", and "unavailable"
 
-    Scenario: History overview provides a dedicated movement overview across saved work
-      Given saved draft or finalized selections contain floating, support, or development movement
-      When the coach reviews the history overview
-      Then the app must show a separate movement overview in addition to the main history table
-      And the movement overview must show movement counts per player
-      And the movement overview must list the related matches and calendar weeks for each visible movement
-      And the movement overview must show whether each visible movement comes from a draft or a finalized selection
+    Scenario: Availability command center highlights critical unknowns
+      Given player "b1" has unknown availability
+      And player "b1" is a candidate for required Team C support
+      When the coach opens availability command center
+      Then player "b1" must be highlighted as support-critical unknown
 
-    Scenario: History overview collapses superseded snapshots to the current saved state per match
-      Given one or more matches have multiple saved draft or finalized snapshots over time
-      When the coach reviews the history overview
-      Then the main history table must reflect only the latest saved snapshot for each match
-      And the movement overview must not repeat superseded movement rows from the same latest saved-state match
+    Scenario: Coach updates availability from command center
+      Given player "p1" has unknown availability
+      When the coach marks player "p1" as confirmed available
+      Then future draft generation for the match round must treat player "p1" as available
 
-  Rule: Manual override handling
 
-    Scenario: Coach may adjust an automatically generated selection
-      Given a suggested selection exists for a match
-      When the coach manually adds or removes a player
-      Then the final selection must reflect the manual decision
-      And the manual change must be marked as an override
+  Rule: Squad Planner Matrix
 
-    Scenario: Manual override must not erase audit information
-      Given a suggested selection exists for a match
-      When the coach manually changes the selection before finalizing
-      Then the original automatic recommendation must remain traceable
-      And the final saved selection must record that a manual override occurred
+    The Squad Planner Matrix shows players across match rounds.
+    It is used to detect hidden patterns over time.
 
-  Rule: Sortable operational tables
+    Scenario: Coach views player usage across rounds
+      Given a planning period has multiple match rounds
+      When the coach opens Squad Planner Matrix
+      Then the app must show players as rows
+      And match rounds as columns
+      And each cell must show the player's selection role or availability state
 
-    Scenario: Coach can sort the player registry
-      Given players exist in the player registry
-      When the coach sorts the player registry by player, core team, availability, floating, or status
-      Then the registry must reorder by the selected column
+    Scenario: Matrix highlights repeated support burden
+      Given player "b1" has supported Team C in several match rounds
+      When the coach opens Squad Planner Matrix
+      Then the app must visually highlight high support burden
 
-    Scenario: Coach can sort operational tables across the app
-      Given tabular overview data exists in the app
-      When the coach sorts a supported table column on a page such as matches, teams, history, or selection review
-      Then the table must reorder by the selected column
+    Scenario: Matrix highlights repeated drops
+      Given player "c1" has been selected as core_match_drop
+      When the coach opens Squad Planner Matrix
+      Then the app must show the drop in the relevant match round cell
+
+    Scenario: Matrix highlights missing development exposure
+      Given player "c2" is development ready
+      And player "c2" has not received development exposure in the active planning period
+      When the coach opens Squad Planner Matrix
+      Then the app must highlight missing development exposure
+
+
+  Rule: Match Round Board
+
+    The Round Board is the main weekly planning workspace.
+    It shows each team match in a column and supports safe drag-and-drop editing.
+
+    Scenario: Coach sees all teams in one round board
+      Given match round "R1" contains Team A, Team B, and Team C matches
+      When the coach opens Round Board
+      Then the app must show one column per team match
+      And show selected players grouped by role
+      And show available and unselected players
+      And show round-level warnings
+
+    Scenario: Coach drags player between role buckets
+      Given match round "R1" is in draft state
+      When the coach drags player "p1" into Team C support bucket
+      Then the app must validate the move immediately
+      And show whether the move is allowed, warning-only, or blocked
+      And show affected teams and players
+
+    Scenario: Manual edit shows consequences
+      Given player "b1" is selected as support for Team C
+      When the coach removes player "b1"
+      Then the app must show Team C support count change
+      And affected backfill changes
+      And any new warnings
+
+    Scenario: Round Board supports role buckets
+      Given match round "R1" has draft selections
+      When the coach opens Round Board
+      Then selected players must be grouped into "Core", "Support", "Backfill", "Development", "Confidence Rebuild", "Dropped", and "Unavailable" where applicable
+
+
+  Rule: Team overview and team health
+
+    Teams are shown as operational units with squad limits, paths, burden, and warnings.
+
+    Scenario: Coach views team overview
+      Given teams and rotation rules exist
+      When the coach opens Teams overview
+      Then each team must be shown with core player count
+      And squad size limits
+      And support priority
+      And active movement paths
+      And current planning period burden
+
+    Scenario: Coach views team health
+      Given Team B has donated players in the planning period
+      When the coach opens Team B health
+      Then the app must show support given
+      And support received
+      And backfill received
+      And rounds below target squad size
+      And continuity warnings
+
+    Scenario: Team health shows repeated match fit problems
+      Given Team C has several matches recorded as "too_hard"
+      When the coach opens Team C health
+      Then the app must show repeated match fit concern
+      And must not automatically change future rules
+
+
+  Rule: Rotation graph view
+
+    The rotation graph shows teams as nodes and configured paths as edges.
+
+    Scenario: Coach views configured movement graph
+      Given teams and paths exist
+      When the coach opens Rotation Graph
+      Then each team must appear as a node
+      And each movement path must appear as a directed edge
+      And each edge must show role and usage count for the active planning period
+
+    Scenario: Coach creates path from graph
+      Given Team A and Team B exist
+      When the coach creates a path from Team A to Team B
+      Then the coach must choose path role
+      And configure path limits and cooldown
+      And the app must validate the path before saving
+
+
+  Rule: Player profile
+
+    Player profile explains the player's planning context, recent usage, restrictions, and notes.
+
+    Scenario: Coach opens player profile
+      Given player "p1" exists
+      When the coach opens player "p1" profile
+      Then the profile must show core team
+      And primary, secondary, and tertiary positions
+      And footedness and best side where recorded
+      And availability history
+      And role flags
+      And recent match usage
+      And active restrictions
+      And coach notes
+
+    Scenario: Coach reviews player movement history
+      Given player "p1" has movement ledger entries
+      When the coach opens player movement history
+      Then the app must show each movement
+      And the role
+      And from team
+      And to team
+      And match round
+      And explanation
+
+    Scenario: Coach reviews why player was not selected
+      Given player "p1" was not selected in match round "R1"
+      When the coach opens player "p1" match round explanation
+      Then the app must show structured reasons for non-selection
+
+
+  Rule: Tactics board
+
+    The tactics board lets the coach review selected squads as football shape.
+    It is practical visualization, not a tactical simulator.
+
+    Scenario: Coach views selected squad on pitch
+      Given a match selection exists for Team C
+      When the coach opens Tactics Board
+      Then the app must show selected players on a pitch layout
+      And unplaced selected players on the bench
+      And position fit for each placed player
+
+    Scenario: Coach drags player onto pitch slot
+      Given player "p1" is selected for the match
+      When the coach drags player "p1" into a defender slot
+      Then the app must place player "p1" in that slot
+      And show whether the slot matches primary, secondary, tertiary, or fallback position
+
+    Scenario: Tactics board warns about missing structure
+      Given no selected player covers a defensive slot
+      When the coach opens Tactics Board
+      Then the app must warn that defensive structure is missing
+
+    Scenario: Tactics board shows bench players
+      Given a match selection has more selected players than pitch slots
+      When the coach opens Tactics Board
+      Then extra selected players must appear as bench or unplaced players
+
+
+  Rule: Assistant Manager meeting room
+
+    Assistant Manager is a structured review room.
+    It summarizes round status, support chains, development exposure, fairness issues, warnings, and decisions needed.
+
+    Scenario: Assistant Manager summarizes generated round
+      Given match round "R1" has generated selections
+      When the coach opens Assistant Manager
+      Then the app must summarize support selections
+      And development selections
+      And backfill chains
+      And core match drops
+      And reduced match load drops
+      And warnings
+      And decisions needed before finalization
+
+    Scenario: Assistant Manager explains support chain
+      Given Team B supplied players to Team C
+      And Team A backfilled Team B
+      When the coach opens Assistant Manager
+      Then the app must explain the support chain
+      And show which movement caused each backfill
+
+    Scenario: Assistant Manager presents recommendation with risk and alternative
+      Given a warning has multiple possible resolutions
+      When Assistant Manager displays the warning
+      Then it must show recommended action
+      And risk
+      And alternative action
+      And consequence
+
+    Scenario: Assistant Manager does not act as chatbot
+      Given the coach opens Assistant Manager
+      Then the app must show structured rule-driven review
+      And must not require conversational input to be useful
+
+
+  Rule: Matchday mode
+
+    Matchday mode is a stripped view for execution, not planning.
+
+    Scenario: Coach opens matchday mode
+      Given match round "R1" is finalized
+      When the coach opens Matchday Mode
+      Then the app must show today's matches
+      And selected squads
+      And position notes
+      And support instructions
+      And attendance check
+      And quick late-dropout repair action
+
+    Scenario: Matchday mode hides rule editing
+      Given the coach is in Matchday Mode
+      Then the app must not show full rule configuration editing
+
+    Scenario: Coach checks attendance on matchday
+      Given matchday mode is open
+      When the coach marks a selected player as not present
+      Then the app must show whether repair is needed
+      And offer late-dropout repair if configured
+
+
+  Rule: Public and private visibility
+
+    Internal planning tags must not leak into parent or player view.
+    The app supports coach view and parent/player export view.
+
+    Scenario: Coach view shows internal tags
+      Given player "p1" is marked reduced_match_load_allowed
+      When the coach opens player profile
+      Then the app may show the internal tag
+
+    Scenario: Parent export hides internal tags
+      Given player "p1" is marked reduced_match_load_allowed
+      When the coach exports parent/player match information
+      Then the export must not include internal tags
+      And must only show match information and selected squad details
+
+
+  Rule: Rule Studio
+
+    Rule Studio lets the coach configure rules, validate rule configuration, export rules, import rules, and inspect rule version history.
+
+    Scenario: Coach exports rule configuration
+      Given rule configuration exists
+      When the coach exports rules
+      Then the app must create a portable rules file
+      And include teams, paths, squad limits, support limits, priorities, cooldowns, severity settings, position settings, and fairness windows
+
+    Scenario: Coach imports rule configuration
+      Given the coach imports a rules file
+      When the app validates the imported rules
+      Then the app must reject invalid configuration
+      Or save the configuration as a new rule version if valid
+
+    Scenario: Finalized round references rule version
+      Given match round "R1" is finalized with RuleConfig version "v3"
+      When the coach later changes rules to version "v4"
+      Then match round "R1" must still reference RuleConfig version "v3"
+
+    Scenario: Rule Studio shows impact before saving rule changes
+      Given current draft match round exists
+      When the coach changes a rule value
+      Then the app should show likely impact on current draft where possible
+      And must not silently regenerate finalized selections
+
+
+  Rule: Human review threshold
+
+    The app must not pretend a broken or uncertain round is solved.
+    It must require human review when warning thresholds or hard conflicts are reached.
+
+    Scenario: Human review required for unresolved blockers
+      Given match round "R1" has hard blockers
+      When the coach opens the round
+      Then the app must show "Human review required"
+      And prevent finalization until blockers are resolved
+
+    Scenario: Human review required for too many warnings
+      Given match round "R1" has more warnings than configured threshold
+      When the coach opens the round
+      Then the app must show "Human review recommended"
+      And list the warnings grouped by team, player, and rule
+
+
+  Rule: App design principle
+
+    The app should not merely generate legal squads.
+    It must create explainable squads that preserve team function, player fairness, and movement intent across time.
+
+    Scenario: Generated round includes explanation package
+      Given match round "R1" has generated selections
+      When generation completes
+      Then the app must provide selected squads
+      And warnings
+      And explanations
+      And movement ledger entries
+      And unresolved decisions
+      And confidence level for the generated round
