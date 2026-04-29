@@ -157,7 +157,7 @@ export function MatchSquadCard({
               <div className="flex flex-wrap gap-1">
                 {group.players.map((p) => (
                   <button
-                    key={p.playerId}
+                    key={`${teamName}-${group.key}-${p.playerId}`}
                     className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
                     aria-label={`${p.playerName} - ${group.label} - ${p.coreTeamName}`}
                     onClick={(e) => {
