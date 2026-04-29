@@ -1,9 +1,15 @@
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
 import { db } from "@/lib/db";
+import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  const { allowed } = rateLimit("generate-round", 5, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many generation requests. Please wait a moment and try again." }, { status: 429 });
+  }
+
   let roundId: unknown;
   try {
     const body = await request.json();

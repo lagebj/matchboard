@@ -1,8 +1,17 @@
 # Matchboard
 
-Matchboard is a local-first web app for youth football match selection, player rotation, and squad history tracking.
+Matchboard is a local-first web app for youth football match-round selection, controlled player movement, and squad history tracking.
 
-The app helps coaches plan weekly match rounds across multiple teams, manage player movement via configured rotation paths, protect fairness over time, and explain why selections were made.
+Selections are generated per match round. Fairness is evaluated across the season/planning period.
+
+The app plans squads for already-created matches. It does not auto-create fixtures, schedule a season, or manage a club.
+
+## Core rules
+
+- **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a warning is generated — the team is never silently weakened.
+- **Backfill is a direct consequence of support.** When a player is moved from their core team as support, their team may need backfill. Backfill priority: (1) own core team player moved as support if matches on different dates, (2) development team players, (3) any other non-rotatable-false player from another team. Non-rotatable players are never used as generic backfill.
+- **A player can normally only be selected once per match round** unless an explicit rule allows otherwise.
+- **The match round is the operational planning unit.** The season/planning period is the fairness and load-balancing context.
 
 It is not a multi-user system, not an auth product, and not a general club-management platform.
 
@@ -81,6 +90,8 @@ Runs on `http://localhost:3333`.
 | `npm run dev` | Start dev server on port 3333 |
 | `npm run build` | Production build |
 | `npm run lint` | Lint source files |
+| `npm run test` | Run test suite (Vitest) |
+| `npm run test:watch` | Run tests in watch mode |
 | `npm run db:generate` | Generate Prisma client |
 | `npm run db:migrate` | Apply schema migrations |
 | `npm run db:migrate:dev` | Create and apply a new migration |
@@ -108,6 +119,10 @@ The round-level selection engine runs in this order:
 
 Key rules enforced by the engine:
 
+- **Team support is priority 1** — required support must be fulfilled before development, fairness, or cosmetic balancing
+- **Backfill follows strict priority order** — (1) own-core player on different date, (2) development source players, (3) other non-rotatable-false players
+- **Non-rotatable players are never used as generic backfill**
+- Warnings are generated when support or backfill cannot be fulfilled — the team is never silently weakened
 - Donor teams must not fall below `minCorePlayers` during support resolution
 - Rotation paths are directional and configurable — movement cannot happen without an explicit path
 - Support priority is resolved ascending (lower number = higher priority)
@@ -129,7 +144,7 @@ Key rules enforced by the engine:
 
 - **Team**: configurable squad limits (`targetSquadSize`, `minAcceptedSquadSize`, `maxSquadSize`), support settings, development slots, support priority
 - **RotationPath**: directed edges between teams with role (SUPPORT, BACKFILL, DEVELOPMENT), cooldown, and count targets
-- **Selection**: per-player per-match record with role (CORE, SUPPORT, BACKFILL, DEVELOPMENT, etc.), status (DRAFT/FINALIZED), and structured explanation JSON
+- **Selection**: per-player per-match-round record with role (CORE, SUPPORT, BACKFILL, DEVELOPMENT, etc.), status (DRAFT/FINALIZED), and structured explanation JSON
 - **MatchRound**: weekly planning unit — selections are generated and validated per round, not per match in isolation
 
 ## Sensitive data policy

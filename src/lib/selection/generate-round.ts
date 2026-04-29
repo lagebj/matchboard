@@ -81,7 +81,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
 
   let finalResults = conflictResolution.resolvedMatchResults;
 
-  const coreMatchDropCandidates = extractCoreMatchDropCandidates(
+  const coreMatchDropCandidates = await extractCoreMatchDropCandidates(
     finalResults,
   );
 
@@ -101,6 +101,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   const backfillResult = await resolveBackfillAfterSupport(
     finalResults,
     allAssignedPlayerIds,
+    supportResolution.supportAssignments,
   );
   roundWarnings.push(...backfillResult.warnings);
   finalResults = backfillResult.matchResults;
@@ -211,11 +212,12 @@ function buildGenerationSummary(
   };
 }
 
-function extractCoreMatchDropCandidates(
+async function extractCoreMatchDropCandidates(
   matchResults: GeneratedSelection[],
-): CoreMatchDropCandidate[] {
+): Promise<CoreMatchDropCandidate[]> {
   const candidates: CoreMatchDropCandidate[] = [];
 
+  const excludedPlayerIds: string[] = [];
   for (const result of matchResults) {
     for (const excluded of result.excludedPlayers) {
       if (
@@ -238,6 +240,7 @@ function extractCoreMatchDropCandidates(
 
       if (!isCoreMatchDrop && !isReducedLoadDrop) continue;
 
+      excludedPlayerIds.push(excluded.playerId);
       candidates.push({
         playerId: excluded.playerId,
         playerName: excluded.playerName,
@@ -250,6 +253,16 @@ function extractCoreMatchDropCandidates(
         fromMatchId: result.matchId,
       });
     }
+  }
+
+  if (excludedPlayerIds.length > 0) {
+    const nonRotatableIds = new Set(
+      (await db.player.findMany({
+        where: { id: { in: excludedPlayerIds }, nonRotatable: true },
+        select: { id: true },
+      })).map((p) => p.id),
+    );
+    return candidates.filter((c) => !nonRotatableIds.has(c.playerId));
   }
 
   return candidates;

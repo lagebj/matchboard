@@ -229,28 +229,29 @@ export async function repairDropout(
   if (eligibleReplacements.length > 0) {
     const replacement = eligibleReplacements[0]!;
 
-    await db.selection.delete({
-      where: { id: droppedSelection.id },
-    });
-
-    await db.selection.create({
-      data: {
-        matchId,
-        matchRoundId,
-        playerId: replacement.playerId,
-        role: droppedRole,
-        status: SelectionStatus.DRAFT,
-        explanation: {
-          summary: `Replaced ${droppedPlayerName} after late dropout. Selected as a ${droppedRole.toLowerCase()} replacement from ${replacement.coreTeamId === match.teamId ? match.team.name : "rotation pool"}.`,
-          autoSelected: true,
-          manuallyAdded: false,
-          manuallyRemoved: false,
-          sourceTeamName: replacement.coreTeamId,
-          targetTeamName: match.team.name,
-          repairReason: `${droppedPlayerName} dropped out. ${replacement.playerName} was chosen as the best available same-role replacement.`,
+    await db.$transaction([
+      db.selection.delete({
+        where: { id: droppedSelection.id },
+      }),
+      db.selection.create({
+        data: {
+          matchId,
+          matchRoundId,
+          playerId: replacement.playerId,
+          role: droppedRole,
+          status: SelectionStatus.DRAFT,
+          explanation: {
+            summary: `Replaced ${droppedPlayerName} after late dropout. Selected as a ${droppedRole.toLowerCase()} replacement from ${replacement.coreTeamId === match.teamId ? match.team.name : "rotation pool"}.`,
+            autoSelected: true,
+            manuallyAdded: false,
+            manuallyRemoved: false,
+            sourceTeamName: replacement.coreTeamId,
+            targetTeamName: match.team.name,
+            repairReason: `${droppedPlayerName} dropped out. ${replacement.playerName} was chosen as the best available same-role replacement.`,
+          },
         },
-      },
-    });
+      }),
+    ]);
 
     const remainingCount = allActiveSelections.length;
     if (remainingCount < match.team.minAcceptedSquadSize) {
