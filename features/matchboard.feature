@@ -1,7 +1,25 @@
 Feature: Matchboard football operations workspace
 
-  Matchboard is a local-first web app for youth football match planning.
-  The app helps coaches plan weekly match rounds across multiple teams, manage player movement, protect fairness over time, and explain why selections were made.
+  Matchboard is a local-first web app for youth football match-round selection.
+  Matchboard generates selections per match round.
+  A match round is the operational planning unit.
+  The season or planning period is the fairness and load-balancing context.
+
+  Matchboard plans squads for already-created matches.
+  It does not auto-create fixtures or schedule a season.
+  It is not a full scheduling system or a club-management system.
+
+  Team support is priority 1 across the entire system.
+  If a team requires support, that support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation.
+  If required support cannot be fulfilled, the model must generate a warning and must not silently weaken the team.
+
+  Backfill is a direct consequence of support movement and follows a strict priority order.
+  When a player is moved from their core team as support, their team may need backfill.
+  Backfill priority: (1) own core team player moved as support if matches are on different dates, (2) development team players, (3) any other non-rotatable-false player from another team.
+  Non-rotatable players must never be used as generic backfill.
+  If no valid backfill exists, the app must generate a warning instead of silently weakening the team.
+
+  A player should normally only be selected once per match round unless an explicit rule allows otherwise.
 
   Matchboard must feel like a football management cockpit, not an admin CRUD app.
   The main workflow must be inspired by Football Manager-style interaction patterns:
@@ -25,8 +43,31 @@ Feature: Matchboard football operations workspace
     And the coach can configure players
     And each player has exactly one core team
     And each match belongs to exactly one team
-    And match selections are generated from configured rules
+    And match selections are generated per match round from configured rules
     And every finalized selection stores a snapshot of rule configuration, availability, warnings, explanations, and manual overrides
+
+
+  Rule: System boundary
+
+    Matchboard plans squads for already-created matches.
+    It does not create fixtures, schedule a season, manage a club, or act as a full scheduling system.
+
+    Scenario: Matchboard does not auto-create fixtures
+      Given the coach has created matches for a match round
+      When the app generates selections
+      Then the app must only generate selections for the existing matches
+      And the app must not create new matches or fixtures on its own
+
+    Scenario: Matchboard is not a scheduling system
+      Given a season and planning period exist
+      When the coach uses the app
+      Then the app must not automatically schedule matches across the season
+      And the app must require the coach to create matches manually
+
+    Scenario: Matchboard is not a club management system
+      Given the coach uses the app
+      Then the app must not manage club membership, registration, payments, or communication
+      And the app must not provide authentication or multi-user workflows
 
 
   Rule: Main domain hierarchy
@@ -403,6 +444,8 @@ Feature: Matchboard football operations workspace
     Required support for higher-priority receiving teams must be resolved before lower-priority support.
     Backfill caused by required support must be resolved before optional development.
     The round-level pipeline resolves roles in order: support, conflict resolution, development and backfill routing, then post-routing backfill.
+    Required support must be fulfilled before fairness optimization, cosmetic balancing, and generic rotation.
+    If required support cannot be fulfilled, the app must generate a warning and must not silently weaken the receiving team.
 
     Scenario: Support is selected before development and core
       Given Team C requires support
@@ -444,6 +487,30 @@ Feature: Matchboard football operations workspace
       And player "p1" is not selected for development
       When the app fills remaining squad slots
       Then player "p1" may be selected for Team B core
+
+    Scenario: Required support is not bypassed due to fairness scoring
+      Given Team C requires a minimum of 2 support players
+      And player "b1" has high fairness debt and is eligible for Team C support
+      And player "b2" has low fairness debt and is eligible for Team C development in another team
+      And only player "b1" can fulfill the required support
+      When the app resolves support assignments
+      Then player "b1" must be assigned to Team C support regardless of fairness debt
+      And fairness scoring must not override required support fulfillment
+
+    Scenario: Warning is generated when required support cannot be fulfilled
+      Given Team C requires a minimum of 2 support players
+      And only 1 eligible support player is available
+      When the app generates match round selections
+      Then the app must generate a warning that Team C required support is not fulfilled
+      And the app must not silently weaken Team C by accepting the shortfall without a warning
+
+    Scenario: Warning is generated when no valid backfill exists
+      Given Team B supplied player "b1" as support to Team C
+      And Team B is below target squad size after supplying support
+      And no eligible backfill player exists for Team B
+      When the app resolves backfill
+      Then the app must generate a warning that Team B backfill could not be fulfilled
+      And the app must not silently leave Team B weakened
 
 
   Rule: Rule severity
@@ -689,6 +756,9 @@ Feature: Matchboard football operations workspace
     A team may support a downstream team and then be backfilled by an upstream team.
     Support chains may cascade only through configured paths.
     A support chain must not cycle.
+    Backfill is a direct consequence of support movement.
+    When a player is moved from their core team as support, their team may need backfill.
+    Backfill must follow a strict priority order.
 
     Scenario: Team B supports Team C before Team B is backfilled
       Given Team C has higher support priority than Team B
@@ -729,6 +799,65 @@ Feature: Matchboard football operations workspace
       When the app resolves a backfill chain
       Then the app must stop if a team would appear twice in the same chain
       And warn that the backfill configuration creates a cycle
+
+
+  Rule: Backfill priority order
+
+    When a player is moved from their core team as support, their team may need backfill.
+    Backfill must follow a strict priority order.
+    Non-rotatable players must never be used as generic backfill.
+    If no valid backfill exists, the app must generate a warning instead of silently weakening the team.
+
+    Scenario: Backfill priority 1 — own core team player moved as support can play both matches
+      Given player "b1" has Team B as core team
+      And player "b1" was moved from Team B core to Team C support
+      And Team B match and Team C match are on different dates
+      And player "b1" can play both matches without violating same-round rules
+      When the app resolves backfill for Team B
+      Then player "b1" must be considered as backfill priority 1
+      And player "b1" should be ranked above all other backfill candidates
+
+    Scenario: Backfill priority 2 — development team players
+      Given Team B needs backfill after supplying support
+      And no own-core-team player is eligible for backfill priority 1
+      And player "d1" is from a development source team for Team B
+      And player "d1" is not marked as non-rotatable
+      When the app resolves backfill for Team B
+      Then player "d1" must be considered as backfill priority 2
+      And player "d1" should be ranked above generic backfill candidates from other teams
+
+    Scenario: Backfill priority 3 — any other non-rotatable-false player from another team
+      Given Team B needs backfill after supplying support
+      And no own-core-team player is eligible for backfill priority 1
+      And no development source team player is available for backfill priority 2
+      And player "x1" is from another team with a configured backfill path to Team B
+      And player "x1" is not marked as non-rotatable
+      When the app resolves backfill for Team B
+      Then player "x1" may be considered as backfill priority 3
+
+    Scenario: Non-rotatable player is never used as generic backfill
+      Given Team B needs backfill after supplying support
+      And player "n1" is from another team with a configured backfill path to Team B
+      And player "n1" is marked as non-rotatable
+      When the app resolves backfill for Team B
+      Then player "n1" must not be selected as backfill
+      And the app must not use player "n1" to fill any backfill slot
+
+    Scenario: Backfill must respect same-round conflict rules
+      Given Team B needs backfill
+      And player "x1" is eligible for Team B backfill by priority 3
+      And player "x1" is already selected for another match in the same match round
+      When the app resolves backfill for Team B
+      Then player "x1" must not be selected as backfill
+      And the app must respect same-round player uniqueness unless explicitly allowed
+
+    Scenario: Warning when no valid backfill exists for weakened team
+      Given Team B supplied player "b1" as support to Team C
+      And Team B is below minimum accepted squad size after supplying support
+      And no eligible backfill candidate exists at any priority level
+      When the app resolves backfill
+      Then the app must generate a warning that Team B backfill could not be fulfilled
+      And the app must not silently accept the shortfall
 
 
   Rule: Core match drops and downstream routing
@@ -943,6 +1072,23 @@ Feature: Matchboard football operations workspace
 
     The app must track fairness using available rounds, not calendar rounds.
     Players must not build selection debt for rounds where they were unavailable.
+    Fairness optimization must not override required support fulfillment.
+    Fairness is a scoring preference, not a hard rule.
+
+    Scenario: Fairness scoring must not override required support
+      Given Team C requires a minimum of 2 support players
+      And player "b1" has high fairness debt meaning player "b1" has served many support rotations
+      And player "b1" is the only eligible candidate to fulfill Team C required support
+      When the app resolves support assignments
+      Then player "b1" must be assigned to Team C support
+      And fairness optimization must not prevent required support from being fulfilled
+
+    Scenario: Unavailable rounds do not create fairness debt
+      Given player "p1" was unavailable for 3 match rounds
+      And player "p1" was available for 2 match rounds
+      When the app calculates fairness
+      Then the app must calculate fairness from available rounds only
+      And the 3 unavailable rounds must not count against player "p1" fairness balance
 
     Scenario: Player with fewer support duties is preferred
       Given player "b1" and player "b2" are eligible to support Team C

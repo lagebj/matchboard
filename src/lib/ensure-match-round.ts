@@ -48,31 +48,54 @@ async function findOrCreateRound(planningPeriodId: string, weekKey: string, week
 }
 
 async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: string): Promise<string> {
-  const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } }) ?? await db.season.create({
-    data: { name: `${startsAt.getUTCFullYear()} Season` },
-  });
-
   const periodStart = new Date(Date.UTC(startsAt.getUTCFullYear(), startsAt.getUTCMonth(), 1));
   const periodEnd = new Date(Date.UTC(startsAt.getUTCFullYear(), startsAt.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-  let period = await db.planningPeriod.findFirst({
-    where: {
-      seasonId: season.id,
-      startDate: { lte: startsAt },
-      endDate: { gte: startsAt },
-    },
-  });
+  const roundId = await db.$transaction(async (tx) => {
+    let season = await tx.season.findFirst({ orderBy: { createdAt: "desc" } });
+    if (!season) {
+      season = await tx.season.create({
+        data: { name: `${startsAt.getUTCFullYear()} Season` },
+      });
+    }
 
-  if (!period) {
-    period = await db.planningPeriod.create({
-      data: {
-        name: `${periodStart.toLocaleString("en", { month: "long", timeZone: "UTC" })} ${startsAt.getUTCFullYear()}`,
+    let period = await tx.planningPeriod.findFirst({
+      where: {
         seasonId: season.id,
-        startDate: periodStart,
-        endDate: periodEnd,
+        startDate: { lte: startsAt },
+        endDate: { gte: startsAt },
       },
     });
-  }
 
-  return findOrCreateRound(period.id, weekKey, weekLabel);
+    if (!period) {
+      period = await tx.planningPeriod.create({
+        data: {
+          name: `${periodStart.toLocaleString("en", { month: "long", timeZone: "UTC" })} ${startsAt.getUTCFullYear()}`,
+          seasonId: season.id,
+          startDate: periodStart,
+          endDate: periodEnd,
+        },
+      });
+    }
+
+    let round = await tx.matchRound.findFirst({
+      where: {
+        planningPeriodId: period.id,
+        name: weekLabel,
+      },
+    });
+
+    if (!round) {
+      round = await tx.matchRound.create({
+        data: {
+          name: weekLabel,
+          planningPeriodId: period.id,
+        },
+      });
+    }
+
+    return round.id;
+  });
+
+  return roundId;
 }

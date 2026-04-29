@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const { allowed } = rateLimit("finalize-round", 5, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many finalization requests. Please wait a moment and try again." }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();

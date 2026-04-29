@@ -48,19 +48,17 @@ export async function createGeneratedDraftRound(
 ) {
   const matchIds = generatedRound.matchResults.map((m) => m.matchId);
 
-  await db.selection.deleteMany({
-    where: {
-      matchId: { in: matchIds },
-      status: SelectionStatus.DRAFT,
-    },
-  });
+  await db.$transaction(async (tx) => {
+    await tx.selection.deleteMany({
+      where: {
+        matchId: { in: matchIds },
+        status: SelectionStatus.DRAFT,
+      },
+    });
 
-  const allOperations: ReturnType<typeof db.selection.create>[] = [];
-
-  for (const matchResult of generatedRound.matchResults) {
-    for (const player of matchResult.selectedPlayers) {
-      allOperations.push(
-        db.selection.create({
+    for (const matchResult of generatedRound.matchResults) {
+      for (const player of matchResult.selectedPlayers) {
+        await tx.selection.create({
           data: {
             matchId: matchResult.matchId,
             matchRoundId: matchResult.matchRoundId,
@@ -77,10 +75,8 @@ export async function createGeneratedDraftRound(
               chosenPosition: player.chosenPosition ?? null,
             },
           },
-        }),
-      );
+        });
+      }
     }
-  }
-
-  await db.$transaction(allOperations);
+  });
 }

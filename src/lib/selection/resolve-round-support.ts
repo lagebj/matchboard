@@ -60,8 +60,10 @@ export async function resolveRoundSupport(
   resolvedMatchResults: GeneratedSelection[];
   roundWarnings: SelectionWarning[];
   assignedPlayerIds: Set<string>;
+  supportAssignments: Array<{ playerId: string; fromTeamId: string; toTeamId: string }>;
 }> {
   const warnings: SelectionWarning[] = [];
+  const supportAssignments: Array<{ playerId: string; fromTeamId: string; toTeamId: string }> = [];
 
   const paths = await db.rotationPath.findMany({
     where: { active: true, role: "SUPPORT" },
@@ -289,6 +291,7 @@ export async function resolveRoundSupport(
         };
 
         results[originalIdx]!.selectedPlayers.push(supportPlayer);
+        supportAssignments.push({ playerId, fromTeamId: donor.teamId, toTeamId: slot.teamId });
         filled++;
       }
     }
@@ -320,12 +323,14 @@ export async function resolveRoundSupport(
     resolvedMatchResults,
     roundWarnings: warnings,
     assignedPlayerIds,
+    supportAssignments,
   };
 }
 
 export async function resolveBackfillAfterSupport(
   matchResults: GeneratedSelection[],
   assignedPlayerIds: Set<string>,
+  supportAssignments?: Array<{ playerId: string; fromTeamId: string; toTeamId: string }>,
 ): Promise<{
   matchResults: GeneratedSelection[];
   warnings: SelectionWarning[];
@@ -369,7 +374,7 @@ export async function resolveBackfillAfterSupport(
     }
   }
 
-  return resolveBackfillFromSupportInner(matchResults, backfillPaths, matches, updatedAssignedIds);
+  return resolveBackfillFromSupportInner(matchResults, backfillPaths, matches, updatedAssignedIds, supportAssignments);
 }
 
 type TeamInfo = {
@@ -397,6 +402,7 @@ async function resolveBackfillFromSupportInner(
   backfillPaths: RotationPathRow[],
   matches: MatchWithTeam[],
   assignedPlayerIds: Set<string>,
+  supportAssignments?: Array<{ playerId: string; fromTeamId: string; toTeamId: string }>,
 ): Promise<{ matchResults: GeneratedSelection[]; warnings: SelectionWarning[] }> {
   const warnings: SelectionWarning[] = [];
 
@@ -415,53 +421,191 @@ async function resolveBackfillFromSupportInner(
       .filter((p) => p.toTeamId === match.teamId)
       .map((p) => p.fromTeamId);
 
-    if (eligiblePathSources.length === 0) continue;
+    if (eligiblePathSources.length === 0) {
+      if (selectedCount < (match.team.minAcceptedSquadSize ?? match.team.targetSquadSize)) {
+        warnings.push({
+          code: "backfill_no_path_available",
+          message: `${match.team.name} needs backfill (${selectedCount} players, target ${match.team.targetSquadSize}) but has no configured backfill paths.`,
+        });
+      }
+      continue;
+    }
 
-    const backfillCandidates = await db.player.findMany({
-      where: {
-        coreTeamId: { in: eligiblePathSources },
-        id: { notIn: [...assignedPlayerIds] },
-        nonRotatable: false,
-        removedAt: null,
-        active: true,
-        currentAvailability: "AVAILABLE",
-      },
-      include: {
-        coreTeam: { select: { id: true, name: true } },
-      },
-      orderBy: [{ playerCode: "asc" }],
-      take: match.team.maxSquadSize - selectedCount,
+    const shortfall = match.team.targetSquadSize - selectedCount;
+    const maxBackfill = match.team.maxSquadSize - selectedCount;
+    const devPaths = await db.rotationPath.findMany({
+      where: { active: true, role: "DEVELOPMENT", toTeamId: match.teamId },
+      select: { fromTeamId: true },
     });
+    const devSourceTeamIds = new Set(devPaths.map((p) => p.fromTeamId));
 
-    for (const candidate of backfillCandidates) {
-      if (result.selectedPlayers.length >= match.team.maxSquadSize) break;
+    const ownSupportPlayersMoved: Array<{ playerId: string; playerName: string; primaryPosition: string; coreTeamId: string; coreTeamName: string }> = [];
+    if (supportAssignments) {
+      for (const sa of supportAssignments) {
+        if (sa.toTeamId === match.teamId) continue;
+        if (assignedPlayerIds.has(sa.playerId)) continue;
+        const sameTeamMatch = matchResults.find(
+          (r) => r.matchId !== match.id && r.selectedPlayers.some((p) => p.playerId === sa.playerId),
+        );
+        if (!sameTeamMatch) {
+          const player = await db.player.findUnique({
+            where: { id: sa.playerId },
+            select: { id: true, firstName: true, lastName: true, primaryPosition: true, nonRotatable: true, active: true, currentAvailability: true, removedAt: true, coreTeam: { select: { id: true, name: true } } },
+          });
+          if (player && !player.nonRotatable && player.active && player.currentAvailability === "AVAILABLE" && !player.removedAt) {
+            ownSupportPlayersMoved.push({
+              playerId: player.id,
+              playerName: player.firstName + (player.lastName ? ` ${player.lastName}` : ""),
+              primaryPosition: player.primaryPosition,
+              coreTeamId: player.coreTeam.id,
+              coreTeamName: player.coreTeam.name,
+            });
+          }
+        }
+      }
+    }
 
-      const playerName = candidate.firstName + (candidate.lastName ? ` ${candidate.lastName}` : "");
-      assignedPlayerIds.add(candidate.id);
+    let filled = 0;
+
+    for (const candidate of ownSupportPlayersMoved) {
+      if (filled >= shortfall || filled >= maxBackfill) break;
+      if (assignedPlayerIds.has(candidate.playerId)) continue;
+
+      assignedPlayerIds.add(candidate.playerId);
+      filled++;
 
       const backfillPlayer: SelectedPlayer = {
         autoSelected: true,
         chosenPosition: candidate.primaryPosition,
-        coreTeamId: candidate.coreTeam.id,
-        coreTeamName: candidate.coreTeam.name,
+        coreTeamId: candidate.coreTeamId,
+        coreTeamName: candidate.coreTeamName,
         eligibility: true,
         explanations: [
-          { code: "backfill_from_support_loss", summary: `${playerName} was selected as backfill for ${match.team.name} after the team lost core players to support duty elsewhere.`, hardRule: false },
+          { code: "backfill_priority_1_own_support", summary: `${candidate.playerName} was selected as backfill priority 1 for ${match.team.name}: own core team player moved as support who can play both matches.`, hardRule: false },
         ],
         finalSelected: false,
         manualOverride: false,
-        playerId: candidate.id,
-        playerName,
+        playerId: candidate.playerId,
+        playerName: candidate.playerName,
         playerPosition: candidate.primaryPosition,
-        priorityScore: 70,
+        priorityScore: 90,
         selectionCategory: "BACKFILL",
-        selectionReason: `Selected as backfill for ${match.team.name} to cover players lost to support rotation.`,
+        selectionReason: `Selected as backfill priority 1 for ${match.team.name}: own core team player who was moved as support.`,
       };
 
       matchResults[resultIdx] = {
         ...matchResults[resultIdx]!,
         selectedPlayers: [...matchResults[resultIdx]!.selectedPlayers, backfillPlayer],
       };
+    }
+
+    if (filled < shortfall && filled < maxBackfill) {
+      const devSourceCandidates = await db.player.findMany({
+        where: {
+          coreTeamId: { in: eligiblePathSources.filter((id) => devSourceTeamIds.has(id)) },
+          id: { notIn: [...assignedPlayerIds] },
+          nonRotatable: false,
+          removedAt: null,
+          active: true,
+          currentAvailability: "AVAILABLE",
+        },
+        include: { coreTeam: { select: { id: true, name: true } } },
+        orderBy: [{ playerCode: "asc" }],
+      });
+
+      for (const candidate of devSourceCandidates) {
+        if (filled >= shortfall || filled >= maxBackfill) break;
+        if (assignedPlayerIds.has(candidate.id)) continue;
+
+        assignedPlayerIds.add(candidate.id);
+        filled++;
+
+        const playerName = candidate.firstName + (candidate.lastName ? ` ${candidate.lastName}` : "");
+        const backfillPlayer: SelectedPlayer = {
+          autoSelected: true,
+          chosenPosition: candidate.primaryPosition,
+          coreTeamId: candidate.coreTeam.id,
+          coreTeamName: candidate.coreTeam.name,
+          eligibility: true,
+          explanations: [
+            { code: "backfill_priority_2_development", summary: `${playerName} was selected as backfill priority 2 for ${match.team.name}: development source team player.`, hardRule: false },
+          ],
+          finalSelected: false,
+          manualOverride: false,
+          playerId: candidate.id,
+          playerName,
+          playerPosition: candidate.primaryPosition,
+          priorityScore: 80,
+          selectionCategory: "BACKFILL",
+          selectionReason: `Selected as backfill priority 2 for ${match.team.name}: development source team player.`,
+        };
+
+        matchResults[resultIdx] = {
+          ...matchResults[resultIdx]!,
+          selectedPlayers: [...matchResults[resultIdx]!.selectedPlayers, backfillPlayer],
+        };
+      }
+    }
+
+    if (filled < shortfall && filled < maxBackfill) {
+      const otherCandidates = await db.player.findMany({
+        where: {
+          coreTeamId: { in: eligiblePathSources },
+          id: { notIn: [...assignedPlayerIds] },
+          nonRotatable: false,
+          removedAt: null,
+          active: true,
+          currentAvailability: "AVAILABLE",
+        },
+        include: { coreTeam: { select: { id: true, name: true } } },
+        orderBy: [{ playerCode: "asc" }],
+      });
+
+      for (const candidate of otherCandidates) {
+        if (filled >= shortfall || filled >= maxBackfill) break;
+        if (assignedPlayerIds.has(candidate.id)) continue;
+
+        assignedPlayerIds.add(candidate.id);
+        filled++;
+
+        const playerName = candidate.firstName + (candidate.lastName ? ` ${candidate.lastName}` : "");
+        const backfillPlayer: SelectedPlayer = {
+          autoSelected: true,
+          chosenPosition: candidate.primaryPosition,
+          coreTeamId: candidate.coreTeam.id,
+          coreTeamName: candidate.coreTeam.name,
+          eligibility: true,
+          explanations: [
+            { code: "backfill_priority_3_other", summary: `${playerName} was selected as backfill priority 3 for ${match.team.name}: non-rotatable player from another team with a configured backfill path.`, hardRule: false },
+          ],
+          finalSelected: false,
+          manualOverride: false,
+          playerId: candidate.id,
+          playerName,
+          playerPosition: candidate.primaryPosition,
+          priorityScore: 70,
+          selectionCategory: "BACKFILL",
+          selectionReason: `Selected as backfill priority 3 for ${match.team.name}: non-rotatable player from configured backfill path.`,
+        };
+
+        matchResults[resultIdx] = {
+          ...matchResults[resultIdx]!,
+          selectedPlayers: [...matchResults[resultIdx]!.selectedPlayers, backfillPlayer],
+        };
+      }
+    }
+
+    const finalCount = matchResults[resultIdx]!.selectedPlayers.length;
+    if (finalCount < (match.team.minAcceptedSquadSize ?? match.team.targetSquadSize)) {
+      warnings.push({
+        code: "backfill_shortfall_after_resolution",
+        message: `${match.team.name} has only ${finalCount} player(s) after backfill resolution, below the minimum accepted squad size of ${match.team.minAcceptedSquadSize ?? match.team.targetSquadSize}.`,
+      });
+    } else if (filled > 0 && filled < shortfall) {
+      warnings.push({
+        code: "backfill_below_target",
+        message: `${match.team.name} reached ${finalCount} player(s) after backfill, below the target of ${match.team.targetSquadSize} but above the minimum.`,
+      });
     }
   }
 
