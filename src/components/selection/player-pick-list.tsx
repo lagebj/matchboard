@@ -4,9 +4,12 @@ import { formatAvailabilityStatus, formatPlayerName, getPlayerPositionSummary } 
 const roleLabels: Record<SelectionRole, string> = {
   CORE: "Core",
   DEVELOPMENT: "Development",
-  FLOAT: "Float",
-  MANUAL: "Manual",
   SUPPORT: "Support",
+  BACKFILL: "Backfill",
+  CONFIDENCE_REBUILD: "Confidence Rebuild",
+  CORE_MATCH_DROP: "Core Drop",
+  REDUCED_MATCH_LOAD_DROP: "Reduced Load Drop",
+  MANUAL_OVERRIDE: "Manual Override",
 };
 
 type PlayerGroup = {
@@ -36,10 +39,6 @@ function getSuggestedRole(
     return "CORE";
   }
 
-  if (!player.isFloating) {
-    return "MANUAL";
-  }
-
   if (supportSourceTeamIds.includes(player.coreTeamId)) {
     return "SUPPORT";
   }
@@ -48,7 +47,7 @@ function getSuggestedRole(
     return "DEVELOPMENT";
   }
 
-  return "FLOAT";
+  return "MANUAL_OVERRIDE";
 }
 
 export function PlayerPickList({

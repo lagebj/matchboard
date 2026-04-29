@@ -19,18 +19,12 @@ import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics
 
 type TeamOption = Pick<Team, "id" | "name">;
 
-type PlayerWithTeams = Player & {
-  allowedFloatTeams: Array<{
-    team: TeamOption;
-    teamId: string;
-  }>;
-  coreTeam: TeamOption;
-};
+type PlayerWithCoreTeam = Player & { coreTeam: Pick<Team, "id" | "name"> };
 
 type PlayerEditorFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   cancelHref?: string;
-  player?: PlayerWithTeams;
+  player?: PlayerWithCoreTeam;
   submitLabel: string;
   teams: TeamOption[];
 };
@@ -119,44 +113,6 @@ function SelectField({
   );
 }
 
-function FloatTeamChecklist({
-  coreTeamId,
-  selectedTeamIds,
-  teams,
-}: {
-  coreTeamId?: string;
-  selectedTeamIds: string[];
-  teams: TeamOption[];
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-zinc-100">Allowed Float Teams</p>
-      <div className="grid gap-2 md:grid-cols-2">
-        {teams
-          .filter((team) => team.id !== coreTeamId)
-          .map((team) => (
-            <label
-              key={team.id}
-              className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-2 text-sm text-zinc-100"
-            >
-              <input
-                defaultChecked={selectedTeamIds.includes(team.id)}
-                name="allowedFloatTeamIds"
-                type="checkbox"
-                value={team.id}
-              />
-              <span>{team.name}</span>
-            </label>
-          ))}
-      </div>
-      <p className="text-sm app-copy-soft">
-        Floating is explicit. Only checked teams are allowed in addition to the player&apos;s core
-        team.
-      </p>
-    </div>
-  );
-}
-
 export function PlayerEditorForm({
   action,
   cancelHref,
@@ -164,8 +120,6 @@ export function PlayerEditorForm({
   submitLabel,
   teams,
 }: PlayerEditorFormProps) {
-  const selectedFloatTeamIds = player?.allowedFloatTeams.map((entry) => entry.teamId) ?? [];
-
   return (
     <form action={action} className="flex flex-col gap-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -240,42 +194,20 @@ export function PlayerEditorForm({
         />
       </section>
 
-      <div className="grid gap-3 text-sm text-zinc-100 md:grid-cols-3">
+      <div className="grid gap-3 text-sm text-zinc-100 md:grid-cols-2">
         <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
           <input defaultChecked={player?.active ?? true} name="active" type="checkbox" />
           Active
         </label>
         <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
-          <input defaultChecked={player?.isFloating ?? false} name="isFloating" type="checkbox" />
-          Floating
+          <input defaultChecked={player?.nonRotatable ?? false} name="nonRotatable" type="checkbox" />
+          Non-rotatable
         </label>
         <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
-          <input
-            defaultChecked={player?.canDropCoreMatch ?? false}
-            name="canDropCoreMatch"
-            type="checkbox"
-          />
-          Can drop one core match
+          <input defaultChecked={player?.reducedMatchLoadAllowed ?? false} name="reducedMatchLoadAllowed" type="checkbox" />
+          Reduced match load
         </label>
       </div>
-
-      <label className="flex max-w-xs flex-col gap-1 text-sm font-medium text-zinc-100">
-        Development Match Target
-        <input
-          className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
-          defaultValue={player?.maxDevelopmentMatches ?? ""}
-          min={0}
-          name="maxDevelopmentMatches"
-          placeholder="Leave empty for no target"
-          type="number"
-        />
-      </label>
-
-      <FloatTeamChecklist
-        coreTeamId={player?.coreTeamId}
-        selectedTeamIds={selectedFloatTeamIds}
-        teams={teams}
-      />
 
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
@@ -373,7 +305,7 @@ export function PlayerEditorForm({
   );
 }
 
-export function PlayerSummaryCard({ player }: { player: PlayerWithTeams }) {
+export function PlayerSummaryCard({ player }: { player: PlayerWithCoreTeam }) {
   return (
     <section className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
       <div className="flex flex-col gap-1">
@@ -397,18 +329,8 @@ export function PlayerSummaryCard({ player }: { player: PlayerWithTeams }) {
           <p className="mt-1 text-sm text-zinc-100">{player.tertiaryPosition ?? "-"}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide app-copy-muted">Float Teams</p>
-          <p className="mt-1 text-sm text-zinc-100">
-            {player.allowedFloatTeams.length > 0
-              ? player.allowedFloatTeams.map((entry) => entry.team.name).join(", ")
-              : "None"}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide app-copy-muted">Development Target</p>
-          <p className="mt-1 text-sm text-zinc-100">
-            {player.maxDevelopmentMatches ?? "No individual target"}
-          </p>
+          <p className="text-xs uppercase tracking-wide app-copy-muted">Rotation</p>
+          <p className="mt-1 text-sm text-zinc-100">{player.nonRotatable ? "Non-rotatable" : "Eligible"}</p>
         </div>
       </div>
     </section>

@@ -50,8 +50,8 @@ function formatSavedMessage(saved?: string): string | null {
   return null;
 }
 
-function formatRoleCount(history: Array<{ roleType: SelectionRole }>, roleType: SelectionRole): number {
-  return history.filter((entry) => entry.roleType === roleType).length;
+function formatRoleCount(history: Array<{ role: SelectionRole }>, roleType: SelectionRole): number {
+  return history.filter((entry) => entry.role === roleType).length;
 }
 
 function SnapshotCard({ label, value }: SnapshotCardProps) {
@@ -75,7 +75,7 @@ function RoleBreakdownCard({ count, label }: RoleBreakdownCardProps) {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw] = await Promise.all([
     db.player.findFirst({
       where: {
         id: playerId,
@@ -86,21 +86,6 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
           select: {
             id: true,
             name: true,
-          },
-        },
-        allowedFloatTeams: {
-          include: {
-            team: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            team: {
-              name: "asc",
-            },
           },
         },
       },
@@ -135,51 +120,23 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         { playerCode: "asc" },
       ],
     }),
-    db.matchSelectionPlayer.findMany({
-      where: {
-        playerId,
-        wasManuallyRemoved: false,
-        selection: {
-          status: SelectionStatus.FINALIZED,
-        },
-      },
-      select: {
-        id: true,
-        roleType: true,
-        targetTeamNameSnapshot: true,
-        selection: {
-          select: {
-            match: {
-              select: {
-                id: true,
-                opponent: true,
-                startsAt: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: [
-        {
-          selection: {
-            match: {
-              startsAt: "desc",
-            },
-          },
-        },
-      ],
+    db.selection.findMany({
+      where: { playerId, status: SelectionStatus.FINALIZED },
+      select: { id: true, role: true, match: { select: { id: true, opponent: true, startsAt: true } } },
+      orderBy: [{ match: { startsAt: "desc" } }],
     }),
-    db.matchSelection.findMany({
+    db.selection.findMany({
+      where: { playerId },
       select: {
         createdAt: true,
-        finalizedAt: true,
+
         id: true,
         match: {
           select: {
             id: true,
             opponent: true,
             startsAt: true,
-            targetTeam: {
+            team: {
               select: {
                 name: true,
               },
@@ -187,28 +144,50 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
           },
         },
         matchId: true,
-        players: {
-          where: {
-            playerId,
-            wasManuallyRemoved: false,
-          },
+        player: {
           select: {
-            explanation: true,
-            roleType: true,
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
+        role: true,
         status: true,
       },
       orderBy: [
         {
           createdAt: "desc",
         },
-        {
-          finalizedAt: "desc",
-        },
       ],
     }),
+    db.movementLedger.findMany({
+      where: { playerId },
+      include: {
+        match: { select: { id: true, opponent: true, startsAt: true, team: { select: { id: true, name: true } } } },
+        fromTeam: { select: { id: true, name: true } },
+        toTeam: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 20,
+    }),
+    db.selection.findMany({
+      where: { playerId },
+      select: {
+        id: true,
+        role: true,
+        explanation: true,
+        overrideReason: true,
+        match: { select: { id: true, opponent: true, startsAt: true, team: { select: { name: true } } } },
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 20,
+    }),
   ]);
+
+  const recentExplanations = recentExplanationsRaw.filter(
+    (sel) => sel.explanation !== null || sel.overrideReason !== null,
+  ).slice(0, 10);
 
   if (!player) {
     notFound();
@@ -229,14 +208,12 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   const totalFinalizedAppearances = finalizedHistory.length;
   const totalFloatingAppearances = finalizedHistory.filter((entry) =>
-    isFloatingSelectionRole(entry.roleType),
+    isFloatingSelectionRole(entry.role),
   ).length;
   const coreAppearances = formatRoleCount(finalizedHistory, SelectionRole.CORE);
   const supportAppearances = formatRoleCount(finalizedHistory, SelectionRole.SUPPORT);
   const developmentAppearances = formatRoleCount(finalizedHistory, SelectionRole.DEVELOPMENT);
-  const floatAppearances = formatRoleCount(finalizedHistory, SelectionRole.FLOAT);
   const lastFinalizedAppearance = finalizedHistory[0] ?? null;
-  const availableFloatTeams = player.allowedFloatTeams.map((entry) => entry.team.name).join(", ");
   const savedInvolvement = getPlayerSelectionInvolvement(savedInvolvementSnapshots);
   const draftInvolvement = savedInvolvement
     .filter((entry) => entry.status === SelectionStatus.DRAFT)
@@ -250,8 +227,8 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
     nextFixture === null
       ? "No current saved assignment exists for this player."
       : nextFixture.status === SelectionStatus.DRAFT
-        ? `Next saved touchpoint is a draft on ${formatDate(nextFixture.matchStartsAt)} for ${nextFixture.targetTeamName}.`
-        : `Latest locked touchpoint is ${formatDate(nextFixture.matchStartsAt)} for ${nextFixture.targetTeamName}.`;
+        ? `Next saved touchpoint is a draft on ${formatDate(nextFixture.matchStartsAt)} for ${nextFixture.teamName}.`
+        : `Latest locked touchpoint is ${formatDate(nextFixture.matchStartsAt)} for ${nextFixture.teamName}.`;
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
@@ -343,16 +320,20 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                   value={`${formatPreferredFoot(player.preferredFoot)} / ${formatSecondaryFoot(player.secondaryFoot)} / ${formatBestSide(player.bestSide)}`}
                 />
                 <SnapshotCard
-                  label="Floating eligibility"
-                  value={
-                    player.isFloating
-                      ? availableFloatTeams || "Floating enabled with no extra teams configured"
-                      : "Core team only"
-                  }
+                  label="Rotation eligibility"
+                  value={player.nonRotatable ? "Non-rotatable" : "Eligible for rotation"}
                 />
                 <SnapshotCard
-                  label="Special flags"
-                  value={`${player.canDropCoreMatch ? "Can drop one core match" : "No core-match drop"}${player.maxDevelopmentMatches !== null ? ` · Dev target ${player.maxDevelopmentMatches}` : " · No development target"}`}
+                  label="Planning flags"
+                  value={(() => {
+                    const flags: string[] = [];
+                    if (player.nonRotatable) flags.push("Non-rotatable");
+                    if (player.reducedMatchLoadAllowed) flags.push("Reduced load");
+                    if (player.supportNoShowCount > 0) flags.push(player.supportNoShowCount + " no-show(s)");
+                    if (player.supportSuitability && player.supportSuitability !== "neutral") flags.push("Support " + player.supportSuitability);
+                    if (player.developmentReadiness && player.developmentReadiness !== "neutral") flags.push("Dev " + player.developmentReadiness);
+                    return flags.length > 0 ? flags.join(" · ") : "No special flags";
+                  })()}
                 />
               </div>
             </div>
@@ -370,6 +351,79 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             {formatSavedMessage(saved)}
           </div>
         ) : null}
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <section className="app-panel rounded-[1.6rem] p-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Availability
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Current status and history</h2>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <p className="text-sm font-semibold text-zinc-100">Current availability</p>
+                <p className="mt-2 text-sm app-copy-soft">
+                  {formatAvailabilityStatus(player.currentAvailability)}
+                </p>
+              </div>
+              <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <p className="text-sm font-semibold text-zinc-100">Registry status</p>
+                <p className="mt-2 text-sm app-copy-soft">
+                  {player.active ? "Active" : "Inactive"}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="app-panel rounded-[1.6rem] p-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Rotation Status
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Active restrictions and planning badges</h2>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3">
+              {player.nonRotatable && (
+                <div className="rounded-[1.4rem] border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] p-4">
+                  <p className="text-sm font-semibold text-zinc-100">Non-rotatable</p>
+                  <p className="mt-1 text-sm app-copy-soft">This player cannot be rotated out of core matches.</p>
+                </div>
+              )}
+              {player.reducedMatchLoadAllowed && (
+                <div className="rounded-[1.4rem] border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] p-4">
+                  <p className="text-sm font-semibold text-zinc-100">Reduced match load</p>
+                  <p className="mt-1 text-sm app-copy-soft">This player may be dropped for load management.</p>
+                </div>
+              )}
+              {player.supportSuitability && player.supportSuitability !== "neutral" && (
+                <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                  <p className="text-sm font-semibold text-zinc-100">Support suitability: {player.supportSuitability}</p>
+                  <p className="mt-1 text-sm app-copy-soft">Rating for support role assignments.</p>
+                </div>
+              )}
+              {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
+                <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                  <p className="text-sm font-semibold text-zinc-100">Development readiness: {player.developmentReadiness}</p>
+                  <p className="mt-1 text-sm app-copy-soft">Rating for development exposure assignments.</p>
+                </div>
+              )}
+              {player.supportNoShowCount > 0 && (
+                <div className="rounded-[1.4rem] border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] p-4">
+                  <p className="text-sm font-semibold text-zinc-100">Support no-shows: {player.supportNoShowCount}</p>
+                  <p className="mt-1 text-sm app-copy-soft">Previous instances of being selected for support but not attending.</p>
+                </div>
+              )}
+              {!player.nonRotatable && !player.reducedMatchLoadAllowed && (!player.supportSuitability || player.supportSuitability === "neutral") && (!player.developmentReadiness || player.developmentReadiness === "neutral") && player.supportNoShowCount === 0 && (
+                <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                  <p className="text-sm app-copy-soft">No active restrictions or planning badges.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <section className="app-panel rounded-[1.6rem] p-5">
@@ -437,9 +491,9 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                 </div>
                 {involvementPreview.length > 0 ? (
                   <div className="mt-3 flex max-h-[34rem] flex-col gap-3 overflow-y-auto pr-1">
-                    {involvementPreview.map((entry) => (
+                    {involvementPreview.map((entry, index) => (
                       <div
-                        key={`${entry.matchId}-${entry.selectionCreatedAt.toISOString()}`}
+                        key={`${index}-${entry.matchId}-${entry.role}`}
                         className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -447,7 +501,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                             className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
                             href={`/selection/${entry.matchId}`}
                           >
-                            {formatDate(entry.matchStartsAt)} · {entry.targetTeamName}
+                            {formatDate(entry.matchStartsAt)} · {entry.teamName}
                           </Link>
                           <span
                             className={`rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
@@ -460,7 +514,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                           </span>
                         </div>
                         <p className="mt-1 text-sm app-copy-soft">
-                          {entry.opponent} · {formatSelectionRole(entry.roleType)}
+                          {entry.opponent} · {formatSelectionRole(entry.role)}
                         </p>
                         {entry.explanation ? (
                           <p className="mt-2 text-sm app-copy-soft">{entry.explanation}</p>
@@ -480,7 +534,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                 <p className="mt-2 text-sm app-copy-soft">
                   {totalFinalizedAppearances} finalized appearance{totalFinalizedAppearances === 1 ? "" : "s"} ·{" "}
                   {coreAppearances} core · {supportAppearances} support · {developmentAppearances} development ·{" "}
-                  {floatAppearances} float.
+                  {totalFloatingAppearances} float.
                 </p>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -488,7 +542,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                     label="Latest locked match"
                     value={
                       lastFinalizedAppearance
-                        ? `${formatDate(lastFinalizedAppearance.selection.match.startsAt)} · ${lastFinalizedAppearance.targetTeamNameSnapshot}`
+                        ? `${formatDate(lastFinalizedAppearance.match.startsAt)} · ${lastFinalizedAppearance.match.opponent}`
                         : "No finalized appearance history yet"
                     }
                   />
@@ -505,6 +559,108 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             </div>
 
           </section>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <section className="app-panel rounded-[1.6rem] p-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Explanations
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Why this player was selected or dropped</h2>
+              <p className="mt-2 text-sm app-copy-soft">Per-selection explanations and override reasons for this player.</p>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3">
+              {recentExplanations.length > 0 ? (
+                recentExplanations.map((sel) => (
+                  <div key={sel.id} className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Link
+                        className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
+                        href={`/selection/${sel.match.id}`}
+                      >
+                        {formatDate(sel.match.startsAt)} · {sel.match.team.name} vs. {sel.match.opponent}
+                      </Link>
+                      <span className="rounded-full border app-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                        {formatSelectionRole(sel.role)}
+                      </span>
+                    </div>
+                    {sel.explanation && (
+                      <p className="mt-2 text-sm app-copy-soft">{typeof sel.explanation === "string" ? sel.explanation : JSON.stringify(sel.explanation)}</p>
+                    )}
+                    {sel.overrideReason && (
+                      <p className="mt-1 text-xs text-[var(--warning)]">
+                        Override: {sel.overrideReason}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm app-copy-soft">
+                  No selection explanations recorded for this player yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="app-panel rounded-[1.6rem] p-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+                Movement History
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Cross-team movement ledger</h2>
+              <p className="mt-2 text-sm app-copy-soft">Shows when and why this player moved between teams for support, backfill, or development.</p>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3">
+              {movementHistory.length > 0 ? (
+                movementHistory.map((entry) => (
+                  <div key={entry.id} className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Link
+                        className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
+                        href={`/selection/${entry.matchId}`}
+                      >
+                        {formatDate(entry.match.startsAt)} · {entry.match.team.name} vs. {entry.match.opponent}
+                      </Link>
+                      <span className="rounded-full border app-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                        {formatSelectionRole(entry.role)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm app-copy-soft">
+                      {entry.reason ?? "No reason recorded"}
+                    </p>
+                    <p className="mt-1 text-xs app-copy-muted">
+                      {entry.fromTeam.name} → {entry.toTeam.name}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm app-copy-soft">
+                  No cross-team movement recorded for this player yet.
+                </div>
+              )}
+            </div>
+          </section>
+        </section>
+
+        <section className="app-panel rounded-[1.6rem] p-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Coach Notes
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Internal notes</h2>
+            <p className="mt-2 text-sm app-copy-soft">Coach-visible internal notes about this player. These notes are not included in parent or player exports.</p>
+          </div>
+
+          <div className="mt-5 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+            {player.notes ? (
+              <p className="text-sm text-zinc-100 whitespace-pre-wrap">{player.notes}</p>
+            ) : (
+              <p className="text-sm app-copy-soft">No internal notes recorded for this player. Add notes through the Edit Lane below.</p>
+            )}
+          </div>
         </section>
 
         <section className="app-panel-raised rounded-[1.6rem] p-5">
@@ -543,7 +699,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             </p>
             <h2 className="mt-2 text-xl font-semibold text-zinc-50">Edit player record</h2>
             <p className="mt-1 text-sm app-copy-soft">
-              Update the profile, availability, floating setup, and ratings here.
+              Update the profile, availability, rotation settings, and ratings here.
             </p>
           </div>
 

@@ -17,18 +17,25 @@ type TeamOption = {
 
 type TeamRow = {
   activeCorePlayers: number;
-  activeFloatLinks: number;
   developmentSlots: number;
   developmentSourceTeamIds: string[];
   developmentSourceTeamNames: string[];
   id: string;
   matches: number;
+  maxSquadSize: number;
+  minAcceptedSquadSize: number;
+  minCorePlayers: number;
+  minSupportCount: number;
   minSupportPlayers: number;
   name: string;
   removeAction: () => Promise<void>;
   saveAction: (formData: FormData) => Promise<void>;
+  supportPriority: number;
   supportSourceTeamIds: string[];
   supportSourceTeamNames: string[];
+  targetSquadSize: number;
+  targetSupportCount: number;
+  maxSupportCount: number;
 };
 
 function TeamSourceChecklist({
@@ -100,10 +107,6 @@ export function TeamTable({
       return applySortDirection(compareNumber(left.activeCorePlayers, right.activeCorePlayers), sortDirection);
     }
 
-    if (sortKey === "floatLinks") {
-      return applySortDirection(compareNumber(left.activeFloatLinks, right.activeFloatLinks), sortDirection);
-    }
-
     if (sortKey === "matches") {
       return applySortDirection(compareNumber(left.matches, right.matches), sortDirection);
     }
@@ -125,8 +128,8 @@ export function TeamTable({
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
-        <table className="w-full min-w-[1360px] border-collapse text-left text-sm">
+      <div className="overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
+        <table className="w-full min-w-[1540px] border-collapse text-left text-sm">
           <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
             <tr>
               <SortableHeader
@@ -138,19 +141,13 @@ export function TeamTable({
               />
               <th className="px-4 py-3 font-semibold">Support Setup</th>
               <th className="px-4 py-3 font-semibold">Development Setup</th>
+              <th className="px-4 py-3 font-semibold">Squad Limits</th>
               <SortableHeader
                 activeKey={sortKey}
                 direction={sortDirection}
                 label="Players"
                 onSort={updateSort}
                 sortKey="players"
-              />
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Float Links"
-                onSort={updateSort}
-                sortKey="floatLinks"
               />
               <SortableHeader
                 activeKey={sortKey}
@@ -166,7 +163,6 @@ export function TeamTable({
             {sortedTeams.map((team) => {
               const isInUse =
                 team.activeCorePlayers > 0 ||
-                team.activeFloatLinks > 0 ||
                 team.matches > 0 ||
                 team.supportSourceTeamIds.length > 0 ||
                 team.developmentSourceTeamIds.length > 0;
@@ -178,9 +174,21 @@ export function TeamTable({
                   <td className="px-4 py-3 font-medium text-zinc-50">
                     <form action={team.saveAction} id={formId} />
                     <div className="flex flex-col gap-1">
-                      <span>{team.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span>{team.name}</span>
+                        <button
+                          className="shrink-0 rounded-full border app-hairline px-3 py-1 text-[11px] font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
+                          form={formId}
+                          type="submit"
+                        >
+                          Save
+                        </button>
+                      </div>
                       <span className="text-xs app-copy-muted">
-                        Current support sources:{" "}
+                        Squad: {team.activeCorePlayers}/{team.targetSquadSize} · Min accepted: {team.minAcceptedSquadSize} · Max: {team.maxSquadSize}
+                      </span>
+                      <span className="text-xs app-copy-muted">
+                        Support sources:{" "}
                         {team.supportSourceTeamNames.length > 0
                           ? team.supportSourceTeamNames.join(", ")
                           : "None"}
@@ -201,6 +209,56 @@ export function TeamTable({
                           type="number"
                         />
                       </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Min Support Count
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.minSupportCount}
+                            form={formId}
+                            min={0}
+                            name="minSupportCount"
+                            required
+                            type="number"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Target Support
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.targetSupportCount}
+                            form={formId}
+                            min={0}
+                            name="targetSupportCount"
+                            required
+                            type="number"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Max Support
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.maxSupportCount}
+                            form={formId}
+                            min={0}
+                            name="maxSupportCount"
+                            required
+                            type="number"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Priority
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.supportPriority}
+                            form={formId}
+                            min={0}
+                            name="supportPriority"
+                            required
+                            type="number"
+                          />
+                        </label>
+                      </div>
                       <div className="flex flex-col gap-2">
                         <p className="text-xs font-semibold uppercase tracking-wide app-copy-muted">
                           Allowed Support Teams
@@ -239,18 +297,64 @@ export function TeamTable({
                       />
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex max-w-sm flex-col gap-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Target Squad
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.targetSquadSize}
+                            form={formId}
+                            min={1}
+                            name="targetSquadSize"
+                            required
+                            type="number"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Min Accepted
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.minAcceptedSquadSize}
+                            form={formId}
+                            min={1}
+                            name="minAcceptedSquadSize"
+                            required
+                            type="number"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Max Squad
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.maxSquadSize}
+                            form={formId}
+                            min={1}
+                            name="maxSquadSize"
+                            required
+                            type="number"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide app-copy-muted">
+                          Min Core
+                          <input
+                            className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 text-sm font-normal text-zinc-50"
+                            defaultValue={team.minCorePlayers}
+                            form={formId}
+                            min={0}
+                            name="minCorePlayers"
+                            required
+                            type="number"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-zinc-100">{team.activeCorePlayers}</td>
-                  <td className="px-4 py-3 app-copy-soft">{team.activeFloatLinks}</td>
                   <td className="px-4 py-3 app-copy-soft">{team.matches}</td>
                   <td className="px-4 py-3">
                     <div className="flex max-w-xs flex-col gap-2">
-                      <button
-                        className="h-9 rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                        form={formId}
-                        type="submit"
-                      >
-                        Save setup
-                      </button>
                       <form action={team.removeAction}>
                         <button
                           className="h-9 w-full rounded-full border border-[rgba(185,128,119,0.3)] px-3 text-sm font-medium text-[var(--danger)] hover:bg-[rgba(185,128,119,0.08)] disabled:cursor-not-allowed disabled:border-[rgba(202,209,219,0.14)] disabled:text-[var(--text-muted)]"
@@ -262,7 +366,7 @@ export function TeamTable({
                       </form>
                       {isInUse ? (
                         <p className="text-xs leading-5 app-copy-muted">
-                          Remove active players, active float links, support/development links, and matches that reference this team before deleting it.
+                          Remove active players, support/development links, and matches that reference this team before deleting it.
                         </p>
                       ) : (
                         <p className="text-xs app-copy-muted">Unused teams can be removed.</p>
@@ -275,7 +379,7 @@ export function TeamTable({
 
             {sortedTeams.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={7}>
+                <td className="px-4 py-10 text-center app-copy-muted" colSpan={8}>
                   No teams in the registry yet.
                 </td>
               </tr>

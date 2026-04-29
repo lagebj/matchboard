@@ -1,18 +1,19 @@
 import type { Player, Team } from "@/generated/prisma/client";
 
-type EligibilityPlayer = Pick<Player, "coreTeamId" | "isFloating"> & {
-  allowedFloatTeams: Array<{
-    team: Pick<Team, "id" | "name">;
-    teamId: string;
-  }>;
+type EligibilityPlayer = Pick<Player, "coreTeamId" | "nonRotatable"> & {
   coreTeam: Pick<Team, "id" | "name">;
+};
+
+type PathDestination = {
+  toTeamId: string;
+  role: string;
 };
 
 export type TargetTeamEligibility =
   | {
       allowed: true;
       explanation: string;
-      selectionCategory: "CORE" | "FLOAT";
+      selectionCategory: "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD";
     }
   | {
       allowed: false;
@@ -22,6 +23,7 @@ export type TargetTeamEligibility =
 export function getTargetTeamEligibility(
   player: EligibilityPlayer,
   targetTeam: Pick<Team, "id" | "name">,
+  pathDestinations?: PathDestination[],
 ): TargetTeamEligibility {
   if (player.coreTeamId === targetTeam.id) {
     return {
@@ -31,25 +33,39 @@ export function getTargetTeamEligibility(
     };
   }
 
-  if (!player.isFloating) {
+  if (player.nonRotatable) {
     return {
       allowed: false,
-      explanation: `Excluded because ${player.coreTeam.name} players only move between teams when marked as floating.`,
+      explanation: `Excluded because ${player.coreTeam.name} players can only move between teams when not marked as non-rotatable.`,
     };
   }
 
-  const allowedFloatTeam = player.allowedFloatTeams.find((entry) => entry.teamId === targetTeam.id);
-
-  if (!allowedFloatTeam) {
+  if (!pathDestinations || pathDestinations.length === 0) {
     return {
       allowed: false,
-      explanation: `Excluded because ${player.coreTeam.name} is not marked to float to ${targetTeam.name}.`,
+      explanation: `Excluded because no rotation path allows ${player.coreTeam.name} players to move to ${targetTeam.name}.`,
     };
   }
+
+  const matchingPath = pathDestinations.find(
+    (path) => path.toTeamId === targetTeam.id,
+  );
+
+  if (!matchingPath) {
+    return {
+      allowed: false,
+      explanation: `Excluded because no rotation path allows movement from ${player.coreTeam.name} to ${targetTeam.name}.`,
+    };
+  }
+
+  const pathRole = matchingPath.role as "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD";
 
   return {
     allowed: true,
-    explanation: `Eligible to float from ${player.coreTeam.name} to ${targetTeam.name}.`,
-    selectionCategory: "FLOAT",
+    explanation: `Eligible to move from ${player.coreTeam.name} to ${targetTeam.name} via ${pathRole.toLowerCase()} path.`,
+    selectionCategory: pathRole === "SUPPORT" ? "SUPPORT"
+      : pathRole === "DEVELOPMENT" ? "DEVELOPMENT"
+      : pathRole === "CONFIDENCE_REBUILD" ? "CONFIDENCE_REBUILD"
+      : "BACKFILL",
   };
 }

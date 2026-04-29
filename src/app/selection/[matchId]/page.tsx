@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { SelectionBuilder } from "@/components/selection/selection-builder";
+import { LockToggleForm } from "@/components/matchday/lock-toggle-form";
 import { db } from "@/lib/db";
 import { isInSameWeek } from "@/lib/date-utils";
+import { formatPlayerName } from "@/lib/player-metrics";
 import { generateSelection } from "@/lib/selection/generate-selection";
 import { getLatestSelectionSnapshotByMatchId } from "@/lib/selection/get-latest-selection-snapshots";
 import { getWeeklyPlayerCoverage } from "@/lib/selection/get-weekly-player-coverage";
@@ -47,7 +49,7 @@ export default async function SelectionPage({
   const match = await db.match.findUnique({
     where: { id: matchId },
     include: {
-      targetTeam: {
+      team: {
         select: {
           developmentTargetRelationships: {
             include: {
@@ -84,23 +86,13 @@ export default async function SelectionPage({
 
   const shouldShowGeneratedSelection = generated === "1";
 
-  const [players, teams, latestSelection, orderedMatches, selectionSnapshots] = await Promise.all([
+  const [players, teams, latestSelections, orderedMatches, allSelections, playerLocks] = await Promise.all([
     db.player.findMany({
       where: {
         active: true,
         removedAt: null,
       },
       include: {
-        allowedFloatTeams: {
-          include: {
-            team: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
         coreTeam: {
           select: {
             id: true,
@@ -131,34 +123,14 @@ export default async function SelectionPage({
         name: "asc",
       },
     }),
-    db.matchSelection.findFirst({
-      where: {
-        matchId: match.id,
-      },
-      include: {
-        players: {
-          include: {
-            player: {
-              include: {
-                coreTeam: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: [
-        { createdAt: "desc" },
-        { finalizedAt: "desc" },
-      ],
+    db.selection.findMany({
+      where: { matchId: match.id },
+      include: { player: { include: { coreTeam: { select: { id: true, name: true } } } } },
+      orderBy: [{ createdAt: "desc" }],
     }),
     db.match.findMany({
       include: {
-        targetTeam: {
+        team: {
           select: {
             id: true,
             name: true,
@@ -170,21 +142,22 @@ export default async function SelectionPage({
         { createdAt: "desc" },
       ],
     }),
-    db.matchSelection.findMany({
+    db.selection.findMany({
+      include: { player: true },
+      orderBy: [{ createdAt: "desc" }],
+    }),
+    db.playerLock.findMany({
+      where: {
+        matchRoundId: match.matchRoundId,
+      },
       include: {
-        players: {
-          where: {
-            wasManuallyRemoved: false,
-          },
+        player: {
           select: {
-            playerId: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
-      orderBy: [
-        { createdAt: "desc" },
-        { finalizedAt: "desc" },
-      ],
     }),
   ]);
 
@@ -211,6 +184,14 @@ export default async function SelectionPage({
     team,
     players: players.filter((player) => player.coreTeamId === team.id),
   }));
+
+  const selectionSnapshots = allSelections.map((s) => ({
+    createdAt: s.createdAt,
+    id: s.id,
+    matchId: s.matchId,
+    status: s.status,
+    updatedAt: s.updatedAt,
+  }));
   const latestSelectionSnapshotByMatchId = getLatestSelectionSnapshotByMatchId(selectionSnapshots);
 
   const matchOrder = orderedMatches.map((entry) => entry.id);
@@ -229,16 +210,30 @@ export default async function SelectionPage({
         latestSelectionSnapshotByMatchId.get(registeredMatch.id)?.status ?? null,
       opponent: registeredMatch.opponent,
       startsAt: registeredMatch.startsAt,
-      targetTeam: registeredMatch.targetTeam,
+      team: registeredMatch.team,
     }));
+
+  const matchSelectionsByMatchId = new Map<string, typeof allSelections>();
+  for (const selection of allSelections) {
+    const existing = matchSelectionsByMatchId.get(selection.matchId) ?? [];
+    existing.push(selection);
+    matchSelectionsByMatchId.set(selection.matchId, existing);
+  }
+
   const selectedPlayerIdsByMatchId = new Map<string, string[]>(
-    [...latestSelectionSnapshotByMatchId.entries()].map(([savedMatchId, selectionSnapshot]) => [
-      savedMatchId,
-      selectionSnapshot.players.map((player) => player.playerId),
-    ]),
+    [...matchSelectionsByMatchId.entries()].map(([savedMatchId, matchSels]) => {
+      const explanationRows = matchSels.filter((s) => {
+        const e = (s.explanation ?? {}) as Record<string, unknown>;
+        return e.manuallyRemoved !== true;
+      });
+      return [
+        savedMatchId,
+        [...new Set(explanationRows.map((s) => s.playerId))],
+      ];
+    }),
   );
 
-  if (!latestSelection && generatedSelection) {
+  if (latestSelections.length === 0 && generatedSelection) {
     selectedPlayerIdsByMatchId.set(
       match.id,
       generatedSelection.selectedPlayers.map((player) => player.playerId),
@@ -250,7 +245,7 @@ export default async function SelectionPage({
     sameWeekMatches.map((sameWeekMatch) => ({
       id: sameWeekMatch.id,
       opponent: sameWeekMatch.opponent,
-      targetTeam: sameWeekMatch.targetTeam,
+      team: sameWeekMatch.team,
     })),
     selectedPlayerIdsByMatchId,
   );
@@ -261,12 +256,45 @@ export default async function SelectionPage({
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
       <div className="flex flex-col gap-8">
+        {playerLocks.length > 0 && (
+          <section className="app-panel rounded-[1.4rem] p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Player Locks
+            </p>
+            <p className="mt-1 text-sm app-copy-soft">
+              Locked players affect the generated suggestion. Locked-out players are excluded. Locked-in players are always included.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {playerLocks.map((lock) => (
+                <div key={lock.id} className="flex items-center justify-between gap-3 rounded-xl border app-hairline bg-[rgba(0,0,0,0.12)] px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-full bg-[rgba(140,167,146,0.2)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                      {lock.lockType === "LOCKED_IN" ? "Locked in" : "Locked out"}
+                    </span>
+                    <span className="text-sm font-medium text-zinc-100">
+                      {lock.player.firstName}{lock.player.lastName ? ` ${lock.player.lastName}` : ""}
+                    </span>
+                    {lock.reason && (
+                      <span className="text-xs app-copy-soft">&mdash; {lock.reason}</span>
+                    )}
+                  </div>
+                  <LockToggleForm
+                    lockId={lock.id}
+                    matchRoundId={match.matchRoundId}
+                    playerId={lock.playerId}
+                    currentLockType={lock.lockType as "LOCKED_IN" | "LOCKED_OUT"}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <SelectionBuilder
           acceptedGenerated={accepted === "generated"}
           errorMessage={generatedErrorMessage}
           generatedSelection={generatedSelection}
           groupedPlayers={groupedPlayers}
-          latestSelection={latestSelection}
+          latestSelections={latestSelections}
           match={match}
           nextMatchId={nextMatchId}
           previousMatchId={previousMatchId}

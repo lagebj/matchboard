@@ -2,6 +2,8 @@ import {
   AvailabilityStatus,
   BestSide,
   FootPreference,
+  GameFormat,
+  MatchType,
   MatchVenue,
   SecondaryFoot,
 } from "@/generated/prisma/client";
@@ -48,15 +50,14 @@ export const optionalPlayerPositionOptions = [
   ...playerPositionOptions,
 ] as const;
 
-export const matchTypeValues = ["League", "Friendly", "Cup", "Development"] as const;
+export const matchTypeValues = [MatchType.LEAGUE, MatchType.FRIENDLY, MatchType.CUP, MatchType.DEVELOPMENT] as const;
 
-export const matchTypeOptions = matchTypeValues.map((matchType) => ({
-  label: matchType,
-  value: matchType,
-})) as ReadonlyArray<{
-  label: string;
-  value: (typeof matchTypeValues)[number];
-}>;
+export const matchTypeOptions = [
+  { label: "League", value: MatchType.LEAGUE },
+  { label: "Friendly", value: MatchType.FRIENDLY },
+  { label: "Cup", value: MatchType.CUP },
+  { label: "Development", value: MatchType.DEVELOPMENT },
+] as const;
 
 export const matchVenueOptions = [
   { label: "Home", value: MatchVenue.HOME },

@@ -1,12 +1,13 @@
 export type SelectionSnapshot = {
   createdAt: Date;
-  finalizedAt: Date | null;
   id: string;
   matchId: string;
+  status: string;
+  updatedAt: Date;
 };
 
-function getFinalizedTimeValue(finalizedAt: Date | null): number {
-  return finalizedAt ? finalizedAt.getTime() : Number.NEGATIVE_INFINITY;
+function getFinalizedTimeValue(updatedAt: Date, status: string): number {
+  return status === "FINALIZED" ? updatedAt.getTime() : Number.NEGATIVE_INFINITY;
 }
 
 export function compareSelectionSnapshotRecency<T extends SelectionSnapshot>(left: T, right: T): number {
@@ -17,7 +18,7 @@ export function compareSelectionSnapshotRecency<T extends SelectionSnapshot>(lef
   }
 
   const finalizedAtDifference =
-    getFinalizedTimeValue(right.finalizedAt) - getFinalizedTimeValue(left.finalizedAt);
+    getFinalizedTimeValue(right.updatedAt, right.status) - getFinalizedTimeValue(left.updatedAt, left.status);
 
   if (finalizedAtDifference !== 0) {
     return finalizedAtDifference;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Match, MatchSelection, MatchSelectionPlayer, Player, SelectionRole, SelectionStatus, Team } from "@/generated/prisma/client";
+import type { Match, Selection, Player, SelectionRole, SelectionStatus, Team } from "@/generated/prisma/client";
 import {
   acceptGeneratedSelectionAction,
   generateSuggestedSelectionAction,
@@ -29,18 +29,14 @@ type PlayerGroup = {
   team: Pick<Team, "id" | "name">;
 };
 
-type SelectionWithPlayers = MatchSelection & {
-  players: Array<
-    MatchSelectionPlayer & {
-      player: Player & {
-        coreTeam: Pick<Team, "id" | "name">;
-      };
-    }
-  >;
+type SelectionWithPlayer = Selection & {
+  player: Player & {
+    coreTeam: Pick<Team, "id" | "name">;
+  };
 };
 
 type MatchWithTeam = Match & {
-  targetTeam: Pick<Team, "developmentSlots" | "id" | "minSupportPlayers" | "name"> & {
+  team: Pick<Team, "developmentSlots" | "id" | "minSupportPlayers" | "name"> & {
     developmentTargetRelationships: Array<{
       sourceTeam: Pick<Team, "id" | "name">;
     }>;
@@ -50,13 +46,23 @@ type MatchWithTeam = Match & {
   };
 };
 
+type SelectionExplanation = {
+  autoSelected?: boolean;
+  chosenPosition?: string | null;
+  manuallyAdded?: boolean;
+  manuallyRemoved?: boolean;
+  sourceTeamName?: string;
+  summary?: string;
+  targetTeamName?: string;
+};
+
 type SelectionBuilderProps = {
   acceptedGenerated: boolean;
   errorMessage?: string;
   generatedSelection: GeneratedSelection | null;
   groupedPlayers: PlayerGroup[];
   isWeekFullyFinalized: boolean;
-  latestSelection: SelectionWithPlayers | null;
+  latestSelections: SelectionWithPlayer[];
   match: MatchWithTeam;
   nextMatchId: string | null;
   previousMatchId: string | null;
@@ -68,7 +74,7 @@ type SelectionBuilderProps = {
     latestSelectionStatus: SelectionStatus | null;
     opponent: string;
     startsAt: Date;
-    targetTeam: Pick<Team, "id" | "name">;
+    team: Pick<Team, "id" | "name">;
   }>;
   selectionAnalysis: GeneratedSelection | null;
   weeklyCoverage: WeeklyCoverageRow[];
@@ -184,43 +190,47 @@ function buildSavedOmissionExplanation(
   return "Omitted from the current saved selection without a saved removal note, and the app could not map a more specific automatic omission reason for this player.";
 }
 
-function formatSelectionTrace(player: {
-  wasAutoSelected: boolean;
-  wasManuallyAdded?: boolean;
-  wasManuallyRemoved?: boolean;
-}): string {
-  if (player.wasManuallyRemoved) {
+function formatSelectionTrace(player: SelectionWithPlayer): string {
+  const explanation = (player.explanation ?? {}) as SelectionExplanation;
+
+  if (explanation.manuallyRemoved) {
     return "Manually removed";
   }
 
-  if (player.wasAutoSelected && !player.wasManuallyAdded) {
+  if (explanation.autoSelected && !explanation.manuallyAdded) {
     return "Auto-generated";
   }
 
-  if (player.wasManuallyAdded) {
+  if (explanation.manuallyAdded) {
     return "Manually added";
   }
 
   return "Manual";
 }
 
-function getActiveSavedPlayers(latestSelection: SelectionWithPlayers | null) {
-  return latestSelection?.players.filter((player) => !player.wasManuallyRemoved) ?? [];
+function getActiveSavedPlayers(latestSelections: SelectionWithPlayer[]) {
+  return latestSelections.filter((player) => {
+    const explanation = (player.explanation ?? {}) as SelectionExplanation;
+    return !explanation.manuallyRemoved;
+  });
 }
 
-function getRemovedSavedPlayers(latestSelection: SelectionWithPlayers | null) {
-  return latestSelection?.players.filter((player) => player.wasManuallyRemoved) ?? [];
+function getRemovedSavedPlayers(latestSelections: SelectionWithPlayer[]) {
+  return latestSelections.filter((player) => {
+    const explanation = (player.explanation ?? {}) as SelectionExplanation;
+    return explanation.manuallyRemoved === true;
+  });
 }
 
 function buildSelectedRoleByPlayerId(
-  latestSelection: SelectionWithPlayers | null,
+  latestSelections: SelectionWithPlayer[],
   generatedSelection: GeneratedSelection | null,
 ): Record<string, SelectionRole> {
-  const activePlayers = getActiveSavedPlayers(latestSelection);
+  const activePlayers = getActiveSavedPlayers(latestSelections);
 
   if (activePlayers.length > 0) {
     return Object.fromEntries(
-      activePlayers.map((player) => [player.playerId, player.roleType]),
+      activePlayers.map((player) => [player.playerId, player.role]),
     );
   }
 
@@ -237,7 +247,7 @@ function buildSelectedRoleByPlayerId(
           ? "SUPPORT"
           : player.selectionCategory === "DEVELOPMENT"
             ? "DEVELOPMENT"
-            : "FLOAT") as SelectionRole,
+            : "MANUAL_OVERRIDE") as SelectionRole,
     ]),
   );
 }
@@ -248,7 +258,7 @@ export function SelectionBuilder({
   generatedSelection,
   groupedPlayers,
   isWeekFullyFinalized,
-  latestSelection,
+  latestSelections,
   match,
   nextMatchId,
   previousMatchId,
@@ -264,17 +274,18 @@ export function SelectionBuilder({
   const recalculateAction = recalculateMatchAction.bind(null, match.id);
   const resetAction = resetSelectionsAction;
   const saveAction = saveManualSelectionAction.bind(null, match.id);
-  const selectedRoleByPlayerId = buildSelectedRoleByPlayerId(latestSelection, generatedSelection);
-  const activeSavedPlayers = getActiveSavedPlayers(latestSelection);
-  const removedSavedPlayers = getRemovedSavedPlayers(latestSelection);
+  const selectedRoleByPlayerId = buildSelectedRoleByPlayerId(latestSelections, generatedSelection);
+  const activeSavedPlayers = getActiveSavedPlayers(latestSelections);
+  const removedSavedPlayers = getRemovedSavedPlayers(latestSelections);
   const activeSavedPlayerIds = new Set(activeSavedPlayers.map((player) => player.playerId));
   const removedSavedPlayerById = new Map(
     removedSavedPlayers.map((player) => [player.playerId, player]),
   );
   const activePlayerCount = groupedPlayers.reduce((total, group) => total + group.players.length, 0);
   const selectedCount = Object.keys(selectedRoleByPlayerId).length;
-  const latestSelectionIsFinalized = latestSelection?.status === "FINALIZED";
-  const supportSourceTeams = match.targetTeam.supportTargetRelationships.map(
+  const latestSelectionStatus = latestSelections.length > 0 ? latestSelections[0]!.status : null;
+  const latestSelectionIsFinalized = latestSelectionStatus === "FINALIZED";
+  const supportSourceTeams = match.team.supportTargetRelationships.map(
     (relationship) => relationship.sourceTeam.name,
   );
   const savedSelectionGap = match.squadSize - activeSavedPlayers.length;
@@ -282,7 +293,7 @@ export function SelectionBuilder({
   const weeklyInfoCount = weeklyCoverage.length - weeklyWarningCount;
   const weekLabel = formatIsoWeekLabel(match.startsAt);
   const targetTeamPlayers =
-    groupedPlayers.find((group) => group.team.id === match.targetTeamId)?.players ?? [];
+    groupedPlayers.find((group) => group.team.id === match.teamId)?.players ?? [];
   const generatedSelectedPlayerIds = new Set(
     generatedSelection?.selectedPlayers.map((player) => player.playerId) ?? [],
   );
@@ -292,14 +303,16 @@ export function SelectionBuilder({
   const analyzedSupportShortfallWarning = selectionAnalysis?.warnings.find(
     (warning) => warning.code === "support_requirement_shortfall",
   );
-  const savedSupportPlayers = activeSavedPlayers.filter((player) => player.roleType === "SUPPORT").length;
-  const savedOmittedCorePlayers: OmittedCorePlayerRow[] = latestSelection
+  const savedSupportPlayers = activeSavedPlayers.filter((player) => player.role === "SUPPORT").length;
+  const savedOmittedCorePlayers: OmittedCorePlayerRow[] = latestSelections.length > 0
     ? targetTeamPlayers
         .filter((player) => !activeSavedPlayerIds.has(player.id))
         .map((player) => ({
           explanation: buildSavedOmissionExplanation(
             player.id,
-            removedSavedPlayerById.get(player.id)?.explanation,
+            removedSavedPlayerById.get(player.id)
+              ? ((removedSavedPlayerById.get(player.id)!.explanation ?? {}) as SelectionExplanation).summary ?? undefined
+              : undefined,
             selectionAnalysis,
           ),
           playerId: player.id,
@@ -326,34 +339,35 @@ export function SelectionBuilder({
         })
         .sort((left, right) => left.playerName.localeCompare(right.playerName))
     : [];
-  const savedLockedCoreWarnings = latestSelection
+  const savedLockedCoreWarnings = latestSelections.length > 0
     ? groupedPlayers
         .flatMap((group) => group.players)
         .filter(
           (player) =>
-            player.coreTeamId === match.targetTeamId &&
+            player.coreTeamId === match.teamId &&
             player.active &&
-            !player.isFloating &&
-            !player.canDropCoreMatch &&
+            player.nonRotatable &&
             !activeSavedPlayerIds.has(player.id),
         )
         .map((player) => ({
           code: "saved_locked_core_player_unselected",
-          message: `${formatPlayerName(player)} is a locked ${match.targetTeam.name} core player and is not in the current saved selection. ${buildSavedOmissionExplanation(
+          message: `${formatPlayerName(player)} is a locked ${match.team.name} core player and is not in the current saved selection. ${buildSavedOmissionExplanation(
             player.id,
-            removedSavedPlayerById.get(player.id)?.explanation,
+            removedSavedPlayerById.get(player.id)
+              ? ((removedSavedPlayerById.get(player.id)!.explanation ?? {}) as SelectionExplanation).summary ?? undefined
+              : undefined,
             selectionAnalysis,
           )}`,
         }))
     : [];
   const earlyWarnings: EarlyWarningRow[] = [
-    ...(latestSelection &&
-    match.targetTeam.minSupportPlayers > 0 &&
-    savedSupportPlayers < match.targetTeam.minSupportPlayers
+    ...(latestSelections.length > 0 &&
+    match.team.minSupportPlayers > 0 &&
+    savedSupportPlayers < match.team.minSupportPlayers
       ? [
           {
             code: "saved_support_requirement_shortfall",
-            message: `${match.targetTeam.name} requires ${match.targetTeam.minSupportPlayers} support player(s), but the current saved selection only includes ${savedSupportPlayers}. Configured support teams: ${supportSourceTeams.length > 0 ? supportSourceTeams.join(", ") : "none"}.${analyzedSupportShortfallWarning ? ` Current automatic analysis: ${analyzedSupportShortfallWarning.message}` : ""}`,
+            message: `${match.team.name} requires ${match.team.minSupportPlayers} support player(s), but the current saved selection only includes ${savedSupportPlayers}. Configured support teams: ${supportSourceTeams.length > 0 ? supportSourceTeams.join(", ") : "none"}.${analyzedSupportShortfallWarning ? ` Current automatic analysis: ${analyzedSupportShortfallWarning.message}` : ""}`,
             title: formatWarningTitle("saved_support_requirement_shortfall"),
           },
         ]
@@ -363,7 +377,7 @@ export function SelectionBuilder({
       title: formatWarningTitle(warning.code),
     })),
     ...savedLockedCoreWarnings,
-    ...(latestSelection && savedSelectionGap > 0
+    ...(latestSelections.length > 0 && savedSelectionGap > 0
       ? [
           {
             code: "saved_selection_incomplete",
@@ -371,7 +385,7 @@ export function SelectionBuilder({
             title: formatWarningTitle("saved_selection_incomplete"),
           },
         ]
-      : latestSelection && savedSelectionGap < 0
+      : latestSelections.length > 0 && savedSelectionGap < 0
         ? [
             {
               code: "saved_selection_overfilled",
@@ -395,8 +409,8 @@ export function SelectionBuilder({
 
       return left.title.localeCompare(right.title);
     });
-  const latestSelectionStateLabel = latestSelection
-    ? latestSelection.status === "FINALIZED"
+  const latestSelectionStateLabel = latestSelections.length > 0
+    ? latestSelectionIsFinalized
       ? "Finalized"
       : "Draft in progress"
     : "No saved selection";
@@ -405,12 +419,12 @@ export function SelectionBuilder({
   const suggestedExcludedCount = generatedSelection?.excludedPlayers.length ?? 0;
   const suggestedWarningCount = generatedSelection?.warnings.length ?? 0;
   const currentShortfall =
-    latestSelection && savedSelectionGap > 0
+    latestSelections.length > 0 && savedSelectionGap > 0
       ? savedSelectionGap
-      : !latestSelection && generatedSelection
+      : latestSelections.length === 0 && generatedSelection
         ? Math.max(match.squadSize - generatedSelection.selectedPlayers.length, 0)
         : 0;
-  const currentSelectedPlayerIds = latestSelection ? activeSavedPlayerIds : generatedSelectedPlayerIds;
+  const currentSelectedPlayerIds = latestSelections.length > 0 ? activeSavedPlayerIds : generatedSelectedPlayerIds;
   const manualAddSuggestions: ManualAddSuggestionRow[] =
     currentShortfall > 0
       ? (selectionAnalysis?.excludedPlayers ?? [])
@@ -450,7 +464,7 @@ export function SelectionBuilder({
                 Match Workspace
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-4xl">
-                {match.targetTeam.name} vs. {match.opponent}
+                {match.team.name} vs. {match.opponent}
               </h1>
               <p className="mt-3 text-sm app-copy-soft">
                 Work the week first, then decide whether this one needs a fresh pass, an edit, or a lock.
@@ -513,7 +527,7 @@ export function SelectionBuilder({
               <p className="mt-2 text-sm app-copy-soft">
                 {latestSelectionIsFinalized
                   ? "Locked."
-                  : latestSelection
+                  : latestSelections.length > 0
                     ? "Draft saved."
                     : "No saved selection yet."}
               </p>
@@ -552,7 +566,7 @@ export function SelectionBuilder({
                 </div>
                 <div>
                   <p className="app-copy-muted">Venue</p>
-                  <p className="mt-1 text-zinc-100">{formatMatchVenue(match.homeOrAway)}</p>
+                  <p className="mt-1 text-zinc-100">{formatMatchVenue(match.homeAway)}</p>
                 </div>
                 <div>
                   <p className="app-copy-muted">Match type</p>
@@ -568,13 +582,13 @@ export function SelectionBuilder({
                 </div>
                 <div>
                   <p className="app-copy-muted">Target team</p>
-                  <p className="mt-1 text-zinc-100">{match.targetTeam.name}</p>
+                  <p className="mt-1 text-zinc-100">{match.team.name}</p>
                 </div>
                 <div>
                   <p className="app-copy-muted">Development work</p>
                   <p className="mt-1 text-zinc-100">
                     {match.availableForDevelopmentSlot
-                      ? `${match.targetTeam.developmentSlots} slot${match.targetTeam.developmentSlots === 1 ? "" : "s"} open`
+                      ? `${match.team.developmentSlots} slot${match.team.developmentSlots === 1 ? "" : "s"} open`
                       : "Closed for this match"}
                   </p>
                 </div>
@@ -668,7 +682,7 @@ export function SelectionBuilder({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-zinc-100">
-                        {sameWeekMatch.targetTeam.name} vs. {sameWeekMatch.opponent}
+                        {sameWeekMatch.team.name} vs. {sameWeekMatch.opponent}
                       </p>
                       <p className="mt-1 text-sm app-copy-soft">{formatDate(sameWeekMatch.startsAt)}</p>
                     </div>
@@ -747,7 +761,7 @@ export function SelectionBuilder({
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-          {!generatedSelection && !latestSelection ? (
+          {!generatedSelection && latestSelections.length === 0 ? (
             <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-sm font-semibold text-zinc-100">Run a first pass</p>
               <p className="mt-2 text-sm leading-6 app-copy-soft">
@@ -788,7 +802,7 @@ export function SelectionBuilder({
               <p className="text-sm font-semibold text-zinc-100">Review uncovered week players</p>
               <p className="mt-2 text-sm leading-6 text-[#f3dfc1]">
                 {weeklyWarningCount} player{weeklyWarningCount === 1 ? "" : "s"} still have no match
-                this week and are not covered by a core-drop allowance.
+                this week.
               </p>
               <Link
                 className="mt-4 inline-flex text-sm font-medium text-[#f8ead4] hover:text-zinc-50"
@@ -799,7 +813,7 @@ export function SelectionBuilder({
             </div>
           ) : null}
 
-          {latestSelection && !latestSelectionIsFinalized ? (
+          {latestSelections.length > 0 && !latestSelectionIsFinalized ? (
             <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-sm font-semibold text-zinc-100">Rebuild the wider draft picture</p>
               <p className="mt-2 text-sm leading-6 app-copy-soft">
@@ -818,7 +832,7 @@ export function SelectionBuilder({
             </div>
           ) : null}
 
-          {latestSelection && !latestSelectionIsFinalized && earlyWarnings.length === 0 && savedSelectionGap === 0 ? (
+          {latestSelections.length > 0 && !latestSelectionIsFinalized && earlyWarnings.length === 0 && savedSelectionGap === 0 ? (
             <div className="rounded-2xl border border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.1)] p-4">
               <p className="text-sm font-semibold text-zinc-100">Ready to finalize</p>
               <p className="mt-2 text-sm leading-6 app-copy-soft">
@@ -906,7 +920,7 @@ export function SelectionBuilder({
                   <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
                     <h3 className="text-base font-semibold text-zinc-50">Saved selection</h3>
                     <p className="mt-1 text-sm app-copy-soft">
-                      {match.targetTeam.name} core players not currently in the saved selection.
+                      {match.team.name} core players not currently in the saved selection.
                     </p>
                     <div className="mt-4 flex flex-col gap-3">
                       {savedOmittedCorePlayers.map((player) => (
@@ -923,7 +937,7 @@ export function SelectionBuilder({
                   <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
                     <h3 className="text-base font-semibold text-zinc-50">Current suggestion</h3>
                     <p className="mt-1 text-sm app-copy-soft">
-                      {match.targetTeam.name} core players the current suggestion did not pick.
+                      {match.team.name} core players the current suggestion did not pick.
                     </p>
                     <div className="mt-4 flex flex-col gap-3">
                       {generatedOmittedCorePlayers.map((player) => (
@@ -941,7 +955,7 @@ export function SelectionBuilder({
         </section>
       ) : null}
 
-      {latestSelection ? (
+      {latestSelections.length > 0 ? (
         <section className="app-panel rounded-[1.6rem] p-5">
           <div>
             <h2 className="text-lg font-semibold text-zinc-50">Current Saved Selection</h2>
@@ -951,23 +965,19 @@ export function SelectionBuilder({
             </p>
           </div>
 
-          {latestSelection.overrideNotes ? (
-            <div className="mt-4 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3 text-sm app-copy-soft">
-              <p className="font-medium text-zinc-100">Override note</p>
-              <p className="mt-1 whitespace-pre-wrap">{latestSelection.overrideNotes}</p>
-            </div>
-          ) : null}
-
           <div className="mt-4">
             <SavedSelectionTable
-              rows={activeSavedPlayers.map((player) => ({
-                explanation: player.explanation ?? "-",
-                id: player.id,
-                playerName: formatPlayerName(player.player),
-                role: formatSelectionRole(player.roleType),
-                sourceTeam: player.sourceTeamNameSnapshot,
-                trace: formatSelectionTrace(player),
-              }))}
+              rows={activeSavedPlayers.map((player) => {
+                const explanationData = (player.explanation ?? {}) as SelectionExplanation;
+                return {
+                  explanation: explanationData.summary ?? "-",
+                  id: player.id,
+                  playerName: formatPlayerName(player.player),
+                  role: formatSelectionRole(player.role),
+                  sourceTeam: explanationData.sourceTeamName ?? "-",
+                  trace: formatSelectionTrace(player),
+                };
+              })}
             />
           </div>
 
@@ -981,14 +991,17 @@ export function SelectionBuilder({
               </div>
 
               <SavedSelectionTable
-                rows={removedSavedPlayers.map((player) => ({
-                  explanation: player.explanation ?? "-",
-                  id: player.id,
-                  playerName: formatPlayerName(player.player),
-                  role: formatSelectionRole(player.roleType),
-                  sourceTeam: player.sourceTeamNameSnapshot,
-                  trace: formatSelectionTrace(player),
-                }))}
+                rows={removedSavedPlayers.map((player) => {
+                  const explanationData = (player.explanation ?? {}) as SelectionExplanation;
+                  return {
+                    explanation: explanationData.summary ?? "-",
+                    id: player.id,
+                    playerName: formatPlayerName(player.player),
+                    role: formatSelectionRole(player.role),
+                    sourceTeam: explanationData.sourceTeamName ?? "-",
+                    trace: formatSelectionTrace(player),
+                  };
+                })}
               />
             </div>
           ) : null}
@@ -1146,11 +1159,11 @@ export function SelectionBuilder({
       <form action={saveAction} className="flex flex-col gap-6">
         {generatedSelection ? <input name="returnToGenerated" type="hidden" value="1" /> : null}
 
-        {latestSelection ? (
-          <input name="baselineSelectionId" type="hidden" value={latestSelection.id} />
+        {latestSelections.length > 0 ? (
+          <input name="baselineSelectionMatchId" type="hidden" value={match.id} />
         ) : null}
 
-        {!latestSelection && generatedSelection ? (
+        {latestSelections.length === 0 && generatedSelection ? (
           <>
             {generatedSelection.selectedPlayers.map((player) => (
               <div key={player.playerId} hidden>
@@ -1193,34 +1206,16 @@ export function SelectionBuilder({
               </p>
             </div>
 
-            <section className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <div className="flex flex-col gap-2">
-                <label
-                  className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted"
-                  htmlFor="overrideNotes"
-                >
-                  Override note
-                </label>
-                <textarea
-                  className="min-h-24 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
-                  defaultValue={latestSelection?.overrideNotes ?? ""}
-                  id="overrideNotes"
-                  name="overrideNotes"
-                  placeholder="Optional note about why the squad was adjusted manually."
-                />
-              </div>
-            </section>
-
             <PlayerPickList
-              developmentSourceTeamIds={match.targetTeam.developmentTargetRelationships.map(
+              developmentSourceTeamIds={match.team.developmentTargetRelationships.map(
                 (relationship) => relationship.sourceTeam.id,
               )}
               groupedPlayers={groupedPlayers}
               selectedRoleByPlayerId={selectedRoleByPlayerId}
-              supportSourceTeamIds={match.targetTeam.supportTargetRelationships.map(
+              supportSourceTeamIds={match.team.supportTargetRelationships.map(
                 (relationship) => relationship.sourceTeam.id,
               )}
-              targetTeamId={match.targetTeamId}
+              targetTeamId={match.teamId}
             />
 
             <div className="flex flex-wrap gap-3">

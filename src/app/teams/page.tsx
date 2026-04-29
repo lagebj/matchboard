@@ -6,6 +6,7 @@ import {
 import { TeamCreateLayover } from "@/components/teams/team-create-layover";
 import { TeamTable } from "@/components/teams/team-table";
 import { db } from "@/lib/db";
+import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -45,17 +46,17 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
         },
         select: {
           id: true,
+          firstName: true,
+          lastName: true,
+          primaryPosition: true,
+          nonRotatable: true,
+          reducedMatchLoadAllowed: true,
+          currentAvailability: true,
+          active: true,
+          supportSuitability: true,
+          developmentReadiness: true,
         },
-      },
-      floatPlayers: {
-        where: {
-          player: {
-            removedAt: null,
-          },
-        },
-        select: {
-          playerId: true,
-        },
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       },
       matches: {
         select: {
@@ -297,6 +298,150 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
       </div>
 
       <section className="app-panel rounded-[1.75rem] p-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Squad Overview
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Players by planning status</h2>
+          <p className="mt-2 text-sm app-copy-soft">Each team shows core players grouped by availability, load, and rotation flags.</p>
+        </div>
+
+        <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {teams.map((team) => {
+            const corePlayers = team.corePlayers;
+            const available = corePlayers.filter((p) => p.currentAvailability === "AVAILABLE");
+            const tentative = corePlayers.filter((p) => p.currentAvailability === "TENTATIVE");
+            const unknown = corePlayers.filter((p) => p.currentAvailability === "UNKNOWN");
+            const unavailable = corePlayers.filter((p) => p.currentAvailability !== "AVAILABLE" && p.currentAvailability !== "TENTATIVE" && p.currentAvailability !== "UNKNOWN");
+            const nonRotatable = corePlayers.filter((p) => p.nonRotatable);
+            const reducedLoad = corePlayers.filter((p) => p.reducedMatchLoadAllowed);
+
+            const renderPlayerGroup = (label: string, players: typeof corePlayers, tone: string) => {
+              if (players.length === 0) return null;
+              return (
+                <div className="mt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">{label} ({players.length})</p>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {players.map((p) => (
+                      <Link
+                        key={p.id}
+                        className={`rounded-xl border px-2.5 py-2 text-sm hover:bg-[rgba(255,255,255,0.05)] ${tone}`}
+                        href={`/players/${p.id}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-medium text-zinc-100">{formatPlayerName(p)}</span>
+                          <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] app-copy-muted">{p.primaryPosition}</span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {p.nonRotatable && (
+                            <span className="rounded-full border border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.06)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">Non-rot</span>
+                          )}
+                          {p.reducedMatchLoadAllowed && (
+                            <span className="rounded-full border border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.06)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">RML</span>
+                          )}
+                          {p.supportSuitability && p.supportSuitability !== "neutral" && (
+                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] app-copy-muted">Sup</span>
+                          )}
+                          {p.developmentReadiness && p.developmentReadiness !== "neutral" && (
+                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] app-copy-muted">Dev</span>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <div key={team.id} className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-zinc-100">{team.name}</p>
+                  <span className="rounded-full border app-hairline px-2.5 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                    {corePlayers.length} core
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {nonRotatable.length > 0 && (
+                    <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[var(--warning)]">
+                      {nonRotatable.length} non-rotatable
+                    </span>
+                  )}
+                  {reducedLoad.length > 0 && (
+                    <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[var(--warning)]">
+                      {reducedLoad.length} reduced load
+                    </span>
+                  )}
+                  {unavailable.length > 0 && (
+                    <span className="rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[#f0cbc5]">
+                      {unavailable.length} unavailable
+                    </span>
+                  )}
+                </div>
+
+                {renderPlayerGroup("Available", available, "border app-hairline bg-[rgba(0,0,0,0.08)]")}
+                {renderPlayerGroup("Tentative", tentative, "border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.04)] border")}
+                {renderPlayerGroup("Unknown", unknown, "border app-hairline bg-[rgba(0,0,0,0.08)]")}
+                {renderPlayerGroup("Unavailable", unavailable, "border-[rgba(185,128,119,0.2)] bg-[rgba(185,128,119,0.04)] border")}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="app-panel rounded-[1.75rem] p-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Team Health
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Operational status and squad limits</h2>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {teams.map((team) => {
+            const coreCount = team.corePlayers.length;
+            const isBelowMinCore = coreCount < team.minCorePlayers;
+            const isBelowMinSquad = coreCount < team.minAcceptedSquadSize;
+            return (
+              <div
+                key={team.id}
+                className={`rounded-[1.45rem] border p-4 ${isBelowMinCore ? "border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)]" : isBelowMinSquad ? "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)]" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}
+              >
+                <p className="text-sm font-semibold text-zinc-100">{team.name}</p>
+                <div className="mt-3 grid gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs app-copy-muted">Core players</span>
+                    <span className={`text-xs font-medium ${isBelowMinCore ? "text-[#f0cbc5]" : "text-zinc-100"}`}>
+                      {coreCount} / {team.minCorePlayers} min
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs app-copy-muted">Squad size</span>
+                    <span className={`text-xs font-medium ${isBelowMinSquad ? "text-[var(--warning)]" : "text-zinc-100"}`}>
+                      {team.targetSquadSize} target · {team.minAcceptedSquadSize} min · {team.maxSquadSize} max
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs app-copy-muted">Support</span>
+                    <span className="text-xs font-medium text-zinc-100">
+                      {team.minSupportCount} min · {team.targetSupportCount} target · {team.maxSupportCount} max · Priority {team.supportPriority}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs app-copy-muted">Paths</span>
+                    <span className="text-xs font-medium text-zinc-100">
+                      {team.supportTargetRelationships.length} support · {team.developmentTargetRelationships.length} development
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="app-panel rounded-[1.75rem] p-6">
         <TeamTable
           availableTeams={teams.map((team) => ({
             id: team.id,
@@ -304,7 +449,6 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
           }))}
           teams={teams.map((team) => ({
             activeCorePlayers: team.corePlayers.length,
-            activeFloatLinks: team.floatPlayers.length,
             developmentSlots: team.developmentSlots,
             developmentSourceTeamIds: team.developmentTargetRelationships.map(
               (relationship) => relationship.sourceTeam.id,
@@ -314,16 +458,24 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
             ),
             id: team.id,
             matches: team.matches.length,
+            maxSquadSize: team.maxSquadSize,
+            minAcceptedSquadSize: team.minAcceptedSquadSize,
+            minCorePlayers: team.minCorePlayers,
+            minSupportCount: team.minSupportCount,
             minSupportPlayers: team.minSupportPlayers,
             name: team.name,
             removeAction: deleteTeamAction.bind(null, team.id),
             saveAction: updateTeamConfigurationAction.bind(null, team.id),
+            supportPriority: team.supportPriority,
             supportSourceTeamIds: team.supportTargetRelationships.map(
               (relationship) => relationship.sourceTeam.id,
             ),
             supportSourceTeamNames: team.supportTargetRelationships.map(
               (relationship) => relationship.sourceTeam.name,
             ),
+            targetSquadSize: team.targetSquadSize,
+            targetSupportCount: team.targetSupportCount,
+            maxSupportCount: team.maxSupportCount,
           }))}
         />
       </section>

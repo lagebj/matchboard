@@ -1,53 +1,60 @@
-import { SelectionRole } from "@/generated/prisma/client";
+import { type Prisma, SelectionRole } from "@/generated/prisma/client";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 
-type SelectionMovementRow = {
-  player: {
-    firstName: string;
-    lastName: string | null;
-  };
+type SelectionMovementInput = {
+  explanation: Prisma.JsonValue;
   playerId: string;
-  roleType: SelectionRole;
-  sourceTeamNameSnapshot: string;
-  targetTeamNameSnapshot: string;
+  role: SelectionRole;
 };
 
 export type SelectionMovementPlayer = {
   playerId: string;
   playerName: string;
-  roleType: SelectionRole;
+  role: SelectionRole;
   sourceTeamName: string;
   targetTeamName: string;
 };
 
-export function isSelectionMovementRow(row: {
-  roleType: SelectionRole;
-  sourceTeamNameSnapshot: string;
-  targetTeamNameSnapshot: string;
-}): boolean {
+function isMovementRow(
+  role: SelectionRole,
+  sourceTeamName: string,
+  targetTeamName: string,
+): boolean {
   return (
-    row.sourceTeamNameSnapshot !== row.targetTeamNameSnapshot ||
-    isFloatingSelectionRole(row.roleType)
+    sourceTeamName !== targetTeamName ||
+    isFloatingSelectionRole(role)
   );
 }
 
+export function isSelectionMovementRow(input: {
+  role: SelectionRole;
+  sourceTeamName: string;
+  targetTeamName: string;
+}): boolean {
+  return isMovementRow(input.role, input.sourceTeamName, input.targetTeamName);
+}
+
 export function getSelectionMovementPlayers(
-  rows: SelectionMovementRow[],
+  rows: SelectionMovementInput[],
 ): SelectionMovementPlayer[] {
   const movementByPlayerId = new Map<string, SelectionMovementPlayer>();
 
   for (const row of rows) {
-    if (!isSelectionMovementRow(row) || movementByPlayerId.has(row.playerId)) {
+    const explanation = (row.explanation ?? {}) as Record<string, unknown>;
+    const sourceTeamName = (explanation.sourceTeamName as string) ?? "";
+    const targetTeamName = (explanation.targetTeamName as string) ?? "";
+
+    if (!isMovementRow(row.role, sourceTeamName, targetTeamName) || movementByPlayerId.has(row.playerId)) {
       continue;
     }
 
     movementByPlayerId.set(row.playerId, {
       playerId: row.playerId,
-      playerName: formatPlayerName(row.player),
-      roleType: row.roleType,
-      sourceTeamName: row.sourceTeamNameSnapshot,
-      targetTeamName: row.targetTeamNameSnapshot,
+      playerName: "",
+      role: row.role,
+      sourceTeamName,
+      targetTeamName,
     });
   }
 

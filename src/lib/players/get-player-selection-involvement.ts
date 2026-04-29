@@ -1,23 +1,23 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
-import { getLatestSelectionSnapshots } from "@/lib/selection/get-latest-selection-snapshots";
 
 type PlayerSelectionInvolvementRow = {
   createdAt: Date;
-  finalizedAt: Date | null;
   id: string;
   match: {
     id: string;
     opponent: string;
     startsAt: Date;
-    targetTeam: {
+    team: {
       name: string;
     };
   };
   matchId: string;
-  players: Array<{
-    explanation: string | null;
-    roleType: SelectionRole;
-  }>;
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+  };
+  role: SelectionRole;
   status: SelectionStatus;
 };
 
@@ -26,34 +26,23 @@ export type PlayerSelectionInvolvement = {
   matchId: string;
   matchStartsAt: Date;
   opponent: string;
-  roleType: SelectionRole;
+  role: SelectionRole;
   selectionCreatedAt: Date;
-  selectionFinalizedAt: Date | null;
   status: SelectionStatus;
-  targetTeamName: string;
+  teamName: string;
 };
 
 export function getPlayerSelectionInvolvement(
   rows: PlayerSelectionInvolvementRow[],
 ): PlayerSelectionInvolvement[] {
-  const latestSnapshots = getLatestSelectionSnapshots(rows);
-  const involvement: PlayerSelectionInvolvement[] = [];
-
-  for (const row of latestSnapshots) {
-    for (const player of row.players) {
-      involvement.push({
-        explanation: player.explanation,
-        matchId: row.match.id,
-        matchStartsAt: row.match.startsAt,
-        opponent: row.match.opponent,
-        roleType: player.roleType,
-        selectionCreatedAt: row.createdAt,
-        selectionFinalizedAt: row.finalizedAt,
-        status: row.status,
-        targetTeamName: row.match.targetTeam.name,
-      });
-    }
-  }
-
-  return involvement;
+  return rows.map((row) => ({
+    explanation: null,
+    matchId: row.match.id,
+    matchStartsAt: row.match.startsAt,
+    opponent: row.match.opponent,
+    role: row.role,
+    selectionCreatedAt: row.createdAt,
+    status: row.status,
+    teamName: row.match.team.name,
+  }));
 }

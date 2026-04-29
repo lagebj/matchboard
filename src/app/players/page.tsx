@@ -40,21 +40,6 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
             name: true,
           },
         },
-        allowedFloatTeams: {
-          include: {
-            team: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            team: {
-              name: "asc",
-            },
-          },
-        },
       },
       orderBy: [
         {
@@ -83,9 +68,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
   const activeCount = players.filter((player) => player.active).length;
   const inactiveCount = players.length - activeCount;
-  const floatingPlayers = players.filter(
-    (player) => player.isFloating && player.allowedFloatTeams.length > 0,
-  );
+  const rotatablePlayers = players.filter((player) => !player.nonRotatable);
   const unavailablePlayers = players.filter(
     (player) => player.currentAvailability !== "AVAILABLE",
   );
@@ -95,9 +78,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
     return {
       active: teamPlayers.filter((player) => player.active).length,
-      floating: teamPlayers.filter(
-        (player) => player.isFloating && player.allowedFloatTeams.length > 0,
-      ).length,
+      rotatable: teamPlayers.filter((player) => !player.nonRotatable).length,
       team,
       unavailable: teamPlayers.filter((player) => player.currentAvailability !== "AVAILABLE").length,
     };
@@ -123,7 +104,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                   Keep the roster readable enough that you know which profile to open next.
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Start with availability and floating pressure, then open the profile you need.
+                  Start with availability and rotation eligibility, then open the profile you need.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -195,12 +176,12 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-                  <p className="text-sm font-medium text-zinc-100">{floatingPlayers.length} floating profile(s)</p>
-                <p className="mt-1 text-sm app-copy-soft">Ready to move.</p>
+                  <p className="text-sm font-medium text-zinc-100">{rotatablePlayers.length} rotatable player(s)</p>
+                <p className="mt-1 text-sm app-copy-soft">Eligible for rotation.</p>
                 </div>
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
                   <p className="text-sm font-medium text-zinc-100">{inactiveCount} inactive record(s)</p>
-                <p className="mt-1 text-sm app-copy-soft">Out of the live pool.</p>
+                  <p className="mt-1 text-sm app-copy-soft">Out of the live pool.</p>
                 </div>
               </div>
             </div>
@@ -260,11 +241,11 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
             <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                Floating pool
+                Rotatable players
               </p>
               <div className="mt-4 flex flex-col gap-3">
-                {floatingPlayers.length > 0 ? (
-                  floatingPlayers.slice(0, 5).map((player) => (
+                {rotatablePlayers.length > 0 ? (
+                  rotatablePlayers.slice(0, 5).map((player) => (
                     <Link
                       key={player.id}
                       className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
@@ -272,13 +253,13 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                     >
                       <p className="text-sm font-semibold text-zinc-100">{formatPlayerName(player)}</p>
                       <p className="mt-1 text-sm app-copy-soft">
-                        {player.coreTeam.name} → {player.allowedFloatTeams.map((entry) => entry.team.name).join(", ")}
+                        {player.coreTeam.name} · Rotatable
                       </p>
                     </Link>
                   ))
                 ) : (
                   <p className="text-sm leading-6 app-copy-soft">
-                    No active player currently has explicit float-team coverage configured.
+                    No players are currently eligible for rotation.
                   </p>
                 )}
               </div>
@@ -297,7 +278,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                     >
                       <p className="text-sm font-semibold text-zinc-100">{snapshot.team.name}</p>
                       <p className="mt-1 text-sm app-copy-soft">
-                        {snapshot.active} active · {snapshot.unavailable} unavailable · {snapshot.floating} floating
+                        {snapshot.active} active · {snapshot.unavailable} unavailable · {snapshot.rotatable} rotatable
                       </p>
                     </div>
                   ))
@@ -319,7 +300,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
           <div className="mt-6 grid gap-3">
             {[
               "Use the attention lanes first to see which players changed status or matter to the next selection.",
-              "Open an individual profile only when you need the deeper attribute, floating, and history view.",
+              "Open an individual profile only when you need the deeper attribute, rotation, and history view.",
               "Return to the table for bulk scanning, sorting, and removals once you already know what you are looking for.",
             ].map((note) => (
               <div
@@ -365,10 +346,22 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       ) : (
         <section className="app-panel rounded-[1.75rem] p-6">
           <PlayerTable
-            players={players.map((player) => ({
-              ...player,
-              removeAction: removePlayerAction.bind(null, player.id),
-            }))}
+          players={players.map((player) => ({
+            id: player.id,
+            firstName: player.firstName,
+            lastName: player.lastName,
+            active: player.active,
+            coreTeam: player.coreTeam,
+            currentAvailability: player.currentAvailability,
+            primaryPosition: player.primaryPosition,
+            secondaryPosition: player.secondaryPosition,
+            tertiaryPosition: player.tertiaryPosition,
+            nonRotatable: player.nonRotatable,
+            reducedMatchLoadAllowed: player.reducedMatchLoadAllowed,
+            supportSuitability: player.supportSuitability,
+            developmentReadiness: player.developmentReadiness,
+            removeAction: removePlayerAction.bind(null, player.id),
+          }))}
           />
         </section>
       )}

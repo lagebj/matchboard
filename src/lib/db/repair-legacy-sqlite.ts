@@ -59,9 +59,6 @@ CREATE TABLE "Player" (
     "active" BOOLEAN NOT NULL DEFAULT true,
     "removedAt" DATETIME,
     "coreTeamId" TEXT NOT NULL,
-    "isFloating" BOOLEAN NOT NULL DEFAULT false,
-    "canDropCoreMatch" BOOLEAN NOT NULL DEFAULT false,
-    "maxDevelopmentMatches" INTEGER,
     "primaryPosition" TEXT NOT NULL,
     "secondaryPosition" TEXT,
     "tertiaryPosition" TEXT,
@@ -99,9 +96,6 @@ INSERT INTO "Player" (
   "active",
   "removedAt",
   "coreTeamId",
-  "isFloating",
-  "canDropCoreMatch",
-  "maxDevelopmentMatches",
   "primaryPosition",
   "secondaryPosition",
   "tertiaryPosition",
@@ -133,9 +127,6 @@ SELECT
   "active",
   NULL,
   'legacy-team:' || TRIM("coreTeam"),
-  CASE WHEN "canFloatUp" = 1 OR "canFloatDown" = 1 THEN 1 ELSE 0 END,
-  "canDropCoreMatch",
-  NULL,
   TRIM(COALESCE(NULLIF("preferredPositions", ''), 'Unknown')),
   NULLIF(TRIM(COALESCE("secondaryPositions", '')), ''),
   NULL,
@@ -159,50 +150,6 @@ SELECT
   COALESCE("createdAt", CURRENT_TIMESTAMP),
   COALESCE("updatedAt", "createdAt", CURRENT_TIMESTAMP)
 FROM "legacy_Player";
-
-CREATE TABLE "PlayerFloatTeam" (
-    "playerId" TEXT NOT NULL,
-    "teamId" TEXT NOT NULL,
-    CONSTRAINT "PlayerFloatTeam_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "Player" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PlayerFloatTeam_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    PRIMARY KEY ("playerId", "teamId")
-);
-
-CREATE INDEX "PlayerFloatTeam_teamId_idx" ON "PlayerFloatTeam"("teamId");
-
-INSERT INTO "PlayerFloatTeam" ("playerId", "teamId")
-SELECT DISTINCT "playerId", "teamId"
-FROM (
-  SELECT "legacy_Player"."id" AS "playerId", "Team"."id" AS "teamId"
-  FROM "legacy_Player"
-  JOIN "Team" ON "Team"."name" = 'BLA'
-  WHERE "legacy_Player"."canFloatUp" = 1
-    AND TRIM("legacy_Player"."coreTeam") = 'HVIT'
-
-  UNION
-
-  SELECT "legacy_Player"."id" AS "playerId", "Team"."id" AS "teamId"
-  FROM "legacy_Player"
-  JOIN "Team" ON "Team"."name" = 'HVIT'
-  WHERE "legacy_Player"."canFloatDown" = 1
-    AND TRIM("legacy_Player"."coreTeam") = 'BLA'
-
-  UNION
-
-  SELECT "legacy_Player"."id" AS "playerId", "Team"."id" AS "teamId"
-  FROM "legacy_Player"
-  JOIN "Team" ON "Team"."name" = 'HVIT'
-  WHERE "legacy_Player"."canFloatUp" = 1
-    AND TRIM("legacy_Player"."coreTeam") = 'ROD'
-
-  UNION
-
-  SELECT "legacy_Player"."id" AS "playerId", "Team"."id" AS "teamId"
-  FROM "legacy_Player"
-  JOIN "Team" ON "Team"."name" = 'ROD'
-  WHERE "legacy_Player"."canFloatDown" = 1
-    AND TRIM("legacy_Player"."coreTeam") = 'HVIT'
-);
 
 CREATE TABLE "Match" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -252,16 +199,8 @@ FROM "legacy_Match";
 CREATE TABLE "RuleConfig" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL DEFAULT 'Default ruleset',
-    "enforceCorePlayers" BOOLEAN NOT NULL DEFAULT true,
-    "allowCoreMatchDrop" BOOLEAN NOT NULL DEFAULT true,
-    "maxCoreMatchDropsPerPlayer" INTEGER NOT NULL DEFAULT 1,
-    "maxTotalFloatMatches" INTEGER NOT NULL DEFAULT 3,
-    "preventConsecutiveFloat" BOOLEAN NOT NULL DEFAULT true,
     "minDaysBetweenAnyMatches" INTEGER NOT NULL DEFAULT 3,
-    "blockCoreMatchIfFloatingWithinDays" INTEGER NOT NULL DEFAULT 2,
-    "preferPositionBalance" BOOLEAN NOT NULL DEFAULT true,
-    "preferLowRecentLoad" BOOLEAN NOT NULL DEFAULT true,
-    "preferLowerFloatCount" BOOLEAN NOT NULL DEFAULT true,
+    "warningThreshold" INTEGER NOT NULL DEFAULT 3,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -269,32 +208,16 @@ CREATE TABLE "RuleConfig" (
 INSERT INTO "RuleConfig" (
   "id",
   "name",
-  "enforceCorePlayers",
-  "allowCoreMatchDrop",
-  "maxCoreMatchDropsPerPlayer",
-  "maxTotalFloatMatches",
-  "preventConsecutiveFloat",
   "minDaysBetweenAnyMatches",
-  "blockCoreMatchIfFloatingWithinDays",
-  "preferPositionBalance",
-  "preferLowRecentLoad",
-  "preferLowerFloatCount",
+  "warningThreshold",
   "createdAt",
   "updatedAt"
 )
 SELECT
   "id",
   'Migrated ruleset',
-  "enforceCorePlayers",
-  "allowDropCoreMatch",
-  1,
-  "maxTotalFloatMatches",
-  "preventConsecutiveFloat",
   "minDaysBetweenAnyMatches",
-  "blockCoreMatchIfFloatWithinDays",
-  "preferPositionBalance",
-  "preferLowRecentLoad",
-  "preferLowerFloatCount",
+  3,
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP
 FROM "legacy_RuleConfig";

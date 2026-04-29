@@ -5,26 +5,21 @@ import { getTargetTeamEligibility } from "@/lib/selection/get-target-team-eligib
 type CoveragePlayer = Pick<
   Player,
   | "active"
-  | "canDropCoreMatch"
   | "coreTeamId"
   | "currentAvailability"
   | "firstName"
   | "id"
-  | "isFloating"
   | "lastName"
+  | "nonRotatable"
   | "removedAt"
 > & {
-  allowedFloatTeams: Array<{
-    team: Pick<Team, "id" | "name">;
-    teamId: string;
-  }>;
   coreTeam: Pick<Team, "id" | "name">;
 };
 
 type CoverageMatch = {
   id: string;
   opponent: string;
-  targetTeam: Pick<Team, "id" | "name">;
+  team: Pick<Team, "id" | "name">;
 };
 
 export type WeeklyCoverageRow = {
@@ -45,38 +40,40 @@ export function getWeeklyPlayerCoverage(
     weekMatches.flatMap((match) => selectedPlayerIdsByMatchId.get(match.id) ?? []),
   );
 
-  return players
-    .filter((player) => player.active && player.removedAt === null && player.currentAvailability === "AVAILABLE")
-    .map((player) => {
-      const eligibleMatchLabels = weekMatches
-        .filter((match) => getTargetTeamEligibility(player, match.targetTeam).allowed)
-        .map((match) => `${match.targetTeam.name} vs ${match.opponent}`);
+  const rows: WeeklyCoverageRow[] = [];
 
-      if (eligibleMatchLabels.length === 0 || selectedPlayerIds.has(player.id)) {
-        return null;
-      }
+  for (const player of players) {
+    if (!player.active || player.removedAt !== null || player.currentAvailability !== "AVAILABLE") {
+      continue;
+    }
 
-      return {
-        eligibleMatchLabels,
-        playerId: player.id,
-        playerName: formatPlayerName(player),
-        reason: player.canDropCoreMatch
-          ? "Not currently included in any week selection. Core-match drop is allowed, so this stays informational unless you want to use the player elsewhere this week."
-          : "Not currently included in any week selection and should be reviewed before the week is considered complete.",
-        severity: player.canDropCoreMatch ? "info" : "warning",
-        teamName: player.coreTeam.name,
-      } satisfies WeeklyCoverageRow;
-    })
-    .filter((row): row is WeeklyCoverageRow => row !== null)
-    .sort((left, right) => {
-      if (left.severity !== right.severity) {
-        return left.severity === "warning" ? -1 : 1;
-      }
+    const eligibleMatchLabels = weekMatches
+      .filter((match) => getTargetTeamEligibility(player, match.team).allowed)
+      .map((match) => `${match.team.name} vs ${match.opponent}`);
 
-      if (left.teamName !== right.teamName) {
-        return left.teamName.localeCompare(right.teamName);
-      }
+    if (eligibleMatchLabels.length === 0 || selectedPlayerIds.has(player.id)) {
+      continue;
+    }
 
-      return left.playerName.localeCompare(right.playerName);
+    rows.push({
+      eligibleMatchLabels,
+      playerId: player.id,
+      playerName: formatPlayerName(player),
+      reason: "Not currently included in any week selection and should be reviewed before the week is considered complete.",
+      severity: "warning",
+      teamName: player.coreTeam.name,
     });
+  }
+
+  return rows.sort((left, right) => {
+    if (left.severity !== right.severity) {
+      return left.severity === "warning" ? -1 : 1;
+    }
+
+    if (left.teamName !== right.teamName) {
+      return left.teamName.localeCompare(right.teamName);
+    }
+
+    return left.playerName.localeCompare(right.playerName);
+  });
 }

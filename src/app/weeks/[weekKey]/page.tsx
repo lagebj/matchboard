@@ -67,7 +67,7 @@ export default async function WeekOverviewPage({
         },
       },
       include: {
-        targetTeam: {
+        team: {
           select: {
             developmentTargetRelationships: {
               include: {
@@ -139,29 +139,30 @@ export default async function WeekOverviewPage({
     notFound();
   }
 
-  const selections = await db.matchSelection.findMany({
+  const selections = await db.selection.findMany({
     where: {
       matchId: {
         in: matches.map((match) => match.id),
       },
     },
-    include: {
-      players: {
-        include: {
-          player: {
-            select: {
-              firstName: true,
-              id: true,
-              lastName: true,
-            },
-          },
+    select: {
+      matchId: true,
+      playerId: true,
+      role: true,
+      status: true,
+      explanation: true,
+      player: {
+        select: {
+          firstName: true,
+          id: true,
+          lastName: true,
         },
       },
     },
-    orderBy: [{ createdAt: "desc" }, { finalizedAt: "desc" }],
+    orderBy: [{ createdAt: "desc" }, { updatedAt: "desc" }],
   });
 
-  const latestSelectionByMatchId = new Map<string, (typeof selections)[number]>();
+  const latestSelectionByMatchId = new Map<string, typeof selections[number]>();
 
   for (const selection of selections) {
     if (!latestSelectionByMatchId.has(selection.matchId)) {
@@ -169,15 +170,35 @@ export default async function WeekOverviewPage({
     }
   }
 
+  const matchSelectionsByMatchId = new Map<string, typeof selections>();
+  for (const selection of selections) {
+    const existing = matchSelectionsByMatchId.get(selection.matchId) ?? [];
+    const alreadyExists = existing.some(
+      (s) => s.playerId === selection.playerId && s.role === selection.role,
+    );
+    if (!alreadyExists) {
+      existing.push(selection);
+    }
+    matchSelectionsByMatchId.set(selection.matchId, existing);
+  }
+
   const weekLabel = formatIsoWeekLabel(matches[0].startsAt);
   const returnPath = `/weeks/${formatIsoWeekKey(matches[0].startsAt)}`;
   const weekMatches = matches.map((match) => {
     const latestSelection = latestSelectionByMatchId.get(match.id) ?? null;
+    const matchSels = matchSelectionsByMatchId.get(match.id) ?? [];
 
     return {
       ...match,
       latestSelection,
-      movementPlayers: latestSelection ? getSelectionMovementPlayers(latestSelection.players) : [],
+      selectionRecords: matchSels,
+      movementPlayers: matchSels.length > 0
+        ? getSelectionMovementPlayers(matchSels.map((s) => ({
+            playerId: s.playerId,
+            role: s.role,
+            explanation: s.explanation,
+          })))
+        : [],
     };
   });
   const groupedPlayers = teams
@@ -279,7 +300,7 @@ export default async function WeekOverviewPage({
       {formatSavedMessage(savedStatus) ? (
         <div className="rounded-2xl border app-hairline bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-[var(--accent-strong)]">
           {formatSavedMessage(savedStatus)}
-          {savedMatch ? ` ${savedMatch.targetTeam.name} vs. ${savedMatch.opponent}.` : ""}
+          {savedMatch ? ` ${savedMatch.team.name} vs. ${savedMatch.opponent}.` : ""}
         </div>
       ) : null}
 
@@ -291,7 +312,7 @@ export default async function WeekOverviewPage({
 
       <WeekOverviewBoard
         groupedPlayers={groupedPlayers}
-        matches={weekMatches}
+        matches={weekMatches as any}
         returnPath={returnPath}
         weekLabel={weekLabel}
       />

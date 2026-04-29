@@ -146,6 +146,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
     const team = await db.team.findFirst({
       where: {
         id: teamId,
+        archivedAt: null,
       },
       select: {
         id: true,
@@ -166,6 +167,46 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
       "developmentSlots",
       "Development slots",
     );
+    const targetSquadSize = readNonNegativeInteger(
+      formData,
+      "targetSquadSize",
+      "Target squad size",
+    );
+    const minAcceptedSquadSize = readNonNegativeInteger(
+      formData,
+      "minAcceptedSquadSize",
+      "Minimum accepted squad size",
+    );
+    const maxSquadSize = readNonNegativeInteger(
+      formData,
+      "maxSquadSize",
+      "Maximum squad size",
+    );
+    const minCorePlayers = readNonNegativeInteger(
+      formData,
+      "minCorePlayers",
+      "Minimum core players",
+    );
+    const minSupportCount = readNonNegativeInteger(
+      formData,
+      "minSupportCount",
+      "Minimum support count",
+    );
+    const targetSupportCount = readNonNegativeInteger(
+      formData,
+      "targetSupportCount",
+      "Target support count",
+    );
+    const maxSupportCount = readNonNegativeInteger(
+      formData,
+      "maxSupportCount",
+      "Maximum support count",
+    );
+    const supportPriority = readNonNegativeInteger(
+      formData,
+      "supportPriority",
+      "Support priority",
+    );
     const supportSourceTeamIds = await readRelatedTeamIds(formData, "supportSourceTeamIds", team.id);
     const developmentSourceTeamIds = await readRelatedTeamIds(
       formData,
@@ -180,7 +221,15 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
         },
         data: {
           developmentSlots,
+          maxSquadSize,
+          maxSupportCount,
+          minAcceptedSquadSize,
+          minCorePlayers,
+          minSupportCount,
           minSupportPlayers,
+          supportPriority,
+          targetSquadSize,
+          targetSupportCount,
         },
       });
 
@@ -237,7 +286,6 @@ export async function deleteTeamAction(teamId: string) {
     const [
       team,
       activeCorePlayerCount,
-      activeFloatLinkCount,
       supportRelationshipCount,
       developmentRelationshipCount,
       matchCount,
@@ -254,14 +302,6 @@ export async function deleteTeamAction(teamId: string) {
         where: {
           coreTeamId: teamId,
           removedAt: null,
-        },
-      }),
-      db.playerFloatTeam.count({
-        where: {
-          teamId,
-          player: {
-            removedAt: null,
-          },
         },
       }),
       db.teamSupportSource.count({
@@ -290,7 +330,7 @@ export async function deleteTeamAction(teamId: string) {
       }),
       db.match.count({
         where: {
-          targetTeamId: teamId,
+          teamId: teamId,
         },
       }),
     ]);
@@ -301,13 +341,12 @@ export async function deleteTeamAction(teamId: string) {
 
     if (
       activeCorePlayerCount > 0 ||
-      activeFloatLinkCount > 0 ||
       supportRelationshipCount > 0 ||
       developmentRelationshipCount > 0 ||
       matchCount > 0
     ) {
       throw new Error(
-        "This team is still referenced by active players, active float permissions, support or development relationships, or matches. Remove those references first.",
+        "This team is still referenced by active players, support or development relationships, or matches. Remove those references first.",
       );
     }
 

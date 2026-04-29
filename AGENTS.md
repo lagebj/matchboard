@@ -25,18 +25,7 @@ Matchboard is a local-first web app for youth football match selection, player r
 
 ## Source of truth
 The behavioral source of truth is:
-- `features/matchboard.feature`
-
-When implementing logic, UI, tests, or data flows:
-- follow the Gherkin feature file first
-- do not invent rules that are not expressed there unless explicitly requested
-- if code and Gherkin conflict, treat the Gherkin as correct
-- keep workbook-specific assumptions out of the implementation
-
-## Domain context
-- `docs/domain.md` is the shared domain model and terminology reference
-- read it before changing schema, domain logic, explanations, or domain naming
-- if `docs/domain.md` and `features/matchboard.feature` conflict, treat the Gherkin as correct
+- `features/matchboard.feature` is the behavioral source of truth for all selection logic, rules, and domain behavior
 
 ## Architecture rules
 - Keep selection logic out of React components

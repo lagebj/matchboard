@@ -1,67 +1,54 @@
-import { SelectionStatus } from "@/generated/prisma/client";
+import { type Prisma, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { generateSelection } from "@/lib/selection/generate-selection";
-import { createGeneratedDraftSelection } from "@/lib/selection/save-generated-draft";
+import { generateMatchRound } from "@/lib/selection/generate-round";
+import { createGeneratedDraftRound, createGeneratedDraftSelection } from "@/lib/selection/save-generated-draft";
 
-function hasManualDraftChanges(selection: {
-  players: Array<{
-    wasManuallyAdded: boolean;
-    wasManuallyRemoved: boolean;
-  }>;
-}) {
-  return selection.players.some(
-    (player) => player.wasManuallyAdded || player.wasManuallyRemoved,
+type SelectionExplanationRow = { explanation: Prisma.JsonValue };
+
+function hasManualDraftChanges(selections: SelectionExplanationRow[]) {
+  return selections.some(
+    (selection) => {
+      const explanation = (selection.explanation ?? {}) as Record<string, unknown>;
+      return explanation.manuallyAdded === true || explanation.manuallyRemoved === true;
+    },
   );
 }
 
 async function cloneDraftSelection(matchId: string) {
-  const latestSelection = await db.matchSelection.findFirst({
+  const latestSelections = await db.selection.findMany({
     where: {
       matchId,
     },
-    include: {
-      players: {
-        select: {
-          chosenPosition: true,
-          explanation: true,
-          playerId: true,
-          roleType: true,
-          sourceTeamNameSnapshot: true,
-          targetTeamNameSnapshot: true,
-          wasAutoSelected: true,
-          wasManuallyAdded: true,
-          wasManuallyRemoved: true,
-        },
-      },
+    select: {
+      matchRoundId: true,
+      playerId: true,
+      role: true,
+      explanation: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
 
-  if (!latestSelection) {
+  if (latestSelections.length === 0) {
     throw new Error("Draft selection not found.");
   }
 
-  await db.matchSelection.create({
-    data: {
-      finalizedAt: null,
-      matchId,
-      overrideNotes: latestSelection.overrideNotes,
-      players: {
-        create: latestSelection.players.map((player) => ({
-          chosenPosition: player.chosenPosition,
-          explanation: player.explanation,
-          playerId: player.playerId,
-          roleType: player.roleType,
-          sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
-          targetTeamNameSnapshot: player.targetTeamNameSnapshot,
-          wasAutoSelected: player.wasAutoSelected,
-          wasManuallyAdded: player.wasManuallyAdded,
-          wasManuallyRemoved: player.wasManuallyRemoved,
-        })),
-      },
-      status: SelectionStatus.DRAFT,
-    },
-  });
+  const matchRoundId = latestSelections[0]!.matchRoundId;
+
+  await db.$transaction(
+    latestSelections.map((selection) =>
+      db.selection.create({
+        data: {
+          matchId,
+          matchRoundId,
+          playerId: selection.playerId,
+          role: selection.role,
+          status: SelectionStatus.DRAFT,
+          explanation: selection.explanation as Prisma.InputJsonValue,
+        },
+      }),
+    ),
+  );
 }
 
 export async function refreshDraftSelection(matchId: string) {
@@ -71,13 +58,9 @@ export async function refreshDraftSelection(matchId: string) {
     },
     include: {
       selections: {
-        include: {
-          players: {
-            select: {
-              wasManuallyAdded: true,
-              wasManuallyRemoved: true,
-            },
-          },
+        select: {
+          explanation: true,
+          status: true,
         },
         orderBy: [{ createdAt: "desc" }],
         take: 1,
@@ -95,7 +78,16 @@ export async function refreshDraftSelection(matchId: string) {
     throw new Error("Finalized matches cannot be recalculated.");
   }
 
-  if (latestSelection && hasManualDraftChanges(latestSelection)) {
+  const allDraftSelections = await db.selection.findMany({
+    where: {
+      matchId,
+    },
+    select: {
+      explanation: true,
+    },
+  });
+
+  if (allDraftSelections.length > 0 && hasManualDraftChanges(allDraftSelections)) {
     await cloneDraftSelection(match.id);
     return {
       preservedManualDraft: true,
@@ -114,4 +106,91 @@ export async function refreshDraftSelections(matchIds: string[]) {
   for (const matchId of matchIds) {
     await refreshDraftSelection(matchId);
   }
+}
+
+export async function refreshDraftRound(matchRoundId: string) {
+  const matchRound = await db.matchRound.findUnique({
+    where: { id: matchRoundId },
+    include: {
+      matches: {
+        select: {
+          id: true,
+          selections: {
+            select: {
+              explanation: true,
+              status: true,
+            },
+            orderBy: [{ createdAt: "desc" }],
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!matchRound) {
+    throw new Error("Match round not found.");
+  }
+
+  const hasFinalizedMatch = matchRound.matches.some(
+    (match) => match.selections[0]?.status === SelectionStatus.FINALIZED,
+  );
+
+  if (hasFinalizedMatch) {
+    throw new Error("Finalized matches cannot be recalculated.");
+  }
+
+  const allDraftSelections = await db.selection.findMany({
+    where: {
+      matchRoundId,
+    },
+    select: {
+      explanation: true,
+    },
+  });
+
+  if (allDraftSelections.length > 0 && hasManualDraftChanges(allDraftSelections)) {
+    await cloneDraftRound(matchRoundId);
+    return { preservedManualDraft: true };
+  }
+
+  const generatedRound = await generateMatchRound(matchRoundId);
+  await createGeneratedDraftRound(generatedRound);
+
+  return { preservedManualDraft: false };
+}
+
+async function cloneDraftRound(matchRoundId: string) {
+  const latestSelections = await db.selection.findMany({
+    where: {
+      matchRoundId,
+    },
+    select: {
+      matchId: true,
+      matchRoundId: true,
+      playerId: true,
+      role: true,
+      explanation: true,
+    },
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  if (latestSelections.length === 0) {
+    throw new Error("Draft selections not found.");
+  }
+
+  await db.$transaction(
+    latestSelections.map((selection) =>
+      db.selection.create({
+        data: {
+          matchId: selection.matchId,
+          matchRoundId: selection.matchRoundId,
+          playerId: selection.playerId,
+          role: selection.role,
+          status: SelectionStatus.DRAFT,
+          explanation: selection.explanation as Prisma.InputJsonValue,
+        },
+      }),
+    ),
+  );
 }

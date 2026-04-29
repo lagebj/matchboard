@@ -25,7 +25,7 @@ type PlayerPositionRecord = {
   tertiaryPosition: string | null;
 };
 
-type AvailabilityStatusValue = "AVAILABLE" | "INJURED" | "SICK" | "AWAY";
+type AvailabilityStatusValue = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 type FootPreferenceValue = "LEFT" | "RIGHT";
 type SecondaryFootValue = "LEFT" | "RIGHT" | "WEAK";
 type BestSideValue = "LEFT" | "CENTER" | "RIGHT";
@@ -93,6 +93,10 @@ export function formatAvailabilityStatus(status: AvailabilityStatusValue): strin
       return "Sick";
     case "AWAY":
       return "Away";
+    case "TENTATIVE":
+      return "Tentative";
+    case "UNKNOWN":
+      return "Unknown";
   }
 }
 

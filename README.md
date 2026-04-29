@@ -1,66 +1,40 @@
 # Matchboard
 
-Matchboard is a local-first web app for youth football match selection, player rotation, and finalized squad history.
+Matchboard is a local-first web app for youth football match selection, player rotation, and squad history tracking.
 
-The app is intentionally narrow:
-
-- maintain a team registry
-- maintain a player registry
-- create one match at a time
-- generate or manually adjust a squad
-- finalize the selection so it becomes history for future decisions
-- explain why players were selected or excluded
+The app helps coaches plan weekly match rounds across multiple teams, manage player movement via configured rotation paths, protect fairness over time, and explain why selections were made.
 
 It is not a multi-user system, not an auth product, and not a general club-management platform.
 
 ## Stack
 
-- Next.js App Router
+- Next.js 16 App Router (Turbopack)
 - TypeScript
 - Tailwind CSS
 - Prisma
 - SQLite
 
-## Local development setup
+**Note:** This version of Next.js has breaking changes from what you may know. Read the relevant guide in `node_modules/next/dist/docs/` before making framework-level changes.
 
-These steps assume you are starting with only an IDE installed.
+## Local development setup
 
 ### 1. Install prerequisites
 
-Install these tools on your machine:
+- Git
+- Node.js 22 LTS recommended (minimum 20.9.0 for Next.js 16)
 
-1. Git
-2. Node.js 22 LTS recommended
-
-`next@16` requires Node.js `20.9.0` or newer. Installing Node.js also gives you `npm`.
-
-### 2. Clone and open the repo
+### 2. Clone and install
 
 ```bash
 git clone <your-repo-url>
 cd matchboard
-```
-
-Open the folder in your IDE after cloning.
-
-### 3. Install dependencies
-
-```bash
 npm install
 ```
 
-### 4. Create the local environment file
-
-Copy `.env.example` to `.env` in the repo root.
+### 3. Configure environment
 
 ```bash
 cp .env.example .env
-```
-
-PowerShell equivalent:
-
-```powershell
-Copy-Item .env.example .env
 ```
 
 Default `.env`:
@@ -69,156 +43,114 @@ Default `.env`:
 DATABASE_URL="file:./matchboard.local.db"
 ```
 
-Important detail:
+The app reads `.env` from the repo root. With this default, the SQLite file lives at `prisma/matchboard.local.db`. Do not commit `.env` or any local database file.
 
-- the app reads `.env` from the repo root
-- Prisma also reads the same root `.env`
-- with the default `DATABASE_URL`, the actual SQLite file ends up at `prisma/matchboard.local.db`
-
-Do not commit `.env` or any local database file.
-
-### 5. Generate the Prisma client
+### 4. Set up the database
 
 ```bash
-npm run db:generate
+npm run db:generate    # Generate Prisma client into src/generated/prisma
+npm run db:migrate      # Apply schema migrations
 ```
 
-This creates the generated client in `src/generated/prisma`, which is intentionally ignored by git.
-
-### 6. Create or update the local database schema
-
-For a fresh local setup:
+For active schema development:
 
 ```bash
-npm run db:migrate
+npm run db:migrate:dev  # Create and apply a new migration
 ```
 
-If you are actively changing the Prisma schema during development, use:
-
-```bash
-npm run db:migrate:dev
-```
-
-### 7. Optional: seed fake demo data
+### 5. Optional: seed fake demo data
 
 ```bash
 npm run db:seed:demo
 ```
 
-The demo seed is for fake local testing data only. Do not replace it with real player data.
+Demo seed creates fake players, teams, rotation paths, and match rounds. Never replace it with real player data.
 
-### 8. Start the app
+### 6. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-The dev server runs on `http://localhost:3333`.
+Runs on `http://localhost:3333`.
 
 ## Common commands
 
-```bash
-npm run dev
-npm run lint
-npm run build
-npm run db:generate
-npm run db:migrate
-npm run db:migrate:dev
-npm run db:seed:demo
-```
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start dev server on port 3333 |
+| `npm run build` | Production build |
+| `npm run lint` | Lint source files |
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:migrate` | Apply schema migrations |
+| `npm run db:migrate:dev` | Create and apply a new migration |
+| `npm run db:seed:demo` | Seed fake demo data |
 
-## Local config files
+## Source of truth
 
-### `.env`
+- **`features/matchboard.feature`** — behavioral source of truth for all selection logic, rules, and domain behavior
+- **`AGENTS.md`** — coding agent instructions and style guide
 
-Used for local environment variables. Right now the only required value is:
+If code and the Gherkin feature file disagree, the feature file wins.
 
-```dotenv
-DATABASE_URL="file:./matchboard.local.db"
-```
+## Architecture
 
-### `.env.example`
+### Selection engine pipeline
 
-Safe checked-in template for developers. Copy this to `.env` when setting up the repo.
+The round-level selection engine runs in this order:
 
-### SQLite database files
+1. Per-match core selection (`deferRotation` mode, fills only `minCorePlayers`)
+2. Round-level support resolution (`resolveRoundSupport`)
+3. Cross-match conflict resolution (`resolveRoundConflicts`)
+4. Core-match-drop routing — development and backfill (`routeCoreMatchDrops`)
+5. Post-routing backfill (`resolveBackfillAfterSupport`)
+6. Self-backfill — re-include excluded own-core players for teams below target
 
-These are local-only and should stay untracked:
+Key rules enforced by the engine:
 
-- `prisma/matchboard.local.db`
-- `*.db`, `*.sqlite`, and related journal files
+- Donor teams must not fall below `minCorePlayers` during support resolution
+- Rotation paths are directional and configurable — movement cannot happen without an explicit path
+- Support priority is resolved ascending (lower number = higher priority)
+- Each player can only appear once per match round
+- Finalized selections are immutable — manual overrides require an audit reason
 
-### Generated Prisma client
+### Key source directories
 
-`src/generated/prisma` is generated from the Prisma schema and should not be committed.
+| Path | Purpose |
+|------|---------|
+| `src/lib/selection/` | Selection engine, round-level orchestrator, support, routing, backfill |
+| `src/lib/rules/` | Rule configuration loading and validation |
+| `src/lib/` | DB client, shared utilities, player metrics, date helpers |
+| `src/app/` | Next.js App Router pages, layouts, server actions, API routes |
+| `src/components/` | Shared React components |
+| `features/` | Gherkin feature file |
+
+### Data model highlights
+
+- **Team**: configurable squad limits (`targetSquadSize`, `minAcceptedSquadSize`, `maxSquadSize`), support settings, development slots, support priority
+- **RotationPath**: directed edges between teams with role (SUPPORT, BACKFILL, DEVELOPMENT), cooldown, and count targets
+- **Selection**: per-player per-match record with role (CORE, SUPPORT, BACKFILL, DEVELOPMENT, etc.), status (DRAFT/FINALIZED), and structured explanation JSON
+- **MatchRound**: weekly planning unit — selections are generated and validated per round, not per match in isolation
 
 ## Sensitive data policy
 
 This repo is intended to stay safe for a public remote:
 
-- never commit real player names or private roster exports
-- never commit local SQLite database files
-- never commit `.env` or machine-specific secrets
-- keep any imported or exported real data in ignored local directories only
+- Never commit real player names or private roster data
+- Never commit local SQLite database files (`.db`, `.sqlite`, journal files)
+- Never commit `.env` or machine-specific secrets
+- Keep imported or exported real data in ignored local directories only
+- Demo and example data committed to the repo must be fake
 
-If you need sample data in the repo, use fake data only.
+## Coding style
 
-## Behavioral source of truth
-
-When changing app behavior, check these first:
-
-- `features/matchboard.feature`
-- `docs/domain.md`
-- `AGENTS.md`
-
-If code and the Gherkin feature file disagree, the feature file wins.
-
-## Suggested coding agent configuration
-
-If you use a coding agent on this repo, give it a repo-specific operating contract instead of relying on generic framework assumptions.
-
-### What the agent should read first
-
-Before changing code, the agent should read:
-
-1. `AGENTS.md`
-2. `features/matchboard.feature`
-3. `docs/domain.md`
-
-The agent should treat `features/matchboard.feature` as the behavioral source of truth.
-
-### Suggested repo instructions for the agent
-
-Use guidance equivalent to this:
-
-- Matchboard is a local-first web app for youth football match selection, player rotation, and squad history tracking.
-- Respect product boundaries: local-first only, no auth, no multi-user features, no batch scheduling, one match at a time.
-- Follow `features/matchboard.feature` first. Do not invent selection rules that are not expressed there unless explicitly asked.
-- Read `docs/domain.md` before changing schema, domain logic, explanations, or naming.
-- If `docs/domain.md` and `features/matchboard.feature` conflict, the feature file wins.
-- Keep selection logic out of React components.
-- Put selection logic in `src/lib/selection/*`.
-- Put rule loading and validation in `src/lib/rules/*`.
-- Keep UI, rules config, and selection engine separate.
-- Prefer explicit domain code over generic abstractions.
-- Never commit real player names, private roster data, `.env`, or local SQLite files.
-- Example and demo data committed to the repo must be fake.
-- Build only what is needed for player registry, match creation, single-match selection generation, finalized selection history, and human-readable explanations.
-- Prefer small files and clear names.
-- Validate inputs at boundaries.
-- Keep the UI calm and operational.
-
-### Next.js-specific instruction
-
-This repo uses Next.js 16. Agents should not assume older Next.js conventions are still valid.
-
-Before making framework-level changes, the agent should read the relevant guide in:
-
-```text
-node_modules/next/dist/docs/
-```
-
-That matters especially for routing, config, runtime behavior, and deprecations.
+- Prefer small files and clear names over short names
+- Return explanation objects from selection logic — the app must never behave like a black box
+- Validate inputs at boundaries (server actions, API routes)
+- Keep UI, rules config, and selection engine separate
+- Prefer explicit domain code over generic abstractions
+- Keep the UI calm and operational — tables are supporting elements, not primary workflows
+- No auth, no multi-user features, no batch scheduling
 
 ## Branch and PR workflow
 
@@ -226,26 +158,16 @@ Agents should not work directly on `main` unless explicitly instructed.
 
 ### Branching
 
-- Start from the latest `main`.
-- Create one feature branch per task or fix.
-- Keep branches narrowly scoped.
-- Prefer branch names like:
-
-```text
-feature/player-detail-navigation
-feature/match-selection-explanations
-fix/finalize-selection-history
-chore/readme-cleanup
-docs/local-setup-and-agent-rules
-```
+- Start from the latest `main`
+- Create one feature branch per task or fix
+- Keep branches narrowly scoped
+- Prefer names like `feature/player-detail-navigation`, `fix/finalize-selection-history`, `chore/readme-cleanup`
 
 ### Commit style
 
-Use Conventional Commits.
+Use Conventional Commits:
 
-Recommended formats:
-
-```text
+```
 feat: add next-player navigation on player detail page
 fix: preserve finalized selection history on recalculation
 docs: rewrite local setup and agent workflow guide
@@ -254,57 +176,15 @@ test: cover support-team eligibility rules
 chore: tighten gitignore for local sqlite and env files
 ```
 
-Useful commit types for this repo:
-
-- `feat`
-- `fix`
-- `docs`
-- `refactor`
-- `test`
-- `chore`
-
-Additional commit guidance:
-
-- Keep each commit focused on one logical change.
-- Do not mix unrelated cleanup with behavior changes.
-- If schema or behavior changes, include the related docs or feature updates in the same branch.
-- Do not commit generated local data, private imports, or machine-specific config.
+Keep each commit focused on one logical change. Do not mix unrelated cleanup with behavior changes.
 
 ### Pull requests
 
-Agents should open a PR from the feature branch into `main`.
-
 Each PR should:
 
-- stay focused on one change set
-- explain the problem and the chosen implementation
-- call out any schema, migration, or rule changes
-- mention any behavior changes against `features/matchboard.feature`
-- list verification performed, such as `npm run build` and relevant manual checks
-- note anything not verified
-
-Recommended PR title style:
-
-```text
-feat: add saved selection explanations to history flow
-fix: block team deletion when support relationships exist
-docs: add local setup and coding agent workflow
-```
-
-Recommended PR body sections:
-
-- Summary
-- Source-of-truth impact
-- Testing
-- Risks or follow-ups
-
-### Agent operating habits
-
-For this repo, agents should also follow these working habits:
-
-- inspect existing code before editing
-- avoid broad rewrites when a small targeted change is enough
-- preserve user changes already present in the worktree
-- update docs when setup, workflow, or developer expectations change
-- run relevant validation before finishing
-- surface blockers clearly instead of guessing past missing domain rules
+- Stay focused on one change set
+- Explain the problem and chosen implementation
+- Call out any schema, migration, or rule changes
+- Mention any behavior changes against `features/matchboard.feature`
+- List verification performed (lint, typecheck, manual checks)
+- Note anything not verified

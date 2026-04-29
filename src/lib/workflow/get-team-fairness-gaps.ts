@@ -3,7 +3,7 @@ import { formatPlayerName } from "@/lib/player-metrics";
 
 type FairnessPlayer = Pick<
   Player,
-  "active" | "canDropCoreMatch" | "firstName" | "id" | "lastName" | "removedAt"
+  "active" | "firstName" | "id" | "lastName" | "removedAt"
 > & {
   coreTeam: Pick<Team, "id" | "name">;
 };
@@ -58,7 +58,6 @@ export function getTeamFairnessGroups(
       );
 
       const teamGapPlayers = teamPlayers
-        .filter((player) => !player.canDropCoreMatch)
         .map((player) => {
           const currentMatchCount = savedMatchCountByPlayerId.get(player.id) ?? 0;
           const gap = targetMatchCount - currentMatchCount;

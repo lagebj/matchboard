@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type {
   Match,
-  MatchSelection,
-  MatchSelectionPlayer,
+  Prisma,
   Player,
   SelectionRole,
   SelectionStatus,
@@ -15,6 +14,15 @@ import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 import { formatAvailabilityStatus, formatPlayerName, getPlayerPositionSummary } from "@/lib/player-metrics";
 import type { SelectionMovementPlayer } from "@/lib/selection/get-selection-movement";
 
+type SelectionExplanation = {
+  autoSelected?: boolean;
+  manuallyAdded?: boolean;
+  manuallyRemoved?: boolean;
+  sourceTeamName?: string;
+  summary?: string;
+  targetTeamName?: string;
+};
+
 type PlayerGroup = {
   players: Array<
     Player & {
@@ -24,18 +32,25 @@ type PlayerGroup = {
   team: Pick<Team, "id" | "name">;
 };
 
-type LatestSelection = MatchSelection & {
-  players: Array<
-    MatchSelectionPlayer & {
-      player: Pick<Player, "firstName" | "id" | "lastName">;
-    }
-  >;
+type LatestSelection = {
+  id: string;
+  matchId: string;
+  playerId: string;
+  role: SelectionRole;
+  status: SelectionStatus;
+  explanation: Prisma.JsonValue;
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+  };
 };
 
 type WeekOverviewMatch = Match & {
   latestSelection: LatestSelection | null;
   movementPlayers: SelectionMovementPlayer[];
-  targetTeam: Pick<Team, "id" | "minSupportPlayers" | "name"> & {
+  selectionRecords: LatestSelection[];
+  team: Pick<Team, "id" | "minSupportPlayers" | "name"> & {
     developmentTargetRelationships: Array<{
       sourceTeam: Pick<Team, "id" | "name">;
     }>;
@@ -55,9 +70,12 @@ type WeekOverviewBoardProps = {
 const roleLabels: Record<SelectionRole, string> = {
   CORE: "Core",
   DEVELOPMENT: "Development",
-  FLOAT: "Float",
-  MANUAL: "Manual",
   SUPPORT: "Support",
+  BACKFILL: "Backfill",
+  CONFIDENCE_REBUILD: "Confidence Rebuild",
+  CORE_MATCH_DROP: "Core Drop",
+  REDUCED_MATCH_LOAD_DROP: "Reduced Load Drop",
+  MANUAL_OVERRIDE: "Manual Override",
 };
 
 function formatSelectionState(status: SelectionStatus | null): string {
@@ -84,14 +102,16 @@ function getSelectionStateClassName(status: SelectionStatus | null): string {
   return "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-[var(--text-soft)]";
 }
 
-function getActiveSavedPlayers(latestSelection: LatestSelection | null) {
-  return latestSelection?.players.filter((player) => !player.wasManuallyRemoved) ?? [];
+function getActiveSavedPlayers(selectionRecords: WeekOverviewMatch["selectionRecords"]) {
+  return selectionRecords.filter((record) => {
+    const explanation = (record.explanation ?? {}) as SelectionExplanation;
+    return !explanation.manuallyRemoved;
+  });
 }
 
-function getSelectedRoleByPlayerId(latestSelection: LatestSelection | null): Record<string, SelectionRole> {
-  return Object.fromEntries(
-    getActiveSavedPlayers(latestSelection).map((player) => [player.playerId, player.roleType]),
-  );
+function getSelectedRoleByPlayerId(selectionRecords: WeekOverviewMatch["selectionRecords"]): Record<string, SelectionRole> {
+  const activePlayers = getActiveSavedPlayers(selectionRecords);
+  return Object.fromEntries(activePlayers.map((record) => [record.playerId, record.role]));
 }
 
 function getSuggestedRole(
@@ -103,20 +123,13 @@ function getSuggestedRole(
   if (player.coreTeamId === targetTeamId) {
     return "CORE";
   }
-
-  if (!player.isFloating) {
-    return "MANUAL";
-  }
-
   if (supportSourceTeamIds.includes(player.coreTeamId)) {
     return "SUPPORT";
   }
-
   if (developmentSourceTeamIds.includes(player.coreTeamId)) {
     return "DEVELOPMENT";
   }
-
-  return "FLOAT";
+  return "MANUAL_OVERRIDE";
 }
 
 export function WeekOverviewBoard({
@@ -151,15 +164,15 @@ export function WeekOverviewBoard({
             const saveAction = saveManualSelectionAction.bind(null, match.id);
             const latestSelectionStatus = match.latestSelection?.status ?? null;
             const latestSelectionIsFinalized = latestSelectionStatus === "FINALIZED";
-            const selectedRoleByPlayerId = getSelectedRoleByPlayerId(match.latestSelection);
+            const selectedRoleByPlayerId = getSelectedRoleByPlayerId(match.selectionRecords);
             const selectedCount = Object.keys(selectedRoleByPlayerId).length;
-            const supportSourceTeamIds = match.targetTeam.supportTargetRelationships.map(
+            const supportSourceTeamIds = match.team.supportTargetRelationships.map(
               (relationship) => relationship.sourceTeam.id,
             );
-            const developmentSourceTeamIds = match.targetTeam.developmentTargetRelationships.map(
+            const developmentSourceTeamIds = match.team.developmentTargetRelationships.map(
               (relationship) => relationship.sourceTeam.id,
             );
-            const activeSavedPlayers = getActiveSavedPlayers(match.latestSelection);
+            const activeSavedPlayers = getActiveSavedPlayers(match.selectionRecords);
 
             return (
               <section
@@ -169,10 +182,10 @@ export function WeekOverviewBoard({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-semibold text-zinc-50">
-                      {match.targetTeam.name} vs. {match.opponent}
+                      {match.team.name} vs. {match.opponent}
                     </p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      {formatDate(match.startsAt)} · {formatMatchVenue(match.homeOrAway)}
+                      {formatDate(match.startsAt)} · {formatMatchVenue(match.homeAway)}
                     </p>
                     <p className="mt-2 text-xs uppercase tracking-[0.18em] app-copy-muted">
                       {match.availableForDevelopmentSlot ? "Development open" : "Development closed"}
@@ -227,7 +240,7 @@ export function WeekOverviewBoard({
                       Support
                     </p>
                     <p className="mt-2 text-lg font-semibold text-zinc-50">
-                      {match.targetTeam.minSupportPlayers}
+                      {match.team.minSupportPlayers}
                     </p>
                   </div>
                 </div>
@@ -263,16 +276,16 @@ export function WeekOverviewBoard({
                       </p>
                       <div className="mt-3 flex flex-col gap-2">
                         {activeSavedPlayers.length > 0 ? (
-                          activeSavedPlayers.map((player) => (
+                          activeSavedPlayers.map((record, index) => (
                             <div
-                              key={player.id}
+                              key={`${record.id}-${index}`}
                               className="rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3"
                             >
                               <p className="text-sm font-medium text-zinc-100">
-                                {formatPlayerName(player.player)}
+                                {formatPlayerName(record.player)}
                               </p>
                               <p className="mt-1 text-sm app-copy-soft">
-                                {formatSelectionRole(player.roleType)}
+                                {formatSelectionRole(record.role)}
                               </p>
                             </div>
                           ))
@@ -292,21 +305,9 @@ export function WeekOverviewBoard({
                   <form action={saveAction} className="mt-4 flex flex-col gap-4">
                     <input name="returnPath" type="hidden" value={returnPath} />
 
-                    {match.latestSelection ? (
-                      <input name="baselineSelectionId" type="hidden" value={match.latestSelection.id} />
+                    {match.selectionRecords.length > 0 ? (
+                      <input name="baselineSelectionMatchId" type="hidden" value={match.id} />
                     ) : null}
-
-                    <label className="flex flex-col gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                        Note
-                      </span>
-                      <textarea
-                        className="min-h-20 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
-                        defaultValue={match.latestSelection?.overrideNotes ?? ""}
-                        name="overrideNotes"
-                        placeholder="Short note if you are forcing this one."
-                      />
-                    </label>
 
                     <div className="max-h-[34rem] overflow-y-auto rounded-2xl border app-hairline bg-[rgba(0,0,0,0.12)]">
                       {groupedPlayers.map((group) => (
@@ -325,7 +326,7 @@ export function WeekOverviewBoard({
                                   player,
                                   developmentSourceTeamIds,
                                   supportSourceTeamIds,
-                                  match.targetTeam.id,
+                                  match.team.id,
                                 );
 
                               return (

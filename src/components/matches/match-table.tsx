@@ -18,7 +18,7 @@ type MatchRow = {
   availableForDevelopmentSlot: boolean;
   createdAt: Date;
   deleteAction: () => Promise<void>;
-  homeOrAway: "HOME" | "AWAY";
+  homeAway: "HOME" | "AWAY";
   id: string;
   latestSelectionStatus: "DRAFT" | "FINALIZED" | null;
   matchType: string | null;
@@ -26,7 +26,7 @@ type MatchRow = {
   opponent: string;
   squadSize: number;
   startsAt: Date;
-  targetTeam: {
+  team: {
     id: string;
     name: string;
   };
@@ -78,7 +78,7 @@ export function MatchTable({
 
   const sortedMatches = [...matches].sort((left, right) => {
     if (sortKey === "team") {
-      return applySortDirection(compareText(left.targetTeam.name, right.targetTeam.name), sortDirection);
+      return applySortDirection(compareText(left.team.name, right.team.name), sortDirection);
     }
 
     if (sortKey === "opponent") {
@@ -95,7 +95,7 @@ export function MatchTable({
 
     if (sortKey === "venue") {
       return applySortDirection(
-        compareText(formatMatchVenue(left.homeOrAway), formatMatchVenue(right.homeOrAway)),
+        compareText(formatMatchVenue(left.homeAway), formatMatchVenue(right.homeAway)),
         sortDirection,
       );
     }
@@ -283,10 +283,10 @@ export function MatchTable({
                       className="block rounded-xl px-2 py-2 -mx-2 -my-2 text-zinc-100 hover:bg-[rgba(255,255,255,0.05)]"
                       href={`/selection/${match.id}`}
                     >
-                      {match.targetTeam.name}
+                      {match.team.name}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 app-copy-soft">{formatMatchVenue(match.homeOrAway)}</td>
+                  <td className="px-4 py-3 app-copy-soft">{formatMatchVenue(match.homeAway)}</td>
                   <td className="px-4 py-3 text-zinc-100">{match.opponent}</td>
                   <td className="px-4 py-3 app-copy-soft">{match.squadSize}</td>
                   <td className="px-4 py-3 app-copy-soft">{match.matchType ?? "-"}</td>

@@ -13,31 +13,28 @@ export async function getFinalizedPlayerHistory(
   currentMatchId: string,
   currentMatchDate: Date,
 ): Promise<FinalizedPlayerHistoryEntry[]> {
-  const history = await db.matchSelectionPlayer.findMany({
+  const history = await db.selection.findMany({
     where: {
       playerId,
-      wasManuallyRemoved: false,
-      selection: {
-        status: SelectionStatus.FINALIZED,
-        matchId: {
-          not: currentMatchId,
-        },
-        match: {
-          startsAt: {
-            lte: currentMatchDate,
-          },
+      status: SelectionStatus.FINALIZED,
+      matchId: {
+        not: currentMatchId,
+      },
+      match: {
+        startsAt: {
+          lte: currentMatchDate,
         },
       },
     },
     select: {
-      roleType: true,
-      targetTeamNameSnapshot: true,
-      selection: {
+      role: true,
+      match: {
         select: {
-          match: {
+          id: true,
+          startsAt: true,
+          team: {
             select: {
-              id: true,
-              startsAt: true,
+              name: true,
             },
           },
         },
@@ -45,19 +42,17 @@ export async function getFinalizedPlayerHistory(
     },
     orderBy: [
       {
-        selection: {
-          match: {
-            startsAt: "desc",
-          },
+        match: {
+          startsAt: "desc",
         },
       },
     ],
   });
 
   return history.map((entry) => ({
-    matchDate: entry.selection.match.startsAt,
-    matchId: entry.selection.match.id,
-    roleType: entry.roleType,
-    targetTeamName: entry.targetTeamNameSnapshot,
+    matchDate: entry.match.startsAt,
+    matchId: entry.match.id,
+    roleType: entry.role,
+    targetTeamName: entry.match.team.name,
   }));
 }

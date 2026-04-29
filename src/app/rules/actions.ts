@@ -16,10 +16,6 @@ function readText(formData: FormData, fieldName: string): string {
   return value.trim();
 }
 
-function readCheckbox(formData: FormData, fieldName: string): boolean {
-  return formData.get(fieldName) === "on";
-}
-
 function readRequiredInteger(formData: FormData, fieldName: string): number {
   const value = readText(formData, fieldName);
   const parsedValue = Number.parseInt(value, 10);
@@ -38,18 +34,8 @@ export async function saveRulesAction(formData: FormData) {
     await db.ruleConfig.update({
       where: { id: rules.id },
       data: {
-        allowCoreMatchDrop: readCheckbox(formData, "allowCoreMatchDrop"),
-        maxCoreMatchDropsPerPlayer: readRequiredInteger(formData, "maxCoreMatchDropsPerPlayer"),
-        maxTotalFloatMatches: readRequiredInteger(formData, "maxTotalFloatMatches"),
-        preventConsecutiveFloat: readCheckbox(formData, "preventConsecutiveFloat"),
         minDaysBetweenAnyMatches: readRequiredInteger(formData, "minDaysBetweenAnyMatches"),
-        blockCoreMatchIfFloatingWithinDays: readRequiredInteger(
-          formData,
-          "blockCoreMatchIfFloatingWithinDays",
-        ),
-        preferPositionBalance: readCheckbox(formData, "preferPositionBalance"),
-        preferLowRecentLoad: readCheckbox(formData, "preferLowRecentLoad"),
-        preferLowerFloatCount: readCheckbox(formData, "preferLowerFloatCount"),
+        warningThreshold: readRequiredInteger(formData, "warningThreshold"),
       },
     });
   } catch (error) {
@@ -63,7 +49,7 @@ export async function saveRulesAction(formData: FormData) {
   revalidatePath("/rules");
   redirect(
     buildPathWithSearch("/rules", {
-      saved: true,
+      saved: "1",
     }),
   );
 }

@@ -15,10 +15,8 @@ import { playerPositionValues } from "@/lib/player-form-options";
 
 type PlayerInput = {
   active: boolean;
-  allowedFloatTeamIds: string[];
   ballControl: number;
   bestSide: BestSide;
-  canDropCoreMatch: boolean;
   concentration: number;
   coreTeamId: string;
   currentAvailability: AvailabilityStatus;
@@ -26,9 +24,8 @@ type PlayerInput = {
   effort: number;
   firstName: string;
   firstTouch: number;
-  isFloating: boolean;
   lastName: string | null;
-  maxDevelopmentMatches: number | null;
+  nonRotatable: boolean;
   notes: string | null;
   oneVOneAttacking: number;
   oneVOneDefending: number;
@@ -36,6 +33,7 @@ type PlayerInput = {
   positioning: number;
   preferredFoot: FootPreference;
   primaryPosition: string;
+  reducedMatchLoadAllowed: boolean;
   secondaryFoot: SecondaryFoot;
   secondaryPosition: string | null;
   speed: number;
@@ -69,22 +67,6 @@ function readRequiredInteger(formData: FormData, fieldName: string): number {
 
   if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > 5) {
     throw new Error(`${fieldName} must be a whole number between 1 and 5.`);
-  }
-
-  return parsedValue;
-}
-
-function readOptionalNonNegativeInteger(formData: FormData, fieldName: string, label: string): number | null {
-  const value = readText(formData, fieldName);
-
-  if (!value) {
-    return null;
-  }
-
-  const parsedValue = Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
-    throw new Error(`${label} must be empty or a whole number of 0 or more.`);
   }
 
   return parsedValue;
@@ -155,12 +137,14 @@ function readAvailabilityStatus(formData: FormData): AvailabilityStatus {
     value === AvailabilityStatus.AVAILABLE ||
     value === AvailabilityStatus.INJURED ||
     value === AvailabilityStatus.SICK ||
-    value === AvailabilityStatus.AWAY
+    value === AvailabilityStatus.AWAY ||
+    value === AvailabilityStatus.TENTATIVE ||
+    value === AvailabilityStatus.UNKNOWN
   ) {
     return value;
   }
 
-  throw new Error("Availability must be Available, Injured, Sick, or Away.");
+  throw new Error("Availability must be Available, Injured, Sick, Away, Tentative, or Unknown.");
 }
 
 async function readCoreTeamId(formData: FormData): Promise<string> {
@@ -187,42 +171,10 @@ async function readCoreTeamId(formData: FormData): Promise<string> {
   return team.id;
 }
 
-async function readAllowedFloatTeamIds(formData: FormData, coreTeamId: string): Promise<string[]> {
-  const teamIds = [...new Set(formData.getAll("allowedFloatTeamIds"))].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
-
-  if (teamIds.length === 0) {
-    return [];
-  }
-
-  const activeTeams = await db.team.findMany({
-    where: {
-      archivedAt: null,
-      id: {
-        in: teamIds,
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  const validTeamIds = activeTeams.map((team) => team.id).filter((teamId) => teamId !== coreTeamId);
-
-  if (validTeamIds.length !== teamIds.filter((teamId) => teamId !== coreTeamId).length) {
-    throw new Error("Allowed float teams must reference active teams other than the core team.");
-  }
-
-  return validTeamIds;
-}
-
 async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
   const firstName = readText(formData, "firstName");
   const primaryPosition = readRequiredPosition(formData, "primaryPosition");
   const coreTeamId = await readCoreTeamId(formData);
-  const isFloating = readCheckbox(formData, "isFloating");
-  const allowedFloatTeamIds = await readAllowedFloatTeamIds(formData, coreTeamId);
 
   if (!firstName) {
     throw new Error("First name and primary position are required.");
@@ -230,10 +182,8 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
 
   return {
     active: readCheckbox(formData, "active"),
-    allowedFloatTeamIds,
     ballControl: readRequiredInteger(formData, "ballControl"),
     bestSide: readBestSide(formData),
-    canDropCoreMatch: readCheckbox(formData, "canDropCoreMatch"),
     concentration: readRequiredInteger(formData, "concentration"),
     coreTeamId,
     currentAvailability: readAvailabilityStatus(formData),
@@ -241,13 +191,8 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
     effort: readRequiredInteger(formData, "effort"),
     firstName,
     firstTouch: readRequiredInteger(formData, "firstTouch"),
-    isFloating,
     lastName: readOptionalText(formData, "lastName"),
-    maxDevelopmentMatches: readOptionalNonNegativeInteger(
-      formData,
-      "maxDevelopmentMatches",
-      "Development match target",
-    ),
+    nonRotatable: readCheckbox(formData, "nonRotatable"),
     notes: readOptionalText(formData, "notes"),
     oneVOneAttacking: readRequiredInteger(formData, "oneVOneAttacking"),
     oneVOneDefending: readRequiredInteger(formData, "oneVOneDefending"),
@@ -255,6 +200,7 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
     positioning: readRequiredInteger(formData, "positioning"),
     preferredFoot: readPreferredFoot(formData),
     primaryPosition,
+    reducedMatchLoadAllowed: readCheckbox(formData, "reducedMatchLoadAllowed"),
     secondaryFoot: readSecondaryFoot(formData),
     secondaryPosition: readOptionalPosition(formData, "secondaryPosition"),
     speed: readRequiredInteger(formData, "speed"),
@@ -276,48 +222,40 @@ function getPlayerActionErrorMessage(error: unknown): string {
   return "Could not save the player.";
 }
 
-async function createAllowedFloatTeamLinks(
-  playerFloatTeam: Pick<typeof db, "playerFloatTeam">["playerFloatTeam"],
-  playerId: string,
-  allowedFloatTeamIds: string[],
-) {
-  if (allowedFloatTeamIds.length === 0) {
-    return;
-  }
-
-  await playerFloatTeam.createMany({
-    data: allowedFloatTeamIds.map((teamId) => ({
-      playerId,
-      teamId,
-    })),
-  });
-}
-
 export async function createPlayerAction(formData: FormData) {
   try {
     const playerInput = await readPlayerInput(formData);
-    const { allowedFloatTeamIds, ...playerData } = playerInput;
 
-    await db.$transaction(async (transaction) => {
-      const highestPlayerCode = await transaction.player.aggregate({
-        _max: {
-          playerCode: true,
-        },
-      });
+    let created = false;
+    let attempts = 0;
 
-      const player = await transaction.player.create({
-        data: {
-          ...playerData,
-          playerCode: (highestPlayerCode._max.playerCode ?? 0) + 1,
-        },
-      });
+    while (!created && attempts < 5) {
+      attempts++;
+      const maxPlayerCode = (await db.player.aggregate({ _max: { playerCode: true } }))._max.playerCode ?? 0;
+      const playerCode = maxPlayerCode + 1;
 
-      await createAllowedFloatTeamLinks(
-        transaction.playerFloatTeam,
-        player.id,
-        allowedFloatTeamIds,
-      );
-    });
+      try {
+        await db.player.create({
+          data: {
+            ...playerInput,
+            playerCode,
+          },
+        });
+        created = true;
+      } catch (retryError) {
+        if (
+          retryError instanceof Prisma.PrismaClientKnownRequestError
+          && retryError.code === "P2002"
+        ) {
+          continue;
+        }
+        throw retryError;
+      }
+    }
+
+    if (!created) {
+      throw new Error("Could not generate a unique player code after multiple attempts.");
+    }
   } catch (error) {
     redirect(
       buildPathWithSearch("/players", {
@@ -338,44 +276,26 @@ export async function createPlayerAction(formData: FormData) {
 export async function updatePlayerAction(playerId: string, formData: FormData) {
   try {
     const playerInput = await readPlayerInput(formData);
-    const { allowedFloatTeamIds, ...playerData } = playerInput;
 
-    await db.$transaction(async (transaction) => {
-      const player = await transaction.player.findFirst({
-        where: {
-          id: playerId,
-          removedAt: null,
-        },
-        select: {
-          id: true,
-        },
-      });
+    const player = await db.player.findFirst({
+      where: {
+        id: playerId,
+        removedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
 
-      if (!player) {
-        throw new Error("Player not found.");
-      }
+    if (!player) {
+      throw new Error("Player not found.");
+    }
 
-      await transaction.player.update({
-        where: { id: player.id },
-        data: {
-          ...playerData,
-        },
-      });
-
-      await transaction.playerFloatTeam.deleteMany({
-        where: {
-          playerId: player.id,
-        },
-      });
-
-      if (allowedFloatTeamIds.length > 0) {
-        await transaction.playerFloatTeam.createMany({
-          data: allowedFloatTeamIds.map((teamId) => ({
-            playerId: player.id,
-            teamId,
-          })),
-        });
-      }
+    await db.player.update({
+      where: { id: player.id },
+      data: {
+        ...playerInput,
+      },
     });
   } catch (error) {
     redirect(
@@ -443,7 +363,7 @@ export async function removePlayerAction(playerId: string) {
       },
       select: {
         id: true,
-        selectionPlayers: {
+        selections: {
           select: {
             id: true,
           },
@@ -456,31 +376,21 @@ export async function removePlayerAction(playerId: string) {
       throw new Error("Player not found.");
     }
 
-    await db.$transaction(async (transaction) => {
-      await transaction.playerFloatTeam.deleteMany({
+    if (player.selections.length === 0) {
+      await db.player.delete({
         where: {
-          playerId: player.id,
+          id: player.id,
         },
       });
-
-      if (player.selectionPlayers.length === 0) {
-        await transaction.player.delete({
-          where: {
-            id: player.id,
-          },
-        });
-
-        return;
-      }
-
-      await transaction.player.update({
+    } else {
+      await db.player.update({
         where: { id: player.id },
         data: {
           active: false,
           removedAt: new Date(),
         },
       });
-    });
+    }
   } catch (error) {
     redirect(
       buildPathWithSearch("/players", {

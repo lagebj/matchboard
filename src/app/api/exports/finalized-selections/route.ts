@@ -3,14 +3,21 @@ import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 
-type ExportFormat = "csv" | "txt" | "md";
+type ExportFormat = "csv" | "json" | "txt" | "md";
+type VisibilityMode = "coach" | "parent";
 
 function getExportFormat(value: string | null): ExportFormat {
-  if (value === "txt" || value === "md") {
+  if (value === "json" || value === "txt" || value === "md") {
     return value;
   }
-
   return "csv";
+}
+
+function getVisibilityMode(value: string | null): VisibilityMode {
+  if (value === "parent") {
+    return "parent";
+  }
+  return "coach";
 }
 
 function buildFilename(format: ExportFormat) {
@@ -22,162 +29,281 @@ function escapeCsv(value: string): string {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
     return `"${value.replaceAll('"', '""')}"`;
   }
-
   return value;
 }
+
+type CoachRow = {
+  date: string;
+  team: string;
+  homeOrAway: string;
+  opponent: string;
+  playerName: string;
+  sourceTeam: string;
+  role: string;
+  overrideReason: string | null;
+  explanation: string | null;
+};
+
+type ParentRow = {
+  date: string;
+  team: string;
+  homeOrAway: string;
+  opponent: string;
+  playerName: string;
+};
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const format = getExportFormat(url.searchParams.get("format"));
+  const visibility = getVisibilityMode(url.searchParams.get("visibility"));
 
-  const finalizedSelections = await db.matchSelection.findMany({
-    where: {
-      status: SelectionStatus.FINALIZED,
-    },
+  const finalizedSelections = await db.selection.findMany({
+    where: { status: SelectionStatus.FINALIZED },
     include: {
       match: {
         include: {
-          targetTeam: {
-            select: {
-              name: true,
-            },
-          },
+          team: { select: { name: true } },
         },
       },
-      players: {
-        where: {
-          wasManuallyRemoved: false,
+      player: {
+        select: {
+          firstName: true,
+          lastName: true,
+          reducedMatchLoadAllowed: true,
+          supportSuitability: true,
+          developmentReadiness: true,
+          coreTeam: { select: { name: true } },
         },
-        include: {
-          player: {
-            select: {
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
-        orderBy: [
-          {
-            player: {
-              firstName: "asc",
-            },
-          },
-          {
-            player: {
-              lastName: "asc",
-            },
-          },
-        ],
       },
     },
-    orderBy: [
-      {
-        match: {
-          startsAt: "desc",
-        },
-      },
-      {
-        finalizedAt: "desc",
-      },
-    ],
+    orderBy: [{ match: { startsAt: "desc" } }],
   });
 
-  const rows = finalizedSelections.flatMap((selection) =>
-    selection.players.map((selectionPlayer) => ({
-      date: formatDate(selection.match.startsAt),
-      homeOrAway: formatMatchVenue(selection.match.homeOrAway),
-      opponent: selection.match.opponent,
-      playerName: selectionPlayer.player.lastName
-        ? `${selectionPlayer.player.firstName} ${selectionPlayer.player.lastName}`
-        : selectionPlayer.player.firstName,
-      role: formatSelectionRole(selectionPlayer.roleType),
-      sourceTeam: selectionPlayer.sourceTeamNameSnapshot,
-      targetTeam: selection.match.targetTeam.name,
-    })),
-  );
+  const isParent = visibility === "parent";
 
-  let body = "";
-  let contentType = "text/csv; charset=utf-8";
+  if (format === "json") {
+    if (isParent) {
+      const groupedByMatch = new Map<string, ParentRow[]>();
+
+      for (const selection of finalizedSelections) {
+        const matchKey = selection.matchId;
+        if (!groupedByMatch.has(matchKey)) {
+          groupedByMatch.set(matchKey, []);
+        }
+        groupedByMatch.get(matchKey)!.push({
+          date: formatDate(selection.match.startsAt),
+          team: selection.match.team.name,
+          homeOrAway: formatMatchVenue(selection.match.homeAway),
+          opponent: selection.match.opponent,
+          playerName: selection.player.lastName
+            ? `${selection.player.firstName} ${selection.player.lastName}`
+            : selection.player.firstName,
+        });
+      }
+
+      const matches = Array.from(groupedByMatch.entries()).map(([matchId, playerRows]) => ({
+        matchId,
+        date: playerRows[0].date,
+        team: playerRows[0].team,
+        homeOrAway: playerRows[0].homeOrAway,
+        opponent: playerRows[0].opponent,
+        players: playerRows.map((r) => r.playerName),
+      }));
+
+      return new Response(JSON.stringify({ visibility: "parent", matches }, null, 2), {
+        headers: {
+          "Content-Disposition": `attachment; filename="${buildFilename("json")}"`,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      });
+    }
+
+    const coachRows: CoachRow[] = finalizedSelections.map((selection) => ({
+      date: formatDate(selection.match.startsAt),
+      team: selection.match.team.name,
+      homeOrAway: formatMatchVenue(selection.match.homeAway),
+      opponent: selection.match.opponent,
+      playerName: selection.player.lastName
+        ? `${selection.player.firstName} ${selection.player.lastName}`
+        : selection.player.firstName,
+      sourceTeam: selection.player.coreTeam?.name ?? "",
+      role: formatSelectionRole(selection.role),
+      overrideReason: selection.overrideReason ?? null,
+      explanation: selection.explanation
+        ? typeof selection.explanation === "string"
+          ? selection.explanation
+          : JSON.stringify(selection.explanation)
+        : null,
+    }));
+
+    return new Response(JSON.stringify({ visibility: "coach", selections: coachRows }, null, 2), {
+      headers: {
+        "Content-Disposition": `attachment; filename="${buildFilename("json")}"`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+  }
 
   if (format === "csv") {
-    body = [
-      ["Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role"]
+    if (isParent) {
+      const rows = finalizedSelections.map((selection) => ({
+        date: formatDate(selection.match.startsAt),
+        team: selection.match.team.name,
+        homeOrAway: formatMatchVenue(selection.match.homeAway),
+        opponent: selection.match.opponent,
+        playerName: selection.player.lastName
+          ? `${selection.player.firstName} ${selection.player.lastName}`
+          : selection.player.firstName,
+      }));
+
+      const body = [
+        ["Date", "Team", "Home/Away", "Opponent", "Player"]
+          .map(escapeCsv)
+          .join(","),
+        ...rows.map((row) =>
+          [row.date, row.team, row.homeOrAway, row.opponent, row.playerName]
+            .map(escapeCsv)
+            .join(","),
+        ),
+      ].join("\n");
+
+      return new Response(body, {
+        headers: {
+          "Content-Disposition": `attachment; filename="${buildFilename("csv")}"`,
+          "Content-Type": "text/csv; charset=utf-8",
+        },
+      });
+    }
+
+    const rows = finalizedSelections.map((selection) => ({
+      date: formatDate(selection.match.startsAt),
+      team: selection.match.team.name,
+      homeOrAway: formatMatchVenue(selection.match.homeAway),
+      opponent: selection.match.opponent,
+      playerName: selection.player.lastName
+        ? `${selection.player.firstName} ${selection.player.lastName}`
+        : selection.player.firstName,
+      sourceTeam: selection.player.coreTeam?.name ?? "",
+      role: formatSelectionRole(selection.role),
+      overrideReason: selection.overrideReason ?? "",
+      explanation: selection.explanation
+        ? typeof selection.explanation === "string"
+          ? selection.explanation
+          : JSON.stringify(selection.explanation)
+        : "",
+    }));
+
+    const body = [
+      ["Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Override Reason", "Explanation"]
         .map(escapeCsv)
         .join(","),
       ...rows.map((row) =>
-        [
-          row.date,
-          row.targetTeam,
-          row.homeOrAway,
-          row.opponent,
-          row.playerName,
-          row.sourceTeam,
-          row.role,
-        ]
+        [row.date, row.team, row.homeOrAway, row.opponent, row.playerName, row.sourceTeam, row.role, row.overrideReason, row.explanation]
           .map(escapeCsv)
           .join(","),
       ),
     ].join("\n");
+
+    return new Response(body, {
+      headers: {
+        "Content-Disposition": `attachment; filename="${buildFilename("csv")}"`,
+        "Content-Type": "text/csv; charset=utf-8",
+      },
+    });
   }
 
   if (format === "txt") {
-    contentType = "text/plain; charset=utf-8";
-    body = finalizedSelections.length
-      ? finalizedSelections
-          .map((selection) => {
-            const header = [
-              `${selection.match.targetTeam.name} vs. ${selection.match.opponent}`,
-              `${formatDate(selection.match.startsAt)} · ${formatMatchVenue(selection.match.homeOrAway)}`,
-            ].join("\n");
-            const players = selection.players.length
-              ? selection.players
-                  .map((player) => {
-                    const name = player.player.lastName
-                      ? `${player.player.firstName} ${player.player.lastName}`
-                      : player.player.firstName;
+    if (isParent) {
+      const byMatch = new Map<string, typeof finalizedSelections>();
+      for (const s of finalizedSelections) {
+        if (!byMatch.has(s.matchId)) byMatch.set(s.matchId, []);
+        byMatch.get(s.matchId)!.push(s);
+      }
 
-                    return `- ${name} (${player.sourceTeamNameSnapshot}, ${formatSelectionRole(player.roleType)})`;
-                  })
-                  .join("\n")
-              : "- No selected players";
-
+      const body = byMatch.size > 0
+        ? [...byMatch.values()].map((matchSelections) => {
+            const m = matchSelections[0].match;
+            const header = `${m.team.name} vs. ${m.opponent}\n${formatDate(m.startsAt)} · ${formatMatchVenue(m.homeAway)}`;
+            const players = matchSelections.map((s) =>
+              `- ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""}`,
+            ).join("\n");
             return `${header}\n${players}`;
-          })
-          .join("\n\n")
+          }).join("\n\n")
+        : "No finalized selections available.";
+
+      return new Response(body, {
+        headers: {
+          "Content-Disposition": `attachment; filename="${buildFilename("txt")}"`,
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      });
+    }
+
+    const body = finalizedSelections.length
+      ? finalizedSelections.map((s) => {
+          const header = `${s.match.team.name} vs. ${s.match.opponent}\n${formatDate(s.match.startsAt)} · ${formatMatchVenue(s.match.homeAway)}`;
+          const player = `- ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} (${s.player.coreTeam?.name ?? ""}, ${formatSelectionRole(s.role)})`;
+          const override = s.overrideReason ? `\n  Override: ${s.overrideReason}` : "";
+          const explanation = s.explanation ? `\n  Explanation: ${typeof s.explanation === "string" ? s.explanation : JSON.stringify(s.explanation)}` : "";
+          return `${header}\n${player}${override}${explanation}`;
+        }).join("\n\n")
       : "No finalized selections available.";
+
+    return new Response(body, {
+      headers: {
+        "Content-Disposition": `attachment; filename="${buildFilename("txt")}"`,
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
   }
 
-  if (format === "md") {
-    contentType = "text/markdown; charset=utf-8";
-    body = finalizedSelections.length
-      ? finalizedSelections
-          .map((selection) => {
-            const heading = `## ${selection.match.targetTeam.name} vs. ${selection.match.opponent}`;
-            const meta = `${formatDate(selection.match.startsAt)} | ${formatMatchVenue(selection.match.homeOrAway)}`;
-            const table = selection.players.length
-              ? [
-                  "| Player | Source Team | Role |",
-                  "| --- | --- | --- |",
-                  ...selection.players.map((player) => {
-                    const name = player.player.lastName
-                      ? `${player.player.firstName} ${player.player.lastName}`
-                      : player.player.firstName;
+  // markdown format
+  if (isParent) {
+    const byMatch = new Map<string, typeof finalizedSelections>();
+    for (const s of finalizedSelections) {
+      if (!byMatch.has(s.matchId)) byMatch.set(s.matchId, []);
+      byMatch.get(s.matchId)!.push(s);
+    }
 
-                    return `| ${name} | ${player.sourceTeamNameSnapshot} | ${formatSelectionRole(player.roleType)} |`;
-                  }),
-                ].join("\n")
-              : "_No selected players_";
-
-            return `${heading}\n\n${meta}\n\n${table}`;
-          })
-          .join("\n\n")
+    const body = byMatch.size > 0
+      ? [...byMatch.values()].map((matchSelections) => {
+          const m = matchSelections[0].match;
+          const heading = `## ${m.team.name} vs. ${m.opponent}`;
+          const meta = `${formatDate(m.startsAt)} | ${formatMatchVenue(m.homeAway)}`;
+          const table = [
+            "| Player |",
+            "| --- |",
+            ...matchSelections.map((s) => `| ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} |`),
+          ].join("\n");
+          return `${heading}\n\n${meta}\n\n${table}`;
+        }).join("\n\n")
       : "No finalized selections available.";
+
+    return new Response(body, {
+      headers: {
+        "Content-Disposition": `attachment; filename="${buildFilename("md")}"`,
+        "Content-Type": "text/markdown; charset=utf-8",
+      },
+    });
   }
+
+  const body = finalizedSelections.length
+    ? finalizedSelections.map((s) => {
+        const heading = `## ${s.match.team.name} vs. ${s.match.opponent}`;
+        const meta = `${formatDate(s.match.startsAt)} | ${formatMatchVenue(s.match.homeAway)}`;
+        const table = [
+          "| Player | Source Team | Role | Override | Explanation |",
+          "| --- | --- | --- | --- | --- |",
+          `| ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} | ${s.player.coreTeam?.name ?? ""} | ${formatSelectionRole(s.role)} | ${s.overrideReason ?? "—"} | ${s.explanation ? (typeof s.explanation === "string" ? s.explanation : JSON.stringify(s.explanation)) : "—"} |`,
+        ].join("\n");
+        return `${heading}\n\n${meta}\n\n${table}`;
+      }).join("\n\n")
+    : "No finalized selections available.";
 
   return new Response(body, {
     headers: {
-      "Content-Disposition": `attachment; filename="${buildFilename(format)}"`,
-      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${buildFilename("md")}"`,
+      "Content-Type": "text/markdown; charset=utf-8",
     },
   });
 }

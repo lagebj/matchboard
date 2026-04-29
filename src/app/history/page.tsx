@@ -1,8 +1,11 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { MovementOverview, type MovementOverviewRow } from "@/components/history/movement-overview";
 import { HistoryTable, type PlayerHistoryRow } from "@/components/history/history-table";
+import { ExportPanel } from "@/components/history/export-panel";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
+
+export const dynamic = "force-dynamic";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
 import {
   compareSelectionSnapshotRecency,
@@ -23,7 +26,7 @@ function formatPatternDate(matchDate: Date): string {
 }
 
 export default async function HistoryPage() {
-  const [players, selectionSnapshots] = await Promise.all([
+  const [players, rawSelectionSnapshots] = await Promise.all([
     db.player.findMany({
       where: {
         removedAt: null,
@@ -46,51 +49,17 @@ export default async function HistoryPage() {
         { playerCode: "asc" },
       ],
     }),
-    db.matchSelection.findMany({
-      select: {
-        createdAt: true,
-        finalizedAt: true,
-        id: true,
-        match: {
-          select: {
-            opponent: true,
-            startsAt: true,
-            targetTeam: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        matchId: true,
-        players: {
-          where: {
-            wasManuallyRemoved: false,
-          },
-          select: {
-            explanation: true,
-            player: {
-              select: {
-                firstName: true,
-                id: true,
-                lastName: true,
-              },
-            },
-            playerId: true,
-            roleType: true,
-            sourceTeamNameSnapshot: true,
-            targetTeamNameSnapshot: true,
-          },
-        },
-        status: true,
-      },
-      orderBy: [
-        { createdAt: "desc" },
-        { finalizedAt: "desc" },
-      ],
+    db.selection.findMany({
+      where: { status: SelectionStatus.FINALIZED },
+      include: { player: { include: { coreTeam: { select: { name: true } } } }, match: { select: { startsAt: true, opponent: true, homeAway: true, team: { select: { name: true } } } } },
+      orderBy: [{ createdAt: "desc" }],
     }),
   ]);
-  const latestSelectionSnapshots = getLatestSelectionSnapshots(selectionSnapshots);
+    const selectionSnapshots = rawSelectionSnapshots.map((s) => ({
+      ...s,
+      finalizedAt: null as Date | null,
+    }));
+    const latestSelectionSnapshots = getLatestSelectionSnapshots(selectionSnapshots);
   const finalizedSelectionSnapshots = latestSelectionSnapshots
     .filter((snapshot) => snapshot.status === SelectionStatus.FINALIZED)
     .sort(compareSelectionSnapshotRecency);
@@ -110,8 +79,8 @@ export default async function HistoryPage() {
   >();
   const playerCoreTeamNameById = new Map(players.map((player) => [player.id, player.coreTeam.name]));
 
-  for (const selectionSnapshot of finalizedSelectionSnapshots) {
-    for (const selectionPlayer of selectionSnapshot.players) {
+    for (const selectionSnapshot of finalizedSelectionSnapshots) {
+      const selectionPlayer = selectionSnapshot;
       const existingHistory = finalizedHistoryByPlayerId.get(selectionPlayer.playerId) ?? {
         coreTeamAppearances: 0,
         floatCount: 0,
@@ -128,18 +97,17 @@ export default async function HistoryPage() {
         ? existingHistory.recentSelectionPattern.split(" | ")
         : [];
 
-      if (selectionPlayer.roleType === SelectionRole.CORE) {
+      if (selectionPlayer.role === SelectionRole.CORE) {
         existingHistory.coreTeamAppearances += 1;
       }
 
-      if (isFloatingSelectionRole(selectionPlayer.roleType)) {
+      if (isFloatingSelectionRole(selectionPlayer.role)) {
         existingHistory.floatCount += 1;
 
         if (!existingHistory.latestMovementDate) {
           existingHistory.latestMovementDate = matchDate;
-          existingHistory.latestMovementSummary = `${selectionPlayer.sourceTeamNameSnapshot} -> ${selectionPlayer.targetTeamNameSnapshot} · ${formatPatternRole(selectionPlayer.roleType)} · ${formatPatternDate(matchDate)}`;
-          existingHistory.latestMovementReason =
-            selectionPlayer.explanation?.trim() || "No saved explanation for the latest movement.";
+          existingHistory.latestMovementSummary = `${selectionPlayer.player.coreTeam?.name ?? ""} -> ${selectionSnapshot.match.team.name} · ${formatPatternRole(selectionPlayer.role)} · ${formatPatternDate(matchDate)}`;
+          existingHistory.latestMovementReason = "No saved explanation for the latest movement.";
         }
       }
 
@@ -150,15 +118,13 @@ export default async function HistoryPage() {
       }
 
       if (recentPatternParts.length < 5) {
-        recentPatternParts.push(
-          `${formatPatternDate(matchDate)} ${formatPatternRole(selectionPlayer.roleType)}`,
-        );
+        recentPatternParts.push(`${formatPatternDate(matchDate)} ${formatPatternRole(selectionPlayer.role)}`);
         existingHistory.recentSelectionPattern = recentPatternParts.join(" | ");
       }
 
       finalizedHistoryByPlayerId.set(selectionPlayer.playerId, existingHistory);
     }
-  }
+
 
   const rows: PlayerHistoryRow[] = players.map((player) => {
     const history = finalizedHistoryByPlayerId.get(player.id);
@@ -197,62 +163,61 @@ export default async function HistoryPage() {
         (right.latestMovementDate?.getTime() ?? 0) - (left.latestMovementDate?.getTime() ?? 0),
     )
     .slice(0, 6);
-  const movementOverviewByPlayerId = latestSelectionSnapshots.reduce<Map<string, MovementOverviewRow>>(
-    (movementByPlayerId, selectionSnapshot) => {
-      for (const selectionPlayer of selectionSnapshot.players) {
-        if (
-          !isSelectionMovementRow({
-            roleType: selectionPlayer.roleType,
-            sourceTeamNameSnapshot: selectionPlayer.sourceTeamNameSnapshot,
-            targetTeamNameSnapshot: selectionPlayer.targetTeamNameSnapshot,
-          })
-        ) {
-          continue;
-        }
+    const movementOverviewByPlayerId = latestSelectionSnapshots.reduce<Map<string, MovementOverviewRow>>(
+          (movementByPlayerId, selectionSnapshot) => {
+            const selectionPlayer = selectionSnapshot;
+            if (
+              !isSelectionMovementRow({
+                role: selectionPlayer.role,
+                sourceTeamName: selectionPlayer.player.coreTeam?.name ?? "",
+                targetTeamName: selectionSnapshot.match.team.name,
+              })
+            ) {
+              return movementByPlayerId;
+            }
 
-        const playerName = selectionPlayer.player.lastName
-          ? `${selectionPlayer.player.firstName} ${selectionPlayer.player.lastName}`
-          : selectionPlayer.player.firstName;
-        const existingRow = movementByPlayerId.get(selectionPlayer.playerId) ?? {
-          coreTeamName:
-            playerCoreTeamNameById.get(selectionPlayer.playerId) ??
-            selectionPlayer.sourceTeamNameSnapshot,
-          draftMovementCount: 0,
-          finalizedMovementCount: 0,
-          movementCount: 0,
-          movements: [],
-          playerId: selectionPlayer.playerId,
-          playerName,
-        };
+            const playerName = selectionPlayer.player.lastName
+              ? `${selectionPlayer.player.firstName} ${selectionPlayer.player.lastName}`
+              : selectionPlayer.player.firstName;
+            const existingRow = movementByPlayerId.get(selectionPlayer.player.id) ?? {
+              coreTeamName:
+                playerCoreTeamNameById.get(selectionPlayer.player.id) ??
+                selectionPlayer.player.coreTeam?.name ??
+                "",
+              draftMovementCount: 0,
+              finalizedMovementCount: 0,
+              movementCount: 0,
+              movements: [],
+              playerId: selectionPlayer.player.id,
+              playerName,
+            };
 
-        existingRow.movementCount += 1;
+            existingRow.movementCount += 1;
 
-        if (selectionSnapshot.status === SelectionStatus.FINALIZED) {
-          existingRow.finalizedMovementCount += 1;
-        } else {
-          existingRow.draftMovementCount += 1;
-        }
+            if (selectionSnapshot.status === SelectionStatus.FINALIZED) {
+              existingRow.finalizedMovementCount += 1;
+            } else {
+              existingRow.draftMovementCount += 1;
+            }
 
-        existingRow.movements.push({
-          explanation:
-            selectionPlayer.explanation?.trim() || "No saved explanation for this movement.",
-          key: `${selectionSnapshot.id}:${selectionPlayer.playerId}:${selectionPlayer.roleType}:${selectionPlayer.sourceTeamNameSnapshot}:${selectionPlayer.targetTeamNameSnapshot}`,
-          matchId: selectionSnapshot.matchId,
-          matchLabel: `${selectionSnapshot.match.targetTeam.name} vs. ${selectionSnapshot.match.opponent}`,
-          roleType: selectionPlayer.roleType,
-          sourceTeamName: selectionPlayer.sourceTeamNameSnapshot,
-          startsAt: selectionSnapshot.match.startsAt,
-          status: selectionSnapshot.status,
-          targetTeamName: selectionPlayer.targetTeamNameSnapshot,
-        });
+            existingRow.movements.push({
+              explanation:
+                "No saved explanation for this movement.",
+              key: `${selectionSnapshot.id}:${selectionPlayer.player.id}:${selectionPlayer.role}:${selectionPlayer.player.coreTeam?.name ?? ""}:${selectionSnapshot.match.team.name}`,
+              matchId: selectionSnapshot.matchId,
+              matchLabel: `${selectionSnapshot.match.team.name} vs. ${selectionSnapshot.match.opponent}`,
+              roleType: selectionPlayer.role,
+              sourceTeamName: selectionPlayer.player.coreTeam?.name ?? "",
+              startsAt: selectionSnapshot.match.startsAt,
+              status: selectionSnapshot.status,
+              targetTeamName: selectionSnapshot.match.team.name,
+            });
 
-        movementByPlayerId.set(selectionPlayer.playerId, existingRow);
-      }
-
-      return movementByPlayerId;
-    },
-    new Map<string, MovementOverviewRow>(),
-  );
+            movementByPlayerId.set(selectionPlayer.player.id, existingRow);
+            return movementByPlayerId;
+          },
+          new Map<string, MovementOverviewRow>(),
+        );
 
   const sortedMovementOverviewRows = [...movementOverviewByPlayerId.values()]
     .map((row) => ({
@@ -351,6 +316,8 @@ export default async function HistoryPage() {
           </section>
         </aside>
       </section>
+
+      <ExportPanel />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <section className="app-panel rounded-[1.75rem] p-6">

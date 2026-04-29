@@ -5,7 +5,6 @@ import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 
 type CoreMatchDropHistoryOptions = {
-  blockCoreMatchIfFloatingWithinDays: number;
   coreTeamId: string;
   currentMatchDate: Date;
   currentMatchId: string;
@@ -14,7 +13,6 @@ type CoreMatchDropHistoryOptions = {
 };
 
 export async function getCoreMatchDropHistory({
-  blockCoreMatchIfFloatingWithinDays,
   coreTeamId,
   currentMatchDate,
   currentMatchId,
@@ -22,7 +20,7 @@ export async function getCoreMatchDropHistory({
   playerId,
 }: CoreMatchDropHistoryOptions): Promise<number> {
   const [coreTeamSelections, playerHistory] = await Promise.all([
-    db.matchSelection.findMany({
+    db.selection.findMany({
       where: {
         status: SelectionStatus.FINALIZED,
         matchId: {
@@ -32,7 +30,7 @@ export async function getCoreMatchDropHistory({
           startsAt: {
             lt: currentMatchDate,
           },
-          targetTeamId: coreTeamId,
+          teamId: coreTeamId,
         },
       },
       select: {
@@ -40,13 +38,6 @@ export async function getCoreMatchDropHistory({
         match: {
           select: {
             startsAt: true,
-            squadSize: true,
-          },
-        },
-        players: {
-          select: {
-            playerId: true,
-            wasManuallyRemoved: true,
           },
         },
       },
@@ -66,37 +57,34 @@ export async function getCoreMatchDropHistory({
   );
   let inferredDroppedCoreMatches = 0;
 
+  const uniqueMatchSelections = new Map<string, { matchId: string; matchStartsAt: Date }>();
   for (const selection of coreTeamSelections) {
-    if (playerHistoryByMatchId.has(selection.matchId)) {
-      continue;
+    if (!uniqueMatchSelections.has(selection.matchId)) {
+      uniqueMatchSelections.set(selection.matchId, {
+        matchId: selection.matchId,
+        matchStartsAt: selection.match.startsAt,
+      });
     }
+  }
 
-    const finalizedPlayers = selection.players.filter((player) => !player.wasManuallyRemoved);
-
-    if (finalizedPlayers.length < selection.match.squadSize) {
+  for (const matchEntry of uniqueMatchSelections.values()) {
+    if (playerHistoryByMatchId.has(matchEntry.matchId)) {
       continue;
     }
 
     const latestSelectedAppearance = playerHistory.find(
-      (historyEntry) => historyEntry.matchDate < selection.match.startsAt,
+      (historyEntry) => historyEntry.matchDate < matchEntry.matchStartsAt,
     );
 
     if (latestSelectedAppearance) {
-      if (isSameCalendarDay(selection.match.startsAt, latestSelectedAppearance.matchDate)) {
+      if (isSameCalendarDay(matchEntry.matchStartsAt, latestSelectedAppearance.matchDate)) {
         continue;
       }
 
       const daysSinceLastMatch = getCalendarDayDifference(
-        selection.match.startsAt,
+        matchEntry.matchStartsAt,
         latestSelectedAppearance.matchDate,
       );
-
-      if (
-        isFloatingSelectionRole(latestSelectedAppearance.roleType) &&
-        daysSinceLastMatch <= blockCoreMatchIfFloatingWithinDays
-      ) {
-        continue;
-      }
 
       if (daysSinceLastMatch < minDaysBetweenAnyMatches) {
         continue;

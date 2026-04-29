@@ -1,4 +1,4 @@
-import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { type SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 
@@ -13,54 +13,42 @@ export async function getFloatingHistory(
   currentMatchDate: Date,
 ): Promise<FloatingHistory> {
   const [historicalSelections, lastFinalizedSelection] = await Promise.all([
-    db.matchSelectionPlayer.findMany({
+    db.selection.findMany({
       where: {
         playerId,
-        wasManuallyRemoved: false,
-        selection: {
-          status: SelectionStatus.FINALIZED,
-          match: {
-            startsAt: {
-              lt: currentMatchDate,
-            },
+        status: SelectionStatus.FINALIZED,
+        match: {
+          startsAt: {
+            lt: currentMatchDate,
           },
         },
       },
       select: {
-        roleType: true,
+        role: true,
       },
     }),
-    db.matchSelectionPlayer.findFirst({
+    db.selection.findFirst({
       where: {
         playerId,
-        wasManuallyRemoved: false,
-        selection: {
-          status: SelectionStatus.FINALIZED,
-          match: {
-            startsAt: {
-              lt: currentMatchDate,
-            },
+        status: SelectionStatus.FINALIZED,
+        match: {
+          startsAt: {
+            lt: currentMatchDate,
           },
         },
       },
       select: {
-        roleType: true,
-        selection: {
+        role: true,
+        match: {
           select: {
-            match: {
-              select: {
-                startsAt: true,
-              },
-            },
+            startsAt: true,
           },
         },
       },
       orderBy: [
         {
-          selection: {
-            match: {
-              startsAt: "desc",
-            },
+          match: {
+            startsAt: "desc",
           },
         },
       ],
@@ -68,10 +56,10 @@ export async function getFloatingHistory(
   ]);
 
   return {
-    lastFinalizedMatchDate: lastFinalizedSelection?.selection.match.startsAt ?? null,
-    lastFinalizedRoleType: lastFinalizedSelection?.roleType ?? null,
+    lastFinalizedMatchDate: lastFinalizedSelection?.match.startsAt ?? null,
+    lastFinalizedRoleType: lastFinalizedSelection?.role ?? null,
     totalFloatingMatches: historicalSelections.filter((selection) =>
-      isFloatingSelectionRole(selection.roleType),
+      isFloatingSelectionRole(selection.role),
     ).length,
   };
 }

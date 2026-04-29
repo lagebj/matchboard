@@ -13,24 +13,21 @@ import {
 
 type PlayerRow = {
   active: boolean;
-  allowedFloatTeams: Array<{
-    team: {
-      id: string;
-      name: string;
-    };
-  }>;
   coreTeam: {
     id: string;
     name: string;
   };
-  currentAvailability: "AVAILABLE" | "INJURED" | "SICK" | "AWAY";
+  currentAvailability: "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
   firstName: string;
   id: string;
-  isFloating: boolean;
   lastName: string | null;
+  nonRotatable: boolean;
   primaryPosition: string;
+  reducedMatchLoadAllowed: boolean;
   removeAction: () => Promise<void>;
   secondaryPosition: string | null;
+  supportSuitability: string;
+  developmentReadiness: string;
   tertiaryPosition: string | null;
 };
 
@@ -75,15 +72,11 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
       );
     }
 
-    if (sortKey === "floating") {
+    if (sortKey === "rotation") {
       return applySortDirection(
         compareText(
-          left.isFloating && left.allowedFloatTeams.length > 0
-            ? left.allowedFloatTeams.map((entry) => entry.team.name).join(", ")
-            : "No",
-          right.isFloating && right.allowedFloatTeams.length > 0
-            ? right.allowedFloatTeams.map((entry) => entry.team.name).join(", ")
-            : "No",
+          left.nonRotatable ? "No" : "Yes",
+          right.nonRotatable ? "No" : "Yes",
         ),
         sortDirection,
       );
@@ -106,7 +99,7 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
           Scouting List
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-50">
-          Scan availability, role fit, and float coverage quickly
+          Scan availability, role fit, and rotation eligibility quickly
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-7 app-copy-soft">
           Open the player profile when you need the full attribute and history view. Keep this
@@ -149,10 +142,11 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
               <SortableHeader
                 activeKey={sortKey}
                 direction={sortDirection}
-                label="Floating"
+                label="Rotation"
                 onSort={updateSort}
-                sortKey="floating"
+                sortKey="rotation"
               />
+              <th className="px-4 py-3 font-semibold">Planning Flags</th>
               <SortableHeader
                 activeKey={sortKey}
                 direction={sortDirection}
@@ -164,71 +158,88 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
             </tr>
           </thead>
           <tbody className="divide-y app-hairline">
-            {sortedPlayers.map((player) => {
-              const floatTeams =
-                player.isFloating && player.allowedFloatTeams.length > 0
-                  ? player.allowedFloatTeams.map((entry) => entry.team.name).join(", ")
-                  : "No";
-
-              return (
-                <tr
-                  key={player.id}
-                  className="align-top hover:bg-[rgba(255,255,255,0.035)]"
-                >
-                  <td className="px-4 py-3 font-medium text-zinc-50">
+            {sortedPlayers.map((player) => (
+              <tr
+                key={player.id}
+                className="align-top hover:bg-[rgba(255,255,255,0.035)]"
+              >
+                <td className="px-4 py-3 font-medium text-zinc-50">
+                  <Link
+                    className="block rounded-xl px-2 py-2 -mx-2 -my-2 hover:bg-[rgba(255,255,255,0.05)]"
+                    href={`/players/${player.id}`}
+                  >
+                    {formatPlayerName(player)}
+                  </Link>
+                </td>
+                <td className="px-4 py-3 text-zinc-100">{player.coreTeam.name}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${getAvailabilityPillClassName(player.currentAvailability)}`}
+                  >
+                    {formatAvailabilityStatus(player.currentAvailability)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 app-copy-soft">{getPlayerPositionSummary(player)}</td>
+                <td className="px-4 py-3 app-copy-soft">{player.nonRotatable ? "No" : "Yes"}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {player.nonRotatable && (
+                      <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--warning)]">
+                        Non-rot
+                      </span>
+                    )}
+                    {player.reducedMatchLoadAllowed && (
+                      <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[#b28cdb]">
+                        RML
+                      </span>
+                    )}
+                    {player.supportSuitability && player.supportSuitability !== "neutral" && (
+                      <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                        Sup {player.supportSuitability}
+                      </span>
+                    )}
+                    {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
+                      <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                        Dev {player.developmentReadiness}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${
+                      player.active
+                        ? "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-zinc-100"
+                        : "border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.1)] text-[var(--danger)]"
+                    }`}
+                  >
+                    {player.active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
                     <Link
-                      className="block rounded-xl px-2 py-2 -mx-2 -my-2 hover:bg-[rgba(255,255,255,0.05)]"
+                      className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
                       href={`/players/${player.id}`}
                     >
-                      {formatPlayerName(player)}
+                      Open profile
                     </Link>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-100">{player.coreTeam.name}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${getAvailabilityPillClassName(player.currentAvailability)}`}
-                    >
-                      {formatAvailabilityStatus(player.currentAvailability)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 app-copy-soft">{getPlayerPositionSummary(player)}</td>
-                  <td className="px-4 py-3 app-copy-soft">{floatTeams}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${
-                        player.active
-                          ? "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-zinc-100"
-                          : "border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.1)] text-[var(--danger)]"
-                      }`}
-                    >
-                      {player.active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                        href={`/players/${player.id}`}
+                    <form action={player.removeAction}>
+                      <button
+                        className="h-9 rounded-full border border-[rgba(185,128,119,0.3)] px-3 text-sm font-medium text-[var(--danger)] hover:bg-[rgba(185,128,119,0.08)]"
+                        type="submit"
                       >
-                        Open profile
-                      </Link>
-                      <form action={player.removeAction}>
-                        <button
-                          className="h-9 rounded-full border border-[rgba(185,128,119,0.3)] px-3 text-sm font-medium text-[var(--danger)] hover:bg-[rgba(185,128,119,0.08)]"
-                          type="submit"
-                        >
-                          Remove
-                        </button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                        Remove
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            ))}
 
             {sortedPlayers.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={7}>
+                <td className="px-4 py-10 text-center app-copy-muted" colSpan={8}>
                   No players in the registry yet.
                 </td>
               </tr>

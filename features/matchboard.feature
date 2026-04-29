@@ -3,12 +3,19 @@ Feature: Matchboard football operations workspace
   Matchboard is a local-first web app for youth football match planning.
   The app helps coaches plan weekly match rounds across multiple teams, manage player movement, protect fairness over time, and explain why selections were made.
 
+  Matchboard must feel like a football management cockpit, not an admin CRUD app.
+  The main workflow must be inspired by Football Manager-style interaction patterns:
+  persistent navigation, object-based screens, dense information panels, decision inbox, assistant advice, squad views, tactics board, and matchday workflow.
+
   The app must not optimize for winning.
   The app must optimize for match function, player development, fairness, support coverage, team continuity, and explainable coach decisions.
 
   The app must treat teams as configurable planning units.
   It must not hardcode Team A, Team B, Team C, goalkeepers, strongest team, weakest team, or fixed hierarchy.
   Those meanings are configured by the coach through teams, rules, paths, priorities, and player flags.
+
+  The app must not expose the primary coach workflow as raw database tables.
+  Tables are allowed for audit, history, export preview, and dense configuration, but the main workflow must use football operations workspaces.
 
   Background:
     Given the app has a local database
@@ -277,6 +284,12 @@ Feature: Matchboard football operations workspace
       Then the match must store the opponent name
       And the opponent name must appear in match overview, match detail, matchday mode, and export
 
+    Scenario: Match stores game format
+      Given the coach creates or edits a match
+      When the coach records game format
+      Then game format must be one of "7-a-side", "9-a-side", or "11-a-side"
+      And the game format must control available tactics board formations and pitch slot count
+
     Scenario: Coach can remove an unfinalized match
       Given a match exists without finalized selection history
       When the coach removes the match
@@ -294,19 +307,30 @@ Feature: Matchboard football operations workspace
 
     The selection engine must treat a match round as the planning unit.
     A player can only be selected once in the same match round.
+    The round-level pipeline fills minimum core per match first, then resolves support across matches, then routes surplus core players downstream, then backfills teams below target.
 
     Scenario: Coach creates match round containing several team matches
       Given teams exist in the team registry
       When the coach creates a match round
       And the coach adds one match for each participating team
       Then the match round must store every included match
-      And each match must keep its team, opponent, date, home-or-away status, and match type
+      And each match must keep its team, opponent, date, home-or-away status, match type, and game format
 
     Scenario: App generates all selections in a match round together
       Given match round "R1" contains matches for Team A, Team B, and Team C
       When the coach generates selections for match round "R1"
       Then the app must evaluate all matches in the match round together
       And the app must resolve player conflicts across all matches before finalizing any match selection
+
+    Scenario: Round-level generation fills minimum core before rotation
+      Given match round "R1" contains matches for Team A, Team B, and Team C
+      And Team A has minimum core players 8
+      And Team A has 12 available core players
+      When the app generates match round "R1"
+      Then the app must first select at least 8 Team A core players for Team A
+      And then resolve support assignments across all matches
+      And then route surplus core players downstream
+      And then backfill teams below target squad size
 
     Scenario: Player can only be selected once per match round
       Given player "p1" has Team A as core team
@@ -378,6 +402,7 @@ Feature: Matchboard football operations workspace
     Support chains have precedence over development and core selections.
     Required support for higher-priority receiving teams must be resolved before lower-priority support.
     Backfill caused by required support must be resolved before optional development.
+    The round-level pipeline resolves roles in order: support, conflict resolution, development and backfill routing, then post-routing backfill.
 
     Scenario: Support is selected before development and core
       Given Team C requires support
@@ -387,6 +412,23 @@ Feature: Matchboard football operations workspace
       When the app resolves player assignment
       Then player "b1" must be considered for Team C support before Team A development
       And player "b1" must be considered for Team A development before Team B core
+
+    Scenario: Round-level pipeline resolves support before routing
+      Given match round "R1" contains matches for Team A, Team B, and Team C
+      And Team C needs support
+      And Team A has surplus core players eligible for development in Team B
+      When the app generates match round "R1"
+      Then the app must first resolve support assignments
+      And then resolve player conflicts across matches
+      And then route development and backfill drops
+      And then fill remaining slots with post-routing backfill
+
+    Scenario: Development routing does not starve backfill
+      Given Team B needs backfill after supplying support players
+      And Team A has surplus core players eligible for both Team B backfill and Team C development
+      When the app routes core match drops
+      Then Team B backfill needs must be considered alongside Team C development needs
+      And development priority must not prevent backfill from reaching teams that lost support players
 
     Scenario: Development beats core when no support applies
       Given player "c1" has Team C as core team
@@ -580,6 +622,29 @@ Feature: Matchboard football operations workspace
       When Team C receives support players
       Then the app must not reduce Team C core players below 8 unless manually overridden
 
+    Scenario: Donor team minimum core players must be respected during support resolution
+      Given Team B has minimum core players 8
+      And Team B has 10 available core players
+      And Team C needs support from Team B
+      When the app resolves support for Team C
+      Then the app must not move Team B core players if doing so would leave Team B below 8 core players
+      And Team B excluded core players may still be moved to support if available
+
+    Scenario: Team below target re-includes own excluded core players
+      Given Team A has target squad size 11
+      And Team A has minimum core players 8
+      And Team A starts with 8 core selected and 3 core excluded as surplus
+      When the app finishes round-level rotation
+      Then Team A must re-include its own excluded core players until reaching target squad size or running out of own excluded players
+      And Team A must not re-include players assigned to other teams
+
+    Scenario: Re-included players do not duplicate across matches
+      Given player "b1" from Team B is routed to Team H as support
+      And Team B is below target squad size after rotation
+      When the app re-includes Team B excluded players
+      Then player "b1" must not appear in both Team B and Team H
+      And player "b1" must remain assigned to Team H
+
 
   Rule: Support counts and receiving team priority
 
@@ -650,6 +715,14 @@ Feature: Matchboard football operations workspace
       And the app must explain which team would fall below minimum accepted squad size
       And the app must require manual override or reduced support or larger squad size
 
+    Scenario: Donor minimum core players must be preserved during support
+      Given Team B has minimum core players 8
+      And Team B has exactly 8 core players currently selected
+      And Team C needs 2 support players from Team B
+      When the app resolves support assignments
+      Then the app must not move any Team B selected core players to Team C support
+      And the app must only offer Team B excluded core players for support
+
     Scenario: Backfill chain cannot cycle
       Given Team A can backfill Team B
       And Team B can backfill Team A
@@ -692,6 +765,15 @@ Feature: Matchboard football operations workspace
       When the app generates selections
       Then player "a1" must not be forced into Team B
       And the app should warn that player "a1" could not be routed downstream
+
+    Scenario: Core match drop routing prioritizes unfilled development slots
+      Given player "a1" is a Team A core_match_drop candidate
+      And Team B has unfilled development slots
+      And Team C has backfill slots but no development slots
+      And Team A can supply both Team B and Team C through configured paths
+      When the app routes core match drops
+      Then player "a1" should be prioritized for Team B development over Team C backfill
+      And the app must assign a development priority bonus when the target team has unfilled development slots
 
 
   Rule: Reduced match load
@@ -846,6 +928,15 @@ Feature: Matchboard football operations workspace
       And player "b2" is eligible to support Team C
       When the app selects Team C support
       Then player "b2" should rank above player "b1"
+
+    Scenario: First match round must still produce rotation
+      Given this is the first match round in a planning period
+      And no historical selections exist
+      And Team C needs support from Team B
+      And Team B has eligible support players
+      When the app generates the match round
+      Then the app must still assign support players to Team C
+      And cooldown must not prevent rotation because no previous round exists
 
 
   Rule: Planning period fairness
@@ -1157,30 +1248,115 @@ Feature: Matchboard football operations workspace
       Then the page must provide a way to move to previous and next match round without returning to overview
 
 
-  Rule: Manager Desk
+  Rule: Football Manager style shell is mandatory
 
-    The Manager Desk is the main entry point.
-    It surfaces decisions instead of forcing the coach to search through data.
+    The app must feel like a football operations cockpit.
+    It must not feel like a generic admin system.
 
-    Scenario: Coach sees current operational state
-      Given an active match round exists
-      When the coach opens Manager Desk
-      Then the app must show the active match round
-      And selection status for each team
-      And unresolved warnings
-      And availability problems
-      And primary actions for review, generation, assistant meeting, and finalization
+    Scenario: App uses persistent football operations shell
+      Given the coach is using the app
+      When any primary workflow route is open
+      Then the app must show a persistent left navigation
+      And a top context bar
+      And an object header for the current football object where relevant
 
-    Scenario: Manager Desk shows decision inbox
+    Scenario: Left navigation uses football operations areas
+      Given the coach is using the app
+      When the main navigation is visible
+      Then the navigation must include grouped areas:
+        | area            |
+        | Manager         |
+        | Match Week      |
+        | Squad           |
+        | System          |
+      And the navigation must not be organized primarily around database entities only
+
+    Scenario: Top context bar shows current operational context
+      Given a season, planning period, and match round exist
+      When the coach uses the app
+      Then the top context bar must show current season
+      And current planning period
+      And current match round
+      And match round status
+      And quick search or quick navigation
+
+    Scenario: Object header shows current football object
+      Given the coach opens a player, team, match round, or match
+      Then the page must show an object header with object name
+      And relevant status chips
+      And primary action
+      And previous/next navigation where applicable
+
+    Scenario: Tables are secondary views only
+      Given the coach opens a primary workflow screen
+      Then the screen may contain compact lists or tables as supporting elements
+      But the main interaction must be through cards, panels, boards, drawers, pitch layout, or assistant review sections
+
+
+  Rule: Combined Manager Desk and Assistant Advice landing page
+
+    The landing page combines Football Manager-style inbox, assistant advice, warnings, and match round status.
+    Assistant Manager is not a separate destination required before the coach understands what to do.
+    A separate Assistant detail route may exist, but the landing page must include assistant advice directly.
+
+    Scenario: Combined Manager Desk is the default landing page
+      Given the coach opens the app
+      When a season and active planning period exist
+      Then the coach must land on the combined Manager Desk
+      And the first visible screen must show current match round status
+      And decision inbox
+      And assistant advice
+      And warnings needing attention
+      And primary actions
+      And the first visible screen must not be a raw table of players, teams, matches, or selections
+
+    Scenario: Landing page shows Football Manager-style inbox
       Given match round "R1" has unresolved decisions
-      When the coach opens Manager Desk
-      Then the app must show cards for decisions needing attention
-      And each card must link to the affected match, player, team, or rule
+      When the coach opens the landing page
+      Then the app must show inbox cards grouped by:
+        | group                 |
+        | Availability          |
+        | Support needs         |
+        | Backfill consequences |
+        | Development exposure  |
+        | Player load           |
+        | Team burden           |
+        | Rule blockers         |
+      And each card must show severity
+      And each card must show the affected team, player, match, or rule
+      And each card must provide a direct action
 
-    Scenario: Manager Desk separates setup and match-week work
-      Given the coach opens Manager Desk
-      Then setup work must be separated from match-week work
-      And match-week actions must be visually prioritized during an active match round
+    Scenario: Landing page shows assistant advice panel
+      Given match round "R1" has generated selections
+      When the coach opens the landing page
+      Then the app must show an Assistant Advice panel
+      And the panel must summarize support plan
+      And backfill chain
+      And development exposure
+      And player load warnings
+      And decisions needed
+      And finalization status
+
+    Scenario: Assistant advice card shows recommendation, risk, alternative, and consequence
+      Given Team C target support cannot be reached cleanly
+      When the Assistant Advice panel shows the issue
+      Then the card must show recommended action
+      And risk
+      And alternative action
+      And consequence
+
+    Scenario: Landing page provides direct path to next work
+      Given match round "R1" has unresolved support warnings
+      When the coach opens the landing page
+      Then the primary action must lead to the relevant Round Board section
+      And secondary action may lead to Assistant detail
+      And the coach must not need to search through tables to find the problem
+
+    Scenario: Separate Assistant detail route is optional but consistent
+      Given the app has an Assistant detail route
+      When the coach opens Assistant detail
+      Then it must use the same advice sections as the landing page
+      And expand the details behind the landing page assistant cards
 
 
   Rule: Availability command center
@@ -1203,11 +1379,19 @@ Feature: Matchboard football operations workspace
       When the coach marks player "p1" as confirmed available
       Then future draft generation for the match round must treat player "p1" as available
 
+    Scenario: Availability command center is grouped, not raw table only
+      Given players have availability statuses
+      When the coach opens Availability Command Center
+      Then the app must show grouped status sections
+      And may include compact tables inside those sections
+      But must not show only one flat availability table
+
 
   Rule: Squad Planner Matrix
 
     The Squad Planner Matrix shows players across match rounds.
     It is used to detect hidden patterns over time.
+    It may look table-like, but its purpose is visual movement and fairness overview, not raw data editing.
 
     Scenario: Coach views player usage across rounds
       Given a planning period has multiple match rounds
@@ -1215,6 +1399,14 @@ Feature: Matchboard football operations workspace
       Then the app must show players as rows
       And match rounds as columns
       And each cell must show the player's selection role or availability state
+
+    Scenario: Squad Planner Matrix shows role history as visual cells
+      Given a planning period has several match rounds
+      When the coach opens Squad Planner Matrix
+      Then players must appear as rows
+      And match rounds must appear as columns
+      And each cell must show a compact role marker such as "Core", "Support", "Backfill", "Development", "Drop", "Unavailable", or "Unknown"
+      And role markers must be visually distinguishable
 
     Scenario: Matrix highlights repeated support burden
       Given player "b1" has supported Team C in several match rounds
@@ -1232,6 +1424,19 @@ Feature: Matchboard football operations workspace
       When the coach opens Squad Planner Matrix
       Then the app must highlight missing development exposure
 
+    Scenario: Squad Planner Matrix highlights drift
+      Given player "b1" has high support burden
+      And player "c1" has missing development exposure
+      And player "c2" has repeated drops
+      When the coach opens Squad Planner Matrix
+      Then the app must highlight each drift pattern
+      And provide a direct link to the affected player or round
+
+    Scenario: Squad Planner Matrix is not the primary selection editor
+      Given the coach opens Squad Planner Matrix
+      Then the app may allow navigation to selections
+      But primary match-round editing must happen in Round Board
+
 
   Rule: Match Round Board
 
@@ -1246,6 +1451,34 @@ Feature: Matchboard football operations workspace
       And show available and unselected players
       And show round-level warnings
 
+    Scenario: Round Board uses columns per team match
+      Given match round "R1" contains matches for Team A, Team B, and Team C
+      When the coach opens Round Board
+      Then the app must show Team A, Team B, and Team C as separate match columns
+      And each column must show selected count, target squad size, minimum squad size, support count, game format, and warnings
+      And the screen must not require scrolling through one long table to compare teams
+
+    Scenario: Round Board groups players by role bucket
+      Given match round "R1" has draft selections
+      When the coach opens Round Board
+      Then each team column must group players by:
+        | bucket             |
+        | Core               |
+        | Support received   |
+        | Backfill received  |
+        | Development        |
+        | Confidence rebuild |
+        | Dropped            |
+        | Unavailable        |
+      And each player must appear in at most one bucket in the match round
+
+    Scenario: Round Board shows cross-team consequences
+      Given player "b1" is selected as support for Team C
+      When the coach views Team B and Team C columns
+      Then Team C must show player "b1" in support received
+      And Team B must show that player "b1" is unavailable for Team B core because of support duty
+      And the app must show whether Team B needs backfill
+
     Scenario: Coach drags player between role buckets
       Given match round "R1" is in draft state
       When the coach drags player "p1" into Team C support bucket
@@ -1253,17 +1486,26 @@ Feature: Matchboard football operations workspace
       And show whether the move is allowed, warning-only, or blocked
       And show affected teams and players
 
+    Scenario: Round Board supports safe drag and drop where feasible
+      Given match round "R1" is in draft state
+      When the coach drags player "b1" from Team B core to Team C support
+      Then the app must validate the move immediately
+      And show whether the move is blocked, allowed with warning, or allowed
+      And show changed squad counts for affected teams
+      And show any created or removed backfill need
+
+    Scenario: Round Board provides non-drag fallback
+      Given drag and drop is not available on the device
+      When the coach opens a player action menu
+      Then the coach must be able to move the player to a valid role using explicit actions
+      And the same validation must run as for drag and drop
+
     Scenario: Manual edit shows consequences
       Given player "b1" is selected as support for Team C
       When the coach removes player "b1"
       Then the app must show Team C support count change
       And affected backfill changes
       And any new warnings
-
-    Scenario: Round Board supports role buckets
-      Given match round "R1" has draft selections
-      When the coach opens Round Board
-      Then selected players must be grouped into "Core", "Support", "Backfill", "Development", "Confidence Rebuild", "Dropped", and "Unavailable" where applicable
 
 
   Rule: Team overview and team health
@@ -1295,6 +1537,46 @@ Feature: Matchboard football operations workspace
       And must not automatically change future rules
 
 
+  Rule: Team Squad Overview is card and panel based
+
+    Team Squad Overview must give the coach a football view of the team, not only a player table.
+
+    Scenario: Team Squad Overview shows team health before player list
+      Given Team B exists
+      When the coach opens Team B Squad Overview
+      Then the top of the screen must show team health cards for:
+        | card                  |
+        | Core player count     |
+        | Current squad limits  |
+        | Support given         |
+        | Support received      |
+        | Backfill received     |
+        | Current warnings      |
+      And the player list must appear below or beside those cards
+
+    Scenario: Team Squad Overview groups players by planning status
+      Given Team B has players with different planning statuses
+      When the coach opens Team B Squad Overview
+      Then players must be groupable by:
+        | group                    |
+        | Core regulars            |
+        | Support candidates       |
+        | Development candidates   |
+        | Non-rotatable            |
+        | Reduced match load       |
+        | Availability problems    |
+      And the app must not only show one flat player table
+
+    Scenario: Player cards show football planning badges
+      Given player "p1" exists
+      When player "p1" appears in Team Squad Overview
+      Then the player card must show core team
+      And primary position
+      And availability status
+      And recent role history
+      And badges for non_rotatable, reduced_match_load_allowed, support suitability, and development readiness when relevant
+
+
   Rule: Rotation graph view
 
     The rotation graph shows teams as nodes and configured paths as edges.
@@ -1314,9 +1596,9 @@ Feature: Matchboard football operations workspace
       And the app must validate the path before saving
 
 
-  Rule: Player profile
+  Rule: Player Profile works like a player dossier
 
-    Player profile explains the player's planning context, recent usage, restrictions, and notes.
+    Player Profile must present a player as a football planning object, not a database row.
 
     Scenario: Coach opens player profile
       Given player "p1" exists
@@ -1329,6 +1611,34 @@ Feature: Matchboard football operations workspace
       And recent match usage
       And active restrictions
       And coach notes
+
+    Scenario: Player Profile has dossier sections
+      Given player "p1" exists
+      When the coach opens player "p1" profile
+      Then the profile must show sections for:
+        | section          |
+        | Overview         |
+        | Positions        |
+        | Attributes       |
+        | Availability     |
+        | Rotation status  |
+        | Match history    |
+        | Notes            |
+        | Explanations     |
+      And the profile must not show all fields as one long form by default
+
+    Scenario: Player Profile shows recent usage strip
+      Given player "p1" has selection history
+      When the coach opens player "p1" profile
+      Then the app must show a recent usage strip for the latest match rounds
+      And each item must show role, team, and match round
+
+    Scenario: Player Profile explains active restrictions
+      Given player "p1" is non_rotatable
+      Or player "p1" has support cooldown active
+      Or player "p1" cannot be reduced-load dropped again before playing
+      When the coach opens player "p1" profile
+      Then active restrictions must be shown in a visible panel
 
     Scenario: Coach reviews player movement history
       Given player "p1" has movement ledger entries
@@ -1346,12 +1656,54 @@ Feature: Matchboard football operations workspace
       Then the app must show structured reasons for non-selection
 
 
-  Rule: Tactics board
+  Rule: Tactics Board supports 7-a-side, 9-a-side, and 11-a-side
 
-    The tactics board lets the coach review selected squads as football shape.
+    Tactics Board must let the coach see the selected squad as a football shape.
+    It is not optional in the target UX.
     It is practical visualization, not a tactical simulator.
+    The board must support 7-a-side, 9-a-side, and 11-a-side football.
 
-    Scenario: Coach views selected squad on pitch
+    Scenario: Tactics Board opens with format from match
+      Given match "M1" has game format "7-a-side"
+      And match "M1" has a draft selection
+      When the coach opens Tactics Board for match "M1"
+      Then the pitch must render a 7-a-side tactical layout
+      And the board must offer only 7-a-side formations for that match
+
+    Scenario: Tactics Board supports 7-a-side formations
+      Given a match has game format "7-a-side"
+      When the coach opens formation selector
+      Then the app must offer 7-a-side formations such as:
+        | formation |
+        | 2-3-1     |
+        | 3-2-1     |
+        | 2-2-2     |
+        | 3-1-2     |
+      And the pitch must have 7 starting slots including goalkeeper
+
+    Scenario: Tactics Board supports 9-a-side formations
+      Given a match has game format "9-a-side"
+      When the coach opens formation selector
+      Then the app must offer 9-a-side formations such as:
+        | formation |
+        | 3-3-2     |
+        | 3-2-3     |
+        | 2-4-2     |
+        | 4-3-1     |
+      And the pitch must have 9 starting slots including goalkeeper
+
+    Scenario: Tactics Board supports 11-a-side formations
+      Given a match has game format "11-a-side"
+      When the coach opens formation selector
+      Then the app must offer 11-a-side formations such as:
+        | formation |
+        | 4-3-3     |
+        | 4-4-2     |
+        | 4-2-3-1   |
+        | 3-5-2     |
+      And the pitch must have 11 starting slots including goalkeeper
+
+    Scenario: Tactics Board shows selected squad on pitch
       Given a match selection exists for Team C
       When the coach opens Tactics Board
       Then the app must show selected players on a pitch layout
@@ -1364,26 +1716,65 @@ Feature: Matchboard football operations workspace
       Then the app must place player "p1" in that slot
       And show whether the slot matches primary, secondary, tertiary, or fallback position
 
-    Scenario: Tactics board warns about missing structure
+    Scenario: Tactics Board supports placement editing
+      Given player "p1" is selected for Team C
+      When the coach places player "p1" into a pitch slot
+      Then the app must show whether the slot matches the player's primary, secondary, or tertiary position
+      And warn if the player is fallback only
+
+    Scenario: Tactics Board prevents more starters than format allows
+      Given a match has game format "7-a-side"
+      And 7 players are already placed on the pitch
+      When the coach attempts to place an eighth player as starter
+      Then the app must prevent the placement
+      And show that additional selected players belong on the bench
+
+    Scenario: Tactics Board warns when too few starters are placed
+      Given a match has game format "9-a-side"
+      And only 8 players are placed on the pitch
+      When the coach opens Tactics Board
+      Then the app must warn that one starting slot is unfilled
+
+    Scenario: Tactics Board warns about missing structure
       Given no selected player covers a defensive slot
       When the coach opens Tactics Board
       Then the app must warn that defensive structure is missing
 
-    Scenario: Tactics board shows bench players
+    Scenario: Tactics Board shows bench players
       Given a match selection has more selected players than pitch slots
       When the coach opens Tactics Board
       Then extra selected players must appear as bench or unplaced players
 
+    Scenario: Tactics Board stores formation per match
+      Given the coach chooses formation "3-2-1" for a 7-a-side match
+      When the coach saves the tactics board
+      Then the formation must be stored for that match
+      And reopening the tactics board must restore the same formation and player placements
 
-  Rule: Assistant Manager meeting room
+    Scenario: Tactics Board can copy formation between same-format matches
+      Given Team C has a saved 7-a-side formation for match "M1"
+      And match "M2" is also 7-a-side
+      When the coach copies tactics from "M1" to "M2"
+      Then the app may copy formation shape
+      And may copy player placements only for players selected in both matches
 
-    Assistant Manager is a structured review room.
-    It summarizes round status, support chains, development exposure, fairness issues, warnings, and decisions needed.
+    Scenario: Tactics Board cannot copy incompatible formation across formats
+      Given match "M1" is 7-a-side
+      And match "M2" is 9-a-side
+      When the coach copies tactics from "M1" to "M2"
+      Then the app must not copy the formation directly
+      And must ask the coach to choose a compatible 9-a-side formation
 
-    Scenario: Assistant Manager summarizes generated round
+
+  Rule: Assistant advice is part of landing workflow
+
+    Assistant advice is not hidden behind a separate page.
+    It is shown directly on the combined landing page and can be expanded into a detailed assistant view.
+
+    Scenario: Landing page assistant advice summarizes generated round
       Given match round "R1" has generated selections
-      When the coach opens Assistant Manager
-      Then the app must summarize support selections
+      When the coach opens the landing page
+      Then the Assistant Advice panel must summarize support selections
       And development selections
       And backfill chains
       And core match drops
@@ -1391,24 +1782,22 @@ Feature: Matchboard football operations workspace
       And warnings
       And decisions needed before finalization
 
-    Scenario: Assistant Manager explains support chain
+    Scenario: Landing page assistant advice explains support chain
       Given Team B supplied players to Team C
       And Team A backfilled Team B
-      When the coach opens Assistant Manager
-      Then the app must explain the support chain
+      When the coach opens the landing page
+      Then the Assistant Advice panel must explain the support chain
       And show which movement caused each backfill
 
-    Scenario: Assistant Manager presents recommendation with risk and alternative
-      Given a warning has multiple possible resolutions
-      When Assistant Manager displays the warning
-      Then it must show recommended action
-      And risk
-      And alternative action
-      And consequence
+    Scenario: Assistant detail view opens from advice card
+      Given an Assistant Advice card exists on the landing page
+      When the coach opens the card detail
+      Then the app must show the full assistant section
+      And preserve recommendation, risk, alternative, and consequence
 
-    Scenario: Assistant Manager does not act as chatbot
-      Given the coach opens Assistant Manager
-      Then the app must show structured rule-driven review
+    Scenario: Assistant advice does not act as chatbot
+      Given the coach opens the landing page
+      Then assistant advice must show structured rule-driven review
       And must not require conversational input to be useful
 
 
@@ -1498,6 +1887,32 @@ Feature: Matchboard football operations workspace
       When the coach opens the round
       Then the app must show "Human review recommended"
       And list the warnings grouped by team, player, and rule
+
+
+  Rule: Table-only implementation is not acceptable
+
+    A table-only implementation does not satisfy Matchboard UX requirements.
+
+    Scenario: App fails UX acceptance if primary workflow is table-only
+      Given the app has Landing Page, Round Board, Team Squad Overview, Player Profile, and Tactics Board routes
+      When each route is inspected
+      Then the Landing Page must use decision cards, assistant advice, and status panels
+      And Round Board must use team columns and role buckets
+      And Team Squad Overview must use team health cards and grouped player cards
+      And Player Profile must use dossier sections
+      And Tactics Board must use a pitch layout
+      And none of these routes may be implemented as only a raw table with CRUD actions
+
+    Scenario: Raw tables are allowed only as supporting components
+      Given a primary workflow route contains a table
+      Then the table must be inside a larger workspace layout
+      And the screen must still provide contextual cards, panels, warnings, or action sections
+      And the table must not be the only meaningful interaction model
+
+    Scenario: App fails UX acceptance if Manager Desk and Assistant Advice are separated from landing workflow
+      Given the coach opens the app landing page
+      Then the landing page must include both decision inbox and assistant advice
+      And it must not require opening a separate page to understand current round warnings and recommended next actions
 
 
   Rule: App design principle

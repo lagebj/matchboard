@@ -2,12 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { MatchVenue, SelectionStatus } from "@/generated/prisma/client";
+import { MatchType, MatchVenue, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatIsoWeekKey, formatShortDate, parseDateInputToUtcMidday } from "@/lib/date-utils";
-import { matchTypeValues } from "@/lib/player-form-options";
+import { editFinalizedSelection } from "@/lib/selection/edit-finalized-selection";
+import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { refreshDraftSelection, refreshDraftSelections } from "@/lib/selection/refresh-draft-selection";
+import { ensureMatchRoundIdForDate } from "@/lib/ensure-match-round";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -64,18 +66,18 @@ function readRequiredSquadSize(formData: FormData, fieldName: string): number {
   return parsedValue;
 }
 
-function readMatchType(formData: FormData): string | null {
+function readMatchType(formData: FormData): MatchType | null {
   const matchType = readOptionalText(formData, "matchType");
 
   if (!matchType) {
     return null;
   }
 
-  if (matchTypeValues.includes(matchType as (typeof matchTypeValues)[number])) {
-    return matchType;
+  if (Object.values(MatchType).includes(matchType as MatchType)) {
+    return matchType as MatchType;
   }
 
-  throw new Error(`Match type must be one of ${matchTypeValues.join(", ")}.`);
+  throw new Error(`Match type must be one of ${Object.values(MatchType).join(", ")}.`);
 }
 
 function readSelectedMatchIds(formData: FormData): string[] {
@@ -116,13 +118,11 @@ function formatFinalizeWarning(
   match: {
     opponent: string;
     startsAt: Date;
-    targetTeam: {
-      name: string;
-    };
+    team: { name: string };
   },
   reason: string,
 ) {
-  return `${match.targetTeam.name} vs ${match.opponent} on ${formatShortDate(match.startsAt)}: ${reason}`;
+  return `${match.team.name} vs ${match.opponent} on ${formatShortDate(match.startsAt)}: ${reason}`;
 }
 
 type ResetSelectionScope = "all" | "match" | "week";
@@ -147,8 +147,10 @@ async function resetSavedSelections(matchIds?: string[]): Promise<ResetSelection
     throw new Error("Choose at least one match to reset.");
   }
 
-  const deleted = await db.matchSelection.deleteMany({
-    where: uniqueMatchIds.length > 0 ? { matchId: { in: uniqueMatchIds } } : undefined,
+   const deleted = await db.selection.deleteMany({
+    where: uniqueMatchIds.length > 0
+      ? { matchId: { in: uniqueMatchIds }, status: SelectionStatus.DRAFT }
+      : { status: SelectionStatus.DRAFT },
   });
 
   return {
@@ -218,15 +220,18 @@ export async function createMatchAction(formData: FormData) {
       throw new Error("Opponent is required.");
     }
 
+    const matchRoundId = await ensureMatchRoundIdForDate(startsAt);
+
     const match = await db.match.create({
       data: {
         startsAt,
-        targetTeamId,
-        homeOrAway,
+        teamId: targetTeamId,
+        homeAway: homeOrAway,
         opponent,
+        matchRoundId,
         squadSize,
         availableForDevelopmentSlot,
-        matchType,
+        matchType: matchType ?? undefined,
         notes,
       },
       select: {
@@ -392,220 +397,164 @@ export async function recalculateMatchesAction(formData: FormData) {
   );
 }
 
-async function finalizeMatches(matchIds?: string[]) {
-  const finalizedMatchIds: string[] = [];
-  const warnings: string[] = [];
+export async function finalizeMatchRoundAction(matchRoundId: string, overrideReason?: string) {
+  try {
+    const result = await finalizeMatchRound(matchRoundId, overrideReason);
 
-  const matches = await db.match.findMany({
-    where: matchIds ? { id: { in: matchIds } } : undefined,
-    include: {
-      selections: {
-        include: {
-          players: {
-            select: {
-              explanation: true,
-              playerId: true,
-              roleType: true,
-              sourceTeamNameSnapshot: true,
-              targetTeamNameSnapshot: true,
-              wasAutoSelected: true,
-              wasManuallyAdded: true,
-              wasManuallyRemoved: true,
-            },
-          },
-        },
-        orderBy: [{ createdAt: "desc" }],
-        take: 1,
-      },
-      targetTeam: {
-        select: {
-          name: true,
-        },
-      },
-    },
-    orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-  });
+    const matchIds = result.finalizedMatchIds;
+    const weekKeys = await getWeekKeysForMatches(matchIds);
+    revalidateMatchboardPaths(matchIds, weekKeys);
 
-  for (const match of matches) {
-    const latestSelection = match.selections[0] ?? null;
-
-    if (latestSelection?.status === SelectionStatus.FINALIZED) {
-      continue;
-    }
-
-    if (!latestSelection) {
-      warnings.push(formatFinalizeWarning(match, "No saved selection exists yet."));
-      continue;
-    }
-
-    const activePlayerCount = getActiveSelectionPlayerCount(latestSelection);
-
-    if (activePlayerCount < match.squadSize) {
-      warnings.push(
-        formatFinalizeWarning(
-          match,
-          `Selection is ${match.squadSize - activePlayerCount} player(s) short of the ${match.squadSize}-slot squad.`,
-        ),
-      );
-      continue;
-    }
-
-    if (activePlayerCount > match.squadSize) {
-      warnings.push(
-        formatFinalizeWarning(
-          match,
-          `Selection has ${activePlayerCount} players for a ${match.squadSize}-slot squad.`,
-        ),
-      );
-      continue;
-    }
-
-    await db.matchSelection.create({
-      data: {
-        finalizedAt: new Date(),
-        matchId: match.id,
-        overrideNotes: latestSelection.overrideNotes,
-        players: {
-          create: latestSelection.players.map((player) => ({
-            explanation: player.explanation,
-            playerId: player.playerId,
-            roleType: player.roleType,
-            sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
-            targetTeamNameSnapshot: player.targetTeamNameSnapshot,
-            wasAutoSelected: player.wasAutoSelected,
-            wasManuallyAdded: player.wasManuallyAdded,
-            wasManuallyRemoved: player.wasManuallyRemoved,
-          })),
-        },
-        status: SelectionStatus.FINALIZED,
-      },
-    });
-
-    finalizedMatchIds.push(match.id);
+    return result;
+  } catch (error) {
+    return {
+      success: false as const,
+      warnings: [error instanceof Error ? error.message : "Finalization failed."],
+      hardBlocked: true,
+      needsOverride: false,
+      humanReviewRecommended: false,
+      finalizedSelectionCount: 0,
+      finalizedMatchIds: [],
+    };
   }
-
-  return {
-    finalizedMatchIds,
-    warnings,
-  };
 }
 
 export async function finalizeMatchesAction(formData: FormData) {
   const selectedMatchIds = readSelectedMatchIds(formData);
+  const overrideReason = readOptionalText(formData, "overrideReason");
 
-  try {
-    const { finalizedMatchIds, warnings } = await finalizeMatches(selectedMatchIds);
-
-    revalidatePath("/");
-    revalidatePath("/history");
-    revalidatePath("/matches");
-
-    for (const matchId of finalizedMatchIds) {
-      revalidatePath(`/selection/${matchId}`);
-    }
-
+  if (selectedMatchIds.length === 0) {
     redirect(
       buildPathWithSearch("/matches", {
-        finalizedAll: finalizedMatchIds.length,
-        finalizeWarnings: warnings.join("\n"),
-      }),
-    );
-  } catch (error) {
-    redirect(
-      buildPathWithSearch("/matches", {
-        error: error instanceof Error ? error.message : "Could not finalize the selected matches.",
+        error: "Select at least one match to finalize.",
       }),
     );
   }
+
+  const matchRoundId = await getMatchRoundIdForMatches(selectedMatchIds);
+  if (!matchRoundId) {
+    redirect(
+      buildPathWithSearch("/matches", {
+        error: "Selected matches do not share a common match round.",
+      }),
+    );
+  }
+
+  const result = await finalizeMatchRound(matchRoundId, overrideReason ?? undefined);
+
+  if (!result.success) {
+    const queryParams: Record<string, string> = {};
+    if (result.hardBlocked) {
+      queryParams.error = "Finalization blocked: resolve hard blockers before finalizing.";
+    } else if (result.needsOverride) {
+      queryParams.error = "Override reason required: some warnings need a manual override reason.";
+    } else {
+      queryParams.error = "Finalization failed.";
+    }
+    if (result.warnings.length > 0) {
+      queryParams.finalizeWarnings = result.warnings.join("\n");
+    }
+    redirect(buildPathWithSearch("/matches", queryParams));
+  }
+
+  const weekKeys = await getWeekKeysForMatches(result.finalizedMatchIds);
+  revalidateMatchboardPaths(result.finalizedMatchIds, weekKeys);
+
+  redirect(
+    buildPathWithSearch("/matches", {
+      finalizedAll: String(result.finalizedSelectionCount),
+      ...(result.humanReviewRecommended ? { humanReview: "recommended" } : {}),
+      ...(result.warnings.length > 0 ? { finalizeWarnings: result.warnings.join("\n") } : {}),
+    }),
+  );
 }
 
 export async function finalizeAllMatchesAction() {
-  try {
-    const { finalizedMatchIds, warnings } = await finalizeMatches();
+  const latestDraftMatchRound = await db.matchRound.findFirst({
+    where: { status: "DRAFT" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
 
-    revalidatePath("/");
-    revalidatePath("/history");
-    revalidatePath("/matches");
-
-    for (const matchId of finalizedMatchIds) {
-      revalidatePath(`/selection/${matchId}`);
-    }
-
+  if (!latestDraftMatchRound) {
     redirect(
       buildPathWithSearch("/matches", {
-        finalizedAll: finalizedMatchIds.length,
-        finalizeWarnings: warnings.join("\n"),
-      }),
-    );
-  } catch (error) {
-    redirect(
-      buildPathWithSearch("/matches", {
-        error: error instanceof Error ? error.message : "Could not finalize all ready matches.",
+        error: "No draft match round found to finalize.",
       }),
     );
   }
+
+  const result = await finalizeMatchRound(latestDraftMatchRound.id);
+
+  if (!result.success) {
+    const queryParams: Record<string, string> = {};
+    if (result.hardBlocked) {
+      queryParams.error = "Finalization blocked: resolve hard blockers before finalizing.";
+    } else if (result.needsOverride) {
+      queryParams.error = "Override reason required: some warnings need a manual override reason.";
+    } else {
+      queryParams.error = "Finalization failed.";
+    }
+    if (result.warnings.length > 0) {
+      queryParams.finalizeWarnings = result.warnings.join("\n");
+    }
+    redirect(buildPathWithSearch("/matches", queryParams));
+  }
+
+  const weekKeys = await getWeekKeysForMatches(result.finalizedMatchIds);
+  revalidateMatchboardPaths(result.finalizedMatchIds, weekKeys);
+
+  redirect(
+    buildPathWithSearch("/matches", {
+      finalizedAll: String(result.finalizedSelectionCount),
+      ...(result.humanReviewRecommended ? { humanReview: "recommended" } : {}),
+      ...(result.warnings.length > 0 ? { finalizeWarnings: result.warnings.join("\n") } : {}),
+    }),
+  );
 }
 
 async function markMatchesAsDraft(matchIds?: string[]) {
-  const affectedMatchIds: string[] = [];
+  const where = matchIds && matchIds.length > 0
+    ? { matchId: { in: matchIds }, status: SelectionStatus.FINALIZED }
+    : { status: SelectionStatus.FINALIZED };
 
-  const matches = await db.match.findMany({
-    where: matchIds ? { id: { in: matchIds } } : undefined,
-    include: {
-      selections: {
-        include: {
-          players: {
-            select: {
-              chosenPosition: true,
-              explanation: true,
-              playerId: true,
-              roleType: true,
-              sourceTeamNameSnapshot: true,
-              targetTeamNameSnapshot: true,
-              wasAutoSelected: true,
-              wasManuallyAdded: true,
-              wasManuallyRemoved: true,
-            },
-          },
-        },
-        orderBy: [{ createdAt: "desc" }],
-        take: 1,
-      },
-    },
+  const result = await db.selection.updateMany({
+    where,
+    data: { status: SelectionStatus.DRAFT },
   });
 
-  for (const match of matches) {
-    const latestSelection = match.selections[0] ?? null;
+  const affected = await db.selection.findMany({
+    where: { matchId: { in: matchIds ?? [] }, status: SelectionStatus.DRAFT },
+    select: { matchId: true },
+    distinct: ["matchId"],
+  });
 
-    if (!latestSelection || latestSelection.status === SelectionStatus.DRAFT) {
-      continue;
-    }
+  return affected.map((s) => s.matchId);
+}
 
-    await db.matchSelection.create({
-      data: {
-        matchId: match.id,
-        overrideNotes: latestSelection.overrideNotes,
-        players: {
-          create: latestSelection.players.map((player) => ({
-            chosenPosition: player.chosenPosition,
-            explanation: player.explanation,
-            playerId: player.playerId,
-            roleType: player.roleType,
-            sourceTeamNameSnapshot: player.sourceTeamNameSnapshot,
-            targetTeamNameSnapshot: player.targetTeamNameSnapshot,
-            wasAutoSelected: player.wasAutoSelected,
-            wasManuallyAdded: player.wasManuallyAdded,
-            wasManuallyRemoved: player.wasManuallyRemoved,
-          })),
-        },
-        status: SelectionStatus.DRAFT,
-      },
-    });
+async function getMatchRoundIdForMatches(matchIds: string[]): Promise<string | null> {
+  if (matchIds.length === 0) return null;
 
-    affectedMatchIds.push(match.id);
-  }
+  const matches = await db.match.findMany({
+    where: { id: { in: matchIds } },
+    select: { matchRoundId: true },
+  });
 
-  return affectedMatchIds;
+  const uniqueMatchRoundIds = [...new Set(matches.map((m) => m.matchRoundId))];
+  if (uniqueMatchRoundIds.length !== 1) return null;
+
+  return uniqueMatchRoundIds[0] ?? null;
+}
+
+async function getWeekKeysForMatches(matchIds: string[]): Promise<string[]> {
+  if (matchIds.length === 0) return [];
+
+  const matches = await db.match.findMany({
+    where: { id: { in: matchIds } },
+    select: { startsAt: true },
+  });
+
+  return [...new Set(matches.map((m) => formatIsoWeekKey(m.startsAt)))];
 }
 
 export async function markMatchesAsDraftAction(formData: FormData) {
@@ -680,6 +629,97 @@ export async function recalculateMatchAction(matchId: string) {
   redirect(
     buildPathWithSearch(`/selection/${matchId}`, {
       recalculated: "1",
+    }),
+  );
+}
+
+export async function editFinalizedSelectionAction(
+  selectionId: string,
+  changeReason: string,
+  updatedData: {
+    role?: string;
+    playerId?: string;
+    explanation?: unknown;
+  },
+) {
+  const result = await editFinalizedSelection(selectionId, changeReason, updatedData);
+
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/matches");
+
+  return result;
+}
+
+export async function repairDropoutAction(matchId: string, playerId: string) {
+  const { repairDropout } = await import("@/lib/selection/repair-dropout");
+
+  let result;
+  try {
+    result = await repairDropout(matchId, playerId);
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/matchday", {
+        error: error instanceof Error ? error.message : "Could not repair the dropout.",
+      }),
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/matchday");
+  revalidatePath(`/selection/${matchId}`);
+
+  if (result.repaired) {
+    redirect(
+      buildPathWithSearch("/matchday", {
+        repaired: "1",
+        repairMessage: result.explanation,
+      }),
+    );
+  }
+
+  redirect(
+    buildPathWithSearch("/matchday", {
+      repairFailed: "1",
+      repairMessage: result.explanation,
+      repairMatchId: matchId,
+      repairPlayerId: playerId,
+    }),
+  );
+}
+
+export async function acceptReducedSquadAction(matchId: string, playerId: string) {
+  try {
+    const matchingSelection = await db.selection.findFirst({
+      where: {
+        matchId,
+        playerId,
+      },
+      orderBy: [{ createdAt: "desc" }],
+    });
+
+    if (!matchingSelection) {
+      throw new Error("Selection record not found for the dropped player.");
+    }
+
+    await db.selection.delete({
+      where: { id: matchingSelection.id },
+    });
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/matchday", {
+        error: error instanceof Error ? error.message : "Could not accept reduced squad.",
+      }),
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/matchday");
+  revalidatePath(`/selection/${matchId}`);
+  redirect(
+    buildPathWithSearch("/matchday", {
+      repaired: "1",
+      repairMessage: "Dropped player removed. Squad accepted at reduced size (below minimum). Manual override recorded.",
     }),
   );
 }

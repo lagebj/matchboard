@@ -103,3 +103,21 @@ textarea {
 .app-copy-soft {
   color: var(--text-soft);
 }
+
+@media (max-width: 1023px) {
+  .app-shell {
+    flex-direction: column;
+  }
+}
+
+.app-mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  border-top: 1px solid var(--border-soft);
+  background: rgba(10, 13, 19, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
