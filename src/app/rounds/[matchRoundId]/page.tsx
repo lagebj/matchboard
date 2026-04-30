@@ -4,7 +4,6 @@ import { RoundCommandCenter } from "@/components/round/round-command-center";
 import type { PlayerInMatch } from "@/components/round/match-squad-card";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
-import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 
 type RoundBoardPageProps = {
@@ -64,7 +63,7 @@ export default async function RoundBoardPage({
 
   const matchIds = matchRound.matches.map((m) => m.id);
 
-  const [selections, movementLedger, allPlayers] = await Promise.all([
+  const [selections, allPlayers] = await Promise.all([
     db.selection.findMany({
       where: {
         matchId: { in: matchIds },
@@ -85,14 +84,6 @@ export default async function RoundBoardPage({
         },
       },
       orderBy: [{ role: "asc" }],
-    }),
-    db.movementLedger.findMany({
-      where: { matchRoundId },
-      include: {
-        player: { select: { firstName: true, lastName: true } },
-        fromTeam: { select: { id: true, name: true } },
-        toTeam: { select: { id: true, name: true } },
-      },
     }),
     db.player.findMany({
       where: {
@@ -131,17 +122,6 @@ export default async function RoundBoardPage({
     ? formatIsoWeekLabel(matchRound.matches[0]!.startsAt)
     : matchRound.name;
 
-  const donationCountByTeamId = new Map<string, number>();
-  const backfillReceivedByTeamId = new Map<string, number>();
-  for (const entry of movementLedger) {
-    if (isFloatingSelectionRole(entry.role)) {
-      donationCountByTeamId.set(entry.fromTeamId, (donationCountByTeamId.get(entry.fromTeamId) ?? 0) + 1);
-      if (entry.role === "BACKFILL") {
-        backfillReceivedByTeamId.set(entry.toTeamId, (backfillReceivedByTeamId.get(entry.toTeamId) ?? 0) + 1);
-      }
-    }
-  }
-
   const supportSentByTeamId = new Map<string, number>();
   const supportReceivedByTeamId = new Map<string, number>();
   const devSentByTeamId = new Map<string, number>();
@@ -149,15 +129,34 @@ export default async function RoundBoardPage({
   const backfillReceivedCountByTeamId = new Map<string, number>();
   const dropsCountByTeamId = new Map<string, number>();
 
-  for (const entry of movementLedger) {
-    if (entry.role === "SUPPORT") {
-      supportSentByTeamId.set(entry.fromTeamId, (supportSentByTeamId.get(entry.fromTeamId) ?? 0) + 1);
-      supportReceivedByTeamId.set(entry.toTeamId, (supportReceivedByTeamId.get(entry.toTeamId) ?? 0) + 1);
-    } else if (entry.role === "DEVELOPMENT") {
-      devSentByTeamId.set(entry.fromTeamId, (devSentByTeamId.get(entry.fromTeamId) ?? 0) + 1);
-      devReceivedByTeamId.set(entry.toTeamId, (devReceivedByTeamId.get(entry.toTeamId) ?? 0) + 1);
-    } else if (entry.role === "BACKFILL") {
-      backfillReceivedCountByTeamId.set(entry.toTeamId, (backfillReceivedCountByTeamId.get(entry.toTeamId) ?? 0) + 1);
+  const FLOATING_ROLES = new Set(["SUPPORT", "BACKFILL", "DEVELOPMENT", "CONFIDENCE_REBUILD"]);
+  let crossTeamMoverCount = 0;
+  for (const sel of selections) {
+    if (FLOATING_ROLES.has(sel.role)) {
+      const match = matchRound.matches.find((m) => m.id === sel.matchId);
+      if (match && sel.player.coreTeamId !== match.teamId) {
+        crossTeamMoverCount++;
+      }
+    }
+  }
+  for (const sel of selections) {
+    if (sel.role === "SUPPORT") {
+      supportSentByTeamId.set(sel.player.coreTeamId, (supportSentByTeamId.get(sel.player.coreTeamId) ?? 0) + 1);
+      const match = matchRound.matches.find((m) => m.id === sel.matchId);
+      if (match) {
+        supportReceivedByTeamId.set(match.teamId, (supportReceivedByTeamId.get(match.teamId) ?? 0) + 1);
+      }
+    } else if (sel.role === "DEVELOPMENT") {
+      devSentByTeamId.set(sel.player.coreTeamId, (devSentByTeamId.get(sel.player.coreTeamId) ?? 0) + 1);
+      const match = matchRound.matches.find((m) => m.id === sel.matchId);
+      if (match) {
+        devReceivedByTeamId.set(match.teamId, (devReceivedByTeamId.get(match.teamId) ?? 0) + 1);
+      }
+    } else if (sel.role === "BACKFILL") {
+      const match = matchRound.matches.find((m) => m.id === sel.matchId);
+      if (match) {
+        backfillReceivedCountByTeamId.set(match.teamId, (backfillReceivedCountByTeamId.get(match.teamId) ?? 0) + 1);
+      }
     }
   }
 
@@ -303,7 +302,7 @@ export default async function RoundBoardPage({
   const fairnessMetrics = [
     { label: "Players selected", value: uniqueSelectedPlayerIds.size },
     { label: "Matches this round", value: matchRound.matches.length },
-    { label: "Cross-team movers", value: movementLedger.length },
+    { label: "Cross-team movers", value: crossTeamMoverCount },
     {
       label: "Squad fill rate",
       value: squads.length > 0

@@ -125,7 +125,7 @@ function formatFinalizeWarning(
   return `${match.team.name} vs ${match.opponent} on ${formatShortDate(match.startsAt)}: ${reason}`;
 }
 
-type ResetSelectionScope = "all" | "match" | "week";
+type ResetSelectionScope = "all" | "draft" | "match" | "week";
 
 type ResetSelectionResult = {
   deletedSelectionCount: number;
@@ -133,7 +133,7 @@ type ResetSelectionResult = {
   weekKeys: string[];
 };
 
-async function resetSavedSelections(matchIds?: string[]): Promise<ResetSelectionResult> {
+async function resetSavedSelections(matchIds?: string[], scope: ResetSelectionScope = "draft"): Promise<ResetSelectionResult> {
   const uniqueMatchIds = [...new Set(matchIds ?? [])];
   const affectedMatches = await db.match.findMany({
     where: uniqueMatchIds.length > 0 ? { id: { in: uniqueMatchIds } } : undefined,
@@ -147,10 +147,14 @@ async function resetSavedSelections(matchIds?: string[]): Promise<ResetSelection
     throw new Error("Choose at least one match to reset.");
   }
 
-   const deleted = await db.selection.deleteMany({
+  const statusFilter = scope === "all"
+    ? { status: { in: [SelectionStatus.DRAFT, SelectionStatus.FINALIZED] } }
+    : { status: SelectionStatus.DRAFT };
+
+  const deleted = await db.selection.deleteMany({
     where: uniqueMatchIds.length > 0
-      ? { matchId: { in: uniqueMatchIds }, status: SelectionStatus.DRAFT }
-      : { status: SelectionStatus.DRAFT },
+      ? { matchId: { in: uniqueMatchIds }, ...statusFilter }
+      : statusFilter,
   });
 
   return {
@@ -166,6 +170,7 @@ function revalidateMatchboardPaths(matchIds: string[], weekKeys: string[]) {
   revalidatePath("/matches");
   revalidatePath("/players");
   revalidatePath("/weeks");
+  revalidatePath("/rounds");
 
   for (const weekKey of weekKeys) {
     revalidatePath(`/weeks/${weekKey}`);
@@ -184,6 +189,7 @@ export async function resetSelectionsAction(formData: FormData) {
   try {
     const { deletedSelectionCount, matchIds, weekKeys } = await resetSavedSelections(
       selectedMatchIds.length > 0 ? selectedMatchIds : undefined,
+      scope,
     );
 
     revalidateMatchboardPaths(matchIds, weekKeys);

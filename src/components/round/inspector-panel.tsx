@@ -46,8 +46,10 @@ function DirectionIcon({ category }: { category: InspectorPlayer["selectionCateg
 }
 
 export function InspectorPanel({ player, matchContext, onClose }: InspectorPanelProps) {
+  const isOpen = player !== null && player !== undefined;
+
   return (
-    <aside className="fixed right-0 top-0 z-40 hidden h-screen w-[var(--inspector-width)] flex-col border-l border-[var(--border-soft)] bg-[var(--surface-base)] lg:flex">
+    <aside className={`fixed right-0 top-0 z-40 h-screen w-[var(--inspector-width)] flex-col border-l border-[var(--border-soft)] bg-[var(--surface-base)] transition-transform duration-200 ${isOpen ? "translate-x-0 flex" : "translate-x-full hidden"}`}>
       <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-3">
         <h3 className="text-sm font-semibold text-zinc-100">Inspector</h3>
         <button
