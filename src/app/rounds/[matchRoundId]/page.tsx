@@ -170,6 +170,8 @@ export default async function RoundBoardPage({
 
   const unresolvedWarnings = matchRound.warnings.filter((w) => !w.resolved);
 
+  const SELECTED_ROLES = new Set(["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "CONFIDENCE_REBUILD", "MANUAL_OVERRIDE"]);
+
   const squads = matchRound.matches.map((match) => {
     const matchSels = (selectionsByMatchId.get(match.id) ?? [])
       .filter((s) => {
@@ -177,7 +179,16 @@ export default async function RoundBoardPage({
         return explanation.manuallyRemoved !== true;
       });
 
-    const players: PlayerInMatch[] = matchSels.map((sel) => {
+    const seenPlayerIds = new Set<string>();
+    const players: PlayerInMatch[] = [];
+
+    const selectedSels = matchSels.filter((s) => SELECTED_ROLES.has(s.role));
+    const droppedSels = matchSels.filter((s) => !SELECTED_ROLES.has(s.role));
+
+    for (const sel of [...selectedSels, ...droppedSels]) {
+      if (seenPlayerIds.has(sel.player.id)) continue;
+      seenPlayerIds.add(sel.player.id);
+
       const explanation = (sel.explanation ?? {}) as Record<string, unknown>;
       const explanations = Array.isArray(explanation.records)
         ? (explanation.records as Array<{ code: string; summary: string; details?: string; hardRule?: boolean }>)
@@ -188,7 +199,7 @@ export default async function RoundBoardPage({
             hardRule: explanation.hardRule as boolean | undefined,
           }];
 
-      return {
+      players.push({
         playerId: sel.player.id,
         playerName: formatPlayerName(sel.player),
         coreTeamName: sel.player.coreTeam.name,
@@ -198,12 +209,13 @@ export default async function RoundBoardPage({
         priorityScore: (explanation.priorityScore as number | null) ?? null,
         manualOverride: (explanation.manualOverride as boolean) ?? false,
         playerPosition: sel.player.primaryPosition ?? "",
-      };
-    });
+      });
+    }
 
     const unavailableForTeam = unavailableByTeamId.get(match.teamId) ?? [];
     for (const p of unavailableForTeam) {
-      if (!players.some((pl) => pl.playerId === p.id)) {
+      if (!seenPlayerIds.has(p.id)) {
+        seenPlayerIds.add(p.id);
         players.push({
           playerId: p.id,
           playerName: formatPlayerName(p),
@@ -222,7 +234,11 @@ export default async function RoundBoardPage({
       }
     }
 
-    const selectedCount = matchSels.length;
+    const selectedPlayerIds = new Set<string>();
+    for (const sel of selectedSels) {
+      selectedPlayerIds.add(sel.player.id);
+    }
+    const selectedCount = selectedPlayerIds.size;
     const supportCount = matchSels.filter((s) => s.role === "SUPPORT" || s.role === "BACKFILL").length;
     const matchWarnings = unresolvedWarnings.filter(
       (w) => w.matchId === match.id || w.teamId === match.teamId,
@@ -277,8 +293,15 @@ export default async function RoundBoardPage({
     info: unresolvedWarnings.filter((w) => w.severity === "SCORING_PREFERENCE").length,
   };
 
+  const uniqueSelectedPlayerIds = new Set<string>();
+  for (const s of selections) {
+    if (SELECTED_ROLES.has(s.role)) {
+      uniqueSelectedPlayerIds.add(s.playerId);
+    }
+  }
+
   const fairnessMetrics = [
-    { label: "Players selected", value: selections.length },
+    { label: "Players selected", value: uniqueSelectedPlayerIds.size },
     { label: "Matches this round", value: matchRound.matches.length },
     { label: "Cross-team movers", value: movementLedger.length },
     {
