@@ -41,20 +41,20 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-              Rule Studio
+              Rules
             </span>
             <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-              Validate, export, and tune rules
+              Selection rules, support priority, and backfill behavior.
             </span>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
               <div>
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  Tune the engine with operational consequences visible before the form.
+                  Rules
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Change the limits carefully. The form is below.
+                  Selection rules, support priority, and backfill behavior.
                 </p>
               </div>
 
@@ -86,7 +86,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
         <aside className="grid gap-4">
           <section className="app-panel rounded-[1.75rem] p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Control Notes
+              Notes
             </p>
             <div className="mt-4 grid gap-3">
               {[
@@ -158,7 +158,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
         <section className="app-panel rounded-[1.75rem] p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Hard Limits
+            Configuration
           </p>
           <h2 className="mt-2 text-xl font-semibold text-zinc-50">These values block or allow candidate sets outright</h2>
           <div className="mt-6 grid gap-4 md:grid-cols-2">

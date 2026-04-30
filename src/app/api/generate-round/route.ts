@@ -1,5 +1,6 @@
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
+import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
@@ -25,7 +26,11 @@ export async function POST(request: Request) {
   const matchRound = await db.matchRound.findUnique({
     where: { id: roundId },
     include: {
-      matches: { select: { id: true } },
+      matches: {
+        include: {
+          team: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 
@@ -36,6 +41,16 @@ export async function POST(request: Request) {
   try {
     const generatedRound = await generateMatchRound(roundId);
     await createGeneratedDraftRound(generatedRound);
+
+    const matchIdByTeamName = new Map<string, string>();
+    const teamIdByTeamName = new Map<string, string>();
+    for (const match of matchRound.matches) {
+      matchIdByTeamName.set(match.team.name, match.id);
+      teamIdByTeamName.set(match.team.name, match.team.id);
+    }
+
+    const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+    await persistRoundWarnings(warnings);
 
     return NextResponse.json({
       roundId,

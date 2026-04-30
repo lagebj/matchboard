@@ -19,7 +19,7 @@ function formatSavedMessage(saved?: string): string | null {
   }
 
   if (saved === "removed") {
-    return "Player removed from the active registry.";
+    return "Player removed.";
   }
 
   return null;
@@ -91,20 +91,20 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-                Player Registry
+                Players
               </span>
               <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Scan first, edit second
+                Availability, load, and movement history.
               </span>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
               <div>
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  Keep the roster readable enough that you know which profile to open next.
+                  Players
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Start with availability and rotation eligibility, then open the profile you need.
+                  Availability, load, and movement history.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -143,7 +143,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                         {nextProfilePlayer.coreTeam.name} · {formatAvailabilityStatus(nextProfilePlayer.currentAvailability)}
                       </p>
                     </div>
-                    <p className="text-sm app-copy-soft">Open the full profile when this player needs work.</p>
+                    <p className="text-sm app-copy-soft">Open the full profile for details.</p>
                     <Link
                       className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
                       href={`/players/${nextProfilePlayer.id}`}
@@ -164,7 +164,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
         <aside className="grid gap-4">
           <section className="app-panel rounded-[1.75rem] p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Registry Signals
+              Player overview
             </p>
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-4">
@@ -172,7 +172,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                   Active players
                 </p>
                 <p className="mt-2 text-3xl font-semibold text-zinc-50">{activeCount}</p>
-                <p className="mt-2 text-sm app-copy-soft">Live selection pool.</p>
+                <p className="mt-2 text-sm app-copy-soft">Available for selection.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
@@ -181,7 +181,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                 </div>
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
                   <p className="text-sm font-medium text-zinc-100">{inactiveCount} inactive record(s)</p>
-                  <p className="mt-1 text-sm app-copy-soft">Out of the live pool.</p>
+                  <p className="mt-1 text-sm app-copy-soft">Not available for selection.</p>
                 </div>
               </div>
             </div>
@@ -189,12 +189,12 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
           <section className="app-panel rounded-[1.75rem] p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Attention Rule
+              Quick check
             </p>
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-                <p className="text-sm font-medium text-zinc-100">Use this page to decide who needs a closer look.</p>
-                <p className="mt-1 text-sm app-copy-soft">Use this page to decide who needs a closer look.</p>
+                <p className="text-sm font-medium text-zinc-100">Check which players need attention.</p>
+                <p className="mt-1 text-sm app-copy-soft">Review availability and status before selection.</p>
               </div>
             </div>
           </section>
@@ -206,9 +206,9 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                Attention Lanes
+                Needs attention
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-zinc-50">See the pressure before the grid</h2>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Needs attention</h2>
             </div>
           </div>
 
@@ -294,14 +294,14 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
         <section className="app-panel rounded-[1.75rem] p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Working Habit
+            Player table
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Keep the table as the second read</h2>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Player table</h2>
           <div className="mt-6 grid gap-3">
             {[
-              "Use the attention lanes first to see which players changed status or matter to the next selection.",
-              "Open an individual profile only when you need the deeper attribute, rotation, and history view.",
-              "Return to the table for bulk scanning, sorting, and removals once you already know what you are looking for.",
+              "Use the needs-attention view to see which players have changed status or are relevant to the next selection.",
+              "Open an individual profile when you need detailed attributes, rotation history, or movement records.",
+              "Use the table for bulk scanning, sorting, and removals.",
             ].map((note) => (
               <div
                 key={note}
@@ -332,14 +332,14 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
         <section className="app-panel rounded-[1.75rem] p-6">
           <h2 className="text-lg font-semibold text-zinc-50">No Teams Yet</h2>
           <p className="mt-1 text-sm leading-6 app-copy-soft">
-            Create at least one team before adding players to the registry.
+            Create at least one team before adding players.
           </p>
           <div className="mt-4">
             <Link
               className="inline-flex h-10 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
               href="/teams"
             >
-              Open team registry
+              Open teams
             </Link>
           </div>
         </section>

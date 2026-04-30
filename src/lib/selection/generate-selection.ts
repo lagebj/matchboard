@@ -504,8 +504,10 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     const eligibility = getTargetTeamEligibility(player, match.team, playerPathDestinations);
 
     if (player.currentAvailability === "UNKNOWN") {
-      const isSupportCandidate = currentMatchRecord.supportSourceTeamIds.includes(player.coreTeamId);
-      if (isSupportCandidate) {
+      const hasSupportPath = player.rotationPathsFromCoreTeam.some(
+        (p) => p.toTeamId === currentMatchRecord.teamId && p.role === "SUPPORT",
+      );
+      if (hasSupportPath) {
         warnings.push({
           code: "unknown_availability_support",
           message: `${playerName} has unknown availability and cannot count toward required support for ${currentMatchRecord.team.name}. Confirm availability before relying on this player.`,
@@ -1275,18 +1277,35 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
   if (!deferRotation && effectiveSupportTarget > reservedSupportPlayers) {
     const supportSourcePlayerIds = playerRecords
-      .filter((player) => currentMatchRecord.supportSourceTeamIds.includes(player.coreTeamId))
+      .filter((player) =>
+        player.rotationPathsFromCoreTeam.some(
+          (p) => p.toTeamId === currentMatchRecord.teamId && p.role === "SUPPORT",
+        ),
+      )
       .map((player) => player.id);
     const supportBlockers = buildCandidateBlockerSummary(excludedPlayers, supportSourcePlayerIds);
+    const supportSourceTeamNames = [...new Set(
+      playerRecords
+        .filter((player) =>
+          player.rotationPathsFromCoreTeam.some(
+            (p) => p.toTeamId === currentMatchRecord.teamId && p.role === "SUPPORT",
+          ),
+        )
+        .map((player) => player.coreTeam.name),
+    )];
     warnings.push({
       code: "support_requirement_shortfall",
-      message: `${match.team.name} needs ${effectiveSupportTarget} support player(s) (${directSupportTarget} configured minimum${effectiveExtraSupportBackfillTarget > 0 ? ` and ${effectiveExtraSupportBackfillTarget} extra backfill slot(s)` : ""}), but only ${reservedSupportPlayers} eligible support player(s) were available from ${formatTeamNameList(currentMatchRecord.supportSourceTeamNames) || "the configured support teams"}.${supportBlockers.length > 0 ? ` Main blockers: ${supportBlockers.join(" ")}` : ""}`,
+      message: `${match.team.name} needs ${effectiveSupportTarget} support player(s) (${directSupportTarget} configured minimum${effectiveExtraSupportBackfillTarget > 0 ? ` and ${effectiveExtraSupportBackfillTarget} extra backfill slot(s)` : ""}), but only ${reservedSupportPlayers} eligible support player(s) were available from ${formatTeamNameList(supportSourceTeamNames) || "the configured support teams"}.${supportBlockers.length > 0 ? ` Main blockers: ${supportBlockers.join(" ")}` : ""}`,
     });
   }
 
   if (!deferRotation && effectiveDevelopmentTarget > reservedDevelopmentPlayers) {
     const developmentSourcePlayerIds = playerRecords
-      .filter((player) => currentMatchRecord.developmentSourceTeamIds.includes(player.coreTeamId))
+      .filter((player) =>
+        player.rotationPathsFromCoreTeam.some(
+          (p) => p.toTeamId === currentMatchRecord.teamId && p.role === "DEVELOPMENT",
+        ),
+      )
       .map((player) => player.id);
     const developmentBlockers = buildCandidateBlockerSummary(
       excludedPlayers,

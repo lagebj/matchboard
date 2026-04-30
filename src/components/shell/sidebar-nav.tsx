@@ -20,7 +20,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Today", icon: LayoutDashboard },
   { href: "/rounds", label: "Rounds", icon: CalendarRange },
   { href: "/players", label: "Players", icon: Users },
   { href: "/teams", label: "Teams", icon: Shield },
@@ -44,7 +44,7 @@ export function SidebarNav({ warningCount }: { warningCount?: number }) {
         </div>
         <div>
           <p className="text-sm font-semibold text-zinc-50">Matchboard</p>
-          <p className="text-[10px] text-[var(--text-muted)]">Squad operations</p>
+          <p className="text-[10px] text-[var(--text-muted)]">Squad planning</p>
         </div>
       </div>
 

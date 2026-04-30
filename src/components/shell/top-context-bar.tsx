@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, useDeferredValue } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useDeferredValue, useCallback } from "react";
 import {
-  Play,
+  CalendarRange,
   CheckCircle2,
-  RefreshCw,
-  Download,
-  Settings,
+  CircleDashed,
+  FilePenLine,
+  OctagonAlert,
+  Play,
   Search,
+  Users,
+  Shield,
+  Sliders,
+  History,
+  LayoutDashboard,
+  type LucideIcon,
 } from "lucide-react";
 import { StatusBadge, type RoundStatus } from "@/components/ui/status-badge";
 
@@ -24,6 +31,7 @@ type ContextData = {
     endDateLabel: string;
   } | null;
   matchRound: { id: string; name: string; status: string } | null;
+  warnings?: { blocking: number; high: number; medium: number; info: number } | null;
 };
 
 type SearchResult = {
@@ -32,45 +40,52 @@ type SearchResult = {
 };
 
 const pageTitles: Record<string, { label: string; note: string }> = {
-  "/": { label: "Dashboard", note: "Decision inbox" },
-  "/rounds": { label: "Rounds", note: "Match round command center" },
-  "/matches": { label: "Matches", note: "Match queue" },
-  "/players": { label: "Players", note: "Registry & profiles" },
-  "/teams": { label: "Teams", note: "Health & config" },
-  "/rules": { label: "Rules", note: "Rule configuration" },
-  "/history": { label: "History", note: "Movement & fairness" },
+  "/": { label: "Today", note: "Review the active round, blockers, and the next safe action." },
+  "/rounds": { label: "Rounds", note: "Generate, review, and finalize squads per match round." },
+  "/players": { label: "Players", note: "Availability, load, and movement history." },
+  "/teams": { label: "Teams", note: "Core groups, support needs, and movement paths." },
+  "/rules": { label: "Rules", note: "Selection rules, support priority, and backfill behavior." },
+  "/history": { label: "History", note: "Finalized rounds, movement, and fairness over time." },
 };
 
 function getPageInfo(pathname: string) {
-  if (pathname.startsWith("/selection/")) {
-    return { label: "Match Room", note: "Selection workspace" };
-  }
-  if (pathname.startsWith("/tactics/") && pathname !== "/tactics") {
-    return { label: "Tactics Board", note: "Pitch view" };
+  if (pathname.startsWith("/rounds/") && pathname !== "/rounds") {
+    return { label: "Round", note: "Match round workbench" };
   }
   if (pathname.startsWith("/players/") && pathname !== "/players") {
-    return { label: "Player Profile", note: "Dossier" };
+    return { label: "Player profile", note: "Availability, load, and movement history." };
   }
-  if (pathname.startsWith("/weeks/")) {
-    return { label: "Week Board", note: "Weekly overview" };
-  }
-  return pageTitles[pathname] ?? { label: "Matchboard", note: "" };
+  return pageTitles[pathname] ?? { label: "Matchboard", note: "Squad planning" };
 }
 
-function getRoundStatus(status: string | null): RoundStatus | null {
+function deriveRoundStatus(status: string | null, warnings?: { blocking: number } | null): RoundStatus | null {
   if (!status) return null;
   if (status === "FINALIZED") return "FINALIZED";
-  if (status === "DRAFT") return "DRAFT";
+  if (status === "DRAFT") {
+    if (warnings && warnings.blocking > 0) return "BLOCKED";
+    return "DRAFT";
+  }
   return "DRAFT";
 }
 
+type PrimaryAction = {
+  label: string;
+  icon: LucideIcon;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  variant: "primary" | "success" | "warning" | "default";
+};
+
 export function TopContextBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const info = getPageInfo(pathname);
   const [ctx, setCtx] = useState<ContextData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const deferredQuery = useDeferredValue(searchQuery);
   const searchSeqRef = useRef(0);
 
@@ -95,7 +110,98 @@ export function TopContextBar() {
   }, [deferredQuery]);
 
   const visibleResults = deferredQuery.trim().length < 2 ? null : searchResults;
-  const roundStatus = getRoundStatus(ctx?.matchRound?.status ?? null);
+  const roundStatus = deriveRoundStatus(ctx?.matchRound?.status ?? null, ctx?.warnings);
+
+  const handleGenerateRound = useCallback(async () => {
+    if (!ctx?.matchRound || generating) return;
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/generate-round", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roundId: ctx.matchRound.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const errorMsg = data?.error ?? "Generation failed.";
+        router.push(`/rounds/${ctx.matchRound.id}?error=${encodeURIComponent(errorMsg)}`);
+        return;
+      }
+      router.push(`/rounds/${ctx.matchRound.id}?generated=1`);
+    } catch {
+      router.push(`/rounds/${ctx.matchRound.id}?error=${encodeURIComponent("Network error during generation.")}`);
+    } finally {
+      setGenerating(false);
+    }
+  }, [ctx?.matchRound, generating, router]);
+
+  function getPrimaryAction(): PrimaryAction | null {
+    if (!ctx?.matchRound) {
+      return {
+        label: "Select round",
+        icon: CalendarRange,
+        href: "/rounds",
+        variant: "default",
+      };
+    }
+    if (!roundStatus || roundStatus === "NOT_GENERATED") {
+      return {
+        label: generating ? "Generating…" : "Generate squads",
+        icon: Play,
+        onClick: handleGenerateRound,
+        disabled: generating,
+        variant: "primary",
+      };
+    }
+    if (roundStatus === "BLOCKED") {
+      return {
+        label: "Review blockers",
+        icon: OctagonAlert,
+        href: `/rounds/${ctx.matchRound.id}#warnings`,
+        variant: "warning",
+      };
+    }
+    if (roundStatus === "DRAFT") {
+      return {
+        label: "Finalize round",
+        icon: CheckCircle2,
+        href: `/rounds/${ctx.matchRound.id}`,
+        variant: "success",
+      };
+    }
+    if (roundStatus === "READY") {
+      return {
+        label: "Finalize round",
+        icon: CheckCircle2,
+        href: `/rounds/${ctx.matchRound.id}`,
+        variant: "success",
+      };
+    }
+    if (roundStatus === "FINALIZED") {
+      return {
+        label: "View history",
+        icon: History,
+        href: "/history",
+        variant: "default",
+      };
+    }
+    return null;
+  }
+
+  const primaryAction = getPrimaryAction();
+
+  function getButtonClasses(variant: PrimaryAction["variant"]) {
+    switch (variant) {
+      case "primary":
+        return "bg-[var(--accent-subtle)] text-[var(--accent-strong)] border-[var(--accent)]/30 hover:bg-[var(--accent)]/20";
+      case "success":
+        return "bg-emerald-900/40 text-emerald-300 border-emerald-700/40 hover:bg-emerald-900/60";
+      case "warning":
+        return "bg-amber-900/40 text-amber-300 border-amber-700/40 hover:bg-amber-900/60";
+      default:
+        return "bg-zinc-800/50 text-zinc-300 border-zinc-600/40 hover:bg-zinc-700/50";
+    }
+  }
 
   return (
     <header className="flex h-[var(--topbar-height)] items-center border-b border-[var(--border-soft)] bg-[var(--surface-base)] px-4 backdrop-blur-sm">
@@ -133,26 +239,26 @@ export function TopContextBar() {
       </div>
 
       <div className="flex items-center gap-2">
-        {ctx?.matchRound && roundStatus === "DRAFT" && (
-          <Link
-            href={`/rounds/${ctx.matchRound.id}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--accent-subtle)] px-3 text-xs font-semibold text-[var(--accent-strong)] border border-[var(--accent)]/30 hover:bg-[var(--accent)]/20 transition-colors"
-          >
-            <Play className="h-3.5 w-3.5" aria-hidden="true" />
-            Generate Round
-          </Link>
-        )}
-        {ctx?.matchRound && roundStatus === "READY" && (
-          <form action={`/api/finalize-round`} method="POST">
-            <input type="hidden" name="matchRoundId" value={ctx.matchRound.id} />
+        {primaryAction && (
+          primaryAction.onClick ? (
             <button
-              type="submit"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-900/40 px-3 text-xs font-semibold text-emerald-300 border border-emerald-700/40 hover:bg-emerald-900/60 transition-colors"
+              type="button"
+              onClick={primaryAction.onClick}
+              disabled={primaryAction.disabled}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${getButtonClasses(primaryAction.variant)}`}
             >
-              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Finalize Round
+              <primaryAction.icon className="h-3.5 w-3.5" aria-hidden="true" />
+              {primaryAction.label}
             </button>
-          </form>
+          ) : (
+            <Link
+              href={primaryAction.href ?? "#"}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold border transition-colors ${getButtonClasses(primaryAction.variant)}`}
+            >
+              <primaryAction.icon className="h-3.5 w-3.5" aria-hidden="true" />
+              {primaryAction.label}
+            </Link>
+          )
         )}
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />

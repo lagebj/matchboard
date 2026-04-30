@@ -176,7 +176,7 @@ export async function resolveRoundSupport(
         (p) => p.selectionCategory === "CORE" && p.coreTeamId === donorPath.fromTeamId,
       );
       const donorExcludedCorePlayers = donorExcludedPlayers.filter(
-        (p) => (p.automaticSelectionCategory === "CORE" || p.selectionCategory === "EXCLUDED") && p.coreTeamId === donorPath.fromTeamId,
+        (p) => (p.automaticSelectionCategory === "CORE" || p.selectionCategory === "EXCLUDED") && p.coreTeamId === donorPath.fromTeamId && p.eligibility !== false,
       );
       const donorsAvailable = [...donorCorePlayers, ...donorExcludedCorePlayers];
 
@@ -211,7 +211,7 @@ export async function resolveRoundSupport(
       if (donorResultIdx === undefined) continue;
 
       const available = donor.surplusCorePlayers.filter(
-        (p) => !assignedPlayerIds.has(p.playerId) || results[donorResultIdx]!.selectedPlayers.some((sp) => sp.playerId === p.playerId),
+        (p) => !assignedPlayerIds.has(p.playerId) || results[donorResultIdx]!.selectedPlayers.some((sp) => sp.playerId === p.playerId && sp.coreTeamId === donor.teamId),
       );
 
       const donorPlayers = await db.player.findMany({
@@ -441,26 +441,33 @@ async function resolveBackfillFromSupportInner(
 
     const ownSupportPlayersMoved: Array<{ playerId: string; playerName: string; primaryPosition: string; coreTeamId: string; coreTeamName: string }> = [];
     if (supportAssignments) {
+      const teamMatchDate = matchResults.find((r) => r.matchId === match.id)?.matchDate;
+
       for (const sa of supportAssignments) {
-        if (sa.toTeamId === match.teamId) continue;
-        if (assignedPlayerIds.has(sa.playerId)) continue;
-        const sameTeamMatch = matchResults.find(
-          (r) => r.matchId !== match.id && r.selectedPlayers.some((p) => p.playerId === sa.playerId),
+        if (sa.fromTeamId !== match.teamId) continue;
+
+        const otherMatch = matchResults.find(
+          (r) => r.selectedPlayers.some((p) => p.playerId === sa.playerId),
         );
-        if (!sameTeamMatch) {
-          const player = await db.player.findUnique({
-            where: { id: sa.playerId },
-            select: { id: true, firstName: true, lastName: true, primaryPosition: true, nonRotatable: true, active: true, currentAvailability: true, removedAt: true, coreTeam: { select: { id: true, name: true } } },
+        if (otherMatch) {
+          const otherMatchDate = otherMatch.matchDate;
+          const sameDay = teamMatchDate && otherMatchDate &&
+            teamMatchDate.toDateString() === otherMatchDate.toDateString();
+          if (sameDay) continue;
+        }
+
+        const player = await db.player.findUnique({
+          where: { id: sa.playerId },
+          select: { id: true, firstName: true, lastName: true, primaryPosition: true, nonRotatable: true, active: true, currentAvailability: true, removedAt: true, coreTeam: { select: { id: true, name: true } } },
+        });
+        if (player && !player.nonRotatable && player.active && player.currentAvailability === "AVAILABLE" && !player.removedAt) {
+          ownSupportPlayersMoved.push({
+            playerId: player.id,
+            playerName: player.firstName + (player.lastName ? ` ${player.lastName}` : ""),
+            primaryPosition: player.primaryPosition,
+            coreTeamId: player.coreTeam.id,
+            coreTeamName: player.coreTeam.name,
           });
-          if (player && !player.nonRotatable && player.active && player.currentAvailability === "AVAILABLE" && !player.removedAt) {
-            ownSupportPlayersMoved.push({
-              playerId: player.id,
-              playerName: player.firstName + (player.lastName ? ` ${player.lastName}` : ""),
-              primaryPosition: player.primaryPosition,
-              coreTeamId: player.coreTeam.id,
-              coreTeamName: player.coreTeam.name,
-            });
-          }
         }
       }
     }

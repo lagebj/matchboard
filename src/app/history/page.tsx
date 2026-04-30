@@ -239,50 +239,50 @@ export default async function HistoryPage() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-                Rotation History
+                History
               </span>
               <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Movement first, table second
+                Finalized rounds, movement, and fairness over time.
               </span>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
               <div>
                 <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  Review the current saved state like you are walking the squad room wall with an assistant.
+                  History
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Every card and count on this page is collapsed to the latest saved snapshot for each match.
+                  Finalized rounds, movement, and fairness over time.
                 </p>
               </div>
 
               <div className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.035)] p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Rotation posture
+                  Summary
                 </p>
                 <div className="mt-4 grid gap-3">
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalized appearance(s)</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Locked history from the latest saved snapshot per match.
+                    <p className="text-sm app-copy-soft">
+                      Latest saved snapshot per match.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{totalFloatAppearances} floating appearance(s)</p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      Support, development, and floating usage retained in the current locked state.
+                      Support, development, and floating usage in saved history.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{recentMovers} player(s) with visible movement history</p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      These are the players you can review here before opening their individual pages.
+                      Players with recorded movement in saved history.
                     </p>
                   </div>
                   <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
                     <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalized match(es)</p>
                     <p className="mt-1 text-sm app-copy-soft">
-                      This is the live saved match state before you drill into movement details.
+                      Current match state: draft vs. finalized.
                     </p>
                   </div>
                 </div>
@@ -294,7 +294,7 @@ export default async function HistoryPage() {
         <aside className="grid gap-4">
           <section className="app-panel rounded-[1.75rem] p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Workload Lens
+              Load check
             </p>
             {mostUsedPlayer ? (
               <div className="mt-4 rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
@@ -310,7 +310,7 @@ export default async function HistoryPage() {
               </div>
             ) : (
               <div className="mt-4 rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft">
-                No finalized history yet. Once selections are locked, the workload picture starts to matter.
+                No finalized history yet.
               </div>
             )}
           </section>
@@ -323,29 +323,29 @@ export default async function HistoryPage() {
         <section className="app-panel rounded-[1.75rem] p-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Meeting Flow
+              Review steps
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Review path for the current saved picture</h2>
+            <h2 className="mt-2 text-xl font-semibold text-zinc-50">How to review finalized rounds</h2>
             <p className="mt-2 text-sm app-copy-soft">
-              Start with saved-state posture, then check the latest player movement cards, then open the deeper trail.
+              Check the summary, review recent player movement, then open the table for detail.
             </p>
           </div>
 
           <div className="mt-6 grid gap-3">
             <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-              <p className="text-sm font-semibold text-zinc-100">1. Read the saved match state</p>
+              <p className="text-sm font-semibold text-zinc-100">1. Check the summary</p>
               <p className="mt-2 text-sm app-copy-soft">
                 {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalized.
               </p>
             </div>
             <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-              <p className="text-sm font-semibold text-zinc-100">2. Review the latest move per player</p>
+              <p className="text-sm font-semibold text-zinc-100">2. Review recent player movement</p>
               <p className="mt-2 text-sm app-copy-soft">
-                The movement feed below shows one latest visible move per player from the current saved state.
+                The movement feed below shows one latest visible move per player.
               </p>
             </div>
             <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-              <p className="text-sm font-semibold text-zinc-100">3. Open the trail only if you need detail</p>
+              <p className="text-sm font-semibold text-zinc-100">3. Open the table for detail</p>
               <p className="mt-2 text-sm app-copy-soft">
                 Use the movement overview for per-player timelines and the table for workload or fairness checks.
               </p>
@@ -355,14 +355,14 @@ export default async function HistoryPage() {
 
         <section className="app-panel rounded-[1.75rem] p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Review Habit
+            Reading tips
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Read the story before you sort the table</h2>
+          <h2 className="mt-2 text-xl font-semibold text-zinc-50">How to read this page</h2>
           <div className="mt-6 grid gap-3">
             {[
-              "This page is current-state first: superseded snapshots are collapsed away before anything is counted.",
-              "Use recent pattern strings to see whether a player is carrying a run of core or floating assignments in the current locked history.",
-              "Drop into the full table only after you know whether you are checking fairness, workload, or movement reasons.",
+              "This page shows the latest saved snapshot per match. Superseded snapshots are collapsed away.",
+              "Use recent pattern strings to see whether a player has a run of core or floating assignments.",
+              "Use the full table for fairness, workload, or movement detail.",
             ].map((note) => (
               <div
                 key={note}

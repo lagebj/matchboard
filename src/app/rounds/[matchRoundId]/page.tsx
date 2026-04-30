@@ -12,6 +12,7 @@ type RoundBoardPageProps = {
   }>;
   searchParams: Promise<{
     finalized?: string;
+    generated?: string;
     error?: string;
   }>;
 };
@@ -21,7 +22,7 @@ export default async function RoundBoardPage({
   searchParams,
 }: RoundBoardPageProps) {
   const { matchRoundId } = await params;
-  const { finalized, error } = await searchParams;
+  const { finalized, generated, error } = await searchParams;
 
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId },
@@ -338,6 +339,11 @@ export default async function RoundBoardPage({
       {finalized && (
         <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
           Round finalized.
+        </div>
+      )}
+      {generated && (
+        <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
+          Round generated successfully.
         </div>
       )}
       <RoundCommandCenter round={roundData} matchRoundId={matchRoundId} />

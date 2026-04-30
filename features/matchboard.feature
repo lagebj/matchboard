@@ -1344,6 +1344,100 @@ Feature: Matchboard football operations workspace
       And finalized movement ledger entries must remain unchanged
 
 
+  Rule: Populate all workflow
+
+    The coach can generate drafts for all rounds in a planning period in one action.
+    Populate all generates drafts per round — not match by match — preserving round-level conflict resolution.
+    Populate all does not finalize rounds. Each round remains in draft state for review.
+    Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same populate-all run.
+
+    Scenario: Coach populates all rounds in active planning period
+      Given an active planning period contains match rounds "R1", "R2", and "R3"
+      And none of the match rounds have been finalized
+      When the coach triggers populate all
+      Then the app must generate draft selections for each match round in chronological order
+      And each round must be generated using the round-level orchestration engine
+      And no round must be finalized by populate all
+
+    Scenario: Populate all skips finalized rounds
+      Given an active planning period contains match rounds "R1", "R2", and "R3"
+      And match round "R1" is already finalized
+      When the coach triggers populate all
+      Then the app must skip match round "R1"
+      And the app must generate draft selections for "R2" and "R3"
+      And match round "R1" finalized selections must remain unchanged
+
+    Scenario: Populate all preserves round-level conflict resolution
+      Given match round "R1" contains matches for Team A, Team B, and Team C
+      When the coach triggers populate all
+      Then the app must generate "R1" selections through round-level orchestration
+      And the app must resolve cross-match conflicts within "R1"
+      And the app must resolve support and backfill within "R1"
+      And the app must not generate each match in isolation
+
+    Scenario: Populate all warns on partial failure
+      Given an active planning period contains match rounds "R1", "R2", and "R3"
+      And match round "R2" generation fails
+      When the coach triggers populate all
+      Then the app must still generate draft selections for "R1" and "R3"
+      And the app must report that "R2" failed with explanation
+      And the app must not roll back successful round generations
+
+    Scenario: Populate all does not finalize any round
+      Given an active planning period contains match rounds in draft state
+      When the coach triggers populate all
+      Then every match round must remain in draft state after generation
+      And the coach must explicitly finalize each round after review
+
+    Scenario: Draft selections from earlier rounds may inform later rounds
+      Given match round "R1" is generated before match round "R2" in the same populate-all run
+      And player "p1" is drafted for support in match round "R1"
+      When the app generates draft selections for match round "R2"
+      Then the app may treat "R1" draft selections as provisional planning context
+      And the app must not treat "R1" draft selections as finalized history
+
+    Scenario: Warnings are persisted per round after generation
+      Given match round "R1" has been generated
+      When generation completes
+      Then the app must persist all warnings for "R1" to the database
+      And each warning must include severity, rule, message, and affected entities
+      And the coach must be able to view warnings without regenerating
+
+    Scenario: Warnings are read during finalization
+      Given match round "R1" has persisted warnings
+      And at least one warning has severity "HARD_BLOCK"
+      When the coach attempts to finalize match round "R1"
+      Then the app must block finalization
+      And must show the blocking warnings
+
+    Scenario: Warnings are read during finalization with override
+      Given match round "R1" has persisted warnings
+      And all warnings have severity below "HARD_BLOCK"
+      When the coach finalizes match round "R1"
+      Then the app must allow finalization with acknowledgment
+      And must record the acknowledgment
+
+    Scenario: Setup progress shows which rounds need action
+      Given an active planning period contains match rounds
+      When the coach opens the Today page
+      Then the app must show which rounds have been generated
+      And which rounds need generation
+      And which rounds have unresolved blockers
+      And which rounds are ready for finalization
+      And which rounds are finalized
+
+    Scenario: Next action reflects current setup state
+      Given an active planning period has no generated rounds
+      When the coach opens the Today page
+      Then the next action must be to populate rounds or generate the first round
+      Given an active planning period has draft rounds with blockers
+      When the coach opens the Today page
+      Then the next action must be to review blockers
+      Given an active planning period has draft rounds without blockers
+      When the coach opens the Today page
+      Then the next action must be to finalize the ready round
+
+
   Rule: Human-readable exports
 
     Coaches can export finalized match information without exposing internal planning tags by default.
@@ -1657,6 +1751,9 @@ Feature: Matchboard football operations workspace
   Rule: Team overview and team health
 
     Teams are shown as operational units with squad limits, paths, burden, and warnings.
+    The Teams page is a lightweight directory that links to team-specific detail pages.
+    The all-teams page must not become a catch-all dashboard.
+    Detailed team work happens on the team-specific page.
 
     Scenario: Coach views team overview
       Given teams and rotation rules exist
@@ -1666,10 +1763,17 @@ Feature: Matchboard football operations workspace
       And support priority
       And active movement paths
       And current planning period burden
+      And each team must link to its team detail page
+
+    Scenario: Coach navigates to team detail
+      Given Team B exists
+      When the coach clicks Team B in the team overview
+      Then the app must navigate to the Team B detail page
+      And the detail page must show the Team B workspace
 
     Scenario: Coach views team health
       Given Team B has donated players in the planning period
-      When the coach opens Team B health
+      When the coach opens Team B detail
       Then the app must show support given
       And support received
       And backfill received
@@ -1678,31 +1782,52 @@ Feature: Matchboard football operations workspace
 
     Scenario: Team health shows repeated match fit problems
       Given Team C has several matches recorded as "too_hard"
-      When the coach opens Team C health
+      When the coach opens Team C detail
       Then the app must show repeated match fit concern
       And must not automatically change future rules
 
 
-  Rule: Team Squad Overview is card and panel based
+  Rule: Team detail workspace
 
-    Team Squad Overview must give the coach a football view of the team, not only a player table.
+    /teams/[teamId] is the primary team workspace.
+    It answers: who belongs, who is available, who is selected this round, who is moving out, who is moving in, whether the team is short, what warnings exist, and what the movement and fairness situation looks like.
 
-    Scenario: Team Squad Overview shows team health before player list
+    The team detail page uses neutral coaching language.
+    Movement is described as "sent as support", "received support", "backfill", and "development" — not as "demoted", "punished", "benched", or "weak player".
+    The app must never use labels that imply permanent negative judgment.
+
+    Scenario: Team detail shows team header
       Given Team B exists
-      When the coach opens Team B Squad Overview
-      Then the top of the screen must show team health cards for:
-        | card                  |
-        | Core player count     |
-        | Current squad limits  |
-        | Support given         |
-        | Support received      |
-        | Backfill received     |
-        | Current warnings      |
-      And the player list must appear below or beside those cards
+      When the coach opens Team B detail
+      Then the page must show team name
+      And target squad size
+      And minimum accepted squad size
+      And maximum squad size
+      And minimum core players
+      And support priority
 
-    Scenario: Team Squad Overview groups players by planning status
+    Scenario: Team detail shows team summary strip
+      Given Team B exists and has a current match round
+      When the coach opens Team B detail
+      Then the summary strip must show current round status
+      And number of core players selected
+      And number of players sent as support
+      And number of players received as support
+      And number of players received as backfill
+      And number of players received as development
+      And current warning count
+
+    Scenario: Team detail Squad tab shows squad roster
+      Given Team B exists and has players
+      When the coach opens Team B detail Squad tab
+      Then the app must show all Team B core players
+      And group players by planning status
+      And highlight availability problems
+      And show selection role for the current round if a round exists
+
+    Scenario: Team detail Squad tab groups players by planning status
       Given Team B has players with different planning statuses
-      When the coach opens Team B Squad Overview
+      When the coach opens Team B detail Squad tab
       Then players must be groupable by:
         | group                    |
         | Core regulars            |
@@ -1713,14 +1838,68 @@ Feature: Matchboard football operations workspace
         | Availability problems    |
       And the app must not only show one flat player table
 
-    Scenario: Player cards show football planning badges
-      Given player "p1" exists
-      When player "p1" appears in Team Squad Overview
-      Then the player card must show core team
-      And primary position
-      And availability status
-      And recent role history
-      And badges for non_rotatable, reduced_match_load_allowed, support suitability, and development readiness when relevant
+    Scenario: Team detail current round tab shows selection state
+      Given Team B has a draft selection in the current match round
+      When the coach opens Team B detail Current Round tab
+      Then the app must show which players are selected as core
+      And which players are sent as support to other teams
+      And which players are received as support from other teams
+      And which players are received as backfill from other teams
+      And which players are received as development from other teams
+      And which players are dropped or unavailable
+      And all movement must use neutral language:
+        | movement type         | label              |
+        | sent as support       | Sent as support    |
+        | received support      | Received support   |
+        | received backfill     | Received backfill  |
+        | received development  | Received development|
+        | dropped               | Dropped            |
+
+    Scenario: Team detail current round tab shows warnings
+      Given Team B has warnings in the current match round
+      When the coach opens Team B detail Current Round tab
+      Then the app must show warnings that affect Team B
+      And each warning must show severity, rule, and message
+      And warnings must link to the relevant round detail
+
+    Scenario: Team detail movement tab shows movement history
+      Given Team B has movement ledger entries across multiple match rounds
+      When the coach opens Team B detail Movement tab
+      Then the app must show players sent as support from Team B in each round
+      And players received as support by Team B in each round
+      And players received as backfill by Team B in each round
+      And players received as development by Team B in each round
+      And each movement must show the match round, role, source team, target team, and selection reason
+
+    Scenario: Team detail history tab shows past rounds
+      Given Team B has finalized selections in previous match rounds
+      When the coach opens Team B detail History tab
+      Then the app must show finalized rounds for Team B
+      And each round must show selection role breakdown
+      And the app must link to the finalized round detail
+
+    Scenario: Team detail rules and links tab shows paths and config
+      Given Team B has configured rotation paths
+      When the coach opens Team B detail Rules tab
+      Then the app must show rotation paths involving Team B
+      And squad size configuration
+      And support priority configuration
+      And the app must link to the full Rules page for editing
+
+    Scenario: Team detail uses neutral movement language
+      Given player "b1" has Team B as core team
+      And player "b1" is selected as support for Team C in the current round
+      When the coach opens Team B detail Current Round tab
+      Then the app must describe the movement as "b1 sent as support to Team C"
+      And the app must not describe the movement as "demoted", "benched", "weak player", "punished", or "failed"
+
+    Scenario: All-teams page is a directory not a dashboard
+      Given multiple teams exist
+      When the coach opens the Teams overview
+      Then the page must show each team as a link to its detail page
+      And the page must not show team health details inline
+      And the page must not show squad rosters inline
+      And detailed team work must happen on the team detail page
 
 
   Rule: Rotation graph view

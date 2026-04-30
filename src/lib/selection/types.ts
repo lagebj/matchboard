@@ -12,6 +12,8 @@ export type SelectionWarning = {
   code: string;
   message: string;
   playerId?: string;
+  matchId?: string;
+  teamId?: string;
 };
 
 type SelectionPlayerBase = {

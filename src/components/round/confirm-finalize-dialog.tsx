@@ -48,7 +48,7 @@ export function ConfirmFinalizeDialog({
       <div className="relative z-10 w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4">
           <h3 className="text-base font-semibold text-zinc-100">
-            Finalize Round
+            Finalize round
           </h3>
           <button
             onClick={onClose}
@@ -82,7 +82,7 @@ export function ConfirmFinalizeDialog({
                   <div className="flex items-center gap-2">
                     <SeverityBadge severity="blocking" />
                     <span className="text-sm text-red-300">
-                      {blockingWarningCount} blocking {blockingWarningCount === 1 ? "warning" : "warnings"} — finalization is blocked
+                      {blockingWarningCount} blocking {blockingWarningCount === 1 ? "issue" : "issues"} — finalization is blocked
                     </span>
                   </div>
                 </div>
@@ -93,7 +93,7 @@ export function ConfirmFinalizeDialog({
                   <div className="flex items-center gap-2">
                     <SeverityBadge severity="high" />
                     <span className="text-sm text-amber-300">
-                      {requiresOverrideCount} {requiresOverrideCount === 1 ? "warning requires" : "warnings require"} override reason
+                      {requiresOverrideCount} {requiresOverrideCount === 1 ? "issue requires" : "issues require"} override reason
                     </span>
                   </div>
                 </div>
@@ -110,7 +110,7 @@ export function ConfirmFinalizeDialog({
                 id="override-reason"
                 className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
                 rows={3}
-                placeholder="Explain why these warnings are being overridden (min 10 characters)..."
+                placeholder="Explain why these issues are being overridden (min 10 characters)..."
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
               />

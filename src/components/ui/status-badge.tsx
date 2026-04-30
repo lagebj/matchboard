@@ -1,13 +1,18 @@
 import {
   CheckCircle2,
-  AlertTriangle,
-  Clock,
+  CircleDashed,
   FileCheck,
-  CircleEllipsis,
+  FilePenLine,
+  OctagonAlert,
   type LucideIcon,
 } from "lucide-react";
 
-export type RoundStatus = "DRAFT" | "WARNINGS" | "READY" | "FINALIZED";
+export type RoundStatus =
+  | "NOT_GENERATED"
+  | "DRAFT"
+  | "BLOCKED"
+  | "READY"
+  | "FINALIZED";
 
 type StatusConfig = {
   label: string;
@@ -16,15 +21,21 @@ type StatusConfig = {
 };
 
 const statusConfig: Record<RoundStatus, StatusConfig> = {
+  NOT_GENERATED: {
+    label: "Not generated",
+    icon: CircleDashed,
+    className:
+      "bg-zinc-800/50 text-zinc-400 border-zinc-600/40",
+  },
   DRAFT: {
     label: "Draft",
-    icon: CircleEllipsis,
+    icon: FilePenLine,
     className:
       "bg-amber-900/30 text-amber-300 border-amber-700/40",
   },
-  WARNINGS: {
-    label: "Warnings",
-    icon: AlertTriangle,
+  BLOCKED: {
+    label: "Blocked",
+    icon: OctagonAlert,
     className:
       "bg-red-900/30 text-red-300 border-red-700/40",
   },
@@ -43,7 +54,7 @@ const statusConfig: Record<RoundStatus, StatusConfig> = {
 };
 
 export function StatusBadge({ status }: { status: RoundStatus }) {
-  const config = statusConfig[status] ?? statusConfig.DRAFT;
+  const config = statusConfig[status] ?? statusConfig.NOT_GENERATED;
   const Icon = config.icon;
 
   return (
@@ -57,7 +68,5 @@ export function StatusBadge({ status }: { status: RoundStatus }) {
 }
 
 export function statusConfigFor(status: RoundStatus): StatusConfig {
-  return statusConfig[status] ?? statusConfig.DRAFT;
+  return statusConfig[status] ?? statusConfig.NOT_GENERATED;
 }
-
-export { Clock };

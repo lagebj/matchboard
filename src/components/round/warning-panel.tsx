@@ -1,5 +1,6 @@
-import { AlertTriangle, XCircle, Info, type LucideIcon } from "lucide-react";
+import { AlertTriangle, XCircle } from "lucide-react";
 import { SeverityBadge, severityFromCode } from "@/components/ui/severity-badge";
+import { WarningCard as UIWarningCard } from "@/components/ui/warning-card";
 
 type WarningEntry = {
   code: string;
@@ -17,59 +18,12 @@ type WarningPanelProps = {
     medium: number;
     info: number;
   };
+  onWarningClick?: (warning: WarningEntry) => void;
 };
 
-type WarningCardProps = {
-  code: string;
-  message: string;
-  severity: "blocking" | "high" | "medium" | "info";
-  playerName?: string;
-  teamName?: string;
-};
+export { type WarningEntry };
 
-function SeverityIcon({ severity }: { severity: string }) {
-  const map: Record<string, { icon: LucideIcon; className: string }> = {
-    blocking: { icon: XCircle, className: "text-red-400" },
-    high: { icon: AlertTriangle, className: "text-amber-400" },
-    medium: { icon: AlertTriangle, className: "text-yellow-400" },
-    info: { icon: Info, className: "text-sky-400" },
-  };
-  const config = map[severity] ?? map.info;
-  const Icon = config.icon;
-  return <Icon className={`h-4 w-4 ${config.className}`} aria-hidden="true" />;
-}
-
-export function WarningCard({
-  code,
-  message,
-  severity,
-  playerName,
-  teamName,
-}: WarningCardProps) {
-  return (
-    <div className="flex gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5">
-      <div className="mt-0.5 shrink-0">
-        <SeverityIcon severity={severity} />
-      </div>
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <div className="flex items-center gap-2">
-          <SeverityBadge severity={severity} />
-          <span className="text-[10px] font-mono text-[var(--text-muted)]">{code}</span>
-        </div>
-        <p className="text-sm text-zinc-200 leading-snug">{message}</p>
-        {(playerName || teamName) && (
-          <p className="text-xs text-[var(--text-muted)]">
-            {playerName && <span>{playerName}</span>}
-            {playerName && teamName && <span> · </span>}
-            {teamName && <span>{teamName}</span>}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function WarningPanel({ warnings, summary }: WarningPanelProps) {
+export function WarningPanel({ warnings, summary, onWarningClick }: WarningPanelProps) {
   if (warnings.length === 0) {
     return null;
   }
@@ -86,7 +40,7 @@ export function WarningPanel({ warnings, summary }: WarningPanelProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-100">Warnings</h3>
+        <h3 className="text-sm font-semibold text-zinc-100">Round checks</h3>
         <div className="flex items-center gap-2">
           {hasBlocking && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-red-400">
@@ -106,21 +60,29 @@ export function WarningPanel({ warnings, summary }: WarningPanelProps) {
       {hasBlocking && (
         <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
           <p className="text-xs text-red-300">
-            Blocking warnings prevent finalization. Resolve or override before finalizing this selection.
+            Blocking issues prevent finalization. Resolve or override before finalizing.
           </p>
         </div>
       )}
 
       <div className="flex flex-col gap-1.5">
         {warnings.map((w, i) => (
-          <WarningCard
+          <div
             key={`${w.code}-${i}`}
-            code={w.code}
-            message={w.message}
-            severity={severityFromCode(w.code)}
-            playerName={w.playerName}
-            teamName={w.teamName}
-          />
+            className={onWarningClick ? "cursor-pointer" : ""}
+            onClick={onWarningClick ? () => onWarningClick(w) : undefined}
+            role={onWarningClick ? "button" : undefined}
+            tabIndex={onWarningClick ? 0 : undefined}
+          >
+            <UIWarningCard
+              severity={severityFromCode(w.code)}
+              title={w.code}
+              message={w.message}
+              playerName={w.playerName}
+              teamName={w.teamName}
+              rule={w.code}
+            />
+          </div>
         ))}
       </div>
     </div>

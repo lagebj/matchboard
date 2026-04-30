@@ -4,13 +4,17 @@ import { useState } from "react";
 import { MatchSquadCard, type PlayerInMatch } from "@/components/round/match-squad-card";
 import { WarningPanel } from "@/components/round/warning-panel";
 import { FairnessSummary } from "@/components/round/fairness-summary";
-import { InspectorPanel } from "@/components/round/inspector-panel";
+import { RoundStatusStrip } from "@/components/round/round-status-strip";
+import { MovementChain, type MovementChainEntry } from "@/components/round/movement-chain";
+import { InspectorPanel, type InspectorItem } from "@/components/inspector/inspector-panel";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import type { SelectionRole } from "@/components/ui/role-badge";
+import { severityFromCode } from "@/components/ui/severity-badge";
 
 type WarningEntry = {
   code: string;
   message: string;
+  playerId?: string;
   playerName?: string;
   teamName?: string;
 };
@@ -64,12 +68,29 @@ type RoundCommandCenterProps = {
 
 export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterProps) {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const [inspectedPlayer, setInspectedPlayer] = useState<PlayerInMatch | null>(null);
+  const [inspectedItem, setInspectedItem] = useState<InspectorItem | null>(null);
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
 
   const handlePlayerClick = (player: PlayerInMatch, matchId: string) => {
     setSelectedMatchId(matchId);
-    setInspectedPlayer(player);
+    const squad = round.squads.find((s) => s.matchId === matchId);
+    setInspectedItem({
+      type: "player",
+      playerId: player.playerId,
+      playerName: player.playerName,
+      coreTeamName: player.coreTeamName,
+      playerPosition: player.playerPosition,
+      selectionCategory: player.selectionCategory,
+      selectionReason: player.selectionReason,
+      explanations: player.explanations,
+      priorityScore: player.priorityScore,
+      manualOverride: player.manualOverride,
+      matchContext: squad ? {
+        teamName: squad.teamName,
+        opponent: squad.opponent,
+        matchDate: squad.matchDate,
+      } : undefined,
+    });
   };
 
   const handleCardSelect = (matchId: string) => {
@@ -78,6 +99,17 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
     } else {
       setSelectedMatchId(matchId);
     }
+  };
+
+  const handleWarningClick = (warning: WarningEntry) => {
+    setInspectedItem({
+      type: "warning",
+      severity: severityFromCode(warning.code),
+      message: warning.message,
+      code: warning.code,
+      playerName: warning.playerName,
+      teamName: warning.teamName,
+    });
   };
 
   const handleFinalize = (overrideReason: string) => {
@@ -108,18 +140,60 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
   const totalSelected = round.squads.reduce((sum, s) => sum + s.selectedCount, 0);
   const totalTarget = round.squads.reduce((sum, s) => sum + s.targetSquadSize, 0);
 
+  const completeTeams = round.squads.filter(
+    (s) => s.selectedCount >= s.targetSquadSize,
+  ).length;
+  const teamsNeedingSupport = round.squads.filter(
+    (s) => s.supportStatus === "missing" || s.supportStatus === "partial",
+  ).length;
+  const backfillNeeded = round.squads.filter(
+    (s) => s.backfillCount > 0,
+  ).length;
+  const blockingWarnings = round.warningSummary?.blocking ?? 0;
+
+  const deriveRoundStatus = (): "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED" => {
+    if (round.roundStatus === "FINALIZED") return "FINALIZED";
+    if (round.squads.length === 0) return "NOT_GENERATED";
+    if (blockingWarnings > 0) return "BLOCKED";
+    return "DRAFT";
+  };
+
+  const movements: MovementChainEntry[] = [];
+  for (const squad of round.squads) {
+    for (const player of squad.players) {
+      if (player.selectionCategory === "SUPPORT" || player.selectionCategory === "BACKFILL" || player.selectionCategory === "DEVELOPMENT") {
+        if (player.coreTeamName !== squad.teamName) {
+          movements.push({
+            sourceTeamName: player.coreTeamName,
+            playerName: player.playerName,
+            role: player.selectionCategory as "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
+            targetTeamName: squad.teamName,
+          });
+        }
+      }
+    }
+  }
+
   return (
     <div className="flex min-h-full">
-      <div className={`flex-1 ${inspectedPlayer ? "mr-[var(--inspector-width)]" : ""} transition-[margin] duration-200`}>
+      <div className={`flex-1 ${inspectedItem ? "mr-[var(--inspector-width)]" : ""} transition-[margin] duration-200`}>
         <div className="flex flex-col gap-6">
-          {round.warnings.length > 0 && (
-            <WarningPanel warnings={round.warnings} summary={round.warningSummary} />
-          )}
+          <RoundStatusStrip
+            roundLabel={round.roundLabel}
+            roundStatus={deriveRoundStatus()}
+            totalTeams={round.squads.length}
+            completeTeams={completeTeams}
+            teamsNeedingSupport={teamsNeedingSupport}
+            backfillNeeded={backfillNeeded}
+            blockingWarnings={blockingWarnings}
+            totalSelected={totalSelected}
+            totalTarget={totalTarget}
+          />
 
           {round.roundStatus === "DRAFT" && (
             <div className="flex items-center justify-between rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-zinc-200">{round.roundLabel} · Draft</p>
+                <p className="text-sm font-medium text-zinc-200">{round.roundLabel}</p>
                 <p className="text-xs text-[var(--text-muted)]">{totalSelected} of {totalTarget} squad places filled</p>
               </div>
               <button
@@ -136,6 +210,14 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
               <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
               <span className="text-sm text-emerald-200">{round.roundLabel} — selections are locked.</span>
             </div>
+          )}
+
+          {round.warnings.length > 0 && (
+            <WarningPanel
+              warnings={round.warnings}
+              summary={round.warningSummary}
+              onWarningClick={handleWarningClick}
+            />
           )}
 
           <div>
@@ -169,6 +251,13 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
             )}
           </div>
 
+          {movements.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-zinc-100">Movement</h3>
+              <MovementChain movements={movements} />
+            </div>
+          )}
+
           <FairnessSummary
             metrics={round.fairnessMetrics}
             movementSummary={round.movementSummary}
@@ -177,15 +266,8 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
       </div>
 
       <InspectorPanel
-        player={inspectedPlayer ? {
-          ...inspectedPlayer,
-        } : null}
-        matchContext={selectedSquad ? {
-          teamName: selectedSquad.teamName,
-          opponent: selectedSquad.opponent,
-          matchDate: selectedSquad.matchDate,
-        } : undefined}
-        onClose={() => setInspectedPlayer(null)}
+        item={inspectedItem}
+        onClose={() => setInspectedItem(null)}
       />
 
       <ConfirmFinalizeDialog

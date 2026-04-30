@@ -45,7 +45,7 @@ export function FairnessSummary({ metrics, movementSummary }: FairnessSummaryPro
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <BarChart3 className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-        <h3 className="text-sm font-semibold text-zinc-100">Fairness</h3>
+        <h3 className="text-sm font-semibold text-zinc-100">Fairness checks</h3>
       </div>
 
       {metrics.length > 0 && (

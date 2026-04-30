@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { generateSelection } from "@/lib/selection/generate-selection";
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound, createGeneratedDraftSelection } from "@/lib/selection/save-generated-draft";
+import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 
 type SelectionExplanationRow = { explanation: Prisma.JsonValue };
 
@@ -156,6 +157,22 @@ export async function refreshDraftRound(matchRoundId: string) {
 
   const generatedRound = await generateMatchRound(matchRoundId);
   await createGeneratedDraftRound(generatedRound);
+
+  const matchIdByTeamName = new Map<string, string>();
+  const teamIdByTeamName = new Map<string, string>();
+  for (const matchResult of generatedRound.matchResults) {
+    const match = await db.match.findUnique({
+      where: { id: matchResult.matchId },
+      select: { team: { select: { id: true, name: true } } },
+    });
+    if (match?.team) {
+      matchIdByTeamName.set(match.team.name, matchResult.matchId);
+      teamIdByTeamName.set(match.team.name, match.team.id);
+    }
+  }
+
+  const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+  await persistRoundWarnings(warnings);
 
   return { preservedManualDraft: false };
 }

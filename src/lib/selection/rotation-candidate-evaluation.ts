@@ -39,7 +39,7 @@ export function findHigherPriorityOpportunity(
   }
 
   const playerPaths = allRotationPaths.filter(
-    (path) => path.toTeamId !== player.coreTeamId && path.role !== "CORE",
+    (path) => path.fromTeamId === player.coreTeamId && path.toTeamId !== player.coreTeamId,
   );
 
   const playerPathTeamIds = new Set(playerPaths.map((path) => path.toTeamId));
@@ -60,10 +60,14 @@ export function findHigherPriorityOpportunity(
         return false;
       }
 
-      return (
-        otherMatch.supportSourceTeamIds.includes(player.coreTeamId) ||
-        otherMatch.developmentSourceTeamIds.includes(player.coreTeamId)
+      const supportPath = playerPaths.find(
+        (p) => p.toTeamId === otherMatch.teamId && p.role === "SUPPORT",
       );
+      const devPath = playerPaths.find(
+        (p) => p.toTeamId === otherMatch.teamId && p.role === "DEVELOPMENT",
+      );
+
+      return supportPath !== undefined || devPath !== undefined;
     }) ?? null;
 
   if (!matchedOpportunity) {
@@ -71,7 +75,7 @@ export function findHigherPriorityOpportunity(
   }
 
   return {
-    kind: getHigherPriorityOpportunityKind(player, matchedOpportunity),
+    kind: getHigherPriorityOpportunityKind(player, matchedOpportunity, playerPaths),
     match: matchedOpportunity,
   };
 }
@@ -79,8 +83,12 @@ export function findHigherPriorityOpportunity(
 function getHigherPriorityOpportunityKind(
   player: PlayerRecord,
   match: MatchRecord,
+  playerPaths: PathDestination[],
 ): "development" | "support" {
-  if (match.supportSourceTeamIds.includes(player.coreTeamId)) {
+  const supportPath = playerPaths.find(
+    (p) => p.toTeamId === match.teamId && p.role === "SUPPORT",
+  );
+  if (supportPath) {
     return "support";
   }
 

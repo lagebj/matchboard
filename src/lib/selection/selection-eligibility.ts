@@ -115,19 +115,14 @@ export function getPathBasedCategory(
   player: PlayerRecord,
   targetMatch: MatchRecord,
 ): RotationCandidateCategory {
-  if (targetMatch.supportSourceTeamIds.includes(player.coreTeamId)) {
-    const supportPath = player.rotationPathsFromCoreTeam.find(
-      (path) => path.toTeamId === targetMatch.teamId && path.role === "SUPPORT",
-    );
-    if (supportPath) {
-      return "SUPPORT";
-    }
+  const supportPath = player.rotationPathsFromCoreTeam.find(
+    (path) => path.toTeamId === targetMatch.teamId && path.role === "SUPPORT",
+  );
+  if (supportPath) {
+    return "SUPPORT";
   }
 
-  if (
-    targetMatch.team.developmentSlots > 0 &&
-    targetMatch.developmentSourceTeamIds.includes(player.coreTeamId)
-  ) {
+  if (targetMatch.team.developmentSlots > 0) {
     const devPath = player.rotationPathsFromCoreTeam.find(
       (path) => path.toTeamId === targetMatch.teamId && path.role === "DEVELOPMENT",
     );
@@ -144,17 +139,6 @@ export function getPathBasedCategory(
     if (anyPath.role === "DEVELOPMENT") return "DEVELOPMENT";
     if (anyPath.role === "CONFIDENCE_REBUILD") return "CONFIDENCE_REBUILD";
     if (anyPath.role === "BACKFILL") return "BACKFILL";
-  }
-
-  if (targetMatch.supportSourceTeamIds.includes(player.coreTeamId)) {
-    return "SUPPORT";
-  }
-
-  if (
-    targetMatch.team.developmentSlots > 0 &&
-    targetMatch.developmentSourceTeamIds.includes(player.coreTeamId)
-  ) {
-    return "DEVELOPMENT";
   }
 
   return "DEVELOPMENT";
