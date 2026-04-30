@@ -3,6 +3,7 @@ import { generateSelection } from "@/lib/selection/generate-selection";
 import { resolveRoundSupport, resolveBackfillAfterSupport } from "@/lib/selection/resolve-round-support";
 import { routeCoreMatchDrops, type RoutedDrop } from "@/lib/selection/route-core-match-drops";
 import { resolveRoundConflicts } from "@/lib/selection/resolve-round-conflicts";
+import { validateGeneratedRoundInvariants } from "@/lib/selection/validate-generated-round-invariants";
 import type {
   CoreMatchDropCandidate,
   GeneratedRound,
@@ -107,6 +108,27 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   finalResults = backfillResult.matchResults;
 
   finalResults = selfBackfillBelowTarget(finalResults, sortedMatches, allAssignedPlayerIds);
+
+  const rotationPaths = await db.rotationPath.findMany({
+    where: { active: true },
+    select: { fromTeamId: true, toTeamId: true, role: true, active: true },
+  });
+
+  const teamIdByMatchId = new Map<string, string>();
+  for (const match of matchRound.matches) {
+    teamIdByMatchId.set(match.id, match.teamId);
+  }
+
+  const invariantViolations = validateGeneratedRoundInvariants(finalResults, rotationPaths, teamIdByMatchId);
+  for (const violation of invariantViolations) {
+    roundWarnings.push({
+      code: violation.code,
+      message: violation.message,
+      playerId: violation.playerId,
+      teamId: violation.targetTeamId,
+      matchId: violation.matchId,
+    });
+  }
 
   for (const result of finalResults) {
     const duplicateIds = result.selectedPlayers

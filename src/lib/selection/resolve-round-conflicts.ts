@@ -74,7 +74,7 @@ export function resolveRoundConflicts(
     }
   }
 
-  const resolvedMatchResults: GeneratedSelection[] = matchResults.map((result, index) => {
+  const resolvedMatchResults: GeneratedSelection[] = matchResults.map((result, _index) => {
     const matchRemovals = removalsByMatch.get(result.matchId);
 
     if (!matchRemovals || matchRemovals.size === 0) {

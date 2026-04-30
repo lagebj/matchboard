@@ -90,6 +90,30 @@ If required support cannot be fulfilled, generate a warning. Do not silently wea
 
 Fairness must not override required support. Fairness is a scoring preference, not a hard rule.
 
+## RotationPath authority
+
+RotationPath is the single source of truth for non-core player movement. A player may only be selected outside their core team when an active directed RotationPath exists from the player's core team to the target team for the exact role being assigned, unless a manual override with reason is used.
+
+Rules:
+- Each RotationPath authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL
+- A SUPPORT path permits only SUPPORT movement — not DEVELOPMENT or BACKFILL
+- A DEVELOPMENT path permits only DEVELOPMENT movement — not SUPPORT or BACKFILL
+- A BACKFILL path permits only BACKFILL movement — not SUPPORT or DEVELOPMENT
+- Paths are directional: from_team → to_team. The reverse direction requires a separate path
+- No configured path means no non-core automatic selection
+- Fairness scoring cannot make an invalid path valid
+- nonRotatable blocks all automatic non-core movement regardless of path existence
+- Manual override may bypass path checks but must record reason
+- No fallback can bypass path validation
+
+### Legacy relationship tables
+
+The `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility or movement decisions. They exist for backward-compatible UI configuration display only and are scheduled for removal. The selection engine must use RotationPath exclusively.
+
+### Support priority convention
+
+Lower number = higher priority. Priority 1 is resolved before priority 2. The `supportPriority` field on the Team model uses ascending sort order.
+
 ## Backfill rules
 
 When a player is moved from their core team as support, their own team may need backfill.
@@ -97,8 +121,8 @@ When a player is moved from their core team as support, their own team may need 
 Backfill priority order:
 
 1. Own core team player moved as support, if matches are on different dates and the player can play both
-2. Players from development teams
-3. Any other player from another team where `nonRotatable = false`
+2. Players from teams connected by an active BACKFILL or DEVELOPMENT rotation path to the receiving team, where `nonRotatable = false`
+3. Any other player from another team with an active BACKFILL rotation path, where `nonRotatable = false`
 
 Rules:
 - Non-rotatable players must never be used as generic backfill

@@ -1,8 +1,7 @@
 import type { SelectedPlayer } from "@/lib/selection/types";
-import type { RotationCandidate, RotationCandidateCategory } from "@/lib/selection/selection-types";
+import type { RotationCandidate } from "@/lib/selection/selection-types";
 import { type PlanningPeriodRoleCounts, getPlanningPeriodFairnessBonus } from "@/lib/selection/selection-fairness";
 import { getPositionNeedScore } from "@/lib/selection/selection-fairness";
-import { getSuitabilityAndReadinessScore } from "@/lib/selection/selection-eligibility";
 
 const SUPPORTED_POSITIONS = ["GK", "CB", "CM", "W", "ST"] as const;
 
@@ -43,7 +42,7 @@ export function getPositionMatchLevel(
 
 export function getNeededPositions(
   selectedPlayers: SelectedPlayer[],
-  squadSize: number,
+  _squadSize: number,
 ): string[] {
   if (selectedPlayers.length === 0) {
     return [...SUPPORTED_POSITIONS];

@@ -25,10 +25,6 @@ type EligibleReplacement = {
   priorityScore: number;
 };
 
-function getPrimaryChosenPosition(primaryPosition: string): string {
-  return primaryPosition.trim();
-}
-
 export async function repairDropout(
   matchId: string,
   droppedPlayerId: string,

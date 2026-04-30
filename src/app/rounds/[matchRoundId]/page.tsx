@@ -239,7 +239,7 @@ export default async function RoundBoardPage({
       selectedPlayerIds.add(sel.player.id);
     }
     const selectedCount = selectedPlayerIds.size;
-    const supportCount = matchSels.filter((s) => s.role === "SUPPORT" || s.role === "BACKFILL").length;
+    const _supportCount = matchSels.filter((s) => s.role === "SUPPORT" || s.role === "BACKFILL").length;
     const matchWarnings = unresolvedWarnings.filter(
       (w) => w.matchId === match.id || w.teamId === match.teamId,
     );
@@ -283,6 +283,7 @@ export default async function RoundBoardPage({
   const warnings = unresolvedWarnings.map((w) => ({
     code: w.rule,
     message: w.message,
+    severity: w.severity,
     teamName: matchRound.matches.find((m) => m.teamId === w.teamId)?.team.name,
   }));
 

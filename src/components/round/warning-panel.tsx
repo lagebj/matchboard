@@ -1,10 +1,12 @@
 import { AlertTriangle, XCircle } from "lucide-react";
-import { SeverityBadge, severityFromCode } from "@/components/ui/severity-badge";
+import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import { WarningCard as UIWarningCard } from "@/components/ui/warning-card";
+import type { WarningSeverity } from "@/generated/prisma/client";
 
 type WarningEntry = {
   code: string;
   message: string;
+  severity?: WarningSeverity;
   playerId?: string;
   playerName?: string;
   teamName?: string;
@@ -28,11 +30,14 @@ export function WarningPanel({ warnings, summary, onWarningClick }: WarningPanel
     return null;
   }
 
+  const getSeverity = (w: WarningEntry) =>
+    w.severity ? severityFromDbSeverity(w.severity) : severityFromCode(w.code);
+
   const resolvedSummary = summary ?? {
-    blocking: warnings.filter((w) => severityFromCode(w.code) === "blocking").length,
-    high: warnings.filter((w) => severityFromCode(w.code) === "high").length,
-    medium: warnings.filter((w) => severityFromCode(w.code) === "medium").length,
-    info: warnings.filter((w) => severityFromCode(w.code) === "info").length,
+    blocking: warnings.filter((w) => getSeverity(w) === "blocking").length,
+    high: warnings.filter((w) => getSeverity(w) === "high").length,
+    medium: warnings.filter((w) => getSeverity(w) === "medium").length,
+    info: warnings.filter((w) => getSeverity(w) === "info").length,
   };
 
   const hasBlocking = resolvedSummary.blocking > 0;
@@ -75,7 +80,7 @@ export function WarningPanel({ warnings, summary, onWarningClick }: WarningPanel
             tabIndex={onWarningClick ? 0 : undefined}
           >
             <UIWarningCard
-              severity={severityFromCode(w.code)}
+              severity={getSeverity(w)}
               title={w.code}
               message={w.message}
               playerName={w.playerName}

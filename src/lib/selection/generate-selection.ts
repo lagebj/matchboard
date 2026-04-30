@@ -1,4 +1,4 @@
-import { type Match, type Player, SelectionRole, type Team } from "@/generated/prisma/client";
+import { type Player, SelectionRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getRules } from "@/lib/rules/get-rules";
@@ -10,13 +10,11 @@ import { getTargetTeamEligibility } from "@/lib/selection/get-target-team-eligib
 import { buildExplanation } from "@/lib/selection/explanation-generation";
 import {
   checkPathCooldown,
-  getAutomaticSelectionCategoryForRotationCandidate,
-  getPathBasedCategory,
   getSuitabilityAndReadinessScore,
   isDevelopmentBlocked,
   isSupportAvoidSuitability,
 } from "@/lib/selection/selection-eligibility";
-import { getPlanningPeriodFairnessBonus, type PlanningPeriodRoleCounts, getPositionNeedScore, getRecentLoadScore } from "@/lib/selection/selection-fairness";
+import { type PlanningPeriodRoleCounts, getRecentLoadScore } from "@/lib/selection/selection-fairness";
 import {
   buildCandidateBlockerSummary,
   buildRegisteredMatchConflict,
@@ -29,16 +27,13 @@ import {
 } from "@/lib/selection/rotation-candidate-evaluation";
 import {
   buildShortSquadWarningMessage,
-  formatSelectionStatus,
   formatTeamNameList,
-  getUniqueReasons,
 } from "@/lib/selection/selection-warnings";
 import {
   getNeededPositions,
   getPrimaryChosenPosition,
   getPositionMatchLevel,
   getRankedRotationCandidates,
-  getRotationCandidatePriorityScore,
 } from "@/lib/selection/rotation-candidate-ranking";
 import type {
   AutomaticSelectionCategory,
@@ -51,12 +46,47 @@ import type {
   CoreCandidate,
   EligibleRotationPlayer,
   MatchRecord,
-  MostRecentRegisteredAppearance,
   PathDestination,
   PlayerRecord,
   RegisteredSelectionSnapshot,
   RotationCandidate,
+  RotationCandidateCategory,
 } from "@/lib/selection/selection-types";
+
+type RotationPathWithTeamName = {
+  fromTeamId: string;
+  fromTeam: { name: string };
+  toTeamId: string;
+  role: string;
+  cooldownRounds: number | null;
+};
+
+function deriveSourceTeamIdsFromPaths(
+  rotationPaths: RotationPathWithTeamName[],
+  targetTeamId: string,
+  role: "SUPPORT" | "DEVELOPMENT",
+): string[] {
+  return [
+    ...new Set(
+      rotationPaths
+        .filter((p) => p.toTeamId === targetTeamId && p.role === role)
+        .map((p) => p.fromTeamId),
+    ),
+  ];
+}
+
+function deriveSourceTeamNamesFromPaths(
+  rotationPaths: RotationPathWithTeamName[],
+  targetTeamId: string,
+): string[] {
+  return [
+    ...new Set(
+      rotationPaths
+        .filter((p) => p.toTeamId === targetTeamId && p.role === "SUPPORT")
+        .map((p) => p.fromTeam.name),
+    ),
+  ];
+}
 
 function getPlayerName(player: Pick<Player, "firstName" | "lastName">): string {
   return player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName;
@@ -70,11 +100,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       include: {
         team: {
           select: {
-            developmentTargetRelationships: {
-              select: {
-                sourceTeamId: true,
-              },
-            },
             developmentSlots: true,
             id: true,
             maxSquadSize: true,
@@ -84,16 +109,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
             name: true,
             supportPriority: true,
             targetSupportCount: true,
-            supportTargetRelationships: {
-              select: {
-                sourceTeamId: true,
-                sourceTeam: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
           },
         },
       },
@@ -131,11 +146,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       include: {
         team: {
           select: {
-            developmentTargetRelationships: {
-              select: {
-                sourceTeamId: true,
-              },
-            },
             developmentSlots: true,
             id: true,
             maxSquadSize: true,
@@ -145,16 +155,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
             name: true,
             supportPriority: true,
             targetSupportCount: true,
-            supportTargetRelationships: {
-              select: {
-                sourceTeamId: true,
-                sourceTeam: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
           },
         },
       },
@@ -179,11 +179,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
             teamId: true,
         team: {
           select: {
-            developmentTargetRelationships: {
-              select: {
-                sourceTeamId: true,
-              },
-            },
             developmentSlots: true,
             id: true,
             maxSquadSize: true,
@@ -193,16 +188,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
             name: true,
             supportPriority: true,
             targetSupportCount: true,
-            supportTargetRelationships: {
-              select: {
-                sourceTeamId: true,
-                sourceTeam: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
           },
         },
           },
@@ -217,6 +202,11 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       select: {
         cooldownRounds: true,
         fromTeamId: true,
+        fromTeam: {
+          select: {
+            name: true,
+          },
+        },
         role: true,
         toTeamId: true,
       },
@@ -322,7 +312,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     const matchSelections = savedSelections.filter(
       (s) => s.matchId === selectionRecord.matchId,
     );
-    const manuallyRemoved = matchSelections.filter((s) => {
+    const _manuallyRemoved = matchSelections.filter((s) => {
       const e = (s.explanation ?? {}) as Record<string, unknown>;
       return e.manuallyRemoved === true;
     });
@@ -339,16 +329,10 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       match: {
         developmentSlots: selectionRecord.match.team.developmentSlots,
         id: selectionRecord.match.id,
-        developmentSourceTeamIds: selectionRecord.match.team.developmentTargetRelationships.map(
-          (relationship) => relationship.sourceTeamId,
-        ),
+        developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, selectionRecord.match.teamId, "DEVELOPMENT"),
         startsAt: selectionRecord.match.startsAt,
-        supportSourceTeamIds: selectionRecord.match.team.supportTargetRelationships.map(
-          (relationship) => relationship.sourceTeamId,
-        ),
-        supportSourceTeamNames: selectionRecord.match.team.supportTargetRelationships.map(
-          (relationship) => relationship.sourceTeam.name,
-        ),
+        supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, selectionRecord.match.teamId, "SUPPORT"),
+        supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, selectionRecord.match.teamId),
         team: selectionRecord.match.team,
         teamId: selectionRecord.match.teamId,
       },
@@ -377,37 +361,22 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   }
 
   const currentMatchRecord: MatchRecord = {
-    // NOTE: supportPriority is surfaced here for future round-level generation.
-    // True cross-match priority ordering requires round-level generation (Phase 7).
-    // For per-match generation, each match resolves its own support independently.
     developmentSlots: match.team.developmentSlots,
-    developmentSourceTeamIds: match.team.developmentTargetRelationships.map(
-      (relationship) => relationship.sourceTeamId,
-    ),
+    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, match.teamId, "DEVELOPMENT"),
     id: match.id,
     startsAt: match.startsAt,
-    supportSourceTeamIds: match.team.supportTargetRelationships.map(
-      (relationship) => relationship.sourceTeamId,
-    ),
-    supportSourceTeamNames: match.team.supportTargetRelationships.map(
-      (relationship) => relationship.sourceTeam.name,
-    ),
+    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, match.teamId, "SUPPORT"),
+    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, match.teamId),
     team: match.team,
     teamId: match.teamId,
   };
   const normalizedRegisteredMatches: MatchRecord[] = registeredMatches.map((registeredMatch) => ({
     developmentSlots: registeredMatch.team.developmentSlots,
-    developmentSourceTeamIds: registeredMatch.team.developmentTargetRelationships.map(
-      (relationship) => relationship.sourceTeamId,
-    ),
+    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, registeredMatch.teamId, "DEVELOPMENT"),
     id: registeredMatch.id,
     startsAt: registeredMatch.startsAt,
-    supportSourceTeamIds: registeredMatch.team.supportTargetRelationships.map(
-      (relationship) => relationship.sourceTeamId,
-    ),
-    supportSourceTeamNames: registeredMatch.team.supportTargetRelationships.map(
-      (relationship) => relationship.sourceTeam.name,
-    ),
+    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, registeredMatch.teamId, "SUPPORT"),
+    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, registeredMatch.teamId),
     team: registeredMatch.team,
     teamId: registeredMatch.teamId,
   }));
@@ -578,9 +547,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
         automaticSelectionCategory:
           eligibility.selectionCategory === "CORE"
             ? "CORE"
-            : getAutomaticSelectionCategoryForRotationCandidate(
-                getPathBasedCategory(player, currentMatchRecord),
-              ),
+            : (eligibility.selectionCategory as AutomaticSelectionCategory),
         exclusionReason: registeredConflict.reason,
       });
       continue;
@@ -613,7 +580,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     eligibleRotationPlayers.push({
       ...evaluatedPlayer,
-      candidateCategory: getPathBasedCategory(player, currentMatchRecord),
+      candidateCategory: eligibility.selectionCategory as RotationCandidateCategory,
       eligibilityExplanation: eligibility.explanation,
     });
   }
@@ -762,7 +729,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
-        automaticSelectionCategory: getAutomaticSelectionCategoryForRotationCandidate(candidateCategory),
+        automaticSelectionCategory: candidateCategory as AutomaticSelectionCategory,
         exclusionReason: cooldownResult.reason!,
       });
       continue;
@@ -805,7 +772,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
         playerPosition,
         priorityScore: null,
         selectionCategory: "EXCLUDED",
-        automaticSelectionCategory: getAutomaticSelectionCategoryForRotationCandidate(candidateCategory),
+        automaticSelectionCategory: candidateCategory as AutomaticSelectionCategory,
         exclusionReason,
       });
       continue;

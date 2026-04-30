@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Users, AlertTriangle, OctagonAlert, ShieldCheck, ArrowRightLeft } from "lucide-react";
+import { X, AlertTriangle, OctagonAlert, ShieldCheck, ArrowRightLeft } from "lucide-react";
 import { RoleBadge, type SelectionRole } from "@/components/ui/role-badge";
 
 type ExplanationItem = {

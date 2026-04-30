@@ -23,18 +23,6 @@ type CrossTeamConsequencesProps = {
   backfillNeeds: BackfillNeed[];
 };
 
-function getMovementDescription(movement: MovedPlayer): string {
-  const roleLabel = movement.role === "SUPPORT"
-    ? "support"
-    : movement.role === "DEVELOPMENT"
-    ? "development"
-    : movement.role === "BACKFILL"
-    ? "backfill"
-    : movement.role.toLowerCase();
-
-  return `${movement.sourceTeamName} loses ${movement.playerName} to ${roleLabel} for ${movement.targetTeamName}`;
-}
-
 export function CrossTeamConsequences({
   movedPlayers,
   backfillNeeds,

@@ -41,7 +41,7 @@ async function main() {
   });
 
   // Matches for each team in the round
-  const matchA = await db.match.create({
+  const _matchA = await db.match.create({
     data: {
       matchRoundId: round.id,
       teamId: teamA.id,
@@ -50,7 +50,7 @@ async function main() {
       homeAway: "HOME",
     },
   });
-  const matchB = await db.match.create({
+  const _matchB = await db.match.create({
     data: {
       matchRoundId: round.id,
       teamId: teamB.id,
@@ -59,7 +59,7 @@ async function main() {
       homeAway: "AWAY",
     },
   });
-  const matchC = await db.match.create({
+  const _matchC = await db.match.create({
     data: {
       matchRoundId: round.id,
       teamId: teamC.id,

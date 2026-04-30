@@ -7,7 +7,8 @@ import { getPlanningPeriodFairness, type FairnessFlag } from "@/lib/selection/ge
 import { getTeamBurden } from "@/lib/selection/get-team-burden";
 import { formatAvailabilityStatus } from "@/lib/player-metrics";
 import { StatusBadge, type RoundStatus } from "@/components/ui/status-badge";
-import { SeverityBadge, severityFromCode } from "@/components/ui/severity-badge";
+import { SeverityBadge, severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
+import { type WarningSeverity } from "@/generated/prisma/client";
 
 type ActionCard = {
   group: string;
@@ -45,7 +46,7 @@ function computeRoundProgress(rounds: { id: string; name: string; status: string
     const hasDraft = r.status === "DRAFT";
     const isFinalized = r.status === "FINALIZED";
     const blockingCount = r.warnings.filter((w) => {
-      const sev = severityFromCode(w.rule);
+      const sev = w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule);
       return sev === "blocking";
     }).length;
 
@@ -147,7 +148,7 @@ export default async function TodayPage() {
   // --- Next Action ---
   const blockingWarnings = activeMatchRound
     ? activeMatchRound.warnings.filter((w) => {
-        const sev = severityFromCode(w.rule);
+        const sev = w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule);
         return sev === "blocking";
       })
     : [];
@@ -189,10 +190,10 @@ export default async function TodayPage() {
 
   const roundWarnings = activeMatchRound?.warnings ?? [];
   const warningCounts = {
-    blocking: roundWarnings.filter((w) => severityFromCode(w.rule) === "blocking").length,
-    high: roundWarnings.filter((w) => severityFromCode(w.rule) === "high").length,
-    medium: roundWarnings.filter((w) => severityFromCode(w.rule) === "medium").length,
-    info: roundWarnings.filter((w) => severityFromCode(w.rule) === "info").length,
+    blocking: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "blocking").length,
+    high: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "high").length,
+    medium: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "medium").length,
+    info: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "info").length,
   };
 
   // --- Fairness Checks ---
@@ -290,7 +291,7 @@ export default async function TodayPage() {
         actionLabel: "Review team",
       });
     }
-    for (const [roundId, delta] of Object.entries(teamBurden.continuityDeltaByRound)) {
+    for (const [_roundId, delta] of Object.entries(teamBurden.continuityDeltaByRound)) {
       const maxChanges = teams.find((t) => t.id === teamBurden.teamId)?.maxPlayerChangesPerRound ?? 0;
       if (maxChanges > 0 && delta > maxChanges) {
         actionCards.push({

@@ -4,9 +4,7 @@ import {
   isInSameWeek,
   isSameCalendarDay,
 } from "@/lib/date-utils";
-import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getRules } from "@/lib/rules/get-rules";
-import { buildExplanation } from "@/lib/selection/explanation-generation";
 import type { ExcludedPlayer } from "@/lib/selection/types";
 import {
   type CoreCandidate,

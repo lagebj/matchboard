@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "./round-list-client";
-import { severityFromCode } from "@/components/ui/severity-badge";
+import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
+import { type WarningSeverity } from "@/generated/prisma/client";
 
 type RoundItem = {
   id: string;
@@ -54,7 +55,7 @@ export default async function RoundsPage() {
   });
 
   const roundItems: RoundItem[] = matchRounds.map((round) => {
-    const blockingCount = round.warnings.filter((w) => severityFromCode(w.rule) === "blocking").length;
+    const blockingCount = round.warnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "blocking").length;
     const hasDraftSelections = round.selections.length > 0;
     const hasMatches = round.matches.length > 0;
 

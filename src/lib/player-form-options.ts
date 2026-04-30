@@ -2,7 +2,6 @@ import {
   AvailabilityStatus,
   BestSide,
   FootPreference,
-  GameFormat,
   MatchType,
   MatchVenue,
   SecondaryFoot,

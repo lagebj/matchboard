@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { setupTestDb, teardownTestDb, cleanTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 
 let testDb: PrismaClient;
 let fixtureIds: TestFixtureIds;
@@ -183,7 +183,7 @@ describe("Selection pipeline integration tests", () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
-    const routedDrops = result.generationSummary.routedCoreMatchDrops;
+    const _routedDrops = result.generationSummary.routedCoreMatchDrops;
 
     const unrouted = result.generationSummary.unroutedExclusions.filter(
       (e) => e.reason?.includes("core-match drop") || e.reason?.includes("surplus core"),

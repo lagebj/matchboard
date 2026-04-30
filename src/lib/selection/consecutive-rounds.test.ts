@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
-import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, cleanTestDb, type TestFixtureIds } from "@/test/test-db";
+import { SelectionStatus } from "@/generated/prisma/client";
+import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 
 let testDb: PrismaClient;
 
@@ -118,7 +118,6 @@ describe("Consecutive rounds (W19 then W20) produce valid selections", () => {
 
   it("generates W20 with history from W19 and produces valid selections", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
-    const { createGeneratedDraftRound } = await import("@/lib/selection/save-generated-draft");
 
     const w20 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 20, 1);
 

@@ -5,6 +5,7 @@ import type { GeneratedRound, SelectionWarning } from "@/lib/selection/types";
 const HARD_BLOCK_CODES = new Set([
   "player_in_multiple_matches",
   "duplicate_player_in_match",
+  "invariant_invalid_non_core_selection",
 ]);
 
 const REQUIRES_OVERRIDE_CODES = new Set([
@@ -43,7 +44,7 @@ const SCORING_PREFERENCE_CODES = new Set([
   "core_match_drop_priority",
   "self_backfill",
   "backfill_priority_1_own_support",
-  "backfill_priority_2_development",
+  "backfill_priority_2_path_player",
   "backfill_priority_3_other",
   "registered_match_conflict",
   "registered_minimum_match_spacing",
@@ -72,8 +73,8 @@ export type PersistableWarning = {
 function enrichWarning(
   warning: SelectionWarning,
   matchRoundId: string,
-  matchIdByTeamName: Map<string, string>,
-  teamIdByTeamName: Map<string, string>,
+  _matchIdByTeamName: Map<string, string>,
+  _teamIdByTeamName: Map<string, string>,
 ): PersistableWarning {
   return {
     matchRoundId,

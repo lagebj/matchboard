@@ -13,7 +13,7 @@ export async function GET() {
         "Content-Type": "application/json",
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to export rules" }, { status: 500 });
   }
 }
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       rules: updated,
       warnings: validation.warnings,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to import rules" }, { status: 500 });
   }
 }

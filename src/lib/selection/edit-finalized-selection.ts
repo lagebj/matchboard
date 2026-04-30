@@ -1,4 +1,4 @@
-import { SelectionStatus } from "@/generated/prisma/client";
+import { type Prisma, type SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
 export type FinalizedSelectionEditResult = {
@@ -11,9 +11,9 @@ export async function editFinalizedSelection(
   selectionId: string,
   changeReason: string,
   updatedData: {
-    role?: string;
+    role?: SelectionRole;
     playerId?: string;
-    explanation?: unknown;
+    explanation?: Record<string, unknown>;
   },
 ): Promise<FinalizedSelectionEditResult> {
   if (!changeReason || changeReason.trim().length === 0) {
@@ -65,9 +65,9 @@ export async function editFinalizedSelection(
     await tx.selection.update({
       where: { id: selectionId },
       data: {
-        ...(updatedData.role ? { role: updatedData.role as any } : {}),
+        ...(updatedData.role ? { role: updatedData.role } : {}),
         ...(updatedData.playerId ? { playerId: updatedData.playerId } : {}),
-        ...(updatedData.explanation !== undefined ? { explanation: updatedData.explanation as any } : {}),
+        ...(updatedData.explanation !== undefined ? { explanation: updatedData.explanation as Prisma.InputJsonValue } : {}),
         overrideReason: changeReason,
       },
     });

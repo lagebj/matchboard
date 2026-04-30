@@ -8,12 +8,13 @@ import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { MovementChain, type MovementChainEntry } from "@/components/round/movement-chain";
 import { InspectorPanel, type InspectorItem } from "@/components/inspector/inspector-panel";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
-import type { SelectionRole } from "@/components/ui/role-badge";
-import { severityFromCode } from "@/components/ui/severity-badge";
+import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
+import type { WarningSeverity } from "@/generated/prisma/client";
 
 type WarningEntry = {
   code: string;
   message: string;
+  severity?: WarningSeverity;
   playerId?: string;
   playerName?: string;
   teamName?: string;
@@ -102,9 +103,12 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
   };
 
   const handleWarningClick = (warning: WarningEntry) => {
+    const uiSeverity = warning.severity
+      ? severityFromDbSeverity(warning.severity)
+      : severityFromCode(warning.code);
     setInspectedItem({
       type: "warning",
-      severity: severityFromCode(warning.code),
+      severity: uiSeverity,
       message: warning.message,
       code: warning.code,
       playerName: warning.playerName,
@@ -136,7 +140,7 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
     form.submit();
   };
 
-  const selectedSquad = round.squads.find((s) => s.matchId === selectedMatchId);
+  const _selectedSquad = round.squads.find((s) => s.matchId === selectedMatchId);
   const totalSelected = round.squads.reduce((sum, s) => sum + s.selectedCount, 0);
   const totalTarget = round.squads.reduce((sum, s) => sum + s.targetSquadSize, 0);
 

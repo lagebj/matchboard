@@ -58,7 +58,7 @@ function getPositionFitLevel(
 
 const SUPPORTED_POSITIONS = ["GK", "CB", "CM", "W", "ST"] as const;
 
-function getNeededPositions(selectedPlayers: SelectedPlayer[], squadSize: number): string[] {
+function getNeededPositions(selectedPlayers: SelectedPlayer[], _squadSize: number): string[] {
   if (selectedPlayers.length === 0) {
     return [...SUPPORTED_POSITIONS];
   }

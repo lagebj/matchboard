@@ -202,7 +202,7 @@ export async function resolveRoundSupport(
     donorSlots.sort((a, b) => b.currentCoreCount - a.targetSquadSize - (a.currentCoreCount - a.targetSquadSize));
 
     let filled = 0;
-    const donorsMovedCount = new Map<string, number>();
+    const _donorsMovedCount = new Map<string, number>();
 
     for (const donor of donorSlots) {
       if (filled >= shortfall) break;
@@ -507,9 +507,13 @@ async function resolveBackfillFromSupportInner(
     }
 
     if (filled < shortfall && filled < maxBackfill) {
+      const priority2SourceTeamIds = [...new Set([
+        ...eligiblePathSources,
+        ...devSourceTeamIds,
+      ])];
       const devSourceCandidates = await db.player.findMany({
         where: {
-          coreTeamId: { in: eligiblePathSources.filter((id) => devSourceTeamIds.has(id)) },
+          coreTeamId: { in: priority2SourceTeamIds },
           id: { notIn: [...assignedPlayerIds] },
           nonRotatable: false,
           removedAt: null,
@@ -535,7 +539,7 @@ async function resolveBackfillFromSupportInner(
           coreTeamName: candidate.coreTeam.name,
           eligibility: true,
           explanations: [
-            { code: "backfill_priority_2_development", summary: `${playerName} was selected as backfill priority 2 for ${match.team.name}: development source team player.`, hardRule: false },
+            { code: "backfill_priority_2_path_player", summary: `${playerName} was selected as backfill priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -544,7 +548,7 @@ async function resolveBackfillFromSupportInner(
           playerPosition: candidate.primaryPosition,
           priorityScore: 80,
           selectionCategory: "BACKFILL",
-          selectionReason: `Selected as backfill priority 2 for ${match.team.name}: development source team player.`,
+          selectionReason: `Selected as backfill priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`,
         };
 
         matchResults[resultIdx] = {

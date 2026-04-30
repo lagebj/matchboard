@@ -93,7 +93,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   }
 
   const matchIdsThisRound = activeRound?.matches.map((m) => m.id) ?? [];
-  const teamMatchIdsThisRound = activeRound?.matches.filter((m) => m.teamId === team.id).map((m) => m.id) ?? [];
+  const _teamMatchIdsThisRound = activeRound?.matches.filter((m) => m.teamId === team.id).map((m) => m.id) ?? [];
 
   const [selectionsThisRound, movementHistory, finalizedRounds] = await Promise.all([
     matchIdsThisRound.length > 0

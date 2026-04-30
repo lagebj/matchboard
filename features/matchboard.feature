@@ -543,6 +543,21 @@ Feature: Matchboard football operations workspace
 
   Rule: Rotation graph
 
+    RotationPath is the single source of truth for non-core player movement.
+    A player may only be selected outside their core team when an active directed RotationPath exists from the player's core team to the target team for the exact role being assigned, unless a manual override with reason is used.
+
+    Support paths permit only SUPPORT.
+    Development paths permit only DEVELOPMENT.
+    Backfill paths permit only BACKFILL.
+    A SUPPORT path does not permit DEVELOPMENT.
+    A DEVELOPMENT path does not permit SUPPORT.
+    A BACKFILL path does not permit SUPPORT or DEVELOPMENT.
+
+    Paths are directional: from_team to to_team only.
+    No configured path means no non-core automatic selection.
+    Fairness scoring cannot make an invalid path valid.
+    The legacy TeamSupportSource and TeamDevelopmentSource relationship tables must not drive selection eligibility or movement decisions. They exist for backward-compatible UI configuration display only and are scheduled for removal.
+
     Player movement between teams must follow configured rotation paths.
     Teams are nodes and paths are directed edges.
     The app must not infer movement that has not been configured.
@@ -582,6 +597,69 @@ Feature: Matchboard football operations workspace
       When the coach creates a path from Team A to Team A
       Then the app must reject the path
       And explain that source and target team must differ
+
+    Scenario: No path means no non-core automatic selection
+      Given Team A has no rotation path to Team C
+      When Team C needs support
+      Then Team A players must not be automatically selected for Team C in any non-core role
+
+    Scenario: Legacy support relationship tables must not drive selection
+      Given Team A has a TeamSupportSource relationship to Team C
+      And no active RotationPath with role SUPPORT exists from Team A to Team C
+      When Team C needs support
+      Then Team A players must not be selected as support for Team C based on the legacy relationship alone
+
+    Scenario: Fairness scoring cannot override path validity
+      Given player "p1" has high fairness need
+      And player "p1" has no valid rotation path to Team C
+      When Team C needs support
+      Then player "p1" must not be selected for Team C regardless of fairness score
+
+  Rule: Rotation path role specificity
+
+    Each rotation path authorizes exactly one role between two teams.
+    A path with role SUPPORT authorizes only SUPPORT movement.
+    A path with role DEVELOPMENT authorizes only DEVELOPMENT movement.
+    A path with role BACKFILL authorizes only BACKFILL movement.
+    The selection engine must check path role before assigning any non-core selection category.
+
+    Scenario: Team A has no SUPPORT path to Team C and Team B has SUPPORT path to Team C
+      Given Team B has an active SUPPORT path to Team C
+      And Team A has no SUPPORT path to Team C
+      When Team C needs support
+      Then Team A players must not be considered for Team C support
+      And Team B players may be considered for Team C support
+
+    Scenario: Team A has DEVELOPMENT path to Team C but no SUPPORT path
+      Given Team A has an active DEVELOPMENT path to Team C
+      And Team A has no SUPPORT path to Team C
+      When Team C needs support
+      Then Team A players must not be considered for support
+
+    Scenario: Team A has BACKFILL path to Team C but no SUPPORT path
+      Given Team A has an active BACKFILL path to Team C
+      And Team A has no SUPPORT path to Team C
+      When Team C needs support
+      Then Team A players must not be considered for support
+
+    Scenario: Team A has SUPPORT path to Team C but no DEVELOPMENT path
+      Given Team A has an active SUPPORT path to Team C
+      And Team A has no DEVELOPMENT path to Team C
+      When a Team A player is considered for Team C development
+      Then the player must not be considered for development unless a DEVELOPMENT path also exists
+
+    Scenario: Path direction matters — reverse direction requires separate path
+      Given Team B has an active SUPPORT path to Team C
+      And Team C has no SUPPORT path to Team B
+      When Team B needs support
+      Then Team C players must not support Team B through the Team B to Team C path
+
+    Scenario: Support failure produces warning instead of pulling from invalid team
+      Given Team C needs support
+      And no valid SUPPORT path candidates exist from any team
+      When the round is generated
+      Then no invalid players are selected as support
+      And a support shortfall warning is created
 
 
   Rule: Non-rotatable players
@@ -743,9 +821,9 @@ Feature: Matchboard football operations workspace
       Then the app must flag support below minimum
       And require manual override before finalization
 
-    Scenario: Higher-priority support is resolved first
-      Given Team C has support priority 100
-      And Team B has support priority 50
+    Scenario: Lower-numbered support priority is resolved first
+      Given Team C has support priority 1
+      And Team B has support priority 2
       And both Team B and Team C need support in the same match round
       When the app generates support selections
       Then Team C support needs must be resolved before Team B support needs

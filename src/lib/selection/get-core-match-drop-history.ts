@@ -1,7 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getCalendarDayDifference, isSameCalendarDay } from "@/lib/date-utils";
-import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 
 type CoreMatchDropHistoryOptions = {

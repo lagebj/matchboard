@@ -114,7 +114,7 @@ export function getAutomaticSelectionCategoryForRotationCandidate(
 export function getPathBasedCategory(
   player: PlayerRecord,
   targetMatch: MatchRecord,
-): RotationCandidateCategory {
+): RotationCandidateCategory | null {
   const supportPath = player.rotationPathsFromCoreTeam.find(
     (path) => path.toTeamId === targetMatch.teamId && path.role === "SUPPORT",
   );
@@ -131,15 +131,19 @@ export function getPathBasedCategory(
     }
   }
 
-  const anyPath = player.rotationPathsFromCoreTeam.find(
-    (path) => path.toTeamId === targetMatch.teamId,
+  const backfillPath = player.rotationPathsFromCoreTeam.find(
+    (path) => path.toTeamId === targetMatch.teamId && path.role === "BACKFILL",
   );
-  if (anyPath) {
-    if (anyPath.role === "SUPPORT") return "SUPPORT";
-    if (anyPath.role === "DEVELOPMENT") return "DEVELOPMENT";
-    if (anyPath.role === "CONFIDENCE_REBUILD") return "CONFIDENCE_REBUILD";
-    if (anyPath.role === "BACKFILL") return "BACKFILL";
+  if (backfillPath) {
+    return "BACKFILL";
   }
 
-  return "DEVELOPMENT";
+  const confidencePath = player.rotationPathsFromCoreTeam.find(
+    (path) => path.toTeamId === targetMatch.teamId && path.role === "CONFIDENCE_REBUILD",
+  );
+  if (confidencePath) {
+    return "CONFIDENCE_REBUILD";
+  }
+
+  return null;
 }

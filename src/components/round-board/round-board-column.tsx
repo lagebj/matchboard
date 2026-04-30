@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { GameFormat, SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { formatDate } from "@/lib/date-utils";
-import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
+import { formatMatchVenue } from "@/lib/match-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 
 type BucketKey =
@@ -214,7 +214,7 @@ export function RoundBoardColumn({
   startsAt,
   homeAway,
   gameFormat,
-  squadSize,
+  squadSize: _squadSize,
   targetSquadSize,
   minAcceptedSquadSize,
   selectedCount,
@@ -245,7 +245,7 @@ export function RoundBoardColumn({
               vs. {opponent}
             </p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.16em] app-copy-muted">
-              {formatDate(startsAt)} &middot; {formatMatchVenue(homeAway as any)}
+              {formatDate(startsAt)} &middot; {formatMatchVenue(homeAway as import("@/generated/prisma/client").MatchVenue)}
             </p>
           </div>
           <span

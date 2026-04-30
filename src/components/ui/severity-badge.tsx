@@ -4,6 +4,7 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
+import { type WarningSeverity } from "@/generated/prisma/client";
 
 export type Severity = "blocking" | "high" | "medium" | "info";
 
@@ -56,6 +57,21 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 
 export function severityConfigFor(severity: Severity): SeverityConfig {
   return severityConfig[severity] ?? severityConfig.info;
+}
+
+export function severityFromDbSeverity(dbSeverity: WarningSeverity): Severity {
+  switch (dbSeverity) {
+    case "HARD_BLOCK":
+      return "blocking";
+    case "REQUIRES_OVERRIDE":
+      return "high";
+    case "WARNING":
+      return "medium";
+    case "SCORING_PREFERENCE":
+      return "info";
+    default:
+      return "info";
+  }
 }
 
 export function severityFromCode(code: string): Severity {

@@ -6,16 +6,10 @@ import { useEffect, useRef, useState, useDeferredValue, useCallback } from "reac
 import {
   CalendarRange,
   CheckCircle2,
-  CircleDashed,
-  FilePenLine,
   OctagonAlert,
   Play,
   Search,
-  Users,
-  Shield,
-  Sliders,
   History,
-  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 import { StatusBadge, type RoundStatus } from "@/components/ui/status-badge";
@@ -112,28 +106,29 @@ export function TopContextBar() {
   const visibleResults = deferredQuery.trim().length < 2 ? null : searchResults;
   const roundStatus = deriveRoundStatus(ctx?.matchRound?.status ?? null, ctx?.warnings);
 
+  const matchRoundId = ctx?.matchRound?.id;
   const handleGenerateRound = useCallback(async () => {
-    if (!ctx?.matchRound || generating) return;
+    if (!matchRoundId || generating) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/generate-round", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roundId: ctx.matchRound.id }),
+        body: JSON.stringify({ roundId: matchRoundId }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         const errorMsg = data?.error ?? "Generation failed.";
-        router.push(`/rounds/${ctx.matchRound.id}?error=${encodeURIComponent(errorMsg)}`);
+        router.push(`/rounds/${matchRoundId}?error=${encodeURIComponent(errorMsg)}`);
         return;
       }
-      router.push(`/rounds/${ctx.matchRound.id}?generated=1`);
+      router.push(`/rounds/${matchRoundId}?generated=1`);
     } catch {
-      router.push(`/rounds/${ctx.matchRound.id}?error=${encodeURIComponent("Network error during generation.")}`);
+      router.push(`/rounds/${matchRoundId}?error=${encodeURIComponent("Network error during generation.")}`);
     } finally {
       setGenerating(false);
     }
-  }, [ctx?.matchRound, generating, router]);
+  }, [matchRoundId, generating, router]);
 
   function getPrimaryAction(): PrimaryAction | null {
     if (!ctx?.matchRound) {

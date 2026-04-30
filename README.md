@@ -19,8 +19,9 @@ The Today page always shows the next action based on workflow state.
 
 ## Core rules
 
-- **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a warning is generated — the team is never silently weakened.
-- **Backfill is a direct consequence of support.** When a player is moved from their core team as support, their team may need backfill. Backfill priority: (1) own core team player moved as support if matches on different dates, (2) development team players, (3) any other non-rotatable-false player from another team. Non-rotatable players are never used as generic backfill.
+- **RotationPath is the single source of truth for non-core player movement.** A player may only be selected outside their core team when an active directed RotationPath exists from core team to target team for the exact role being assigned, unless manually overridden with a reason. Each path authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL. A SUPPORT path does not permit DEVELOPMENT or BACKFILL movement. Paths are directional. No path means no automatic non-core selection. Fairness scoring cannot make an invalid path valid. The legacy `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility — they are scheduled for removal.
+- **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a warning is generated — the team is never silently weakened. Support priority uses ascending sort order: lower number = higher priority (priority 1 is resolved before priority 2).
+- **Backfill is a direct consequence of support.** When a player is moved from their core team as support, their team may need backfill. Backfill priority: (1) own core team player moved as support if matches on different dates, (2) players from teams connected by an active BACKFILL or DEVELOPMENT rotation path to the receiving team where `nonRotatable = false`, (3) any other player from another team with an active BACKFILL rotation path where `nonRotatable = false`. Non-rotatable players are never used as generic backfill.
 - **A player can normally only be selected once per match round** unless an explicit rule allows otherwise.
 - **The match round is the operational planning unit.** The season/planning period is the fairness and load-balancing context.
 - **Warnings are persisted to the database** and read back by the UI and finalization logic. HARD_BLOCK warnings prevent finalization. REQUIRES_OVERRIDE warnings allow finalization with a reason.
@@ -187,13 +188,15 @@ The round-level selection engine runs in this order:
 
 Key rules enforced by the engine:
 
+- **RotationPath is the single source of truth** — non-core movement requires a valid directed path for the exact role; legacy relationship tables must not drive eligibility
+- **Paths are role-specific** — a SUPPORT path only authorizes SUPPORT movement, not DEVELOPMENT or BACKFILL (and likewise for each role)
 - **Team support is priority 1** — required support must be fulfilled before development, fairness, or cosmetic balancing
-- **Backfill follows strict priority order** — (1) own-core player on different date, (2) development source players, (3) other non-rotatable-false players
+- **Support priority is ascending** — lower number = higher priority (1 resolved before 2)
+- **Backfill follows strict priority order** — (1) own-core player on different date, (2) players from teams with active BACKFILL or DEVELOPMENT rotation path to receiving team where nonRotatable=false, (3) other players with active BACKFILL rotation path where nonRotatable=false
 - **Non-rotatable players are never used as generic backfill**
 - Warnings are generated and persisted when support or backfill cannot be fulfilled — the team is never silently weakened
 - Donor teams must not fall below `minCorePlayers` during support resolution
-- Rotation paths are directional and configurable — movement cannot happen without an explicit path
-- Support priority is resolved ascending (lower number = higher priority)
+- Rotation paths are directional — movement cannot happen without an explicit path in the correct direction
 - Each player can only appear once per match round
 - Finalized selections are immutable — manual overrides require an audit reason
 

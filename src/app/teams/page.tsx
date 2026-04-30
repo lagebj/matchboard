@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  createTeamAction,
   deleteTeamAction,
   updateTeamConfigurationAction,
 } from "@/app/teams/actions";

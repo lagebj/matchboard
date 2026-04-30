@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatPlayerName } from "@/lib/player-metrics";
-import { formatDate } from "@/lib/date-utils";
 
 function formatAvailability(status: string): string {
   switch (status) {
@@ -569,7 +568,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
   );
 }
 
-function RulesTab({ rotationPaths, teamId }: { rotationPaths: RotationPathSummary[]; teamId: string }) {
+function RulesTab({ rotationPaths, teamId: _teamId }: { rotationPaths: RotationPathSummary[]; teamId: string }) {
   if (rotationPaths.length === 0) {
     return (
       <div className="grid gap-6 lg:grid-cols-2">

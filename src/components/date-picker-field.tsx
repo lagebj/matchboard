@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { CalendarDate } from "@internationalized/date";
 
 type DatePickerFieldProps = {

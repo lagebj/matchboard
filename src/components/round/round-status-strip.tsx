@@ -1,14 +1,7 @@
 import {
-  CheckCircle2,
-  AlertTriangle,
   OctagonAlert,
-  FilePenLine,
-  FileCheck,
-  CircleDashed,
   ShieldCheck,
-  ArrowRightLeft,
   ArrowLeftRight,
-  TrendingDown,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -33,7 +26,7 @@ type StatusItem = {
 };
 
 export function RoundStatusStrip({
-  roundStatus,
+  roundStatus: _roundStatus,
   totalTeams,
   completeTeams,
   teamsNeedingSupport,

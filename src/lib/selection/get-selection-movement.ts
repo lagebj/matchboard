@@ -1,6 +1,5 @@
 import { type Prisma, SelectionRole } from "@/generated/prisma/client";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
-import { formatPlayerName } from "@/lib/player-metrics";
 
 type SelectionMovementInput = {
   explanation: Prisma.JsonValue;
