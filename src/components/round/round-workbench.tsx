@@ -68,12 +68,19 @@ type RoundData = {
   }>;
 };
 
+type AvailablePlayer = {
+  id: string;
+  name: string;
+  coreTeamName: string;
+};
+
 type RoundWorkbenchProps = {
   round: RoundData;
   matchRoundId: string;
+  availablePlayers?: AvailablePlayer[];
 };
 
-export function RoundWorkbench({ round, matchRoundId }: RoundWorkbenchProps) {
+export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: RoundWorkbenchProps) {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [inspectedItem, setInspectedItem] = useState<InspectorItem | null>(null);
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
@@ -276,6 +283,7 @@ export function RoundWorkbench({ round, matchRoundId }: RoundWorkbenchProps) {
                   <MatchSquadCard
                     key={squad.matchId}
                     matchId={squad.matchId}
+                    matchRoundId={matchRoundId}
                     teamName={squad.teamName}
                     opponent={squad.opponent}
                     matchDate={squad.matchDate}
@@ -283,6 +291,7 @@ export function RoundWorkbench({ round, matchRoundId }: RoundWorkbenchProps) {
                     selectedCount={squad.selectedCount}
                     minSquadSize={squad.minSquadSize}
                     players={squad.players}
+                    availablePlayers={availablePlayers}
                     supportStatus={squad.supportStatus}
                     backfillCount={squad.backfillCount}
                     warningCount={squad.warningCount}

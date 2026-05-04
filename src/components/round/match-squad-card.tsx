@@ -7,9 +7,12 @@ import {
   ArrowRightCircle,
   ArrowLeftCircle,
   Trash2,
+  X,
+  Plus,
 } from "lucide-react";
 import { RoleBadge, type SelectionRole } from "@/components/ui/role-badge";
 import { clearMatchDraftAction } from "@/app/rounds/[matchRoundId]/actions";
+import { removePlayerFromMatchAction, addPlayerToMatchAction } from "@/app/rounds/[matchRoundId]/draft-selection-actions";
 
 export type PlayerInMatch = {
   playerId: string;
@@ -23,8 +26,15 @@ export type PlayerInMatch = {
   playerPosition: string;
 };
 
+type AvailablePlayer = {
+  id: string;
+  name: string;
+  coreTeamName: string;
+};
+
 type MatchSquadCardProps = {
   matchId: string;
+  matchRoundId: string;
   teamName: string;
   opponent: string;
   matchDate: Date;
@@ -32,6 +42,7 @@ type MatchSquadCardProps = {
   selectedCount: number;
   minSquadSize?: number;
   players: PlayerInMatch[];
+  availablePlayers?: AvailablePlayer[];
   supportStatus?: "fulfilled" | "partial" | "missing" | "none";
   backfillCount?: number;
   warningCount?: number;
@@ -71,6 +82,7 @@ function SupportStatusIndicator({ status }: { status: MatchSquadCardProps["suppo
 
 export function MatchSquadCard({
   matchId,
+  matchRoundId,
   teamName,
   opponent,
   matchDate,
@@ -78,6 +90,7 @@ export function MatchSquadCard({
   selectedCount,
   minSquadSize,
   players,
+  availablePlayers = [],
   supportStatus = "none",
   backfillCount = 0,
   warningCount = 0,
@@ -87,6 +100,10 @@ export function MatchSquadCard({
   isSelected = false,
 }: MatchSquadCardProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [addRole, setAddRole] = useState<SelectionRole>("CORE");
+  const [addPlayerSearch, setAddPlayerSearch] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const grouped = roleGroups.map((group) => ({
     ...group,
@@ -177,23 +194,140 @@ export function MatchSquadCard({
               </div>
               <div className="flex flex-wrap gap-1">
                 {group.players.map((p) => (
-                  <button
+                  <span
                     key={`${teamName}-${group.key}-${p.playerId}`}
-                    className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
-                    aria-label={`${p.playerName} - ${group.label} - ${p.coreTeamName}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPlayerClick?.(p);
-                    }}
+                    className="group/pl inline-flex items-center gap-0.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
                   >
-                    {p.playerName}
-                  </button>
+                    <button
+                      aria-label={`${p.playerName} - ${group.label} - ${p.coreTeamName}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPlayerClick?.(p);
+                      }}
+                      type="button"
+                    >
+                      {p.playerName}
+                    </button>
+                    {!isFinalized && (
+                      <button
+                        className="opacity-0 group-hover/pl:opacity-100 ml-0.5 text-red-400 hover:text-red-300 transition-opacity"
+                        aria-label={`Remove ${p.playerName}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActionError(null);
+                          startTransition(async () => {
+                            const fd = new FormData();
+                            fd.set("matchId", matchId);
+                            fd.set("playerId", p.playerId);
+                            fd.set("matchRoundId", matchRoundId);
+                            try {
+                              await removePlayerFromMatchAction(fd);
+                            } catch (err) {
+                              setActionError(err instanceof Error ? err.message : "Could not remove player.");
+                            }
+                          });
+                        }}
+                        disabled={isPending}
+                        type="button"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                    {p.manualOverride && (
+                      <span className="ml-1 text-[8px] text-amber-400 uppercase">ovr</span>
+                    )}
+                  </span>
                 ))}
               </div>
             </div>
           );
         })}
       </div>
+
+      {!isFinalized && (
+        <div className="border-t border-[var(--border-soft)] px-4 py-2">
+          {actionError && (
+            <p className="mb-2 text-xs text-red-300">{actionError}</p>
+          )}
+          {!showAddPlayer ? (
+            <button
+              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline"
+              onClick={(e) => { e.stopPropagation(); setShowAddPlayer(true); setActionError(null); }}
+              type="button"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add player
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                <select
+                  value={addRole}
+                  onChange={(e) => setAddRole(e.target.value as SelectionRole)}
+                  className="h-8 rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-xs text-zinc-50"
+                >
+                  <option value="CORE">Core</option>
+                  <option value="SUPPORT">Support</option>
+                  <option value="BACKFILL">Squad repair</option>
+                  <option value="DEVELOPMENT">Development</option>
+                </select>
+                <input
+                  value={addPlayerSearch}
+                  onChange={(e) => setAddPlayerSearch(e.target.value)}
+                  placeholder="Search player..."
+                  className="h-8 flex-1 rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-xs text-zinc-50"
+                  type="text"
+                />
+                <button
+                  className="text-xs text-zinc-400 hover:text-zinc-50"
+                  onClick={() => { setShowAddPlayer(false); setAddPlayerSearch(""); }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+              {addPlayerSearch.length > 0 && (
+                <div className="max-h-32 overflow-y-auto rounded-lg border app-hairline bg-[rgba(0,0,0,0.14)]">
+                  {availablePlayers
+                    .filter((p) =>
+                      p.name.toLowerCase().includes(addPlayerSearch.toLowerCase()) ||
+                      p.coreTeamName.toLowerCase().includes(addPlayerSearch.toLowerCase())
+                    )
+                    .filter((p) => !players.some((sp) => sp.playerId === p.id))
+                    .slice(0, 8)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        className="w-full px-3 py-1.5 text-left text-xs text-zinc-100 hover:bg-[rgba(255,255,255,0.06)] flex items-center justify-between"
+                        disabled={isPending}
+                        onClick={() => {
+                          setActionError(null);
+                          startTransition(async () => {
+                            const fd = new FormData();
+                            fd.set("matchId", matchId);
+                            fd.set("playerId", p.id);
+                            fd.set("role", addRole);
+                            fd.set("matchRoundId", matchRoundId);
+                            try {
+                              await addPlayerToMatchAction(fd);
+                              setShowAddPlayer(false);
+                              setAddPlayerSearch("");
+                            } catch (err) {
+                              setActionError(err instanceof Error ? err.message : "Could not add player.");
+                            }
+                          });
+                        }}
+                        type="button"
+                      >
+                        <span>{p.name}</span>
+                        <span className="text-[var(--text-muted)]">{p.coreTeamName}</span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {showClearConfirm && (
         <div

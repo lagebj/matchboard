@@ -106,6 +106,26 @@ export default async function RoundBoardPage({
     }),
   ]);
 
+  const eligiblePlayers = await db.player.findMany({
+    where: {
+      active: true,
+      removedAt: null,
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      coreTeam: { select: { id: true, name: true } },
+    },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+  });
+
+  const availablePlayerList = eligiblePlayers.map((p) => ({
+    id: p.id,
+    name: formatPlayerName(p),
+    coreTeamName: p.coreTeam.name,
+  }));
+
   const selectionsByMatchId = new Map<string, typeof selections>();
   for (const sel of selections) {
     const existing = selectionsByMatchId.get(sel.matchId) ?? [];
@@ -343,7 +363,7 @@ export default async function RoundBoardPage({
           Round generated successfully.
         </div>
       )}
-      <RoundWorkbench round={roundData} matchRoundId={matchRoundId} />
+      <RoundWorkbench round={roundData} matchRoundId={matchRoundId} availablePlayers={availablePlayerList} />
     </div>
   );
 }
