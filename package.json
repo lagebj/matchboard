@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "postinstall": "cp -n .env.example .env 2>/dev/null; prisma generate",
+    "postinstall": "cp -n .env.example .env 2>/dev/null; prisma generate && prisma migrate deploy",
     "dev": "next dev -p 3333",
     "build": "next build",
     "start": "next start",
