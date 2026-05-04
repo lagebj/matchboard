@@ -38,6 +38,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
     gameFormat: m.gameFormat,
     homeAway: m.homeAway,
     id: m.id,
+    matchRoundId: m.matchRoundId,
     matchRoundName: m.matchRound?.name ?? null,
     matchRoundStatus: m.matchRound?.status ?? null,
     matchType: m.matchType,
