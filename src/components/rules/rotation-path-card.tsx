@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateRotationPathAction, deleteRotationPathAction, toggleRotationPathActiveAction } from "@/app/rules/actions";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 
 type RotationPathDetail = {
   id: string;
@@ -40,7 +40,7 @@ function roleBadgeClasses(role: string): string {
 }
 
 function ToggleActiveForm({ path, teamId }: { path: RotationPathDetail; teamId: string }) {
-  const [state, formAction, isPending] = useFormState(toggleRotationPathActiveAction, { error: "" });
+  const [state, formAction, isPending] = useActionState(toggleRotationPathActiveAction, { error: "" });
 
   return (
     <form action={formAction}>
@@ -66,7 +66,7 @@ function ToggleActiveForm({ path, teamId }: { path: RotationPathDetail; teamId: 
 
 function DeleteForm({ path, teamId }: { path: RotationPathDetail; teamId: string }) {
   const [confirming, setConfirming] = useState(false);
-  const [state, formAction, isPending] = useFormState(deleteRotationPathAction, { error: "" });
+  const [state, formAction, isPending] = useActionState(deleteRotationPathAction, { error: "" });
 
   if (confirming) {
     return (
@@ -177,7 +177,7 @@ function RotationPathEditForm({
   teamId: string;
   onCancel: () => void;
 }) {
-  const [state, formAction, isPending] = useFormState(updateRotationPathAction, { error: "" });
+  const [state, formAction, isPending] = useActionState(updateRotationPathAction, { error: "" });
 
   return (
     <form action={formAction} className="rounded-xl border border-[rgba(140,167,146,0.24)] bg-[rgba(0,0,0,0.14)] px-4 py-3">
