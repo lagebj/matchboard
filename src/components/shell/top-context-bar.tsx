@@ -39,7 +39,7 @@ const pageTitles: Record<string, { label: string; note: string }> = {
   "/rounds": { label: "Rounds", note: "Generate, review, and finalize squads per match round." },
   "/players": { label: "Players", note: "Availability, load, and movement history." },
   "/teams": { label: "Teams", note: "Core groups, support needs, and movement paths." },
-  "/rules": { label: "Rules", note: "Selection rules, support priority, and backfill behavior." },
+  "/rules": { label: "Rules", note: "Selection rules, support priority, and squad repair behavior." },
   "/history": { label: "History", note: "Finalized rounds, movement, and fairness over time." },
 };
 

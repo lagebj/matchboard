@@ -44,7 +44,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
               Rules
             </span>
             <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-              Selection rules, support priority, and backfill behavior.
+              Selection rules, support priority, and squad repair behavior.
             </span>
             </div>
 
@@ -54,7 +54,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
                   Rules
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Selection rules, support priority, and backfill behavior.
+                  Selection rules, support priority, and squad repair behavior.
                 </p>
               </div>
 

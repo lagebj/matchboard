@@ -1,4 +1,4 @@
-export type SelectionCategory = "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD" | "MANUAL";
+export type SelectionCategory = "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "DOUBLE_LOAD" | "CONFIDENCE_REBUILD" | "MANUAL";
 export type AutomaticSelectionCategory = Exclude<SelectionCategory, "MANUAL">;
 
 export type ExplanationRecord = {
@@ -99,4 +99,4 @@ export type CoreMatchDropCandidate = {
 
 export type RolePriority = typeof ROLE_PRIORITY_ORDER[number];
 
-export const ROLE_PRIORITY_ORDER = ["SUPPORT", "DEVELOPMENT", "BACKFILL", "CONFIDENCE_REBUILD", "CORE"] as const;
+export const ROLE_PRIORITY_ORDER = ["SUPPORT", "DEVELOPMENT", "BACKFILL", "DOUBLE_LOAD", "CONFIDENCE_REBUILD", "CORE"] as const;

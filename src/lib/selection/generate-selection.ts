@@ -99,21 +99,22 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       where: { id: matchId },
       include: {
         team: {
-          select: {
-            developmentSlots: true,
-            id: true,
-            maxSquadSize: true,
-            maxSupportCount: true,
-            minCorePlayers: true,
-            minSupportPlayers: true,
-            name: true,
-            supportPriority: true,
-            targetSupportCount: true,
-          },
-        },
-      },
-    }),
-    db.player.findMany({
+           select: {
+             developmentSlots: true,
+             id: true,
+             maxSquadSize: true,
+             maxSupportCount: true,
+             minAcceptedSquadSize: true,
+             minCorePlayers: true,
+             minSupportPlayers: true,
+             name: true,
+             supportPriority: true,
+             targetSupportCount: true,
+           },
+         },
+       },
+     }),
+     db.player.findMany({
       where: {
         removedAt: null,
       },
@@ -146,49 +147,51 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       include: {
         team: {
           select: {
-            developmentSlots: true,
-            id: true,
-            maxSquadSize: true,
-            maxSupportCount: true,
-            minCorePlayers: true,
-            minSupportPlayers: true,
-            name: true,
-            supportPriority: true,
-            targetSupportCount: true,
-          },
-        },
-      },
-      orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-    }),
-    db.selection.findMany({
-      where: {
-        matchId: {
-          not: matchId,
-        },
-      },
-      select: {
-        matchId: true,
-        status: true,
-        playerId: true,
-        role: true,
-        explanation: true,
-        match: {
-          select: {
-            id: true,
-            startsAt: true,
-            teamId: true,
-        team: {
-          select: {
-            developmentSlots: true,
-            id: true,
-            maxSquadSize: true,
-            maxSupportCount: true,
-            minCorePlayers: true,
-            minSupportPlayers: true,
-            name: true,
-            supportPriority: true,
-            targetSupportCount: true,
-          },
+             developmentSlots: true,
+             id: true,
+             maxSquadSize: true,
+             maxSupportCount: true,
+             minAcceptedSquadSize: true,
+             minCorePlayers: true,
+             minSupportPlayers: true,
+             name: true,
+             supportPriority: true,
+             targetSupportCount: true,
+           },
+         },
+       },
+       orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
+     }),
+     db.selection.findMany({
+       where: {
+         matchId: {
+           not: matchId,
+         },
+       },
+       select: {
+         matchId: true,
+         status: true,
+         playerId: true,
+         role: true,
+         explanation: true,
+         match: {
+           select: {
+             id: true,
+             startsAt: true,
+             teamId: true,
+         team: {
+           select: {
+             developmentSlots: true,
+             id: true,
+             maxSquadSize: true,
+             maxSupportCount: true,
+             minAcceptedSquadSize: true,
+             minCorePlayers: true,
+             minSupportPlayers: true,
+             name: true,
+             supportPriority: true,
+             targetSupportCount: true,
+           },
         },
           },
         },
@@ -593,8 +596,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
   const selectedCorePlayers = [...eligibleCorePlayers];
 
-  if (selectedCorePlayers.length > match.squadSize) {
-    const overflowCount = selectedCorePlayers.length - match.squadSize;
+  if (selectedCorePlayers.length > match.team.maxSquadSize) {
+    const overflowCount = selectedCorePlayers.length - match.team.maxSquadSize;
 
     const reducedLoadCandidates = selectedCorePlayers
       .filter((candidate) => candidate.player.reducedMatchLoadAllowed)
@@ -853,7 +856,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     return left.playerName.localeCompare(right.playerName);
   });
 
-  let directSupportTarget = deferRotation ? 0 : Math.min(match.team.minSupportPlayers, match.squadSize);
+  let directSupportTarget = deferRotation ? 0 : Math.min(match.team.minSupportPlayers, match.team.maxSquadSize);
   const supportCandidateCount = availableRotationCandidates.filter(
     (candidate) => candidate.candidateCategory === "SUPPORT",
   ).length;
@@ -880,14 +883,14 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   } else {
     const extraSupportBackfillTarget = Math.min(
       Math.max(
-        match.squadSize - reservedDirectSupportPlayers - (selectedCorePlayers.length - preservedForSupportCandidates.length),
+        match.team.maxSquadSize - reservedDirectSupportPlayers - (selectedCorePlayers.length - preservedForSupportCandidates.length),
         0,
       ),
-      Math.max(match.squadSize - directSupportTarget, 0),
+      Math.max(match.team.maxSquadSize - directSupportTarget, 0),
     );
     const uncappedSupportTarget = Math.min(
       directSupportTarget + extraSupportBackfillTarget,
-      match.squadSize,
+      match.team.maxSquadSize,
     );
     const configuredSupportCap = match.team.targetSupportCount || match.team.maxSupportCount;
     effectiveSupportTarget = configuredSupportCap
@@ -896,7 +899,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     reservedSupportPlayers = Math.min(effectiveSupportTarget, supportCandidateCount);
     effectiveDevelopmentTarget = Math.min(
       currentMatchRecord.developmentSlots,
-      Math.max(match.squadSize - reservedSupportPlayers, 0),
+      Math.max(match.team.maxSquadSize - reservedSupportPlayers, 0),
     );
     reservedDevelopmentPlayers = Math.min(effectiveDevelopmentTarget, developmentCandidateCount);
     effectiveExtraSupportBackfillTarget = extraSupportBackfillTarget;
@@ -906,7 +909,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   const coreSelectionLimit = deferRotation
     ? match.team.minCorePlayers
     : Math.max(
-        match.squadSize - reservedSupportPlayers - reservedDevelopmentPlayers,
+        match.team.maxSquadSize - reservedSupportPlayers - reservedDevelopmentPlayers,
         0,
       );
   const preservedSupportTargetTeams = formatTeamNameList(
@@ -1114,7 +1117,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   while (
     selectedPlayers.filter((p) => p.selectionCategory === "SUPPORT").length <
       reservedSupportPlayers &&
-    selectedPlayers.length < match.squadSize
+    selectedPlayers.length < match.team.maxSquadSize
   ) {
     if (!takeTopRotationCandidate((candidate) => candidate.candidateCategory === "SUPPORT")) {
       break;
@@ -1124,7 +1127,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   while (
     selectedPlayers.filter((p) => p.selectionCategory === "DEVELOPMENT").length <
       reservedDevelopmentPlayers &&
-    selectedPlayers.length < match.squadSize
+    selectedPlayers.length < match.team.maxSquadSize
   ) {
     if (!takeTopRotationCandidate((candidate) => candidate.candidateCategory === "DEVELOPMENT")) {
       break;
@@ -1298,7 +1301,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   }
 
   if (!deferRotation) {
-    while (selectedPlayers.length < match.squadSize) {
+    while (selectedPlayers.length < match.team.maxSquadSize) {
       if (!takeTopRotationCandidate(() => true)) {
         break;
       }
@@ -1363,7 +1366,23 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     }
   }
 
-  if (selectedPlayers.length < match.squadSize) {
+  const minAccepted = match.team.minAcceptedSquadSize ?? match.squadSize;
+
+  if (selectedPlayers.length < minAccepted) {
+    const blockers = [
+      effectiveSupportTarget > reservedSupportPlayers
+        ? `${match.team.name} still lacked ${effectiveSupportTarget - reservedSupportPlayers} required support player(s).`
+        : "",
+      effectiveDevelopmentTarget > reservedDevelopmentPlayers
+        ? `${match.team.name} still lacked ${effectiveDevelopmentTarget - reservedDevelopmentPlayers} development slot fill(s).`
+        : "",
+      buildCandidateBlockerSummary(excludedPlayers, [...playerById.keys()]).join(" "),
+    ].filter(Boolean);
+    warnings.push({
+      code: "squad_below_minimum",
+      message: `${match.team.name} has only ${selectedPlayers.length} player(s), below the minimum accepted squad size of ${minAccepted}.${blockers.length > 0 ? ` Blockers: ${blockers.join(" ")}` : ""}`,
+    });
+  } else if (selectedPlayers.length < match.squadSize) {
     const blockers = [
       effectiveSupportTarget > reservedSupportPlayers
         ? `${match.team.name} still lacked ${effectiveSupportTarget - reservedSupportPlayers} required support player(s).`

@@ -142,13 +142,13 @@ describe("Selection pipeline integration tests", () => {
     }
   });
 
-  it("self-backfill re-includes own excluded core players when below target", async () => {
+  it("self-squad-repair re-includes own excluded core players when below target", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     for (const matchResult of result.matchResults) {
       const selfBackfillPlayers = matchResult.selectedPlayers.filter(
-        (p) => p.explanations.some((e) => e.code === "self_backfill"),
+        (p) => p.explanations.some((e) => e.code === "self_squad_repair"),
       );
 
       for (const player of selfBackfillPlayers) {
@@ -157,7 +157,7 @@ describe("Selection pipeline integration tests", () => {
     }
   });
 
-  it("self-backfill does not include players assigned to other teams", async () => {
+  it("self-squad-repair does not include players assigned to other teams", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
@@ -172,7 +172,7 @@ describe("Selection pipeline integration tests", () => {
 
     for (const matchResult of result.matchResults) {
       for (const player of matchResult.selectedPlayers) {
-        if (player.explanations.some((e) => e.code === "self_backfill")) {
+        if (player.explanations.some((e) => e.code === "self_squad_repair")) {
           expect(assignedToOtherTeams.has(player.playerId)).toBe(false);
         }
       }

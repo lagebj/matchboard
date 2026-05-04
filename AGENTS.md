@@ -51,7 +51,18 @@ The season or planning period is the fairness and load-balancing context.
 
 A round may contain one or more matches.
 
-A player should normally only be selected once per round unless an explicit rule allows otherwise.
+Same-round player uniqueness is the default rule. A player can only be selected once per round unless controlled double-load explicitly allows it.
+
+The round-level pipeline runs in strict phase order:
+1. Per-match core selection
+2. Round-level required support resolution
+3. Cross-match conflict resolution
+4. Development routing
+5. Squad repair (repairing teams weakened by support movement)
+6. Controlled double-load evaluation
+7. Post-pipeline validation and warning persistence
+
+No phase may be skipped. Each phase must complete before the next begins.
 
 Populate all generates drafts for all rounds in a planning period in one action. It does not finalize. Each round is generated via round-level orchestration to preserve cross-match conflict resolution.
 
@@ -117,18 +128,43 @@ Lower number = higher priority. Priority 1 is resolved before priority 2. The `s
 
 ## Backfill rules
 
-When a player is moved from their core team as support, their own team may need backfill.
+"Squad repair" is the user-facing term. BACKFILL is the internal code role and rotation path role.
 
-Backfill priority order:
+When a player is moved from their core team as support, their own team may need squad repair.
+
+Squad repair priority order:
 
 1. Own core team player moved as support, if matches are on different dates and the player can play both
 2. Players from teams connected by an active DEVELOPMENT rotation path to the receiving team, where `nonRotatable = false`. The DEVELOPMENT path gates the team-to-team direction. The assigned role is BACKFILL.
 3. Any player from another team with an active BACKFILL rotation path to the receiving team, where `nonRotatable = false`
 
 Rules:
-- Non-rotatable players must never be used as generic backfill
-- Backfill must respect same-round conflict rules unless explicitly allowed
-- If no valid backfill exists, generate a warning instead of silently weakening the team
+- Non-rotatable players must never be used as generic squad repair
+- Squad repair must respect same-round conflict rules unless controlled double-load explicitly allows
+- If no valid squad repair exists, generate a warning instead of silently weakening the team
+
+## Controlled double-load rules
+
+Same-round player uniqueness is the default. Controlled double-load is an explicit exception.
+
+A controlled double-load requires all of the following:
+- Matches on different dates
+- Minimum rest spacing between matches (configurable per rotation path)
+- Controlled double-load explicitly enabled for the rotation path or team configuration
+- Player has not exceeded the maximum double-load count in the planning period
+- Fairness debt is tracked for the double-loaded player
+- Players are rotated across eligible double-load candidates over time
+
+Controlled double-load cannot bypass rotation path validation.
+Controlled double-load cannot move non-rotatable players outside their core team.
+Controlled double-load is evaluated after all other movement phases complete.
+
+## Target / min / max squad size
+
+- Target squad size is a planning target, not a hard cap. A team may be selected above target up to maximum squad size.
+- Minimum accepted squad size is a hard floor. Below minimum requires manual override.
+- Maximum squad size is a hard ceiling. Above maximum requires manual override.
+- Below target but above minimum generates a WARNING, not a HARD_BLOCK.
 
 ## Warnings
 
@@ -199,8 +235,9 @@ Keep these concerns separate:
 - invariant validation (`validate-generated-round-invariants.ts`)
 - round eligibility
 - support selection
-- backfill selection
+- squad repair selection
 - development selection
+- controlled double-load evaluation
 - core selection
 - season fairness
 - conflict validation
@@ -290,13 +327,15 @@ Use neutral coaching language for all movement and selection descriptions:
 | Concept | Use | Never use |
 |---------|-----|-----------|
 | Player sent to another team for support | Sent as support | Demoted, benched, punished, failed |
-| Player received from another team | Received support, received backfill, received development | Promoted, upgraded, reward |
+| Player received from another team | Received support, received squad repair, received development | Promoted, upgraded, reward |
 | Player not selected for a round | Dropped, not selected this round | Benched, failed, weak player |
 | Player moved for development | Development movement, development rotation | Promoted, rewarded, upgraded |
-| Player filling a gap | Backfill | Replacement, substitute |
+| Player filling a gap | Squad repair, cover, repair after support | Replacement, substitute, backfill (in UI) |
 | Team with fewer players than target | Short, below target | Weak team, B-team, reserve team |
 | Team donating players | Donor team, support source | Stronger team, higher team |
 | Team receiving players | Receiving team, support target | Weaker team, lower team |
+
+Note: BACKFILL remains the internal code role and rotation path role. Use "squad repair" in all user-facing UI and documentation.
 
 ### Round status model (5 states)
 
@@ -369,7 +408,7 @@ Avoid:
 |------|---------|
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
-| `src/lib/selection/resolve-round-support.ts` | Cross-match support and backfill resolution |
+| `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |
 | `src/lib/selection/resolve-round-conflicts.ts` | Same-round player conflicts |
 | `src/lib/selection/route-core-match-drops.ts` | Core match drop routing |
 | `src/lib/selection/rotation-path-policy.ts` | Movement eligibility validation |

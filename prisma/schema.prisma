@@ -192,17 +192,20 @@ model Selection {
 }
 
 model RotationPath {
-  id             String @id @default(cuid())
-  fromTeamId     String
-  toTeamId       String
-  role           SelectionRole
-  purpose        String
-  minimumCount   Int?
-  targetCount    Int?
-  maximumCount   Int?
-  cooldownRounds Int?
-  priority       Int?
-  active         Boolean @default(true)
+  id                      String @id @default(cuid())
+  fromTeamId              String
+  toTeamId                String
+  role                    SelectionRole
+  purpose                 String
+  minimumCount            Int?
+  targetCount             Int?
+  maximumCount            Int?
+  cooldownRounds          Int?
+  priority                Int?
+  active                  Boolean @default(true)
+  allowDoubleLoad         Boolean @default(false)
+  minRestSpacingHours     Int?
+  maxDoubleLoadsPerPeriod Int?
 
   fromTeam Team @relation("FromTeam", fields: [fromTeamId], references: [id])
   toTeam   Team @relation("ToTeam", fields: [toTeamId], references: [id])
@@ -268,6 +271,7 @@ enum SelectionRole {
   SUPPORT
   BACKFILL
   DEVELOPMENT
+  DOUBLE_LOAD
   CONFIDENCE_REBUILD
   CORE_MATCH_DROP
   REDUCED_MATCH_LOAD_DROP

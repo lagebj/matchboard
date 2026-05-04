@@ -39,7 +39,7 @@ const roleConfig: Record<SelectionRole, RoleConfig> = {
     className: "bg-sky-900/40 text-sky-300 border-sky-700/40",
   },
   BACKFILL: {
-    label: "Backfill",
+    label: "Squad repair",
     icon: ArrowLeftCircle,
     className:
       "bg-amber-900/40 text-amber-300 border-amber-700/40",

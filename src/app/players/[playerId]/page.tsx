@@ -610,7 +610,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                 Movement History
               </p>
               <h2 className="mt-2 text-xl font-semibold text-zinc-50">Cross-team movement ledger</h2>
-              <p className="mt-2 text-sm app-copy-soft">Shows when and why this player moved between teams for support, backfill, or development.</p>
+              <p className="mt-2 text-sm app-copy-soft">Shows when and why this player moved between teams for support, squad repair, or development.</p>
             </div>
 
             <div className="mt-5 flex flex-col gap-3">

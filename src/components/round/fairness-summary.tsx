@@ -67,7 +67,7 @@ export function FairnessSummary({ metrics, movementSummary }: FairnessSummaryPro
             <MovementStat label="Support received" value={movementSummary.supportReceived} />
             <MovementStat label="Development sent" value={movementSummary.developmentSent} />
             <MovementStat label="Development received" value={movementSummary.developmentReceived} />
-            <MovementStat label="Backfill received" value={movementSummary.backfillReceived} />
+            <MovementStat label="Squad repair received" value={movementSummary.backfillReceived} />
             <MovementStat label="Dropped" value={movementSummary.drops} />
           </div>
         </div>

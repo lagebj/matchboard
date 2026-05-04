@@ -244,7 +244,7 @@ function MatchInspector({ detail }: { detail: MatchDetail }) {
           <span className="text-sm tabular-nums text-zinc-300">{detail.supportCount}</span>
         </div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-[var(--text-muted)]">Backfill</span>
+          <span className="text-xs text-[var(--text-muted)]">Squad repair</span>
           <span className="text-sm tabular-nums text-zinc-300">{detail.backfillCount_}</span>
         </div>
         <div className="flex items-center justify-between">
@@ -278,7 +278,7 @@ function MatchInspector({ detail }: { detail: MatchDetail }) {
 function MovementInspector({ detail }: { detail: MovementDetail }) {
   const roleConfig = {
     SUPPORT: { label: "Support", className: "text-emerald-400" },
-    BACKFILL: { label: "Backfill", className: "text-sky-400" },
+    BACKFILL: { label: "Squad repair", className: "text-sky-400" },
     DEVELOPMENT: { label: "Development", className: "text-amber-400" },
   };
   const config = roleConfig[detail.role] ?? roleConfig.SUPPORT;
@@ -311,7 +311,7 @@ function MovementInspector({ detail }: { detail: MovementDetail }) {
 
       {detail.backfillResult && (
         <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2">
-          <p className="text-xs font-medium text-zinc-300 mb-1">Backfill</p>
+           <p className="text-xs font-medium text-zinc-300 mb-1">Squad repair</p>
           <p className="text-sm text-zinc-200 leading-snug">{detail.backfillResult}</p>
         </div>
       )}

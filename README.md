@@ -23,8 +23,9 @@ The Today page always shows the next action based on workflow state.
 
 - **RotationPath is the single source of truth for non-core player movement.** A player may only be selected outside their core team when an active directed RotationPath exists from core team to target team for the exact role being assigned, unless manually overridden with a reason. Each path authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL. A SUPPORT path does not permit DEVELOPMENT or BACKFILL movement. Paths are directional. No path means no automatic non-core selection. Fairness scoring cannot make an invalid path valid. The legacy `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility — they are scheduled for removal.
 - **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a warning is generated — the team is never silently weakened. Support priority uses ascending sort order: lower number = higher priority (priority 1 is resolved before priority 2).
-- **Backfill is a direct consequence of support.** When a player is moved from their core team as support, their team may need backfill. Backfill priority: (1) own core team player moved as support if matches on different dates, (2) players from teams connected by an active DEVELOPMENT rotation path to the receiving team where `nonRotatable = false` — the DEVELOPMENT path gates the team-to-team direction and the assigned role is BACKFILL, (3) any other player from another team with an active BACKFILL rotation path where `nonRotatable = false`. Non-rotatable players are never used as generic backfill.
-- **A player can normally only be selected once per match round** unless an explicit rule allows otherwise.
+- **Squad repair follows support movement.** When a player is moved from their core team as support, their team may need squad repair. Squad repair priority: (1) own core team player moved as support if matches on different dates, (2) players from teams connected by an active DEVELOPMENT rotation path to the receiving team where `nonRotatable = false` — the DEVELOPMENT path gates the team-to-team direction and the assigned role is BACKFILL, (3) any other player from another team with an active BACKFILL rotation path where `nonRotatable = false`. Non-rotatable players are never used as generic squad repair.
+- **Same-round player uniqueness is the default.** A player can only be selected once per match round unless controlled double-load explicitly allows it. Controlled double-load requires: different match dates, minimum rest spacing, explicit permission, fairness debt tracking, and rotation across eligible players over time. Controlled double-load is evaluated after all other movement phases complete.
+- **Target squad size is a planning target, not a hard cap.** A team may be selected above target up to `maxSquadSize`. Below `targetSquadSize` but above `minAcceptedSquadSize` generates a WARNING. Below `minAcceptedSquadSize` is a hard floor requiring manual override.
 - **The match round is the operational planning unit.** The season/planning period is the fairness and load-balancing context.
 - **Warnings are persisted to the database** and read back by the UI and finalization logic. HARD_BLOCK warnings prevent finalization. REQUIRES_OVERRIDE warnings allow finalization with a reason.
 - **Draft selections are editable and not final history.** The coach can manually add, remove, change role, or replace players in draft match squads. Manual edits use the same domain validation as automatic generation. UI-only validation is not enough.
@@ -174,17 +175,17 @@ The team detail page is the primary team workspace. It answers:
 - Who is available
 - Who is selected this round
 - Who is moving out as support
-- Who is moving in as support/backfill/development
+- Who is moving in as support/squad repair/development
 - Whether the team is short
 - What warnings exist for this team
 - What the team's movement and fairness situation looks like
 
 Team detail sections:
 - **Team header** — name, squad limits (target, minimum, maximum), minimum core, support priority
-- **Team summary strip** — current round status, core count, sent as support count, received support/backfill/development counts, warning count
+- **Team summary strip** — current round status, core count, sent as support count, received support/squad repair/development counts, warning count
 - **Squad tab** — core roster grouped by planning status (core regulars, support candidates, development candidates, non-rotatable, reduced match load, availability problems)
 - **Current Round tab** — who is selected, sent, received, dropped for the active round, with selection reason and movement language
-- **Movement tab** — movement history across rounds (sent as support, received support, received backfill, received development)
+- **Movement tab** — movement history across rounds (sent as support, received support, received squad repair, received development)
 - **History tab** — finalized rounds for this team with role breakdown
 - **Rules/Links tab** — rotation paths involving this team, squad size config, support priority, link to Rules page
 
@@ -195,13 +196,15 @@ Use neutral coaching language. Never use labels that imply permanent negative ju
 | Concept | Use | Never use |
 |---------|-----|-----------|
 | Player sent to another team for support | Sent as support | Demoted, benched, punished, failed |
-| Player received from another team | Received support, received backfill, received development | Promoted, upgraded, reward |
+| Player received from another team | Received support, received squad repair, received development | Promoted, upgraded, reward |
 | Player not selected for a round | Dropped, not selected this round | Benched, failed, weak player |
 | Player moved for development | Development movement, development rotation | Promoted, rewarded, upgraded |
-| Player filling a gap | Backfill | Replacement, substitute |
+| Player filling a gap | Squad repair, cover, repair after support | Replacement, substitute |
 | Team with fewer players than target | Short, below target | Weak team, B-team, reserve team |
 | Team donating players | Donor team, support source | Stronger team, higher team |
 | Team receiving players | Receiving team, support target | Weaker team, lower team |
+
+Note: BACKFILL remains the internal code role and rotation path role. Use "squad repair" in all user-facing UI and documentation.
 
 ## Architecture
 
@@ -210,11 +213,12 @@ Use neutral coaching language. Never use labels that imply permanent negative ju
 The round-level selection engine runs in this order:
 
 1. Per-match core selection (`deferRotation` mode, fills only `minCorePlayers`)
-2. Round-level support resolution (`resolveRoundSupport`)
+2. Round-level required support resolution (`resolveRoundSupport`)
 3. Cross-match conflict resolution (`resolveRoundConflicts`)
-4. Core-match-drop routing — development and backfill (`routeCoreMatchDrops`)
-5. Post-routing backfill (`resolveBackfillAfterSupport`)
-6. Self-backfill — re-include excluded own-core players for teams below target
+4. Development routing (`routeCoreMatchDrops`)
+5. Squad repair — repairing teams weakened by support movement
+6. Controlled double-load evaluation — explicit exception to same-round uniqueness
+7. Post-pipeline validation and warning persistence
 
 Key rules enforced by the engine:
 
@@ -222,13 +226,15 @@ Key rules enforced by the engine:
 - **Paths are role-specific** — a SUPPORT path only authorizes SUPPORT movement, not DEVELOPMENT or BACKFILL (and likewise for each role)
 - **Team support is priority 1** — required support must be fulfilled before development, fairness, or cosmetic balancing
 - **Support priority is ascending** — lower number = higher priority (1 resolved before 2)
-- **Backfill follows strict priority order** — (1) own-core player on different date, (2) players from teams with active DEVELOPMENT rotation path to receiving team where nonRotatable=false (DEVELOPMENT path gates direction, assigned role is BACKFILL), (3) players with active BACKFILL rotation path where nonRotatable=false
-- **Non-rotatable players are never used as generic backfill**
+- **Squad repair follows strict priority order** — (1) own-core player on different date, (2) players from teams with active DEVELOPMENT rotation path to receiving team where nonRotatable=false (DEVELOPMENT path gates direction, assigned role is BACKFILL), (3) players with active BACKFILL rotation path where nonRotatable=false
+- **Non-rotatable players are never used as generic squad repair**
 - **Invalid path eligibility is a hard eligibility problem** — not a ranking problem. Fairness scoring cannot make an invalid path valid.
-- Warnings are generated and persisted when support or backfill cannot be fulfilled — the team is never silently weakened
+- **Controlled double-load is an explicit exception** — not default behavior. Requires different dates, rest spacing, explicit permission, fairness debt tracking, and rotation across eligible players.
+- **Target squad size is a planning target, not a hard cap** — teams may exceed target up to maxSquadSize. Below target but above minAcceptedSquadSize generates WARNING only.
+- Warnings are generated and persisted when support or squad repair cannot be fulfilled — the team is never silently weakened
 - Donor teams must not fall below `minCorePlayers` during support resolution
 - Rotation paths are directional — movement cannot happen without an explicit path in the correct direction
-- Each player can only appear once per match round
+- Each player can only appear once per match round unless controlled double-load applies
 - Draft selections are editable — manual edits use same domain validation as automatic generation
 - Finalized selections are immutable — manual overrides require an audit reason
 - Manual override requires reason and must appear in finalization summary
@@ -249,7 +255,7 @@ Populate all generates drafts for all non-finalized rounds in the active plannin
 
 | Path | Purpose |
 |------|---------|
-| `src/lib/selection/` | Selection engine, round-level orchestrator, support, routing, backfill |
+| `src/lib/selection/` | Selection engine, round-level orchestrator, support, routing, squad repair, double-load |
 | `src/lib/rules/` | Rule configuration loading and validation |
 | `src/lib/` | DB client, shared utilities, player metrics, date helpers |
 | `src/app/` | Next.js App Router pages, layouts, server actions, API routes |
@@ -276,7 +282,7 @@ RotationPath is the single source of truth for automatic non-core player movemen
 
 - **Team**: configurable squad limits (`targetSquadSize`, `minAcceptedSquadSize`, `maxSquadSize`), support settings, development slots, support priority
 - **RotationPath**: directed edges between teams with role (SUPPORT, BACKFILL, DEVELOPMENT), cooldown, and count targets
-- **Selection**: per-player per-match-round record with role (CORE, SUPPORT, BACKFILL, DEVELOPMENT, etc.), status (DRAFT/FINALIZED), and structured explanation JSON
+- **Selection**: per-player per-match-round record with role (CORE, SUPPORT, BACKFILL, DEVELOPMENT, DOUBLE_LOAD, etc.), status (DRAFT/FINALIZED), and structured explanation JSON
 - **MatchRound**: weekly planning unit — selections are generated and validated per round, not per match in isolation
 - **Warning**: per-round warnings with severity (HARD_BLOCK, REQUIRES_OVERRIDE, WARNING, SCORING_PREFERENCE), persisted to database, read by finalization logic
 

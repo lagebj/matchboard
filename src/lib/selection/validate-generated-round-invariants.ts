@@ -13,7 +13,7 @@ export type InvariantViolation = {
   targetTeamId?: string;
 };
 
-const NON_CORE_ROLES: Set<string> = new Set(["SUPPORT", "DEVELOPMENT", "BACKFILL", "CONFIDENCE_REBUILD"]);
+const NON_CORE_ROLES: Set<string> = new Set(["SUPPORT", "DEVELOPMENT", "BACKFILL", "DOUBLE_LOAD", "CONFIDENCE_REBUILD"]);
 
 export function validateGeneratedRoundInvariants(
   roundSelections: GeneratedSelection[],

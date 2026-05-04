@@ -234,7 +234,7 @@ export default async function TodayPage() {
         const sourceMinSquad = sourceCore.minAcceptedSquadSize ?? 5;
         if (sourceCoreCount - 1 < sourceMinSquad) {
           actionCards.push({
-            group: "Backfill consequences",
+            group: "Squad repair consequences",
             severity: "medium",
             title: `${path.fromTeam.name} may be short if supporting ${team.name}`,
             detail: `${path.fromTeam.name} has ${sourceCoreCount} core players. Sending one to support ${team.name} may drop below minimum.`,
@@ -268,7 +268,7 @@ export default async function TodayPage() {
         group: "Team burden",
         severity: "high",
         title: `${teamBurden.teamName}: high donor burden`,
-        detail: `Donated players in every round of the planning period (${teamBurden.totalDonations} total donations). Consider backfill or reduced voluntary movement.`,
+        detail: `Donated players in every round of the planning period (${teamBurden.totalDonations} total donations). Consider squad repair or reduced voluntary movement.`,
         actionHref: "/teams",
         actionLabel: "Review team",
       });
@@ -420,7 +420,7 @@ export default async function TodayPage() {
               </div>
             </div>
 
-            {/* Support / backfill status row */}
+            {/* Support / squad repair status row */}
             <div className="md:col-span-2 xl:col-span-4 rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">Matches in round</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

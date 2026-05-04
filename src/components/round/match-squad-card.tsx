@@ -47,7 +47,7 @@ const roleGroups: Array<{
 }> = [
   { key: "CORE", label: "Core" },
   { key: "SUPPORT", label: "Support" },
-  { key: "BACKFILL", label: "Backfill" },
+  { key: "BACKFILL", label: "Squad repair" },
   { key: "DEVELOPMENT", label: "Development" },
   { key: "REDUCED_MATCH_LOAD_DROP", label: "Reduced load" },
   { key: "CORE_MATCH_DROP", label: "Dropped" },
@@ -154,7 +154,7 @@ export function MatchSquadCard({
           {backfillCount > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
               <ArrowLeftCircle className="h-3 w-3" aria-hidden="true" />
-              {backfillCount} backfill
+               {backfillCount} squad repair
             </span>
           )}
           {warningCount > 0 && (

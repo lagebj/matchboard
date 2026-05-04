@@ -31,6 +31,7 @@ function makeMatch(teamId: string, developmentSlots = 2): MatchRecord {
       developmentSlots,
       maxSquadSize: 14,
       maxSupportCount: 5,
+      minAcceptedSquadSize: 9,
       minCorePlayers: 5,
       minSupportPlayers: 2,
       targetSupportCount: 3,

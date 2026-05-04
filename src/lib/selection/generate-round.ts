@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { generateSelection } from "@/lib/selection/generate-selection";
-import { resolveRoundSupport, resolveBackfillAfterSupport } from "@/lib/selection/resolve-round-support";
+import { resolveRoundSupport, resolveSquadRepair } from "@/lib/selection/resolve-round-support";
 import { routeCoreMatchDrops, type RoutedDrop } from "@/lib/selection/route-core-match-drops";
 import { resolveRoundConflicts } from "@/lib/selection/resolve-round-conflicts";
+import { evaluateControlledDoubleLoad } from "@/lib/selection/evaluate-controlled-double-load";
 import { validateGeneratedRoundInvariants } from "@/lib/selection/validate-generated-round-invariants";
 import type {
   CoreMatchDropCandidate,
@@ -61,14 +62,17 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   const matchResults: GeneratedSelection[] = [];
   const roundWarnings: SelectionWarning[] = [];
 
+  // Phase 1: Per-match core selection (deferRotation mode, fills only minCorePlayers)
   for (const match of sortedMatches) {
     const result = await generateSelection(match.id, { deferRotation: true });
     matchResults.push(result);
   }
 
+  // Phase 2: Round-level required support resolution
   const supportResolution = await resolveRoundSupport(matchResults);
   roundWarnings.push(...supportResolution.roundWarnings);
 
+  // Phase 3: Cross-match conflict resolution
   const conflictResolution = resolveRoundConflicts(supportResolution.resolvedMatchResults);
 
   roundWarnings.push(...conflictResolution.conflictWarnings);
@@ -82,6 +86,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
 
   let finalResults = conflictResolution.resolvedMatchResults;
 
+  // Phase 4: Development routing (core match drops routed as development)
   const coreMatchDropCandidates = await extractCoreMatchDropCandidates(
     finalResults,
   );
@@ -99,16 +104,32 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
     finalResults = applyRoutedDrops(finalResults, routedDrops);
   }
 
-  const backfillResult = await resolveBackfillAfterSupport(
+  // Phase 5: Squad repair (repairing teams weakened by support movement)
+  const squadRepairResult = await resolveSquadRepair(
     finalResults,
     allAssignedPlayerIds,
     supportResolution.supportAssignments,
   );
-  roundWarnings.push(...backfillResult.warnings);
-  finalResults = backfillResult.matchResults;
+  roundWarnings.push(...squadRepairResult.warnings);
+  finalResults = squadRepairResult.matchResults;
 
-  finalResults = selfBackfillBelowTarget(finalResults, sortedMatches, allAssignedPlayerIds);
+  // Phase 5b: Self-squad-repair — re-include excluded own-core players for teams below target
+  finalResults = selfSquadRepairBelowTarget(finalResults, sortedMatches, allAssignedPlayerIds);
 
+  // Phase 6: Controlled double-load evaluation
+  const doubleLoadResult = await evaluateControlledDoubleLoad(
+    finalResults,
+    allAssignedPlayerIds,
+    matchRoundId,
+  );
+  roundWarnings.push(...doubleLoadResult.warnings);
+  finalResults = doubleLoadResult.matchResults;
+
+  for (const assignment of doubleLoadResult.assignments) {
+    allAssignedPlayerIds.add(assignment.playerId);
+  }
+
+  // Phase 7: Post-pipeline validation and warning persistence
   const rotationPaths = await db.rotationPath.findMany({
     where: { active: true },
     select: { fromTeamId: true, toTeamId: true, role: true, active: true },
@@ -356,7 +377,7 @@ function applyRoutedDrops(
   return result;
 }
 
-function selfBackfillBelowTarget(
+function selfSquadRepairBelowTarget(
   matchResults: GeneratedSelection[],
   sortedMatches: Array<{ team: { name: string; targetSquadSize: number } }>,
   assignedPlayerIds: Set<string>,
@@ -387,7 +408,7 @@ function selfBackfillBelowTarget(
       eligibility: p.eligibility,
       explanations: [
         ...p.explanations,
-        { code: "self_backfill", summary: `${p.playerName} was re-included in ${result.teamName} because the squad was below target after round-level support resolution.`, hardRule: false },
+        { code: "self_squad_repair", summary: `${p.playerName} was re-included in ${result.teamName} because the squad was below target after round-level support resolution.`, hardRule: false },
       ],
       finalSelected: false,
       manualOverride: p.manualOverride,
@@ -396,10 +417,10 @@ function selfBackfillBelowTarget(
       playerName: p.playerName,
       playerPosition: p.playerPosition,
       priorityScore: p.priorityScore ?? 0,
-      selectionCategory: (p.automaticSelectionCategory === "SUPPORT" || p.automaticSelectionCategory === "DEVELOPMENT" || p.automaticSelectionCategory === "BACKFILL" || p.automaticSelectionCategory === "CONFIDENCE_REBUILD")
+      selectionCategory: (p.automaticSelectionCategory === "SUPPORT" || p.automaticSelectionCategory === "DEVELOPMENT" || p.automaticSelectionCategory === "BACKFILL" || p.automaticSelectionCategory === "DOUBLE_LOAD" || p.automaticSelectionCategory === "CONFIDENCE_REBUILD")
         ? p.automaticSelectionCategory
         : "CORE" as const,
-      selectionReason: `Re-included in ${result.teamName} to meet minimum squad size after support rotation.`,
+      selectionReason: `Re-included in ${result.teamName} as squad repair to meet target squad size after support rotation.`,
     }));
 
     for (const p of toReinclude) {

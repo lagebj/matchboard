@@ -63,7 +63,7 @@ export function RoundStatusStrip({
   if (backfillNeeded > 0) {
     items.push({
       icon: ArrowLeftRight,
-      label: "Backfill required",
+      label: "Squad repair required",
       value: backfillNeeded,
       variant: "warning",
     });

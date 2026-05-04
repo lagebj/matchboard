@@ -74,7 +74,7 @@ const BUCKET_ORDER: BucketKey[] = [
 const BUCKET_LABELS: Record<BucketKey, string> = {
   CORE: "Core",
   SUPPORT: "Support received",
-  BACKFILL: "Backfill received",
+  BACKFILL: "Squad repair received",
   DEVELOPMENT: "Development",
   CONFIDENCE_REBUILD: "Confidence rebuild",
   CORE_MATCH_DROP: "Dropped",

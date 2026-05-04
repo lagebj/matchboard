@@ -124,11 +124,15 @@ export async function seedTestFixture(
       maxSquadSize?: number;
     }>;
     playersPerTeam?: number;
+    matchDates?: Record<string, Date>;
     rotationPaths?: Array<{
       from: string;
       to: string;
       role: "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD";
       cooldownRounds?: number;
+      allowDoubleLoad?: boolean;
+      minRestSpacingHours?: number;
+      maxDoubleLoadsPerPeriod?: number;
     }>;
   },
 ): Promise<TestFixtureIds> {
@@ -186,13 +190,15 @@ export async function seedTestFixture(
 
   const matchIds: Record<string, string> = {};
   const baseDate = new Date("2025-04-28T10:00:00Z");
+  const matchDates = options?.matchDates ?? {};
   for (const team of teams) {
+    const matchDate = matchDates[team.name] ?? baseDate;
     const match = await db.match.create({
       data: {
         matchRoundId: round.id,
         teamId: teamIds[team.name]!,
         opponent: `Opponent ${team.name}`,
-        startsAt: baseDate,
+        startsAt: matchDate,
         homeAway: "HOME",
         squadSize: team.targetSquadSize ?? 11,
         matchType: "FRIENDLY",
@@ -224,6 +230,9 @@ export async function seedTestFixture(
         purpose: `${rp.from} ${rp.role.toLowerCase()} to ${rp.to}`,
         active: true,
         cooldownRounds: rp.cooldownRounds ?? 0,
+        allowDoubleLoad: rp.allowDoubleLoad ?? false,
+        minRestSpacingHours: rp.minRestSpacingHours ?? null,
+        maxDoubleLoadsPerPeriod: rp.maxDoubleLoadsPerPeriod ?? null,
       },
     });
     rotationPathIds.push(created.id);

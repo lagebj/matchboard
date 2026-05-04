@@ -329,7 +329,7 @@ export async function resolveRoundSupport(
   };
 }
 
-export async function resolveBackfillAfterSupport(
+export async function resolveSquadRepair(
   matchResults: GeneratedSelection[],
   assignedPlayerIds: Set<string>,
   supportAssignments?: Array<{ playerId: string; fromTeamId: string; toTeamId: string }>,
@@ -376,7 +376,7 @@ export async function resolveBackfillAfterSupport(
     }
   }
 
-  return resolveBackfillFromSupportInner(matchResults, backfillPaths, matches, updatedAssignedIds, supportAssignments);
+  return resolveSquadRepairInner(matchResults, backfillPaths, matches, updatedAssignedIds, supportAssignments);
 }
 
 type TeamInfo = {
@@ -399,7 +399,7 @@ type MatchWithTeam = {
   team: TeamInfo;
 };
 
-async function resolveBackfillFromSupportInner(
+async function resolveSquadRepairInner(
   matchResults: GeneratedSelection[],
   backfillPaths: RotationPathRow[],
   matches: MatchWithTeam[],
@@ -415,9 +415,9 @@ async function resolveBackfillFromSupportInner(
     const result = matchResults[resultIdx]!;
     const selectedCount = result.selectedPlayers.length;
 
-    const needsBackfill = selectedCount < match.team.targetSquadSize;
+    const needsSquadRepair = selectedCount < match.team.targetSquadSize;
 
-    if (!needsBackfill) continue;
+    if (!needsSquadRepair) continue;
 
     const eligiblePathSources = backfillPaths
       .filter((p) => p.toTeamId === match.teamId)
@@ -426,15 +426,15 @@ async function resolveBackfillFromSupportInner(
     if (eligiblePathSources.length === 0) {
       if (selectedCount < (match.team.minAcceptedSquadSize ?? match.team.targetSquadSize)) {
         warnings.push({
-          code: "backfill_no_path_available",
-          message: `${match.team.name} needs backfill (${selectedCount} players, target ${match.team.targetSquadSize}) but has no configured backfill paths.`,
+          code: "squad_repair_no_path_available",
+          message: `${match.team.name} needs squad repair (${selectedCount} players, target ${match.team.targetSquadSize}) but has no configured backfill paths.`,
         });
       }
       continue;
     }
 
     const shortfall = match.team.targetSquadSize - selectedCount;
-    const maxBackfill = match.team.maxSquadSize - selectedCount;
+    const maxSquadRepair = match.team.maxSquadSize - selectedCount;
     const devPaths = await db.rotationPath.findMany({
       where: { active: true, role: "DEVELOPMENT", toTeamId: match.teamId },
       select: { fromTeamId: true },
@@ -478,7 +478,7 @@ async function resolveBackfillFromSupportInner(
     let filled = 0;
 
     for (const candidate of ownSupportPlayersMoved) {
-      if (filled >= shortfall || filled >= maxBackfill) break;
+      if (filled >= shortfall || filled >= maxSquadRepair) break;
       if (assignedPlayerIds.has(candidate.playerId)) continue;
 
       assignedPlayerIds.add(candidate.playerId);
@@ -491,7 +491,7 @@ async function resolveBackfillFromSupportInner(
         coreTeamName: candidate.coreTeamName,
         eligibility: true,
         explanations: [
-          { code: "backfill_priority_1_own_support", summary: `${candidate.playerName} was selected as backfill priority 1 for ${match.team.name}: own core team player moved as support who can play both matches.`, hardRule: false },
+          { code: "squad_repair_priority_1_own_support", summary: `${candidate.playerName} was selected as squad repair priority 1 for ${match.team.name}: own core team player sent as support who can play both matches.`, hardRule: false },
         ],
         finalSelected: false,
         manualOverride: false,
@@ -501,7 +501,7 @@ async function resolveBackfillFromSupportInner(
         playerPosition: candidate.primaryPosition,
         priorityScore: 90,
         selectionCategory: "BACKFILL",
-        selectionReason: `Selected as backfill priority 1 for ${match.team.name}: own core team player who was moved as support.`,
+        selectionReason: `Selected as squad repair priority 1 for ${match.team.name}: own core team player who was sent as support.`,
       };
 
       matchResults[resultIdx] = {
@@ -510,7 +510,7 @@ async function resolveBackfillFromSupportInner(
       };
     }
 
-    if (filled < shortfall && filled < maxBackfill) {
+    if (filled < shortfall && filled < maxSquadRepair) {
       const priority2SourceTeamIds = [...new Set([
         ...eligiblePathSources,
         ...devSourceTeamIds,
@@ -529,7 +529,7 @@ async function resolveBackfillFromSupportInner(
       });
 
       for (const candidate of devSourceCandidates) {
-        if (filled >= shortfall || filled >= maxBackfill) break;
+        if (filled >= shortfall || filled >= maxSquadRepair) break;
         if (assignedPlayerIds.has(candidate.id)) continue;
 
         assignedPlayerIds.add(candidate.id);
@@ -543,7 +543,7 @@ async function resolveBackfillFromSupportInner(
           coreTeamName: candidate.coreTeam.name,
           eligibility: true,
           explanations: [
-            { code: "backfill_priority_2_path_player", summary: `${playerName} was selected as backfill priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`, hardRule: false },
+            { code: "squad_repair_priority_2_path_player", summary: `${playerName} was selected as squad repair priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -553,7 +553,7 @@ async function resolveBackfillFromSupportInner(
           playerPosition: candidate.primaryPosition,
           priorityScore: 80,
           selectionCategory: "BACKFILL",
-          selectionReason: `Selected as backfill priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`,
+          selectionReason: `Selected as squad repair priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`,
         };
 
         matchResults[resultIdx] = {
@@ -563,7 +563,7 @@ async function resolveBackfillFromSupportInner(
       }
     }
 
-    if (filled < shortfall && filled < maxBackfill) {
+    if (filled < shortfall && filled < maxSquadRepair) {
       const otherCandidates = await db.player.findMany({
         where: {
           coreTeamId: { in: eligiblePathSources },
@@ -578,7 +578,7 @@ async function resolveBackfillFromSupportInner(
       });
 
       for (const candidate of otherCandidates) {
-        if (filled >= shortfall || filled >= maxBackfill) break;
+        if (filled >= shortfall || filled >= maxSquadRepair) break;
         if (assignedPlayerIds.has(candidate.id)) continue;
 
         assignedPlayerIds.add(candidate.id);
@@ -592,7 +592,7 @@ async function resolveBackfillFromSupportInner(
           coreTeamName: candidate.coreTeam.name,
           eligibility: true,
           explanations: [
-            { code: "backfill_priority_3_other", summary: `${playerName} was selected as backfill priority 3 for ${match.team.name}: rotatable player from another team with a configured backfill path.`, hardRule: false },
+            { code: "squad_repair_priority_3_other", summary: `${playerName} was selected as squad repair priority 3 for ${match.team.name}: rotatable player from another team with a configured backfill path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -602,7 +602,7 @@ async function resolveBackfillFromSupportInner(
           playerPosition: candidate.primaryPosition,
           priorityScore: 70,
           selectionCategory: "BACKFILL",
-          selectionReason: `Selected as backfill priority 3 for ${match.team.name}: rotatable player from configured backfill path.`,
+          selectionReason: `Selected as squad repair priority 3 for ${match.team.name}: rotatable player from configured backfill path.`,
         };
 
         matchResults[resultIdx] = {
@@ -615,13 +615,13 @@ async function resolveBackfillFromSupportInner(
     const finalCount = matchResults[resultIdx]!.selectedPlayers.length;
     if (finalCount < (match.team.minAcceptedSquadSize ?? match.team.targetSquadSize)) {
       warnings.push({
-        code: "backfill_shortfall_after_resolution",
-        message: `${match.team.name} has only ${finalCount} player(s) after backfill resolution, below the minimum accepted squad size of ${match.team.minAcceptedSquadSize ?? match.team.targetSquadSize}.`,
+        code: "squad_repair_shortfall_after_resolution",
+        message: `${match.team.name} has only ${finalCount} player(s) after squad repair, below the minimum accepted squad size of ${match.team.minAcceptedSquadSize ?? match.team.targetSquadSize}.`,
       });
     } else if (filled > 0 && filled < shortfall) {
       warnings.push({
-        code: "backfill_below_target",
-        message: `${match.team.name} reached ${finalCount} player(s) after backfill, below the target of ${match.team.targetSquadSize} but above the minimum.`,
+        code: "squad_repair_below_target",
+        message: `${match.team.name} reached ${finalCount} player(s) after squad repair, below the target of ${match.team.targetSquadSize} but above the minimum.`,
       });
     }
   }

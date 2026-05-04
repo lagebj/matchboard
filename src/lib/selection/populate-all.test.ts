@@ -26,8 +26,8 @@ describe("Warning severity mapping", () => {
     expect(mapWarningSeverity("support_requirement_shortfall")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
   });
 
-  it("maps backfill_shortfall_after_resolution to REQUIRES_OVERRIDE", () => {
-    expect(mapWarningSeverity("backfill_shortfall_after_resolution")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
+  it("maps squad_repair_shortfall_after_resolution to REQUIRES_OVERRIDE", () => {
+    expect(mapWarningSeverity("squad_repair_shortfall_after_resolution")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
   });
 
   it("maps short_squad to WARNING", () => {

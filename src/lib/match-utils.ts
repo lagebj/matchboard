@@ -13,7 +13,9 @@ export function formatSelectionRole(role: SelectionRole): string {
     case "DEVELOPMENT":
       return "Development";
     case "BACKFILL":
-      return "Backfill";
+      return "Squad Repair";
+    case "DOUBLE_LOAD":
+      return "Controlled Double-Load";
     case "CONFIDENCE_REBUILD":
       return "Confidence Rebuild";
     case "CORE_MATCH_DROP":
@@ -30,6 +32,7 @@ export function isFloatingSelectionRole(role: SelectionRole): boolean {
     role === "SUPPORT" ||
     role === "DEVELOPMENT" ||
     role === "BACKFILL" ||
+    role === "DOUBLE_LOAD" ||
     role === "CONFIDENCE_REBUILD" ||
     role === "CORE_MATCH_DROP" ||
     role === "REDUCED_MATCH_LOAD_DROP"

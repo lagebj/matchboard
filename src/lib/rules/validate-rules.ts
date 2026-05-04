@@ -106,7 +106,7 @@ export function validateTeamConfiguration(
       warnings.push({
         code: "backfill_cycle_detected",
         field: "rotationPaths",
-        message: `Backfill configuration creates a potential cycle involving team ${team.id}. The engine will stop if a team would appear twice in the same backfill chain.`,
+        message: `Squad repair configuration creates a potential cycle involving team ${team.id}. The engine will stop if a team would appear twice in the same squad repair chain.`,
         severity: "warning",
       });
     }

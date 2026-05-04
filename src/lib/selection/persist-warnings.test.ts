@@ -11,7 +11,7 @@ describe("mapWarningSeverity", () => {
 
   it("maps requires override codes correctly", () => {
     expect(mapWarningSeverity("support_requirement_shortfall")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
-    expect(mapWarningSeverity("backfill_shortfall_after_resolution")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
+    expect(mapWarningSeverity("squad_repair_shortfall_after_resolution")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
     expect(mapWarningSeverity("repair_requires_override")).toBe(WarningSeverity.REQUIRES_OVERRIDE);
   });
 

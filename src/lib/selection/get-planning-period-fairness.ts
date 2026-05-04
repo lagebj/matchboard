@@ -29,7 +29,7 @@ function isCoreRole(role: SelectionRole): boolean {
 }
 
 function isSupportRole(role: SelectionRole): boolean {
-  return role === SelectionRole.SUPPORT || role === SelectionRole.BACKFILL;
+  return role === SelectionRole.SUPPORT || role === SelectionRole.BACKFILL || role === SelectionRole.DOUBLE_LOAD;
 }
 
 function isDevelopmentRole(role: SelectionRole): boolean {

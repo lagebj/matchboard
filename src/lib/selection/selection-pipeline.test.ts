@@ -82,7 +82,7 @@ describe("Self-backfill re-includes own excluded core players", () => {
     expect(bigTeamResult).toBeDefined();
 
     const selfBackfillPlayers = bigTeamResult!.selectedPlayers.filter(
-      (p) => p.explanations.some((e) => e.code === "self_backfill"),
+      (p) => p.explanations.some((e) => e.code === "self_squad_repair"),
     );
 
     for (const player of selfBackfillPlayers) {
@@ -105,7 +105,7 @@ describe("Self-backfill re-includes own excluded core players", () => {
 
     for (const matchResult of result.matchResults) {
       for (const player of matchResult.selectedPlayers) {
-        if (player.explanations.some((e) => e.code === "self_backfill")) {
+        if (player.explanations.some((e) => e.code === "self_squad_repair")) {
           expect(assignedElsewhere.has(player.playerId)).toBe(false);
         }
       }
@@ -113,7 +113,7 @@ describe("Self-backfill re-includes own excluded core players", () => {
   });
 });
 
-describe("Pipeline order: support before routing before self-backfill", () => {
+describe("Pipeline order: support before routing before self-squad-repair", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixtureIds = await seedTestFixture(testDb, {

@@ -16,7 +16,7 @@ type MovementChainProps = {
 
 const roleConfig: Record<string, { icon: typeof ArrowRight; label: string; className: string }> = {
   SUPPORT: { icon: ShieldCheck, label: "Support", className: "text-emerald-400" },
-  BACKFILL: { icon: ArrowLeftRight, label: "Backfill", className: "text-sky-400" },
+  BACKFILL: { icon: ArrowLeftRight, label: "Squad repair", className: "text-sky-400" },
   DEVELOPMENT: { icon: TrendingUp, label: "Development", className: "text-amber-400" },
 };
 
@@ -52,7 +52,7 @@ export function MovementChain({ movements }: MovementChainProps) {
                 )}
                 {m.backfillResult && (
                   <span className="text-xs text-[var(--text-muted)]">
-                    Backfill: {m.backfillResult}
+                    Squad repair: {m.backfillResult}
                   </span>
                 )}
                 {m.warningState === "unresolved" && (

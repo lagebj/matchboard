@@ -154,7 +154,7 @@ function formatRoleLabel(role: string): string {
     case "DEVELOPMENT":
       return "Development movement";
     case "BACKFILL":
-      return "Received backfill";
+      return "Received squad repair";
     case "CONFIDENCE_REBUILD":
       return "Confidence rebuild";
     case "CORE_MATCH_DROP":
@@ -416,7 +416,7 @@ function CurrentRoundTab({
       <div className="flex flex-col gap-6">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Received support / backfill / development
+            Received support / squad repair / development
           </p>
           <div className="mt-2 flex flex-col gap-1.5">
             {receivedPlayers.length > 0 ? receivedPlayers.map((p) => (
@@ -430,7 +430,7 @@ function CurrentRoundTab({
                     {p.playerName}
                   </span>
                   <span className="shrink-0 text-[10px] app-copy-muted">
-                    {p.role === "SUPPORT" ? "Support" : p.role === "BACKFILL" ? "Backfill" : p.role === "DEVELOPMENT" ? "Development" : p.role} · from {p.sourceTeamName}
+                    {p.role === "SUPPORT" ? "Support" : p.role === "BACKFILL" ? "Squad repair" : p.role === "DEVELOPMENT" ? "Development" : p.role} · from {p.sourceTeamName}
                   </span>
                 </div>
                 {p.explanation && (
@@ -559,7 +559,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
             <span>{round.coreCount} core</span>
             {round.supportSentCount > 0 && <span>{round.supportSentCount} sent as support</span>}
             {round.supportReceivedCount > 0 && <span>{round.supportReceivedCount} received support</span>}
-            {round.backfillReceivedCount > 0 && <span>{round.backfillReceivedCount} received backfill</span>}
+            {round.backfillReceivedCount > 0 && <span>{round.backfillReceivedCount} received squad repair</span>}
             {round.developmentReceivedCount > 0 && <span>{round.developmentReceivedCount} received development</span>}
           </div>
         </Link>

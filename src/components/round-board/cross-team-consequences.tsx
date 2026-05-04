@@ -52,7 +52,7 @@ export function CrossTeamConsequences({
             Cross-team consequences
           </p>
           <p className="mt-2 text-sm app-copy-soft">
-            Players moving between teams affect squad counts and backfill needs across the round.
+            Players moving between teams affect squad counts and squad repair needs across the round.
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--warning)]">
@@ -97,14 +97,14 @@ export function CrossTeamConsequences({
       {backfillNeeds.filter((b) => b.needsBackfill).length > 0 && (
         <div className="mt-3 rounded-xl border border-[rgba(185,128,119,0.18)] bg-[rgba(185,128,119,0.06)] px-3 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--danger)]">
-            Backfill needed
+            Squad repair needed
           </p>
           <div className="mt-2 flex flex-col gap-1.5">
             {backfillNeeds
               .filter((b) => b.needsBackfill)
               .map((b) => (
                 <p key={b.teamId} className="text-sm app-copy-soft">
-                  {b.teamName} donated {b.donatedPlayerCount} player{b.donatedPlayerCount !== 1 ? "s" : ""} and received {b.backfillReceivedCount} backfill — net deficit needs attention.
+                   {b.teamName} donated {b.donatedPlayerCount} player{b.donatedPlayerCount !== 1 ? "s" : ""} and received {b.backfillReceivedCount} squad repair — net deficit needs attention.
                 </p>
               ))}
           </div>

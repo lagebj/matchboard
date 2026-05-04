@@ -10,17 +10,18 @@ const HARD_BLOCK_CODES = new Set([
 
 const REQUIRES_OVERRIDE_CODES = new Set([
   "support_requirement_shortfall",
-  "backfill_shortfall_after_resolution",
+  "squad_repair_shortfall_after_resolution",
+  "squad_below_minimum",
   "repair_requires_override",
   "repair_below_minimum",
-  "backfill_no_path_available",
+  "squad_repair_no_path_available",
   "round_player_conflict_removed",
 ]);
 
 const WARNING_CODES = new Set([
   "support_shortfall_after_resolution",
   "support_below_target",
-  "backfill_below_target",
+  "squad_repair_below_target",
   "short_squad",
   "core_player_unselected",
   "support_avoid_suitability",
@@ -30,6 +31,8 @@ const WARNING_CODES = new Set([
   "position_mismatch",
   "repair_no_replacement_target_shortfall",
   "support_target_not_reached",
+  "double_load_exceeded_max",
+  "double_load_squad_full",
 ]);
 
 const SCORING_PREFERENCE_CODES = new Set([
@@ -42,10 +45,12 @@ const SCORING_PREFERENCE_CODES = new Set([
   "core_match_drop_for_support",
   "core_match_drop_routed",
   "core_match_drop_priority",
-  "self_backfill",
-  "backfill_priority_1_own_support",
-  "backfill_priority_2_path_player",
-  "backfill_priority_3_other",
+  "self_squad_repair",
+  "squad_repair_priority_1_own_support",
+  "squad_repair_priority_2_path_player",
+  "squad_repair_priority_3_other",
+  "controlled_double_load",
+  "double_load_insufficient_rest",
   "registered_match_conflict",
   "registered_minimum_match_spacing",
   "round_player_conflict",

@@ -100,16 +100,16 @@ export function buildAssistantAdvice(
       const backfillNames = backfillSels.map((s) => formatPlayerName(s.player)).join(", ");
       const affectedSourceTeams = new Set(supportSels.map((s) => s.player.coreTeam.name));
       const chain = [...affectedSourceTeams].length > 0
-        ? `Backfill needed because ${[...affectedSourceTeams].join(", ")} player${supportSels.length === 1 ? "" : "s"} moved to support.`
-        : "Backfill positions exist in the selection.";
+        ? `Squad repair needed because ${[...affectedSourceTeams].join(", ")} player${supportSels.length === 1 ? "" : "s"} moved to support.`
+        : "Squad repair positions exist in the selection.";
 
       cards.push({
         category: "backfill_chain",
-        title: `${backfillSels.length} backfill position${backfillSels.length === 1 ? "" : "s"} in this round`,
-        recommendation: `${backfillNames} should fill backfill slots. ${chain}`,
-        risk: "Backfill players may not have the same position fit or experience level as the original core player.",
-        alternative: "Check if reducing support count avoids the backfill chain entirely.",
-        consequence: "Source teams drop below minimum core depth if backfill is not resolved.",
+        title: `${backfillSels.length} squad repair position${backfillSels.length === 1 ? "" : "s"} in this round`,
+        recommendation: `${backfillNames} should fill squad repair slots. ${chain}`,
+        risk: "Squad repair players may not have the same position fit or experience level as the original core player.",
+        alternative: "Check if reducing support count avoids the squad repair chain entirely.",
+        consequence: "Source teams drop below minimum core depth if squad repair is not resolved.",
         severity: "warning",
         actionHref: `/matches`,
       });
@@ -186,7 +186,7 @@ export function buildAssistantAdvice(
     if (!presentCategories.has(cat)) {
       const label =
         cat === "support_plan" ? "Support plan" :
-        cat === "backfill_chain" ? "Backfill chain" :
+        cat === "backfill_chain" ? "Squad repair chain" :
         cat === "development_exposure" ? "Development exposure" :
         cat === "player_load" ? "Player load" :
         cat === "decisions_needed" ? "Decisions needed" :

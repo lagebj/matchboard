@@ -14,7 +14,7 @@ export type PlayerRecord = Player & {
 };
 
 export type MatchRecord = Pick<Match, "id" | "startsAt" | "teamId"> & {
-  team: Pick<Team, "developmentSlots" | "id" | "maxSquadSize" | "maxSupportCount" | "minCorePlayers" | "minSupportPlayers" | "name" | "targetSupportCount"> & {
+  team: Pick<Team, "developmentSlots" | "id" | "maxSquadSize" | "maxSupportCount" | "minAcceptedSquadSize" | "minCorePlayers" | "minSupportPlayers" | "name" | "targetSupportCount"> & {
     supportPriority: number;
   };
   developmentSlots: number;
@@ -38,7 +38,7 @@ export type EvaluatedPlayer = {
   playerPosition: string;
 };
 
-export type RotationCandidateCategory = "DEVELOPMENT" | "SUPPORT" | "BACKFILL" | "CONFIDENCE_REBUILD";
+export type RotationCandidateCategory = "DEVELOPMENT" | "SUPPORT" | "BACKFILL" | "DOUBLE_LOAD" | "CONFIDENCE_REBUILD";
 
 export type EligibleRotationPlayer = EvaluatedPlayer & {
   candidateCategory: RotationCandidateCategory;
