@@ -144,7 +144,7 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
+      <div className="overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
         <table className="w-full min-w-[1440px] border-collapse text-left text-sm">
           <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
             <tr>

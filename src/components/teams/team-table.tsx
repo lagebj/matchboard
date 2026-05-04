@@ -222,7 +222,7 @@ export function TeamTable({
                         ) : (
                           <p className="text-sm text-zinc-500">None</p>
                         )}
-                        <a href="/rules" className="text-xs text-[var(--accent-strong)] hover:underline">Edit rotation paths →</a>
+                        <a href={`/teams/${team.id}`} className="text-xs text-[var(--accent-strong)] hover:underline">Edit rotation paths →</a>
                       </div>
                     </div>
                   </td>
@@ -248,7 +248,7 @@ export function TeamTable({
                       ) : (
                         <p className="text-sm text-zinc-500">None</p>
                       )}
-                      <a href="/rules" className="text-xs text-[var(--accent-strong)] hover:underline">Edit rotation paths →</a>
+                      <a href={`/teams/${team.id}`} className="text-xs text-[var(--accent-strong)] hover:underline">Edit rotation paths →</a>
                     </div>
                   </td>
                   <td className="px-4 py-3">

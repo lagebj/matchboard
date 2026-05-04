@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatPlayerName } from "@/lib/player-metrics";
+import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
+import { RotationPathCard } from "@/components/rules/rotation-path-card";
 
 function formatAvailability(status: string): string {
   switch (status) {
@@ -71,11 +73,21 @@ type RoundWarning = {
 type RotationPathSummary = {
   id: string;
   role: string;
-  partnerTeamName: string;
-  partnerTeamId: string;
+  direction: "outgoing" | "incoming";
+  fromTeamId: string;
+  fromTeamName: string;
+  toTeamId: string;
+  toTeamName: string;
   purpose: string | null;
   priority: number | null;
+  minimumCount: number | null;
+  targetCount: number | null;
+  maximumCount: number | null;
+  cooldownRounds: number | null;
   active: boolean;
+  allowDoubleLoad: boolean;
+  minRestSpacingHours: number | null;
+  maxDoubleLoadsPerPeriod: number | null;
 };
 
 type TeamDetailData = {
@@ -131,6 +143,7 @@ type TeamDetailData = {
   movementHistory: MovementEntry[];
   finalizedRounds: HistoryRound[];
   rotationPaths: RotationPathSummary[];
+  teamOptions: Array<{ id: string; name: string }>;
   previousTeamId: string | null;
   nextTeamId: string | null;
 };
@@ -568,68 +581,69 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
   );
 }
 
-function RulesTab({ rotationPaths, teamId: _teamId }: { rotationPaths: RotationPathSummary[]; teamId: string }) {
-  if (rotationPaths.length === 0) {
-    return (
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-          <p className="text-sm app-copy-soft">No rotation paths configured for this team.</p>
-        </div>
-        <div>
-          <Link
-            className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-            href="/rules"
-          >
-            View Rules page
-          </Link>
-        </div>
-      </div>
-    );
-  }
+function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: RotationPathSummary[]; teamId: string; teamOptions: Array<{ id: string; name: string }> }) {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const outgoingPaths = rotationPaths.filter((p) => p.direction === "outgoing");
+  const incomingPaths = rotationPaths.filter((p) => p.direction === "incoming");
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
           Rotation paths
         </p>
-        <div className="mt-2 flex flex-col gap-1.5">
-          {rotationPaths.map((path) => (
-            <Link
-              key={path.id}
-              className="group/path rounded-xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
-              href={`/teams/${path.partnerTeamId}`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium text-zinc-100 group-hover/path:text-[var(--accent-strong)]">
-                  {path.partnerTeamName}
-                </span>
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] ${path.role === "SUPPORT" ? "border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] text-[#c0a0db]" : path.role === "DEVELOPMENT" ? "border-[rgba(140,167,146,0.24)] bg-[rgba(140,167,146,0.08)] text-[var(--accent-strong)]" : "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] text-[var(--warning)]"}`}>
-                  {path.role}
-                </span>
-              </div>
-              {path.purpose && (
-                <p className="mt-1 text-xs app-copy-muted">{path.purpose}</p>
-              )}
-              {path.priority != null && (
-                <p className="mt-1 text-[10px] app-copy-muted">Priority: {path.priority}</p>
-              )}
-              {!path.active && (
-                <span className="mt-1 inline-block rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[#f0cbc5]">
-                  Inactive
-                </span>
-              )}
-            </Link>
-          ))}
-        </div>
+        <button
+          className="h-8 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          type="button"
+        >
+          {showCreateForm ? "Cancel" : "Add path"}
+        </button>
       </div>
 
-      <div className="flex flex-col gap-3">
+      {showCreateForm && (
+        <section className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+          <h3 className="text-sm font-semibold text-zinc-100">Create rotation path</h3>
+          <p className="mt-1 mb-4 text-xs app-copy-soft">Define which teams can send or receive players and in which role.</p>
+          <RotationPathCreateForm teams={teamOptions} defaultToTeamId={teamId} />
+        </section>
+      )}
+
+      {outgoingPaths.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] app-copy-muted">Outgoing</p>
+          <div className="flex flex-col gap-1.5">
+            {outgoingPaths.map((path) => (
+              <RotationPathCard key={path.id} path={path} teamId={teamId} direction="outgoing" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {incomingPaths.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] app-copy-muted">Incoming</p>
+          <div className="flex flex-col gap-1.5">
+            {incomingPaths.map((path) => (
+              <RotationPathCard key={path.id} path={path} teamId={teamId} direction="incoming" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rotationPaths.length === 0 && !showCreateForm && (
+        <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+          <p className="text-sm app-copy-soft">No rotation paths configured for this team. Add a path to enable support, development, or squad repair movement.</p>
+        </div>
+      )}
+
+      <div>
         <Link
           className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
           href="/rules"
         >
-          View and edit rules on the Rules page
+          View global rules
         </Link>
       </div>
     </div>
@@ -762,7 +776,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
         )}
         {activeTab === "movement" && <MovementTab movementHistory={data.movementHistory} />}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}
-        {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} />}
+        {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} teamOptions={data.teamOptions} />}
       </section>
     </div>
   );

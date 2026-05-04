@@ -2,8 +2,11 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { RulesForm } from "@/components/rules/rules-form";
+import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
+import { RotationPathCard } from "@/components/rules/rotation-path-card";
 import { getRules } from "@/lib/rules/get-rules";
 import { validateRuleConfig } from "@/lib/rules/validate-rules";
+import { db } from "@/lib/db";
 
 type RulesPageProps = {
   searchParams: Promise<{
@@ -17,6 +20,44 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
   const rules = await getRules();
   const { error, imported, saved } = await searchParams;
   const validation = validateRuleConfig(rules);
+
+  const [rotationPaths, teams] = await Promise.all([
+    db.rotationPath.findMany({
+      where: { active: true },
+      include: {
+        fromTeam: { select: { id: true, name: true } },
+        toTeam: { select: { id: true, name: true } },
+      },
+      orderBy: [{ priority: "asc" }],
+    }),
+    db.team.findMany({
+      where: { archivedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const rotationPathItems = rotationPaths.map((p) => ({
+    id: p.id,
+    role: p.role,
+    direction: "outgoing" as const,
+    fromTeamId: p.fromTeam.id,
+    fromTeamName: p.fromTeam.name,
+    toTeamId: p.toTeam.id,
+    toTeamName: p.toTeam.name,
+    purpose: p.purpose,
+    priority: p.priority,
+    minimumCount: p.minimumCount,
+    targetCount: p.targetCount,
+    maximumCount: p.maximumCount,
+    cooldownRounds: p.cooldownRounds,
+    active: p.active,
+    allowDoubleLoad: p.allowDoubleLoad,
+    minRestSpacingHours: p.minRestSpacingHours,
+    maxDoubleLoadsPerPeriod: p.maxDoubleLoadsPerPeriod,
+  }));
+
+  const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
 
   const hardLimitCards = [
     {
@@ -178,6 +219,39 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
             ))}
           </div>
         </section>
+      </section>
+
+      <section className="app-panel rounded-[1.75rem] p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Rotation paths
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Movement eligibility between teams</h2>
+            <p className="mt-1 text-sm app-copy-soft">A player may only be selected outside their core team when an active rotation path exists for the exact role.</p>
+          </div>
+        </div>
+
+        {rotationPathItems.length > 0 ? (
+          <div className="mt-4 grid gap-1.5">
+            {rotationPathItems.map((path) => (
+              <RotationPathCard key={path.id} path={path} teamId={path.fromTeamId} direction="outgoing" />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+            <p className="text-sm app-copy-soft">No rotation paths configured. Add paths to enable support, development, or squad repair movement between teams.</p>
+          </div>
+        )}
+
+        <details className="mt-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)]">
+          <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-zinc-100 hover:bg-[rgba(255,255,255,0.04)]">
+            Add rotation path
+          </summary>
+          <div className="px-5 pb-5">
+            <RotationPathCreateForm teams={teamOptions} />
+          </div>
+        </details>
       </section>
 
       <div className="flex flex-col gap-3">
