@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { clearAllDraftsAction, populateAllAction, generateRoundAction } from "./actions";
+import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction } from "./actions";
 
 type RoundListItem = {
   id: string;
@@ -57,6 +57,7 @@ const statusConfig: Record<RoundListItem["derivedStatus"], { label: string; bord
 export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [regroupResult, setRegroupResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const filtered = filterRounds(rounds, filter);
 
@@ -77,6 +78,20 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
           </button>
         ))}
         <div className="ml-auto flex gap-2">
+          {roundCount > 0 && (
+            <button
+              className="rounded-full border app-hairline px-3 py-1.5 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50 transition"
+              disabled={isPending}
+              onClick={() => {
+                startTransition(async () => {
+                  const result = await regroupRoundsAction();
+                  if (result.result) setRegroupResult(result.result);
+                });
+              }}
+            >
+              Regroup rounds
+            </button>
+          )}
           {hasNotGeneratedRounds && activePlanningPeriodId && (
             <button
               className="rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 py-1.5 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition"
@@ -102,6 +117,19 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
           )}
         </div>
       </div>
+
+      {regroupResult && (
+        <div className="mt-2 rounded-lg border border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
+          {regroupResult}
+          <button
+            className="ml-3 underline hover:text-white"
+            onClick={() => setRegroupResult(null)}
+            type="button"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="mt-4 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">

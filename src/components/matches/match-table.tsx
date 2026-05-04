@@ -11,6 +11,7 @@ type MatchRow = {
   homeAway: string;
   matchType: string;
   gameFormat: string;
+  matchRoundId: string;
   matchRoundName: string | null;
   matchRoundStatus: string | null;
 };
@@ -100,13 +101,29 @@ export function MatchTable({ matches }: { matches: MatchRow[] }) {
               key={m.id}
               className="group border-b border-[var(--border-soft)] transition-colors hover:bg-[rgba(255,255,255,0.03)]"
             >
-              <td className="px-3 py-2.5 text-zinc-100">{formatDate(m.startsAt)}</td>
+              <td className="px-3 py-2.5">
+                <Link href={`/matches/${m.id}`} className="text-zinc-100 hover:underline">
+                  {formatDate(m.startsAt)}
+                </Link>
+              </td>
               <td className="px-3 py-2.5 text-zinc-100">{m.teamName}</td>
-              <td className="px-3 py-2.5 text-zinc-100">{m.opponent}</td>
+              <td className="px-3 py-2.5">
+                <Link href={`/matches/${m.id}`} className="text-zinc-100 hover:underline">
+                  {m.opponent}
+                </Link>
+              </td>
               <td className="px-3 py-2.5 text-zinc-100">{formatVenue(m.homeAway)}</td>
               <td className="px-3 py-2.5 text-zinc-100">{formatMatchType(m.matchType)}</td>
               <td className="px-3 py-2.5 text-zinc-100">{formatGameFormat(m.gameFormat)}</td>
-              <td className="px-3 py-2.5 text-zinc-100">{m.matchRoundName ?? "—"}</td>
+              <td className="px-3 py-2.5 text-zinc-100">
+                {m.matchRoundName ? (
+                  <Link href={`/rounds/${m.matchRoundId}`} className="text-[var(--accent-strong)] hover:underline">
+                    {m.matchRoundName}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </td>
               <td className={`px-3 py-2.5 ${statusColor(m.matchRoundStatus)}`}>
                 {formatStatus(m.matchRoundStatus)}
               </td>

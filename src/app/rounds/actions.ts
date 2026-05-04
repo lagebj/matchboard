@@ -80,3 +80,19 @@ export async function populateAllAction(prevState: { error: string }, formData: 
     return { error: error instanceof Error ? error.message : "Populate all failed." };
   }
 }
+
+export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
+  try {
+    const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
+    const result = await regroupMatchesIntoIsoWeekRounds();
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+    revalidatePath("/matches");
+
+    const summary = `Merged ${result.roundsMerged} week groups, moved ${result.matchesMoved} matches, removed ${result.roundsRemoved} duplicate rounds. All rounds now use ISO week grouping.`;
+    return { error: "", result: summary };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Regroup failed." };
+  }
+}

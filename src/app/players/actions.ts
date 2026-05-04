@@ -406,3 +406,32 @@ export async function removePlayerAction(playerId: string) {
     }),
   );
 }
+
+export async function setPlayerAvailabilityAction(formData: FormData) {
+  const playerId = formData.get("playerId");
+  const availability = formData.get("availability");
+
+  if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
+  if (typeof availability !== "string" || !availability) throw new Error("Availability is required.");
+
+  const validStatuses: AvailabilityStatus[] = ["AVAILABLE", "INJURED", "SICK", "AWAY", "TENTATIVE", "UNKNOWN"];
+  if (!validStatuses.includes(availability as AvailabilityStatus)) {
+    throw new Error(`Invalid availability status: ${availability}`);
+  }
+
+  const player = await db.player.findFirst({
+    where: { id: playerId, removedAt: null },
+    select: { id: true },
+  });
+
+  if (!player) throw new Error("Player not found.");
+
+  await db.player.update({
+    where: { id: player.id },
+    data: { currentAvailability: availability as AvailabilityStatus },
+  });
+
+  revalidatePath("/players");
+  revalidatePath(`/players/${playerId}`);
+  revalidatePath("/rounds");
+}
