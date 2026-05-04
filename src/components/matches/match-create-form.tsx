@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { createMatchAction } from "@/app/matches/actions";
 
 function SubmitButton() {
@@ -23,7 +24,7 @@ export function MatchCreateForm({
 }: {
   teams: { id: string; name: string }[];
 }) {
-  const [state, formAction] = useFormState(createMatchAction, INITIAL_STATE);
+  const [state, formAction] = useActionState(createMatchAction, INITIAL_STATE);
   const today = new Date().toISOString().split("T")[0];
 
   if (teams.length === 0) {
