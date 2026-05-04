@@ -229,6 +229,72 @@ describe("Setup registry: create match action assigns match to round by date", (
     const result = await createMatchAction({ error: "" }, formData);
     expect(result.error).toContain("Game format");
   });
+
+  it("assigns matches in the same ISO week to the same round", async () => {
+    const team = await testDb.team.findFirst({ where: { name: "Rovers" } });
+
+    const formData1 = new FormData();
+    formData1.set("teamId", team!.id);
+    formData1.set("opponent", "Week Same A");
+    formData1.set("startsAt", "2026-06-15");
+    formData1.set("homeAway", "HOME");
+    formData1.set("matchType", "FRIENDLY");
+    formData1.set("gameFormat", "ELEVEN_A_SIDE");
+
+    const { createMatchAction } = await import("@/app/matches/actions");
+
+    try { await createMatchAction({ error: "" }, formData1); } catch (error: unknown) { if (!isRedirectError(error)) throw error; }
+
+    const formData2 = new FormData();
+    formData2.set("teamId", team!.id);
+    formData2.set("opponent", "Week Same B");
+    formData2.set("startsAt", "2026-06-17");
+    formData2.set("homeAway", "AWAY");
+    formData2.set("matchType", "LEAGUE");
+    formData2.set("gameFormat", "ELEVEN_A_SIDE");
+
+    try { await createMatchAction({ error: "" }, formData2); } catch (error: unknown) { if (!isRedirectError(error)) throw error; }
+
+    const matchA = await testDb.match.findFirst({ where: { opponent: "Week Same A" }, include: { matchRound: true } });
+    const matchB = await testDb.match.findFirst({ where: { opponent: "Week Same B" }, include: { matchRound: true } });
+
+    expect(matchA).not.toBeNull();
+    expect(matchB).not.toBeNull();
+    expect(matchA!.matchRoundId).toBe(matchB!.matchRoundId);
+  });
+
+  it("assigns matches in different ISO weeks to different rounds", async () => {
+    const team = await testDb.team.findFirst({ where: { name: "Rovers" } });
+
+    const formData1 = new FormData();
+    formData1.set("teamId", team!.id);
+    formData1.set("opponent", "Week Diff A");
+    formData1.set("startsAt", "2026-06-15");
+    formData1.set("homeAway", "HOME");
+    formData1.set("matchType", "FRIENDLY");
+    formData1.set("gameFormat", "ELEVEN_A_SIDE");
+
+    const { createMatchAction } = await import("@/app/matches/actions");
+
+    try { await createMatchAction({ error: "" }, formData1); } catch (error: unknown) { if (!isRedirectError(error)) throw error; }
+
+    const formData2 = new FormData();
+    formData2.set("teamId", team!.id);
+    formData2.set("opponent", "Week Diff B");
+    formData2.set("startsAt", "2026-06-22");
+    formData2.set("homeAway", "AWAY");
+    formData2.set("matchType", "LEAGUE");
+    formData2.set("gameFormat", "ELEVEN_A_SIDE");
+
+    try { await createMatchAction({ error: "" }, formData2); } catch (error: unknown) { if (!isRedirectError(error)) throw error; }
+
+    const matchA = await testDb.match.findFirst({ where: { opponent: "Week Diff A" }, include: { matchRound: true } });
+    const matchB = await testDb.match.findFirst({ where: { opponent: "Week Diff B" }, include: { matchRound: true } });
+
+    expect(matchA).not.toBeNull();
+    expect(matchB).not.toBeNull();
+    expect(matchA!.matchRoundId).not.toBe(matchB!.matchRoundId);
+  });
 });
 
 describe("Setup registry: Today page next-action reflects setup state", () => {

@@ -89,6 +89,8 @@ export default async function RoundsPage() {
           rounds={roundItems}
           activePlanningPeriodId={activePlanningPeriod?.id ?? null}
           hasDraftRounds={roundItems.some((r) => r.derivedStatus === "DRAFT" || r.derivedStatus === "BLOCKED" || r.derivedStatus === "READY")}
+          hasNotGeneratedRounds={roundItems.some((r) => r.derivedStatus === "NOT_GENERATED")}
+          roundCount={roundItems.length}
         />
       </section>
     </main>
