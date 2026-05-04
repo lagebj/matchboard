@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -68,30 +69,29 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     });
     if (!team) throw new Error("Team not found.");
 
-    const startsAtDate = new Date(startsAt);
-    startsAtDate.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(startsAtDate);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekKey = formatIsoWeekKey(startsAt);
+    const weekLabel = formatIsoWeekLabel(startsAt);
+    const { startsAt: weekStart, endsAt: weekEnd } = getWeekRange(startsAt);
 
     let matchRound = await db.matchRound.findFirst({
       where: {
+        name: { startsWith: weekLabel },
         matches: {
           some: {
             startsAt: {
-              gte: startsAtDate,
-              lt: weekEnd,
+              gte: weekStart,
+              lte: weekEnd,
             },
           },
         },
       },
-      orderBy: { createdAt: "desc" },
     });
 
     if (!matchRound) {
       const activePlanningPeriod = await db.planningPeriod.findFirst({
         where: {
-          startDate: { lte: startsAtDate },
-          endDate: { gte: startsAtDate },
+          startDate: { lte: weekEnd },
+          endDate: { gte: weekStart },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -101,47 +101,42 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
           orderBy: { createdAt: "desc" },
         });
 
+        const periodData = {
+          name: startsAt.toLocaleString("default", { month: "long", year: "numeric" }),
+          startDate: weekStart,
+          endDate: new Date(weekStart.getUTCFullYear(), weekStart.getUTCMonth() + 3, 0),
+        };
+
         if (!season) {
           const created = await db.season.create({
-            data: { name: `${startsAtDate.getFullYear()} Season` },
+            data: { name: `${startsAt.getUTCFullYear()} Season` },
           });
           const period = await db.planningPeriod.create({
-            data: {
-              name: startsAtDate.toLocaleString("default", { month: "long", year: "numeric" }),
-              seasonId: created.id,
-              startDate: startsAtDate,
-              endDate: new Date(startsAtDate.getFullYear(), startsAtDate.getMonth() + 3, 0),
-            },
+            data: { ...periodData, seasonId: created.id },
           });
           matchRound = await db.matchRound.create({
             data: {
-              name: `Round ${startsAtDate.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
+              name: weekLabel,
               planningPeriodId: period.id,
               status: "NOT_GENERATED",
             },
           });
         } else {
           const period = await db.planningPeriod.create({
-            data: {
-              name: startsAtDate.toLocaleString("default", { month: "long", year: "numeric" }),
-              seasonId: season.id,
-              startDate: startsAtDate,
-              endDate: new Date(startsAtDate.getFullYear(), startsAtDate.getMonth() + 3, 0),
-            },
+            data: { ...periodData, seasonId: season.id },
           });
           matchRound = await db.matchRound.create({
             data: {
-              name: `Round ${startsAtDate.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
+              name: weekLabel,
               planningPeriodId: period.id,
               status: "NOT_GENERATED",
             },
           });
         }
       } else {
-        const roundName = `Round ${startsAtDate.toLocaleDateString("default", { month: "short", day: "numeric" })}`;
         matchRound = await db.matchRound.create({
           data: {
-            name: roundName,
+            name: weekLabel,
             planningPeriodId: activePlanningPeriod.id,
             status: "NOT_GENERATED",
           },

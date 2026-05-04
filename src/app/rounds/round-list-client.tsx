@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { clearAllDraftsAction } from "./actions";
+import { clearAllDraftsAction, populateAllAction, generateRoundAction } from "./actions";
 
 type RoundListItem = {
   id: string;
@@ -19,6 +19,8 @@ type RoundListClientProps = {
   rounds: RoundListItem[];
   activePlanningPeriodId: string | null;
   hasDraftRounds: boolean;
+  hasNotGeneratedRounds: boolean;
+  roundCount: number;
 };
 
 const filterConfig: Array<{ key: FilterState; label: string }> = [
@@ -52,7 +54,7 @@ const statusConfig: Record<RoundListItem["derivedStatus"], { label: string; bord
   FINALIZED: { label: "Finalized", border: "border-[rgba(140,167,146,0.28)]", bg: "bg-[rgba(140,167,146,0.12)]", text: "text-[var(--accent-strong)]" },
 };
 
-export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds }: RoundListClientProps) {
+export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -74,14 +76,31 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
             {f.label}
           </button>
         ))}
-        {hasDraftRounds && activePlanningPeriodId && (
-          <button
-            className="ml-auto rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
-            onClick={() => setShowClearAllDialog(true)}
-          >
-            Clear all drafts
-          </button>
-        )}
+        <div className="ml-auto flex gap-2">
+          {hasNotGeneratedRounds && activePlanningPeriodId && (
+            <button
+              className="rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 py-1.5 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition"
+              disabled={isPending}
+              onClick={() => {
+                startTransition(async () => {
+                  const fd = new FormData();
+                  fd.set("planningPeriodId", activePlanningPeriodId);
+                  await populateAllAction({ error: "" }, fd);
+                });
+              }}
+            >
+              {isPending ? "Generating..." : "Populate all rounds"}
+            </button>
+          )}
+          {hasDraftRounds && activePlanningPeriodId && (
+            <button
+              className="rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
+              onClick={() => setShowClearAllDialog(true)}
+            >
+              Clear all drafts
+            </button>
+          )}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -95,29 +114,51 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
           {filtered.map((round) => {
             const config = statusConfig[round.derivedStatus];
             return (
-              <Link
+              <div
                 key={round.id}
-                className={`rounded-[1.5rem] border p-4 hover:bg-[rgba(255,255,255,0.03)] transition-colors ${config.border}`}
+                className={`rounded-[1.5rem] border p-4 transition-colors ${config.border}`}
                 style={round.derivedStatus === "FINALIZED"
                   ? { borderColor: "rgba(140,167,146,0.26)", background: "linear-gradient(180deg,rgba(140,167,146,0.08),rgba(17,22,31,0.82))" }
                   : undefined}
-                href={`/rounds/${round.id}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-semibold text-zinc-50">{round.weekLabel}</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      {round.matchCount} match{round.matchCount !== 1 ? "es" : ""}
-                    </p>
-                    <p className="mt-2 text-xs app-copy-muted">
-                      {round.teamNames.join(" · ")}
-                    </p>
+                <Link
+                  href={`/rounds/${round.id}`}
+                  className="block hover:bg-[rgba(255,255,255,0.03)] -m-4 p-4 rounded-[1.5rem]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-semibold text-zinc-50">{round.weekLabel}</p>
+                      <p className="mt-1 text-sm app-copy-soft">
+                        {round.matchCount} match{round.matchCount !== 1 ? "es" : ""}
+                      </p>
+                      <p className="mt-2 text-xs app-copy-muted">
+                        {round.teamNames.join(" · ")}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${config.border} ${config.bg} ${config.text}`}>
+                      {config.label}
+                    </span>
                   </div>
-                  <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${config.border} ${config.bg} ${config.text}`}>
-                    {config.label}
-                  </span>
-                </div>
-              </Link>
+                </Link>
+                {round.derivedStatus === "NOT_GENERATED" && (
+                  <div className="mt-3 border-t app-hairline pt-3">
+                    <button
+                      className="h-8 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition disabled:opacity-50"
+                      disabled={isPending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          const fd = new FormData();
+                          fd.set("roundId", round.id);
+                          await generateRoundAction({ error: "" }, fd);
+                        });
+                      }}
+                      type="button"
+                    >
+                      {isPending ? "Generating..." : "Generate squads"}
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

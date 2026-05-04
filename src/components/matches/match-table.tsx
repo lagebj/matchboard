@@ -114,6 +114,15 @@ export function MatchTable({ matches }: { matches: MatchRow[] }) {
           ))}
         </tbody>
       </table>
+
+      <div className="flex border-t app-hairline px-3 py-2.5">
+        <Link
+          href="/matches/new"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-strong)] hover:underline"
+        >
+          <span className="text-sm leading-none">+</span> Create match
+        </Link>
+      </div>
     </div>
   );
 }

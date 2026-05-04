@@ -11,6 +11,7 @@ import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialo
 import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
 import { clearRoundDraftAction } from "@/app/rounds/[matchRoundId]/actions";
+import { generateRoundAction } from "@/app/rounds/actions";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 
 type WarningEntry = {
@@ -39,7 +40,8 @@ type SquadData = {
 
 type RoundData = {
   roundLabel: string;
-  roundStatus: "DRAFT" | "FINALIZED";
+  roundStatus: "NOT_GENERATED" | "DRAFT" | "FINALIZED";
+  roundId: string;
   hasDraftSelections: boolean;
   hasMatches: boolean;
   squads: SquadData[];
@@ -199,6 +201,29 @@ export function RoundWorkbench({ round, matchRoundId }: RoundWorkbenchProps) {
             totalSelected={totalSelected}
             totalTarget={totalTarget}
           />
+
+          {round.roundStatus === "NOT_GENERATED" && (
+            <div className="flex items-center justify-between rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-zinc-200">{round.roundLabel}</p>
+                <p className="text-xs text-[var(--text-muted)]">No squad selections yet. Generate squads to start planning.</p>
+              </div>
+              <button
+                className="h-9 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const fd = new FormData();
+                    fd.set("roundId", round.roundId);
+                    await generateRoundAction({ error: "" }, fd);
+                  });
+                }}
+                type="button"
+              >
+                {isPending ? "Generating..." : "Generate squads"}
+              </button>
+            </div>
+          )}
 
           {round.roundStatus === "DRAFT" && (
             <div className="flex items-center justify-between rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
