@@ -19,7 +19,7 @@ function resolveSqliteConnectionString(connectionString: string) {
 
   const sqlitePath = connectionString.slice("file:".length);
 
-  return `file:${path.resolve(process.cwd(), "prisma", sqlitePath)}`;
+  return `file:${path.resolve(process.cwd(), sqlitePath)}`;
 }
 
 function resolveSqlitePath(connectionString: string) {
