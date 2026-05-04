@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { RoundWorkbench } from "@/components/round/round-workbench";
 import type { PlayerInMatch } from "@/components/round/match-squad-card";

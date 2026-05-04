@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { RulesForm } from "@/components/rules/rules-form";
 import { getRules } from "@/lib/rules/get-rules";

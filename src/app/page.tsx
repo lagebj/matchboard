@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";

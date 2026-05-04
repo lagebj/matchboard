@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { TeamDetail } from "@/components/team/team-detail";
 import { db } from "@/lib/db";
