@@ -1,0 +1,194 @@
+'use server'
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { Prisma } from "@/generated/prisma/client";
+import { db } from "@/lib/db";
+
+function readText(formData: FormData, fieldName: string): string {
+  const value = formData.get(fieldName);
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function readNonEmptyString(formData: FormData, fieldName: string, label: string): string {
+  const value = readText(formData, fieldName);
+  if (!value) throw new Error(`${label} is required.`);
+  return value;
+}
+
+function readDate(formData: FormData, fieldName: string, label: string): Date {
+  const value = readText(formData, fieldName);
+  if (!value) throw new Error(`${label} is required.`);
+  const parsed = new Date(value);
+  if (isNaN(parsed.getTime())) throw new Error(`${label} must be a valid date.`);
+  return parsed;
+}
+
+function readRequiredEnum<T extends string>(
+  formData: FormData,
+  fieldName: string,
+  allowed: readonly T[],
+  label: string,
+): T {
+  const value = readText(formData, fieldName);
+  const match = allowed.find((a) => a === value);
+  if (!match) throw new Error(`${label} must be one of: ${allowed.join(", ")}`);
+  return match;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    return "A match with these details already exists.";
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Could not save the match.";
+}
+
+const VALID_VENUES = ["HOME", "AWAY"] as const;
+const VALID_TYPES = ["LEAGUE", "FRIENDLY", "CUP", "DEVELOPMENT"] as const;
+const VALID_FORMATS = ["SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"] as const;
+
+export type MatchFormState = { error: string };
+
+const INITIAL_STATE: MatchFormState = { error: "" };
+
+export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
+  try {
+    const teamId = readNonEmptyString(formData, "teamId", "Team");
+    const opponent = readNonEmptyString(formData, "opponent", "Opponent");
+    const startsAt = readDate(formData, "startsAt", "Match date");
+    const homeAway = readRequiredEnum(formData, "homeAway", VALID_VENUES, "Home or away");
+    const matchType = readRequiredEnum(formData, "matchType", VALID_TYPES, "Match type");
+    const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");
+
+    const team = await db.team.findFirst({
+      where: { id: teamId, archivedAt: null },
+      select: { id: true },
+    });
+    if (!team) throw new Error("Team not found.");
+
+    const startsAtDate = new Date(startsAt);
+    startsAtDate.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(startsAtDate);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    let matchRound = await db.matchRound.findFirst({
+      where: {
+        matches: {
+          some: {
+            startsAt: {
+              gte: startsAtDate,
+              lt: weekEnd,
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!matchRound) {
+      const activePlanningPeriod = await db.planningPeriod.findFirst({
+        where: {
+          startDate: { lte: startsAtDate },
+          endDate: { gte: startsAtDate },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!activePlanningPeriod) {
+        const season = await db.season.findFirst({
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (!season) {
+          const created = await db.season.create({
+            data: { name: `${startsAtDate.getFullYear()} Season` },
+          });
+          const period = await db.planningPeriod.create({
+            data: {
+              name: startsAtDate.toLocaleString("default", { month: "long", year: "numeric" }),
+              seasonId: created.id,
+              startDate: startsAtDate,
+              endDate: new Date(startsAtDate.getFullYear(), startsAtDate.getMonth() + 3, 0),
+            },
+          });
+          matchRound = await db.matchRound.create({
+            data: {
+              name: `Round ${startsAtDate.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
+              planningPeriodId: period.id,
+              status: "NOT_GENERATED",
+            },
+          });
+        } else {
+          const period = await db.planningPeriod.create({
+            data: {
+              name: startsAtDate.toLocaleString("default", { month: "long", year: "numeric" }),
+              seasonId: season.id,
+              startDate: startsAtDate,
+              endDate: new Date(startsAtDate.getFullYear(), startsAtDate.getMonth() + 3, 0),
+            },
+          });
+          matchRound = await db.matchRound.create({
+            data: {
+              name: `Round ${startsAtDate.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
+              planningPeriodId: period.id,
+              status: "NOT_GENERATED",
+            },
+          });
+        }
+      } else {
+        const roundName = `Round ${startsAtDate.toLocaleDateString("default", { month: "short", day: "numeric" })}`;
+        matchRound = await db.matchRound.create({
+          data: {
+            name: roundName,
+            planningPeriodId: activePlanningPeriod.id,
+            status: "NOT_GENERATED",
+          },
+        });
+      }
+    }
+
+    await db.match.create({
+      data: {
+        teamId,
+        opponent,
+        startsAt,
+        homeAway,
+        matchType,
+        gameFormat,
+        matchRoundId: matchRound.id,
+      },
+    });
+  } catch (error) {
+    return { error: getErrorMessage(error) };
+  }
+
+  revalidatePath("/matches");
+  revalidatePath("/rounds");
+  revalidatePath("/");
+  redirect("/matches?saved=created");
+}
+
+export async function deleteMatchAction(matchId: string) {
+  try {
+    const match = await db.match.findUnique({
+      where: { id: matchId },
+      select: { id: true, selections: { where: { status: "FINALIZED" }, select: { id: true } } },
+    });
+    if (!match) throw new Error("Match not found.");
+    if (match.selections.length > 0) {
+      throw new Error("This match has finalized selections and cannot be removed without explicit confirmation.");
+    }
+
+    await db.match.delete({ where: { id: match.id } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not delete the match.";
+    redirect(`/matches?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/matches");
+  revalidatePath("/rounds");
+  revalidatePath("/");
+  redirect("/matches?saved=deleted");
+}

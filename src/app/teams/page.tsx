@@ -5,13 +5,11 @@ import {
   deleteTeamAction,
   updateTeamConfigurationAction,
 } from "@/app/teams/actions";
-import { TeamCreateLayover } from "@/components/teams/team-create-layover";
 import { TeamTable } from "@/components/teams/team-table";
 import { db } from "@/lib/db";
 
 type TeamsPageProps = {
   searchParams: Promise<{
-    create?: string;
     error?: string;
     saved?: string;
   }>;
@@ -25,7 +23,7 @@ function formatSavedMessage(saved?: string): string | null {
 }
 
 export default async function TeamsPage({ searchParams }: TeamsPageProps) {
-  const { create, error, saved } = await searchParams;
+  const { error, saved } = await searchParams;
 
   const teams = await db.team.findMany({
     where: { archivedAt: null },
@@ -83,7 +81,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                href="/teams?create=1"
+                href="/teams/new"
               >
                 Create team
               </Link>
@@ -172,7 +170,11 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
 
           {teams.length === 0 && (
             <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft md:col-span-2 xl:col-span-3">
-              No active teams yet. Create a team to get started.
+              No teams yet.{" "}
+              <Link href="/teams/new" className="underline text-[var(--accent-strong)]">
+                Create a team
+              </Link>{" "}
+              to get started.
             </div>
           )}
         </div>
@@ -221,7 +223,6 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
         />
       </section>
 
-      {create === "1" ? <TeamCreateLayover /> : null}
     </main>
   );
 }

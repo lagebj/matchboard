@@ -162,6 +162,22 @@ When workflow or UX semantics change, update `features/matchboard.feature`, `AGE
 
 ## Teams UX model
 
+### Setup registries are table-first
+
+Teams, Players, and Matches are setup registries — dense, table-first data views for efficient entry. Each registry has a dedicated create route, prominent Create actions, and actionable empty states. Create buttons must never be dead links.
+
+- **Teams** (`/teams`): dense table with core player count, squad limits, support priority. Create at `/teams/new`.
+- **Players** (`/players`): dense table with name, core team, position, availability. Create at `/players/new`. Requires at least one team.
+- **Matches** (`/matches`): dense table with date, team, opponent, home/away, type, format. Create at `/matches/new`. Requires at least one team.
+
+Round selection (`/rounds`) remains workflow-first and uses cards, boards, and panels — not tables.
+
+Empty states must be actionable:
+- "No teams yet. Create a team." → direct link to `/teams/new`
+- "Create a team first." (on Players when no teams) → direct link to `/teams/new`
+- "No players yet. Create a player." → direct link to `/players/new`
+- "No matches yet. Create a match." → direct link to `/matches/new`
+
 ### Teams page (`/teams`)
 
 The Teams page is a lightweight directory. It shows each team with core player count, squad limits, support priority, active movement paths, and current planning period burden. Each team links to its detail page.

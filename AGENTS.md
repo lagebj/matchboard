@@ -41,6 +41,8 @@ It does not:
 - support multi-user workflows
 - store real player data in the repo
 
+Note: Matchboard does have a match creation form for recording match details (opponent, date, home/away, type, format). This is match data entry, not fixture creation or season scheduling.
+
 ## Core operating model
 
 Selections are generated per match round.
@@ -268,25 +270,44 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
-### Canonical routes (6 only)
+### Canonical routes (7 only)
 
 | Route | Purpose |
 |-------|---------|
 | `/` | Today — next action, setup progress, active round, blockers |
 | `/rounds` | Rounds — generate, review, finalize per match round |
-| `/players` | Players — availability, load, movement history |
-| `/teams` | Teams — lightweight directory linking to team detail pages |
-| `/rules` | Rules — selection rules, support priority, backfill behavior |
+| `/players` | Players — table-first player registry, availability, load, movement history |
+| `/teams` | Teams — table-first team registry linking to team detail pages |
+| `/matches` | Matches — table-first match registry |
+| `/rules` | Rules — selection rules, support priority, rotation paths |
 | `/history` | History — finalized rounds, movement, fairness over time |
+
+Setup registry create routes (no top-level nav):
+- `/teams/new` — create team form
+- `/players/new` — create player form
+- `/matches/new` — create match form
 
 Detail routes (no top-level nav):
 - `/rounds/[matchRoundId]` — round workbench
 - `/players/[playerId]` — player profile
 - `/teams/[teamId]` — team detail workspace
+- `/matches/[matchId]` — match detail
+
+### Setup registries are table-first
+
+Teams, Players, and Matches are setup registries. They serve data-entry efficiency, not football operations workflow. Each registry page is a dense table with prominent Create actions and actionable empty states. Create buttons must never be dead links. Empty states must link directly to creation.
+
+- Teams (`/teams`): dense table of teams with core player count, squad limits, support priority. Links to `/teams/new` for creation. Links to `/teams/[teamId]` for detail. Empty state: "No teams yet. Create a team." with direct link to `/teams/new`.
+- Players (`/players`): dense table of players with name, core team, position, availability. Links to `/players/new` for creation. Links to `/players/[playerId]` for detail. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Create a player." with direct link to `/players/new`.
+- Matches (`/matches`): dense table of matches with date, team, opponent, home-or-away, type, format. Links to `/matches/new` for creation. Empty state: "No matches yet. Create a match." with direct link to `/matches/new`.
+
+Create routes must work reliably. `/teams/new` must save all team fields (not just name and a few fields). `/players/new` must not silently disappear when teams exist. `/matches/new` must assign matches to match rounds based on date.
+
+Round selection (`/rounds`) remains workflow-first. It uses cards, boards, panels, and role buckets — not tables as the primary interaction model.
 
 ### Teams page and team detail
 
-The `/teams` page is a lightweight directory. It links each team to its detail page.
+The `/teams` page is a table-first registry. It links each team to its detail page.
 It must not become a catch-all dashboard or show squad rosters inline.
 
 `/teams/[teamId]` is the primary team workspace. It answers:
@@ -310,9 +331,9 @@ Team detail has these sections:
 
 ### Navigation model
 
-- **Sidebar**: 6 items (Today, Rounds, Players, Teams, Rules, History)
+- **Sidebar**: 7 items (Today, Rounds, Players, Teams, Matches, Rules, History)
 - **Top context bar**: season, planning period, active round status, primary action
-- **Mobile nav**: 5 items (Today, Rounds, Players, Teams, History)
+- **Mobile nav**: 6 items (Today, Rounds, Players, Teams, Matches, History)
 
 ### Prohibited copy
 

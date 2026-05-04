@@ -7,6 +7,7 @@ import {
   CalendarRange,
   Users,
   Shield,
+  Trophy,
   Sliders,
   History,
   type LucideIcon,
@@ -24,6 +25,7 @@ const navItems: NavItem[] = [
   { href: "/rounds", label: "Rounds", icon: CalendarRange },
   { href: "/players", label: "Players", icon: Users },
   { href: "/teams", label: "Teams", icon: Shield },
+  { href: "/matches", label: "Matches", icon: Trophy },
   { href: "/rules", label: "Rules", icon: Sliders },
   { href: "/history", label: "History", icon: History },
 ];

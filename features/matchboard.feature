@@ -1591,6 +1591,7 @@ Feature: Matchboard football operations workspace
   Rule: Coach setup workflow
 
     Matchboard is set up by adding teams, players, and matches.
+    Setup Registries (Teams, Players, Matches) are table-first dense data views.
     The coach can then populate all draft squads.
     Populate all groups matches by round and generates draft selections per round.
     The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time.
@@ -1602,16 +1603,19 @@ Feature: Matchboard football operations workspace
       Given no teams exist
       When the coach opens the app
       Then the next action must be to add teams
+      And the next action must link directly to team creation
 
     Scenario: After teams exist, add players
       Given teams exist but no players exist
       When the coach opens the app
       Then the next action must be to add players
+      And the next action must link directly to player creation
 
     Scenario: After players exist, add matches
       Given teams and players exist but no matches exist
       When the coach opens the app
       Then the next action must be to add matches
+      And the next action must link directly to match creation
 
     Scenario: After matches exist, populate draft squads
       Given teams, players, and matches exist
@@ -1636,6 +1640,111 @@ Feature: Matchboard football operations workspace
       Given all rounds in the active planning period are finalized
       When the coach opens the app
       Then the app must show no active work
+
+
+  Rule: Setup registries are table-first
+
+    Teams, Players, and Matches are setup registries — dense, table-first data views for efficient data entry.
+    Round selection remains workflow-first.
+    Setup registries prioritize fast data entry, inline editing, and actionable empty states.
+    Each registry has a dedicated create route that reliably opens a form.
+
+    Scenario: Teams registry is table-first
+      Given the coach opens the Teams page
+      When teams exist
+      Then the primary view must be a dense table of all teams
+      And each table row must link to the team detail page
+      And the table must show team name, core player count, squad limits, and support priority
+      And a Create team action must be prominently available
+
+    Scenario: Players registry is table-first
+      Given the coach opens the Players page
+      When players exist
+      Then the primary view must be a dense table of all players
+      And each table row must link to the player profile
+      And the table must show player name, core team, primary position, and availability status
+      And a Create player action must be prominently available
+
+    Scenario: Matches registry is table-first
+      Given the coach opens the Matches page
+      When matches exist
+      Then the primary view must be a dense table of all matches
+      And the table must show match date, team, opponent, home-or-away, match type, and game format
+      And each table row must link to match detail
+      And a Create match action must be prominently available
+
+    Scenario: Create team route works reliably
+      Given the coach navigates to create a team
+      When the create team form is shown
+      Then the form must accept team name
+      And the form must accept target squad size with sensible default
+      And the form must accept minimum accepted squad size with sensible default
+      And the form must accept maximum squad size with sensible default
+      And the form must accept minimum core players with sensible default
+      And the form must accept support priority
+      And the form must save all submitted fields on confirm
+      And the coach must see the new team in the table after creation
+      And the create flow must not silently drop any submitted field
+
+    Scenario: Create player route works reliably
+      Given at least one team exists
+      When the coach navigates to create a player
+      Then the form must accept first name, last name, and core team assignment
+      And the form must accept primary position with a sensible default
+      And the form must accept preferred foot, secondary foot, and best side with sensible defaults
+      And the form must accept current availability with default Available
+      And the form must save all submitted fields on confirm
+      And the coach must see the new player in the table after creation
+      And the create flow must not silently fail when teams exist
+
+    Scenario: Create player requires at least one team
+      Given no teams exist
+      When the coach attempts to create a player
+      Then the app must explain that at least one team must exist first
+      And the app must provide a direct link to create a team
+      And the create player form must not silently disappear or fail
+
+    Scenario: Create match route works reliably
+      Given teams exist
+      When the coach navigates to create a match
+      Then the form must accept team, opponent name, match date, home-or-away status, match type, and game format
+      And the form must assign the match to a match round based on date
+      And the form must save all submitted fields on confirm
+      And the coach must see the new match in the table after creation
+
+    Scenario: Teams empty state is actionable
+      Given no teams exist
+      When the coach opens the Teams page
+      Then the app must show an empty state message
+      And the empty state must include a direct Create team action
+      And the Create team action must navigate to the create team form
+
+    Scenario: Players empty state is actionable
+      Given teams exist but no players exist
+      When the coach opens the Players page
+      Then the app must show an empty state message
+      And the empty state must include a direct Create player action
+      And the Create player action must navigate to the create player form
+
+    Scenario: Players empty state when no teams exist links to team creation
+      Given no teams exist and no players exist
+      When the coach opens the Players page
+      Then the app must explain that a team must be created first
+      And the app must provide a direct link to create a team
+      And the link must navigate to the create team form
+
+    Scenario: Matches empty state is actionable
+      Given teams and players exist but no matches exist
+      When the coach opens the Matches page
+      Then the app must show an empty state message
+      And the empty state must include a direct Create match action
+      And the Create match action must navigate to the create match form
+
+    Scenario: Matches empty state when no teams exist links to team creation
+      Given no teams exist
+      When the coach opens the Matches page
+      Then the app must explain that teams must be created first
+      And the app must provide a direct link to create teams
 
 
   Rule: Draft reset and clear actions
