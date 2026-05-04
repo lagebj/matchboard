@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useTransition, useState } from "react";
 import { SortableHeader } from "@/components/sortable-header";
 import { formatAvailabilityStatus, formatPlayerName, getPlayerPositionSummary } from "@/lib/player-metrics";
 import {
@@ -10,6 +10,11 @@ import {
   getNextSortDirection,
   type SortDirection,
 } from "@/lib/table-sort";
+import { setPlayerAvailabilityAction } from "@/app/players/actions";
+
+type AvailabilityStatus = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
+
+const AVAILABILITY_OPTIONS: AvailabilityStatus[] = ["AVAILABLE", "INJURED", "SICK", "AWAY", "TENTATIVE", "UNKNOWN"];
 
 type PlayerRow = {
   active: boolean;
@@ -42,6 +47,8 @@ function getAvailabilityPillClassName(availability: PlayerRow["currentAvailabili
 export function PlayerTable({ players }: { players: PlayerRow[] }) {
   const [sortKey, setSortKey] = useState("player");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [editingAvailabilityId, setEditingAvailabilityId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   function updateSort(nextSortKey: string) {
     setSortDirection((currentDirection) =>
@@ -173,11 +180,40 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
                 </td>
                 <td className="px-4 py-3 text-zinc-100">{player.coreTeam.name}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${getAvailabilityPillClassName(player.currentAvailability)}`}
-                  >
-                    {formatAvailabilityStatus(player.currentAvailability)}
-                  </span>
+                  {editingAvailabilityId === player.id ? (
+                    <select
+                      className={`rounded-full border px-2 py-1 text-xs font-medium uppercase tracking-[0.18em] ${getAvailabilityPillClassName(player.currentAvailability)} bg-transparent`}
+                      value={player.currentAvailability}
+                      disabled={isPending}
+                      autoFocus
+                      onChange={(e) => {
+                        const newStatus = e.target.value as AvailabilityStatus;
+                        startTransition(async () => {
+                          const fd = new FormData();
+                          fd.set("playerId", player.id);
+                          fd.set("availability", newStatus);
+                          await setPlayerAvailabilityAction(fd);
+                          setEditingAvailabilityId(null);
+                        });
+                      }}
+                      onBlur={() => setEditingAvailabilityId(null)}
+                    >
+                      {AVAILABILITY_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {formatAvailabilityStatus(opt)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <button
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] cursor-pointer hover:opacity-80 transition-opacity ${getAvailabilityPillClassName(player.currentAvailability)}`}
+                      onClick={() => setEditingAvailabilityId(player.id)}
+                      title="Click to change availability"
+                      type="button"
+                    >
+                      {formatAvailabilityStatus(player.currentAvailability)}
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-3 app-copy-soft">{getPlayerPositionSummary(player)}</td>
                 <td className="px-4 py-3 app-copy-soft">{player.nonRotatable ? "No" : "Yes"}</td>
