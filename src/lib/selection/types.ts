@@ -24,6 +24,7 @@ type SelectionPlayerBase = {
   explanations: ExplanationRecord[];
   finalSelected: boolean;
   manualOverride: boolean;
+  nonRotatable: boolean;
   playerId: string;
   playerName: string;
   playerPosition: string;
@@ -92,6 +93,7 @@ export type CoreMatchDropCandidate = {
   primaryPosition: string;
   secondaryPosition: string | null;
   tertiaryPosition: string | null;
+  nonRotatable: boolean;
   fromMatchId: string;
 };
 

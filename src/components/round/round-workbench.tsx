@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { MatchSquadCard, type PlayerInMatch } from "@/components/round/match-squad-card";
 import { WarningPanel } from "@/components/round/warning-panel";
 import { FairnessSummary } from "@/components/round/fairness-summary";
@@ -10,6 +10,8 @@ import { InspectorPanel, type InspectorItem } from "@/components/inspector/inspe
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
+import { clearRoundDraftAction } from "@/app/rounds/[matchRoundId]/actions";
+import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 
 type WarningEntry = {
   code: string;
@@ -38,6 +40,8 @@ type SquadData = {
 type RoundData = {
   roundLabel: string;
   roundStatus: "DRAFT" | "FINALIZED";
+  hasDraftSelections: boolean;
+  hasMatches: boolean;
   squads: SquadData[];
   warnings: WarningEntry[];
   warningSummary?: {
@@ -62,15 +66,17 @@ type RoundData = {
   }>;
 };
 
-type RoundCommandCenterProps = {
+type RoundWorkbenchProps = {
   round: RoundData;
   matchRoundId: string;
 };
 
-export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterProps) {
+export function RoundWorkbench({ round, matchRoundId }: RoundWorkbenchProps) {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [inspectedItem, setInspectedItem] = useState<InspectorItem | null>(null);
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
+  const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const handlePlayerClick = (player: PlayerInMatch, matchId: string) => {
     setSelectedMatchId(matchId);
@@ -155,12 +161,12 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
   ).length;
   const blockingWarnings = round.warningSummary?.blocking ?? 0;
 
-  const deriveRoundStatus = (): "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED" => {
-    if (round.roundStatus === "FINALIZED") return "FINALIZED";
-    if (round.squads.length === 0) return "NOT_GENERATED";
-    if (blockingWarnings > 0) return "BLOCKED";
-    return "DRAFT";
-  };
+  const computedRoundStatus: RoundStatus = deriveRoundStatus({
+    dbStatus: round.roundStatus,
+    hasDraftSelections: round.hasDraftSelections,
+    hasMatches: round.hasMatches,
+    blockingWarningCount: blockingWarnings,
+  });
 
   const movements: MovementChainEntry[] = [];
   for (const squad of round.squads) {
@@ -184,7 +190,7 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
         <div className="flex flex-col gap-6">
           <RoundStatusStrip
             roundLabel={round.roundLabel}
-            roundStatus={deriveRoundStatus()}
+            roundStatus={computedRoundStatus}
             totalTeams={round.squads.length}
             completeTeams={completeTeams}
             teamsNeedingSupport={teamsNeedingSupport}
@@ -200,12 +206,21 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
                 <p className="text-sm font-medium text-zinc-200">{round.roundLabel}</p>
                 <p className="text-xs text-[var(--text-muted)]">{totalSelected} of {totalTarget} squad places filled</p>
               </div>
-              <button
-                className="inline-flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors"
-                onClick={() => setShowFinalizeDialog(true)}
-              >
-                Finalize round
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
+                  onClick={() => setShowClearRoundDialog(true)}
+                  disabled={isPending}
+                >
+                  Clear round
+                </button>
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors"
+                  onClick={() => setShowFinalizeDialog(true)}
+                >
+                  Finalize round
+                </button>
+              </div>
             </div>
           )}
 
@@ -235,6 +250,7 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
                 {round.squads.map((squad) => (
                   <MatchSquadCard
                     key={squad.matchId}
+                    matchId={squad.matchId}
                     teamName={squad.teamName}
                     opponent={squad.opponent}
                     matchDate={squad.matchDate}
@@ -285,6 +301,45 @@ export function RoundCommandCenter({ round, matchRoundId }: RoundCommandCenterPr
         targetSquadSize={totalTarget}
         matchCount={round.squads.length}
       />
+
+      {showClearRoundDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowClearRoundDialog(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
+            <div className="flex flex-col gap-4 px-5 py-4">
+              <h3 className="text-base font-semibold text-zinc-100">Clear round draft</h3>
+              <p className="text-sm text-zinc-300">
+                This will remove all draft selections and warnings for this round. Finalized data will not be affected.
+              </p>
+              <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
+                <p className="text-sm text-amber-300">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
+              <button
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
+                onClick={() => setShowClearRoundDialog(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const formData = new FormData();
+                    formData.set("matchRoundId", matchRoundId);
+                    await clearRoundDraftAction(formData);
+                    setShowClearRoundDialog(false);
+                  });
+                }}
+              >
+                {isPending ? "Clearing..." : "Clear round"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

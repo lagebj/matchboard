@@ -3,6 +3,7 @@ import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "./round-list-client";
 import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import { type WarningSeverity } from "@/generated/prisma/client";
+import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 
 type RoundItem = {
   id: string;
@@ -10,26 +11,14 @@ type RoundItem = {
   weekLabel: string;
   matchCount: number;
   teamNames: string[];
-  derivedStatus: "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED";
+  derivedStatus: RoundStatus;
 };
 
-function deriveRoundStatus(
-  dbStatus: string,
-  hasDraftSelections: boolean,
-  hasMatches: boolean,
-  blockingWarningCount: number,
-): RoundItem["derivedStatus"] {
-  if (dbStatus === "FINALIZED") return "FINALIZED";
-  if (dbStatus === "DRAFT") {
-    if (blockingWarningCount > 0) return "BLOCKED";
-    if (hasDraftSelections) return "READY";
-    return "DRAFT";
-  }
-  if (hasMatches) return "NOT_GENERATED";
-  return "NOT_GENERATED";
-}
-
 export default async function RoundsPage() {
+  const activePlanningPeriod = await db.planningPeriod.findFirst({
+    orderBy: { startDate: "desc" },
+  });
+
   const matchRounds = await db.matchRound.findMany({
     include: {
       matches: {
@@ -67,7 +56,7 @@ export default async function RoundsPage() {
         : round.name,
       matchCount: round.matches.length,
       teamNames: [...new Set(round.matches.map((m) => m.team.name))],
-      derivedStatus: deriveRoundStatus(round.status, hasDraftSelections, hasMatches, blockingCount),
+      derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, hasMatches, blockingWarningCount: blockingCount }),
     };
   });
 
@@ -94,7 +83,11 @@ export default async function RoundsPage() {
       </section>
 
       <section className="app-panel rounded-[1.75rem] p-6">
-        <RoundListClient rounds={roundItems} />
+        <RoundListClient
+          rounds={roundItems}
+          activePlanningPeriodId={activePlanningPeriod?.id ?? null}
+          hasDraftRounds={roundItems.some((r) => r.derivedStatus === "DRAFT" || r.derivedStatus === "BLOCKED" || r.derivedStatus === "READY")}
+        />
       </section>
     </main>
   );

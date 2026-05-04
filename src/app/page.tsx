@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
 import { getTeamFairnessGroups } from "@/lib/workflow/get-team-fairness-gaps";
 import { getPlanningPeriodFairness, type FairnessFlag } from "@/lib/selection/get-planning-period-fairness";
 import { getTeamBurden } from "@/lib/selection/get-team-burden";
 import { formatAvailabilityStatus } from "@/lib/player-metrics";
-import { StatusBadge, type RoundStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { SeverityBadge, severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import { type WarningSeverity } from "@/generated/prisma/client";
 
@@ -21,17 +22,6 @@ type ActionCard = {
 
 function formatSeverityBadge(severity: "blocking" | "high" | "medium" | "info") {
   return <SeverityBadge severity={severity} />;
-}
-
-function deriveRoundStatus(
-  roundStatus: string | null,
-  blockingWarningCount: number,
-): RoundStatus {
-  if (!roundStatus) return "NOT_GENERATED";
-  if (roundStatus === "FINALIZED") return "FINALIZED";
-  if (roundStatus === "DRAFT" && blockingWarningCount > 0) return "BLOCKED";
-  if (roundStatus === "DRAFT") return "DRAFT";
-  return "NOT_GENERATED";
 }
 
 type RoundProgress = {
@@ -126,7 +116,7 @@ export default async function TodayPage() {
       where: { archivedAt: null },
       include: {
         corePlayers: { where: { removedAt: null }, select: { id: true } },
-        supportTargetRelationships: { include: { sourceTeam: { select: { id: true, name: true } } } },
+        toRotationPaths: { select: { fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { id: true, name: true } } } },
       },
       orderBy: [{ name: "asc" }],
     }),
@@ -153,10 +143,12 @@ export default async function TodayPage() {
       })
     : [];
 
-  const roundStatus = deriveRoundStatus(
-    activeMatchRound?.status ?? null,
-    blockingWarnings.length,
-  );
+  const roundStatus = deriveRoundStatus({
+    dbStatus: activeMatchRound?.status ?? null,
+    hasDraftSelections: selections.some((s) => s.status === "DRAFT"),
+    hasMatches: (activeMatchRound?.matches.length ?? 0) > 0,
+    blockingWarningCount: blockingWarnings.length,
+  });
 
   type NextAction = { label: string; href: string };
 
@@ -234,9 +226,9 @@ export default async function TodayPage() {
       });
     }
 
-    const supportTargets = team.supportTargetRelationships;
-    for (const rel of supportTargets) {
-      const sourceCore = teams.find((t) => t.id === rel.sourceTeam.id);
+    const supportPaths = team.toRotationPaths.filter((p) => p.role === "SUPPORT");
+    for (const path of supportPaths) {
+      const sourceCore = teams.find((t) => t.id === path.fromTeam.id);
       if (sourceCore) {
         const sourceCoreCount = sourceCore.corePlayers.length;
         const sourceMinSquad = sourceCore.minAcceptedSquadSize ?? 5;
@@ -244,8 +236,8 @@ export default async function TodayPage() {
           actionCards.push({
             group: "Backfill consequences",
             severity: "medium",
-            title: `${rel.sourceTeam.name} may be short if supporting ${team.name}`,
-            detail: `${rel.sourceTeam.name} has ${sourceCoreCount} core players. Sending one to support ${team.name} may drop below minimum.`,
+            title: `${path.fromTeam.name} may be short if supporting ${team.name}`,
+            detail: `${path.fromTeam.name} has ${sourceCoreCount} core players. Sending one to support ${team.name} may drop below minimum.`,
             actionHref: "/teams",
             actionLabel: "Review paths",
           });

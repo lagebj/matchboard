@@ -12,7 +12,8 @@ import {
   History,
   type LucideIcon,
 } from "lucide-react";
-import { StatusBadge, type RoundStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { deriveRoundStatus as deriveRoundStatusUtil, type RoundStatus } from "@/lib/round-status";
 
 type ContextData = {
   season: { id: string; name: string } | null;
@@ -24,7 +25,7 @@ type ContextData = {
     startDateLabel: string;
     endDateLabel: string;
   } | null;
-  matchRound: { id: string; name: string; status: string } | null;
+  matchRound: { id: string; name: string; status: string; hasDraftSelections: boolean; hasMatches: boolean; blockingWarningCount: number } | null;
   warnings?: { blocking: number; high: number; medium: number; info: number } | null;
 };
 
@@ -50,16 +51,6 @@ function getPageInfo(pathname: string) {
     return { label: "Player profile", note: "Availability, load, and movement history." };
   }
   return pageTitles[pathname] ?? { label: "Matchboard", note: "Squad planning" };
-}
-
-function deriveRoundStatus(status: string | null, warnings?: { blocking: number } | null): RoundStatus | null {
-  if (!status) return null;
-  if (status === "FINALIZED") return "FINALIZED";
-  if (status === "DRAFT") {
-    if (warnings && warnings.blocking > 0) return "BLOCKED";
-    return "DRAFT";
-  }
-  return "DRAFT";
 }
 
 type PrimaryAction = {
@@ -104,7 +95,12 @@ export function TopContextBar() {
   }, [deferredQuery]);
 
   const visibleResults = deferredQuery.trim().length < 2 ? null : searchResults;
-  const roundStatus = deriveRoundStatus(ctx?.matchRound?.status ?? null, ctx?.warnings);
+  const roundStatus: RoundStatus = deriveRoundStatusUtil({
+    dbStatus: ctx?.matchRound?.status ?? null,
+    hasDraftSelections: ctx?.matchRound?.hasDraftSelections ?? false,
+    hasMatches: ctx?.matchRound?.hasMatches ?? false,
+    blockingWarningCount: ctx?.matchRound?.blockingWarningCount ?? 0,
+  });
 
   const matchRoundId = ctx?.matchRound?.id;
   const handleGenerateRound = useCallback(async () => {

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import type { CoreMatchDropCandidate, GeneratedSelection, SelectedPlayer } from "@/lib/selection/types";
+import type { CoreMatchDropCandidate, GeneratedSelection } from "@/lib/selection/types";
+import { getNeededPositions } from "@/lib/selection/rotation-candidate-ranking";
 
 type RotationPathRow = {
   id: string;
@@ -24,6 +25,8 @@ type DownstreamSlot = {
 export type RoutedDrop = {
   playerId: string;
   playerName: string;
+  playerPosition: string;
+  primaryPosition: string;
   targetMatchId: string;
   targetTeamId: string;
   targetTeamName: string;
@@ -33,6 +36,7 @@ export type RoutedDrop = {
   role: "BACKFILL" | "DEVELOPMENT";
   positionFit: "primary" | "secondary" | "tertiary" | "none";
   priorityBonus: number;
+  nonRotatable: boolean;
 };
 
 function getPositionFitLevel(
@@ -54,40 +58,6 @@ function getPositionFitLevel(
   }
 
   return "none";
-}
-
-const SUPPORTED_POSITIONS = ["GK", "CB", "CM", "W", "ST"] as const;
-
-function getNeededPositions(selectedPlayers: SelectedPlayer[], _squadSize: number): string[] {
-  if (selectedPlayers.length === 0) {
-    return [...SUPPORTED_POSITIONS];
-  }
-
-  const positionCounts = new Map<string, number>();
-  for (const pos of SUPPORTED_POSITIONS) {
-    positionCounts.set(pos, 0);
-  }
-  for (const player of selectedPlayers) {
-    const pos = player.chosenPosition ?? player.playerPosition;
-    const normalized = pos.trim().toUpperCase();
-    positionCounts.set(normalized, (positionCounts.get(normalized) ?? 0) + 1);
-  }
-
-  const maxCount = Math.max(...positionCounts.values());
-  const minCount = Math.min(...positionCounts.values());
-
-  if (maxCount === minCount) {
-    return [...SUPPORTED_POSITIONS];
-  }
-
-  const needed: string[] = [];
-  for (const [pos, count] of positionCounts) {
-    if (count <= minCount + 1) {
-      needed.push(pos);
-    }
-  }
-
-  return needed.length > 0 ? needed : [...SUPPORTED_POSITIONS];
 }
 
 function getPositionPriorityScore(level: "primary" | "secondary" | "tertiary" | "none"): number {
@@ -233,6 +203,8 @@ export async function routeCoreMatchDrops(
     routedDrops.push({
       playerId: candidate.playerId,
       playerName: candidate.playerName,
+      playerPosition: candidate.playerPosition,
+      primaryPosition: candidate.primaryPosition,
       targetMatchId: bestSlot.matchId,
       targetTeamId: bestSlot.teamId,
       targetTeamName: bestSlot.teamName,
@@ -242,6 +214,7 @@ export async function routeCoreMatchDrops(
       role,
       positionFit,
       priorityBonus,
+      nonRotatable: candidate.nonRotatable,
     });
 
     assignedPlayerIds.add(candidate.playerId);

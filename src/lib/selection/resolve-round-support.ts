@@ -199,7 +199,7 @@ export async function resolveRoundSupport(
       });
     }
 
-    donorSlots.sort((a, b) => b.currentCoreCount - a.targetSquadSize - (a.currentCoreCount - a.targetSquadSize));
+    donorSlots.sort((a, b) => (b.currentCoreCount - b.minCorePlayers) - (a.currentCoreCount - a.minCorePlayers));
 
     let filled = 0;
     const _donorsMovedCount = new Map<string, number>();
@@ -259,6 +259,7 @@ export async function resolveRoundSupport(
             explanations: buildDonorDropExplanation(playerName, donor.teamName, slot.teamName),
             finalSelected: false,
             manualOverride: false,
+            nonRotatable: donorPlayer.nonRotatable,
             playerId,
             playerName,
             playerPosition: donorPlayer.primaryPosition,
@@ -282,6 +283,7 @@ export async function resolveRoundSupport(
           explanations: buildSupportExplanations(playerName, donor.teamName, slot.teamName, slot.supportPriority),
           finalSelected: false,
           manualOverride: false,
+          nonRotatable: donorPlayer.nonRotatable,
           playerId,
           playerName,
           playerPosition: donorPlayer.primaryPosition,
@@ -439,7 +441,7 @@ async function resolveBackfillFromSupportInner(
     });
     const devSourceTeamIds = new Set(devPaths.map((p) => p.fromTeamId));
 
-    const ownSupportPlayersMoved: Array<{ playerId: string; playerName: string; primaryPosition: string; coreTeamId: string; coreTeamName: string }> = [];
+    const ownSupportPlayersMoved: Array<{ playerId: string; playerName: string; primaryPosition: string; coreTeamId: string; coreTeamName: string; nonRotatable: boolean }> = [];
     if (supportAssignments) {
       const teamMatchDate = matchResults.find((r) => r.matchId === match.id)?.matchDate;
 
@@ -467,6 +469,7 @@ async function resolveBackfillFromSupportInner(
             primaryPosition: player.primaryPosition,
             coreTeamId: player.coreTeam.id,
             coreTeamName: player.coreTeam.name,
+            nonRotatable: player.nonRotatable,
           });
         }
       }
@@ -492,6 +495,7 @@ async function resolveBackfillFromSupportInner(
         ],
         finalSelected: false,
         manualOverride: false,
+        nonRotatable: candidate.nonRotatable,
         playerId: candidate.playerId,
         playerName: candidate.playerName,
         playerPosition: candidate.primaryPosition,
@@ -543,6 +547,7 @@ async function resolveBackfillFromSupportInner(
           ],
           finalSelected: false,
           manualOverride: false,
+          nonRotatable: candidate.nonRotatable,
           playerId: candidate.id,
           playerName,
           playerPosition: candidate.primaryPosition,
@@ -587,16 +592,17 @@ async function resolveBackfillFromSupportInner(
           coreTeamName: candidate.coreTeam.name,
           eligibility: true,
           explanations: [
-            { code: "backfill_priority_3_other", summary: `${playerName} was selected as backfill priority 3 for ${match.team.name}: non-rotatable player from another team with a configured backfill path.`, hardRule: false },
+            { code: "backfill_priority_3_other", summary: `${playerName} was selected as backfill priority 3 for ${match.team.name}: rotatable player from another team with a configured backfill path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
+          nonRotatable: candidate.nonRotatable,
           playerId: candidate.id,
           playerName,
           playerPosition: candidate.primaryPosition,
           priorityScore: 70,
           selectionCategory: "BACKFILL",
-          selectionReason: `Selected as backfill priority 3 for ${match.team.name}: non-rotatable player from configured backfill path.`,
+          selectionReason: `Selected as backfill priority 3 for ${match.team.name}: rotatable player from configured backfill path.`,
         };
 
         matchResults[resultIdx] = {

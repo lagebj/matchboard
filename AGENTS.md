@@ -2,14 +2,22 @@
 
 Matchboard is a local-first web app for youth football match-round selection, controlled player movement, and squad history tracking.
 
+`features/matchboard.feature` is the single behavioral source of truth for domain behavior, selection rules, and expected outcomes.
+
+If code, UI, schema, tests, README, and `features/matchboard.feature` disagree, fix the mismatch.
+
+When workflow or UX semantics change, update `features/matchboard.feature`, `AGENTS.md`, and `README.md` before implementing. Do not implement product-shape changes before aligning supporting docs.
+
 ## Workflow
+
+Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
 
 The primary coach workflow is:
 
-1. **Setup** — Create matches for a round (or use existing rounds). Mark player availability.
+1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
-3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust if needed.
-4. **Finalize** — Lock a round. Finalized rounds become history and cannot be silently mutated.
+3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust draft squads if needed.
+4. **Finalize** — Lock one round at a time. Finalized rounds become history and cannot be silently mutated.
 
 The Today page must always show the next action based on this workflow state.
 
@@ -20,16 +28,6 @@ The Today page must always show the next action based on this workflow state.
 - Tailwind
 - Prisma
 - SQLite
-
-## Behavioral source of truth
-
-`features/matchboard.feature` is the single behavioral source of truth for domain behavior, selection rules, and expected outcomes.
-
-If code, UI, schema, tests, README, and `features/matchboard.feature` disagree, fix the mismatch.
-
-`docs/domain.md` has been deleted. Do not reference it.
-
-When workflow or UX semantics change, update `features/matchboard.feature`, `AGENTS.md`, and `README.md` before implementing. Do not implement product-shape changes before aligning supporting docs.
 
 ## Product boundary
 
@@ -56,6 +54,8 @@ A round may contain one or more matches.
 A player should normally only be selected once per round unless an explicit rule allows otherwise.
 
 Populate all generates drafts for all rounds in a planning period in one action. It does not finalize. Each round is generated via round-level orchestration to preserve cross-match conflict resolution.
+
+Populate all must not generate each match independently. Populate all must group matches by round and run round generation per round.
 
 ## Coaching/domain model
 
@@ -92,7 +92,7 @@ Fairness must not override required support. Fairness is a scoring preference, n
 
 ## RotationPath authority
 
-RotationPath is the single source of truth for non-core player movement. A player may only be selected outside their core team when an active directed RotationPath exists from the player's core team to the target team for the exact role being assigned, unless a manual override with reason is used.
+RotationPath is the single source of truth for automatic non-core player movement. A player may only be selected outside their core team when an active directed RotationPath exists from the player's core team to the target team for the exact role being assigned, unless a manual override with reason is used.
 
 Rules:
 - Each RotationPath authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL
@@ -105,6 +105,7 @@ Rules:
 - nonRotatable blocks all automatic non-core movement regardless of path existence
 - Manual override may bypass path checks but must record reason
 - No fallback can bypass path validation
+- Invalid path eligibility is a hard eligibility problem, not a ranking problem
 
 ### Legacy relationship tables
 
@@ -121,8 +122,8 @@ When a player is moved from their core team as support, their own team may need 
 Backfill priority order:
 
 1. Own core team player moved as support, if matches are on different dates and the player can play both
-2. Players from teams connected by an active BACKFILL or DEVELOPMENT rotation path to the receiving team, where `nonRotatable = false`
-3. Any other player from another team with an active BACKFILL rotation path, where `nonRotatable = false`
+2. Players from teams connected by an active DEVELOPMENT rotation path to the receiving team, where `nonRotatable = false`. The DEVELOPMENT path gates the team-to-team direction. The assigned role is BACKFILL.
+3. Any player from another team with an active BACKFILL rotation path to the receiving team, where `nonRotatable = false`
 
 Rules:
 - Non-rotatable players must never be used as generic backfill
@@ -141,6 +142,48 @@ Each warning has a severity level:
 
 The UI reads warnings from the database, not from in-memory generation results. If warnings are not persisted, the UI cannot show blockers and finalization cannot check for hard blocks.
 
+## Draft clearing
+
+Generated draft selections can be cleared at three levels:
+- **Clear all** — remove all non-finalized draft selections, draft warnings, draft explanations, provisional planning context, and draft generation metadata across all rounds
+- **Clear round** — remove all non-finalized draft data for one selected round
+- **Clear match** — remove all non-finalized draft data for one selected match
+
+Hard rules:
+- Never delete finalized selections
+- Never delete finalized history
+- Never delete teams, players, matches, rounds, rules, or availability
+- Clearing draft data must be explicit and require confirmation
+- After clearing, affected rounds/matches must return to not-populated state
+- After clearing, affected round status and warnings must be recalculated
+- After clearing all, no stale draft context may affect later generation
+
+## Manual draft squad editing
+
+Draft match squads can be manually edited before finalization.
+
+Manual editing applies to draft/non-finalized selections only. Finalized selections cannot be edited by normal draft actions.
+
+Manual editing must:
+- use the same domain validation as automatic generation (UI-only validation is not enough)
+- validate rotation path eligibility for non-core movement
+- validate same-round conflict rules
+- validate availability
+- validate squad size rules
+- recalculate match status, round status, warnings, explanations, and fairness impact
+- require an override reason when bypassing a hard rule
+- store the override reason with the selection
+- show the override badge on the player selection
+
+Manual edits cannot:
+- silently bypass RotationPath without override reason
+- silently create same-round duplicate selections
+- select unavailable players without override reason
+- move non-rotatable players outside core team without override reason
+- modify finalized selections without explicit reopen or audit trail
+
+Manual override requires reason. Manual override must be persisted with the selection. Manual override must appear in finalization summary.
+
 ## Selection architecture
 
 Keep selection logic out of React components.
@@ -152,6 +195,8 @@ Rule loading and validation belong in `src/lib/rules/*`.
 Keep these concerns separate:
 - round orchestration (`generate-round.ts`)
 - per-match generation (`generate-selection.ts`)
+- rotation path policy (`rotation-path-policy.ts`)
+- invariant validation (`validate-generated-round-invariants.ts`)
 - round eligibility
 - support selection
 - backfill selection
@@ -161,6 +206,8 @@ Keep these concerns separate:
 - conflict validation
 - warning generation and persistence
 - explanation generation
+- manual edit validation
+- draft clearing
 - finalization/snapshotting
 
 Do not grow a monolithic `generate-selection.ts`.
@@ -174,6 +221,7 @@ Rules must be testable without React.
 Populate all is a convenience workflow that generates drafts for all non-finalized rounds in the active planning period.
 
 - It calls `generateMatchRound` for each round in chronological order
+- It groups matches by round and generates per round (not match-by-match)
 - It uses round-level orchestration (not match-by-match)
 - It does not finalize any round
 - It skips already-finalized rounds
@@ -187,7 +235,7 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Today — review active round, blockers, next action |
+| `/` | Today — next action, setup progress, active round, blockers |
 | `/rounds` | Rounds — generate, review, finalize per match round |
 | `/players` | Players — availability, load, movement history |
 | `/teams` | Teams — lightweight directory linking to team detail pages |
@@ -231,9 +279,9 @@ Team detail has these sections:
 
 ### Prohibited copy
 
-Never use: command center, decision inbox, decision debt, structured review room, workspace, optimization output, entity, resource.
+Never use: command center, decision inbox, decision debt, structured review room, workspace, optimization output, entity, resource, assistant advice (as a page concept replacing the workflow).
 
-Use instead: Round Board, Needs Action, Round Checks, Squad planning, Generated squads, Player, Team.
+Use instead: Round Board, Needs Action, Round Checks, Squad planning, Generated squads, Player, Team, Next action.
 
 ### Domain language for movement and roles
 
@@ -280,6 +328,17 @@ Required test coverage should include:
 - populate all generates all rounds without finalizing
 - populate all skips finalized rounds
 - populate all reports partial failures without rollback
+- clear all removes only non-finalized draft data
+- clear round removes only selected round draft data
+- clear match removes only selected match draft data
+- clear actions preserve finalized history and setup data
+- manual add player with and without valid path
+- manual remove player recalculates warnings
+- manual role change validates role-specific path
+- manual override requires reason
+- finalized match cannot be edited by draft action
+- invariant validation catches invalid non-core movement
+- rotation path policy enforces exact role matching
 
 ## Data safety
 
@@ -310,14 +369,17 @@ Avoid:
 |------|---------|
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
-| `src/lib/selection/resolve-round-support.ts` | Cross-match support resolution |
+| `src/lib/selection/resolve-round-support.ts` | Cross-match support and backfill resolution |
 | `src/lib/selection/resolve-round-conflicts.ts` | Same-round player conflicts |
 | `src/lib/selection/route-core-match-drops.ts` | Core match drop routing |
-| `src/lib/selection/resolve-backfill-after-support.ts` | Post-support backfill |
+| `src/lib/selection/rotation-path-policy.ts` | Movement eligibility validation |
+| `src/lib/selection/validate-generated-round-invariants.ts` | Post-generation invariant checks |
 | `src/lib/selection/save-generated-draft.ts` | Persist draft selections |
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
 | `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a round |
+| `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |
+| `src/lib/selection/persist-warnings.ts` | Persist warnings after generation |
 
 ## Stale references removed
 

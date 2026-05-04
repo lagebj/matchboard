@@ -78,8 +78,6 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.season.deleteMany()
   await db.player.deleteMany()
   await db.rotationPath.deleteMany()
-  await db.teamDevelopmentSource.deleteMany()
-  await db.teamSupportSource.deleteMany()
   await db.team.deleteMany()
   await db.ruleConfig.deleteMany()
 
@@ -261,32 +259,6 @@ export async function seedTestFixture(
         lastName: player.lastName ?? "",
         primaryPosition: pos,
         playerCode: player.playerCode,
-      });
-    }
-  }
-
-  for (const team of teams) {
-    const supportSources = rotationPaths.filter(
-      (p) => p.to === team.name && p.role === "SUPPORT",
-    );
-    for (const source of supportSources) {
-      await db.teamSupportSource.create({
-        data: {
-          targetTeamId: teamIds[team.name]!,
-          sourceTeamId: teamIds[source.from]!,
-        },
-      });
-    }
-
-    const devSources = rotationPaths.filter(
-      (p) => p.to === team.name && p.role === "DEVELOPMENT",
-    );
-    for (const source of devSources) {
-      await db.teamDevelopmentSource.create({
-        data: {
-          targetTeamId: teamIds[team.name]!,
-          sourceTeamId: teamIds[source.from]!,
-        },
       });
     }
   }

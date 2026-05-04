@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import type { SelectionStatus } from "@/generated/prisma/client";
-import { RoundCommandCenter } from "@/components/round/round-command-center";
+import { RoundWorkbench } from "@/components/round/round-workbench";
 import type { PlayerInMatch } from "@/components/round/match-squad-card";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
@@ -110,13 +109,6 @@ export default async function RoundBoardPage({
     const existing = selectionsByMatchId.get(sel.matchId) ?? [];
     existing.push(sel);
     selectionsByMatchId.set(sel.matchId, existing);
-  }
-
-  const latestSelectionStatusByMatchId = new Map<string, SelectionStatus | null>();
-  for (const sel of selections) {
-    if (!latestSelectionStatusByMatchId.has(sel.matchId)) {
-      latestSelectionStatusByMatchId.set(sel.matchId, sel.status);
-    }
   }
 
   const roundLabel = matchRound.matches.length > 0
@@ -239,7 +231,6 @@ export default async function RoundBoardPage({
       selectedPlayerIds.add(sel.player.id);
     }
     const selectedCount = selectedPlayerIds.size;
-    const _supportCount = matchSels.filter((s) => s.role === "SUPPORT" || s.role === "BACKFILL").length;
     const matchWarnings = unresolvedWarnings.filter(
       (w) => w.matchId === match.id || w.teamId === match.teamId,
     );
@@ -316,6 +307,8 @@ export default async function RoundBoardPage({
   const roundData = {
     roundLabel,
     roundStatus: matchRound.status as "DRAFT" | "FINALIZED",
+    hasDraftSelections: selections.length > 0,
+    hasMatches: matchRound.matches.length > 0,
     squads,
     warnings,
     warningSummary,
@@ -347,7 +340,7 @@ export default async function RoundBoardPage({
           Round generated successfully.
         </div>
       )}
-      <RoundCommandCenter round={roundData} matchRoundId={matchRoundId} />
+      <RoundWorkbench round={roundData} matchRoundId={matchRoundId} />
     </div>
   );
 }

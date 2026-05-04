@@ -212,10 +212,7 @@ function buildGenerationSummary(
     for (const excluded of result.excludedPlayers) {
       const isDropOrOverflow =
         excluded.automaticSelectionCategory === "CORE" ||
-        excluded.exclusionReason?.includes("surplus core") ||
-        excluded.exclusionReason?.includes("core-match drop") ||
-        excluded.exclusionReason?.includes("overflow") ||
-        excluded.exclusionReason?.includes("exceeded");
+        (excluded.eligibility === false && excluded.automaticSelectionCategory !== null);
 
       if (isDropOrOverflow && !allSelectedPlayerIds.has(excluded.playerId)) {
         unroutedExclusions.push({
@@ -242,25 +239,8 @@ async function extractCoreMatchDropCandidates(
   const excludedPlayerIds: string[] = [];
   for (const result of matchResults) {
     for (const excluded of result.excludedPlayers) {
-      if (
-        excluded.automaticSelectionCategory !== "CORE" &&
-        excluded.exclusionReason?.includes("core-match drop") === false &&
-        excluded.exclusionReason?.includes("reduced-match-load drop") === false
-      ) {
-        continue;
-      }
-
-      const isCoreMatchDrop =
-        excluded.exclusionReason?.includes("core-match drop") ||
-        excluded.exclusionReason?.includes("core match drop") ||
-        excluded.exclusionReason?.includes("surplus core player") ||
-        (excluded.automaticSelectionCategory === "CORE" && excluded.exclusionReason?.includes("exceeded"));
-
-      const isReducedLoadDrop =
-        excluded.exclusionReason?.includes("reduced-match-load drop") ||
-        excluded.exclusionReason?.includes("reduced match load");
-
-      if (!isCoreMatchDrop && !isReducedLoadDrop) continue;
+      const isSurplusCore = excluded.automaticSelectionCategory === "CORE" && excluded.eligibility !== false;
+      if (!isSurplusCore) continue;
 
       excludedPlayerIds.push(excluded.playerId);
       candidates.push({
@@ -272,6 +252,7 @@ async function extractCoreMatchDropCandidates(
         primaryPosition: excluded.playerPosition,
         secondaryPosition: null,
         tertiaryPosition: null,
+        nonRotatable: excluded.nonRotatable,
         fromMatchId: result.matchId,
       });
     }
@@ -319,7 +300,7 @@ function applyRoutedDrops(
 
     return {
       autoSelected: true,
-      chosenPosition: drop.playerName,
+      chosenPosition: drop.playerPosition,
       coreTeamId: drop.fromTeamId,
       coreTeamName: drop.fromTeamName,
       eligibility: true,
@@ -329,9 +310,10 @@ function applyRoutedDrops(
       ],
       finalSelected: false,
       manualOverride: false,
+      nonRotatable: drop.nonRotatable,
       playerId: drop.playerId,
       playerName: drop.playerName,
-      playerPosition: "",
+      playerPosition: drop.primaryPosition,
       priorityScore: 100 + drop.priorityBonus,
       selectionCategory: drop.role,
       selectionReason: `Selected as ${drop.role.toLowerCase()} for ${drop.targetTeamName} after being dropped as surplus core from ${drop.fromTeamName}.`,
@@ -390,7 +372,7 @@ function selfBackfillBelowTarget(
       (p) => p.coreTeamId !== undefined && p.coreTeamName === result.teamName,
     );
 
-    const available = ownExcluded.filter((p) => !assignedPlayerIds.has(p.playerId));
+    const available = ownExcluded.filter((p) => !assignedPlayerIds.has(p.playerId) && p.eligibility !== false);
     const toReinclude = available.slice(0, shortfall);
 
     if (toReinclude.length === 0) return result;
@@ -409,6 +391,7 @@ function selfBackfillBelowTarget(
       ],
       finalSelected: false,
       manualOverride: p.manualOverride,
+      nonRotatable: p.nonRotatable,
       playerId: p.playerId,
       playerName: p.playerName,
       playerPosition: p.playerPosition,

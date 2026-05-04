@@ -1,10 +1,15 @@
+"use client";
+
+import { useState, useTransition } from "react";
 import {
   Users,
   AlertTriangle,
   ArrowRightCircle,
   ArrowLeftCircle,
+  Trash2,
 } from "lucide-react";
 import { RoleBadge, type SelectionRole } from "@/components/ui/role-badge";
+import { clearMatchDraftAction } from "@/app/rounds/[matchRoundId]/actions";
 
 export type PlayerInMatch = {
   playerId: string;
@@ -19,6 +24,7 @@ export type PlayerInMatch = {
 };
 
 type MatchSquadCardProps = {
+  matchId: string;
   teamName: string;
   opponent: string;
   matchDate: Date;
@@ -64,6 +70,7 @@ function SupportStatusIndicator({ status }: { status: MatchSquadCardProps["suppo
 }
 
 export function MatchSquadCard({
+  matchId,
   teamName,
   opponent,
   matchDate,
@@ -79,6 +86,8 @@ export function MatchSquadCard({
   onPlayerClick,
   isSelected = false,
 }: MatchSquadCardProps) {
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const grouped = roleGroups.map((group) => ({
     ...group,
     players: players.filter((p) => p.selectionCategory === group.key),
@@ -100,7 +109,7 @@ export function MatchSquadCard({
 
   return (
     <div
-      className={`rounded-xl border transition-colors cursor-pointer ${
+      className={`relative rounded-xl border transition-colors cursor-pointer ${
         isSelected
           ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
           : "border-[var(--border-soft)] bg-[var(--surface-base)] hover:border-[var(--border-strong)]"
@@ -122,6 +131,18 @@ export function MatchSquadCard({
           </span>
           {isFinalized && (
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
+          )}
+          {!isFinalized && selectedCount > 0 && (
+            <button
+              className="rounded p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-900/20 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowClearConfirm(true);
+              }}
+              aria-label="Clear match draft"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </div>
@@ -173,6 +194,40 @@ export function MatchSquadCard({
           );
         })}
       </div>
+
+      {showClearConfirm && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/70 backdrop-blur-sm"
+          onClick={(e) => { e.stopPropagation(); setShowClearConfirm(false); }}
+        >
+          <div className="flex flex-col gap-2 p-4 text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-medium text-zinc-100">Clear draft for this match?</p>
+            <p className="text-xs text-zinc-400">Draft selections will be removed.</p>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <button
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] transition-colors"
+                onClick={() => setShowClearConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const formData = new FormData();
+                    formData.set("matchId", matchId);
+                    await clearMatchDraftAction(formData);
+                    setShowClearConfirm(false);
+                  });
+                }}
+              >
+                {isPending ? "Clearing..." : "Clear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

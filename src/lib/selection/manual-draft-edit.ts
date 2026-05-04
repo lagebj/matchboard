@@ -1,0 +1,334 @@
+import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { db } from "@/lib/db";
+import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
+import type { AutomaticSelectionCategory } from "@/lib/selection/types";
+
+export type ManualEditResult = {
+  success: boolean;
+  errors: string[];
+  warnings: string[];
+  selectionId?: string;
+};
+
+export type ManualEditValidationError = {
+  field: string;
+  message: string;
+  requiresOverride: boolean;
+};
+
+export async function addPlayerToDraftMatch(
+  matchId: string,
+  playerId: string,
+  role: SelectionRole,
+  overrideReason?: string,
+): Promise<ManualEditResult> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    include: {
+      matchRound: { select: { id: true, status: true } },
+      team: { select: { id: true, name: true, maxSquadSize: true } },
+      selections: { where: { status: SelectionStatus.DRAFT }, include: { player: true } },
+    },
+  });
+
+  if (!match) {
+    return { success: false, errors: ["Match not found."], warnings };
+  }
+
+  if (match.matchRound.status === "FINALIZED") {
+    return { success: false, errors: ["Cannot edit a match in a finalized round."], warnings };
+  }
+
+  const player = await db.player.findUnique({
+    where: { id: playerId },
+    include: { coreTeam: { select: { id: true, name: true } } },
+  });
+
+  if (!player) {
+    return { success: false, errors: ["Player not found."], warnings };
+  }
+
+  if (player.removedAt) {
+    return { success: false, errors: ["Player has been removed from the active registry."], warnings };
+  }
+
+  const isCoreRole = role === SelectionRole.CORE;
+
+  if (!isCoreRole && player.nonRotatable && !overrideReason) {
+    return { success: false, errors: ["Non-rotatable player cannot be moved outside core team without override reason."], warnings };
+  }
+
+  if (!isCoreRole && player.coreTeamId !== match.teamId) {
+    const activePaths = await db.rotationPath.findMany({
+      where: { active: true },
+      select: { fromTeamId: true, toTeamId: true, role: true, active: true },
+    });
+
+    const pathResult = canMoveForRole(
+      player.coreTeamId,
+      match.teamId,
+      role as AutomaticSelectionCategory,
+      player.nonRotatable,
+      activePaths,
+    );
+
+    if (!pathResult.valid && !overrideReason) {
+      return {
+        success: false,
+        errors: [`No valid ${role} rotation path from ${player.coreTeam.name} to ${match.team.name}. Override reason required.`],
+        warnings,
+      };
+    }
+
+    if (!pathResult.valid && overrideReason) {
+      warnings.push(`Movement override: ${pathResult.explanation}`);
+    }
+  }
+
+  const existingDraftSelection = match.selections.find((s) => s.playerId === playerId);
+  if (existingDraftSelection) {
+    return { success: false, errors: ["Player already selected for this match in draft."], warnings };
+  }
+
+  const sameRoundSelection = await db.selection.findFirst({
+    where: {
+      matchRoundId: match.matchRoundId,
+      playerId,
+      status: { in: [SelectionStatus.DRAFT, SelectionStatus.FINALIZED] },
+    },
+  });
+  if (sameRoundSelection && sameRoundSelection.matchId !== matchId) {
+    return { success: false, errors: ["Player already selected for another match in this round."], warnings };
+  }
+
+  if (player.currentAvailability !== "AVAILABLE" && player.currentAvailability !== "TENTATIVE" && !overrideReason) {
+    return { success: false, errors: [`Player is ${player.currentAvailability}. Override reason required.`], warnings };
+  }
+  if (player.currentAvailability === "TENTATIVE") {
+    warnings.push("Player availability is tentative.");
+  }
+
+  if (match.selections.length >= match.team.maxSquadSize && !overrideReason) {
+    warnings.push(`Squad is at maximum size (${match.team.maxSquadSize}). Adding exceeds maximum.`);
+  }
+
+  const selection = await db.selection.create({
+    data: {
+      matchId,
+      matchRoundId: match.matchRoundId,
+      playerId,
+      role,
+      status: SelectionStatus.DRAFT,
+      overrideReason: overrideReason ?? null,
+      explanation: {
+        summary: `Manually added as ${role}`,
+        manuallyAdded: true,
+        autoSelected: false,
+        sourceTeamName: player.coreTeam.name,
+        targetTeamName: match.team.name,
+      },
+    },
+  });
+
+  return { success: true, errors, warnings, selectionId: selection.id };
+}
+
+export async function removePlayerFromDraftMatch(
+  matchId: string,
+  playerId: string,
+): Promise<ManualEditResult> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const selection = await db.selection.findFirst({
+    where: {
+      matchId,
+      playerId,
+      status: SelectionStatus.DRAFT,
+    },
+    include: {
+      match: {
+        include: {
+          matchRound: { select: { id: true, status: true } },
+        },
+      },
+    },
+  });
+
+  if (!selection) {
+    return { success: false, errors: ["Draft selection not found for this player in this match."], warnings };
+  }
+
+  if (selection.match.matchRound.status === "FINALIZED") {
+    return { success: false, errors: ["Cannot remove a player from a match in a finalized round."], warnings };
+  }
+
+  await db.selection.delete({
+    where: { id: selection.id },
+  });
+
+  await db.movementLedger.deleteMany({
+    where: {
+      matchId,
+      playerId,
+      isDraft: true,
+    },
+  });
+
+  return { success: true, errors, warnings };
+}
+
+export async function changeDraftPlayerRole(
+  matchId: string,
+  playerId: string,
+  newRole: SelectionRole,
+  overrideReason?: string,
+): Promise<ManualEditResult> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const selection = await db.selection.findFirst({
+    where: {
+      matchId,
+      playerId,
+      status: SelectionStatus.DRAFT,
+    },
+    include: {
+      match: {
+        include: {
+          team: { select: { id: true, name: true } },
+          matchRound: { select: { id: true, status: true } },
+        },
+      },
+      player: {
+        include: { coreTeam: { select: { id: true, name: true } } },
+      },
+    },
+  });
+
+  if (!selection) {
+    return { success: false, errors: ["Draft selection not found."], warnings };
+  }
+
+  if (selection.match.matchRound.status === "FINALIZED") {
+    return { success: false, errors: ["Cannot change role in a finalized round."], warnings };
+  }
+
+  if (selection.role === newRole) {
+    return { success: true, errors, warnings };
+  }
+
+  const isCoreRole = newRole === SelectionRole.CORE;
+  const player = selection.player;
+
+  if (!isCoreRole && player.coreTeamId !== selection.match.teamId) {
+    const activePaths = await db.rotationPath.findMany({
+      where: { active: true },
+      select: { fromTeamId: true, toTeamId: true, role: true, active: true },
+    });
+
+    const pathResult = canMoveForRole(
+      player.coreTeamId,
+      selection.match.teamId,
+      newRole as AutomaticSelectionCategory,
+      player.nonRotatable,
+      activePaths,
+    );
+
+    if (!pathResult.valid && !overrideReason) {
+      return {
+        success: false,
+        errors: [`No valid ${newRole} rotation path from ${player.coreTeam.name} to ${selection.match.team.name}. Override reason required.`],
+        warnings,
+      };
+    }
+
+    if (!pathResult.valid && overrideReason) {
+      warnings.push(`Role change override: ${pathResult.explanation}`);
+    }
+  }
+
+  await db.selection.update({
+    where: { id: selection.id },
+    data: {
+      role: newRole,
+      overrideReason: overrideReason ?? selection.overrideReason,
+      explanation: {
+        summary: `Role changed from ${selection.role} to ${newRole}`,
+        manuallyAdded: false,
+        autoSelected: false,
+        sourceTeamName: player.coreTeam.name,
+        targetTeamName: selection.match.team.name,
+      },
+    },
+  });
+
+  return { success: true, errors, warnings, selectionId: selection.id };
+}
+
+export async function replaceDraftMatchPlayer(
+  matchId: string,
+  outgoingPlayerId: string,
+  incomingPlayerId: string,
+  role: SelectionRole,
+  overrideReason?: string,
+): Promise<ManualEditResult> {
+  const removeResult = await removePlayerFromDraftMatch(matchId, outgoingPlayerId);
+  if (!removeResult.success) {
+    return removeResult;
+  }
+
+  const addResult = await addPlayerToDraftMatch(matchId, incomingPlayerId, role, overrideReason);
+  return addResult;
+}
+
+export function validateManualMatchEdit(
+  playerCoreTeamId: string,
+  playerCoreTeamName: string,
+  targetTeamId: string,
+  targetTeamName: string,
+  role: SelectionRole,
+  nonRotatable: boolean,
+  availability: string,
+  rotationPaths: { fromTeamId: string; toTeamId: string; role: string; active: boolean }[],
+): ManualEditValidationError[] {
+  const errors: ManualEditValidationError[] = [];
+
+  if (nonRotatable && role !== SelectionRole.CORE) {
+    errors.push({
+      field: "nonRotatable",
+      message: "Non-rotatable player cannot be moved outside core team without override reason.",
+      requiresOverride: true,
+    });
+  }
+
+  if (role !== SelectionRole.CORE && playerCoreTeamId !== targetTeamId) {
+    const pathResult = canMoveForRole(
+      playerCoreTeamId,
+      targetTeamId,
+      role as AutomaticSelectionCategory,
+      nonRotatable,
+      rotationPaths,
+    );
+    if (!pathResult.valid) {
+      errors.push({
+        field: "rotationPath",
+        message: pathResult.explanation,
+        requiresOverride: true,
+      });
+    }
+  }
+
+  if (availability !== "AVAILABLE" && availability !== "TENTATIVE") {
+    errors.push({
+      field: "availability",
+      message: `Player is ${availability}. Override reason required.`,
+      requiresOverride: true,
+    });
+  }
+
+  return errors;
+}

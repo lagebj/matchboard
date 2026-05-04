@@ -19,9 +19,16 @@ export async function createGeneratedDraftSelection(
 ) {
   const matchRoundId = generatedSelection.matchRoundId;
 
-  await db.$transaction(
-    generatedSelection.selectedPlayers.map((player) =>
-      db.selection.create({
+  await db.$transaction(async (tx) => {
+    await tx.selection.deleteMany({
+      where: {
+        matchId,
+        status: SelectionStatus.DRAFT,
+      },
+    });
+
+    for (const player of generatedSelection.selectedPlayers) {
+      await tx.selection.create({
         data: {
           matchId,
           matchRoundId,
@@ -38,9 +45,9 @@ export async function createGeneratedDraftSelection(
             chosenPosition: player.chosenPosition ?? null,
           },
         },
-      }),
-    ),
-  );
+      });
+    }
+  });
 }
 
 export async function createGeneratedDraftRound(

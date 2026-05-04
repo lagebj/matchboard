@@ -27,10 +27,6 @@ model Team {
 
   corePlayers                Player[]                 @relation("CoreTeam")
   matches                    Match[]
-  supportTargetRelationships TeamSupportSource[]      @relation("SupportTargetTeam")
-  supportSourceRelationships TeamSupportSource[]      @relation("SupportSourceTeam")
-  developmentTargetRelationships TeamDevelopmentSource[] @relation("DevelopmentTargetTeam")
-  developmentSourceRelationships TeamDevelopmentSource[] @relation("DevelopmentSourceTeam")
 
   fromRotationPaths RotationPath[] @relation("FromTeam")
   toRotationPaths   RotationPath[] @relation("ToTeam")
@@ -112,28 +108,6 @@ model Match {
   movementLedger MovementLedger[]
 
   @@index([startsAt, createdAt])
-}
-
-model TeamSupportSource {
-  targetTeamId String
-  sourceTeamId String
-
-  targetTeam Team @relation("SupportTargetTeam", fields: [targetTeamId], references: [id], onDelete: Restrict)
-  sourceTeam Team @relation("SupportSourceTeam", fields: [sourceTeamId], references: [id], onDelete: Restrict)
-
-  @@id([targetTeamId, sourceTeamId])
-  @@index([sourceTeamId])
-}
-
-model TeamDevelopmentSource {
-  targetTeamId String
-  sourceTeamId String
-
-  targetTeam Team @relation("DevelopmentTargetTeam", fields: [targetTeamId], references: [id], onDelete: Restrict)
-  sourceTeam Team @relation("DevelopmentSourceTeam", fields: [sourceTeamId], references: [id], onDelete: Restrict)
-
-  @@id([targetTeamId, sourceTeamId])
-  @@index([sourceTeamId])
 }
 
 model RuleConfig {

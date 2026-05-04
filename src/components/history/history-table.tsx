@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { SortableHeader } from "@/components/sortable-header";
+import { formatPlayerName } from "@/lib/player-metrics";
 import { formatDate } from "@/lib/date-utils";
 import {
   applySortDirection,
@@ -28,10 +29,6 @@ export type PlayerHistoryRow = {
   recentSelectionPattern: string;
   totalFinalizedAppearances: number;
 };
-
-function formatPlayerName(row: PlayerHistoryRow): string {
-  return row.lastName ? `${row.firstName} ${row.lastName}` : row.firstName;
-}
 
 export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
   const [sortKey, setSortKey] = useState("player");

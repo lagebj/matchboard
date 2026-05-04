@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { TeamDetailWorkspace } from "@/components/team/team-detail-workspace";
+import { TeamDetail } from "@/components/team/team-detail";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
@@ -325,7 +325,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
 
   return (
     <main className="flex min-h-full flex-col gap-6 text-foreground">
-      <TeamDetailWorkspace data={data} />
+      <TeamDetail data={data} />
     </main>
   );
 }

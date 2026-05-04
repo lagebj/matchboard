@@ -636,7 +636,7 @@ function RulesTab({ rotationPaths, teamId: _teamId }: { rotationPaths: RotationP
   );
 }
 
-export function TeamDetailWorkspace({ data }: { data: TeamDetailData }) {
+export function TeamDetail({ data }: { data: TeamDetailData }) {
   const [activeTab, setActiveTab] = useState<TabKey>("squad");
 
   return (

@@ -341,7 +341,7 @@ export function RoundBoardColumn({
             className="inline-flex h-8 items-center rounded-full border app-hairline px-3 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
             href={`/selection/${matchId}`}
           >
-            Open workspace
+            Open selection
           </Link>
           {warnings.length > 0 && (
             <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.12)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--warning)]">

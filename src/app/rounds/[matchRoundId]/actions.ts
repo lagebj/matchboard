@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
+import { clearRoundDraftSelection, clearMatchDraftSelection } from "@/lib/selection/clear-draft-selection";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
 export async function finalizeRoundAction(formData: FormData) {
@@ -38,4 +39,29 @@ export async function finalizeRoundAction(formData: FormData) {
   }
 
   redirect(buildPathWithSearch(`/rounds/${matchRoundId}`, { finalized: "1" }));
+}
+
+export async function clearRoundDraftAction(formData: FormData) {
+  const matchRoundId = formData.get("matchRoundId");
+  if (typeof matchRoundId !== "string" || !matchRoundId) {
+    throw new Error("Match round ID is required.");
+  }
+
+  await clearRoundDraftSelection(matchRoundId);
+
+  revalidatePath("/");
+  revalidatePath("/rounds");
+  revalidatePath(`/rounds/${matchRoundId}`);
+}
+
+export async function clearMatchDraftAction(formData: FormData) {
+  const matchId = formData.get("matchId");
+  if (typeof matchId !== "string" || !matchId) {
+    throw new Error("Match ID is required.");
+  }
+
+  await clearMatchDraftSelection(matchId);
+
+  revalidatePath("/");
+  revalidatePath("/rounds");
 }

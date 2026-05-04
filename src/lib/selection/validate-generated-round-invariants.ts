@@ -41,7 +41,7 @@ export function validateGeneratedRoundInvariants(
         player.coreTeamId,
         targetTeamId,
         role,
-        false,
+        player.nonRotatable,
         rotationPaths,
       );
 

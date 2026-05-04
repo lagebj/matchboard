@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { clearAllDraftsAction } from "./actions";
 
 type RoundListItem = {
   id: string;
@@ -16,6 +17,8 @@ type FilterState = "all" | "needs_action" | "draft" | "ready" | "finalized";
 
 type RoundListClientProps = {
   rounds: RoundListItem[];
+  activePlanningPeriodId: string | null;
+  hasDraftRounds: boolean;
 };
 
 const filterConfig: Array<{ key: FilterState; label: string }> = [
@@ -49,8 +52,10 @@ const statusConfig: Record<RoundListItem["derivedStatus"], { label: string; bord
   FINALIZED: { label: "Finalized", border: "border-[rgba(140,167,146,0.28)]", bg: "bg-[rgba(140,167,146,0.12)]", text: "text-[var(--accent-strong)]" },
 };
 
-export function RoundListClient({ rounds }: RoundListClientProps) {
+export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds }: RoundListClientProps) {
   const [filter, setFilter] = useState<FilterState>("all");
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const filtered = filterRounds(rounds, filter);
 
   return (
@@ -69,6 +74,14 @@ export function RoundListClient({ rounds }: RoundListClientProps) {
             {f.label}
           </button>
         ))}
+        {hasDraftRounds && activePlanningPeriodId && (
+          <button
+            className="ml-auto rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
+            onClick={() => setShowClearAllDialog(true)}
+          >
+            Clear all drafts
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -107,6 +120,45 @@ export function RoundListClient({ rounds }: RoundListClientProps) {
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {showClearAllDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowClearAllDialog(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
+            <div className="flex flex-col gap-4 px-5 py-4">
+              <h3 className="text-base font-semibold text-zinc-100">Clear all draft selections</h3>
+              <p className="text-sm text-zinc-300">
+                This will remove all non-finalized draft selections, warnings, and explanations across all rounds.
+              </p>
+              <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
+                <p className="text-sm text-amber-300">Finalized rounds and setup data will not be affected. This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
+              <button
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
+                onClick={() => setShowClearAllDialog(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const formData = new FormData();
+                    formData.set("planningPeriodId", activePlanningPeriodId!);
+                    await clearAllDraftsAction(formData);
+                    setShowClearAllDialog(false);
+                  });
+                }}
+              >
+                {isPending ? "Clearing..." : "Clear all drafts"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

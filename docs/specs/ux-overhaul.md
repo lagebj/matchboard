@@ -70,7 +70,7 @@ Follow existing conventions:
 
 - **Always do:** Run `npm test` and `npx tsc --noEmit` after changes, keep domain logic out of React components, use existing Tailwind setup, preserve local-first SQLite model
 - **Ask first:** Adding new npm dependencies, changing Prisma schema, changing API endpoints
-- **Never do:** Commit real player data, reference docs/domain.md, break features/matchboard.feature expectations, introduce auth or multi-user concepts, add pages beyond the 6 canonical routes
+- **Never do:** Commit real player data, reference docs/domain.md (deleted), break features/matchboard.feature expectations, introduce auth or multi-user concepts, add pages beyond the 6 canonical routes
 
 ## Route Architecture
 
@@ -309,7 +309,7 @@ Files:
 
 ### Phase 5: Round workbench overhaul
 
-Overhaul round command center with status strip, improved squad cards, movement chains.
+Overhaul round workbench with status strip, improved squad cards, movement chains.
 
 Files:
 - MOD: src/components/round/round-command-center.tsx

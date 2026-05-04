@@ -23,7 +23,7 @@ Feature: Matchboard football operations workspace
 
   Matchboard must feel like a football management cockpit, not an admin CRUD app.
   The main workflow must be inspired by Football Manager-style interaction patterns:
-  persistent navigation, object-based screens, dense information panels, decision inbox, assistant advice, squad views, tactics board, and matchday workflow.
+  persistent navigation, object-based screens, dense information panels, needs action, round checks, squad views, tactics board, and matchday workflow.
 
   The app must not optimize for winning.
   The app must optimize for match function, player development, fairness, support coverage, team continuity, and explainable coach decisions.
@@ -828,6 +828,17 @@ Feature: Matchboard football operations workspace
       When the app generates support selections
       Then Team C support needs must be resolved before Team B support needs
 
+    Scenario: Support priority ascending sort order
+      Given Team A has support priority 10
+      And Team B has support priority 30
+      And Team C has support priority 100
+      And all three teams need support in the same match round
+      When the app generates support selections
+      Then Team A support must be resolved first
+      And Team B support must be resolved second
+      And Team C support must be resolved last
+      And lower support priority number means higher urgency
+
 
   Rule: Support chains and backfill
 
@@ -903,6 +914,26 @@ Feature: Matchboard football operations workspace
       When the app resolves backfill for Team B
       Then player "d1" must be considered as backfill priority 2
       And player "d1" should be ranked above generic backfill candidates from other teams
+
+    Scenario: Backfill priority 2 uses DEVELOPMENT path for team direction and assigns BACKFILL role
+      Given Team B needs backfill after supplying support
+      And an active DEVELOPMENT rotation path exists from Team A to Team B
+      And player "d1" has Team A as core team
+      And player "d1" is not marked as non-rotatable
+      When the app resolves backfill priority 2 for Team B
+      Then player "d1" may be selected from Team A because the DEVELOPMENT path gates the team-to-team direction
+      And player "d1" must be assigned the role "backfill" not "development"
+      And the selection must reference the DEVELOPMENT path as the movement authority
+
+    Scenario: Backfill priority 2 does not use SUPPORT path as authority
+      Given Team B needs backfill after supplying support
+      And a SUPPORT rotation path exists from Team A to Team B
+      And no DEVELOPMENT path exists from Team A to Team B
+      And no BACKFILL path exists from Team A to Team B
+      And player "s1" has Team A as core team
+      And player "s1" is not marked as non-rotatable
+      When the app resolves backfill priority 2 for Team B
+      Then player "s1" must not be considered for backfill priority 2 based on the SUPPORT path alone
 
     Scenario: Backfill priority 3 — any other non-rotatable-false player from another team
       Given Team B needs backfill after supplying support
@@ -1398,28 +1429,281 @@ Feature: Matchboard football operations workspace
       And treat match fit as "unknown"
 
 
-  Rule: Draft reset
+  Rule: Coach setup workflow
 
-    Draft selections can be reset without damaging finalized history.
+    Matchboard is set up by adding teams, players, and matches.
+    The coach can then populate all draft squads.
+    Populate all groups matches by round and generates draft selections per round.
+    The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time.
+    Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
 
-    Scenario: Coach can reset a draft match round
-      Given match round "R1" has draft selections
-      When the coach resets the draft for match round "R1"
+    The Today page must always show the next action based on this workflow state.
+
+    Scenario: Setup starts by adding teams
+      Given no teams exist
+      When the coach opens the app
+      Then the next action must be to add teams
+
+    Scenario: After teams exist, add players
+      Given teams exist but no players exist
+      When the coach opens the app
+      Then the next action must be to add players
+
+    Scenario: After players exist, add matches
+      Given teams and players exist but no matches exist
+      When the coach opens the app
+      Then the next action must be to add matches
+
+    Scenario: After matches exist, populate draft squads
+      Given teams, players, and matches exist
+      And no draft selections have been generated
+      When the coach opens the app
+      Then the next action must be to populate all draft squads
+
+    Scenario: After drafts exist with blockers, review blockers
+      Given draft squads have been populated
+      And some rounds have HARD_BLOCK warnings
+      When the coach opens the app
+      Then the next action must be to review blocked rounds
+
+    Scenario: After drafts exist without blockers, finalize ready round
+      Given draft squads have been populated
+      And no rounds have HARD_BLOCK warnings
+      And at least one round is not finalized
+      When the coach opens the app
+      Then the next action must be to finalize a ready round
+
+    Scenario: No active work when all rounds finalized
+      Given all rounds in the active planning period are finalized
+      When the coach opens the app
+      Then the app must show no active work
+
+
+  Rule: Draft reset and clear actions
+
+    Draft selections can be cleared at three levels without damaging finalized history or setup data.
+    Clear all removes all non-finalized draft data across the entire planning period.
+    Clear round removes draft data for one selected round.
+    Clear match removes draft data for one selected match.
+    All clear actions preserve finalized selections, finalized movement ledger, teams, players, matches, rounds, rules, and availability.
+
+    Scenario: Coach can clear all draft squads
+      Given active planning period has draft selections in multiple rounds
+      When the coach clears all drafts
+      Then every draft selection across all non-finalized rounds must be removed
+      And every draft warning must be removed
+      And every draft explanation must be removed
+      And every draft movement ledger entry must be removed
+      And provisional planning context must be removed
+      And finalized selections, warnings, explanations, and movement ledger entries must remain unchanged
+
+    Scenario: Coach can clear round draft
+      Given match round "R1" has draft selections and draft warnings
+      And match round "R2" has draft selections
+      When the coach clears draft for match round "R1"
       Then all draft selections for matches in "R1" must be removed
-      And the matches themselves must remain in the schedule
-      And finalized historical selections must not be removed
-
-    Scenario: Coach can reset all draft selections in active planning period
-      Given active planning period has draft selections
-      When the coach resets all drafts in the planning period
-      Then every draft selection in the planning period must be removed
+      And all draft warnings for "R1" must be removed
+      And all draft explanations for matches in "R1" must be removed
+      And all draft movement ledger entries for "R1" must be removed
+      And match round "R2" draft selections must remain unchanged
       And finalized selections must remain unchanged
 
-    Scenario: Resetting draft removes draft movement ledger entries
+    Scenario: Coach can clear match draft
+      Given match round "R1" contains matches "M1" and "M2"
+      And both matches have draft selections
+      When the coach clears draft for match "M1"
+      Then draft selections for "M1" must be removed
+      And draft warnings for "M1" must be removed
+      And draft explanations for "M1" must be removed
+      And draft movement ledger entries for "M1" must be removed
+      And match "M2" draft selections must remain unchanged
+      And the round status must be recalculated after clearing
+
+    Scenario: Clearing draft removes draft movement ledger entries
       Given match round "R1" has draft selections and draft movement ledger entries
-      When the coach resets the draft for match round "R1"
+      When the coach clears the draft for match round "R1"
       Then draft movement ledger entries for "R1" must be removed
       And finalized movement ledger entries must remain unchanged
+
+    Scenario: Clear actions never delete finalized selections
+      Given match round "R1" has been finalized
+      When the coach clears all drafts or clears round "R1" draft
+      Then finalized selections for "R1" must remain unchanged
+
+    Scenario: Clear actions never delete teams, players, matches, rules, or availability
+      Given teams, players, matches, and availability records exist
+      When the coach clears all drafts
+      Then teams must remain
+      And players must remain
+      And matches must remain
+      And rules must remain
+      And availability records must remain
+
+    Scenario: Clear match recalculates round status
+      Given match round "R1" was in READY state
+      And clearing match "M1" draft removes the last selection for that match
+      When the coach clears match "M1" draft
+      Then match round "R1" status must be recalculated
+      And affected warnings must be updated
+
+    Scenario: Clear round recalculates provisional planning context
+      Given match round "R1" draft selections were used as provisional context for later rounds
+      When the coach clears round "R1" draft
+      Then provisional planning context must be recalculated
+      And affected round warnings must be updated
+
+    Scenario: Clear all requires confirmation
+      Given active planning period has draft selections
+      When the coach triggers clear all drafts
+      Then the app must require explicit confirmation
+      And the confirmation must explain that only non-finalized draft data will be removed
+
+    Scenario: Affected rounds return to not-populated state after clearing
+      Given match round "R1" had draft selections
+      When the coach clears round "R1" draft
+      Then match round "R1" must return to not-populated state
+      And the matches in "R1" must still exist
+
+
+  Rule: Manual match squad editing
+
+    Draft match squads can be manually edited before finalization.
+    Manual editing must use the same domain validation as automatic generation.
+    Manual edits apply to draft selections only. Finalized selections cannot be edited without an explicit reopen or audit trail.
+    All manual edits must recalculate match status, round status, warnings, explanations, and fairness impact.
+    Manual edits cannot bypass RotationPath validation without an explicit override reason.
+    Manual edits cannot silently create same-round duplicate selections.
+    Unavailable players cannot be selected without an override reason.
+    Non-rotatable players cannot be moved outside their core team without an override reason.
+
+    Scenario: Coach adds eligible core player to empty draft match
+      Given match "M1" for Team A has no assigned players
+      And match round "R1" is in draft state
+      And player "p1" has Team A as core team
+      And player "p1" is available
+      When the coach adds player "p1" to match "M1"
+      Then player "p1" must be selected with role "core"
+      And match "M1" squad count must increase
+      And round status must be recalculated
+
+    Scenario: Coach adds valid support player to draft match
+      Given match "M1" for Team C needs support
+      And match round "R1" is in draft state
+      And player "b1" has Team B as core team
+      And an active SUPPORT rotation path exists from Team B to Team C
+      And player "b1" is available and not non-rotatable
+      When the coach adds player "b1" to match "M1" as support
+      Then player "b1" must be selected with role "support"
+      And the selection must reference the valid SUPPORT rotation path
+
+    Scenario: Coach cannot add support player without valid SUPPORT path
+      Given match "M1" for Team C needs support
+      And match round "R1" is in draft state
+      And player "a1" has Team A as core team
+      And no SUPPORT rotation path exists from Team A to Team C
+      When the coach attempts to add player "a1" to match "M1" as support
+      Then the app must reject the selection or require an override reason
+      And the app must explain that no valid SUPPORT path exists from Team A to Team C
+
+    Scenario: Coach cannot add unavailable player without override
+      Given match round "R1" is in draft state
+      And player "p1" is marked unavailable for match round "R1"
+      When the coach attempts to add player "p1" to a match in "R1"
+      Then the app must reject the selection or require an override reason
+      And the app must explain that the player is unavailable
+
+    Scenario: Coach cannot add non-rotatable player outside core team without override
+      Given match round "R1" is in draft state
+      And player "p1" is marked non-rotatable
+      And player "p1" has Team A as core team
+      When the coach attempts to add player "p1" to Team C match as support
+      Then the app must reject the selection or require an override reason
+      And the app must explain that non-rotatable restriction applies
+
+    Scenario: Same-round duplicate selection is prevented
+      Given player "p1" is already selected for match "M1" in match round "R1"
+      And match round "R1" is in draft state
+      When the coach attempts to add player "p1" to a different match "M2" in the same round
+      Then the app must reject the selection or explain the conflict
+      And the app must not silently create a duplicate selection
+
+    Scenario: Coach removes player from draft match
+      Given player "p1" is selected for match "M1" in match round "R1" as support
+      And match round "R1" is in draft state
+      When the coach removes player "p1" from match "M1"
+      Then player "p1" selection must be removed
+      And match "M1" squad count must recalculate
+      And support and backfill state must recalculate
+      And a warning must be created if squad falls below minimum or support is now missing
+
+    Scenario: Removing a player does not remove them from team registry
+      Given player "p1" is selected for match "M1" in draft match round "R1"
+      When the coach removes player "p1" from match "M1"
+      Then player "p1" must still exist in the player registry
+      And player "p1" must still belong to their core team
+
+    Scenario: Coach changes player role in draft match
+      Given player "p1" is selected for match "M1" as development
+      And match round "R1" is in draft state
+      And an active SUPPORT rotation path exists from player "p1" core team to match "M1" team
+      When the coach changes player "p1" role to support
+      Then the app must validate the SUPPORT rotation path
+      And if valid, player "p1" role must change to support
+      And warnings and explanations must recalculate
+
+    Scenario: Role change validates role-specific path
+      Given player "p1" is selected for match "M1" as support
+      And match round "R1" is in draft state
+      And no DEVELOPMENT rotation path exists from player "p1" core team to match "M1" team
+      When the coach attempts to change player "p1" role to development
+      Then the app must reject the role change or require an override reason
+      And the app must explain that no valid DEVELOPMENT path exists
+
+    Scenario: Coach replaces player in draft match
+      Given player "p1" is selected for match "M1" as support
+      And player "p2" is eligible for the same support role
+      And match round "R1" is in draft state
+      When the coach replaces player "p1" with player "p2"
+      Then player "p1" selection must be removed
+      And player "p2" must be added with the selected role
+      And same-round conflicts must be validated
+      And path eligibility must be validated
+      And match and round status must recalculate
+      And fairness impact difference must be visible
+
+    Scenario: Finalized match cannot be edited by draft action
+      Given match round "R1" has been finalized
+      When the coach attempts to add, remove, or change a player in a match in "R1"
+      Then the app must reject the edit
+      And explain that finalized rounds cannot be modified without explicit reopen
+
+    Scenario: Manual override requires reason
+      Given the coach is adding or modifying a player selection that breaks a hard rule
+      When the coach confirms the manual override
+      Then the app must require an override reason
+      And the reason must be persisted with the selection
+      And the override must appear in the finalization summary
+
+    Scenario: Manual edit recalculate warnings and explanations
+      Given match "M1" for Team A has draft selections
+      And match round "R1" is in draft state
+      When the coach edits a player in match "M1"
+      Then match "M1" warnings must be recalculated
+      And match round "R1" warnings must be recalculated
+      And match "M1" explanations must be recalculated
+      And match round "R1" status must be recalculated
+
+    Scenario: Empty match shows prompt for manual or automatic population
+      Given match "M1" for Team A has no assigned players
+      And match round "R1" is in draft state
+      When the coach views match "M1" in the round detail
+      Then the app must show a prompt to generate the round or add players manually
+
+    Scenario: Player picker shows eligibility information
+      Given the coach is adding a player to a draft match
+      When the player picker is shown
+      Then the app must show player name, core team, availability, current round assignment, eligible roles, and reason eligible or ineligible
+      And players must be grouped or filtered by eligibility status
 
 
   Rule: Populate all workflow
@@ -1611,19 +1895,19 @@ Feature: Matchboard football operations workspace
       But the main interaction must be through cards, panels, boards, drawers, pitch layout, or assistant review sections
 
 
-  Rule: Combined Manager Desk and Assistant Advice landing page
+  Rule: Today page — next action, round status, warnings
 
-    The landing page combines Football Manager-style inbox, assistant advice, warnings, and match round status.
-    Assistant Manager is not a separate destination required before the coach understands what to do.
-    A separate Assistant detail route may exist, but the landing page must include assistant advice directly.
+    The Today page combines Football Manager-style needs action, round checks, warnings, and match round status.
+    Round checks are not a separate destination required before the coach understands what to do.
+    A separate round checks detail route may exist, but the Today page must include round checks directly.
 
-    Scenario: Combined Manager Desk is the default landing page
+    Scenario: Today page is the default landing page
       Given the coach opens the app
       When a season and active planning period exist
-      Then the coach must land on the combined Manager Desk
+      Then the coach must land on the Today page
       And the first visible screen must show current match round status
-      And decision inbox
-      And assistant advice
+      And needs action
+      And round checks
       And warnings needing attention
       And primary actions
       And the first visible screen must not be a raw table of players, teams, matches, or selections
@@ -1644,10 +1928,10 @@ Feature: Matchboard football operations workspace
       And each card must show the affected team, player, match, or rule
       And each card must provide a direct action
 
-    Scenario: Landing page shows assistant advice panel
+    Scenario: Landing page shows round checks panel
       Given match round "R1" has generated selections
       When the coach opens the landing page
-      Then the app must show an Assistant Advice panel
+      Then the app must show a Round Checks panel
       And the panel must summarize support plan
       And backfill chain
       And development exposure
@@ -1655,9 +1939,9 @@ Feature: Matchboard football operations workspace
       And decisions needed
       And finalization status
 
-    Scenario: Assistant advice card shows recommendation, risk, alternative, and consequence
+    Scenario: Round checks card shows recommendation, risk, alternative, and consequence
       Given Team C target support cannot be reached cleanly
-      When the Assistant Advice panel shows the issue
+      When the Round Checks panel shows the issue
       Then the card must show recommended action
       And risk
       And alternative action
@@ -1667,39 +1951,39 @@ Feature: Matchboard football operations workspace
       Given match round "R1" has unresolved support warnings
       When the coach opens the landing page
       Then the primary action must lead to the relevant Round Board section
-      And secondary action may lead to Assistant detail
+      And secondary action may lead to round checks detail
       And the coach must not need to search through tables to find the problem
 
-    Scenario: Separate Assistant detail route is optional but consistent
-      Given the app has an Assistant detail route
-      When the coach opens Assistant detail
-      Then it must use the same advice sections as the landing page
-      And expand the details behind the landing page assistant cards
+    Scenario: Separate round checks detail route is optional but consistent
+      Given the app has a round checks detail route
+      When the coach opens round checks detail
+      Then it must use the same sections as the landing page round checks cards
+      And expand the details behind the landing page cards
 
 
-  Rule: Availability command center
+  Rule: Availability overview
 
     Availability is a first-class planning concern.
 
     Scenario: Coach views availability by status
       Given players have availability statuses for match round "R1"
-      When the coach opens availability command center
+      When the coach opens availability overview
       Then players must be grouped by "confirmed", "tentative", "unknown", and "unavailable"
 
-    Scenario: Availability command center highlights critical unknowns
+    Scenario: Availability overview highlights critical unknowns
       Given player "b1" has unknown availability
       And player "b1" is a candidate for required Team C support
-      When the coach opens availability command center
+      When the coach opens availability overview
       Then player "b1" must be highlighted as support-critical unknown
 
-    Scenario: Coach updates availability from command center
+    Scenario: Coach updates availability from overview
       Given player "p1" has unknown availability
       When the coach marks player "p1" as confirmed available
       Then future draft generation for the match round must treat player "p1" as available
 
-    Scenario: Availability command center is grouped, not raw table only
+    Scenario: Availability overview is grouped, not raw table only
       Given players have availability statuses
-      When the coach opens Availability Command Center
+      When the coach opens availability overview
       Then the app must show grouped status sections
       And may include compact tables inside those sections
       But must not show only one flat availability table
@@ -2169,15 +2453,15 @@ Feature: Matchboard football operations workspace
       And must ask the coach to choose a compatible 9-a-side formation
 
 
-  Rule: Assistant advice is part of landing workflow
+  Rule: Round checks are part of Today page workflow
 
-    Assistant advice is not hidden behind a separate page.
-    It is shown directly on the combined landing page and can be expanded into a detailed assistant view.
+    Round checks are not hidden behind a separate page.
+    They are shown directly on the Today page and can be expanded into a detailed view.
 
-    Scenario: Landing page assistant advice summarizes generated round
+    Scenario: Today page round checks summarize generated round
       Given match round "R1" has generated selections
-      When the coach opens the landing page
-      Then the Assistant Advice panel must summarize support selections
+      When the coach opens the Today page
+      Then the Round Checks panel must summarize support selections
       And development selections
       And backfill chains
       And core match drops
@@ -2185,22 +2469,22 @@ Feature: Matchboard football operations workspace
       And warnings
       And decisions needed before finalization
 
-    Scenario: Landing page assistant advice explains support chain
+    Scenario: Today page round checks explain support chain
       Given Team B supplied players to Team C
       And Team A backfilled Team B
-      When the coach opens the landing page
-      Then the Assistant Advice panel must explain the support chain
+      When the coach opens the Today page
+      Then the Round Checks panel must explain the support chain
       And show which movement caused each backfill
 
-    Scenario: Assistant detail view opens from advice card
-      Given an Assistant Advice card exists on the landing page
+    Scenario: Round checks detail view opens from card
+      Given a Round Checks card exists on the Today page
       When the coach opens the card detail
-      Then the app must show the full assistant section
+      Then the app must show the full round checks section
       And preserve recommendation, risk, alternative, and consequence
 
-    Scenario: Assistant advice does not act as chatbot
-      Given the coach opens the landing page
-      Then assistant advice must show structured rule-driven review
+    Scenario: Round checks do not act as chatbot
+      Given the coach opens the Today page
+      Then round checks must show structured rule-driven review
       And must not require conversational input to be useful
 
 
@@ -2299,7 +2583,7 @@ Feature: Matchboard football operations workspace
     Scenario: App fails UX acceptance if primary workflow is table-only
       Given the app has Landing Page, Round Board, Team Squad Overview, Player Profile, and Tactics Board routes
       When each route is inspected
-      Then the Landing Page must use decision cards, assistant advice, and status panels
+      Then the Today page must use decision cards, round checks, and status panels
       And Round Board must use team columns and role buckets
       And Team Squad Overview must use team health cards and grouped player cards
       And Player Profile must use dossier sections
@@ -2312,9 +2596,9 @@ Feature: Matchboard football operations workspace
       And the screen must still provide contextual cards, panels, warnings, or action sections
       And the table must not be the only meaningful interaction model
 
-    Scenario: App fails UX acceptance if Manager Desk and Assistant Advice are separated from landing workflow
-      Given the coach opens the app landing page
-      Then the landing page must include both decision inbox and assistant advice
+    Scenario: App fails UX acceptance if round checks are separated from Today page workflow
+      Given the coach opens the app Today page
+      Then the Today page must include both needs action and round checks
       And it must not require opening a separate page to understand current round warnings and recommended next actions
 
 

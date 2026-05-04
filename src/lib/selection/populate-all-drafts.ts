@@ -37,7 +37,6 @@ export async function populateAllDrafts(
             },
           },
         },
-        orderBy: [{ id: "asc" }],
       },
     },
   });
@@ -46,11 +45,17 @@ export async function populateAllDrafts(
     throw new Error("Planning period not found.");
   }
 
+  const sortedRounds = [...planningPeriod.matchRounds].sort((a, b) => {
+    const aEarliest = a.matches.length > 0 ? Math.min(...a.matches.map((m) => new Date(m.startsAt).getTime())) : 0;
+    const bEarliest = b.matches.length > 0 ? Math.min(...b.matches.map((m) => new Date(m.startsAt).getTime())) : 0;
+    return aEarliest - bEarliest;
+  });
+
   const results: PopulateRoundResult[] = [];
   const failedRoundIds: string[] = [];
   const skippedRoundIds: string[] = [];
 
-  for (const matchRound of planningPeriod.matchRounds) {
+  for (const matchRound of sortedRounds) {
     if (matchRound.status === "FINALIZED") {
       skippedRoundIds.push(matchRound.id);
       continue;

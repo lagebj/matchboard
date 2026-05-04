@@ -100,6 +100,7 @@ export function resolveRoundConflicts(
       ],
       finalSelected: false,
       manualOverride: false,
+      nonRotatable: p.nonRotatable,
       playerId: p.playerId,
       playerName: p.playerName,
       playerPosition: p.playerPosition,

@@ -27,42 +27,6 @@ function readNonNegativeInteger(formData: FormData, fieldName: string, label: st
   return parsedValue;
 }
 
-async function readRelatedTeamIds(
-  formData: FormData,
-  fieldName: string,
-  currentTeamId: string,
-): Promise<string[]> {
-  const teamIds = [...new Set(formData.getAll(fieldName))].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
-
-  if (teamIds.length === 0) {
-    return [];
-  }
-
-  const teams = await db.team.findMany({
-    where: {
-      archivedAt: null,
-      id: {
-        in: teamIds,
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  const validTeamIds = teams
-    .map((team) => team.id)
-    .filter((teamId) => teamId !== currentTeamId);
-
-  if (validTeamIds.length !== teamIds.filter((teamId) => teamId !== currentTeamId).length) {
-    throw new Error("Team relationships must reference active teams other than the current team.");
-  }
-
-  return validTeamIds;
-}
-
 function getTeamErrorMessage(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     return "A team with this name already exists.";
@@ -200,18 +164,12 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
     const maxSupportCount = readNonNegativeInteger(
       formData,
       "maxSupportCount",
-      "Maximum support count",
+      "Maximum Support count",
     );
     const supportPriority = readNonNegativeInteger(
       formData,
       "supportPriority",
       "Support priority",
-    );
-    const supportSourceTeamIds = await readRelatedTeamIds(formData, "supportSourceTeamIds", team.id);
-    const developmentSourceTeamIds = await readRelatedTeamIds(
-      formData,
-      "developmentSourceTeamIds",
-      team.id,
     );
 
     await db.$transaction(async (transaction) => {
@@ -232,36 +190,6 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
           targetSupportCount,
         },
       });
-
-      await transaction.teamSupportSource.deleteMany({
-        where: {
-          targetTeamId: team.id,
-        },
-      });
-
-      if (supportSourceTeamIds.length > 0) {
-        await transaction.teamSupportSource.createMany({
-          data: supportSourceTeamIds.map((sourceTeamId) => ({
-            sourceTeamId,
-            targetTeamId: team.id,
-          })),
-        });
-      }
-
-      await transaction.teamDevelopmentSource.deleteMany({
-        where: {
-          targetTeamId: team.id,
-        },
-      });
-
-      if (developmentSourceTeamIds.length > 0) {
-        await transaction.teamDevelopmentSource.createMany({
-          data: developmentSourceTeamIds.map((sourceTeamId) => ({
-            sourceTeamId,
-            targetTeamId: team.id,
-          })),
-        });
-      }
     });
   } catch (error) {
     redirect(
@@ -286,8 +214,7 @@ export async function deleteTeamAction(teamId: string) {
     const [
       team,
       activeCorePlayerCount,
-      supportRelationshipCount,
-      developmentRelationshipCount,
+      rotationPathCount,
       matchCount,
     ] = await Promise.all([
       db.team.findUnique({
@@ -304,27 +231,11 @@ export async function deleteTeamAction(teamId: string) {
           removedAt: null,
         },
       }),
-      db.teamSupportSource.count({
+      db.rotationPath.count({
         where: {
           OR: [
-            {
-              targetTeamId: teamId,
-            },
-            {
-              sourceTeamId: teamId,
-            },
-          ],
-        },
-      }),
-      db.teamDevelopmentSource.count({
-        where: {
-          OR: [
-            {
-              targetTeamId: teamId,
-            },
-            {
-              sourceTeamId: teamId,
-            },
+            { toTeamId: teamId },
+            { fromTeamId: teamId },
           ],
         },
       }),
@@ -341,12 +252,11 @@ export async function deleteTeamAction(teamId: string) {
 
     if (
       activeCorePlayerCount > 0 ||
-      supportRelationshipCount > 0 ||
-      developmentRelationshipCount > 0 ||
+      rotationPathCount > 0 ||
       matchCount > 0
     ) {
       throw new Error(
-        "This team is still referenced by active players, support or development relationships, or matches. Remove those references first.",
+        "This team is still referenced by active players, rotation paths, or matches. Remove those references first.",
       );
     }
 

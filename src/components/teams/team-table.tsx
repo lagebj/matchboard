@@ -10,11 +10,6 @@ import {
   type SortDirection,
 } from "@/lib/table-sort";
 
-type TeamOption = {
-  id: string;
-  name: string;
-};
-
 type TeamRow = {
   activeCorePlayers: number;
   developmentSlots: number;
@@ -38,47 +33,9 @@ type TeamRow = {
   maxSupportCount: number;
 };
 
-function TeamSourceChecklist({
-  defaultSelectedIds,
-  fieldName,
-  formId,
-  teams,
-}: {
-  defaultSelectedIds: string[];
-  fieldName: string;
-  formId: string;
-  teams: TeamOption[];
-}) {
-  if (teams.length === 0) {
-    return <p className="text-xs app-copy-muted">No other active teams available.</p>;
-  }
-
-  return (
-    <div className="grid gap-2">
-      {teams.map((team) => (
-        <label
-          key={team.id}
-          className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-2 text-sm app-copy-soft"
-        >
-          <input
-            defaultChecked={defaultSelectedIds.includes(team.id)}
-            form={formId}
-            name={fieldName}
-            type="checkbox"
-            value={team.id}
-          />
-          <span>{team.name}</span>
-        </label>
-      ))}
-    </div>
-  );
-}
-
 export function TeamTable({
-  availableTeams,
   teams,
 }: {
-  availableTeams: TeamOption[];
   teams: TeamRow[];
 }) {
   const [sortKey, setSortKey] = useState("team");
@@ -163,11 +120,8 @@ export function TeamTable({
             {sortedTeams.map((team) => {
               const isInUse =
                 team.activeCorePlayers > 0 ||
-                team.matches > 0 ||
-                team.supportSourceTeamIds.length > 0 ||
-                team.developmentSourceTeamIds.length > 0;
+                team.matches > 0;
               const formId = `team-config-${team.id}`;
-              const selectableTeams = availableTeams.filter((candidate) => candidate.id !== team.id);
 
               return (
                 <tr key={team.id} className="align-top hover:bg-[rgba(255,255,255,0.03)]">
@@ -261,14 +215,14 @@ export function TeamTable({
                       </div>
                       <div className="flex flex-col gap-2">
                         <p className="text-xs font-semibold uppercase tracking-wide app-copy-muted">
-                          Allowed Support Teams
+                          Support Sources
                         </p>
-                        <TeamSourceChecklist
-                          defaultSelectedIds={team.supportSourceTeamIds}
-                          fieldName="supportSourceTeamIds"
-                          formId={formId}
-                          teams={selectableTeams}
-                        />
+                        {team.supportSourceTeamNames.length > 0 ? (
+                          <p className="text-sm text-zinc-300">{team.supportSourceTeamNames.join(", ")}</p>
+                        ) : (
+                          <p className="text-sm text-zinc-500">None</p>
+                        )}
+                        <a href="/rules" className="text-xs text-[var(--accent-strong)] hover:underline">Edit rotation paths →</a>
                       </div>
                     </div>
                   </td>
@@ -287,14 +241,14 @@ export function TeamTable({
                         />
                       </label>
                       <p className="text-xs font-semibold uppercase tracking-wide app-copy-muted">
-                        Allowed Development Teams
+                        Development Sources
                       </p>
-                      <TeamSourceChecklist
-                        defaultSelectedIds={team.developmentSourceTeamIds}
-                        fieldName="developmentSourceTeamIds"
-                        formId={formId}
-                        teams={selectableTeams}
-                      />
+                      {team.developmentSourceTeamNames.length > 0 ? (
+                        <p className="text-sm text-zinc-300">{team.developmentSourceTeamNames.join(", ")}</p>
+                      ) : (
+                        <p className="text-sm text-zinc-500">None</p>
+                      )}
+                      <a href="/rules" className="text-xs text-[var(--accent-strong)] hover:underline">Edit rotation paths →</a>
                     </div>
                   </td>
                   <td className="px-4 py-3">

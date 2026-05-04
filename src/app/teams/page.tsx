@@ -45,13 +45,11 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       },
       matches: { select: { id: true } },
-      supportTargetRelationships: {
-        include: { sourceTeam: { select: { id: true, name: true } } },
-        orderBy: { sourceTeam: { name: "asc" } },
+      fromRotationPaths: {
+        select: { fromTeamId: true, toTeamId: true, role: true },
       },
-      developmentTargetRelationships: {
-        include: { sourceTeam: { select: { id: true, name: true } } },
-        orderBy: { sourceTeam: { name: "asc" } },
+      toRotationPaths: {
+        select: { fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { id: true, name: true } } },
       },
     },
     orderBy: [{ name: "asc" }],
@@ -180,19 +178,19 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
 
       <section className="app-panel rounded-[1.75rem] p-6">
         <TeamTable
-          availableTeams={teams.map((team) => ({
-            id: team.id,
-            name: team.name,
-          }))}
           teams={teams.map((team) => ({
             activeCorePlayers: team.corePlayers.length,
             developmentSlots: team.developmentSlots,
-            developmentSourceTeamIds: team.developmentTargetRelationships.map(
-              (relationship) => relationship.sourceTeam.id,
-            ),
-            developmentSourceTeamNames: team.developmentTargetRelationships.map(
-              (relationship) => relationship.sourceTeam.name,
-            ),
+            developmentSourceTeamIds: [...new Set(
+              team.toRotationPaths
+                .filter((p) => p.role === "DEVELOPMENT")
+                .map((p) => p.fromTeam.id),
+            )],
+            developmentSourceTeamNames: [...new Set(
+              team.toRotationPaths
+                .filter((p) => p.role === "DEVELOPMENT")
+                .map((p) => p.fromTeam.name),
+            )],
             id: team.id,
             matches: team.matches.length,
             maxSquadSize: team.maxSquadSize,
@@ -204,12 +202,16 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
             removeAction: deleteTeamAction.bind(null, team.id),
             saveAction: updateTeamConfigurationAction.bind(null, team.id),
             supportPriority: team.supportPriority,
-            supportSourceTeamIds: team.supportTargetRelationships.map(
-              (relationship) => relationship.sourceTeam.id,
-            ),
-            supportSourceTeamNames: team.supportTargetRelationships.map(
-              (relationship) => relationship.sourceTeam.name,
-            ),
+            supportSourceTeamIds: [...new Set(
+              team.toRotationPaths
+                .filter((p) => p.role === "SUPPORT")
+                .map((p) => p.fromTeam.id),
+            )],
+            supportSourceTeamNames: [...new Set(
+              team.toRotationPaths
+                .filter((p) => p.role === "SUPPORT")
+                .map((p) => p.fromTeam.name),
+            )],
             targetSquadSize: team.targetSquadSize,
             targetSupportCount: team.targetSupportCount,
             maxSupportCount: team.maxSupportCount,

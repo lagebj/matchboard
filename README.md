@@ -6,14 +6,16 @@ Selections are generated per match round. Fairness is evaluated across the seaso
 
 The app plans squads for already-created matches. It does not auto-create fixtures, schedule a season, or manage a club.
 
+Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
+
 ## Coach workflow
 
-The primary workflow is four steps:
+The primary workflow is:
 
-1. **Setup** — Create matches for a round (or use existing rounds). Mark player availability.
+1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round uses round-level orchestration (not match-by-match). No round is finalized.
-3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust if needed.
-4. **Finalize** — Lock a round. Finalized rounds become history and cannot be silently mutated.
+3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust draft squads if needed.
+4. **Finalize** — Lock one round at a time. Finalized rounds become history and cannot be silently mutated.
 
 The Today page always shows the next action based on workflow state.
 
@@ -21,10 +23,13 @@ The Today page always shows the next action based on workflow state.
 
 - **RotationPath is the single source of truth for non-core player movement.** A player may only be selected outside their core team when an active directed RotationPath exists from core team to target team for the exact role being assigned, unless manually overridden with a reason. Each path authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL. A SUPPORT path does not permit DEVELOPMENT or BACKFILL movement. Paths are directional. No path means no automatic non-core selection. Fairness scoring cannot make an invalid path valid. The legacy `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility — they are scheduled for removal.
 - **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a warning is generated — the team is never silently weakened. Support priority uses ascending sort order: lower number = higher priority (priority 1 is resolved before priority 2).
-- **Backfill is a direct consequence of support.** When a player is moved from their core team as support, their team may need backfill. Backfill priority: (1) own core team player moved as support if matches on different dates, (2) players from teams connected by an active BACKFILL or DEVELOPMENT rotation path to the receiving team where `nonRotatable = false`, (3) any other player from another team with an active BACKFILL rotation path where `nonRotatable = false`. Non-rotatable players are never used as generic backfill.
+- **Backfill is a direct consequence of support.** When a player is moved from their core team as support, their team may need backfill. Backfill priority: (1) own core team player moved as support if matches on different dates, (2) players from teams connected by an active DEVELOPMENT rotation path to the receiving team where `nonRotatable = false` — the DEVELOPMENT path gates the team-to-team direction and the assigned role is BACKFILL, (3) any other player from another team with an active BACKFILL rotation path where `nonRotatable = false`. Non-rotatable players are never used as generic backfill.
 - **A player can normally only be selected once per match round** unless an explicit rule allows otherwise.
 - **The match round is the operational planning unit.** The season/planning period is the fairness and load-balancing context.
 - **Warnings are persisted to the database** and read back by the UI and finalization logic. HARD_BLOCK warnings prevent finalization. REQUIRES_OVERRIDE warnings allow finalization with a reason.
+- **Draft selections are editable and not final history.** The coach can manually add, remove, change role, or replace players in draft match squads. Manual edits use the same domain validation as automatic generation. UI-only validation is not enough.
+- **Finalized rounds become hard history.** Finalized selections cannot be edited without an audit trail.
+- **Manual override requires reason.** When a manual edit bypasses a hard rule, the reason must be persisted with the selection and appear in the finalization summary.
 
 It is not a multi-user system, not an auth product, and not a general club-management platform.
 
@@ -39,6 +44,31 @@ It is not a multi-user system, not an auth product, and not a general club-manag
 | FINALIZED | Locked history |
 
 BLOCKED and READY are derived status values — they are not stored in the database. BLOCKED = draft + HARD_BLOCK warnings. READY = draft + no blockers.
+
+## How populate all works
+
+Populate all generates draft selections for all non-finalized rounds in the active planning period in one action. It groups matches by round and generates per round using round-level orchestration. It processes rounds in chronological order. Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same run. Populate all does not finalize any round. On partial failure, successful round generations are kept and failures are reported.
+
+## How round review works
+
+After populate all, each round has draft selections, warnings, and explanations. The coach reviews warnings by round, fixes issues per match, and may manually adjust draft squads before finalization. Rounds with HARD_BLOCK warnings cannot be finalized until the blocker is resolved. Rounds with REQUIRES_OVERRIDE warnings can be finalized with a manual override reason.
+
+## How manual draft editing works
+
+Draft match squads can be manually edited before finalization. The coach can add players, remove players, change player roles, or replace players. Manual edits use the same domain validation as automatic generation — UI-only validation is not enough. Every non-core movement must have a valid RotationPath or an explicit manual override reason. Same-round conflicts, availability, squad size, and non-rotatable rules are all validated. Manual edits recalculate match status, round status, warnings, explanations, and fairness impact. Finalized selections cannot be edited by normal draft actions.
+
+## How clear draft actions work
+
+Draft selections can be cleared at three levels:
+- **Clear all** — removes all non-finalized draft data (selections, warnings, explanations, movement ledger, provisional context) across all rounds in the planning period
+- **Clear round** — removes draft data for one selected round only
+- **Clear match** — removes draft data for one selected match only
+
+Clear actions preserve finalized selections, finalized history, teams, players, matches, rounds, rules, and availability. After clearing, affected rounds return to not-populated state and round status is recalculated. Clear all requires explicit confirmation before executing.
+
+## How finalization works
+
+Finalizing a round locks all selections as immutable history. The app checks for HARD_BLOCK warnings before allowing finalization. Finalized selections cannot be edited without an explicit reopen or audit entry. Finalized rounds contribute to season/planning-period fairness calculations.
 
 ## Stack
 
@@ -192,13 +222,16 @@ Key rules enforced by the engine:
 - **Paths are role-specific** — a SUPPORT path only authorizes SUPPORT movement, not DEVELOPMENT or BACKFILL (and likewise for each role)
 - **Team support is priority 1** — required support must be fulfilled before development, fairness, or cosmetic balancing
 - **Support priority is ascending** — lower number = higher priority (1 resolved before 2)
-- **Backfill follows strict priority order** — (1) own-core player on different date, (2) players from teams with active BACKFILL or DEVELOPMENT rotation path to receiving team where nonRotatable=false, (3) other players with active BACKFILL rotation path where nonRotatable=false
+- **Backfill follows strict priority order** — (1) own-core player on different date, (2) players from teams with active DEVELOPMENT rotation path to receiving team where nonRotatable=false (DEVELOPMENT path gates direction, assigned role is BACKFILL), (3) players with active BACKFILL rotation path where nonRotatable=false
 - **Non-rotatable players are never used as generic backfill**
+- **Invalid path eligibility is a hard eligibility problem** — not a ranking problem. Fairness scoring cannot make an invalid path valid.
 - Warnings are generated and persisted when support or backfill cannot be fulfilled — the team is never silently weakened
 - Donor teams must not fall below `minCorePlayers` during support resolution
 - Rotation paths are directional — movement cannot happen without an explicit path in the correct direction
 - Each player can only appear once per match round
+- Draft selections are editable — manual edits use same domain validation as automatic generation
 - Finalized selections are immutable — manual overrides require an audit reason
+- Manual override requires reason and must appear in finalization summary
 
 ### Populate all workflow
 
@@ -223,6 +256,22 @@ Populate all generates drafts for all non-finalized rounds in the active plannin
 | `src/components/` | Shared React components |
 | `features/` | Gherkin feature file |
 
+### RotationPath movement rules
+
+RotationPath is the single source of truth for automatic non-core player movement. Movement rules:
+
+- A player may only be selected outside their core team when an active directed RotationPath exists from core team to target team for the exact role being assigned, unless a manual override with reason is used
+- Each RotationPath authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL
+- A SUPPORT path permits only SUPPORT movement — not DEVELOPMENT or BACKFILL
+- A DEVELOPMENT path permits only DEVELOPMENT movement — not SUPPORT or BACKFILL
+- A BACKFILL path permits only BACKFILL movement — not SUPPORT or DEVELOPMENT
+- Paths are directional: from_team → to_team only. The reverse direction requires a separate path
+- No configured path means no automatic non-core selection
+- Fairness scoring cannot make an invalid path valid
+- Non-rotatable players cannot be automatically selected for any non-core role
+- Manual override may bypass path checks but must record reason
+- The legacy TeamSupportSource and TeamDevelopmentSource relationship tables must not drive selection eligibility — they are scheduled for removal
+
 ### Data model highlights
 
 - **Team**: configurable squad limits (`targetSquadSize`, `minAcceptedSquadSize`, `maxSquadSize`), support settings, development slots, support priority
@@ -240,6 +289,7 @@ This repo is intended to stay safe for a public remote:
 - Never commit `.env` or machine-specific secrets
 - Keep imported or exported real data in ignored local directories only
 - Demo and example data committed to the repo must be fake
+- Seed data uses fictional player names (P1, P2, etc.) and team names (Team A, Team B, Team C)
 
 ## Coding style
 

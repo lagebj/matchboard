@@ -20,6 +20,7 @@ describe("validateGeneratedRoundInvariants", () => {
       explanations: [],
       finalSelected: false,
       manualOverride: false,
+      nonRotatable: false,
       playerName: "Player",
       playerPosition: "CM",
       coreTeamName: "Team",
@@ -159,6 +160,43 @@ describe("validateGeneratedRoundInvariants", () => {
     const violations = validateGeneratedRoundInvariants([selection], validPaths, teamIdByMatchId);
     expect(violations.length).toBe(1);
     expect(violations[0]!.role).toBe("BACKFILL");
+  });
+
+  it("flags non-rotatable player selected in non-core role even when path exists", () => {
+    const teamIdByMatchId = new Map([["match-1", teamB]]);
+    const selection = makeSelection([
+      makePlayer({
+        playerId: "p1",
+        playerName: "Player 1",
+        coreTeamId: teamA,
+        coreTeamName: "Team A",
+        selectionCategory: "SUPPORT",
+        nonRotatable: true,
+      }),
+    ]);
+
+    const violations = validateGeneratedRoundInvariants([selection], validPaths, teamIdByMatchId);
+    expect(violations.length).toBe(1);
+    expect(violations[0]!.code).toBe("invariant_invalid_non_core_selection");
+    expect(violations[0]!.severity).toBe("HARD_BLOCK");
+    expect(violations[0]!.playerId).toBe("p1");
+  });
+
+  it("allows non-rotatable player in core role", () => {
+    const teamIdByMatchId = new Map([["match-1", teamB]]);
+    const selection = makeSelection([
+      makePlayer({
+        playerId: "p1",
+        playerName: "Player 1",
+        coreTeamId: teamB,
+        coreTeamName: "Team B",
+        selectionCategory: "CORE",
+        nonRotatable: true,
+      }),
+    ]);
+
+    const violations = validateGeneratedRoundInvariants([selection], validPaths, teamIdByMatchId);
+    expect(violations).toEqual([]);
   });
 
   it("handles multiple selections across matches", () => {

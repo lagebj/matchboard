@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 export type OperationalContext = {
   season: { id: string; name: string } | null;
   planningPeriod: { id: string; name: string; startDate: Date; endDate: Date } | null;
-  matchRound: { id: string; name: string; status: string } | null;
+  matchRound: { id: string; name: string; status: string; hasDraftSelections: boolean; hasMatches: boolean; blockingWarningCount: number } | null;
 };
 
 export async function getOperationalContext(): Promise<OperationalContext> {
@@ -34,7 +34,7 @@ export async function getOperationalContext(): Promise<OperationalContext> {
       planningPeriod: anyPeriod
         ? { id: anyPeriod.id, name: anyPeriod.name, startDate: anyPeriod.startDate, endDate: anyPeriod.endDate }
         : null,
-      matchRound: anyRound ? { id: anyRound.id, name: anyRound.name, status: anyRound.status } : null,
+      matchRound: anyRound ? await enrichMatchRound(anyRound.id, anyRound.name, anyRound.status) : null,
     };
   }
 
@@ -48,15 +48,25 @@ export async function getOperationalContext(): Promise<OperationalContext> {
     return {
       season: { id: period.season.id, name: period.season.name },
       planningPeriod: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate },
-      matchRound: latestRound ? { id: latestRound.id, name: latestRound.name, status: latestRound.status } : null,
+      matchRound: latestRound ? await enrichMatchRound(latestRound.id, latestRound.name, latestRound.status) : null,
     };
   }
 
   return {
     season: { id: period.season.id, name: period.season.name },
     planningPeriod: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate },
-    matchRound: { id: round.id, name: round.name, status: round.status },
+    matchRound: await enrichMatchRound(round.id, round.name, round.status),
   };
+}
+
+async function enrichMatchRound(id: string, name: string, status: string): Promise<NonNullable<OperationalContext["matchRound"]>> {
+  const [draftCount, matchCount, blockingCount] = await Promise.all([
+    db.selection.count({ where: { matchRoundId: id, status: "DRAFT" } }),
+    db.match.count({ where: { matchRoundId: id } }),
+    db.warning.count({ where: { matchRoundId: id, resolved: false, severity: "HARD_BLOCK" } }),
+  ]);
+
+  return { id, name, status, hasDraftSelections: draftCount > 0, hasMatches: matchCount > 0, blockingWarningCount: blockingCount };
 }
 
 export async function searchEntities(query: string) {

@@ -134,6 +134,98 @@ describe("rotation-path-policy", () => {
     });
   });
 
+  describe("additional role and direction enforcement", () => {
+    it("support requires exact support path", () => {
+      const pathsWithOnlyBToCSupport: RotationPathEdge[] = [
+        { fromTeamId: teamB, toTeamId: teamC, role: "SUPPORT", active: true },
+      ];
+
+      const fromA = canMoveForRole(teamA, teamC, "SUPPORT", false, pathsWithOnlyBToCSupport);
+      expect(fromA.valid).toBe(false);
+
+      const fromB = canMoveForRole(teamB, teamC, "SUPPORT", false, pathsWithOnlyBToCSupport);
+      expect(fromB.valid).toBe(true);
+    });
+
+    it("development path does not permit support", () => {
+      const devPathOnly: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamC, role: "DEVELOPMENT", active: true },
+      ];
+      const result = canMoveForRole(teamA, teamC, "SUPPORT", false, devPathOnly);
+      expect(result.valid).toBe(false);
+    });
+
+    it("backfill path does not permit support", () => {
+      const backfillPathOnly: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamC, role: "BACKFILL", active: true },
+      ];
+      const result = canMoveForRole(teamA, teamC, "SUPPORT", false, backfillPathOnly);
+      expect(result.valid).toBe(false);
+    });
+
+    it("support path does not permit development", () => {
+      const supportPathOnly: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamC, role: "SUPPORT", active: true },
+      ];
+      const result = canMoveForRole(teamA, teamC, "DEVELOPMENT", false, supportPathOnly);
+      expect(result.valid).toBe(false);
+    });
+
+    it("path direction matters — reverse direction requires separate path", () => {
+      const singleDirectionPaths: RotationPathEdge[] = [
+        { fromTeamId: teamB, toTeamId: teamC, role: "SUPPORT", active: true },
+      ];
+
+      const reversePath = getValidPathForRole(singleDirectionPaths, teamC, teamB, "SUPPORT");
+      expect(reversePath).toBeNull();
+
+      const forwardPath = getValidPathForRole(singleDirectionPaths, teamB, teamC, "SUPPORT");
+      expect(forwardPath).not.toBeNull();
+
+      const reverseResult = canMoveForRole(teamC, teamB, "SUPPORT", false, singleDirectionPaths);
+      expect(reverseResult.valid).toBe(false);
+    });
+
+    it("fairness cannot override path validity", () => {
+      const noPathsForSupport: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamC, role: "DEVELOPMENT", active: true },
+        { fromTeamId: teamB, toTeamId: teamC, role: "BACKFILL", active: true },
+      ];
+
+      const result = canMoveForRole(teamA, teamC, "SUPPORT", false, noPathsForSupport);
+      expect(result.valid).toBe(false);
+      expect(result.explanation).toContain("SUPPORT");
+
+      const result2 = canMoveForRole(teamB, teamC, "SUPPORT", false, noPathsForSupport);
+      expect(result2.valid).toBe(false);
+    });
+
+    it("no invalid fallback support", () => {
+      const noSupportPaths: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamC, role: "DEVELOPMENT", active: true },
+        { fromTeamId: teamB, toTeamId: teamC, role: "BACKFILL", active: true },
+      ];
+
+      const checkA = canMoveForRole(teamA, teamC, "SUPPORT", false, noSupportPaths);
+      expect(checkA.valid).toBe(false);
+
+      const checkB = canMoveForRole(teamB, teamC, "SUPPORT", false, noSupportPaths);
+      expect(checkB.valid).toBe(false);
+
+      const checkC = canMoveForRole(teamC, teamA, "SUPPORT", false, noSupportPaths);
+      expect(checkC.valid).toBe(false);
+    });
+
+    it("non-rotatable blocks automatic support", () => {
+      const validSupportPath: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamB, role: "SUPPORT", active: true },
+      ];
+      const result = canMoveForRole(teamA, teamB, "SUPPORT", true, validSupportPath);
+      expect(result.valid).toBe(false);
+      expect(result.explanation.toLowerCase()).toContain("non-rotatable");
+    });
+  });
+
   describe("explainInvalidMovementPath", () => {
     it("explains when a path exists for a different role", () => {
       const explanation = explainInvalidMovementPath(
