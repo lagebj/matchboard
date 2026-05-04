@@ -9,10 +9,16 @@ import {
   Trash2,
   X,
   Plus,
+  Repeat,
 } from "lucide-react";
 import { RoleBadge, type SelectionRole } from "@/components/ui/role-badge";
 import { clearMatchDraftAction } from "@/app/rounds/[matchRoundId]/actions";
-import { removePlayerFromMatchAction, addPlayerToMatchAction } from "@/app/rounds/[matchRoundId]/draft-selection-actions";
+import {
+  removePlayerFromMatchAction,
+  addPlayerToMatchAction,
+  changePlayerRoleAction,
+  replacePlayerInMatchAction,
+} from "@/app/rounds/[matchRoundId]/draft-selection-actions";
 
 export type PlayerInMatch = {
   playerId: string;
@@ -105,6 +111,11 @@ export function MatchSquadCard({
   const [addPlayerSearch, setAddPlayerSearch] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [roleChangePlayerId, setRoleChangePlayerId] = useState<string | null>(null);
+  const [replacePlayerId, setReplacePlayerId] = useState<string | null>(null);
+  const [replaceRole, setReplaceRole] = useState<SelectionRole>("CORE");
+  const [replaceSearch, setReplaceSearch] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const grouped = roleGroups.map((group) => ({
     ...group,
     players: players.filter((p) => p.selectionCategory === group.key),
@@ -193,52 +204,206 @@ export function MatchSquadCard({
                 <span className="text-[10px] text-[var(--text-muted)]">{group.players.length}</span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {group.players.map((p) => (
-                  <span
-                    key={`${teamName}-${group.key}-${p.playerId}`}
-                    className="group/pl inline-flex items-center gap-0.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
-                  >
-                    <button
-                      aria-label={`${p.playerName} - ${group.label} - ${p.coreTeamName}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPlayerClick?.(p);
-                      }}
-                      type="button"
+                {group.players.map((p) => {
+                  const isChangingRole = roleChangePlayerId === p.playerId;
+                  const isReplacing = replacePlayerId === p.playerId;
+                  return (
+                    <span
+                      key={`${teamName}-${group.key}-${p.playerId}`}
+                      className="group/pl inline-flex items-center gap-0.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
                     >
-                      {p.playerName}
-                    </button>
-                    {!isFinalized && (
                       <button
-                        className="opacity-0 group-hover/pl:opacity-100 ml-0.5 text-red-400 hover:text-red-300 transition-opacity"
-                        aria-label={`Remove ${p.playerName}`}
+                        aria-label={`${p.playerName} - ${group.label} - ${p.coreTeamName}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionError(null);
-                          startTransition(async () => {
-                            const fd = new FormData();
-                            fd.set("matchId", matchId);
-                            fd.set("playerId", p.playerId);
-                            fd.set("matchRoundId", matchRoundId);
-                            try {
-                              await removePlayerFromMatchAction(fd);
-                            } catch (err) {
-                              setActionError(err instanceof Error ? err.message : "Could not remove player.");
-                            }
-                          });
+                          onPlayerClick?.(p);
                         }}
-                        disabled={isPending}
                         type="button"
                       >
-                        <X className="h-3 w-3" />
+                        {p.playerName}
                       </button>
-                    )}
-                    {p.manualOverride && (
-                      <span className="ml-1 text-[8px] text-amber-400 uppercase">ovr</span>
-                    )}
-                  </span>
-                ))}
+                      {p.manualOverride && (
+                        <span className="ml-1 text-[8px] text-amber-400 uppercase">ovr</span>
+                      )}
+                      {!isFinalized && (
+                        <span className="inline-flex items-center gap-0.5 ml-0.5 opacity-0 group-hover/pl:opacity-100 transition-opacity">
+                          <button
+                            className="text-zinc-500 hover:text-zinc-50 transition-colors"
+                            aria-label={`Change role for ${p.playerName}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRoleChangePlayerId(isChangingRole ? null : p.playerId);
+                              setReplacePlayerId(null);
+                              setActionError(null);
+                            }}
+                            disabled={isPending}
+                            title="Change role"
+                            type="button"
+                          >
+                            <Repeat className="h-3 w-3" />
+                          </button>
+                          <button
+                            className="text-[var(--accent-strong)] hover:text-zinc-50 transition-colors"
+                            aria-label={`Replace ${p.playerName}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReplacePlayerId(isReplacing ? null : p.playerId);
+                              setRoleChangePlayerId(null);
+                              setReplaceRole(p.selectionCategory as SelectionRole);
+                              setReplaceSearch("");
+                              setActionError(null);
+                            }}
+                            disabled={isPending}
+                            title="Replace player"
+                            type="button"
+                          >
+                            <ArrowRightCircle className="h-3 w-3" />
+                          </button>
+                          <button
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                            aria-label={`Remove ${p.playerName}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionError(null);
+                              startTransition(async () => {
+                                const fd = new FormData();
+                                fd.set("matchId", matchId);
+                                fd.set("playerId", p.playerId);
+                                fd.set("matchRoundId", matchRoundId);
+                                try {
+                                  await removePlayerFromMatchAction(fd);
+                                } catch (err) {
+                                  setActionError(err instanceof Error ? err.message : "Could not remove player.");
+                                }
+                              });
+                            }}
+                            disabled={isPending}
+                            type="button"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
+                      {isChangingRole && (
+                        <select
+                          className="ml-1 h-5 rounded border app-hairline bg-[rgba(255,255,255,0.06)] px-1 text-[10px] text-zinc-50"
+                          value={p.selectionCategory as string}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const newRole = e.target.value as SelectionRole;
+                            setActionError(null);
+                            startTransition(async () => {
+                              const fd = new FormData();
+                              fd.set("matchId", matchId);
+                              fd.set("playerId", p.playerId);
+                              fd.set("role", newRole);
+                              fd.set("matchRoundId", matchRoundId);
+                              if (overrideReason.trim()) {
+                                fd.set("overrideReason", overrideReason.trim());
+                              }
+                              try {
+                                await changePlayerRoleAction(fd);
+                                setRoleChangePlayerId(null);
+                                setOverrideReason("");
+                              } catch (err) {
+                                setActionError(err instanceof Error ? err.message : "Could not change role.");
+                              }
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        >
+                          <option value="CORE">Core</option>
+                          <option value="SUPPORT">Support</option>
+                          <option value="BACKFILL">Squad repair</option>
+                          <option value="DEVELOPMENT">Development</option>
+                        </select>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
+              {replacePlayerId && (() => {
+                const replacingPlayer = players.find((p) => p.playerId === replacePlayerId);
+                if (!replacingPlayer) return null;
+                return (
+                  <div className="mt-1 flex flex-col gap-1.5 rounded-lg border app-hairline bg-[rgba(0,0,0,0.1)] p-2" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      Replace <strong className="text-zinc-200">{replacingPlayer.playerName}</strong> with:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={replaceRole}
+                        onChange={(e) => setReplaceRole(e.target.value as SelectionRole)}
+                        className="h-7 rounded border app-hairline bg-[rgba(255,255,255,0.03)] px-1.5 text-[10px] text-zinc-50"
+                      >
+                        <option value="CORE">Core</option>
+                        <option value="SUPPORT">Support</option>
+                        <option value="BACKFILL">Squad repair</option>
+                        <option value="DEVELOPMENT">Development</option>
+                      </select>
+                      <input
+                        value={replaceSearch}
+                        onChange={(e) => setReplaceSearch(e.target.value)}
+                        placeholder="Search player..."
+                        className="h-7 flex-1 rounded border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-[10px] text-zinc-50"
+                        type="text"
+                        autoFocus
+                      />
+                      <button
+                        className="text-[10px] text-zinc-400 hover:text-zinc-50"
+                        onClick={() => { setReplacePlayerId(null); setReplaceSearch(""); }}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {replaceSearch.length > 0 && (
+                      <div className="max-h-28 overflow-y-auto rounded border app-hairline bg-[rgba(0,0,0,0.14)]">
+                        {availablePlayers
+                          .filter((ap) =>
+                            ap.name.toLowerCase().includes(replaceSearch.toLowerCase()) ||
+                            ap.coreTeamName.toLowerCase().includes(replaceSearch.toLowerCase())
+                          )
+                          .filter((ap) => !players.some((sp) => sp.playerId === ap.id) || ap.id === replacePlayerId)
+                          .slice(0, 6)
+                          .map((ap) => (
+                            <button
+                              key={ap.id}
+                              className="w-full px-2 py-1 text-left text-[10px] text-zinc-100 hover:bg-[rgba(255,255,255,0.06)] flex items-center justify-between"
+                              disabled={isPending}
+                              onClick={() => {
+                                setActionError(null);
+                                startTransition(async () => {
+                                  const fd = new FormData();
+                                  fd.set("matchId", matchId);
+                                  fd.set("outgoingPlayerId", replacePlayerId);
+                                  fd.set("incomingPlayerId", ap.id);
+                                  fd.set("role", replaceRole);
+                                  fd.set("matchRoundId", matchRoundId);
+                                  if (overrideReason.trim()) {
+                                    fd.set("overrideReason", overrideReason.trim());
+                                  }
+                                  try {
+                                    await replacePlayerInMatchAction(fd);
+                                    setReplacePlayerId(null);
+                                    setReplaceSearch("");
+                                  } catch (err) {
+                                    setActionError(err instanceof Error ? err.message : "Could not replace player.");
+                                  }
+                                });
+                              }}
+                              type="button"
+                            >
+                              <span>{ap.name}</span>
+                              <span className="text-[var(--text-muted)]">{ap.coreTeamName}</span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -248,6 +413,17 @@ export function MatchSquadCard({
         <div className="border-t border-[var(--border-soft)] px-4 py-2">
           {actionError && (
             <p className="mb-2 text-xs text-red-300">{actionError}</p>
+          )}
+          {(showAddPlayer || roleChangePlayerId || replacePlayerId) && (
+            <div className="mb-2 flex items-center gap-2">
+              <input
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="Override reason (required for manual overrides)"
+                className="h-7 flex-1 rounded border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-[10px] text-zinc-50"
+                type="text"
+              />
+            </div>
           )}
           {!showAddPlayer ? (
             <button
@@ -307,6 +483,9 @@ export function MatchSquadCard({
                             fd.set("playerId", p.id);
                             fd.set("role", addRole);
                             fd.set("matchRoundId", matchRoundId);
+                            if (overrideReason.trim()) {
+                              fd.set("overrideReason", overrideReason.trim());
+                            }
                             try {
                               await addPlayerToMatchAction(fd);
                               setShowAddPlayer(false);
