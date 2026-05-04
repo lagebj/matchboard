@@ -240,7 +240,10 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
             {sortedPlayers.length === 0 ? (
               <tr>
                 <td className="px-4 py-10 text-center app-copy-muted" colSpan={8}>
-                  No players in the registry yet.
+                  No players yet.{" "}
+                  <a href="/players/new" className="underline text-[var(--accent-strong)]">
+                    Create a player
+                  </a>
                 </td>
               </tr>
             ) : null}

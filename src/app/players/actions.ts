@@ -258,8 +258,7 @@ export async function createPlayerAction(formData: FormData) {
     }
   } catch (error) {
     redirect(
-      buildPathWithSearch("/players", {
-        create: true,
+      buildPathWithSearch("/players/new", {
         error: getPlayerActionErrorMessage(error),
       }),
     );

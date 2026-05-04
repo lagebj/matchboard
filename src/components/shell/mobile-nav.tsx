@@ -7,6 +7,7 @@ import {
   CalendarRange,
   Users,
   Shield,
+  Trophy,
   History,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const mobileNavItems: MobileNavItem[] = [
   { href: "/rounds", label: "Rounds", icon: CalendarRange },
   { href: "/players", label: "Players", icon: Users },
   { href: "/teams", label: "Teams", icon: Shield },
+  { href: "/matches", label: "Matches", icon: Trophy },
   { href: "/history", label: "History", icon: History },
 ];
 

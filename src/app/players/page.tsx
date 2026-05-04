@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { removePlayerAction } from "@/app/players/actions";
-import { PlayerCreateLayover } from "@/components/players/player-create-layover";
 import { PlayerTable } from "@/components/players/player-table";
 import { db } from "@/lib/db";
 import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
 
 type PlayersPageProps = {
   searchParams: Promise<{
-    create?: string;
     error?: string;
     saved?: string;
   }>;
@@ -26,7 +24,7 @@ function formatSavedMessage(saved?: string): string | null {
 }
 
 export default async function PlayersPage({ searchParams }: PlayersPageProps) {
-  const { create, error, saved } = await searchParams;
+  const { error, saved } = await searchParams;
 
   const [players, teams] = await Promise.all([
     db.player.findMany({
@@ -110,7 +108,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
                     className="inline-flex h-11 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    href="/players?create=1"
+                    href="/players/new"
                   >
                     Create player
                   </Link>
@@ -330,16 +328,31 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
       {teams.length === 0 ? (
         <section className="app-panel rounded-[1.75rem] p-6">
-          <h2 className="text-lg font-semibold text-zinc-50">No Teams Yet</h2>
+          <h2 className="text-lg font-semibold text-zinc-50">No teams yet</h2>
           <p className="mt-1 text-sm leading-6 app-copy-soft">
             Create at least one team before adding players.
           </p>
           <div className="mt-4">
             <Link
               className="inline-flex h-10 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-              href="/teams"
+              href="/teams/new"
             >
-              Open teams
+              Create a team
+            </Link>
+          </div>
+        </section>
+      ) : players.length === 0 ? (
+        <section className="app-panel rounded-[1.75rem] p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">No players yet</h2>
+          <p className="mt-1 text-sm leading-6 app-copy-soft">
+            Add players to the registry.
+          </p>
+          <div className="mt-4">
+            <Link
+              className="inline-flex h-10 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+              href="/players/new"
+            >
+              Create player
             </Link>
           </div>
         </section>
@@ -365,8 +378,6 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
           />
         </section>
       )}
-
-      {create === "1" && teams.length > 0 ? <PlayerCreateLayover teams={teams} /> : null}
     </main>
   );
 }

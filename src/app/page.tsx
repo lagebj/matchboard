@@ -152,9 +152,22 @@ export default async function TodayPage() {
     blockingWarningCount: blockingWarnings.length,
   });
 
+  const teamCount = await db.team.count({ where: { archivedAt: null } });
+  const playerCount = await db.player.count({ where: { removedAt: null } });
+  const totalMatchCount = await db.match.count();
+
   type NextAction = { label: string; href: string };
 
   const nextAction: NextAction | null = (() => {
+    if (teamCount === 0) {
+      return { label: "Create a team to get started", href: "/teams/new" };
+    }
+    if (playerCount === 0) {
+      return { label: "Add players to your teams", href: "/players/new" };
+    }
+    if (totalMatchCount === 0) {
+      return { label: "Create a match to plan a round", href: "/matches/new" };
+    }
     if (!activePlanningPeriod || !activeMatchRound) {
       return { label: "Select a round", href: "/rounds" };
     }
@@ -343,7 +356,13 @@ export default async function TodayPage() {
           Today
         </h1>
         <p className="mt-4 max-w-3xl text-sm app-copy-soft sm:text-base">
-          Review the active round, blockers, and the next safe action.
+          {teamCount === 0
+            ? "Start by creating a team."
+            : playerCount === 0
+              ? "Add players to your teams."
+              : totalMatchCount === 0
+                ? "Create matches to plan rounds."
+                : "Review the active round, blockers, and the next safe action."}
         </p>
 
         {nextAction && (
@@ -366,6 +385,70 @@ export default async function TodayPage() {
           </div>
         )}
       </section>
+
+      {teamCount === 0 || playerCount === 0 || totalMatchCount === 0 ? (
+        <section className="app-panel rounded-[1.75rem] p-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+              Setup progress
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Get started</h2>
+            <p className="mt-2 text-sm app-copy-soft">
+              Complete each step to start planning match rounds.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className={`rounded-[1.35rem] border p-4 ${teamCount > 0 ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.08)]" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}>
+              <p className="text-sm font-semibold text-zinc-100">
+                {teamCount > 0 ? "Teams created" : "Create teams"}
+              </p>
+              <p className="mt-1 text-sm app-copy-soft">
+                {teamCount > 0 ? `${teamCount} team${teamCount === 1 ? "" : "s"}` : "Add teams to the registry."}
+              </p>
+              {teamCount === 0 && (
+                <Link
+                  className="mt-3 inline-flex h-8 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50"
+                  href="/teams/new"
+                >
+                  Create team
+                </Link>
+              )}
+            </div>
+            <div className={`rounded-[1.35rem] border p-4 ${playerCount > 0 ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.08)]" : teamCount === 0 ? "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)] opacity-50" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}>
+              <p className="text-sm font-semibold text-zinc-100">
+                {playerCount > 0 ? "Players created" : "Add players"}
+              </p>
+              <p className="mt-1 text-sm app-copy-soft">
+                {playerCount > 0 ? `${playerCount} player${playerCount === 1 ? "" : "s"}` : teamCount === 0 ? "Create a team first." : "Add players to teams."}
+              </p>
+              {playerCount === 0 && teamCount > 0 && (
+                <Link
+                  className="mt-3 inline-flex h-8 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50"
+                  href="/players/new"
+                >
+                  Create player
+                </Link>
+              )}
+            </div>
+            <div className={`rounded-[1.35rem] border p-4 ${totalMatchCount > 0 ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.08)]" : playerCount === 0 ? "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)] opacity-50" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}>
+              <p className="text-sm font-semibold text-zinc-100">
+                {totalMatchCount > 0 ? "Matches created" : "Add matches"}
+              </p>
+              <p className="mt-1 text-sm app-copy-soft">
+                {totalMatchCount > 0 ? `${totalMatchCount} match${totalMatchCount === 1 ? "" : "es"}` : playerCount === 0 ? "Add players first." : "Create matches for rounds."}
+              </p>
+              {totalMatchCount === 0 && playerCount > 0 && (
+                <Link
+                  className="mt-3 inline-flex h-8 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50"
+                  href="/matches/new"
+                >
+                  Create match
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="app-panel rounded-[1.75rem] p-6">
         <div>

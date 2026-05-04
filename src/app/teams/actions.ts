@@ -42,16 +42,13 @@ function getTeamErrorMessage(error: unknown): string {
 export async function createTeamAction(formData: FormData) {
   try {
     const name = readText(formData, "name");
-    const minSupportPlayers = readNonNegativeInteger(
-      formData,
-      "minSupportPlayers",
-      "Minimum support players",
-    );
-    const developmentSlots = readNonNegativeInteger(
-      formData,
-      "developmentSlots",
-      "Development slots",
-    );
+    const targetSquadSize = readNonNegativeInteger(formData, "targetSquadSize", "Target squad size");
+    const minAcceptedSquadSize = readNonNegativeInteger(formData, "minAcceptedSquadSize", "Minimum accepted squad size");
+    const maxSquadSize = readNonNegativeInteger(formData, "maxSquadSize", "Maximum squad size");
+    const minCorePlayers = readNonNegativeInteger(formData, "minCorePlayers", "Minimum core players");
+    const minSupportPlayers = readNonNegativeInteger(formData, "minSupportPlayers", "Minimum support players");
+    const developmentSlots = readNonNegativeInteger(formData, "developmentSlots", "Development slots");
+    const supportPriority = readNonNegativeInteger(formData, "supportPriority", "Support priority");
 
     if (!name) {
       throw new Error("Team name is required.");
@@ -75,21 +72,32 @@ export async function createTeamAction(formData: FormData) {
         data: {
           archivedAt: null,
           developmentSlots,
+          maxSquadSize,
+          minAcceptedSquadSize,
+          minCorePlayers,
           minSupportPlayers,
+          name,
+          supportPriority,
+          targetSquadSize,
         },
       });
     } else {
       await db.team.create({
         data: {
           developmentSlots,
-          name,
+          maxSquadSize,
+          minAcceptedSquadSize,
+          minCorePlayers,
           minSupportPlayers,
+          name,
+          supportPriority,
+          targetSquadSize,
         },
       });
     }
   } catch (error) {
     redirect(
-      buildPathWithSearch("/teams", {
+      buildPathWithSearch("/teams/new", {
         error: getTeamErrorMessage(error),
       }),
     );
