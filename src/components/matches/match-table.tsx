@@ -80,10 +80,10 @@ export function MatchTable({ matches }: { matches: MatchRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-[var(--border-soft)]">
+    <div className="overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
+      <table className="w-full text-left text-sm border-collapse">
+        <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
+          <tr>
             <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Date</th>
             <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Team</th>
             <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Opponent</th>
