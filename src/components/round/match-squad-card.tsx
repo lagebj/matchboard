@@ -10,6 +10,7 @@ import {
   X,
   Plus,
   Repeat,
+  ShieldCheck,
 } from "lucide-react";
 import { RoleBadge, type SelectionRole } from "@/components/ui/role-badge";
 import { clearMatchDraftAction } from "@/app/rounds/[matchRoundId]/actions";
@@ -116,6 +117,7 @@ export function MatchSquadCard({
   const [replaceRole, setReplaceRole] = useState<SelectionRole>("CORE");
   const [replaceSearch, setReplaceSearch] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const grouped = roleGroups.map((group) => ({
     ...group,
     players: players.filter((p) => p.selectionCategory === group.key),
@@ -161,16 +163,26 @@ export function MatchSquadCard({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
           )}
           {!isFinalized && selectedCount > 0 && (
-            <button
-              className="rounded p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-900/20 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowClearConfirm(true);
-              }}
-              aria-label="Clear match draft"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                className="rounded p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(true); }}
+                aria-label="Finalize match"
+                title="Finalize this match"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+              </button>
+              <button
+                className="rounded p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowClearConfirm(true);
+                }}
+                aria-label="Clear match draft"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -536,6 +548,44 @@ export function MatchSquadCard({
                 }}
               >
                 {isPending ? "Clearing..." : "Clear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFinalizeConfirm && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/70 backdrop-blur-sm"
+          onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(false); }}
+        >
+          <div className="flex flex-col gap-2 p-4 text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-medium text-zinc-100">Finalize this match?</p>
+            <p className="text-xs text-zinc-400">
+              {selectedCount} of {targetSquadSize} players selected. This will lock the squad.
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <button
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] transition-colors"
+                onClick={() => setShowFinalizeConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => {
+                  setActionError(null);
+                  startTransition(async () => {
+                    const fd = new FormData();
+                    fd.set("matchId", matchId);
+                    const { finalizeMatchAction } = await import("@/app/matches/actions");
+                    await finalizeMatchAction(fd);
+                    setShowFinalizeConfirm(false);
+                  });
+                }}
+              >
+                {isPending ? "Finalizing..." : "Finalize"}
               </button>
             </div>
           </div>
