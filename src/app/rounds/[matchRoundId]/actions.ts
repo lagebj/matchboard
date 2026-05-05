@@ -20,10 +20,8 @@ export async function finalizeRoundAction(formData: FormData) {
 
   if (!result.success) {
     const queryParams: Record<string, string> = {};
-    if (result.hardBlocked) {
-      queryParams.error = "Finalization blocked: resolve hard blockers before finalizing.";
-    } else if (result.needsOverride) {
-      queryParams.error = "Override reason required: some warnings need a manual override reason.";
+    if (result.needsOverride) {
+      queryParams.error = "Override reason required: provide a reason to finalize despite warnings.";
     } else {
       queryParams.error = "Finalization failed.";
     }

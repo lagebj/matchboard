@@ -305,7 +305,7 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
                     <div className="flex flex-col gap-2">
                       <button
                         className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
-                        disabled={isPending || blockingWarnings > 0}
+                        disabled={isPending}
                         onClick={() => setShowFinalizeDialog(true)}
                         type="button"
                       >
@@ -315,7 +315,7 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
                       {blockingWarnings > 0 && (
                         <p className="text-xs text-red-300">
                           <AlertTriangle className="mr-1 inline h-3 w-3" />
-                          {blockingWarnings} blocking {blockingWarnings === 1 ? "warning" : "warnings"} must be resolved first.
+                          {blockingWarnings} blocking {blockingWarnings === 1 ? "warning" : "warnings"} — override reason required.
                         </p>
                       )}
                       {requiresOverrideWarnings > 0 && blockingWarnings === 0 && (

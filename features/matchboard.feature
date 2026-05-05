@@ -125,6 +125,14 @@ Feature: Matchboard football operations workspace
       Then the app must finalize match "M2" successfully
       And match "M1" must remain unfinalized
 
+    Scenario: Per-match finalization with hard blockers requires override reason
+      Given match round "R1" contains matches "M1" and "M2"
+      And match "M1" has a HARD_BLOCK warning
+      When the coach finalizes match "M1" without an override reason
+      Then the app must require an override reason
+      When the coach provides an override reason and finalizes match "M1"
+      Then match "M1" must be finalized with the override reason stored
+
     Scenario: Finalized match in finalized round cannot be re-finalized
       Given match round "R1" has been finalized
       When the coach attempts to finalize a match in "R1"
@@ -607,10 +615,11 @@ Feature: Matchboard football operations workspace
 
     Rules can be hard_block, requires_override, warning, or scoring_preference.
 
-    Scenario: Hard block prevents finalization
+    Scenario: Hard block requires override reason to finalize
       Given player "p1" is selected twice in the same match round
       When the app validates the match round
       Then validation must fail with severity "hard_block"
+      And the coach can still finalize by providing an override reason
 
     Scenario: Requires override allows coach decision with reason
       Given Team C falls below minimum support count
@@ -2135,9 +2144,11 @@ Feature: Matchboard football operations workspace
     Scenario: Warnings are read during finalization
       Given match round "R1" has persisted warnings
       And at least one warning has severity "HARD_BLOCK"
-      When the coach attempts to finalize match round "R1"
-      Then the app must block finalization
+      When the coach attempts to finalize match round "R1" without an override reason
+      Then the app must require an override reason
       And must show the blocking warnings
+      When the coach provides an override reason and finalizes
+      Then the app must allow finalization with the override reason stored
 
     Scenario: Warnings are read during finalization with override
       Given match round "R1" has persisted warnings
@@ -2934,7 +2945,7 @@ Feature: Matchboard football operations workspace
       Given match round "R1" has hard blockers
       When the coach opens the round
       Then the app must show "Human review required"
-      And prevent finalization until blockers are resolved
+      And require override reason to finalize
 
     Scenario: Human review required for too many warnings
       Given match round "R1" has more warnings than configured threshold

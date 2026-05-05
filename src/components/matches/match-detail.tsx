@@ -149,6 +149,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const blockingWarnings = match.warnings.filter((w) => w.severity === "HARD_BLOCK");
   const requiresOverrideWarnings = match.warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
   const otherWarnings = match.warnings.filter((w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE");
+  const hasOverrideWarnings = blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0;
 
   const matchFinalized = isMatchFinalized(match.selections);
   const roundFinalizedFlag = match.matchRoundStatus === "FINALIZED";
@@ -326,12 +327,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 {blockingWarnings.length > 0 && (
                   <p className="text-xs text-red-300 mb-2">
                     <AlertTriangle className="mr-1 inline h-3 w-3" />
-                    {blockingWarnings.length} blocking {blockingWarnings.length === 1 ? "warning" : "warnings"} must be resolved first.
+                    {blockingWarnings.length} blocking {blockingWarnings.length === 1 ? "warning" : "warnings"} — override reason required.
                   </p>
                 )}
-                {requiresOverrideWarnings.length > 0 && (
+                {hasOverrideWarnings && (
                   <div className="mb-2">
-                    <label className="text-xs text-[var(--text-muted)] block mb-1">Override reason (required)</label>
+                    <label className="text-xs text-[var(--text-muted)] block mb-1" htmlFor={`override-reason-${match.id}`}>Override reason (required)</label>
                     <input
                       id={`override-reason-${match.id}`}
                       className="h-8 w-full rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-xs text-zinc-50"
@@ -341,7 +342,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 )}
                 <button
                   className="w-full rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
-                  disabled={isPending || blockingWarnings.length > 0}
+                  disabled={isPending}
                   onClick={() => {
                     startTransition(async () => {
                       const fd = new FormData();

@@ -173,12 +173,14 @@ Controlled double-load is evaluated after all other movement phases complete.
 Warnings are generated during round generation and must be persisted to the database.
 
 Each warning has a severity level:
-- **HARD_BLOCK** — prevents finalization
-- **REQUIRES_OVERRIDE** — allows finalization with manual override reason
+- **HARD_BLOCK** — requires override reason to finalize (the coach decides, not the system)
+- **REQUIRES_OVERRIDE** — requires override reason to finalize
 - **WARNING** — informational, does not block finalization
 - **SCORING_PREFERENCE** — explains a ranking decision
 
 The UI reads warnings from the database, not from in-memory generation results. If warnings are not persisted, the UI cannot show blockers and finalization cannot check for hard blocks.
+
+The coach can always finalize by providing an override reason. No warning severity can absolutely prevent finalization. HARD_BLOCK and REQUIRES_OVERRIDE both require an override reason; they differ in presentation severity, not in whether they can be overridden.
 
 ## Draft clearing
 
@@ -252,7 +254,7 @@ Finalization can happen at two levels:
 
 Per-match finalization rules:
 - Per-match finalization locks all DRAFT selections for the target match as FINALIZED
-- Per-match finalization checks HARD_BLOCK and REQUIRES_OVERRIDE warnings scoped to the target match only (not the entire round)
+- Per-match finalization checks HARD_BLOCK and REQUIRES_OVERRIDE warnings scoped to the target match only (not the entire round); both require override reason, neither absolutely prevents finalization
 - When all matches in a round have been finalized (no remaining DRAFT selections), the round's status must automatically transition to FINALIZED
 - A match in a FINALIZED round cannot be finalized again
 - Per-match finalization uses the same rule config version stamping as round-level finalization

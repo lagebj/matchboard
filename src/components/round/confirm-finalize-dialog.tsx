@@ -32,12 +32,12 @@ export function ConfirmFinalizeDialog({
 
   if (!isOpen) return null;
 
-  const canFinalize = blockingWarningCount === 0;
-  const needsOverride = requiresOverrideCount > 0;
+  const hasWarnings = blockingWarningCount > 0 || requiresOverrideCount > 0;
+  const needsOverride = hasWarnings;
   const overrideValid = !needsOverride || overrideReason.trim().length >= 10;
 
   const handleConfirm = () => {
-    if (!canFinalize || !overrideValid) return;
+    if (!overrideValid) return;
     setIsSubmitting(true);
     onConfirm(overrideReason.trim());
   };
@@ -82,7 +82,7 @@ export function ConfirmFinalizeDialog({
                   <div className="flex items-center gap-2">
                     <SeverityBadge severity="blocking" />
                     <span className="text-sm text-red-300">
-                      {blockingWarningCount} blocking {blockingWarningCount === 1 ? "issue" : "issues"} — finalization is blocked
+                      {blockingWarningCount} blocking {blockingWarningCount === 1 ? "issue" : "issues"} — override reason required to finalize
                     </span>
                   </div>
                 </div>
@@ -133,7 +133,7 @@ export function ConfirmFinalizeDialog({
           <button
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleConfirm}
-            disabled={!canFinalize || !overrideValid || isSubmitting}
+            disabled={!overrideValid || isSubmitting}
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             {isSubmitting ? "Finalizing..." : "Finalize round"}
