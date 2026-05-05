@@ -200,27 +200,47 @@ Hard rules:
 
 Draft match squads can be manually edited before finalization.
 
+**Manual override principle: selection rules are for the automatic engine only.** A coach can manually override any domain rule (same-round conflict, rotation path, availability, non-rotatable, squad size) by providing an override reason. The only absolute hard blocks for manual edits are data integrity: finalized round/match, non-existent player/match/selection.
+
 Manual editing applies to draft/non-finalized selections only. Finalized selections cannot be edited by normal draft actions.
 
 Manual editing must:
-- use the same domain validation as automatic generation (UI-only validation is not enough)
-- validate rotation path eligibility for non-core movement
-- validate same-round conflict rules
-- validate availability
-- validate squad size rules
+- validate that the match exists and the round is not finalized
+- validate that the player exists and is active in the registry
+- check domain rules and require an override reason when bypassing any of them
 - recalculate match status, round status, warnings, explanations, and fairness impact
-- require an override reason when bypassing a hard rule
 - store the override reason with the selection
 - show the override badge on the player selection
 
-Manual edits cannot:
-- silently bypass RotationPath without override reason
-- silently create same-round duplicate selections
-- select unavailable players without override reason
-- move non-rotatable players outside core team without override reason
-- modify finalized selections without explicit reopen or audit trail
+Domain rules that require override reason for manual edits (not hard blocks):
+- rotation path eligibility for non-core movement
+- same-round conflict (player selected for another match)
+- duplicate selection in the same match
+- player availability
+- squad size limits
+- non-rotatable player movement outside core team
+
+The only hard blocks for manual edits:
+- round is FINALIZED
+- match/selection/player does not exist
+- player has been removed from the active registry
 
 Manual override requires reason. Manual override must be persisted with the selection. Manual override must appear in finalization summary.
+
+## Draft regeneration
+
+Generated draft selections can be regenerated at three levels:
+- **Regenerate match** — rerun automatic selection for one match, preserving any manual edits
+- **Regenerate round** — rerun round-level orchestration for one round, preserving any manual edits
+- **Regenerate all drafts** — regenerate all DRAFT rounds in the planning period, preserving manual edits in each
+
+Regeneration rules:
+- Regeneration preserves manual edits: selections marked as manually added or manually removed are kept, and only automatic selections are recalculated
+- If a match/round has only manual edits, regeneration is effectively a no-op (the manual selections are preserved as-is)
+- To fully regenerate a match/round that has manual edits, clear the draft first, then regenerate
+- Regeneration never touches FINALIZED selections
+- Regeneration rebuilds warnings after recalculation
+- Regeneration buttons must be clearly visible: on match squad cards (RefreshCw icon), in round workbench sidebar ("Regenerate round"), and on rounds list and today page ("Regenerate all drafts")
 
 ## Per-match and round finalization
 
@@ -268,6 +288,7 @@ Keep these concerns separate:
 - explanation generation
 - manual edit validation
 - draft clearing
+- draft regeneration
 - finalization/snapshotting
 
 Do not grow a monolithic `generate-selection.ts`.
@@ -397,6 +418,8 @@ Run tests with `npm test`.
 
 Required test coverage should include:
 - same-round player conflict prevention
+- same-round conflict requires override reason for manual edits
+- duplicate selection in match requires override reason for manual edits
 - support before development
 - support not overridden by fairness scoring
 - backfill priority order (1 → 2 → 3)
@@ -414,10 +437,16 @@ Required test coverage should include:
 - clear match removes only selected match draft data
 - clear actions preserve finalized history and setup data
 - manual add player with and without valid path
+- manual same-round conflict override with reason
+- manual duplicate selection override with reason
 - manual remove player recalculates warnings
 - manual role change validates role-specific path
 - manual override requires reason
 - finalized match cannot be edited by draft action
+- regenerate match preserves manual edits
+- regenerate round preserves manual edits
+- regenerate all drafts skips finalized rounds
+- regeneration never touches finalized selections
 - invariant validation catches invalid non-core movement
 - rotation path policy enforces exact role matching
 
@@ -459,7 +488,7 @@ Avoid:
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
-| `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a round |
+| `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a match or round |
 | `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |
 | `src/lib/selection/persist-warnings.ts` | Persist warnings after generation |
 

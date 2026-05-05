@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { clearRoundDraftSelection, clearMatchDraftSelection } from "@/lib/selection/clear-draft-selection";
+import { refreshDraftRound } from "@/lib/selection/refresh-draft-selection";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
 export async function finalizeRoundAction(formData: FormData) {
@@ -64,4 +65,50 @@ export async function clearMatchDraftAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/rounds");
+}
+
+export async function regenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  try {
+    const matchRoundId = formData.get("matchRoundId");
+    if (typeof matchRoundId !== "string" || !matchRoundId) {
+      throw new Error("Match round ID is required.");
+    }
+
+    const result = await refreshDraftRound(matchRoundId);
+
+    if (result.preservedManualDraft) {
+      return { error: "Round has manual edits that were preserved. Clear manual edits first to fully regenerate." };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+    revalidatePath(`/rounds/${matchRoundId}`);
+
+    return { error: "" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Regeneration failed." };
+  }
+}
+
+export async function regenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  try {
+    const matchId = formData.get("matchId");
+    if (typeof matchId !== "string" || !matchId) {
+      throw new Error("Match ID is required.");
+    }
+
+    const { refreshDraftSelection } = await import("@/lib/selection/refresh-draft-selection");
+    const result = await refreshDraftSelection(matchId);
+
+    if (result.preservedManualDraft) {
+      return { error: "Match has manual edits that were preserved. Clear manual edits first to fully regenerate." };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+
+    return { error: "" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Regeneration failed." };
+  }
 }

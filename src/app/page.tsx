@@ -576,6 +576,30 @@ export default async function TodayPage() {
               </form>
             </div>
           )}
+
+          {computeRoundProgress(allMatchRounds).some((r) => r.status === "DRAFT" || r.status === "BLOCKED" || r.status === "READY") && activePlanningPeriod && (
+            <div className="mt-2">
+              <form action={async () => {
+                "use server";
+                const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
+                const db = (await import("@/lib/db")).db;
+                const draftRounds = await db.matchRound.findMany({
+                  where: { planningPeriodId: activePlanningPeriod.id, status: "DRAFT" },
+                  select: { id: true },
+                });
+                for (const round of draftRounds) {
+                  await refreshDraftRound(round.id);
+                }
+              }}>
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-4 text-sm font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors"
+                >
+                  Regenerate all drafts
+                </button>
+              </form>
+            </div>
+          )}
         </section>
       )}
 
