@@ -263,9 +263,16 @@ Round-level finalization finalizes all remaining DRAFT selections in the round a
 
 The match detail page shows per-match finalization controls and also provides a link to finalizing the entire round from the round workbench.
 
-The round board uses a column-based layout: one "Available players" column on the left showing all unassigned players, and one column per match showing assigned players grouped by role. Players are moved between columns via drag-and-drop. When a player is dragged from the Available column to a match column, they are added (CORE by default, role changeable after). When dragged from a match back to Available, they are removed. Coaches can see at a glance who is where and which players are unassigned.
+The round board uses a column-based layout: one "Available players" column on the left showing all unassigned players, and one column per match showing assigned players grouped by role. Players are moved between columns via drag-and-drop (desktop and touch).
 
-Warnings are shown with reduced verbosity: only HARD_BLOCK and REQUIRES_OVERRIDE warnings are visible by default. Informational warnings (WARNING, SCORING_PREFERENCE) are hidden behind a toggle. The main goal is to surface actionable issues, not to list every observation.
+When a player is dropped onto a match column, the role is determined automatically:
+- If the player's core team matches the match team → CORE
+- If a rotation path exists from the player's core team to the match team → SUPPORT (preferred) or DEVELOPMENT based on the path role
+- If no rotation path exists → CORE (requires override reason)
+
+BACKFILL is not a user-facing role choice. It is used internally by the selection engine for squad repair. Existing BACKFILL selections are displayed under "Squad repair" in the round board, but coaches cannot select BACKFILL as a role — the system assigns it automatically.
+
+Warnings are shown with reduced verbosity: actionable warnings (HARD_BLOCK, REQUIRES_OVERRIDE) appear as a count summary at the top of the round board and as per-player warning icons on player chips. Informational warnings (WARNING, SCORING_PREFERENCE) are hidden behind a toggle. The main goal is to surface actionable issues, not to list every observation.
 
 ## Selection architecture
 
