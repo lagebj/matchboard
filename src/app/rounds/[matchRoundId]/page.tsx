@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
-import { RoundWorkbench } from "@/components/round/round-workbench";
-import type { PlayerInMatch } from "@/components/round/match-squad-card";
+import { RoundBoard } from "@/components/round/round-board";
+import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
@@ -346,6 +346,31 @@ export default async function RoundBoardPage({
     fairnessMetrics,
   };
 
+  const boardMatches = squads.map((s) => ({
+    matchId: s.matchId,
+    teamName: s.teamName,
+    opponent: s.opponent,
+    matchDate: s.matchDate,
+    targetSquadSize: s.targetSquadSize,
+    minSquadSize: s.minSquadSize,
+    isFinalized: s.isFinalized,
+    players: s.players
+      .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
+      .map((p) => ({
+        id: p.playerId,
+        name: p.playerName,
+        coreTeamName: p.coreTeamName,
+        role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
+        manualOverride: p.manualOverride,
+      })),
+  }));
+
+  const boardAvailablePlayers = availablePlayerList.map((p) => ({
+    id: p.id,
+    name: p.name,
+    coreTeamName: p.coreTeamName,
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       {error && (
@@ -363,7 +388,27 @@ export default async function RoundBoardPage({
           Round generated successfully.
         </div>
       )}
-      <RoundWorkbench round={roundData} matchRoundId={matchRoundId} availablePlayers={availablePlayerList} />
+      <RoundBoard
+        roundLabel={roundLabel}
+        roundStatus={matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED"}
+        roundId={matchRound.id}
+        matchRoundId={matchRoundId}
+        hasDraftSelections={selections.length > 0}
+        hasMatches={matchRound.matches.length > 0}
+        matches={boardMatches}
+        availablePlayers={boardAvailablePlayers}
+        warnings={warnings}
+        warningSummary={warningSummary}
+        movementSummary={{
+          supportSent: totalSupportSent,
+          supportReceived: totalSupportReceived,
+          developmentSent: totalDevSent,
+          developmentReceived: totalDevReceived,
+          backfillReceived: totalBackfillReceived,
+          drops: totalDrops,
+        }}
+        fairnessMetrics={fairnessMetrics}
+      />
     </div>
   );
 }

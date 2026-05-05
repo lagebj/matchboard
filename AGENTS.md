@@ -242,7 +242,7 @@ Regeneration rules:
 - To fully regenerate a match/round that has manual edits, clear the draft first, then regenerate
 - Regeneration never touches FINALIZED selections
 - Regeneration rebuilds warnings after recalculation
-- Regeneration buttons must be clearly visible: on match squad cards (RefreshCw icon), in round workbench sidebar ("Regenerate round"), and on rounds list and today page ("Regenerate all drafts")
+- Regeneration buttons must be clearly visible: on match columns in the round board (RefreshCw icon), via the round board action bar ("Regenerate"), and on rounds list and today page ("Regenerate all drafts")
 
 ## Per-match and round finalization
 
@@ -263,7 +263,9 @@ Round-level finalization finalizes all remaining DRAFT selections in the round a
 
 The match detail page shows per-match finalization controls and also provides a link to finalizing the entire round from the round workbench.
 
-The round workbench shows finalize controls and warnings in a right sidebar panel (320px sticky), keeping the main content area focused on squad cards. Match squad cards show a shield icon button to finalize an individual match with a confirmation overlay.
+The round board uses a column-based layout: one "Available players" column on the left showing all unassigned players, and one column per match showing assigned players grouped by role. Players are moved between columns via drag-and-drop. When a player is dragged from the Available column to a match column, they are added (CORE by default, role changeable after). When dragged from a match back to Available, they are removed. Coaches can see at a glance who is where and which players are unassigned.
+
+Warnings are shown with reduced verbosity: only HARD_BLOCK and REQUIRES_OVERRIDE warnings are visible by default. Informational warnings (WARNING, SCORING_PREFERENCE) are hidden behind a toggle. The main goal is to surface actionable issues, not to list every observation.
 
 ## Selection architecture
 
@@ -332,7 +334,7 @@ Setup registry create routes (no top-level nav):
 - `/matches/new` — create match form
 
 Detail routes (no top-level nav):
-- `/rounds/[matchRoundId]` — round workbench
+- `/rounds/[matchRoundId]` — round board
 - `/players/[playerId]` — player profile
 - `/teams/[teamId]` — team detail workspace
 - `/matches/[matchId]` — match detail
