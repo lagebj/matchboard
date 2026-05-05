@@ -89,6 +89,8 @@ function SupportStatusIndicator({ status }: { status: MatchSquadCardProps["suppo
   );
 }
 
+const SELECTED_ROLES = new Set(["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"]);
+
 export function MatchSquadCard({
   matchId,
   matchRoundId,
@@ -395,7 +397,7 @@ export function MatchSquadCard({
                             ap.name.toLowerCase().includes(replaceSearch.toLowerCase()) ||
                             ap.coreTeamName.toLowerCase().includes(replaceSearch.toLowerCase())
                           )
-                          .filter((ap) => !players.some((sp) => sp.playerId === ap.id) || ap.id === replacePlayerId)
+                          .filter((ap) => !players.some((sp) => SELECTED_ROLES.has(sp.selectionCategory) && sp.playerId === ap.id) || ap.id === replacePlayerId)
                           .slice(0, 6)
                           .map((ap) => (
                             <button
@@ -498,7 +500,7 @@ export function MatchSquadCard({
                       p.name.toLowerCase().includes(addPlayerSearch.toLowerCase()) ||
                       p.coreTeamName.toLowerCase().includes(addPlayerSearch.toLowerCase())
                     )
-                    .filter((p) => !players.some((sp) => sp.playerId === p.id))
+                    .filter((p) => !players.some((sp) => SELECTED_ROLES.has(sp.selectionCategory) && sp.playerId === p.id))
                     .slice(0, 8)
                     .map((p) => (
                       <button
