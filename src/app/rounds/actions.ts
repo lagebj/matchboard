@@ -6,6 +6,30 @@ import { clearAllDraftSelections } from "@/lib/selection/clear-draft-selection";
 import { db } from "@/lib/db";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
+export async function finalizeRoundFromListAction(formData: FormData) {
+  const matchRoundId = formData.get("matchRoundId");
+  if (typeof matchRoundId !== "string" || !matchRoundId) {
+    throw new Error("Match round ID is required.");
+  }
+
+  const overrideReason = formData.get("overrideReason");
+  const overrideReasonStr = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : undefined;
+
+  const { finalizeMatchRound } = await import("@/lib/selection/finalize-match-round");
+  const result = await finalizeMatchRound(matchRoundId, overrideReasonStr);
+
+  revalidatePath("/");
+  revalidatePath("/rounds");
+  revalidatePath(`/rounds/${matchRoundId}`);
+  revalidatePath("/matches");
+
+  if (!result.success) {
+    return { error: result.needsOverride ? "Override reason required" : "Finalization failed" };
+  }
+
+  return { error: "" };
+}
+
 export async function clearAllDraftsAction(formData: FormData) {
   const planningPeriodId = formData.get("planningPeriodId");
   if (typeof planningPeriodId !== "string" || !planningPeriodId) {

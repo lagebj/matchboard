@@ -14,12 +14,13 @@ import {
   AlertTriangle,
   GripVertical,
   XCircle,
+  Lock,
 } from "lucide-react";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
-import { clearRoundDraftAction, regenerateRoundAction } from "@/app/rounds/[matchRoundId]/actions";
+import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction } from "@/app/rounds/[matchRoundId]/actions";
 import { severityFromDbSeverity } from "@/components/ui/severity-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
 
@@ -187,6 +188,7 @@ function MatchColumnComponent({
   onTouchStartPlayer,
   isTouchHighlight,
   touchDragPlayerId,
+  matchRoundId,
 }: {
   match: MatchColumn;
   isPending: boolean;
@@ -199,8 +201,10 @@ function MatchColumnComponent({
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
   touchDragPlayerId?: string | null;
+  matchRoundId: string;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFinalizing, startFinalizing] = useTransition();
   const dateStr = match.matchDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
   const playersByRole = new Map<string, PlayerInColumn[]>();
@@ -252,6 +256,17 @@ function MatchColumnComponent({
           </span>
           {match.isFinalized && (
             <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
+          )}
+          {!match.isFinalized && (
+            <button
+              className="inline-flex items-center gap-0.5 rounded p-1 text-[10px] text-emerald-400 hover:bg-emerald-900/20 transition-colors disabled:opacity-50"
+              disabled={isFinalizing || isPending}
+              onClick={() => showFinalizeMatch(match.matchId)}
+              type="button"
+              title="Finalize this match"
+            >
+              <Lock className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </div>
@@ -314,6 +329,8 @@ export function RoundBoard({
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [showAllWarnings, setShowAllWarnings] = useState(false);
+  const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
+  const [matchOverrideReason, setMatchOverrideReason] = useState("");
 
   const touchDragRef = useRef<{ playerId: string; fromMatchId: string | null; currentRole: SelectionRole } | null>(null);
   const [touchDragPlayerId, setTouchDragPlayerId] = useState<string | null>(null);
@@ -732,13 +749,17 @@ export function RoundBoard({
             onDragStart={(e, playerId, _fromMatchId, currentRole) => handleDragStart(e, playerId, match.matchId, currentRole)}
             onRemovePlayer={handleRemovePlayer}
             onRoleChange={handleRoleChange}
-            showFinalizeMatch={() => {}}
+            showFinalizeMatch={(matchId: string) => {
+              setFinalizingMatchId(matchId);
+              setMatchOverrideReason("");
+            }}
             onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
               touchDragRef.current = { playerId, fromMatchId, currentRole: currentRole ?? "CORE" };
               setTouchDragPlayerId(playerId);
             }}
             isTouchHighlight={touchDropTarget === match.matchId}
             touchDragPlayerId={touchDragPlayerId}
+            matchRoundId={matchRoundId}
           />
         ))}
       </div>
@@ -790,6 +811,110 @@ export function RoundBoard({
                 }}
               >
                 {isPending ? "Clearing..." : "Clear round"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finalizingMatchId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setFinalizingMatchId(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4">
+              <h3 className="text-base font-semibold text-zinc-100">Finalize match</h3>
+              <button
+                onClick={() => setFinalizingMatchId(null)}
+                className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
+                aria-label="Close dialog"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 px-5 py-4">
+              {(() => {
+                const m = matches.find((x) => x.matchId === finalizingMatchId);
+                if (!m) return null;
+                const mWarnings = warnings.filter((w) => w.teamName === m.teamName);
+                const hardBlocks = mWarnings.filter((w) => w.severity === "HARD_BLOCK").length;
+                const requiresOverride = mWarnings.filter((w) => w.severity === "REQUIRES_OVERRIDE").length;
+                const selected = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+                return (
+                  <>
+                    <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">
+                      <p className="text-sm text-zinc-200">
+                        <span className="font-semibold">{m.teamName}</span> vs {m.opponent}:{" "}
+                        <span className="font-semibold">{selected}</span>/{m.targetSquadSize} players selected.
+                      </p>
+                    </div>
+                    {(hardBlocks > 0 || requiresOverride > 0) && (
+                      <div className="flex flex-col gap-2">
+                        {hardBlocks > 0 && (
+                          <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
+                            <span className="text-sm text-red-300">
+                              {hardBlocks} blocking {hardBlocks === 1 ? "issue" : "issues"} — override reason required
+                            </span>
+                          </div>
+                        )}
+                        {requiresOverride > 0 && (
+                          <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
+                            <span className="text-sm text-amber-300">
+                              {requiresOverride} {requiresOverride === 1 ? "issue requires" : "issues require"} override reason
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {(hardBlocks > 0 || requiresOverride > 0) && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-zinc-200" htmlFor="match-override-reason">
+                          Override reason
+                        </label>
+                        <textarea
+                          id="match-override-reason"
+                          className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
+                          rows={2}
+                          placeholder="Explain why (min 10 characters)..."
+                          value={matchOverrideReason}
+                          onChange={(e) => setMatchOverrideReason(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
+              <button
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
+                onClick={() => setFinalizingMatchId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isPending || (() => {
+                  const m = matches.find((x) => x.matchId === finalizingMatchId);
+                  if (!m) return true;
+                  const mWarnings = warnings.filter((w) => w.teamName === m.teamName);
+                  const hasBlocking = mWarnings.some((w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE");
+                  return hasBlocking && matchOverrideReason.trim().length < 10;
+                })()}
+                onClick={() => {
+                  startTransition(async () => {
+                    const fd = new FormData();
+                    fd.set("matchId", finalizingMatchId);
+                    fd.set("matchRoundId", matchRoundId);
+                    if (matchOverrideReason.trim()) {
+                      fd.set("overrideReason", matchOverrideReason.trim());
+                    }
+                    await finalizeSingleMatchFromBoardAction({ error: "" }, fd);
+                    setFinalizingMatchId(null);
+                  });
+                }}
+              >
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                {isPending ? "Finalizing..." : "Finalize match"}
               </button>
             </div>
           </div>
