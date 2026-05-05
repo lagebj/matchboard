@@ -17,7 +17,7 @@ The primary coach workflow is:
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
 3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust draft squads if needed.
-4. **Finalize** — Lock one round at a time. Finalized rounds become history and cannot be silently mutated.
+4. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
 
 The Today page must always show the next action based on this workflow state.
 
@@ -221,6 +221,25 @@ Manual edits cannot:
 - modify finalized selections without explicit reopen or audit trail
 
 Manual override requires reason. Manual override must be persisted with the selection. Manual override must appear in finalization summary.
+
+## Per-match and round finalization
+
+Finalization can happen at two levels:
+
+1. **Per-match**: The coach can finalize individual matches within a round. This locks only the selections for that specific match. Other matches in the round remain in DRAFT state.
+
+2. **Round-level**: The coach can finalize an entire round at once. This locks all selections in all matches in the round.
+
+Per-match finalization rules:
+- Per-match finalization locks all DRAFT selections for the target match as FINALIZED
+- Per-match finalization checks HARD_BLOCK and REQUIRES_OVERRIDE warnings scoped to the target match only (not the entire round)
+- When all matches in a round have been finalized (no remaining DRAFT selections), the round's status must automatically transition to FINALIZED
+- A match in a FINALIZED round cannot be finalized again
+- Per-match finalization uses the same rule config version stamping as round-level finalization
+
+Round-level finalization finalizes all remaining DRAFT selections in the round atomically.
+
+The match detail page shows per-match finalization controls and also provides a link to finalizing the entire round from the round workbench.
 
 ## Selection architecture
 
@@ -436,6 +455,7 @@ Avoid:
 | `src/lib/selection/validate-generated-round-invariants.ts` | Post-generation invariant checks |
 | `src/lib/selection/save-generated-draft.ts` | Persist draft selections |
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
+| `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
 | `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a round |
 | `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |

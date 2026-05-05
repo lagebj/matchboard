@@ -100,6 +100,36 @@ Feature: Matchboard football operations workspace
       And the app must store movement ledger entries
       And the app must preserve enough information to explain the finalized round later
 
+    Scenario: Coach can finalize a single match within a round
+      Given match round "R1" contains matches "M1" and "M2"
+      And match "M1" has draft selections
+      And match "M2" has draft selections
+      When the coach finalizes match "M1"
+      Then match "M1" selections must be locked as FINALIZED
+      And match "M2" selections must remain as DRAFT
+      And match round "R1" must remain in DRAFT state
+
+    Scenario: Finalizing all matches auto-finalizes the round
+      Given match round "R1" contains matches "M1" and "M2"
+      And match "M1" has draft selections
+      And match "M2" has draft selections
+      When the coach finalizes match "M1"
+      And the coach finalizes match "M2"
+      Then match round "R1" must be in FINALIZED state
+
+    Scenario: Per-match finalization respects match-scoped hard blockers
+      Given match round "R1" contains matches "M1" and "M2"
+      And match "M1" has a HARD_BLOCK warning
+      And match "M2" has no blockers
+      When the coach finalizes match "M2"
+      Then the app must finalize match "M2" successfully
+      And match "M1" must remain unfinalized
+
+    Scenario: Finalized match in finalized round cannot be re-finalized
+      Given match round "R1" has been finalized
+      When the coach attempts to finalize a match in "R1"
+      Then the app must reject the finalization
+
     Scenario: Unfinalized drafts can change freely
       Given match round "R1" is in draft state
       When the coach regenerates selections
