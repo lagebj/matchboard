@@ -2071,10 +2071,10 @@ Feature: Matchboard football operations workspace
       When the coach views the match squad card
       Then the app must show a regeneration button on the card
 
-    Scenario: Regeneration shows button in round workbench sidebar
+    Scenario: Regeneration shows button in round board
       Given match round "R1" has draft selections
-      When the coach views the round workbench
-      Then the app must show a regeneration button in the round actions sidebar
+      When the coach views the round board
+      Then the app must show a regeneration button in the round board action bar
 
     Scenario: Regeneration shows button on rounds list and today page
       Given an active planning period has draft rounds
@@ -2156,6 +2156,12 @@ Feature: Matchboard football operations workspace
       When the coach finalizes match round "R1"
       Then the app must allow finalization with acknowledgment
       And must record the acknowledgment
+
+    Scenario: Informational warnings are hidden by default on round board
+      Given match round "R1" has HARD_BLOCK and REQUIRES_OVERRIDE and WARNING and SCORING_PREFERENCE warnings
+      When the coach views the round board
+      Then the app must show HARD_BLOCK and REQUIRES_OVERRIDE warnings by default
+      And WARNING and SCORING_PREFERENCE warnings must be hidden behind a toggle
 
     Scenario: Setup progress shows which rounds need action
       Given an active planning period contains match rounds
@@ -2427,9 +2433,23 @@ Feature: Matchboard football operations workspace
       Given match round "R1" contains Team A, Team B, and Team C matches
       When the coach opens Round Board
       Then the app must show one column per team match
-      And show selected players grouped by role
-      And show available and unselected players
+      And show an available players column listing all unassigned players
+      And show selected players grouped by role in each match column
       And show round-level warnings
+
+    Scenario: Dragging player from available column adds to match
+      Given match round "R1" is in draft state
+      And player "p1" is not selected for any match
+      When the coach drags player "p1" from the available column to Team A match column
+      Then player "p1" must be added to Team A match as core
+      And player "p1" must be removed from the available column
+
+    Scenario: Dragging player from match column to available column removes player
+      Given match round "R1" is in draft state
+      And player "p1" is selected for Team A match as core
+      When the coach drags player "p1" from Team A match column to the available column
+      Then player "p1" must be removed from Team A match
+      And player "p1" must appear in the available column
 
     Scenario: Round Board uses columns per team match
       Given match round "R1" contains matches for Team A, Team B, and Team C
