@@ -65,7 +65,7 @@ export default async function RoundBoardPage({
 
   const matchIds = matchRound.matches.map((m) => m.id);
 
-  const [selections, allPlayers] = await Promise.all([
+  const [selections, allPlayers, rotationPaths] = await Promise.all([
     db.selection.findMany({
       where: {
         matchId: { in: matchIds },
@@ -104,6 +104,14 @@ export default async function RoundBoardPage({
         coreTeam: { select: { id: true, name: true } },
       },
     }),
+    db.rotationPath.findMany({
+      where: { active: true },
+      select: {
+        fromTeamId: true,
+        toTeamId: true,
+        role: true,
+      },
+    }),
   ]);
 
   const eligiblePlayers = await db.player.findMany({
@@ -115,6 +123,7 @@ export default async function RoundBoardPage({
       id: true,
       firstName: true,
       lastName: true,
+      coreTeamId: true,
       coreTeam: { select: { id: true, name: true } },
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -124,6 +133,7 @@ export default async function RoundBoardPage({
     id: p.id,
     name: formatPlayerName(p),
     coreTeamName: p.coreTeam.name,
+    coreTeamId: p.coreTeamId,
   }));
 
   const selectionsByMatchId = new Map<string, typeof selections>();
@@ -346,30 +356,63 @@ export default async function RoundBoardPage({
     fairnessMetrics,
   };
 
-  const boardMatches = squads.map((s) => ({
-    matchId: s.matchId,
-    teamName: s.teamName,
-    opponent: s.opponent,
-    matchDate: s.matchDate,
-    targetSquadSize: s.targetSquadSize,
-    minSquadSize: s.minSquadSize,
-    isFinalized: s.isFinalized,
-    players: s.players
-      .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
-      .map((p) => ({
-        id: p.playerId,
-        name: p.playerName,
-        coreTeamName: p.coreTeamName,
-        role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
-        manualOverride: p.manualOverride,
-      })),
-  }));
+  const playerCoreTeamMap = new Map<string, string>();
+  for (const sel of selections) {
+    if (!playerCoreTeamMap.has(sel.player.id)) {
+      playerCoreTeamMap.set(sel.player.id, sel.player.coreTeamId);
+    }
+  }
+  for (const p of eligiblePlayers) {
+    if (!playerCoreTeamMap.has(p.id)) {
+      playerCoreTeamMap.set(p.id, p.coreTeamId);
+    }
+  }
+
+  const boardMatches = squads.map((s) => {
+    const matchRecord = matchRound.matches.find((m) => m.id === s.matchId);
+    return {
+      matchId: s.matchId,
+      teamId: matchRecord?.teamId ?? "",
+      teamName: s.teamName,
+      opponent: s.opponent,
+      matchDate: s.matchDate,
+      targetSquadSize: s.targetSquadSize,
+      minSquadSize: s.minSquadSize,
+      isFinalized: s.isFinalized,
+      players: s.players
+        .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
+        .map((p) => ({
+          id: p.playerId,
+          name: p.playerName,
+          coreTeamName: p.coreTeamName,
+          playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
+          role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
+          manualOverride: p.manualOverride,
+          warningCount: (() => {
+            const matchWarnings = unresolvedWarnings.filter(
+              (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
+            );
+            return matchWarnings.length;
+          })(),
+        })),
+    };
+  });
 
   const boardAvailablePlayers = availablePlayerList.map((p) => ({
     id: p.id,
     name: p.name,
     coreTeamName: p.coreTeamName,
+    coreTeamId: p.coreTeamId,
   }));
+
+  const rotationPathMap: Record<string, string[]> = {};
+  for (const path of rotationPaths) {
+    const key = `${path.fromTeamId}:${path.toTeamId}`;
+    if (!rotationPathMap[key]) rotationPathMap[key] = [];
+    if (!rotationPathMap[key].includes(path.role)) {
+      rotationPathMap[key].push(path.role);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -397,6 +440,7 @@ export default async function RoundBoardPage({
         hasMatches={matchRound.matches.length > 0}
         matches={boardMatches}
         availablePlayers={boardAvailablePlayers}
+        rotationPathMap={rotationPathMap}
         warnings={warnings}
         warningSummary={warningSummary}
         movementSummary={{

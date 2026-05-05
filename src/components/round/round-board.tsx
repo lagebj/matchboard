@@ -29,14 +29,18 @@ type PlayerInColumn = {
   id: string;
   name: string;
   coreTeamName: string;
+  coreTeamId?: string;
   role?: SelectionRole;
   selectionCategory?: string;
   manualOverride?: boolean;
   availability?: string;
+  playerCoreTeamId?: string;
+  warningCount?: number;
 };
 
 type MatchColumn = {
   matchId: string;
+  teamId: string;
   teamName: string;
   opponent: string;
   matchDate: Date;
@@ -64,6 +68,7 @@ type RoundBoardProps = {
   hasMatches: boolean;
   matches: MatchColumn[];
   availablePlayers: PlayerInColumn[];
+  rotationPathMap: Record<string, string[]>;
   warnings: WarningEntry[];
   warningSummary?: {
     blocking: number;
@@ -87,7 +92,9 @@ type RoundBoardProps = {
   }>;
 };
 
-const ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
+const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
+
+const ROLE_CHANGE_OPTIONS: SelectionRole[] = ["CORE", "SUPPORT", "DEVELOPMENT"];
 
 const ROLE_LABELS: Record<string, string> = {
   CORE: "Core",
@@ -116,6 +123,7 @@ function PlayerChip({
   isFinalized: boolean;
   onTouchStart?: (playerId: string, fromMatchId: string | null, currentRole?: SelectionRole) => void;
   isTouchDragging?: boolean;
+  warningCount?: number;
 }) {
   const availabilityClass =
     player.availability === "INJURED"
@@ -148,6 +156,9 @@ function PlayerChip({
       <span className="shrink-0 text-[9px] text-[var(--text-muted)]">{player.coreTeamName}</span>
       {player.manualOverride && (
         <span className="shrink-0 text-[8px] text-amber-400 uppercase">ovr</span>
+      )}
+      {player.warningCount && player.warningCount > 0 && (
+        <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />
       )}
       {!isFinalized && onRemove && (
         <button
@@ -192,18 +203,18 @@ function MatchColumnComponent({
   const [isDragOver, setIsDragOver] = useState(false);
   const dateStr = match.matchDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
-  const playersByRole = new Map<SelectionRole, PlayerInColumn[]>();
-  for (const role of ROLE_ORDER) {
+  const playersByRole = new Map<string, PlayerInColumn[]>();
+  for (const role of DISPLAY_ROLE_ORDER) {
     playersByRole.set(role, []);
   }
   for (const p of match.players) {
-    const role = (p.role ?? "CORE") as SelectionRole;
+    const role = (p.role ?? "CORE") as string;
     const list = playersByRole.get(role) ?? [];
     list.push(p);
     playersByRole.set(role, list);
   }
 
-  const selectedCount = match.players.filter((p) => ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+  const selectedCount = match.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
 
   const squadFilling = selectedCount >= match.targetSquadSize
     ? "full"
@@ -246,7 +257,7 @@ function MatchColumnComponent({
       </div>
 
       <div className="flex-1 px-3 py-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
-        {ROLE_ORDER.map((role) => {
+        {DISPLAY_ROLE_ORDER.map((role) => {
           const players = playersByRole.get(role) ?? [];
           if (players.length === 0) return null;
           return (
@@ -268,6 +279,7 @@ function MatchColumnComponent({
                     isFinalized={match.isFinalized}
                     onTouchStart={onTouchStartPlayer ? (playerId, _fromMatchId, currentRole) => onTouchStartPlayer(playerId, match.matchId, currentRole) : undefined}
                     isTouchDragging={touchDragPlayerId === p.id}
+                    warningCount={p.warningCount}
                   />
                 ))}
               </div>
@@ -291,6 +303,7 @@ export function RoundBoard({
   hasMatches,
   matches,
   availablePlayers: initialAvailable,
+  rotationPathMap,
   warnings,
   warningSummary,
   movementSummary,
@@ -306,12 +319,30 @@ export function RoundBoard({
   const [touchDragPlayerId, setTouchDragPlayerId] = useState<string | null>(null);
   const [touchDropTarget, setTouchDropTarget] = useState<string | null>(null);
 
+  const determineRole = useCallback(
+    (playerId: string, targetMatchId: string): SelectionRole => {
+      const match = matches.find((m) => m.matchId === targetMatchId);
+      if (!match) return "CORE";
+      const player = initialAvailable.find((p) => p.id === playerId);
+      const playerCoreTeamId = player?.coreTeamId ?? matches.flatMap((m) => m.players).find((p) => p.id === playerId)?.playerCoreTeamId;
+
+      if (playerCoreTeamId === match.teamId) return "CORE";
+
+      const paths = rotationPathMap[`${playerCoreTeamId ?? ""}:${match.teamId}`] ?? [];
+      if (paths.includes("SUPPORT") && !paths.includes("DEVELOPMENT")) return "SUPPORT";
+      if (paths.includes("DEVELOPMENT") && !paths.includes("SUPPORT")) return "DEVELOPMENT";
+      if (paths.includes("SUPPORT")) return "SUPPORT";
+      return "CORE";
+    },
+    [matches, initialAvailable, rotationPathMap],
+  );
+
   const totalSelected = matches.reduce((sum, m) => {
-    return sum + m.players.filter((p) => ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+    return sum + m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
   }, 0);
   const totalTarget = matches.reduce((sum, m) => sum + m.targetSquadSize, 0);
   const completeTeams = matches.filter((m) => {
-    const count = m.players.filter((p) => ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+    const count = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
     return count >= m.targetSquadSize;
   }).length;
   const teamsNeedingSupport = 0;
@@ -351,7 +382,7 @@ export function RoundBoard({
 
         if (fromMatchId === matchId) return;
 
-        if (!overrideReason.trim()) setOverrideReason("");
+        const role = determineRole(playerId, matchId);
 
         startTransition(async () => {
           if (fromMatchId) {
@@ -365,7 +396,7 @@ export function RoundBoard({
           const addFd = new FormData();
           addFd.set("matchId", matchId);
           addFd.set("playerId", playerId);
-          addFd.set("role", "CORE");
+          addFd.set("role", role);
           addFd.set("matchRoundId", matchRoundId);
           if (overrideReason.trim()) {
             addFd.set("overrideReason", overrideReason.trim());
@@ -374,7 +405,7 @@ export function RoundBoard({
         });
       } catch {}
     },
-    [matchRoundId, overrideReason, startTransition],
+    [matchRoundId, overrideReason, startTransition, determineRole],
   );
 
   const handleDropOnAvailable = useCallback(
@@ -446,6 +477,8 @@ export function RoundBoard({
         const matchId = target.matchId;
         if (dragData.fromMatchId === matchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
 
+        const role = determineRole(dragData.playerId, matchId);
+
         startTransition(async () => {
           if (dragData.fromMatchId) {
             const fd = new FormData();
@@ -457,7 +490,7 @@ export function RoundBoard({
           const addFd = new FormData();
           addFd.set("matchId", matchId);
           addFd.set("playerId", dragData.playerId);
-          addFd.set("role", "CORE");
+          addFd.set("role", role);
           addFd.set("matchRoundId", matchRoundId);
           if (overrideReason.trim()) addFd.set("overrideReason", overrideReason.trim());
           await addPlayerToMatchAction(addFd);
@@ -478,7 +511,7 @@ export function RoundBoard({
       setTouchDragPlayerId(null);
       setTouchDropTarget(null);
     },
-    [matchRoundId, overrideReason, startTransition],
+    [matchRoundId, overrideReason, startTransition, determineRole],
   );
 
   const handleFinalize = (reason: string) => {
@@ -584,24 +617,9 @@ export function RoundBoard({
       )}
 
       {actionableWarnings.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          {actionableWarnings.map((w, i) => {
-            const sev = w.severity ? severityFromDbSeverity(w.severity) : "blocking";
-            return (
-              <div
-                key={`${w.code}-${i}`}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  sev === "blocking"
-                    ? "border-red-800/50 bg-red-950/20 text-red-300"
-                    : "border-amber-700/40 bg-amber-900/15 text-amber-300"
-                }`}
-              >
-                <AlertTriangle className="mr-1 inline h-3 w-3" />
-                {w.playerName && <span className="font-semibold">{w.playerName}: </span>}
-                {w.message}
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-1.5 text-xs text-amber-300">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span>{actionableWarnings.length} actionable {actionableWarnings.length === 1 ? "warning" : "warnings"} — see player markers below</span>
         </div>
       )}
 

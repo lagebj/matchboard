@@ -2157,10 +2157,11 @@ Feature: Matchboard football operations workspace
       Then the app must allow finalization with acknowledgment
       And must record the acknowledgment
 
-    Scenario: Informational warnings are hidden by default on round board
+    Scenario: Actionable warnings show as per-player icons on round board
       Given match round "R1" has HARD_BLOCK and REQUIRES_OVERRIDE and WARNING and SCORING_PREFERENCE warnings
       When the coach views the round board
-      Then the app must show HARD_BLOCK and REQUIRES_OVERRIDE warnings by default
+      Then the app must show a warning count summary at the top
+      And the app must show warning icons on player chips for players with warnings
       And WARNING and SCORING_PREFERENCE warnings must be hidden behind a toggle
 
     Scenario: Setup progress shows which rounds need action
@@ -2443,6 +2444,27 @@ Feature: Matchboard football operations workspace
       When the coach drags player "p1" from the available column to Team A match column
       Then player "p1" must be added to Team A match as core
       And player "p1" must be removed from the available column
+
+    Scenario: Dragging player to non-core team uses rotation path role
+      Given match round "R1" is in draft state
+      And player "p1" belongs to Team B
+      And a SUPPORT rotation path exists from Team B to Team C
+      When the coach drags player "p1" from the available column to Team C match column
+      Then player "p1" must be added to Team C match as support
+      And player "p1" must not be added as core to Team C match
+
+    Scenario: Dragging player to non-core team without rotation path requires override
+      Given match round "R1" is in draft state
+      And player "p1" belongs to Team B
+      And no rotation path exists from Team B to Team C
+      When the coach drags player "p1" from the available column to Team C match column
+      Then the app must require an override reason
+
+    Scenario: BACKFILL is not a user-facing role choice
+      Given match round "R1" has draft selections including BACKFILL
+      When the coach views the round board
+      Then BACKFILL selections must appear under "Squad repair"
+      And the role change options must not include BACKFILL
 
     Scenario: Dragging player from match column to available column removes player
       Given match round "R1" is in draft state
