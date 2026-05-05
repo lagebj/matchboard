@@ -119,7 +119,7 @@ describe("Per-match finalization", () => {
     expect(result.hardBlocked).toBe(true);
   });
 
-  it("rejects finalization when hard blocker warnings exist for the match", async () => {
+  it("requires override reason when hard blocker warnings exist for the match", async () => {
     await createDraftSelections(testDb, fixtureIds);
 
     const matches = await testDb.match.findMany({
@@ -138,9 +138,14 @@ describe("Per-match finalization", () => {
       },
     });
 
-    const result = await finalizeSingleMatch(firstMatchId);
-    expect(result.success).toBe(false);
-    expect(result.hardBlocked).toBe(true);
+    const resultWithoutReason = await finalizeSingleMatch(firstMatchId);
+    expect(resultWithoutReason.success).toBe(false);
+    expect(resultWithoutReason.hardBlocked).toBe(false);
+    expect(resultWithoutReason.needsOverride).toBe(true);
+
+    const resultWithReason = await finalizeSingleMatch(firstMatchId, "Coach reviewed and accepts the risk");
+    expect(resultWithReason.success).toBe(true);
+    expect(resultWithReason.finalizedSelectionCount).toBeGreaterThan(0);
   });
 
   it("allows finalization for a match without blockers when other matches have blockers", async () => {

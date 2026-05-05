@@ -69,28 +69,15 @@ export async function finalizeSingleMatch(
     (w) => w.severity === WarningSeverity.HARD_BLOCK,
   );
 
-  if (hardBlockWarnings.length > 0) {
-    const hardBlockMessages = hardBlockWarnings.map(
-      (w) => `[HARD_BLOCK] ${w.rule}: ${w.message}`,
-    );
-    return {
-      success: false,
-      warnings: hardBlockMessages,
-      hardBlocked: true,
-      needsOverride: false,
-      finalizedSelectionCount: 0,
-      matchId,
-      roundAutoFinalized: false,
-    };
-  }
-
   const requiresOverrideWarnings = matchWarnings.filter(
     (w) => w.severity === WarningSeverity.REQUIRES_OVERRIDE,
   );
 
-  if (requiresOverrideWarnings.length > 0 && (!overrideReason || overrideReason.trim().length === 0)) {
-    const overrideMessages = requiresOverrideWarnings.map(
-      (w) => `[REQUIRES_OVERRIDE] ${w.rule}: ${w.message}`,
+  const allOverrideWarnings = [...hardBlockWarnings, ...requiresOverrideWarnings];
+
+  if (allOverrideWarnings.length > 0 && (!overrideReason || overrideReason.trim().length === 0)) {
+    const overrideMessages = allOverrideWarnings.map(
+      (w) => `[${w.severity as string}] ${w.rule}: ${w.message}`,
     );
     return {
       success: false,
@@ -139,7 +126,7 @@ export async function finalizeSingleMatch(
       data: {
         status: SelectionStatus.FINALIZED,
         ruleConfigVersion: currentRuleConfigVersion,
-        overrideReason: requiresOverrideWarnings.length > 0 ? overrideReason ?? null : null,
+        overrideReason: allOverrideWarnings.length > 0 ? overrideReason ?? null : null,
       },
     });
 

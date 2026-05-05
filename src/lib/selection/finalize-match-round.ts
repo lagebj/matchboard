@@ -57,25 +57,11 @@ export async function finalizeMatchRound(
     (w) => w.severity === WarningSeverity.REQUIRES_OVERRIDE,
   );
 
-  if (hardBlockWarnings.length > 0) {
-    const hardBlockMessages = hardBlockWarnings.map(
-      (w) => `[HARD_BLOCK] ${w.rule}: ${w.message}`,
-    );
+  const allOverrideWarnings = [...hardBlockWarnings, ...requiresOverrideWarnings];
 
-    return {
-      success: false,
-      warnings: hardBlockMessages,
-      hardBlocked: true,
-      needsOverride: false,
-      humanReviewRecommended: true,
-      finalizedSelectionCount: 0,
-      finalizedMatchIds: [],
-    };
-  }
-
-  if (requiresOverrideWarnings.length > 0 && (!overrideReason || overrideReason.trim().length === 0)) {
-    const overrideMessages = requiresOverrideWarnings.map(
-      (w) => `[REQUIRES_OVERRIDE] ${w.rule}: ${w.message}`,
+  if (allOverrideWarnings.length > 0 && (!overrideReason || overrideReason.trim().length === 0)) {
+    const overrideMessages = allOverrideWarnings.map(
+      (w) => `[${w.severity as string}] ${w.rule}: ${w.message}`,
     );
 
     return {
@@ -83,7 +69,7 @@ export async function finalizeMatchRound(
       warnings: overrideMessages,
       hardBlocked: false,
       needsOverride: true,
-      humanReviewRecommended: false,
+      humanReviewRecommended: true,
       finalizedSelectionCount: 0,
       finalizedMatchIds: [],
     };
@@ -129,7 +115,7 @@ export async function finalizeMatchRound(
       data: {
         status: SelectionStatus.FINALIZED,
         ruleConfigVersion: currentRuleConfigVersion,
-        overrideReason: requiresOverrideWarnings.length > 0 ? overrideReason : null,
+        overrideReason: allOverrideWarnings.length > 0 ? overrideReason : null,
       },
     });
 

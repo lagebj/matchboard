@@ -175,7 +175,7 @@ export default async function TodayPage() {
       return { label: `Generate squads for ${activeMatchRound.name}`, href: `/rounds/${activeMatchRound.id}` };
     }
     if (roundStatus === "BLOCKED") {
-      return { label: `Review ${blockingWarnings.length} blocker${blockingWarnings.length === 1 ? "" : "s"} before finalizing`, href: `/rounds/${activeMatchRound.id}#warnings` };
+      return { label: `Review ${blockingWarnings.length} warning${blockingWarnings.length === 1 ? "" : "s"} and finalize with override`, href: `/rounds/${activeMatchRound.id}#warnings` };
     }
     if (roundStatus === "DRAFT") {
       return { label: `Finalize ${activeMatchRound.name}`, href: `/rounds/${activeMatchRound.id}` };
