@@ -13,6 +13,7 @@ import type { WarningSeverity } from "@/generated/prisma/client";
 import { clearRoundDraftAction } from "@/app/rounds/[matchRoundId]/actions";
 import { generateRoundAction } from "@/app/rounds/actions";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
+import { ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
 
 type WarningEntry = {
   code: string;
@@ -169,6 +170,7 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
     (s) => s.backfillCount > 0,
   ).length;
   const blockingWarnings = round.warningSummary?.blocking ?? 0;
+  const requiresOverrideWarnings = round.warningSummary?.high ?? 0;
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: round.roundStatus,
@@ -192,6 +194,8 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
       }
     }
   }
+
+  const hasSidebarContent = round.roundStatus !== "NOT_GENERATED" || round.warnings.length > 0;
 
   return (
     <div className="flex min-h-full">
@@ -232,30 +236,6 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
             </div>
           )}
 
-          {round.roundStatus === "DRAFT" && (
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-zinc-200">{round.roundLabel}</p>
-                <p className="text-xs text-[var(--text-muted)]">{totalSelected} of {totalTarget} squad places filled</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
-                  onClick={() => setShowClearRoundDialog(true)}
-                  disabled={isPending}
-                >
-                  Clear round
-                </button>
-                <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors"
-                  onClick={() => setShowFinalizeDialog(true)}
-                >
-                  Finalize round
-                </button>
-              </div>
-            </div>
-          )}
-
           {round.roundStatus === "FINALIZED" && (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-4 py-3">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
@@ -263,59 +243,116 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
             </div>
           )}
 
-          {round.warnings.length > 0 && (
-            <WarningPanel
-              warnings={round.warnings}
-              summary={round.warningSummary}
-              onWarningClick={handleWarningClick}
-            />
-          )}
+          <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+            {/* Main content */}
+            <div className="flex flex-col gap-5">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-100 mb-3">Squads</h2>
+                {round.squads.length === 0 ? (
+                  <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-6 text-center">
+                    <p className="text-sm text-[var(--text-muted)]">No matches in this round yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
+                    {round.squads.map((squad) => (
+                      <MatchSquadCard
+                        key={squad.matchId}
+                        matchId={squad.matchId}
+                        matchRoundId={matchRoundId}
+                        teamName={squad.teamName}
+                        opponent={squad.opponent}
+                        matchDate={squad.matchDate}
+                        targetSquadSize={squad.targetSquadSize}
+                        selectedCount={squad.selectedCount}
+                        minSquadSize={squad.minSquadSize}
+                        players={squad.players}
+                        availablePlayers={availablePlayers}
+                        supportStatus={squad.supportStatus}
+                        backfillCount={squad.backfillCount}
+                        warningCount={squad.warningCount}
+                        isFinalized={squad.isFinalized}
+                        isSelected={selectedMatchId === squad.matchId}
+                        onSelect={() => handleCardSelect(squad.matchId)}
+                        onPlayerClick={(player) => handlePlayerClick(player, squad.matchId)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-100 mb-3">Squads</h2>
-            {round.squads.length === 0 ? (
-              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-6 text-center">
-                <p className="text-sm text-[var(--text-muted)]">No matches in this round yet.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {round.squads.map((squad) => (
-                  <MatchSquadCard
-                    key={squad.matchId}
-                    matchId={squad.matchId}
-                    matchRoundId={matchRoundId}
-                    teamName={squad.teamName}
-                    opponent={squad.opponent}
-                    matchDate={squad.matchDate}
-                    targetSquadSize={squad.targetSquadSize}
-                    selectedCount={squad.selectedCount}
-                    minSquadSize={squad.minSquadSize}
-                    players={squad.players}
-                    availablePlayers={availablePlayers}
-                    supportStatus={squad.supportStatus}
-                    backfillCount={squad.backfillCount}
-                    warningCount={squad.warningCount}
-                    isFinalized={squad.isFinalized}
-                    isSelected={selectedMatchId === squad.matchId}
-                    onSelect={() => handleCardSelect(squad.matchId)}
-                    onPlayerClick={(player) => handlePlayerClick(player, squad.matchId)}
+              {movements.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-sm font-semibold text-zinc-100">Movement</h3>
+                  <MovementChain movements={movements} />
+                </div>
+              )}
+
+              <FairnessSummary
+                metrics={round.fairnessMetrics}
+                movementSummary={round.movementSummary}
+              />
+            </div>
+
+            {/* Right sidebar */}
+            {hasSidebarContent && (
+              <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+                {round.roundStatus === "DRAFT" && (
+                  <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                    <h3 className="text-sm font-semibold text-zinc-200 mb-2">Round actions</h3>
+                    <p className="text-xs text-[var(--text-muted)] mb-3">
+                      {totalSelected} of {totalTarget} squad places filled across {round.squads.length} match{round.squads.length !== 1 ? "es" : ""}.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+                        disabled={isPending || blockingWarnings > 0}
+                        onClick={() => setShowFinalizeDialog(true)}
+                        type="button"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        {isPending ? "Finalizing..." : "Finalize round"}
+                      </button>
+                      {blockingWarnings > 0 && (
+                        <p className="text-xs text-red-300">
+                          <AlertTriangle className="mr-1 inline h-3 w-3" />
+                          {blockingWarnings} blocking {blockingWarnings === 1 ? "warning" : "warnings"} must be resolved first.
+                        </p>
+                      )}
+                      {requiresOverrideWarnings > 0 && blockingWarnings === 0 && (
+                        <p className="text-xs text-amber-300">
+                          {requiresOverrideWarnings} {requiresOverrideWarnings === 1 ? "warning requires" : "warnings require"} override reason to finalize.
+                        </p>
+                      )}
+                      <button
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                        disabled={isPending}
+                        onClick={() => setShowClearRoundDialog(true)}
+                        type="button"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Clear round
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {round.roundStatus === "FINALIZED" && (
+                  <div className="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
+                    <ShieldCheck className="mr-1.5 inline h-4 w-4" />
+                    This round is finalized. Selections are locked.
+                  </div>
+                )}
+
+                {round.warnings.length > 0 && (
+                  <WarningPanel
+                    warnings={round.warnings}
+                    summary={round.warningSummary}
+                    onWarningClick={handleWarningClick}
                   />
-                ))}
-              </div>
+                )}
+              </aside>
             )}
           </div>
-
-          {movements.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-zinc-100">Movement</h3>
-              <MovementChain movements={movements} />
-            </div>
-          )}
-
-          <FairnessSummary
-            metrics={round.fairnessMetrics}
-            movementSummary={round.movementSummary}
-          />
         </div>
       </div>
 

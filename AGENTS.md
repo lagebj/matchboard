@@ -241,6 +241,8 @@ Round-level finalization finalizes all remaining DRAFT selections in the round a
 
 The match detail page shows per-match finalization controls and also provides a link to finalizing the entire round from the round workbench.
 
+The round workbench shows finalize controls and warnings in a right sidebar panel (320px sticky), keeping the main content area focused on squad cards. Match squad cards show a shield icon button to finalize an individual match with a confirmation overlay.
+
 ## Selection architecture
 
 Keep selection logic out of React components.
