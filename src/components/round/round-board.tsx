@@ -383,25 +383,26 @@ export function RoundBoard({
         if (fromMatchId === matchId) return;
 
         const role = determineRole(playerId, matchId);
+        const isCoreMove = initialAvailable.find((p) => p.id === playerId)?.coreTeamId === matches.find((m) => m.matchId === matchId)?.teamId;
 
         startTransition(async () => {
-          if (fromMatchId) {
-            const fd = new FormData();
-            fd.set("matchId", fromMatchId);
-            fd.set("playerId", playerId);
-            fd.set("matchRoundId", matchRoundId);
-            await removePlayerFromMatchAction(fd);
-          }
-
           const addFd = new FormData();
           addFd.set("matchId", matchId);
           addFd.set("playerId", playerId);
           addFd.set("role", role);
           addFd.set("matchRoundId", matchRoundId);
-          if (overrideReason.trim()) {
-            addFd.set("overrideReason", overrideReason.trim());
+          const reason = overrideReason.trim() || (fromMatchId ? `Moving player from another match` : (isCoreMove ? undefined : `Manual placement on non-core team`));
+          if (reason) addFd.set("overrideReason", reason);
+
+          const addResult = await addPlayerToMatchAction(addFd);
+
+          if (addResult?.success !== false && fromMatchId) {
+            const rmFd = new FormData();
+            rmFd.set("matchId", fromMatchId);
+            rmFd.set("playerId", playerId);
+            rmFd.set("matchRoundId", matchRoundId);
+            await removePlayerFromMatchAction(rmFd);
           }
-          await addPlayerToMatchAction(addFd);
         });
       } catch {}
     },
@@ -478,22 +479,26 @@ export function RoundBoard({
         if (dragData.fromMatchId === matchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
 
         const role = determineRole(dragData.playerId, matchId);
+        const isCoreMove = initialAvailable.find((p) => p.id === dragData.playerId)?.coreTeamId === matches.find((m) => m.matchId === matchId)?.teamId;
 
         startTransition(async () => {
-          if (dragData.fromMatchId) {
-            const fd = new FormData();
-            fd.set("matchId", dragData.fromMatchId);
-            fd.set("playerId", dragData.playerId);
-            fd.set("matchRoundId", matchRoundId);
-            await removePlayerFromMatchAction(fd);
-          }
           const addFd = new FormData();
           addFd.set("matchId", matchId);
           addFd.set("playerId", dragData.playerId);
           addFd.set("role", role);
           addFd.set("matchRoundId", matchRoundId);
-          if (overrideReason.trim()) addFd.set("overrideReason", overrideReason.trim());
-          await addPlayerToMatchAction(addFd);
+          const reason = overrideReason.trim() || (dragData.fromMatchId ? `Moving player from another match` : (isCoreMove ? undefined : `Manual placement on non-core team`));
+          if (reason) addFd.set("overrideReason", reason);
+
+          const addResult = await addPlayerToMatchAction(addFd);
+
+          if (addResult?.success !== false && dragData.fromMatchId) {
+            const rmFd = new FormData();
+            rmFd.set("matchId", dragData.fromMatchId);
+            rmFd.set("playerId", dragData.playerId);
+            rmFd.set("matchRoundId", matchRoundId);
+            await removePlayerFromMatchAction(rmFd);
+          }
         });
       } else {
         if (!dragData.fromMatchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
