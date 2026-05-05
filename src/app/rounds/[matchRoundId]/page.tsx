@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { RoundBoard } from "@/components/round/round-board";
-import type { PlayerInMatch } from "@/components/round/match-squad-card";
+import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";

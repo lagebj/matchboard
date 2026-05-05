@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   Calendar,
   MapPin,
@@ -126,6 +126,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const finalized = searchParams.get("finalized");
   const roundFinalized = searchParams.get("roundFinalized");
   const [isPending, startTransition] = useTransition();
+  const [showAllWarnings, setShowAllWarnings] = useState(false);
 
   const dateStr = match.startsAt.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -368,11 +369,11 @@ export function MatchDetail({ match }: { match: MatchData }) {
               </div>
             )}
 
-            {match.warnings.length > 0 && (
+            {(blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0) && (
               <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
                 <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-200 mb-2">
                   <AlertTriangle className="h-4 w-4" />
-                  Warnings ({match.warnings.length})
+                  Warnings ({blockingWarnings.length + requiresOverrideWarnings.length} actionable{otherWarnings.length > 0 ? `, ${otherWarnings.length} informational` : ""})
                 </h3>
                 <ul className="flex flex-col gap-1.5">
                   {blockingWarnings.map((w) => (
@@ -385,12 +386,25 @@ export function MatchDetail({ match }: { match: MatchData }) {
                       <strong>{w.code}</strong>: {w.message}
                     </li>
                   ))}
-                  {otherWarnings.map((w) => (
-                    <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                      <strong>{w.code}</strong>: {w.message}
-                    </li>
-                  ))}
                 </ul>
+                {otherWarnings.length > 0 && (
+                  <button
+                    className="mt-2 text-xs text-[var(--accent-strong)] hover:underline"
+                    onClick={() => setShowAllWarnings(!showAllWarnings)}
+                    type="button"
+                  >
+                    {showAllWarnings ? "Hide" : `Show ${otherWarnings.length} informational ${otherWarnings.length === 1 ? "warning" : "warnings"}`}
+                  </button>
+                )}
+                {showAllWarnings && otherWarnings.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {otherWarnings.map((w) => (
+                      <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
+                        <strong>{w.code}</strong>: {w.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </aside>

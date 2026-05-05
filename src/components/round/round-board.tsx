@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useRef } from "react";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
 import {
   addPlayerToMatchAction,
@@ -104,6 +104,8 @@ function PlayerChip({
   onRoleChange,
   isPending,
   isFinalized,
+  onTouchStart,
+  isTouchDragging,
 }: {
   player: PlayerInColumn;
   isDraggable: boolean;
@@ -112,6 +114,8 @@ function PlayerChip({
   onRoleChange?: (newRole: SelectionRole) => void;
   isPending: boolean;
   isFinalized: boolean;
+  onTouchStart?: (playerId: string, fromMatchId: string | null, currentRole?: SelectionRole) => void;
+  isTouchDragging?: boolean;
 }) {
   const availabilityClass =
     player.availability === "INJURED"
@@ -130,11 +134,12 @@ function PlayerChip({
     <div
       draggable={isDraggable && !isFinalized}
       onDragStart={isDraggable && onDragStart ? (e) => onDragStart(e, player.id, null, player.role) : undefined}
+      onTouchStart={isDraggable && !isFinalized && onTouchStart ? () => onTouchStart(player.id, null, player.role) : undefined}
       className={`group flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
         isDraggable && !isFinalized
           ? "cursor-grab border-[var(--border-soft)] bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)] active:cursor-grabbing"
           : "border-[var(--border-soft)] bg-[var(--surface-muted)]"
-      } ${availabilityClass}`}
+      } ${availabilityClass} ${isTouchDragging ? "opacity-30" : ""}`}
     >
       {isDraggable && !isFinalized && (
         <GripVertical className="h-3 w-3 shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -168,6 +173,9 @@ function MatchColumnComponent({
   onRemovePlayer,
   onRoleChange,
   showFinalizeMatch,
+  onTouchStartPlayer,
+  isTouchHighlight,
+  touchDragPlayerId,
 }: {
   match: MatchColumn;
   isPending: boolean;
@@ -177,6 +185,9 @@ function MatchColumnComponent({
   onRemovePlayer: (matchId: string, playerId: string) => void;
   onRoleChange: (matchId: string, playerId: string, newRole: SelectionRole) => void;
   showFinalizeMatch: (matchId: string) => void;
+  onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
+  isTouchHighlight?: boolean;
+  touchDragPlayerId?: string | null;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dateStr = match.matchDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -208,8 +219,9 @@ function MatchColumnComponent({
 
   return (
     <div
+      data-drop-match={match.matchId}
       className={`flex flex-col rounded-xl border transition-colors ${
-        isDragOver
+        isDragOver || isTouchHighlight
           ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
           : "border-[var(--border-soft)] bg-[var(--surface-base)]"
       }`}
@@ -254,6 +266,8 @@ function MatchColumnComponent({
                     onRoleChange={(newRole) => onRoleChange(match.matchId, p.id, newRole)}
                     isPending={isPending}
                     isFinalized={match.isFinalized}
+                    onTouchStart={onTouchStartPlayer ? (playerId, _fromMatchId, currentRole) => onTouchStartPlayer(playerId, match.matchId, currentRole) : undefined}
+                    isTouchDragging={touchDragPlayerId === p.id}
                   />
                 ))}
               </div>
@@ -287,6 +301,10 @@ export function RoundBoard({
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [showAllWarnings, setShowAllWarnings] = useState(false);
+
+  const touchDragRef = useRef<{ playerId: string; fromMatchId: string | null; currentRole: SelectionRole } | null>(null);
+  const [touchDragPlayerId, setTouchDragPlayerId] = useState<string | null>(null);
+  const [touchDropTarget, setTouchDropTarget] = useState<string | null>(null);
 
   const totalSelected = matches.reduce((sum, m) => {
     return sum + m.players.filter((p) => ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
@@ -406,6 +424,59 @@ export function RoundBoard({
         }
         await changePlayerRoleAction(fd);
       });
+    },
+    [matchRoundId, overrideReason, startTransition],
+  );
+
+  const findDropTargetAt = (x: number, y: number): { type: "match"; matchId: string } | { type: "available" } | null => {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const closest = el.closest("[data-drop-match]");
+    if (closest) return { type: "match", matchId: (closest as HTMLElement).dataset.dropMatch! };
+    if (el.closest("[data-drop-available]")) return { type: "available" };
+    return null;
+  };
+
+  const handleTouchDrop = useCallback(
+    (target: { type: "match"; matchId: string } | { type: "available" }) => {
+      const dragData = touchDragRef.current;
+      if (!dragData) return;
+
+      if (target.type === "match") {
+        const matchId = target.matchId;
+        if (dragData.fromMatchId === matchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
+
+        startTransition(async () => {
+          if (dragData.fromMatchId) {
+            const fd = new FormData();
+            fd.set("matchId", dragData.fromMatchId);
+            fd.set("playerId", dragData.playerId);
+            fd.set("matchRoundId", matchRoundId);
+            await removePlayerFromMatchAction(fd);
+          }
+          const addFd = new FormData();
+          addFd.set("matchId", matchId);
+          addFd.set("playerId", dragData.playerId);
+          addFd.set("role", "CORE");
+          addFd.set("matchRoundId", matchRoundId);
+          if (overrideReason.trim()) addFd.set("overrideReason", overrideReason.trim());
+          await addPlayerToMatchAction(addFd);
+        });
+      } else {
+        if (!dragData.fromMatchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
+
+        const fromId = dragData.fromMatchId;
+        startTransition(async () => {
+          const fd = new FormData();
+          fd.set("matchId", fromId);
+          fd.set("playerId", dragData.playerId);
+          fd.set("matchRoundId", matchRoundId);
+          await removePlayerFromMatchAction(fd);
+        });
+      }
+      touchDragRef.current = null;
+      setTouchDragPlayerId(null);
+      setTouchDropTarget(null);
     },
     [matchRoundId, overrideReason, startTransition],
   );
@@ -558,10 +629,39 @@ export function RoundBoard({
         </div>
       )}
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))` }}>
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))` }}
+        onTouchMove={(e) => {
+          if (!touchDragRef.current) return;
+          e.preventDefault();
+          const touch = e.touches[0];
+          const target = findDropTargetAt(touch.clientX, touch.clientY);
+          setTouchDropTarget(target ? (target.type === "available" ? "available" : target.matchId) : null);
+        }}
+        onTouchEnd={(e) => {
+          if (!touchDragRef.current) return;
+          e.preventDefault();
+          const touch = e.changedTouches[0];
+          const target = findDropTargetAt(touch.clientX, touch.clientY);
+          if (target) {
+            handleTouchDrop(target);
+          } else {
+            touchDragRef.current = null;
+            setTouchDragPlayerId(null);
+            setTouchDropTarget(null);
+          }
+        }}
+        onTouchCancel={() => {
+          touchDragRef.current = null;
+          setTouchDragPlayerId(null);
+          setTouchDropTarget(null);
+        }}
+      >
         <div
+          data-drop-available
           className={`flex flex-col rounded-xl border transition-colors ${
-            availableDragOver
+            availableDragOver || touchDropTarget === "available"
               ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
               : "border-[var(--border-soft)] bg-[var(--surface-base)]"
           }`}
@@ -587,6 +687,11 @@ export function RoundBoard({
                     onDragStart={handleDragStart}
                     isPending={isPending}
                     isFinalized={false}
+                    onTouchStart={(playerId, _fromMatchId, currentRole) => {
+                      touchDragRef.current = { playerId, fromMatchId: null, currentRole: currentRole ?? "CORE" };
+                      setTouchDragPlayerId(playerId);
+                    }}
+                    isTouchDragging={touchDragPlayerId === p.id}
                   />
                 ))}
               </div>
@@ -605,6 +710,12 @@ export function RoundBoard({
             onRemovePlayer={handleRemovePlayer}
             onRoleChange={handleRoleChange}
             showFinalizeMatch={() => {}}
+            onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
+              touchDragRef.current = { playerId, fromMatchId, currentRole: currentRole ?? "CORE" };
+              setTouchDragPlayerId(playerId);
+            }}
+            isTouchHighlight={touchDropTarget === match.matchId}
+            touchDragPlayerId={touchDragPlayerId}
           />
         ))}
       </div>

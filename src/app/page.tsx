@@ -486,21 +486,17 @@ export default async function TodayPage() {
                 )}
                 {warningCounts.high > 0 && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300">
-                    {warningCounts.high} high
+                    {warningCounts.high} override{warningCounts.high !== 1 ? "s" : ""}
                   </span>
                 )}
-                {warningCounts.medium > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-200">
-                    {warningCounts.medium} medium
-                  </span>
-                )}
-                {warningCounts.info > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-sky-300">
-                    {warningCounts.info} info
-                  </span>
-                )}
-                {roundWarnings.length === 0 && (
-                  <span className="text-xs app-copy-muted">None</span>
+                {(warningCounts.blocking === 0 && warningCounts.high === 0) && (
+                  roundWarnings.length > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400">
+                      {roundWarnings.length} informational only
+                    </span>
+                  ) : (
+                    <span className="text-xs app-copy-muted">None</span>
+                  )
                 )}
               </div>
             </div>
