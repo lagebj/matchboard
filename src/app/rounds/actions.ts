@@ -81,6 +81,48 @@ export async function populateAllAction(prevState: { error: string }, formData: 
   }
 }
 
+export async function regenerateAllDraftsAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
+  try {
+    const planningPeriodId = formData.get("planningPeriodId");
+    if (typeof planningPeriodId !== "string" || !planningPeriodId) {
+      throw new Error("Planning period ID is required.");
+    }
+
+    const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
+    const db = (await import("@/lib/db")).db;
+
+    const rounds = await db.matchRound.findMany({
+      where: { planningPeriodId, status: "DRAFT" },
+      select: { id: true, name: true },
+    });
+
+    let regenerated = 0;
+    let preserved = 0;
+    const errors: string[] = [];
+
+    for (const round of rounds) {
+      try {
+        const result = await refreshDraftRound(round.id);
+        if (result.preservedManualDraft) {
+          preserved++;
+        } else {
+          regenerated++;
+        }
+      } catch (err) {
+        errors.push(`${round.name}: ${err instanceof Error ? err.message : "Failed"}`);
+      }
+    }
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+
+    const summary = `Regenerated ${regenerated} round${regenerated !== 1 ? "s" : ""}. ${preserved} round${preserved !== 1 ? "s" : ""} had manual edits preserved.${errors.length > 0 ? ` Errors: ${errors.join("; ")}` : ""}`;
+    return { error: "", result: summary };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Regenerate all failed.", result: undefined };
+  }
+}
+
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");

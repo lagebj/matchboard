@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction } from "./actions";
+import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction } from "./actions";
 
 type RoundListItem = {
   id: string;
@@ -58,6 +58,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [regroupResult, setRegroupResult] = useState<string | null>(null);
+  const [regenerateResult, setRegenerateResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const filtered = filterRounds(rounds, filter);
 
@@ -109,6 +110,22 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
           )}
           {hasDraftRounds && activePlanningPeriodId && (
             <button
+              className="rounded-full border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition"
+              disabled={isPending}
+              onClick={() => {
+                startTransition(async () => {
+                  const fd = new FormData();
+                  fd.set("planningPeriodId", activePlanningPeriodId);
+                  const result = await regenerateAllDraftsAction({ error: "" }, fd);
+                  if (result.result) setRegenerateResult(result.result);
+                });
+              }}
+            >
+              {isPending ? "Regenerating..." : "Regenerate all drafts"}
+            </button>
+          )}
+          {hasDraftRounds && activePlanningPeriodId && (
+            <button
               className="rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
               onClick={() => setShowClearAllDialog(true)}
             >
@@ -124,6 +141,19 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
           <button
             className="ml-3 underline hover:text-white"
             onClick={() => setRegroupResult(null)}
+            type="button"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {regenerateResult && (
+        <div className="mt-2 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-4 py-3 text-sm text-zinc-100">
+          {regenerateResult}
+          <button
+            className="ml-3 underline hover:text-white"
+            onClick={() => setRegenerateResult(null)}
             type="button"
           >
             Dismiss

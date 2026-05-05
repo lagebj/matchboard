@@ -10,10 +10,10 @@ import { InspectorPanel, type InspectorItem } from "@/components/inspector/inspe
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
-import { clearRoundDraftAction } from "@/app/rounds/[matchRoundId]/actions";
-import { generateRoundAction } from "@/app/rounds/actions";
+import { clearRoundDraftAction, regenerateRoundAction } from "@/app/rounds/[matchRoundId]/actions";
+import { generateRoundAction, regenerateAllDraftsAction } from "@/app/rounds/actions";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
-import { ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 
 type WarningEntry = {
   code: string;
@@ -323,6 +323,21 @@ export function RoundWorkbench({ round, matchRoundId, availablePlayers = [] }: R
                           {requiresOverrideWarnings} {requiresOverrideWarnings === 1 ? "warning requires" : "warnings require"} override reason to finalize.
                         </p>
                       )}
+                      <button
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+                        disabled={isPending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            const fd = new FormData();
+                            fd.set("matchRoundId", matchRoundId);
+                            await regenerateRoundAction({ error: "" }, fd);
+                          });
+                        }}
+                        type="button"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Regenerate round
+                      </button>
                       <button
                         className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
                         disabled={isPending}

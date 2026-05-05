@@ -89,8 +89,11 @@ export async function addPlayerToDraftMatch(
   }
 
   const existingDraftSelection = match.selections.find((s) => s.playerId === playerId);
-  if (existingDraftSelection) {
-    return { success: false, errors: ["Player already selected for this match in draft."], warnings };
+  if (existingDraftSelection && !overrideReason) {
+    return { success: false, errors: ["Player already selected for this match in draft. Override reason required."], warnings };
+  }
+  if (existingDraftSelection && overrideReason) {
+    warnings.push("Duplicate selection override: player already selected for this match.");
   }
 
   const sameRoundSelection = await db.selection.findFirst({
@@ -100,8 +103,11 @@ export async function addPlayerToDraftMatch(
       status: { in: [SelectionStatus.DRAFT, SelectionStatus.FINALIZED] },
     },
   });
-  if (sameRoundSelection && sameRoundSelection.matchId !== matchId) {
-    return { success: false, errors: ["Player already selected for another match in this round."], warnings };
+  if (sameRoundSelection && sameRoundSelection.matchId !== matchId && !overrideReason) {
+    return { success: false, errors: ["Player already selected for another match in this round. Override reason required."], warnings };
+  }
+  if (sameRoundSelection && sameRoundSelection.matchId !== matchId && overrideReason) {
+    warnings.push("Same-round conflict override: player selected for another match in this round.");
   }
 
   if (player.currentAvailability !== "AVAILABLE" && player.currentAvailability !== "TENTATIVE" && !overrideReason) {
@@ -285,17 +291,38 @@ export async function replaceDraftMatchPlayer(
   return addResult;
 }
 
-export function validateManualMatchEdit(
-  playerCoreTeamId: string,
-  playerCoreTeamName: string,
-  targetTeamId: string,
-  targetTeamName: string,
-  role: SelectionRole,
-  nonRotatable: boolean,
-  availability: string,
-  rotationPaths: { fromTeamId: string; toTeamId: string; role: string; active: boolean }[],
-): ManualEditValidationError[] {
+export type ValidateManualMatchEditOptions = {
+  playerCoreTeamId: string;
+  playerCoreTeamName: string;
+  targetTeamId: string;
+  targetTeamName: string;
+  role: SelectionRole;
+  nonRotatable: boolean;
+  availability: string;
+  rotationPaths: { fromTeamId: string; toTeamId: string; role: string; active: boolean }[];
+  alreadyInMatch?: boolean;
+  alreadyInRound?: boolean;
+};
+
+export function validateManualMatchEdit(options: ValidateManualMatchEditOptions): ManualEditValidationError[] {
   const errors: ManualEditValidationError[] = [];
+  const { playerCoreTeamId, playerCoreTeamName, targetTeamId, targetTeamName, role, nonRotatable, availability, rotationPaths, alreadyInMatch, alreadyInRound } = options;
+
+  if (alreadyInMatch) {
+    errors.push({
+      field: "duplicateMatch",
+      message: "Player already selected for this match in draft. Override reason required.",
+      requiresOverride: true,
+    });
+  }
+
+  if (alreadyInRound) {
+    errors.push({
+      field: "sameRoundConflict",
+      message: "Player already selected for another match in this round. Override reason required.",
+      requiresOverride: true,
+    });
+  }
 
   if (nonRotatable && role !== SelectionRole.CORE) {
     errors.push({

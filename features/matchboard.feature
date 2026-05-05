@@ -1866,13 +1866,24 @@ Feature: Matchboard football operations workspace
   Rule: Manual match squad editing
 
     Draft match squads can be manually edited before finalization.
-    Manual editing must use the same domain validation as automatic generation.
+    Selection rules are for the automatic engine only. A coach can manually override any domain rule by providing an override reason.
     Manual edits apply to draft selections only. Finalized selections cannot be edited without an explicit reopen or audit trail.
     All manual edits must recalculate match status, round status, warnings, explanations, and fairness impact.
-    Manual edits cannot bypass RotationPath validation without an explicit override reason.
-    Manual edits cannot silently create same-round duplicate selections.
-    Unavailable players cannot be selected without an override reason.
-    Non-rotatable players cannot be moved outside their core team without an override reason.
+    
+    The only hard blocks for manual edits are data integrity:
+    - finalized round/match
+    - non-existent player/match/selection
+    - player removed from the active registry
+
+    Domain rules that require override reason (not hard blocks):
+    - rotation path eligibility for non-core movement
+    - same-round conflict (player selected for another match)
+    - duplicate selection in the same match
+    - player availability
+    - squad size limits
+    - non-rotatable player movement outside core team
+
+    Manual override requires reason. The reason must be persisted with the selection. The override must appear in the finalization summary.
 
     Scenario: Coach adds eligible core player to empty draft match
       Given match "M1" for Team A has no assigned players
@@ -1918,12 +1929,12 @@ Feature: Matchboard football operations workspace
       Then the app must reject the selection or require an override reason
       And the app must explain that non-rotatable restriction applies
 
-    Scenario: Same-round duplicate selection is prevented
+    Scenario: Same-round conflict requires override reason
       Given player "p1" is already selected for match "M1" in match round "R1"
       And match round "R1" is in draft state
       When the coach attempts to add player "p1" to a different match "M2" in the same round
-      Then the app must reject the selection or explain the conflict
-      And the app must not silently create a duplicate selection
+      Then the app must require an override reason
+      And the app must not silently create a duplicate selection without reason
 
     Scenario: Coach removes player from draft match
       Given player "p1" is selected for match "M1" in match round "R1" as support
@@ -1976,7 +1987,7 @@ Feature: Matchboard football operations workspace
       And explain that finalized rounds cannot be modified without explicit reopen
 
     Scenario: Manual override requires reason
-      Given the coach is adding or modifying a player selection that breaks a hard rule
+      Given the coach is adding or modifying a player selection that bypasses a domain rule
       When the coach confirms the manual override
       Then the app must require an override reason
       And the reason must be persisted with the selection
@@ -2002,6 +2013,64 @@ Feature: Matchboard football operations workspace
       When the player picker is shown
       Then the app must show player name, core team, availability, current round assignment, eligible roles, and reason eligible or ineligible
       And players must be grouped or filtered by eligibility status
+
+
+  Rule: Draft regeneration
+
+    Generated draft selections can be regenerated at three levels without touching finalized data.
+    Regeneration preserves manual edits: selections marked as manually added or manually removed are kept, and only automatic selections are recalculated.
+    If a match or round has only manual edits, regeneration is effectively a no-op.
+    To fully regenerate a match or round that has manual edits, clear the draft first, then regenerate.
+
+    Scenario: Coach regenerates single match draft
+      Given match "M1" has automatic draft selections
+      And match round "R1" is in draft state
+      When the coach regenerates draft for match "M1"
+      Then automatic selections for match "M1" must be recalculated
+      And warnings for match "M1" must be rebuilt
+      And the match must show updated selections
+
+    Scenario: Coach regenerates round draft
+      Given match round "R1" has automatic draft selections in multiple matches
+      And match round "R1" is in draft state
+      When the coach regenerates draft for round "R1"
+      Then the round-level orchestration must rerun
+      And automatic selections for all matches in "R1" must be recalculated
+      And round warnings must be rebuilt
+
+    Scenario: Coach regenerates all drafts in planning period
+      Given an active planning period has draft rounds "R1" and "R2" and a finalized round "R3"
+      When the coach regenerates all drafts
+      Then automatic selections for "R1" and "R2" must be recalculated
+      And finalized selections for "R3" must remain unchanged
+
+    Scenario: Regeneration preserves manual edits
+      Given match "M1" has both automatic selections and manually added selections
+      And match round "R1" is in draft state
+      When the coach regenerates draft for match "M1"
+      Then manually added selections must be preserved
+      And automatic selections must be recalculated
+
+    Scenario: Regeneration does not touch finalized selections
+      Given match round "R1" has been finalized
+      When the coach attempts to regenerate round "R1"
+      Then the app must reject the regeneration
+      And finalized selections must remain unchanged
+
+    Scenario: Regeneration shows clear button on match squad card
+      Given match "M1" has draft selections
+      When the coach views the match squad card
+      Then the app must show a regeneration button on the card
+
+    Scenario: Regeneration shows button in round workbench sidebar
+      Given match round "R1" has draft selections
+      When the coach views the round workbench
+      Then the app must show a regeneration button in the round actions sidebar
+
+    Scenario: Regeneration shows button on rounds list and today page
+      Given an active planning period has draft rounds
+      When the coach views the rounds list or today page
+      Then the app must show a "Regenerate all drafts" button
 
 
   Rule: Populate all workflow

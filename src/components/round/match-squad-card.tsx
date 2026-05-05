@@ -11,6 +11,7 @@ import {
   Plus,
   Repeat,
   ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
 import { RoleBadge, type SelectionRole } from "@/components/ui/role-badge";
 import { clearMatchDraftAction } from "@/app/rounds/[matchRoundId]/actions";
@@ -20,6 +21,7 @@ import {
   changePlayerRoleAction,
   replacePlayerInMatchAction,
 } from "@/app/rounds/[matchRoundId]/draft-selection-actions";
+import { regenerateMatchAction } from "@/app/rounds/[matchRoundId]/actions";
 
 export type PlayerInMatch = {
   playerId: string;
@@ -171,6 +173,22 @@ export function MatchSquadCard({
                 title="Finalize this match"
               >
                 <ShieldCheck className="h-3.5 w-3.5" />
+              </button>
+              <button
+                className="rounded p-1 text-[var(--text-muted)] hover:text-zinc-50 hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startTransition(async () => {
+                    const fd = new FormData();
+                    fd.set("matchId", matchId);
+                    await regenerateMatchAction({ error: "" }, fd);
+                  });
+                }}
+                disabled={isPending}
+                aria-label="Regenerate match selections"
+                title="Regenerate automatic selections for this match"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
               </button>
               <button
                 className="rounded p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-900/20 transition-colors"
