@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
 
 function readText(formData: FormData, fieldName: string): string {
@@ -186,4 +187,41 @@ export async function deleteMatchAction(matchId: string) {
   revalidatePath("/rounds");
   revalidatePath("/");
   redirect("/matches?saved=deleted");
+}
+
+export async function finalizeMatchAction(formData: FormData) {
+  const matchId = formData.get("matchId");
+  if (typeof matchId !== "string" || !matchId) {
+    throw new Error("Match ID is required.");
+  }
+
+  const overrideReason = formData.get("overrideReason");
+  const overrideReasonStr = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : undefined;
+
+  const { finalizeSingleMatch } = await import("@/lib/selection/finalize-single-match");
+
+  const result = await finalizeSingleMatch(matchId, overrideReasonStr);
+
+  if (!result.success) {
+    const queryParams: Record<string, string> = {};
+    if (result.hardBlocked) {
+      queryParams.error = "Finalization blocked: resolve hard blockers before finalizing.";
+    } else if (result.needsOverride) {
+      queryParams.error = "Override reason required: some warnings need a manual override reason.";
+    } else {
+      queryParams.error = "Finalization failed.";
+    }
+    redirect(buildPathWithSearch(`/matches/${matchId}`, queryParams));
+  }
+
+  revalidatePath("/");
+  revalidatePath("/matches");
+  revalidatePath("/rounds");
+  revalidatePath(`/matches/${matchId}`);
+
+  const queryParams: Record<string, string> = { finalized: "1" };
+  if (result.roundAutoFinalized) {
+    queryParams.roundFinalized = "1";
+  }
+  redirect(buildPathWithSearch(`/matches/${matchId}`, queryParams));
 }

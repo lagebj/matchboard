@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 import {
   Calendar,
   MapPin,
@@ -8,6 +10,8 @@ import {
   Users,
   AlertTriangle,
   ArrowLeft,
+  Lock,
+  CheckCircle2,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 
@@ -21,6 +25,7 @@ type SelectionRow = {
   manualOverride: boolean;
   selectionReason: string;
   priorityScore: number | null;
+  overrideReason: string | null;
 };
 
 type WarningRow = {
@@ -110,7 +115,18 @@ function severityColor(severity: string): string {
   return map[severity] ?? "text-zinc-300";
 }
 
+function isMatchFinalized(selections: SelectionRow[]): boolean {
+  if (selections.length === 0) return false;
+  return selections.every((s) => s.status === "FINALIZED");
+}
+
 export function MatchDetail({ match }: { match: MatchData }) {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+  const finalized = searchParams.get("finalized");
+  const roundFinalized = searchParams.get("roundFinalized");
+  const [isPending, startTransition] = useTransition();
+
   const dateStr = match.startsAt.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -131,7 +147,14 @@ export function MatchDetail({ match }: { match: MatchData }) {
     .filter((g) => g.players.length > 0);
 
   const blockingWarnings = match.warnings.filter((w) => w.severity === "HARD_BLOCK");
-  const otherWarnings = match.warnings.filter((w) => w.severity !== "HARD_BLOCK");
+  const requiresOverrideWarnings = match.warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
+  const otherWarnings = match.warnings.filter((w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE");
+
+  const matchFinalized = isMatchFinalized(match.selections);
+  const roundFinalizedFlag = match.matchRoundStatus === "FINALIZED";
+  const canFinalize = !matchFinalized && !roundFinalizedFlag && match.selections.length > 0;
+
+  const hasSidebarContent = match.warnings.length > 0 || canFinalize || matchFinalized || roundFinalizedFlag || !!error || !!finalized;
 
   return (
     <div className="flex flex-col gap-5">
@@ -145,143 +168,233 @@ export function MatchDetail({ match }: { match: MatchData }) {
         </Link>
       </div>
 
-      <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-semibold text-zinc-50">
-              {match.teamName} vs {match.opponent}
-            </h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              <Calendar className="mr-1 inline h-3.5 w-3.5" />
-              {dateStr} at {timeStr}
-            </p>
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+        {/* Main content */}
+        <div className="flex flex-col gap-5">
+          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-xl font-semibold text-zinc-50">
+                  {match.teamName} vs {match.opponent}
+                </h1>
+                <p className="text-sm text-[var(--text-muted)]">
+                  <Calendar className="mr-1 inline h-3.5 w-3.5" />
+                  {dateStr} at {timeStr}
+                </p>
+              </div>
+              <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${statusColor(match.matchRoundStatus)}`}>
+                {formatStatus(match.matchRoundStatus)}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Venue</p>
+                <p className="text-sm text-zinc-100">
+                  <MapPin className="mr-1 inline h-3.5 w-3.5" />
+                  {formatVenue(match.homeAway)}
+                </p>
+              </div>
+              <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Type</p>
+                <p className="text-sm text-zinc-100">
+                  <Trophy className="mr-1 inline h-3.5 w-3.5" />
+                  {formatMatchType(match.matchType)}
+                </p>
+              </div>
+              <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Format</p>
+                <p className="text-sm text-zinc-100">{formatGameFormat(match.gameFormat)}</p>
+              </div>
+              <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Target squad</p>
+                <p className="text-sm text-zinc-100">
+                  <Users className="mr-1 inline h-3.5 w-3.5" />
+                  {match.selections.length} / {match.squadSize}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <span>Round:</span>
+              <Link
+                href={`/rounds/${match.matchRoundId}`}
+                className="text-[var(--accent-strong)] hover:underline"
+              >
+                {match.matchRoundName}
+              </Link>
+            </div>
+
+            {match.matchFit !== "UNKNOWN" && (
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
+                Match fit: {formatMatchFit(match.matchFit)}
+              </p>
+            )}
+
+            {match.notes && (
+              <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
+            )}
           </div>
-          <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${statusColor(match.matchRoundStatus)}`}>
-            {formatStatus(match.matchRoundStatus)}
-          </span>
+
+          {grouped.length > 0 ? (
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+              <h2 className="text-sm font-semibold text-zinc-200 mb-3">
+                Squad ({match.selections.length} players)
+              </h2>
+              <div className="flex flex-col gap-3">
+                {grouped.map((group) => (
+                  <div key={group.role}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <RoleBadge role={group.role as any} />
+                      <span className="text-[10px] text-[var(--text-muted)]">{group.players.length}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.players.map((p) => (
+                        <span
+                          key={p.id}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
+                            p.status === "FINALIZED"
+                              ? "border-emerald-700/40 bg-emerald-900/10 text-emerald-200"
+                              : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]"
+                          }`}
+                        >
+                          <Link href={`/players/${p.playerId}`} className="hover:text-zinc-50 transition-colors">
+                            {p.playerName}
+                          </Link>
+                          <span className="text-[10px] text-[var(--text-muted)]">{p.coreTeamName}</span>
+                          {p.manualOverride && (
+                            <span className="text-[8px] text-amber-400 uppercase">ovr</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm text-[var(--text-muted)]">
+              No squad selections yet.{" "}
+              <Link href={`/rounds/${match.matchRoundId}`} className="text-[var(--accent-strong)] hover:underline">
+                Go to round
+              </Link>{" "}
+              to generate or edit the squad.
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Venue</p>
-            <p className="text-sm text-zinc-100">
-              <MapPin className="mr-1 inline h-3.5 w-3.5" />
-              {formatVenue(match.homeAway)}
-            </p>
-          </div>
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Type</p>
-            <p className="text-sm text-zinc-100">
-              <Trophy className="mr-1 inline h-3.5 w-3.5" />
-              {formatMatchType(match.matchType)}
-            </p>
-          </div>
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Format</p>
-            <p className="text-sm text-zinc-100">{formatGameFormat(match.gameFormat)}</p>
-          </div>
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Target squad</p>
-            <p className="text-sm text-zinc-100">
-              <Users className="mr-1 inline h-3.5 w-3.5" />
-              {match.selections.length} / {match.squadSize}
-            </p>
-          </div>
-        </div>
+        {/* Right sidebar */}
+        {hasSidebarContent && (
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+            {error && (
+              <div className="rounded-2xl border border-red-800/40 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+                {error}
+              </div>
+            )}
 
-        <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <span>Round:</span>
-          <Link
-            href={`/rounds/${match.matchRoundId}`}
-            className="text-[var(--accent-strong)] hover:underline"
-          >
-            {match.matchRoundName}
-          </Link>
-        </div>
+            {finalized && (
+              <div className="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
+                <CheckCircle2 className="mr-1.5 inline h-4 w-4" />
+                Match finalized.
+                {roundFinalized && " Entire round finalized."}
+              </div>
+            )}
 
-        {match.matchFit !== "UNKNOWN" && (
-          <p className="mt-2 text-xs text-[var(--text-muted)]">
-            Match fit: {formatMatchFit(match.matchFit)}
-          </p>
-        )}
+            {matchFinalized && !finalized && (
+              <div className="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
+                <Lock className="mr-1.5 inline h-4 w-4" />
+                This match is finalized.
+              </div>
+            )}
 
-        {match.notes && (
-          <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
+            {roundFinalizedFlag && !finalized && !matchFinalized && (
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3 text-sm text-zinc-300">
+                <Lock className="mr-1.5 inline h-4 w-4" />
+                This round is finalized.
+                <Link href={`/rounds/${match.matchRoundId}`} className="ml-1.5 text-[var(--accent-strong)] hover:underline">
+                  View round
+                </Link>
+              </div>
+            )}
+
+            {canFinalize && (
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <h3 className="text-sm font-semibold text-zinc-200 mb-2">Finalize match</h3>
+                <p className="text-xs text-[var(--text-muted)] mb-3">
+                  Lock selections for this match. {match.selections.length} of {match.squadSize} players selected.
+                </p>
+                {blockingWarnings.length > 0 && (
+                  <p className="text-xs text-red-300 mb-2">
+                    <AlertTriangle className="mr-1 inline h-3 w-3" />
+                    {blockingWarnings.length} blocking {blockingWarnings.length === 1 ? "warning" : "warnings"} must be resolved first.
+                  </p>
+                )}
+                {requiresOverrideWarnings.length > 0 && (
+                  <div className="mb-2">
+                    <label className="text-xs text-[var(--text-muted)] block mb-1">Override reason (required)</label>
+                    <input
+                      id={`override-reason-${match.id}`}
+                      className="h-8 w-full rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-xs text-zinc-50"
+                      placeholder="Why are you overriding?"
+                    />
+                  </div>
+                )}
+                <button
+                  className="w-full rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+                  disabled={isPending || blockingWarnings.length > 0}
+                  onClick={() => {
+                    startTransition(async () => {
+                      const fd = new FormData();
+                      fd.set("matchId", match.id);
+                      if (requiresOverrideWarnings.length > 0) {
+                        const reason = (document.getElementById(`override-reason-${match.id}`) as HTMLInputElement)?.value ?? "";
+                        fd.set("overrideReason", reason);
+                      }
+                      const { finalizeMatchAction } = await import("@/app/matches/actions");
+                      await finalizeMatchAction(fd);
+                    });
+                  }}
+                  type="button"
+                >
+                  {isPending ? "Finalizing..." : "Finalize this match"}
+                </button>
+                <Link
+                  href={`/rounds/${match.matchRoundId}`}
+                  className="mt-2 block text-center text-xs text-[var(--accent-strong)] hover:underline"
+                >
+                  Finalize entire round instead
+                </Link>
+              </div>
+            )}
+
+            {match.warnings.length > 0 && (
+              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-200 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Warnings ({match.warnings.length})
+                </h3>
+                <ul className="flex flex-col gap-1.5">
+                  {blockingWarnings.map((w) => (
+                    <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
+                      <strong>{w.code}</strong>: {w.message}
+                    </li>
+                  ))}
+                  {requiresOverrideWarnings.map((w) => (
+                    <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
+                      <strong>{w.code}</strong>: {w.message}
+                    </li>
+                  ))}
+                  {otherWarnings.map((w) => (
+                    <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
+                      <strong>{w.code}</strong>: {w.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </aside>
         )}
       </div>
-
-      {blockingWarnings.length > 0 && (
-        <div className="rounded-2xl border border-red-800/40 bg-red-950/20 p-4">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-red-300">
-            <AlertTriangle className="h-4 w-4" />
-            Blocking warnings ({blockingWarnings.length})
-          </h2>
-          <ul className="mt-2 flex flex-col gap-1.5">
-            {blockingWarnings.map((w) => (
-              <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                <strong>{w.code}</strong>: {w.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {otherWarnings.length > 0 && (
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-          <h2 className="text-sm font-semibold text-zinc-200">
-            Warnings ({otherWarnings.length})
-          </h2>
-          <ul className="mt-2 flex flex-col gap-1.5">
-            {otherWarnings.map((w) => (
-              <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                <strong>{w.code}</strong>: {w.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {grouped.length > 0 ? (
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-          <h2 className="text-sm font-semibold text-zinc-200 mb-3">
-            Squad ({match.selections.length} players)
-          </h2>
-          <div className="flex flex-col gap-3">
-            {grouped.map((group) => (
-              <div key={group.role}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <RoleBadge role={group.role as any} />
-                  <span className="text-[10px] text-[var(--text-muted)]">{group.players.length}</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {group.players.map((p) => (
-                    <span
-                      key={p.id}
-                      className="inline-flex items-center gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-soft)]"
-                    >
-                      <Link href={`/players/${p.playerId}`} className="hover:text-zinc-50 transition-colors">
-                        {p.playerName}
-                      </Link>
-                      <span className="text-[10px] text-[var(--text-muted)]">{p.coreTeamName}</span>
-                      {p.manualOverride && (
-                        <span className="text-[8px] text-amber-400 uppercase">ovr</span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm text-[var(--text-muted)]">
-          No squad selections yet.{" "}
-          <Link href={`/rounds/${match.matchRoundId}`} className="text-[var(--accent-strong)] hover:underline">
-            Go to round
-          </Link>{" "}
-          to generate or edit the squad.
-        </div>
-      )}
     </div>
   );
 }
