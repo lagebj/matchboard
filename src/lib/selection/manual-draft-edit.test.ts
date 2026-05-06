@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import { SelectionRole } from "@/generated/prisma/client";
 import {
   validateManualMatchEdit,
+  validateOverrideReason,
 } from "@/lib/selection/manual-draft-edit";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { HARD_RULE_OVERRIDE_CATEGORIES } from "@/lib/selection/types";
 
 describe("manual-draft-edit", () => {
   const coreTeamId = "team-bla";
@@ -242,6 +245,71 @@ describe("manual-draft-edit", () => {
       expect(duplicateError).toBeDefined();
       expect(duplicateError!.requiresOverride).toBe(true);
       expect(duplicateError!.message).toContain("already selected");
+    });
+  });
+
+  describe("validateOverrideReason", () => {
+    it("requires a category when override reason is needed", () => {
+      const errors = validateOverrideReason(undefined, undefined, false);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("required");
+    });
+
+    it("rejects invalid category", () => {
+      const errors = validateOverrideReason("invalid_category" as OverrideReasonCategory, undefined, false);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Invalid");
+    });
+
+    it("accepts valid category without detail for non-hard-rule violations", () => {
+      const errors = validateOverrideReason("coach_judgement", undefined, false);
+      expect(errors).toHaveLength(0);
+    });
+
+    it("accepts valid category with detail", () => {
+      const errors = validateOverrideReason("coach_judgement", "Player requested position change", false);
+      expect(errors).toHaveLength(0);
+    });
+
+    it("requires detail for hard rule violations with hard rule categories", () => {
+      const errors = validateOverrideReason("squad_too_small", undefined, true);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Detail is required");
+    });
+
+    it("accepts hard rule category with detail when hard rules are violated", () => {
+      const errors = validateOverrideReason("squad_too_small", "Only 9 players available, minimum is 11", true);
+      expect(errors).toHaveLength(0);
+    });
+
+    it("accepts hard rule category without detail when no hard rules are violated", () => {
+      const errors = validateOverrideReason("squad_too_small", undefined, false);
+      expect(errors).toHaveLength(0);
+    });
+
+    it("all hard rule override categories require detail when hard rules are violated", () => {
+      for (const category of HARD_RULE_OVERRIDE_CATEGORIES) {
+        const errors = validateOverrideReason(category, undefined, true);
+        expect(errors.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("all override reason categories are valid", () => {
+      const allCategories: OverrideReasonCategory[] = [
+        "squad_too_small",
+        "support_missing",
+        "development_opportunity",
+        "double_load_needed",
+        "availability_changed",
+        "coach_judgement",
+        "match_already_played",
+        "data_correction",
+        "other",
+      ];
+      for (const category of allCategories) {
+        const errors = validateOverrideReason(category, "test detail", false);
+        expect(errors).toHaveLength(0);
+      }
     });
   });
 });

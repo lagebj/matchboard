@@ -104,10 +104,6 @@ export function getAutomaticSelectionCategoryForRotationCandidate(
     return "BACKFILL";
   }
 
-  if (candidateCategory === "DOUBLE_LOAD") {
-    return "DOUBLE_LOAD";
-  }
-
   if (candidateCategory === "CONFIDENCE_REBUILD") {
     return "CONFIDENCE_REBUILD";
   }

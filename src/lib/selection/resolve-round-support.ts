@@ -324,11 +324,13 @@ export async function resolveRoundSupport(
 
     if (filled < shortfall && filled < slot.minSupportCount - slot.currentSupportCount) {
       warnings.push({
+        severity: "WARNING",
         code: "support_shortfall_after_resolution",
         message: `${slot.teamName} has only ${slot.currentSupportCount + filled} support player(s) after round-level resolution, below the minimum of ${slot.minSupportCount}.`,
       });
     } else if (filled > 0 && filled < shortfall) {
       warnings.push({
+        severity: "WARNING",
         code: "support_below_target",
         message: `${slot.teamName} reached ${slot.currentSupportCount + filled} support player(s), below the target of ${slot.targetSupportCount} but meeting the minimum of ${slot.minSupportCount}.`,
       });
@@ -450,6 +452,7 @@ async function resolveSquadRepairInner(
     if (eligiblePathSources.length === 0) {
       if (selectedCount < (match.team.minAcceptedSquadSize ?? match.team.targetSquadSize)) {
         warnings.push({
+          severity: "WARNING",
           code: "squad_repair_no_path_available",
           message: `${match.team.name} needs squad repair (${selectedCount} players, target ${match.team.targetSquadSize}) but has no configured backfill paths.`,
         });
@@ -639,11 +642,13 @@ async function resolveSquadRepairInner(
     const finalCount = matchResults[resultIdx]!.selectedPlayers.length;
     if (finalCount < (match.team.minAcceptedSquadSize ?? match.team.targetSquadSize)) {
       warnings.push({
+        severity: "HARD_BLOCK",
         code: "squad_repair_shortfall_after_resolution",
         message: `${match.team.name} has only ${finalCount} player(s) after squad repair, below the minimum accepted squad size of ${match.team.minAcceptedSquadSize ?? match.team.targetSquadSize}.`,
       });
     } else if (filled > 0 && filled < shortfall) {
       warnings.push({
+        severity: "WARNING",
         code: "squad_repair_below_target",
         message: `${match.team.name} reached ${finalCount} player(s) after squad repair, below the target of ${match.team.targetSquadSize} but above the minimum.`,
       });

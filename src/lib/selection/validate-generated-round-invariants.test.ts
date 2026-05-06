@@ -36,6 +36,7 @@ describe("validateGeneratedRoundInvariants", () => {
       matchRoundId: "round-1",
       matchDate: new Date(),
       opponent: "Opponent",
+      teamId: "team-b",
       teamName: "Team B",
       selectedPlayers,
       excludedPlayers: [],
@@ -231,5 +232,31 @@ describe("validateGeneratedRoundInvariants", () => {
     const violations = validateGeneratedRoundInvariants([selection1, selection2], validPaths, teamIdByMatchId);
     expect(violations).toHaveLength(1);
     expect(violations[0]!.matchId).toBe("match-2");
+  });
+
+  it("flags duplicate player in the same match", () => {
+    const teamIdByMatchId = new Map([["match-1", teamB]]);
+    const selection = makeSelection([
+      makePlayer({
+        playerId: "p1",
+        playerName: "Player 1",
+        coreTeamId: teamA,
+        coreTeamName: "Team A",
+        selectionCategory: "SUPPORT",
+      }),
+      makePlayer({
+        playerId: "p1",
+        playerName: "Player 1",
+        coreTeamId: teamA,
+        coreTeamName: "Team A",
+        selectionCategory: "CORE",
+      }),
+    ]);
+
+    const violations = validateGeneratedRoundInvariants([selection], validPaths, teamIdByMatchId);
+    const duplicateViolation = violations.find((v) => v.code === "invariant_duplicate_player_in_match");
+    expect(duplicateViolation).toBeDefined();
+    expect(duplicateViolation!.severity).toBe("HARD_BLOCK");
+    expect(duplicateViolation!.playerId).toBe("p1");
   });
 });

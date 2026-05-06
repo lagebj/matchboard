@@ -2,8 +2,11 @@ import { addPlayerToDraftMatch, removePlayerFromDraftMatch, changeDraftPlayerRol
 import { SelectionRole } from "@/generated/prisma/client";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 const VALID_ROLES = new Set(Object.values(SelectionRole));
+const VALID_CATEGORIES = new Set<string>(OVERRIDE_REASON_CATEGORIES);
 
 export async function POST(request: Request) {
   const { allowed } = rateLimit("draft-selection", 10, 60_000);
@@ -17,7 +20,8 @@ export async function POST(request: Request) {
     playerId?: string;
     role?: string;
     incomingPlayerId?: string;
-    overrideReason?: string;
+    overrideReasonCategory?: string;
+    overrideReasonDetail?: string;
   };
   try {
     body = await request.json();
@@ -26,6 +30,11 @@ export async function POST(request: Request) {
   }
 
   const { action } = body;
+
+  const category = body.overrideReasonCategory as OverrideReasonCategory | undefined;
+  if (category && !VALID_CATEGORIES.has(category)) {
+    return NextResponse.json({ error: `Invalid override reason category. Must be one of: ${OVERRIDE_REASON_CATEGORIES.join(", ")}` }, { status: 400 });
+  }
 
   try {
     if (action === "add") {
@@ -39,7 +48,8 @@ export async function POST(request: Request) {
         body.matchId,
         body.playerId,
         body.role as SelectionRole,
-        body.overrideReason,
+        category,
+        body.overrideReasonDetail,
       );
       return NextResponse.json(result, { status: result.success ? 200 : 422 });
     }
@@ -63,7 +73,8 @@ export async function POST(request: Request) {
         body.matchId,
         body.playerId,
         body.role as SelectionRole,
-        body.overrideReason,
+        category,
+        body.overrideReasonDetail,
       );
       return NextResponse.json(result, { status: result.success ? 200 : 422 });
     }
@@ -80,7 +91,8 @@ export async function POST(request: Request) {
         body.playerId,
         body.incomingPlayerId,
         body.role as SelectionRole,
-        body.overrideReason,
+        category,
+        body.overrideReasonDetail,
       );
       return NextResponse.json(result, { status: result.success ? 200 : 422 });
     }

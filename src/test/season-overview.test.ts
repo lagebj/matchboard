@@ -294,8 +294,8 @@ describe("Season overview service", () => {
 
       await testDb.selection.createMany({
         data: [
-          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "DOUBLE_LOAD", status: "FINALIZED" },
-          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "DOUBLE_LOAD", status: "FINALIZED" },
+          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: "FINALIZED" },
+          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: "FINALIZED" },
         ],
       });
 

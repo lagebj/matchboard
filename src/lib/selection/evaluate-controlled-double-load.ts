@@ -91,6 +91,7 @@ export async function evaluateControlledDoubleLoad(
     matchId: string;
     matchDate: Date;
     selectionCategory: string;
+    controlledDoubleLoad: boolean;
   };
 
   const playerLocations: PlayerLocation[] = [];
@@ -109,6 +110,7 @@ export async function evaluateControlledDoubleLoad(
         matchId: result.matchId,
         matchDate: matchData.startsAt,
         selectionCategory: player.selectionCategory,
+        controlledDoubleLoad: player.controlledDoubleLoad === true,
       });
     }
   }
@@ -137,6 +139,7 @@ export async function evaluateControlledDoubleLoad(
     maxDoubleLoads: number;
     existingDoubleLoadCount: number;
     rotationPathId: string;
+    pathRole: string;
     nonRotatable: boolean;
   };
 
@@ -149,7 +152,7 @@ export async function evaluateControlledDoubleLoad(
 
     for (const playerLoc of playersFromTeam) {
       if (playerLoc.nonRotatable) continue;
-      if (playerLoc.selectionCategory === "DOUBLE_LOAD") continue;
+      if (playerLoc.controlledDoubleLoad) continue;
 
       const toMatches = matchResults.filter((r) => {
         const mData = matchById.get(r.matchId);
@@ -178,6 +181,8 @@ export async function evaluateControlledDoubleLoad(
         const existingCount = doubleLoadCounts.get(playerLoc.playerId) ?? 0;
         const maxAllowed = path.maxDoubleLoadsPerPeriod ?? Infinity;
 
+        const baseRole = playerLoc.coreTeamId === path.toTeamId ? "CORE" : path.role;
+
         candidates.push({
           playerId: playerLoc.playerId,
           playerName: playerLoc.playerName,
@@ -195,6 +200,7 @@ export async function evaluateControlledDoubleLoad(
           maxDoubleLoads: maxAllowed === Infinity ? -1 : maxAllowed,
           existingDoubleLoadCount: existingCount,
           rotationPathId: path.id,
+          pathRole: baseRole,
           nonRotatable: playerLoc.nonRotatable,
         });
       }
@@ -219,6 +225,7 @@ export async function evaluateControlledDoubleLoad(
     if (candidate.maxDoubleLoads !== -1 && candidate.existingDoubleLoadCount >= candidate.maxDoubleLoads) {
       if (!usedPlayerIds.has(candidate.playerId)) {
         warnings.push({
+          severity: "WARNING",
           code: "double_load_exceeded_max",
           message: `${candidate.playerName} has reached the maximum double-load count (${candidate.maxDoubleLoads}) for this planning period and is not eligible for another double-load.`,
           playerId: candidate.playerId,
@@ -237,6 +244,7 @@ export async function evaluateControlledDoubleLoad(
 
     if (toMatch.selectedPlayers.length >= toMatchData.team.maxSquadSize) {
       warnings.push({
+        severity: "WARNING",
         code: "double_load_squad_full",
         message: `${candidate.playerName} cannot double-load into ${candidate.toTeamName} — squad is at maximum size (${toMatchData.team.maxSquadSize}).`,
         playerId: candidate.playerId,
@@ -251,6 +259,7 @@ export async function evaluateControlledDoubleLoad(
       chosenPosition: candidate.playerPosition,
       coreTeamId: candidate.coreTeamId,
       coreTeamName: candidate.coreTeamName,
+      controlledDoubleLoad: true,
       eligibility: true,
       explanations: [
         {
@@ -266,7 +275,7 @@ export async function evaluateControlledDoubleLoad(
       playerName: candidate.playerName,
       playerPosition: candidate.playerPosition,
       priorityScore: 50,
-      selectionCategory: "DOUBLE_LOAD",
+      selectionCategory: candidate.pathRole as SelectedPlayer["selectionCategory"],
       selectionReason: `Controlled double-load: ${candidate.playerName} plays a second match in this round for ${candidate.toTeamName} with ${Math.round(candidate.restHours)}h rest.`,
     };
 
@@ -302,7 +311,7 @@ async function loadDoubleLoadCounts(
 
   const finalizedSelections = await db.selection.findMany({
     where: {
-      role: "DOUBLE_LOAD",
+      controlledDoubleLoad: true,
       match: {
         matchRound: {
           planningPeriodId,

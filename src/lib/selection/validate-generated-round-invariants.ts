@@ -13,7 +13,7 @@ export type InvariantViolation = {
   targetTeamId?: string;
 };
 
-const NON_CORE_ROLES: Set<string> = new Set(["SUPPORT", "DEVELOPMENT", "BACKFILL", "DOUBLE_LOAD", "CONFIDENCE_REBUILD"]);
+const NON_CORE_ROLES: Set<string> = new Set(["SUPPORT", "DEVELOPMENT", "BACKFILL", "CONFIDENCE_REBUILD"]);
 
 export function validateGeneratedRoundInvariants(
   roundSelections: GeneratedSelection[],
@@ -26,7 +26,19 @@ export function validateGeneratedRoundInvariants(
     const targetTeamId = teamIdByMatchId.get(selection.matchId);
     if (!targetTeamId) continue;
 
+    const playerIds = new Set<string>();
     for (const player of selection.selectedPlayers) {
+      if (playerIds.has(player.playerId)) {
+        violations.push({
+          code: "invariant_duplicate_player_in_match",
+          message: `Player ${player.playerName} appears more than once in match ${selection.matchId}`,
+          matchId: selection.matchId,
+          playerId: player.playerId,
+          severity: "HARD_BLOCK",
+        });
+      }
+      playerIds.add(player.playerId);
+
       if (!NON_CORE_ROLES.has(player.selectionCategory)) {
         continue;
       }

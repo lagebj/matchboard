@@ -6,6 +6,7 @@ export type PlayerRoundCell = {
   matchRoundName: string;
   matchId: string;
   role: string;
+  controlledDoubleLoad: boolean;
   teamId: string;
   teamName: string;
   status: "DRAFT" | "FINALIZED";
@@ -102,6 +103,7 @@ export async function getSeasonPlayerRoundMatrix(
       matchId: true,
       playerId: true,
       role: true,
+      controlledDoubleLoad: true,
       status: true,
       player: {
         select: {
@@ -160,6 +162,7 @@ export async function getSeasonPlayerRoundMatrix(
       matchRoundName: matchRounds.find((r) => r.id === s.matchRoundId)?.name ?? "",
       matchId: s.matchId,
       role: s.role,
+      controlledDoubleLoad: s.controlledDoubleLoad ?? false,
       teamId: s.match.team.id,
       teamName: s.match.team.name,
       status: s.status as "DRAFT" | "FINALIZED",
@@ -176,7 +179,7 @@ export async function getSeasonPlayerRoundMatrix(
     const supportMatches = cells.filter((c) => c.role === "SUPPORT").length;
     const developmentMatches = cells.filter((c) => c.role === "DEVELOPMENT").length;
     const backfillMatches = cells.filter((c) => c.role === "BACKFILL").length;
-    const doubleLoadRounds = cells.filter((c) => c.role === "DOUBLE_LOAD").length;
+    const doubleLoadRounds = cells.filter((c) => c.controlledDoubleLoad).length;
     const roundsPlayed = new Set(cells.map((c) => c.matchRoundId)).size;
     const totalSelections = cells.length;
     const unavailableRounds = roundIds.filter(
@@ -279,6 +282,7 @@ async function getSeasonFairnessWarningsInternal(
     select: {
       playerId: true,
       role: true,
+      controlledDoubleLoad: true,
       player: {
         select: {
           firstName: true,
@@ -312,7 +316,7 @@ async function getSeasonFairnessWarningsInternal(
     else if (s.role === "SUPPORT") existing.support++;
     else if (s.role === "DEVELOPMENT") existing.development++;
     else if (s.role === "BACKFILL") existing.backfill++;
-    else if (s.role === "DOUBLE_LOAD") existing.doubleLoad++;
+    if (s.controlledDoubleLoad) existing.doubleLoad++;
     playerStats.set(s.playerId, existing);
   }
 

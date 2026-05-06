@@ -34,19 +34,21 @@ describe("Controlled double-load: allowed when all guard conditions met", () => 
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     expect(doubleLoadPlayers.length).toBeGreaterThan(0);
   });
 
-  it("double-load selection has the correct role", async () => {
+  it("double-load selection has the correct role from rotation path", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     for (const p of doubleLoadPlayers) {
+      expect(p.selectionCategory).toBe("SUPPORT");
+      expect(p.controlledDoubleLoad).toBe(true);
       expect(p.explanations.some((e) => e.code === "controlled_double_load")).toBe(true);
     }
   });
@@ -78,7 +80,7 @@ describe("Controlled double-load: rejected when matches are on the same date", (
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     expect(doubleLoadPlayers.length).toBe(0);
   });
@@ -110,7 +112,7 @@ describe("Controlled double-load: rejected when not explicitly enabled", () => {
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     expect(doubleLoadPlayers.length).toBe(0);
   });
@@ -159,7 +161,7 @@ describe("Controlled double-load: rejected when rest spacing is not met", () => 
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     expect(doubleLoadPlayers.length).toBe(0);
   });
@@ -201,8 +203,8 @@ describe("Controlled double-load: non-rotatable player cannot be double-loaded o
 
     for (const mr of result.matchResults) {
       for (const p of mr.selectedPlayers) {
-        if (p.playerId === nrPlayer.id && p.selectionCategory === "DOUBLE_LOAD") {
-          expect(p.selectionCategory).not.toBe("DOUBLE_LOAD");
+        if (p.playerId === nrPlayer.id && p.controlledDoubleLoad === true) {
+          expect(p.controlledDoubleLoad).not.toBe(true);
         }
       }
     }
@@ -233,7 +235,7 @@ describe("Controlled double-load: cannot bypass rotation path validation", () =>
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     expect(doubleLoadPlayers.length).toBe(0);
   });

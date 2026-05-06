@@ -66,7 +66,9 @@ export async function GET(request: NextRequest) {
       matchId: true,
       playerId: true,
       role: true,
-      overrideReason: true,
+      controlledDoubleLoad: true,
+      overrideReasonCategory: true,
+      overrideReasonDetail: true,
       explanation: true,
       player: {
         select: {
@@ -119,8 +121,10 @@ export async function GET(request: NextRequest) {
     playerName: string;
     sourceTeam: string;
     role: string;
+    controlledDoubleLoad: boolean;
     position: string;
-    overrideReason: string | null;
+    overrideReasonCategory: string | null;
+    overrideReasonDetail: string | null;
     explanation: string | null;
   };
 
@@ -143,8 +147,10 @@ export async function GET(request: NextRequest) {
     playerName: s.player.lastName ? `${s.player.firstName} ${s.player.lastName}` : s.player.firstName,
     sourceTeam: s.player.coreTeam?.name ?? "",
     role: formatSelectionRole(s.role),
+    controlledDoubleLoad: s.controlledDoubleLoad ?? false,
     position: s.player.primaryPosition,
-    overrideReason: s.overrideReason,
+    overrideReasonCategory: s.overrideReasonCategory ?? null,
+    overrideReasonDetail: s.overrideReasonDetail ?? null,
     explanation: s.explanation
       ? typeof s.explanation === "string"
         ? s.explanation
@@ -192,12 +198,11 @@ export async function GET(request: NextRequest) {
     else if (s.role === "SUPPORT") existing.supportMatches++;
     else if (s.role === "DEVELOPMENT") existing.developmentMatches++;
     else if (s.role === "BACKFILL") existing.backfillMatches++;
-    else if (s.role === "DOUBLE_LOAD") existing.doubleLoadRounds++;
+    if (s.controlledDoubleLoad) existing.doubleLoadRounds++;
     playerStats.set(key, existing);
   }
   for (const [, stats] of playerStats) {
     stats.roundsPlayed = stats.coreMatches + stats.supportMatches + stats.developmentMatches + stats.backfillMatches;
-    if (stats.doubleLoadRounds > 0) stats.roundsPlayed -= stats.doubleLoadRounds;
   }
 
   const statsRows = [...playerStats.values()].sort((a, b) =>
@@ -211,7 +216,7 @@ export async function GET(request: NextRequest) {
       endDate: formatDate(planningPeriod.endDate),
       finalizedRounds: roundIds.length,
       visibility,
-      selections: isParent ? selectionRows.map(({ overrideReason, explanation, sourceTeam, ...rest }) => rest) : selectionRows,
+      selections: isParent ? selectionRows.map(({ overrideReasonCategory, overrideReasonDetail, explanation, sourceTeam, controlledDoubleLoad, ...rest }) => rest) : selectionRows,
       movements: isParent ? movementRows.map(({ fromTeam, toTeam, role, ...rest }) => rest) : movementRows,
       playerStats: isParent
         ? statsRows.map(({ coreMatches, supportMatches, developmentMatches, backfillMatches, doubleLoadRounds, ...rest }) => rest)
@@ -240,9 +245,9 @@ export async function GET(request: NextRequest) {
         sections.push([r.round, r.date, r.team, r.homeOrAway, r.opponent, r.playerName, r.position].map(escapeCsv).join(","));
       }
     } else {
-      sections.push(["Round", "Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Position", "Override Reason", "Explanation"].map(escapeCsv).join(","));
+      sections.push(["Round", "Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Double-Load", "Position", "Override Category", "Override Detail", "Explanation"].map(escapeCsv).join(","));
       for (const r of selectionRows) {
-        sections.push([r.round, r.date, r.team, r.homeOrAway, r.opponent, r.playerName, r.sourceTeam, r.role, r.position, r.overrideReason ?? "", r.explanation ?? ""].map(escapeCsv).join(","));
+        sections.push([r.round, r.date, r.team, r.homeOrAway, r.opponent, r.playerName, r.sourceTeam, r.role, r.controlledDoubleLoad ? "Yes" : "", r.position, r.overrideReasonCategory ?? "", r.overrideReasonDetail ?? "", r.explanation ?? ""].map(escapeCsv).join(","));
       }
     }
 
@@ -312,7 +317,7 @@ export async function GET(request: NextRequest) {
           if (isParent) {
             lines.push(`    ${r.playerName} (${r.position})`);
           } else {
-            lines.push(`    ${r.playerName} (${r.sourceTeam} → ${r.team}, ${r.role}${r.position ? `, ${r.position}` : ""})`);
+            lines.push(`    ${r.playerName} (${r.sourceTeam} → ${r.team}, ${r.role}${r.controlledDoubleLoad ? ", double-load" : ""}${r.position ? `, ${r.position}` : ""})`);
           }
         }
         lines.push("");
@@ -380,10 +385,10 @@ export async function GET(request: NextRequest) {
           md.push(`- ${r.playerName}`);
         }
       } else {
-        md.push("| Player | Source | Role | Position | Override |");
-        md.push("| --- | --- | --- | --- | --- |");
+        md.push("| Player | Source | Role | Double-Load | Position | Override |");
+        md.push("| --- | --- | --- | --- | --- | --- |");
         for (const r of matchRows) {
-          md.push(`| ${r.playerName} | ${r.sourceTeam} | ${r.role} | ${r.position} | ${r.overrideReason ?? "—"} |`);
+          md.push(`| ${r.playerName} | ${r.sourceTeam} | ${r.role} | ${r.controlledDoubleLoad ? "Yes" : "—"} | ${r.position} | ${r.overrideReasonCategory ? `${r.overrideReasonCategory}${r.overrideReasonDetail ? `: ${r.overrideReasonDetail}` : ""}` : "—"} |`);
         }
       }
       md.push("");

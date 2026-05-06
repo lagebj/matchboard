@@ -381,10 +381,11 @@ export function SeasonOverviewClient({
                             return (
                               <span
                                 key={ci}
-                                className={`inline-flex items-center justify-center rounded px-1 py-0.5 text-[9px] font-semibold border ${style} ${isDraft ? "opacity-60 border-dashed" : ""}`}
-                                title={`${cell.role} for ${cell.teamName}${isDraft ? " (draft)" : ""}`}
+                                className={`inline-flex items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold border ${style} ${isDraft ? "opacity-60 border-dashed" : ""} ${cell.controlledDoubleLoad ? "ring-1 ring-red-500/40" : ""}`}
+                                title={`${cell.role} for ${cell.teamName}${cell.controlledDoubleLoad ? " (double-load)" : ""}${isDraft ? " (draft)" : ""}`}
                               >
                                 {label}
+                                {cell.controlledDoubleLoad && <span className="text-red-400">2x</span>}
                               </span>
                             );
                           })}

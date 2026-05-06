@@ -173,17 +173,20 @@ model Availability {
 }
 
 model Selection {
-  id               String          @id @default(cuid())
-  matchId          String
-  matchRoundId     String
-  playerId         String
-  role             SelectionRole
-  status           SelectionStatus @default(DRAFT)
-  ruleConfigVersion Int?
-  explanation      Json?
-  overrideReason   String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                    String          @id @default(cuid())
+  matchId               String
+  matchRoundId          String
+  playerId              String
+  role                  SelectionRole
+  controlledDoubleLoad  Boolean         @default(false)
+  status                SelectionStatus @default(DRAFT)
+  ruleConfigVersion     Int?
+  explanation           Json?
+  overrideReason        String?
+  overrideReasonCategory OverrideReasonCategory?
+  overrideReasonDetail  String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   match      Match      @relation(fields: [matchId], references: [id], onDelete: Cascade)
   matchRound MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
@@ -219,6 +222,7 @@ model MovementLedger {
   fromTeamId   String
   toTeamId     String
   role         SelectionRole
+  controlledDoubleLoad Boolean @default(false)
   reason       String?
   explanation  String?
   isDraft      Boolean  @default(true)
@@ -276,6 +280,18 @@ enum SelectionRole {
   CORE_MATCH_DROP
   REDUCED_MATCH_LOAD_DROP
   MANUAL_OVERRIDE
+}
+
+enum OverrideReasonCategory {
+  SQUAD_TOO_SMALL
+  SUPPORT_MISSING
+  DEVELOPMENT_OPPORTUNITY
+  DOUBLE_LOAD_NEEDED
+  AVAILABILITY_CHANGED
+  COACH_JUDGEMENT
+  MATCH_ALREADY_PLAYED
+  DATA_CORRECTION
+  OTHER
 }
 
 enum MatchVenue {
