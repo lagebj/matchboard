@@ -15,12 +15,13 @@ import {
   GripVertical,
   XCircle,
   Lock,
+  Unlock,
 } from "lucide-react";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
-import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction } from "@/app/rounds/[matchRoundId]/actions";
+import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/rounds/[matchRoundId]/actions";
 import { severityFromDbSeverity } from "@/components/ui/severity-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
 
@@ -256,6 +257,25 @@ function MatchColumnComponent({
           </span>
           {match.isFinalized && (
             <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
+          )}
+          {match.isFinalized && (
+            <button
+              className="inline-flex items-center gap-0.5 rounded p-1 text-[10px] text-zinc-400 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+              disabled={isFinalizing || isPending}
+              onClick={() => {
+                if (!confirm("Un-finalize this match? Selections will revert to draft.")) return;
+                startFinalizing(async () => {
+                  const fd = new FormData();
+                  fd.set("matchId", match.matchId);
+                  fd.set("matchRoundId", matchRoundId);
+                  await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
+                });
+              }}
+              type="button"
+              title="Un-finalize this match"
+            >
+              <Unlock className="h-3.5 w-3.5" />
+            </button>
           )}
           {!match.isFinalized && (
             <button
@@ -631,10 +651,26 @@ export function RoundBoard({
         </div>
       )}
 
-      {roundStatus === "FINALIZED" && (
+      {computedRoundStatus === "FINALIZED" && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-4 py-3">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
           <span className="text-sm text-emerald-200">{roundLabel} — selections are locked.</span>
+          <button
+            className="ml-auto rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+            disabled={isPending}
+            onClick={() => {
+              if (!confirm("Un-finalize this round? All selections will revert to draft and can be recalculated.")) return;
+              startTransition(async () => {
+                const fd = new FormData();
+                fd.set("matchRoundId", matchRoundId);
+                await unfinalizeRoundAction({ error: "" }, fd);
+              });
+            }}
+            type="button"
+          >
+            <Unlock className="mr-1 inline h-3.5 w-3.5" />
+            Un-finalize round
+          </button>
         </div>
       )}
 

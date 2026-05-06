@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { GeneratedSelection, SelectedPlayer, ExcludedPlayer, SelectionWarning } from "@/lib/selection/types";
+import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
 
 type SupportSlot = {
   matchId: string;
@@ -228,7 +229,30 @@ export async function resolveRoundSupport(
         orderBy: [{ playerCode: "asc" }],
       });
 
-      for (const donorPlayer of donorPlayers) {
+      const donorPlayerConsecutive = new Map<string, number>();
+      if (donorPlayers.length > 0) {
+        const earliestMatchDate = matchResults.length > 0
+          ? matchResults.reduce((earliest, r) => r.matchDate < earliest ? r.matchDate : earliest, matchResults[0]!.matchDate)
+          : new Date();
+        const consecutiveResults = await Promise.all(
+          donorPlayers.map(async (p) => {
+            const result = await getConsecutiveSupportCount(p.id, earliestMatchDate);
+            return { playerId: p.id, count: result.consecutiveSupportRounds };
+          }),
+        );
+        for (const { playerId, count } of consecutiveResults) {
+          donorPlayerConsecutive.set(playerId, count);
+        }
+      }
+
+      const sortedDonorPlayers = [...donorPlayers].sort((a, b) => {
+        const aConsecutive = donorPlayerConsecutive.get(a.id) ?? 0;
+        const bConsecutive = donorPlayerConsecutive.get(b.id) ?? 0;
+        if (aConsecutive !== bConsecutive) return aConsecutive - bConsecutive;
+        return a.playerCode - b.playerCode;
+      });
+
+      for (const donorPlayer of sortedDonorPlayers) {
         if (filled >= shortfall) break;
         if (slot.currentSquadCount + filled >= slot.maxSquadSize) break;
 

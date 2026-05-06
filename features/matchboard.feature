@@ -151,6 +151,32 @@ Feature: Matchboard football operations workspace
       And must record the reason for the change
       And must preserve the original finalized snapshot
 
+    Scenario: Coach can un-finalize a round to recalculate
+      Given match round "R1" has been finalized
+      When the coach un-finalizes round "R1"
+      Then all selections in "R1" must revert to DRAFT status
+      And movement ledger entries must revert to draft
+      And ruleConfigVersion and overrideReason must be cleared on affected selections
+      And the round status must be re-derived from warnings
+
+    Scenario: Coach can un-finalize a single match within a finalized round
+      Given match round "R1" has matches "M1" and "M2" and both are finalized
+      When the coach un-finalizes match "M1"
+      Then selections for "M1" must revert to DRAFT status
+      And selections for "M2" must remain FINALIZED
+      And the round must remain FINALIZED because other matches are still finalized
+
+    Scenario: Un-finalizing the last finalized match reverts round status
+      Given match round "R1" has match "M1" and "M1" is finalized
+      When the coach un-finalizes match "M1"
+      Then round "R1" must no longer be FINALIZED
+      And round "R1" status must be re-derived from warnings
+
+    Scenario: Un-finalize requires confirmation
+      Given match round "R1" has been finalized
+      When the coach attempts to un-finalize round "R1"
+      Then the app must ask for confirmation before reverting finalized selections
+
 
   Rule: Player identity
 
@@ -1373,6 +1399,36 @@ Feature: Matchboard football operations workspace
       When the app generates the match round
       Then the app must still assign support players to Team C
       And cooldown must not prevent rotation because no previous round exists
+
+    Scenario: Consecutive support rounds penalize the player in ranking
+      Given player "p1" has been selected as SUPPORT for 2 consecutive finalized rounds
+      And player "p2" is equally eligible for SUPPORT
+      And player "p2" has 0 consecutive support rounds
+      When the app ranks SUPPORT candidates
+      Then player "p2" must rank above player "p1"
+
+    Scenario: Consecutive support penalty increases with more consecutive rounds
+      Given player "p1" has been selected as SUPPORT for 3 consecutive finalized rounds
+      And player "p2" has been selected as SUPPORT for 2 consecutive finalized rounds
+      When the app ranks SUPPORT candidates
+      Then player "p2" must rank above player "p1"
+
+    Scenario: Consecutive support penalty does not apply for 1 or 0 rounds
+      Given player "p1" has been selected as SUPPORT for 1 finalized round
+      When the app ranks SUPPORT candidates
+      Then player "p1" must receive no consecutive support penalty
+
+    Scenario: Consecutive support penalty only affects SUPPORT candidates
+      Given player "p1" has been selected as SUPPORT for 3 consecutive finalized rounds
+      And player "p1" is now a DEVELOPMENT candidate
+      When the app ranks DEVELOPMENT candidates
+      Then player "p1" must receive no consecutive support penalty
+
+    Scenario: Consecutive support penalty does not prevent selection when no other candidate exists
+      Given player "p1" has been selected as SUPPORT for 3 consecutive finalized rounds
+      And no other eligible support candidates exist
+      When the app selects Team C support
+      Then player "p1" must still be selected as support
 
 
   Rule: Planning period fairness

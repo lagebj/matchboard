@@ -89,6 +89,16 @@ Movement is not a punishment or permanent label.
 
 Do not design artificial equal-strength balancing. The app should create useful squad selections, not flatten all groups into generic equality.
 
+### Consecutive support rotation
+
+The selection engine penalizes players who have been sent as support for consecutive rounds. This is a scoring preference, not a hard rule.
+
+- Players with consecutive finalized SUPPORT rounds receive a priority score penalty of -6 per consecutive round beyond the first (e.g., 2 consecutive = -6, 3 consecutive = -12)
+- The penalty only applies to SUPPORT candidates, not DEVELOPMENT or other categories
+- Players with 1 or 0 consecutive support rounds receive no penalty
+- The penalty does not prevent selection when no better candidate exists — it is a ranking preference, not a hard block
+- Both the per-match generation engine and the round-level support resolver use this penalty to rotate support assignments across available players from the source team
+
 ## Rule precedence
 
 Team support is priority 1.
@@ -260,6 +270,26 @@ Per-match finalization rules:
 - Per-match finalization uses the same rule config version stamping as round-level finalization
 
 Round-level finalization finalizes all remaining DRAFT selections in the round atomically.
+
+### Un-finalization
+
+Finalized matches and rounds can be un-finalized to revert selections back to DRAFT for recalculation.
+
+Un-finalization can happen at two levels:
+
+1. **Per-match**: The coach can un-finalize individual matches. Selections revert from FINALIZED to DRAFT, movement ledger entries revert to draft, and ruleConfigVersion/overrideReason are cleared.
+
+2. **Round-level**: The coach can un-finalize an entire round. All selections in the round revert to DRAFT.
+
+Un-finalization rules:
+- Reverts Selection.status from FINALIZED back to DRAFT
+- Clears ruleConfigVersion and overrideReason on affected selections
+- Reverts MovementLedger.isDraft from false back to true
+- Re-derives round status from warnings (DRAFT/BLOCKED/READY)
+- When un-finalizing a single match in a FINALIZED round, if other finalized selections remain, the round stays FINALIZED; only when all selections are back to DRAFT does the round status revert
+- Only FINALIZED rounds/matches can be un-finalized
+- Un-finalize requires confirmation (not silent)
+- Finalized data used for fairness calculations is affected: un-finalized selections no longer count as history
 
 The match detail page shows per-match finalization controls and also provides a link to finalizing the entire round from the round workbench.
 
@@ -460,6 +490,12 @@ Required test coverage should include:
 - regeneration never touches finalized selections
 - invariant validation catches invalid non-core movement
 - rotation path policy enforces exact role matching
+- un-finalize round reverts selections and movement ledger to DRAFT
+- un-finalize single match reverts selections and re-derives round status
+- un-finalize preserves other finalized matches in the round
+- consecutive support rotation penalizes repeated support assignments
+- consecutive support penalty increases with more consecutive rounds
+- consecutive support does not prevent selection when no other candidate exists
 
 ## Data safety
 
@@ -498,7 +534,10 @@ Avoid:
 | `src/lib/selection/save-generated-draft.ts` | Persist draft selections |
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
+| `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
+| `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
+| `src/lib/selection/get-consecutive-support-count.ts` | Consecutive support round tracking |
 | `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a match or round |
 | `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |
 | `src/lib/selection/persist-warnings.ts` | Persist warnings after generation |

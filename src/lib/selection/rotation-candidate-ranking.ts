@@ -86,7 +86,12 @@ export function getRotationCandidatePriorityScore(
   candidate: Omit<RotationCandidate, "priorityScore">,
   selectedPlayers: SelectedPlayer[],
   planningPeriodCounts: Map<string, PlanningPeriodRoleCounts> | null,
+  consecutiveSupportRounds: number = 0,
 ) {
+  const consecutiveSupportPenalty = candidate.candidateCategory === "SUPPORT" && consecutiveSupportRounds > 1
+    ? (consecutiveSupportRounds - 1) * 6
+    : 0;
+
   return (
     50 +
     (candidate.candidateCategory === "SUPPORT" ? 40 : 0) +
@@ -98,7 +103,8 @@ export function getRotationCandidatePriorityScore(
     candidate.registeredAppearanceCount * 4 -
     candidate.floatingHistory.totalFloatingMatches * 3 -
     candidate.recentLoadScore * 2 -
-    getPositionNeedScore(selectedPlayers, candidate.chosenPosition) * 3
+    getPositionNeedScore(selectedPlayers, candidate.chosenPosition) * 3 -
+    consecutiveSupportPenalty
   );
 }
 
@@ -106,11 +112,17 @@ export function getRankedRotationCandidates(
   candidates: Array<Omit<RotationCandidate, "priorityScore">>,
   selectedPlayers: SelectedPlayer[],
   planningPeriodCounts: Map<string, PlanningPeriodRoleCounts> | null,
+  consecutiveSupportByPlayer: Map<string, number> = new Map(),
 ) {
   return candidates
     .map((candidate) => ({
       ...candidate,
-      priorityScore: getRotationCandidatePriorityScore(candidate, selectedPlayers, planningPeriodCounts),
+      priorityScore: getRotationCandidatePriorityScore(
+        candidate,
+        selectedPlayers,
+        planningPeriodCounts,
+        consecutiveSupportByPlayer.get(candidate.player.id) ?? 0,
+      ),
     }))
     .sort((left, right) => {
       const leftCategoryPriority =
