@@ -88,6 +88,35 @@ export async function regenerateRoundAction(prevState: { error: string }, formDa
   }
 }
 
+export async function finalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  try {
+    const matchId = formData.get("matchId");
+    if (typeof matchId !== "string" || !matchId) {
+      throw new Error("Match ID is required.");
+    }
+
+    const overrideReason = formData.get("overrideReason");
+    const overrideReasonStr = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : undefined;
+
+    const { finalizeSingleMatch } = await import("@/lib/selection/finalize-single-match");
+    const result = await finalizeSingleMatch(matchId, overrideReasonStr);
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+    revalidatePath(`/rounds/${formData.get("matchRoundId") ?? ""}`);
+    revalidatePath("/matches");
+    revalidatePath(`/matches/${matchId}`);
+
+    if (!result.success) {
+      return { error: result.needsOverride ? "Override reason required" : "Finalization failed" };
+    }
+
+    return { error: "" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Finalization failed." };
+  }
+}
+
 export async function regenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   try {
     const matchId = formData.get("matchId");
