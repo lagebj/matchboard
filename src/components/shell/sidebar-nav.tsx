@@ -9,7 +9,7 @@ import {
   Shield,
   Trophy,
   Sliders,
-  History,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/matches", label: "Matches", icon: Trophy },
   { href: "/rules", label: "Rules", icon: Sliders },
-  { href: "/history", label: "History", icon: History },
+  { href: "/season", label: "Season", icon: TrendingUp },
 ];
 
 function isActive(pathname: string, href: string): boolean {
