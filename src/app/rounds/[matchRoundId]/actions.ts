@@ -117,6 +117,57 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
   }
 }
 
+export async function unfinalizeRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  try {
+    const matchRoundId = formData.get("matchRoundId");
+    if (typeof matchRoundId !== "string" || !matchRoundId) {
+      throw new Error("Match round ID is required.");
+    }
+
+    const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
+    const result = await unfinalizeMatchRound(matchRoundId);
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+    revalidatePath(`/rounds/${matchRoundId}`);
+    revalidatePath("/matches");
+
+    if (!result.success) {
+      return { error: result.message };
+    }
+
+    return { error: "" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+  }
+}
+
+export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  try {
+    const matchId = formData.get("matchId");
+    if (typeof matchId !== "string" || !matchId) {
+      throw new Error("Match ID is required.");
+    }
+
+    const { unfinalizeSingleMatch } = await import("@/lib/selection/unfinalize-single-match");
+    const result = await unfinalizeSingleMatch(matchId);
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+    revalidatePath(`/rounds/${formData.get("matchRoundId") ?? ""}`);
+    revalidatePath("/matches");
+    revalidatePath(`/matches/${matchId}`);
+
+    if (!result.success) {
+      return { error: result.message };
+    }
+
+    return { error: "" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+  }
+}
+
 export async function regenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   try {
     const matchId = formData.get("matchId");

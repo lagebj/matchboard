@@ -5,6 +5,7 @@ import { getRules } from "@/lib/rules/get-rules";
 import { getCoreMatchDropHistory } from "@/lib/selection/get-core-match-drop-history";
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 import { getFloatingHistory } from "@/lib/selection/get-floating-history";
+import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
 import { getPlanningPeriodFairness } from "@/lib/selection/get-planning-period-fairness";
 import { getTargetTeamEligibility } from "@/lib/selection/get-target-team-eligibility";
 import { buildExplanation } from "@/lib/selection/explanation-generation";
@@ -255,6 +256,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
   });
 
   const planningPeriodCounts = new Map<string, PlanningPeriodRoleCounts>();
+  const consecutiveSupportByPlayer = new Map<string, number>();
 
   if (matchRound?.planningPeriodId) {
     const fairness = await getPlanningPeriodFairness(matchRound.planningPeriodId);
@@ -688,6 +690,22 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
   const availableRotationCandidates: Omit<RotationCandidate, "priorityScore">[] = [];
 
+  const supportCandidatePlayerIds = eligibleRotationPlayers
+    .filter((p) => p.candidateCategory === "SUPPORT")
+    .map((p) => p.player.id);
+
+  if (supportCandidatePlayerIds.length > 0) {
+    const results = await Promise.all(
+      supportCandidatePlayerIds.map(async (playerId) => {
+        const result = await getConsecutiveSupportCount(playerId, match.startsAt);
+        return { playerId, count: result.consecutiveSupportRounds };
+      }),
+    );
+    for (const { playerId, count } of results) {
+      consecutiveSupportByPlayer.set(playerId, count);
+    }
+  }
+
   for (const { candidateCategory, eligibilityExplanation, player, playerName, playerPosition } of eligibleRotationPlayers) {
     if (candidateCategory === "DEVELOPMENT" && isDevelopmentBlocked(player)) {
       excludedPlayers.push({
@@ -1101,6 +1119,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       remainingRotationCandidates.filter(filter),
       selectedPlayers,
       planningPeriodCounts,
+      consecutiveSupportByPlayer,
     )[0];
 
     if (!candidate) {

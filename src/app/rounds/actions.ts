@@ -147,6 +147,31 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
   }
 }
 
+export async function unfinalizeRoundFromListAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  try {
+    const matchRoundId = formData.get("matchRoundId");
+    if (typeof matchRoundId !== "string" || !matchRoundId) {
+      throw new Error("Match round ID is required.");
+    }
+
+    const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
+    const result = await unfinalizeMatchRound(matchRoundId);
+
+    revalidatePath("/");
+    revalidatePath("/rounds");
+    revalidatePath(`/rounds/${matchRoundId}`);
+    revalidatePath("/matches");
+
+    if (!result.success) {
+      return { error: result.message };
+    }
+
+    return { error: "" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+  }
+}
+
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");

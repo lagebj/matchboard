@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
-import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction } from "./actions";
+import { ShieldCheck, Unlock } from "lucide-react";
+import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
 
 type RoundListItem = {
   id: string;
@@ -233,6 +233,26 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                     >
                       <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
                       {isPending ? "Finalizing..." : "Finalize round"}
+                    </button>
+                  </div>
+                )}
+                {round.derivedStatus === "FINALIZED" && (
+                  <div className="mt-3 border-t app-hairline pt-3">
+                    <button
+                      className="h-8 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+                      disabled={isPending}
+                      onClick={() => {
+                        if (!confirm("Un-finalize this round? Selections will revert to draft and can be recalculated.")) return;
+                        startTransition(async () => {
+                          const fd = new FormData();
+                          fd.set("matchRoundId", round.id);
+                          await unfinalizeRoundFromListAction({ error: "" }, fd);
+                        });
+                      }}
+                      type="button"
+                    >
+                      <Unlock className="mr-1 inline h-3.5 w-3.5" />
+                      {isPending ? "Un-finalizing..." : "Un-finalize"}
                     </button>
                   </div>
                 )}
