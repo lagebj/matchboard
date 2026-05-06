@@ -136,11 +136,17 @@ The `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive select
 
 ### Support priority convention
 
-Lower number = higher priority. Priority 1 is resolved before priority 2. The `supportPriority` field on the Team model uses ascending sort order.
+Support priority is a **rank**, not a weight. Lower number = higher priority. Priority 1 is resolved before priority 2. The `supportPriority` field on the Team model uses ascending sort order (`ORDER BY supportPriority ASC`). The UI label must say "support priority rank: 1 is highest". Do not use ambiguous labels like "support priority" without the rank clarification.
 
 ## Backfill rules
 
 "Squad repair" is the user-facing term. BACKFILL is the internal code role and rotation path role.
+
+When a player fills a gap in a squad weakened by support/development movement, that selection must use `role = BACKFILL`, not `role = CORE` with a prose explanation. The explanation field supplements the role; it does not replace it.
+
+If a player is re-included in their own team after being temporarily dropped, that is also BACKFILL (not CORE), because the player is filling a squad gap created by outbound movement.
+
+Existing data where squad repair is stored as `role = CORE` with explanation containing "squad repair" must be migrated to `role = BACKFILL`.
 
 When a player is moved from their core team as support, their own team may need squad repair.
 
@@ -157,7 +163,24 @@ Rules:
 
 ## Controlled double-load rules
 
-Same-round player uniqueness is the default. Controlled double-load is an explicit exception.
+Same-round player uniqueness is the default. A player appears once per match. Controlled double-load is an explicit exception where a player appears in a second match in the same round.
+
+### Controlled double-load is a modifier, not a standalone role
+
+A double-loaded player has **one Selection row per match** with the base role they serve in that match. The `controlledDoubleLoad` boolean flag marks that this is a second same-round assignment.
+
+Correct model:
+- `role = SUPPORT`, `controlledDoubleLoad = true` — player supports team Rød as their second match this round
+- `role = DEVELOPMENT`, `controlledDoubleLoad = true` — player does development in team Blå as their second match this round
+- `role = CORE`, `controlledDoubleLoad = true` — player plays for their own team again in a second match this round (same team, different date)
+
+Incorrect model (deprecated, must be migrated):
+- `role = CONTROLLED_DOUBLE_LOAD` as a standalone role (old data)
+- Two rows for the same player in the same match (one as DOUBLE_LOAD, one as SUPPORT/DEVELOPMENT/CORE)
+
+A player must never have two Selection rows in the same match. If a player double-loads across two matches in a round, they have two rows total (one per match), each with their base role, and the second row has `controlledDoubleLoad = true`.
+
+### Controlled double-load requirements
 
 A controlled double-load requires all of the following:
 - Matches on different dates
@@ -170,6 +193,15 @@ A controlled double-load requires all of the following:
 Controlled double-load cannot bypass rotation path validation.
 Controlled double-load cannot move non-rotatable players outside their core team.
 Controlled double-load is evaluated after all other movement phases complete.
+
+### Migration for existing data
+
+Existing Selection rows with `role = DOUBLE_LOAD` must be migrated:
+1. For each DOUBLE_LOAD row, find the player's other Selection in the same round (same matchRoundId, different matchId)
+2. Set `controlledDoubleLoad = true` on the other Selection row
+3. Determine the base role from the rotation path context (SUPPORT, DEVELOPMENT, CORE, or BACKFILL)
+4. Update `role` to the base role value
+5. Delete the standalone DOUBLE_LOAD row after merging data
 
 ## Target / min / max squad size
 
@@ -238,6 +270,55 @@ The only hard blocks for manual edits:
 - player has been removed from the active registry
 
 Manual override requires reason. Manual override must be persisted with the selection. Manual override must appear in finalization summary.
+
+### Manual override reason categories
+
+Override reasons must use structured categories, not generic free text. "Manual override" alone is not sufficient for analysis.
+
+Structured categories:
+- squad_too_small
+- support_missing
+- development_opportunity
+- double_load_needed
+- availability_changed
+- coach_judgement
+- match_already_played
+- data_correction
+- other
+
+Override reasons are stored as two fields:
+- `overrideReasonCategory` — the structured category (enum)
+- `overrideReasonDetail` — free-text detail explaining the specific context
+
+Free-text detail is required for:
+- override of a hard rule (same-round conflict, rotation path, non-rotatable)
+- unavailable player selection
+- invalid path usage
+- double-load exception
+- finalized history edit
+
+## Movement ledger
+
+Every non-core movement must create a MovementLedger entry. The movement ledger is the authoritative record of player movement, not the Selection table alone.
+
+Movement ledger entries are created during:
+- round draft generation (each non-core selection where `player.coreTeamId !== match.teamId`)
+- controlled double-load assignments (even when `sourceTeam == targetTeam`, to track fairness debt)
+
+Movement ledger entries are NOT created for:
+- CORE selections where `player.coreTeamId === match.teamId` and no movement occurred
+
+Rules:
+- `movements: []` in export is invalid when non-core selections exist
+- Support always creates a movement ledger entry
+- Development always creates a movement ledger entry
+- Squad repair /_BACKFILL from another team creates a movement ledger entry
+- Controlled double-load creates a movement ledger entry even if `sourceTeam == targetTeam`
+- Manual override does not remove the need for movement ledger entries
+- Finalization flips `isDraft` from `true` to `false`; it does not create new entries
+- Un-finalization flips `isDraft` back from `false` to `true`
+
+Existing data that has non-core selections but empty MovementLedger must be backfilled via a normalization/migration function.
 
 ## Draft regeneration
 
@@ -621,7 +702,11 @@ Avoid:
 | `src/lib/selection/route-core-match-drops.ts` | Core match drop routing |
 | `src/lib/selection/rotation-path-policy.ts` | Movement eligibility validation |
 | `src/lib/selection/validate-generated-round-invariants.ts` | Post-generation invariant checks |
-| `src/lib/selection/save-generated-draft.ts` | Persist draft selections |
+| `src/lib/selection/save-generated-draft.ts` | Persist draft selections and movement ledger entries |
+| `src/lib/selection/evaluate-controlled-double-load.ts` | Controlled double-load evaluation (must set controlledDoubleLoad flag, not role) |
+| `src/lib/selection/migrate-double-load-roles.ts` | Migration: merge standalone DOUBLE_LOAD rows into base role rows with controlledDoubleLoad=true |
+| `src/lib/selection/migrate-squad-repair-roles.ts` | Migration: role=CORE with "squad repair" explanation → role=BACKFILL |
+| `src/lib/selection/backfill-movement-ledger.ts` | Normalization: create MovementLedger entries for existing non-core selections without ledger entries |
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |

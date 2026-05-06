@@ -1,5 +1,6 @@
-export type SelectionCategory = "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "DOUBLE_LOAD" | "CONFIDENCE_REBUILD" | "MANUAL";
+export type SelectionCategory = "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD" | "MANUAL";
 export type AutomaticSelectionCategory = Exclude<SelectionCategory, "MANUAL">;
+export type OverrideReasonCategory = "squad_too_small" | "support_missing" | "development_opportunity" | "double_load_needed" | "availability_changed" | "coach_judgement" | "match_already_played" | "data_correction" | "other";
 
 export type ExplanationRecord = {
   code: string;
@@ -11,6 +12,7 @@ export type ExplanationRecord = {
 export type SelectionWarning = {
   code: string;
   message: string;
+  severity?: "HARD_BLOCK" | "REQUIRES_OVERRIDE" | "WARNING" | "SCORING_PREFERENCE";
   playerId?: string;
   matchId?: string;
   teamId?: string;
@@ -35,6 +37,9 @@ export type SelectedPlayer = SelectionPlayerBase & {
   chosenPosition?: string;
   selectionCategory: SelectionCategory;
   selectionReason: string;
+  controlledDoubleLoad?: boolean;
+  overrideReasonCategory?: OverrideReasonCategory;
+  overrideReasonDetail?: string;
 };
 
 export type ExcludedPlayer = SelectionPlayerBase & {
@@ -51,6 +56,7 @@ export type GeneratedSelection = {
   matchRoundId: string;
   opponent: string;
   selectedPlayers: SelectedPlayer[];
+  teamId: string;
   teamName: string;
   warnings: SelectionWarning[];
 };
@@ -99,4 +105,24 @@ export type CoreMatchDropCandidate = {
 
 export type RolePriority = typeof ROLE_PRIORITY_ORDER[number];
 
-export const ROLE_PRIORITY_ORDER = ["SUPPORT", "DEVELOPMENT", "BACKFILL", "DOUBLE_LOAD", "CONFIDENCE_REBUILD", "CORE"] as const;
+export const ROLE_PRIORITY_ORDER = ["SUPPORT", "DEVELOPMENT", "BACKFILL", "CONFIDENCE_REBUILD", "CORE"] as const;
+
+export const OVERRIDE_REASON_CATEGORIES: OverrideReasonCategory[] = [
+  "squad_too_small",
+  "support_missing",
+  "development_opportunity",
+  "double_load_needed",
+  "availability_changed",
+  "coach_judgement",
+  "match_already_played",
+  "data_correction",
+  "other",
+];
+
+export const HARD_RULE_OVERRIDE_CATEGORIES: OverrideReasonCategory[] = [
+  "squad_too_small",
+  "support_missing",
+  "double_load_needed",
+  "availability_changed",
+  "data_correction",
+];

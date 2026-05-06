@@ -60,7 +60,7 @@ describe("Pipeline phase order: 7 phases run in strict order", () => {
     const playerToTeams = new Map<string, Set<string>>();
     for (const mr of result.matchResults) {
       for (const p of mr.selectedPlayers) {
-        if (p.selectionCategory === "DOUBLE_LOAD") continue;
+        if (p.controlledDoubleLoad) continue;
         const existing = playerToTeams.get(p.playerId) ?? new Set();
         existing.add(mr.teamName);
         playerToTeams.set(p.playerId, existing);
@@ -123,7 +123,7 @@ describe("Pipeline phase order: double-load evaluated after all other phases", (
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     if (doubleLoadPlayers.length > 0) {
       for (const p of doubleLoadPlayers) {
@@ -140,7 +140,7 @@ describe("Pipeline phase order: double-load evaluated after all other phases", (
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "DOUBLE_LOAD"),
+      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
     for (const p of doubleLoadPlayers) {
       expect(p.explanations.some((e) => e.code === "controlled_double_load")).toBe(true);

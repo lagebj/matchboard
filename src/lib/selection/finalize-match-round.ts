@@ -1,4 +1,4 @@
-import { WarningSeverity, SelectionStatus } from "@/generated/prisma/client";
+import { WarningSeverity, SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getRules } from "@/lib/rules/get-rules";
 
@@ -102,6 +102,71 @@ export async function finalizeMatchRound(
       finalizedSelectionCount: 0,
       finalizedMatchIds: [],
     };
+  }
+
+  const nonCoreDraftSelections = await db.selection.findMany({
+    where: {
+      matchRoundId,
+      status: SelectionStatus.DRAFT,
+      role: { not: SelectionRole.CORE },
+    },
+    select: {
+      playerId: true,
+      matchId: true,
+      role: true,
+    },
+  });
+
+  const controlledDoubleLoadSelections = await db.selection.findMany({
+    where: {
+      matchRoundId,
+      status: SelectionStatus.DRAFT,
+      controlledDoubleLoad: true,
+    },
+    select: {
+      playerId: true,
+      matchId: true,
+    },
+  });
+
+  const allNonCorePlayerKeys = new Set<string>();
+  for (const s of nonCoreDraftSelections) {
+    allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
+  }
+  for (const s of controlledDoubleLoadSelections) {
+    allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
+  }
+
+  if (allNonCorePlayerKeys.size > 0) {
+    const existingLedgerEntries = await db.movementLedger.findMany({
+      where: {
+        matchRoundId,
+        isDraft: true,
+      },
+      select: {
+        playerId: true,
+        matchId: true,
+      },
+    });
+
+    const ledgerKeys = new Set(existingLedgerEntries.map((e) => `${e.playerId}:${e.matchId}`));
+
+    for (const key of allNonCorePlayerKeys) {
+      if (!ledgerKeys.has(key)) {
+        const [playerId, matchId] = key.split(":");
+        await db.warning.create({
+          data: {
+            matchRoundId,
+            matchId,
+            playerId,
+            severity: WarningSeverity.WARNING,
+            rule: "missing_movement_ledger",
+            message: `Non-core selection for player ${playerId} in match ${matchId} has no movement ledger entry.`,
+            resolved: false,
+          },
+        });
+      }
+    }
   }
 
   const currentRuleConfigVersion = rules.version;

@@ -486,6 +486,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       );
       if (hasSupportPath) {
         warnings.push({
+          severity: "WARNING",
           code: "unknown_availability_support",
           message: `${playerName} has unknown availability and cannot count toward required support for ${currentMatchRecord.team.name}. Confirm availability before relying on this player.`,
           playerId: player.id,
@@ -566,6 +567,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     if (player.currentAvailability === "TENTATIVE") {
       warnings.push({
+        severity: "WARNING",
         code: "tentative_availability",
         message: `${playerName} is tentative. Selection includes this player but the coach should confirm availability before finalizing.`,
         playerId: player.id,
@@ -1057,6 +1059,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     if (candidate.positionMatchLevel === "none") {
       warnings.push({
+        severity: "WARNING",
         code: "position_mismatch",
         message: `${candidate.playerName} was selected for ${currentMatchRecord.team.name} but does not match any of the needed positions on primary, secondary, or tertiary. This may weaken the team's positional coverage.`,
         playerId: candidate.player.id,
@@ -1072,6 +1075,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     if (candidate.candidateCategory === "SUPPORT" && isSupportAvoidSuitability(candidate.player)) {
       warnings.push({
+        severity: "WARNING",
         code: "support_avoid_suitability",
         message: `${candidate.playerName} has support suitability "avoid" but was selected as support because no better alternative was available. Confirm this selection.`,
         playerId: candidate.player.id,
@@ -1087,6 +1091,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     if ((candidate.candidateCategory === "SUPPORT" || candidate.candidateCategory === "DEVELOPMENT") && candidate.player.supportNoShowCount > 0) {
       warnings.push({
+        severity: "WARNING",
         code: "support_no_show_history",
         message: `${candidate.playerName} has ${candidate.player.supportNoShowCount} recorded no-show(s) for support. Confirm availability before finalizing.`,
         playerId: candidate.player.id,
@@ -1259,6 +1264,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
   if (selectedCorePlayers.length > coreSelectionLimit) {
     warnings.push({
+      severity: "WARNING",
       code: "core_player_overflow",
       message:
         reservedSupportPlayers > 0 || reservedDevelopmentPlayers > 0
@@ -1269,6 +1275,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
   if (!deferRotation && effectiveExtraSupportBackfillTarget > 0) {
     warnings.push({
+      severity: "SCORING_PREFERENCE",
       code: "support_backfill_priority",
       message:
         extraReservedSupportPlayers > 0
@@ -1296,6 +1303,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
         .map((player) => player.coreTeam.name),
     )];
     warnings.push({
+      severity: "WARNING",
       code: "support_requirement_shortfall",
       message: `${match.team.name} needs ${effectiveSupportTarget} support player(s) (${directSupportTarget} configured minimum${effectiveExtraSupportBackfillTarget > 0 ? ` and ${effectiveExtraSupportBackfillTarget} extra backfill slot(s)` : ""}), but only ${reservedSupportPlayers} eligible support player(s) were available from ${formatTeamNameList(supportSourceTeamNames) || "the configured support teams"}.${supportBlockers.length > 0 ? ` Main blockers: ${supportBlockers.join(" ")}` : ""}`,
     });
@@ -1313,10 +1321,11 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       excludedPlayers,
       developmentSourcePlayerIds,
     );
-    warnings.push({
-      code: "development_slot_shortfall",
-      message: `${match.team.name} reserves ${effectiveDevelopmentTarget} development slot(s), but only ${reservedDevelopmentPlayers} eligible development player(s) were available within configured source teams.${developmentBlockers.length > 0 ? ` Main blockers: ${developmentBlockers.join(" ")}` : ""}`,
-    });
+      warnings.push({
+        severity: "WARNING",
+        code: "development_slot_shortfall",
+        message: `${match.team.name} reserves ${effectiveDevelopmentTarget} development slot(s), but only ${reservedDevelopmentPlayers} eligible development player(s) were available within configured source teams.${developmentBlockers.length > 0 ? ` Main blockers: ${developmentBlockers.join(" ")}` : ""}`,
+      });
   }
 
   if (!deferRotation) {
@@ -1346,6 +1355,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       );
       if (hasHardRuleBlock) {
         warnings.push({
+          severity: "WARNING",
           code: "player_locked_in_blocked",
           message: `${getPlayerName(playerRecord)} is locked in but was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
           playerId,
@@ -1398,6 +1408,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       buildCandidateBlockerSummary(excludedPlayers, [...playerById.keys()]).join(" "),
     ].filter(Boolean);
     warnings.push({
+      severity: "HARD_BLOCK",
       code: "squad_below_minimum",
       message: `${match.team.name} has only ${selectedPlayers.length} player(s), below the minimum accepted squad size of ${minAccepted}.${blockers.length > 0 ? ` Blockers: ${blockers.join(" ")}` : ""}`,
     });
@@ -1412,6 +1423,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       buildCandidateBlockerSummary(excludedPlayers, [...playerById.keys()]).join(" "),
     ].filter(Boolean);
     warnings.push({
+      severity: "WARNING",
       code: "short_squad",
       message: buildShortSquadWarningMessage(selectedPlayers.length, match.squadSize, blockers),
     });
@@ -1425,6 +1437,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     }
 
     warnings.push({
+      severity: "WARNING",
       code: "core_player_unselected",
       message: `${excludedPlayer.playerName} is a ${match.team.name} core player and was not selected. Reason: ${excludedPlayer.exclusionReason}`,
       playerId: excludedPlayer.playerId,
@@ -1439,6 +1452,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     matchRoundId: match.matchRoundId,
     opponent: match.opponent,
     selectedPlayers,
+    teamId: match.teamId,
     teamName: match.team.name,
     warnings,
   };

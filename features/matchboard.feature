@@ -3203,3 +3203,137 @@ Feature: Matchboard football operations workspace
       When the coach views the season overview
       Then the overview must show a fairness warning for "p1" about support burden
       And the warning must include severity, affected player, reason, and drill-down link
+
+  @selection-engine-correction
+  Feature: Selection engine data model corrections
+
+    As a coach
+    I want selection data to accurately represent what happened on the pitch
+    So that season overview, export, and fairness analysis are correct
+
+    Background:
+      Given the app uses structured selection data model corrections
+
+    # ---- Controlled double-load is a modifier, not a role ----
+
+    Scenario: Controlled double-load is stored as a flag on a base role, not a standalone role
+      Given player "p1" has Team A as core team
+      And match round "R1" has a Team A match on Saturday and a Team B match on Sunday
+      And controlled double-load is enabled for the rotation path from Team A to Team B
+      When player "p1" is selected as SUPPORT for Team B in the Sunday match as their second same-round assignment
+      Then the selection row must have role "SUPPORT" and controlledDoubleLoad = true
+      And the selection row must NOT have role "CONTROLLED_DOUBLE_LOAD" or "DOUBLE_LOAD"
+
+    Scenario: A player must not have two selection rows in the same match
+      Given player "p1" is assigned to match "M1" in match round "R1"
+      And player "p1" already has one selection row in match "M1"
+      When the app attempts to add a second selection row for player "p1" in match "M1"
+      Then the app must reject the duplicate selection
+      And the app must generate a HARD_BLOCK warning about duplicate player in match
+
+    Scenario: Existing DOUBLE_LOAD role rows must be migrated to base role plus controlledDoubleLoad flag
+      Given existing finalized data has player "p1" with role "DOUBLE_LOAD" in match "M2" of round "R1"
+      And player "p1" also has a role "CORE" or "SUPPORT" or "DEVELOPMENT" row in match "M1" of round "R1"
+      When the migration runs
+      Then the DOUBLE_LOAD row must be deleted
+      And the other selection row for "p1" in round "R1" must have controlledDoubleLoad = true updated
+      And the base role on that row must reflect the actual football role (SUPPORT, DEVELOPMENT, CORE, or BACKFILL)
+
+    # ---- Movement ledger is mandatory ----
+
+    Scenario: Support selection creates a movement ledger entry during draft generation
+      Given player "p1" has Team A as core team
+      And player "p1" is selected as SUPPORT for Team B in match round "R1"
+      When the app saves the generated draft
+      Then a movement ledger entry must exist for player "p1" in match round "R1"
+      And the entry must have fromTeamId = Team A and toTeamId = Team B and isDraft = true
+
+    Scenario: Development selection creates a movement ledger entry during draft generation
+      Given player "p1" has Team A as core team
+      And player "p1" is selected as DEVELOPMENT for Team B in match round "R1"
+      When the app saves the generated draft
+      Then a movement ledger entry must exist for player "p1" in match round "R1"
+
+    Scenario: Squad repair selection creates a movement ledger entry during draft generation
+      Given player "p1" has Team A as core team
+      And player "p1" is selected as BACKFILL for Team B in match round "R1"
+      When the app saves the generated draft
+      Then a movement ledger entry must exist for player "p1" in match round "R1"
+
+    Scenario: Controlled double-load creates a movement ledger entry even when sourceTeam equals targetTeam
+      Given player "p1" has Team A as core team
+      And player "p1" is selected as CORE for Team A in a second same-round match with controlledDoubleLoad = true
+      When the app saves the generated draft
+      Then a movement ledger entry must exist for player "p1" tracking the double-load fairness debt
+
+    Scenario: Core selection where player stays in own team does not create a movement ledger entry
+      Given player "p1" has Team A as core team
+      And player "p1" is selected as CORE for Team A in match round "R1"
+      When the app saves the generated draft
+      Then no movement ledger entry must exist for this selection
+
+    Scenario: Export with support/development selections must not have empty movements
+      Given match round "R1" has finalized selections including at least one SUPPORT selection
+      When the coach exports the season data
+      Then the export movements array must not be empty
+      And each movement must reference the correct player, source team, target team, and role
+
+    Scenario: Finalization flips movement ledger isDraft from true to false
+      Given match round "R1" has draft selections with movement ledger entries where isDraft = true
+      When the coach finalizes match round "R1"
+      Then the movement ledger entries for "R1" must have isDraft = false
+      And no new movement ledger entries must be created during finalization
+
+    # ---- Squad repair must be structured ----
+
+    Scenario: Squad repair selection must use BACKFILL role, not CORE with explanation
+      Given Team B needs squad repair after sending players as support
+      And player "p1" is available and eligible to fill the squad gap
+      When the app selects player "p1" for squad repair
+      Then the selection role must be "BACKFILL"
+      And the selection role must NOT be "CORE" with an explanation saying "squad repair"
+
+    Scenario: Player re-included in own team after being dropped is BACKFILL, not CORE
+      Given player "p1" has Team A as core team
+      And player "p1" was temporarily dropped from Team A to meet squad size limits
+      And player "p1" is re-included to fill a squad gap caused by support movement outbound
+      When the app re-includes player "p1"
+      Then the selection role must be "BACKFILL"
+      And the selection role must NOT be "CORE"
+
+    Scenario: Existing CORE selections with squad repair explanation must be migrated to BACKFILL
+      Given existing finalized data has player "p1" with role "CORE" and explanation containing "squad repair"
+      When the migration runs
+      Then the selection role must be updated to "BACKFILL"
+
+    Scenario: Player stats must count squad repair matches in backfillMatches, not coreMatches
+      Given player "p1" has 2 BACKFILL selections and 4 CORE selections
+      When the season overview calculates player stats
+      Then backfillMatches must show 2
+      And coreMatches must show 4
+
+    # ---- Manual override reason categories ----
+
+    Scenario: Manual override reason must use a structured category
+      Given the coach manually adds a player who violates a rotation path
+      When the coach provides an override reason
+      Then the override reason must include a category from the predefined list
+      And the category must be one of: squad_too_small, support_missing, development_opportunity, double_load_needed, availability_changed, coach_judgement, match_already_played, data_correction, other
+      And free-text detail must be provided for hard rule violations
+
+    Scenario: Generic "Manual override" alone is not a sufficient override reason
+      Given the coach manually adds a player who violates same-round conflict
+      When the coach provides only "Manual override" as the override reason
+      Then the app must require a structured category and detail explaining the specific rule being bent
+
+    # ---- Invariant validation ----
+
+    Scenario: Invariant validation catches same player duplicated in same match
+      Given the generated round has player "p1" appearing twice in the same match
+      When the app validates generated round invariants
+      Then the validation must fail with a hard block for duplicate player in match
+
+    Scenario: Invariant validation catches movement ledger missing for non-core selections
+      Given a selection has role "SUPPORT" but no corresponding movement ledger entry
+      When the app validates before finalization or export
+      Then the validation must generate a warning about missing movement ledger entry

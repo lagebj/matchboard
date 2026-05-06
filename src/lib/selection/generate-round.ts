@@ -417,10 +417,8 @@ function selfSquadRepairBelowTarget(
       playerName: p.playerName,
       playerPosition: p.playerPosition,
       priorityScore: p.priorityScore ?? 0,
-      selectionCategory: (p.automaticSelectionCategory === "SUPPORT" || p.automaticSelectionCategory === "DEVELOPMENT" || p.automaticSelectionCategory === "BACKFILL" || p.automaticSelectionCategory === "DOUBLE_LOAD" || p.automaticSelectionCategory === "CONFIDENCE_REBUILD")
-        ? p.automaticSelectionCategory
-        : "CORE" as const,
-      selectionReason: `Re-included in ${result.teamName} as squad repair to meet target squad size after support rotation.`,
+       selectionCategory: "BACKFILL" as const,
+       selectionReason: `Re-included in ${result.teamName} as squad repair to meet target squad size after support rotation.`,
     }));
 
     for (const p of toReinclude) {
