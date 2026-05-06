@@ -11,10 +11,54 @@ vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
 }));
 
-function makeCandidate(overrides: Partial<RotationCandidate> & { id: string; playerName: string }): RotationCandidate {
+function makePlayer(id: string, name: string): RotationCandidate["player"] {
   return {
-    player: { id: overrides.id, firstName: overrides.playerName.split(" ")[0] ?? "Test", lastName: overrides.playerName.split(" ")[1] ?? "", primaryPosition: "CM", secondaryPosition: null, tertiaryPosition: null, nonRotatable: false, coreTeamId: "team1", coreTeam: { id: "team1", name: "Team 1" }, rotationPathsFromCoreTeam: [], active: true, removedAt: null, currentAvailability: "AVAILABLE", playerCode: 1, readiness: "ready", createdAt: new Date(), updatedAt: new Date() } as RotationCandidate["player"],
-    playerName: overrides.playerName,
+    id,
+    playerCode: 1,
+    firstName: name.split(" ")[0] ?? "Test",
+    lastName: name.split(" ")[1] ?? null,
+    active: true,
+    removedAt: null,
+    coreTeamId: "team1",
+    nonRotatable: false,
+    reducedMatchLoadAllowed: false,
+    supportSuitability: "neutral",
+    developmentReadiness: "neutral",
+    primaryPosition: "CM",
+    secondaryPosition: null,
+    tertiaryPosition: null,
+    preferredFoot: "RIGHT",
+    secondaryFoot: "LEFT",
+    bestSide: "BOTH",
+    currentAvailability: "AVAILABLE",
+    supportNoShowCount: 0,
+    ballControl: 0,
+    passing: 0,
+    firstTouch: 0,
+    oneVOneAttacking: 0,
+    positioning: 0,
+    oneVOneDefending: 0,
+    decisionMaking: 0,
+    effort: 0,
+    teamplay: 0,
+    concentration: 0,
+    speed: 0,
+    strength: 0,
+    notes: null,
+    supportInstruction: null,
+    developmentInstruction: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    coreTeam: { id: "team1", name: "Team 1" },
+    rotationPathsFromCoreTeam: [],
+  } as unknown as RotationCandidate["player"];
+}
+
+function makeCandidate(overrides: Partial<RotationCandidate> & { id: string; playerName: string }): RotationCandidate {
+  const { id, playerName, ...rest } = overrides;
+  return {
+    player: makePlayer(id, playerName),
+    playerName,
     playerPosition: "CM",
     candidateCategory: "SUPPORT",
     chosenPosition: "CM",
@@ -28,8 +72,8 @@ function makeCandidate(overrides: Partial<RotationCandidate> & { id: string; pla
     registeredAppearanceCount: 0,
     recentLoadScore: 0,
     suitabilityScore: 0,
-    ...overrides,
-  } as RotationCandidate;
+    ...rest,
+  } as unknown as RotationCandidate;
 }
 
 describe("Consecutive support rotation scoring", () => {

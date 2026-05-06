@@ -363,7 +363,7 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 | `/teams` | Teams — table-first team registry linking to team detail pages |
 | `/matches` | Matches — table-first match registry |
 | `/rules` | Rules — selection rules, support priority, rotation paths |
-| `/history` | History — finalized rounds, movement, fairness over time |
+| `/season` | Season — player-by-round matrix, movement paths, fairness overview, season-level warnings |
 
 Setup registry create routes (no top-level nav):
 - `/teams/new` — create team form
@@ -375,6 +375,9 @@ Detail routes (no top-level nav):
 - `/players/[playerId]` — player profile
 - `/teams/[teamId]` — team detail workspace
 - `/matches/[matchId]` — match detail
+
+Secondary routes (no top-level nav):
+- `/history` — historical audit of finalized selections and movement
 
 ### Setup registries are table-first
 
@@ -414,9 +417,77 @@ Team detail has these sections:
 
 ### Navigation model
 
-- **Sidebar**: 7 items (Today, Rounds, Players, Teams, Matches, Rules, History)
+- **Sidebar**: 7 items (Today, Rounds, Players, Teams, Matches, Rules, Season)
 - **Top context bar**: season, planning period, active round status, primary action
-- **Mobile nav**: 6 items (Today, Rounds, Players, Teams, Matches, History)
+- **Mobile nav**: 6 items (Today, Rounds, Players, Teams, Matches, Season)
+
+### Season overview
+
+The `/season` route is the fairness control surface. It is not a decorative analytics page. It exists to help the coach trust or challenge the season pattern.
+
+The season overview must provide:
+
+1. **Player × round matrix** (primary view): rows = players, columns = rounds, cells = role + team for that round
+2. **Movement path summary** (secondary view): team-to-team movement totals table
+3. **Player drill-down**: movement timeline per player
+4. **Path drill-down**: players moved, rounds, dates per team-to-team path
+5. **Season fairness warnings**: generated from the overview data
+
+Season overview rules:
+
+- The matrix is primary. Graphs are secondary and must be backed by drill-down data.
+- Draft and finalized data must never be mixed without visible labeling.
+- Draft selections must never look like finalized history.
+- Unavailable rounds must not count as fairness debt.
+- Double-load must count as extra load.
+- Support and development must be counted separately.
+- Squad repair/backfill must be counted separately or clearly explained.
+- Every metric must be drillable (clickable to see detail).
+
+Toggle:
+
+- **Finalized only**: excludes all draft selections. Only shows finalized history.
+- **Include drafts**: includes draft selections visibly marked as draft.
+
+Filters:
+
+- all players, by core team, high load, low load, high support burden, low development exposure, double-load used, dropped recently, unavailable-heavy
+
+Season page layout:
+
+- Header: "Season" with subtitle "Track load, movement, and fairness across the planning period."
+- Controls: planning period selector, finalized/draft toggle, filters
+- Top summary strip: total rounds, finalized rounds, draft rounds, players with warnings, highest support burden, double-load count
+- Main: player × round matrix
+- Side or lower panel: selected player/path drill-down
+- Secondary: movement path summary table
+
+Matrix row summary columns: total matches, core matches, support matches, development matches, squad repair/backfill matches, double-load rounds, drops/rests, unavailable rounds, last movement, fairness warning count.
+
+Movement path table columns: source team, target team, role, count, unique players, last used, warnings.
+
+Season-level fairness warnings:
+
+- player has high support burden compared with team average
+- player has low development exposure compared with eligible peers
+- player has repeated double-load
+- player dropped twice before playing again
+- player moved too many consecutive rounds
+- team supplies disproportionate support
+- expected support path unused
+- unavailable rounds excluded from fairness debt
+
+Each warning must include: severity, affected player/team/path, reason, drill-down link, whether based on finalized-only or draft-included data.
+
+Data/service layer must be outside React components:
+
+- `getSeasonPlayerRoundMatrix()`
+- `getPlayerLoadSummary()`
+- `getMovementPathSummary()`
+- `getPlayerMovementTimeline()`
+- `getSeasonFairnessWarnings()`
+
+These services must distinguish draft and finalized data, count double-load correctly, count support/development separately, exclude unavailable rounds from fairness debt, and avoid hardcoded demo assumptions.
 
 ### Prohibited copy
 
