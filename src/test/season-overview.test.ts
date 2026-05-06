@@ -253,6 +253,17 @@ describe("Season overview service", () => {
       expect(supportEntry).toBeDefined();
       expect(supportEntry!.fromTeamName).toBe("Bla");
     });
+
+    it("scopes to planning period when provided", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"]!;
+      const blaPlayer = fixtureIds.players.find((p) => p.coreTeamId === blaTeamId)!;
+
+      const timeline = await getPlayerMovementTimeline(blaPlayer.id, true, fixtureIds.planningPeriodId);
+
+      for (const entry of timeline) {
+        expect(entry).toHaveProperty("matchRoundId");
+      }
+    });
   });
 
   describe("getSeasonFairnessWarnings", () => {

@@ -31,6 +31,7 @@ type PlayerInColumn = {
   id: string;
   name: string;
   coreTeamName: string;
+  primaryPosition?: string;
   coreTeamId?: string;
   role?: SelectionRole;
   selectionCategory?: string;
@@ -155,6 +156,9 @@ function PlayerChip({
         <GripVertical className="h-3 w-3 shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
       <span className="truncate">{player.name}</span>
+      {player.primaryPosition && (
+        <span className="shrink-0 text-[9px] text-[var(--text-muted)] uppercase">{player.primaryPosition}</span>
+      )}
       <span className="shrink-0 text-[9px] text-[var(--text-muted)]">{player.coreTeamName}</span>
       {player.manualOverride && (
         <span className="shrink-0 text-[8px] text-amber-400 uppercase">ovr</span>
