@@ -42,7 +42,7 @@ describe("Season overview service", () => {
       const player = matrix.players.find((p) => p.playerId === playerId);
       expect(player).toBeDefined();
       expect(player!.coreMatches).toBe(1);
-      expect(player!.totalMatches).toBe(1);
+      expect(player!.roundsPlayed).toBe(1);
       expect(player!.cells).toHaveLength(1);
       expect(player!.cells[0]!.role).toBe("CORE");
     });
@@ -144,7 +144,7 @@ describe("Season overview service", () => {
       for (const entry of summary) {
         expect(entry).toHaveProperty("playerId");
         expect(entry).toHaveProperty("playerName");
-        expect(entry).toHaveProperty("totalMatches");
+        expect(entry).toHaveProperty("roundsPlayed");
         expect(entry).toHaveProperty("coreMatches");
         expect(entry).toHaveProperty("supportMatches");
       }

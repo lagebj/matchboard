@@ -79,15 +79,17 @@ Finalized matches and rounds can be un-finalized to revert selections back to DR
 
 The season overview (`/season`) is the fairness control surface for the planning period. It helps the coach understand whether player load, support burden, development exposure, drops, and movement are fair across the season.
 
-**Primary view: Player × round matrix.** Each row is a player, each column is a round. Cells show the role (Core, Support, Development, Squad repair, Double-load) and team for that round. Summary columns show total matches, support count, development count, drops, and fairness warnings.
+**Primary view: Player × round matrix.** Each row is a player, each column is a round. Cells show the role (Core, Support, Development, Squad repair, Double-load) and team for that round. Summary columns show rounds played, core matches, support count, development count, double-load rounds, drops, and fairness warnings.
 
-**Finalized only vs. Include drafts.** The coach can toggle between finalized-only history and finalized-plus-draft planning. Draft selections are always visually distinct from finalized history — they are never mixed without clear labeling. Unavailable rounds do not count as fairness debt.
+**Finalized only vs. Include drafts.** The coach can toggle between finalized-only history and finalized-plus-draft planning. Draft selections are always visually distinct from finalized history — they are never mixed without clear labeling. Unavailable rounds do not count as fairness debt. Double-load players see multiple role badges stacked per round (e.g., Core + 2x), but "rounds played" counts unique rounds, not total selection records.
 
 **Movement path summary.** A secondary view shows team-to-team movement totals: source team, target team, role, count, unique players, last used, and warnings. Each path row is drillable.
 
-**Player drill-down.** Clicking a player shows their movement timeline across rounds: round, date, team, role, draft/finalized state, and explanation.
+**Player drill-down.** Clicking a player shows their movement timeline across rounds: round, date, team, role, draft/finalized state, and explanation. The timeline is scoped to the selected planning period.
 
 **Fairness warnings.** The overview generates warnings such as high support burden, low development exposure, repeated double-load, consecutive movement, and disproportionate team support. Each warning includes severity, affected player/team/path, reason, drill-down link, and whether it is based on finalized-only or draft-included data.
+
+**Season export.** The coach can export finalized match data and season statistics from the season overview page. Available formats: CSV, JSON, TXT, Markdown. Available visibility modes: coach (includes roles, movement direction, explanations, override reasons) and parent (hides internal planning tags). The export includes selection details per match, movement rows with from/to team and role, and per-player statistics (rounds played, core matches, support matches, development matches, squad repair, double-load rounds).
 
 ## Stack
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Download, X } from "lucide-react";
 import {
   type PlayerRowSummary,
   type SeasonPlayerRoundMatrix,
@@ -83,6 +83,9 @@ export function SeasonOverviewClient({
   const [pathPlayers, setPathPlayers] = useState<
     Array<{ playerName: string; roundName: string; date: string }>
   >([]);
+  const [exportFormat, setExportFormat] = useState<"csv" | "json" | "txt" | "md">("csv");
+
+  const exportUrl = `/api/season/export?planningPeriodId=${selectedPeriodId}&format=${exportFormat}&visibility=coach`;
 
   useEffect(() => {
     if (!selectedPeriodId) return;
@@ -190,13 +193,34 @@ export function SeasonOverviewClient({
         >
           <option value="name">Sort: Player name</option>
           <option value="core_team">Sort: Core team</option>
-          <option value="total_matches">Sort: Total matches</option>
+          <option value="total_matches">Sort: Rounds played</option>
           <option value="support_count">Sort: Support count</option>
           <option value="development_count">Sort: Development count</option>
           <option value="double_load_count">Sort: Double-load</option>
           <option value="drops">Sort: Drops</option>
           <option value="warnings">Sort: Warnings</option>
         </select>
+
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-zinc-100"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as "csv" | "json" | "txt" | "md")}
+          >
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+            <option value="txt">TXT</option>
+            <option value="md">Markdown</option>
+          </select>
+          <a
+            href={exportUrl}
+            download
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-xs font-medium text-zinc-100 hover:bg-[var(--surface-hover)] transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </a>
+        </div>
       </div>
 
       {matrix && (
@@ -369,7 +393,7 @@ export function SeasonOverviewClient({
                     );
                   })}
                   <td className="px-2 py-1.5 text-center text-zinc-200 font-semibold border-l app-hairline">
-                    {player.totalMatches}
+                    {player.roundsPlayed}
                   </td>
                   <td className="px-2 py-1.5 text-center text-emerald-400">
                     {player.coreMatches}
@@ -564,9 +588,9 @@ function applyFilter(
 ): PlayerRowSummary[] {
   switch (filter) {
     case "high_load":
-      return players.filter((p) => p.totalMatches > 0).sort((a, b) => b.totalMatches - a.totalMatches);
+      return players.filter((p) => p.roundsPlayed > 0).sort((a, b) => b.roundsPlayed - a.roundsPlayed);
     case "low_load":
-      return players.filter((p) => p.totalMatches <= 2);
+      return players.filter((p) => p.roundsPlayed <= 2);
     case "high_support":
       return players.filter((p) => p.supportMatches > p.coreMatches);
     case "low_development":
@@ -599,7 +623,7 @@ function applySort(
         a.coreTeamName.localeCompare(b.coreTeamName),
       );
     case "total_matches":
-      return sorted.sort((a, b) => b.totalMatches - a.totalMatches);
+      return sorted.sort((a, b) => b.roundsPlayed - a.roundsPlayed);
     case "support_count":
       return sorted.sort((a, b) => b.supportMatches - a.supportMatches);
     case "development_count":
