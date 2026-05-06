@@ -71,6 +71,24 @@ Clear actions preserve finalized selections, finalized history, teams, players, 
 
 Finalizing a round locks all selections as immutable history. The app checks for HARD_BLOCK warnings before allowing finalization. Finalized selections cannot be edited without an explicit reopen or audit entry. Finalized rounds contribute to season/planning-period fairness calculations.
 
+## How un-finalization works
+
+Finalized matches and rounds can be un-finalized to revert selections back to DRAFT for recalculation. Un-finalization reverts Selection.status from FINALIZED to DRAFT, clears ruleConfigVersion and overrideReason, reverts MovementLedger.isDraft from false to true, and re-derives round status from warnings. Per-match un-finalization keeps the round as FINALIZED if other matches are still finalized. When all matches in a round are un-finalized, the round status reverts based on its warnings. Un-finalization requires confirmation and is not silent.
+
+## How season overview works
+
+The season overview (`/season`) is the fairness control surface for the planning period. It helps the coach understand whether player load, support burden, development exposure, drops, and movement are fair across the season.
+
+**Primary view: Player × round matrix.** Each row is a player, each column is a round. Cells show the role (Core, Support, Development, Squad repair, Double-load) and team for that round. Summary columns show total matches, support count, development count, drops, and fairness warnings.
+
+**Finalized only vs. Include drafts.** The coach can toggle between finalized-only history and finalized-plus-draft planning. Draft selections are always visually distinct from finalized history — they are never mixed without clear labeling. Unavailable rounds do not count as fairness debt.
+
+**Movement path summary.** A secondary view shows team-to-team movement totals: source team, target team, role, count, unique players, last used, and warnings. Each path row is drillable.
+
+**Player drill-down.** Clicking a player shows their movement timeline across rounds: round, date, team, role, draft/finalized state, and explanation.
+
+**Fairness warnings.** The overview generates warnings such as high support burden, low development exposure, repeated double-load, consecutive movement, and disproportionate team support. Each warning includes severity, affected player/team/path, reason, drill-down link, and whether it is based on finalized-only or draft-included data.
+
 ## Stack
 
 - Next.js 16 App Router (Turbopack)

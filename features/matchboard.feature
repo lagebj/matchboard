@@ -3092,3 +3092,98 @@ Feature: Matchboard football operations workspace
       And movement ledger entries
       And unresolved decisions
       And confidence level for the generated round
+
+
+  Rule: Season overview and fairness control surface
+
+    Matchboard must provide a season/planning-period overview showing which players played for which team in each round, how often they moved as support or development, total match load, drops, unavailable rounds, double-load, and fairness warnings. The overview must support both finalized-only history and finalized-plus-draft planning views.
+
+    The season overview is the fairness control surface, not a decorative analytics page. It exists to help the coach trust or challenge the season pattern.
+
+    Scenario: Season overview shows player-by-round matrix
+      Given a planning period has 4 match rounds and 20 active players
+      When the coach opens the season overview
+      Then the overview must show a matrix with one row per player and one column per round
+
+    Scenario: Each player/round cell shows role and team
+      Given player "p1" was selected as CORE for Team A in round "R1"
+      And player "p1" was selected as SUPPORT to Team C in round "R2"
+      When the coach views the season overview matrix
+      Then the cell for "p1" in "R1" must show CORE and Team A
+      And the cell for "p1" in "R2" must show SUPPORT and Team C
+
+    Scenario: Overview can show finalized-only data
+      Given rounds "R1" and "R2" are finalized
+      And round "R3" is in draft state
+      When the coach views the season overview in finalized-only mode
+      Then the matrix must include data for "R1" and "R2" only
+      And the matrix must not include draft selections from "R3"
+
+    Scenario: Overview can optionally include draft selections
+      Given rounds "R1" and "R2" are finalized
+      And round "R3" is in draft state
+      When the coach toggles to include drafts
+      Then the matrix must include data for all three rounds
+      And draft selections must be visibly marked as draft
+
+    Scenario: Overview distinguishes draft from finalized
+      Given player "p1" has finalized CORE selection in "R1"
+      And player "p1" has draft SUPPORT selection in "R3"
+      When the coach views the season overview with drafts included
+      Then the "R1" cell must be visually distinct from the "R3" cell
+      And draft and finalized state must never be mixed without visible labeling
+
+    Scenario: Overview summarizes total load per player
+      Given player "p1" has 6 finalized appearances
+      When the coach views the season overview
+      Then "p1" summary column must show total matches as 6
+
+    Scenario: Overview summarizes support matches per player
+      Given player "p1" has 2 finalized SUPPORT selections and 4 finalized CORE selections
+      When the coach views the season overview
+      Then "p1" support column must show 2
+
+    Scenario: Overview summarizes development matches per player
+      Given player "p1" has 1 finalized DEVELOPMENT selection
+      When the coach views the season overview
+      Then "p1" development column must show 1
+
+    Scenario: Overview summarizes double-load per player
+      Given player "p1" has 1 finalized DOUBLE_LOAD selection
+      When the coach views the season overview
+      Then "p1" double-load column must show 1
+
+    Scenario: Overview summarizes drops/rests per player
+      Given player "p1" is available in round "R3" but not selected
+      When the coach views the season overview
+      Then the "R3" cell must show dropped/rested
+      And "p1" drops column must count this round
+
+    Scenario: Overview excludes unavailable rounds from fairness debt
+      Given player "p1" was unavailable for 2 rounds
+      And player "p1" was available and selected as CORE in 4 rounds
+      When the coach views the season overview fairness metrics
+      Then the 2 unavailable rounds must not count as fairness debt
+      And "p1" load calculation must be based on available rounds only
+
+    Scenario: Overview shows movement paths between teams
+      Given player "p1" moved from Team A to Team C as support 3 times
+      And player "p2" moved from Team A to Team C as development 1 time
+      When the coach views the movement path summary
+      Then the path Team A to Team C must show 3 support moves and 1 development move
+
+    Scenario: Overview can drill into a player movement history
+      Given player "p1" has selections in rounds "R1" through "R4"
+      When the coach clicks player "p1"
+      Then the app must show a movement timeline with round, date, team, role, and movement path
+
+    Scenario: Overview can drill into a team-to-team movement path
+      Given 3 players have moved from Team A to Team C as support
+      When the coach clicks the Team A to Team C support path
+      Then the app must show which players moved, which rounds, match dates, role, draft/finalized state, and explanations
+
+    Scenario: Season fairness warnings are generated from the overview
+      Given player "p1" has more support matches than core matches
+      When the coach views the season overview
+      Then the overview must show a fairness warning for "p1" about support burden
+      And the warning must include severity, affected player, reason, and drill-down link
