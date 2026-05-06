@@ -124,6 +124,7 @@ export default async function RoundBoardPage({
       firstName: true,
       lastName: true,
       coreTeamId: true,
+      primaryPosition: true,
       coreTeam: { select: { id: true, name: true } },
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -134,6 +135,7 @@ export default async function RoundBoardPage({
     name: formatPlayerName(p),
     coreTeamName: p.coreTeam.name,
     coreTeamId: p.coreTeamId,
+    primaryPosition: p.primaryPosition,
   }));
 
   const selectionsByMatchId = new Map<string, typeof selections>();
@@ -381,13 +383,14 @@ export default async function RoundBoardPage({
       isFinalized: s.isFinalized,
       players: s.players
         .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
-        .map((p) => ({
-          id: p.playerId,
-          name: p.playerName,
-          coreTeamName: p.coreTeamName,
-          playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
-          role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
-          manualOverride: p.manualOverride,
+       .map((p) => ({
+           id: p.playerId,
+           name: p.playerName,
+           coreTeamName: p.coreTeamName,
+           primaryPosition: p.playerPosition || undefined,
+           playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
+           role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
+           manualOverride: p.manualOverride,
           warningCount: (() => {
             const matchWarnings = unresolvedWarnings.filter(
               (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
@@ -403,6 +406,7 @@ export default async function RoundBoardPage({
     name: p.name,
     coreTeamName: p.coreTeamName,
     coreTeamId: p.coreTeamId,
+    primaryPosition: p.primaryPosition,
   }));
 
   const rotationPathMap: Record<string, string[]> = {};

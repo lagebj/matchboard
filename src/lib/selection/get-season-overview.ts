@@ -499,16 +499,22 @@ export type MovementTimelineEntry = {
 export async function getPlayerMovementTimeline(
   playerId: string,
   includeDrafts: boolean = false,
+  planningPeriodId?: string,
 ): Promise<MovementTimelineEntry[]> {
   const selectionStatusFilter = includeDrafts
     ? { in: [SelectionStatus.FINALIZED, SelectionStatus.DRAFT] }
     : { in: [SelectionStatus.FINALIZED] };
 
+  const selectionWhere: Record<string, unknown> = {
+    playerId,
+    status: selectionStatusFilter,
+  };
+  if (planningPeriodId) {
+    selectionWhere.matchRound = { planningPeriodId };
+  }
+
   const selections = await db.selection.findMany({
-    where: {
-      playerId,
-      status: selectionStatusFilter,
-    },
+    where: selectionWhere,
     select: {
       matchRoundId: true,
       matchId: true,
@@ -521,13 +527,21 @@ export async function getPlayerMovementTimeline(
     orderBy: { match: { startsAt: "asc" } },
   });
 
+  const matchRoundIds = [...new Set(selections.map((s) => s.matchRoundId))];
+
+  const movementWhere: Record<string, unknown> = { playerId };
+  if (planningPeriodId) {
+    movementWhere.matchRound = { planningPeriodId };
+  }
+  if (!includeDrafts) {
+    movementWhere.isDraft = false;
+  }
+
   const movements = await db.movementLedger.findMany({
-    where: {
-      playerId,
-      isDraft: includeDrafts ? undefined : false,
-    },
+    where: movementWhere,
     select: {
       matchRoundId: true,
+      matchId: true,
       fromTeamId: true,
       fromTeam: { select: { id: true, name: true } },
       toTeamId: true,
@@ -536,30 +550,35 @@ export async function getPlayerMovementTimeline(
     },
   });
 
-  const movementByRound = new Map<string, { fromTeamId: string; fromTeamName: string }>();
+  const movementByRoundAndTeam = new Map<string, { fromTeamId: string; fromTeamName: string }>();
   for (const m of movements) {
     if (!m.isDraft || includeDrafts) {
-      movementByRound.set(m.matchRoundId, {
+      const key = `${m.matchRoundId}:${m.toTeamId}`;
+      movementByRoundAndTeam.set(key, {
         fromTeamId: m.fromTeamId,
         fromTeamName: m.fromTeam.name,
       });
     }
   }
 
-  return selections.map((s) => ({
-    matchRoundId: s.matchRoundId,
-    matchRoundName: s.matchRound.name,
-    matchDate: s.match.startsAt,
-    teamId: s.match.team.id,
-    teamName: s.match.team.name,
-    role: s.role,
-    status: s.status as "DRAFT" | "FINALIZED",
-    fromTeamId: movementByRound.get(s.matchRoundId)?.fromTeamId,
-    fromTeamName: movementByRound.get(s.matchRoundId)?.fromTeamName,
-    explanation: s.explanation
-      ? typeof s.explanation === "object" && s.explanation !== null && "reason" in (s.explanation as Record<string, unknown>)
-        ? (s.explanation as Record<string, unknown>).reason as string
-        : undefined
-      : undefined,
-  }));
+  return selections.map((s) => {
+    const movementKey = `${s.matchRoundId}:${s.match.team.id}`;
+    const movement = movementByRoundAndTeam.get(movementKey);
+    return {
+      matchRoundId: s.matchRoundId,
+      matchRoundName: s.matchRound.name,
+      matchDate: s.match.startsAt,
+      teamId: s.match.team.id,
+      teamName: s.match.team.name,
+      role: s.role,
+      status: s.status as "DRAFT" | "FINALIZED",
+      fromTeamId: movement?.fromTeamId,
+      fromTeamName: movement?.fromTeamName,
+      explanation: s.explanation
+        ? typeof s.explanation === "object" && s.explanation !== null && "reason" in (s.explanation as Record<string, unknown>)
+          ? (s.explanation as Record<string, unknown>).reason as string
+          : undefined
+        : undefined,
+    };
+  });
 }

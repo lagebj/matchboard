@@ -117,7 +117,7 @@ export function SeasonOverviewClient({
     }
     startTransition(async () => {
       const res = await fetch(
-        `/api/season/player-timeline?playerId=${selectedPlayerId}&includeDrafts=${includeDrafts}`,
+        `/api/season/player-timeline?playerId=${selectedPlayerId}&includeDrafts=${includeDrafts}&planningPeriodId=${selectedPeriodId}`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -238,7 +238,7 @@ export function SeasonOverviewClient({
               <span className="font-semibold text-red-400">
                 {matrix.doubleLoadCount}
               </span>{" "}
-              2x load
+              player{matrix.doubleLoadCount !== 1 ? "s" : ""} w/ double-load
             </span>
           )}
         </div>
@@ -320,13 +320,12 @@ export function SeasonOverviewClient({
                     {player.coreTeamName}
                   </td>
                   {matrix.rounds.map((round) => {
-                    const cell = player.cells.find(
+                    const roundCells = player.cells.filter(
                       (c) => c.matchRoundId === round.matchRoundId,
                     );
-                    if (!cell) {
+                    if (roundCells.length === 0) {
                       const isUnavailable =
-                        player.unavailableRounds > 0 &&
-                        !cell;
+                        player.unavailableRounds > 0;
                       return (
                         <td
                           key={round.matchRoundId}
@@ -342,23 +341,30 @@ export function SeasonOverviewClient({
                         </td>
                       );
                     }
-                    const isDraft = cell.status === "DRAFT";
-                    const style =
-                      ROLE_CELL_STYLES[cell.role] ??
-                      "bg-zinc-800/20 text-zinc-400 border-zinc-600/30";
-                    const label =
-                      ROLE_LABELS[cell.role] ?? cell.role.slice(0, 3);
                     return (
                       <td
                         key={round.matchRoundId}
                         className="px-1 py-1.5 text-center"
                       >
-                        <span
-                          className={`inline-flex items-center justify-center rounded px-1 py-0.5 text-[9px] font-semibold border ${style} ${isDraft ? "opacity-60 border-dashed" : ""}`}
-                          title={`${cell.role} for ${cell.teamName}${isDraft ? " (draft)" : ""}`}
-                        >
-                          {label}
-                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          {roundCells.map((cell, ci) => {
+                            const isDraft = cell.status === "DRAFT";
+                            const style =
+                              ROLE_CELL_STYLES[cell.role] ??
+                              "bg-zinc-800/20 text-zinc-400 border-zinc-600/30";
+                            const label =
+                              ROLE_LABELS[cell.role] ?? cell.role.slice(0, 3);
+                            return (
+                              <span
+                                key={ci}
+                                className={`inline-flex items-center justify-center rounded px-1 py-0.5 text-[9px] font-semibold border ${style} ${isDraft ? "opacity-60 border-dashed" : ""}`}
+                                title={`${cell.role} for ${cell.teamName}${isDraft ? " (draft)" : ""}`}
+                              >
+                                {label}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </td>
                     );
                   })}
