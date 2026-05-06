@@ -2270,6 +2270,22 @@ Feature: Matchboard football operations workspace
       When the coach exports coach-facing planning information
       Then the export may include roles, warnings, movement paths, explanations, and override reasons
 
+    Scenario: Season export includes movement, type, and direction
+      Given finalized selections exist in one or more match rounds
+      When the coach exports season data
+      Then the export must include player movement with direction (from team to team) and role type
+      And the export must include match date, venue (home or away), team, and selected squad
+
+    Scenario: Season export includes player statistics
+      Given finalized selections exist
+      When the coach exports season data
+      Then the export must include per-player statistics: rounds played, core matches, support matches, development matches, squad repair matches, and double-load rounds
+
+    Scenario: Season export is available from the season overview page
+      Given the coach is on the season overview page
+      Then the export button must be visible with format selection (CSV, JSON, TXT, Markdown)
+      And the export must be scoped to the selected planning period
+
 
   Rule: Record-to-record navigation
 

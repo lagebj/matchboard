@@ -17,7 +17,8 @@ export type PlayerRowSummary = {
   playerName: string;
   coreTeamId: string;
   coreTeamName: string;
-  totalMatches: number;
+  roundsPlayed: number;
+  totalSelections: number;
   coreMatches: number;
   supportMatches: number;
   developmentMatches: number;
@@ -176,7 +177,8 @@ export async function getSeasonPlayerRoundMatrix(
     const developmentMatches = cells.filter((c) => c.role === "DEVELOPMENT").length;
     const backfillMatches = cells.filter((c) => c.role === "BACKFILL").length;
     const doubleLoadRounds = cells.filter((c) => c.role === "DOUBLE_LOAD").length;
-    const totalMatches = cells.length;
+    const roundsPlayed = new Set(cells.map((c) => c.matchRoundId)).size;
+    const totalSelections = cells.length;
     const unavailableRounds = roundIds.filter(
       (rid) => unavailableByPlayerRound.has(`${player.id}:${rid}`),
     ).length;
@@ -197,7 +199,8 @@ export async function getSeasonPlayerRoundMatrix(
       playerName: `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`,
       coreTeamId: player.coreTeam?.id ?? "",
       coreTeamName: player.coreTeam?.name ?? "",
-      totalMatches,
+      roundsPlayed,
+      totalSelections,
       coreMatches,
       supportMatches,
       developmentMatches,
@@ -371,7 +374,8 @@ export async function getPlayerLoadSummary(
   playerId: string;
   playerName: string;
   coreTeamName: string;
-  totalMatches: number;
+  roundsPlayed: number;
+  totalSelections: number;
   coreMatches: number;
   supportMatches: number;
   developmentMatches: number;
@@ -385,7 +389,8 @@ export async function getPlayerLoadSummary(
     playerId: p.playerId,
     playerName: p.playerName,
     coreTeamName: p.coreTeamName,
-    totalMatches: p.totalMatches,
+    roundsPlayed: p.roundsPlayed,
+    totalSelections: p.totalSelections,
     coreMatches: p.coreMatches,
     supportMatches: p.supportMatches,
     developmentMatches: p.developmentMatches,

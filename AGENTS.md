@@ -462,7 +462,7 @@ Season page layout:
 - Side or lower panel: selected player/path drill-down
 - Secondary: movement path summary table
 
-Matrix row summary columns: total matches, core matches, support matches, development matches, squad repair/backfill matches, double-load rounds, drops/rests, unavailable rounds, last movement, fairness warning count.
+Matrix row summary columns: rounds played, total selections, core matches, support matches, development matches, squad repair/backfill matches, double-load rounds, drops/rests, unavailable rounds, last movement, fairness warning count.
 
 Movement path table columns: source team, target team, role, count, unique players, last used, warnings.
 
@@ -488,6 +488,25 @@ Data/service layer must be outside React components:
 - `getSeasonFairnessWarnings()`
 
 These services must distinguish draft and finalized data, count double-load correctly, count support/development separately, exclude unavailable rounds from fairness debt, and avoid hardcoded demo assumptions.
+
+### Season export
+
+The season overview page provides an export function that downloads finalized match data and season statistics.
+
+Available formats: CSV, JSON, TXT, Markdown.
+Available visibility modes: coach (includes roles, warnings, movement paths, explanations, override reasons), parent (hides internal planning tags).
+
+Coach export includes:
+- Per-selection rows: round, date, team, home/away, opponent, player name, source team, role, position, override reason, explanation
+- Movement rows: round, date, player name, from team, to team, role
+- Player statistics: player, team, rounds played, core matches, support matches, development matches, squad repair, double-load rounds
+
+Parent export includes:
+- Per-selection rows: round, date, team, home/away, opponent, player name, position
+- Movement direction (without team names or role labels)
+- Player statistics: player, team, rounds played
+
+API endpoint: `/api/season/export?planningPeriodId=<id>&format=<csv|json|txt|md>&visibility=<coach|parent>`
 
 ### Prohibited copy
 
