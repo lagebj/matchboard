@@ -1,8 +1,10 @@
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { formatDate } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
+  await requireCoachAccess();
   const url = new URL(request.url);
   const gameFormatParam = url.searchParams.get("gameFormat");
 

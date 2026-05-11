@@ -1,7 +1,9 @@
 import { getOperationalContext, searchEntities } from "@/lib/context/get-operational-context";
+import { requireCoachAccess } from "@/lib/auth";
 import { formatDate } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
+  await requireCoachAccess();
   const url = new URL(request.url);
   const query = url.searchParams.get("q");
 

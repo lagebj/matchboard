@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 
@@ -53,6 +54,7 @@ type ParentRow = {
 };
 
 export async function GET(request: Request) {
+  await requireCoachAccess();
   const url = new URL(request.url);
   const format = getExportFormat(url.searchParams.get("format"));
   const visibility = getVisibilityMode(url.searchParams.get("visibility"));

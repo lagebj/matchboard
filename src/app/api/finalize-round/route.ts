@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { rateLimit } from "@/lib/rate-limit";
+import { requireCoachAccess } from "@/lib/auth";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 export async function POST(request: Request) {
+  await requireCoachAccess();
   const { allowed } = rateLimit("finalize-round", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many finalization requests. Please wait a moment and try again." }, { status: 429 });

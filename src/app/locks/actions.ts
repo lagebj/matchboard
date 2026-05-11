@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
 export type LockType = "LOCKED_IN" | "LOCKED_OUT";
@@ -18,6 +19,7 @@ export async function createPlayerLockAction(
   reason: string,
   returnPath?: string,
 ) {
+  await requireCoachAccess();
   const resolvedPath = returnPath || "/";
 
   if (!matchRoundId) {
@@ -66,6 +68,7 @@ export async function createPlayerLockAction(
 }
 
 export async function removePlayerLockAction(lockId: string, returnPath?: string) {
+  await requireCoachAccess();
   const resolvedPath = returnPath || "/";
 
   if (!lockId) {

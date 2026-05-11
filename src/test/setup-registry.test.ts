@@ -18,6 +18,16 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("@/auth", () => ({
+  auth: vi.fn(),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  handlers: {},
+  requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "test@example.com", name: "Test Coach" }),
+  getCurrentCoach: vi.fn().mockResolvedValue({ id: "test-coach", email: "test@example.com", name: "Test Coach" }),
+  isAllowedCoach: vi.fn().mockReturnValue(true),
+}));
+
 function isRedirectError(error: unknown): boolean {
   return error instanceof Error && error.message === "NEXT_REDIRECT";
 }

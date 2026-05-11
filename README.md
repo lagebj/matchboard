@@ -99,6 +99,19 @@ The season overview (`/season`) is the fairness control surface for the planning
 - Tailwind CSS
 - Prisma
 - PostgreSQL (local via Docker Compose or Neon)
+- Auth.js (Google OAuth, email allowlist)
+
+## Access model
+
+Matchboard is a **private coaching app**. Access is restricted to authenticated coaches on an email allowlist.
+
+- Users must authenticate (Google OAuth) before accessing any app data
+- Access is controlled by `ALLOWED_COACH_EMAILS` — a comma-separated list of coach email addresses
+- No public signup exists
+- Authenticated users not on the allowlist see an access-denied page
+- All server actions and API routes enforce authorization server-side
+- UI-only protection is insufficient — every mutation and data read requires a verified coach session
+- Database access is server-side only — no direct client database access
 
 ## Local development setup
 
@@ -141,7 +154,34 @@ For production, switch to Neon Postgres pooled/direct URLs (see `.env.example`).
 
 Do not commit `.env` or any database credentials.
 
-### 5. Set up the database
+### 5. Set up authentication
+
+1. Generate an auth secret:
+   ```bash
+   npx auth secret
+   ```
+   Copy the output to `AUTH_SECRET` in your `.env`.
+
+2. Create Google OAuth credentials:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   - Create a new project (or use an existing one)
+   - Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+   - Application type: **Web application**
+   - Authorized JavaScript origins: `http://localhost:3333`
+   - Authorized redirect URIs: `http://localhost:3333/api/auth/callback/google`
+   - Copy the **Client ID** to `AUTH_GOOGLE_ID` and **Client Secret** to `AUTH_GOOGLE_SECRET` in `.env`
+
+3. Add your email to the allowlist:
+   ```dotenv
+   ALLOWED_COACH_EMAILS="you@example.com"
+   ```
+
+4. Set the auth base URL:
+   ```dotenv
+   AUTH_URL="http://localhost:3333"
+   ```
+
+### 6. Set up the database
 
 ```bash
 npm run db:generate    # Generate Prisma client into src/generated/prisma
@@ -154,7 +194,7 @@ For active schema development:
 npm run db:migrate:dev  # Create and apply a new migration
 ```
 
-### 6. Optional: seed fake demo data
+### 7. Optional: seed fake demo data
 
 ```bash
 npm run db:seed:demo
@@ -162,7 +202,7 @@ npm run db:seed:demo
 
 Demo seed creates fake players, teams, rotation paths, and match rounds. Never replace it with real player data.
 
-### 7. Start the dev server
+### 8. Start the dev server
 
 ```bash
 npm run dev
@@ -347,10 +387,45 @@ This repo is intended to stay safe for a public remote:
 
 - Never commit real player names or private roster data
 - Never commit database credentials or Neon connection strings
+- Never commit AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, or any auth credentials
+- Never prefix secrets with NEXT_PUBLIC_ (they would be exposed to the browser)
 - Never commit `.env` or machine-specific secrets
 - Keep imported or exported real data in ignored local directories only
 - Demo and example data committed to the repo must be fake
 - Seed data uses fictional player names (P1, P2, etc.) and team names (Team A, Team B, Team C)
+
+## Vercel deployment prerequisites
+
+Matchboard is designed for deployment to Vercel with Neon Postgres. Do not deploy without auth enabled.
+
+### Required environment variables (set in Vercel project settings)
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Neon pooled connection (hostname includes `-pooler`) |
+| `DIRECT_URL` | Neon direct connection (for Prisma migrations) |
+| `AUTH_SECRET` | Generated with `npx auth secret` |
+| `AUTH_GOOGLE_ID` | Google OAuth client ID |
+| `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
+| `AUTH_URL` | Your deployed URL (e.g. `https://matchboard.vercel.app`) |
+| `ALLOWED_COACH_EMAILS` | Comma-separated coach email allowlist |
+
+### Google OAuth setup for deployment
+
+1. In Google Cloud Console, add your deployed domain to:
+   - Authorized JavaScript origins: `https://your-domain.vercel.app`
+   - Authorized redirect URIs: `https://your-domain.vercel.app/api/auth/callback/google`
+2. Copy the Client ID and Client Secret to Vercel environment variables
+
+### Deployment checklist
+
+- [ ] Neon Postgres database created and migrated
+- [ ] AUTH_SECRET generated and set in Vercel
+- [ ] Google OAuth credentials configured for deployed domain
+- [ ] ALLOWED_COACH_EMAILS set with real coach email addresses
+- [ ] AUTH_URL set to deployed domain URL
+- [ ] No real credentials in committed files
+- [ ] Auth protection verified (unauthenticated users cannot access data)
 
 ## Coding style
 
@@ -360,7 +435,7 @@ This repo is intended to stay safe for a public remote:
 - Keep UI, rules config, and selection engine separate
 - Prefer explicit domain code over generic abstractions
 - Keep the UI calm and operational — tables are supporting elements, not primary workflows
-- No auth, no multi-user features, no batch scheduling
+- Auth is required: every server action and route must enforce `requireCoachAccess()`
 
 ## Branch and PR workflow
 

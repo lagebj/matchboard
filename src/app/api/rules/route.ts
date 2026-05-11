@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { getRules } from "@/lib/rules/get-rules";
 import { exportRuleConfig, validateImportedRuleConfig } from "@/lib/rules/validate-rules";
 
 export async function GET() {
+  await requireCoachAccess();
   try {
     const rules = await getRules();
     const exported = exportRuleConfig(rules);
@@ -19,6 +21,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  await requireCoachAccess();
   try {
     const body = await request.json();
     const validation = validateImportedRuleConfig(body);

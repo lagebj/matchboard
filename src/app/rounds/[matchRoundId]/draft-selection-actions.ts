@@ -7,10 +7,12 @@ import {
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
+import { requireCoachAccess } from "@/lib/auth";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 export async function addPlayerToMatchAction(formData: FormData) {
+  await requireCoachAccess();
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const role = formData.get("role");
@@ -35,6 +37,7 @@ export async function addPlayerToMatchAction(formData: FormData) {
 }
 
 export async function removePlayerFromMatchAction(formData: FormData) {
+  await requireCoachAccess();
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
 
@@ -50,6 +53,7 @@ export async function removePlayerFromMatchAction(formData: FormData) {
 }
 
 export async function changePlayerRoleAction(formData: FormData) {
+  await requireCoachAccess();
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const role = formData.get("role");

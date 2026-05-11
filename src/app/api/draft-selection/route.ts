@@ -1,5 +1,6 @@
 import { addPlayerToDraftMatch, removePlayerFromDraftMatch, changeDraftPlayerRole, replaceDraftMatchPlayer } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
+import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -9,6 +10,7 @@ const VALID_ROLES = new Set(Object.values(SelectionRole));
 const VALID_CATEGORIES = new Set<string>(OVERRIDE_REASON_CATEGORIES);
 
 export async function POST(request: Request) {
+  await requireCoachAccess();
   const { allowed } = rateLimit("draft-selection", 10, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
