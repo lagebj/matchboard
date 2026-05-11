@@ -337,7 +337,7 @@ async function getSeasonFairnessWarningsInternal(
     if (stats.development > stats.core && stats.core > 0) {
       warnings.push({
         severity: "SCORING_PREFERENCE",
-        rule: "low_development_exposure",
+        rule: "low_core_exposure_during_development",
         message: `${stats.playerName} has ${stats.development} development matches versus ${stats.core} core matches — low core exposure during development.`,
         playerId,
         playerName: stats.playerName,
@@ -358,6 +358,45 @@ async function getSeasonFairnessWarningsInternal(
         teamName: stats.teamName,
         basedOnDraft: includeDrafts,
       });
+    }
+
+    if (stats.core === 0 && (stats.support + stats.development) >= 2) {
+      warnings.push({
+        severity: "WARNING",
+        rule: "low_core_belonging",
+        message: `${stats.playerName} has 0 core matches with ${stats.support + stats.development} non-core assignments — low core belonging.`,
+        playerId,
+        playerName: stats.playerName,
+         teamId: stats.teamId,
+        teamName: stats.teamName,
+        basedOnDraft: includeDrafts,
+      });
+    }
+  }
+
+  const teamSupportCounts = new Map<string, { teamName: string; totalSupportSent: number; playerCount: number }>();
+  for (const [playerId, stats] of playerStats) {
+    const existing = teamSupportCounts.get(stats.teamId) ?? { teamName: stats.teamName, totalSupportSent: 0, playerCount: 0 };
+    existing.totalSupportSent += stats.support;
+    existing.playerCount++;
+    teamSupportCounts.set(stats.teamId, existing);
+  }
+
+  for (const [teamId, teamStats] of teamSupportCounts) {
+    const avgSupport = teamStats.totalSupportSent / teamStats.playerCount;
+    for (const [playerId, stats] of playerStats) {
+      if (stats.teamId === teamId && stats.support > avgSupport * 2 && stats.support >= 2) {
+        warnings.push({
+          severity: "WARNING",
+          rule: "team_disproportionate_support",
+          message: `${stats.playerName} has ${stats.support} support assignments versus team average of ${avgSupport.toFixed(1)} — disproportionate support burden.`,
+          playerId,
+          playerName: stats.playerName,
+          teamId,
+          teamName: stats.teamName,
+          basedOnDraft: includeDrafts,
+        });
+      }
     }
   }
 

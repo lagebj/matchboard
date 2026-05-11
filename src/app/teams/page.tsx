@@ -154,7 +154,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs app-copy-muted">Support priority</span>
+                    <span className="text-xs app-copy-muted">Support priority rank</span>
                     <span className="text-xs font-medium text-zinc-100">{team.supportPriority}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">

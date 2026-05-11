@@ -48,7 +48,7 @@ export async function createTeamAction(formData: FormData) {
     const minCorePlayers = readNonNegativeInteger(formData, "minCorePlayers", "Minimum core players");
     const minSupportPlayers = readNonNegativeInteger(formData, "minSupportPlayers", "Minimum support players");
     const developmentSlots = readNonNegativeInteger(formData, "developmentSlots", "Development slots");
-    const supportPriority = readNonNegativeInteger(formData, "supportPriority", "Support priority");
+    const supportPriority = readNonNegativeInteger(formData, "supportPriority", "Support priority rank");
 
     if (!name) {
       throw new Error("Team name is required.");
@@ -174,10 +174,10 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
       "maxSupportCount",
       "Maximum Support count",
     );
-    const supportPriority = readNonNegativeInteger(
+     const supportPriority = readNonNegativeInteger(
       formData,
       "supportPriority",
-      "Support priority",
+      "Support priority rank",
     );
 
     await db.$transaction(async (transaction) => {
