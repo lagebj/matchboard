@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  await requireCoachAccess();
   const { searchParams } = request.nextUrl;
   const fromTeamId = searchParams.get("fromTeamId");
   const toTeamId = searchParams.get("toTeamId");

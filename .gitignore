@@ -38,6 +38,7 @@ next-env.d.ts
 /data/
 /exports/
 /imports/
+*.local.db
 
 # Logs and OS
 .DS_Store

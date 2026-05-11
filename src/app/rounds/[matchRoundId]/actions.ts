@@ -6,11 +6,13 @@ import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { finalizeSingleMatch } from "@/lib/selection/finalize-single-match";
 import { clearRoundDraftSelection, clearMatchDraftSelection } from "@/lib/selection/clear-draft-selection";
 import { refreshDraftRound } from "@/lib/selection/refresh-draft-selection";
+import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 export async function finalizeRoundAction(formData: FormData) {
+  await requireCoachAccess();
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     redirect(buildPathWithSearch(`/rounds/${matchRoundId ?? ""}`, { error: "Match round ID is required." }));
@@ -51,6 +53,7 @@ export async function finalizeRoundAction(formData: FormData) {
 }
 
 export async function clearRoundDraftAction(formData: FormData) {
+  await requireCoachAccess();
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     throw new Error("Match round ID is required.");
@@ -64,6 +67,7 @@ export async function clearRoundDraftAction(formData: FormData) {
 }
 
 export async function clearMatchDraftAction(formData: FormData) {
+  await requireCoachAccess();
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
@@ -76,6 +80,7 @@ export async function clearMatchDraftAction(formData: FormData) {
 }
 
 export async function regenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
@@ -99,6 +104,7 @@ export async function regenerateRoundAction(prevState: { error: string }, formDa
 }
 
 export async function finalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
@@ -134,6 +140,7 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
 }
 
 export async function unfinalizeRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
@@ -159,6 +166,7 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
 }
 
 export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
@@ -185,6 +193,7 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
 }
 
 export async function regenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {

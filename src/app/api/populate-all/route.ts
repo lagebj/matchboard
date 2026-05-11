@@ -1,9 +1,11 @@
 import { populateAllDrafts } from "@/lib/selection/populate-all-drafts";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  await requireCoachAccess();
   const { allowed } = rateLimit("populate-all", 3, 60_000);
   if (!allowed) {
     return NextResponse.json(

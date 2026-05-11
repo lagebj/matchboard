@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
 function readText(formData: FormData, fieldName: string): string {
@@ -40,6 +41,7 @@ function getTeamErrorMessage(error: unknown): string {
 }
 
 export async function createTeamAction(formData: FormData) {
+  await requireCoachAccess();
   try {
     const name = readText(formData, "name");
     const targetSquadSize = readNonNegativeInteger(formData, "targetSquadSize", "Target squad size");
@@ -114,6 +116,7 @@ export async function createTeamAction(formData: FormData) {
 }
 
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
+  await requireCoachAccess();
   try {
     const team = await db.team.findFirst({
       where: {
@@ -218,6 +221,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 }
 
 export async function deleteTeamAction(teamId: string) {
+  await requireCoachAccess();
   try {
     const [
       team,

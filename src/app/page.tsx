@@ -12,6 +12,7 @@ import { formatAvailabilityStatus } from "@/lib/player-metrics";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SeverityBadge, severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import { type WarningSeverity } from "@/generated/prisma/client";
+import { requireCoachAccess } from "@/lib/auth";
 
 type ActionCard = {
   group: string;
@@ -560,6 +561,7 @@ export default async function TodayPage() {
             <div className="mt-4">
               <form action={async () => {
                 "use server";
+                await requireCoachAccess();
                 const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
                 await populateAllDrafts(activePlanningPeriod.id);
               }}>
@@ -577,6 +579,7 @@ export default async function TodayPage() {
             <div className="mt-2">
               <form action={async () => {
                 "use server";
+                await requireCoachAccess();
                 const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
                 const db = (await import("@/lib/db")).db;
                 const draftRounds = await db.matchRound.findMany({

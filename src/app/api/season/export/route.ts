@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 
@@ -29,6 +30,7 @@ function buildFilename(format: ExportFormat) {
 }
 
 export async function GET(request: NextRequest) {
+  await requireCoachAccess();
   const { searchParams } = request.nextUrl;
   const planningPeriodId = searchParams.get("planningPeriodId");
   const format = getExportFormat(searchParams.get("format"));

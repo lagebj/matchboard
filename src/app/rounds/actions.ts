@@ -7,9 +7,11 @@ import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
 export async function finalizeRoundFromListAction(formData: FormData) {
+  await requireCoachAccess();
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     throw new Error("Match round ID is required.");
@@ -40,6 +42,7 @@ export async function finalizeRoundFromListAction(formData: FormData) {
 }
 
 export async function clearAllDraftsAction(formData: FormData) {
+  await requireCoachAccess();
   const planningPeriodId = formData.get("planningPeriodId");
   if (typeof planningPeriodId !== "string" || !planningPeriodId) {
     throw new Error("Planning period ID is required.");
@@ -52,6 +55,7 @@ export async function clearAllDraftsAction(formData: FormData) {
 }
 
 export async function generateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const roundId = formData.get("roundId");
     if (typeof roundId !== "string" || !roundId) {
@@ -95,6 +99,7 @@ export async function generateRoundAction(prevState: { error: string }, formData
 }
 
 export async function populateAllAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const planningPeriodId = formData.get("planningPeriodId");
     if (typeof planningPeriodId !== "string" || !planningPeriodId) {
@@ -115,6 +120,7 @@ export async function populateAllAction(prevState: { error: string }, formData: 
 }
 
 export async function regenerateAllDraftsAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
+  await requireCoachAccess();
   try {
     const planningPeriodId = formData.get("planningPeriodId");
     if (typeof planningPeriodId !== "string" || !planningPeriodId) {
@@ -157,6 +163,7 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
 }
 
 export async function unfinalizeRoundFromListAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+  await requireCoachAccess();
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
@@ -182,6 +189,7 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 }
 
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
+  await requireCoachAccess();
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
     const result = await regroupMatchesIntoIsoWeekRounds();

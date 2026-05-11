@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -57,6 +58,7 @@ export type MatchFormState = { error: string };
 const INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
+  await requireCoachAccess();
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
     const opponent = readNonEmptyString(formData, "opponent", "Opponent");
@@ -168,6 +170,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
 }
 
 export async function deleteMatchAction(matchId: string) {
+  await requireCoachAccess();
   try {
     const match = await db.match.findUnique({
       where: { id: matchId },
@@ -191,6 +194,7 @@ export async function deleteMatchAction(matchId: string) {
 }
 
 export async function finalizeMatchAction(formData: FormData) {
+  await requireCoachAccess();
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");

@@ -10,6 +10,7 @@ import {
   SecondaryFoot,
 } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { playerPositionValues } from "@/lib/player-form-options";
 
@@ -223,6 +224,7 @@ function getPlayerActionErrorMessage(error: unknown): string {
 }
 
 export async function createPlayerAction(formData: FormData) {
+  await requireCoachAccess();
   try {
     const playerInput = await readPlayerInput(formData);
 
@@ -273,6 +275,7 @@ export async function createPlayerAction(formData: FormData) {
 }
 
 export async function updatePlayerAction(playerId: string, formData: FormData) {
+  await requireCoachAccess();
   try {
     const playerInput = await readPlayerInput(formData);
 
@@ -314,6 +317,7 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
 }
 
 export async function togglePlayerActiveAction(playerId: string) {
+  await requireCoachAccess();
   try {
     const player = await db.player.findFirst({
       where: {
@@ -354,6 +358,7 @@ export async function togglePlayerActiveAction(playerId: string) {
 }
 
 export async function removePlayerAction(playerId: string) {
+  await requireCoachAccess();
   try {
     const player = await db.player.findFirst({
       where: {
@@ -408,6 +413,7 @@ export async function removePlayerAction(playerId: string) {
 }
 
 export async function setPlayerAvailabilityAction(formData: FormData) {
+  await requireCoachAccess();
   const playerId = formData.get("playerId");
   const availability = formData.get("availability");
 

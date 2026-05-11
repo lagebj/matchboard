@@ -28,6 +28,7 @@ The Today page must always show the next action based on this workflow state.
 - Tailwind
 - Prisma
 - PostgreSQL (local Docker Compose or Neon)
+- Auth.js (Google OAuth, email allowlist)
 
 ## Product boundary
 
@@ -37,8 +38,7 @@ It does not:
 - create fixtures
 - schedule a season
 - manage a club
-- support auth
-- support multi-user workflows
+- support public signup or multi-tenant auth
 - store real player data in the repo
 
 Note: Matchboard does have a match creation form for recording match details (opponent, date, home/away, type, format). This is match data entry, not fixture creation or season scheduling.
@@ -672,7 +672,29 @@ Required test coverage should include:
 
 Never commit real player names, private roster data, or database credentials.
 
+Never commit AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, or any auth credentials.
+
+Never prefix secrets with NEXT_PUBLIC_ (they would be exposed to the browser).
+
 Demo data must be fake.
+
+## Auth rules
+
+Matchboard is a private coaching app. Auth is mandatory, not optional.
+
+- Users must authenticate (Google OAuth) before accessing any app data
+- Access is controlled by an email allowlist (`ALLOWED_COACH_EMAILS`)
+- No public signup exists or should be added unless explicitly requested
+- Every server action that reads or writes protected data must call `requireCoachAccess()`
+- Every route showing protected app data must require authenticated coach access
+- UI-only protection is insufficient — hiding buttons is not authorization
+- Direct server action calls must fail without authorization
+- Direct API calls must fail without authorization
+- `requireCoachAccess()` is the shared authorization helper that all protected actions must use
+- Create, edit, delete, finalize, export, clear, manual-edit, and populate actions must all be protected
+- Unauthenticated users redirect to sign-in
+- Authenticated but non-allowlisted users see access denied
+- Tests or verification must cover unauthorized access scenarios
 
 ## Implementation style
 

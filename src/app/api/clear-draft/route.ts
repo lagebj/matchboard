@@ -1,8 +1,10 @@
 import { clearAllDraftSelections, clearRoundDraftSelection, clearMatchDraftSelection } from "@/lib/selection/clear-draft-selection";
+import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  await requireCoachAccess();
   const { allowed } = rateLimit("clear-draft", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
