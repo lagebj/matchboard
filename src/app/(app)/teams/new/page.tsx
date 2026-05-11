@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createTeamAction } from "@/app/teams/actions";
+import { createTeamAction } from "@/app/(app)/teams/actions";
 
 type NewTeamPageProps = {
   searchParams: Promise<{

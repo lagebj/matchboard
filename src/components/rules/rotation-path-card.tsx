@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateRotationPathAction, deleteRotationPathAction, toggleRotationPathActiveAction } from "@/app/rules/actions";
+import { updateRotationPathAction, deleteRotationPathAction, toggleRotationPathActiveAction } from "@/app/(app)/rules/actions";
 import { useActionState } from "react";
 
 type RotationPathDetail = {

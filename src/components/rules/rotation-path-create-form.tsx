@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { createRotationPathAction } from "@/app/rules/actions";
+import { createRotationPathAction } from "@/app/(app)/rules/actions";
 
 type TeamOption = {
   id: string;

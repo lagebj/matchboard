@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { createMatchAction } from "@/app/matches/actions";
+import { createMatchAction } from "@/app/(app)/matches/actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();

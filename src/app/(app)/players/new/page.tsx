@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { createPlayerAction } from "@/app/players/actions";
+import { createPlayerAction } from "@/app/(app)/players/actions";
 import { PlayerEditorForm } from "@/components/players/player-editor-form";
 
 export default async function NewPlayerPage() {

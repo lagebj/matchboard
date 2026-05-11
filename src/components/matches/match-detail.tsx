@@ -353,7 +353,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                         const reason = (document.getElementById(`override-reason-${match.id}`) as HTMLInputElement)?.value ?? "";
                         fd.set("overrideReason", reason);
                       }
-                      const { finalizeMatchAction } = await import("@/app/matches/actions");
+                      const { finalizeMatchAction } = await import("@/app/(app)/matches/actions");
                       await finalizeMatchAction(fd);
                     });
                   }}

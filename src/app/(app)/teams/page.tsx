@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   deleteTeamAction,
   updateTeamConfigurationAction,
-} from "@/app/teams/actions";
+} from "@/app/(app)/teams/actions";
 import { TeamTable } from "@/components/teams/team-table";
 import { db } from "@/lib/db";
 

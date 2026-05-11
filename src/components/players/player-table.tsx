@@ -10,7 +10,7 @@ import {
   getNextSortDirection,
   type SortDirection,
 } from "@/lib/table-sort";
-import { setPlayerAvailabilityAction } from "@/app/players/actions";
+import { setPlayerAvailabilityAction } from "@/app/(app)/players/actions";
 
 type AvailabilityStatus = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 

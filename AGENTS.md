@@ -502,6 +502,15 @@ Team detail has these sections:
 - **Top context bar**: season, planning period, active round status, primary action
 - **Mobile nav**: 6 items (Today, Rounds, Players, Teams, Matches, Season)
 
+### Auth layout rules
+
+- Auth routes (`/auth/signin`, `/auth/error`) must use a public auth layout, never the protected app layout
+- Sign-in and access-denied pages must not show sidebar, top bar, coach data, team data, player data, match data, or round data
+- Protected app shell (sidebar, top bar, user nav) only renders after authenticated allowlisted coach access
+- Auth pages must use the Matchboard dark theme but without protected navigation
+- Root layout must contain only HTML/body/font wrappers — no protected shell components
+- Protected shell (sidebar, top bar, user nav) lives in `(app)/layout.tsx`, not in root layout
+
 ### Season overview
 
 The `/season` route is the fairness control surface. It is not a decorative analytics page. It exists to help the coach trust or challenge the season pattern.
