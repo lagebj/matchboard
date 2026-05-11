@@ -676,7 +676,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
                   Min core {data.minCorePlayers}
                 </span>
                 <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                  Support priority {data.supportPriority}
+                  Support priority rank (1 is highest) {data.supportPriority}
                 </span>
               </div>
             </div>

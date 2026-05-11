@@ -27,7 +27,7 @@ export function getPlanningPeriodFairnessBonus(
   if (!counts) return 0;
 
   if (counts.coreCount === 0) {
-    if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL" || candidateCategory === "DOUBLE_LOAD") {
+    if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL") {
       return -8;
     }
     if (candidateCategory === "DEVELOPMENT") {
@@ -36,12 +36,12 @@ export function getPlanningPeriodFairnessBonus(
   }
 
   if (counts.supportCount > counts.coreCount) {
-    if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL" || candidateCategory === "DOUBLE_LOAD") {
+    if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL") {
       return -6;
     }
   }
 
-  if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL" || candidateCategory === "DOUBLE_LOAD") {
+  if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL") {
     return counts.supportCount * -2;
   }
 

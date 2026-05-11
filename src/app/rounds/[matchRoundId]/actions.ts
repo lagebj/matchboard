@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
+import { finalizeSingleMatch } from "@/lib/selection/finalize-single-match";
 import { clearRoundDraftSelection, clearMatchDraftSelection } from "@/lib/selection/clear-draft-selection";
 import { refreshDraftRound } from "@/lib/selection/refresh-draft-selection";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 export async function finalizeRoundAction(formData: FormData) {
   const matchRoundId = formData.get("matchRoundId");
@@ -13,10 +16,17 @@ export async function finalizeRoundAction(formData: FormData) {
     redirect(buildPathWithSearch(`/rounds/${matchRoundId ?? ""}`, { error: "Match round ID is required." }));
   }
 
-  const overrideReason = formData.get("overrideReason");
-  const overrideReasonStr = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : undefined;
+  const overrideReasonCategory = formData.get("overrideReasonCategory");
+  const overrideReasonDetail = formData.get("overrideReasonDetail");
 
-  const result = await finalizeMatchRound(matchRoundId, overrideReasonStr);
+  const category: OverrideReasonCategory | undefined = typeof overrideReasonCategory === "string" && overrideReasonCategory.trim() && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory.trim() as OverrideReasonCategory)
+    ? (overrideReasonCategory.trim() as OverrideReasonCategory)
+    : undefined;
+  const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
+    ? overrideReasonDetail.trim()
+    : undefined;
+
+  const result = await finalizeMatchRound(matchRoundId, category, detail);
 
   if (!result.success) {
     const queryParams: Record<string, string> = {};
@@ -95,11 +105,17 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
       throw new Error("Match ID is required.");
     }
 
-    const overrideReason = formData.get("overrideReason");
-    const overrideReasonStr = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : undefined;
+    const overrideReasonCategory = formData.get("overrideReasonCategory");
+    const overrideReasonDetail = formData.get("overrideReasonDetail");
 
-    const { finalizeSingleMatch } = await import("@/lib/selection/finalize-single-match");
-    const result = await finalizeSingleMatch(matchId, overrideReasonStr);
+    const category: OverrideReasonCategory | undefined = typeof overrideReasonCategory === "string" && overrideReasonCategory.trim() && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory.trim() as OverrideReasonCategory)
+      ? (overrideReasonCategory.trim() as OverrideReasonCategory)
+      : undefined;
+    const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
+      ? overrideReasonDetail.trim()
+      : undefined;
+
+    const result = await finalizeSingleMatch(matchId, category, detail);
 
     revalidatePath("/");
     revalidatePath("/rounds");

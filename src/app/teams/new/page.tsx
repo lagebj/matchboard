@@ -118,7 +118,7 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="supportPriority" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
-                Support priority
+                Support priority rank (1 is highest)
               </label>
               <input
                 id="supportPriority"

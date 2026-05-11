@@ -1,6 +1,8 @@
 import { WarningSeverity, SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getRules } from "@/lib/rules/get-rules";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 
 export type FinalizeResult = {
   success: boolean;
@@ -14,7 +16,8 @@ export type FinalizeResult = {
 
 export async function finalizeMatchRound(
   matchRoundId: string,
-  overrideReason?: string,
+  overrideReasonCategory?: OverrideReasonCategory,
+  overrideReasonDetail?: string,
 ): Promise<FinalizeResult> {
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId },
@@ -59,7 +62,7 @@ export async function finalizeMatchRound(
 
   const allOverrideWarnings = [...hardBlockWarnings, ...requiresOverrideWarnings];
 
-  if (allOverrideWarnings.length > 0 && (!overrideReason || overrideReason.trim().length === 0)) {
+  if (allOverrideWarnings.length > 0 && (!overrideReasonCategory)) {
     const overrideMessages = allOverrideWarnings.map(
       (w) => `[${w.severity as string}] ${w.rule}: ${w.message}`,
     );
@@ -74,6 +77,14 @@ export async function finalizeMatchRound(
       finalizedMatchIds: [],
     };
   }
+
+  const hasHardOverrides = allOverrideWarnings.some(
+    (w) => w.severity === WarningSeverity.HARD_BLOCK || w.severity === WarningSeverity.REQUIRES_OVERRIDE,
+  );
+
+  const formattedOverrideReason = overrideReasonCategory
+    ? formatOverrideReason(overrideReasonCategory, overrideReasonDetail)
+    : null;
 
   const warningCountWarnings = unresolvedWarnings.filter(
     (w) => w.severity === WarningSeverity.WARNING || w.severity === WarningSeverity.SCORING_PREFERENCE,
@@ -180,7 +191,9 @@ export async function finalizeMatchRound(
       data: {
         status: SelectionStatus.FINALIZED,
         ruleConfigVersion: currentRuleConfigVersion,
-        overrideReason: allOverrideWarnings.length > 0 ? overrideReason : null,
+        overrideReason: hasHardOverrides ? formattedOverrideReason : null,
+        overrideReasonCategory: overrideReasonCategory ? toPrismaCategory(overrideReasonCategory) : null,
+        overrideReasonDetail: overrideReasonDetail ?? null,
       },
     });
 

@@ -47,7 +47,6 @@ const ROLE_CELL_STYLES: Record<string, string> = {
   SUPPORT: "bg-amber-900/25 text-amber-300 border-amber-700/30",
   DEVELOPMENT: "bg-blue-900/25 text-blue-300 border-blue-700/30",
   BACKFILL: "bg-purple-900/25 text-purple-300 border-purple-700/30",
-  DOUBLE_LOAD: "bg-red-900/25 text-red-300 border-red-700/30",
   CORE_MATCH_DROP: "bg-zinc-800/30 text-zinc-400 border-zinc-600/30",
   REDUCED_MATCH_LOAD_DROP: "bg-zinc-800/30 text-zinc-400 border-zinc-600/30",
 };
@@ -57,7 +56,6 @@ const ROLE_LABELS: Record<string, string> = {
   SUPPORT: "Sup",
   DEVELOPMENT: "Dev",
   BACKFILL: "Rep",
-  DOUBLE_LOAD: "2x",
   CORE_MATCH_DROP: "Drp",
   REDUCED_MATCH_LOAD_DROP: "Drp",
 };
