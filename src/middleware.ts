@@ -1,9 +1,10 @@
-import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import type { NextRequest } from "next/server";
 
 const publicRoutes = ["/auth/signin", "/auth/error"];
 
-export default auth((req) => {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
@@ -14,12 +15,9 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  if (!req.auth) {
-    return NextResponse.redirect(new URL("/auth/signin", req.url));
-  }
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
-  const email = req.auth.user?.email;
-  if (!email) {
+  if (!token || !token.email) {
     return NextResponse.redirect(new URL("/auth/signin", req.url));
   }
 
@@ -32,12 +30,12 @@ export default auth((req) => {
     .split(",")
     .map((e) => e.trim().toLowerCase());
 
-  if (!allowedEmails.includes(email.trim().toLowerCase())) {
+  if (!allowedEmails.includes((token.email as string).trim().toLowerCase())) {
     return NextResponse.redirect(new URL("/auth/error", req.url));
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [
