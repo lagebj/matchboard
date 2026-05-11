@@ -218,10 +218,10 @@ export async function GET(request: NextRequest) {
       endDate: formatDate(planningPeriod.endDate),
       finalizedRounds: roundIds.length,
       visibility,
-      selections: isParent ? selectionRows.map(({ overrideReasonCategory, overrideReasonDetail, explanation, sourceTeam, controlledDoubleLoad, ...rest }) => rest) : selectionRows,
-      movements: isParent ? movementRows.map(({ fromTeam, toTeam, role, ...rest }) => rest) : movementRows,
+      selections: isParent ? selectionRows.map(({ overrideReasonCategory: _orc, overrideReasonDetail: _ord, explanation: _exp, sourceTeam: _st, controlledDoubleLoad: _cdl, ...rest }) => rest) : selectionRows,
+      movements: isParent ? movementRows.map(({ fromTeam: _ft, toTeam: _tt, role: _r, ...rest }) => rest) : movementRows,
       playerStats: isParent
-        ? statsRows.map(({ coreMatches, supportMatches, developmentMatches, backfillMatches, doubleLoadRounds, ...rest }) => rest)
+        ? statsRows.map(({ coreMatches: _cm, supportMatches: _sm, developmentMatches: _dm, backfillMatches: _bm, doubleLoadRounds: _dlr, ...rest }) => rest)
         : statsRows,
     };
     return new Response(JSON.stringify(data, null, 2), {

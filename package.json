@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src prisma.config.ts next.config.ts eslint.config.mjs prisma/seed-demo.cjs",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "setup": "cp -n .env.example .env 2>/dev/null; prisma generate && prisma migrate dev && node prisma/seed-demo.cjs",

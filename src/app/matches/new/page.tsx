@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { MatchCreateForm } from "@/components/matches/match-create-form";
 
@@ -18,9 +19,9 @@ export default async function NewMatchPage() {
             </h1>
             <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
               Create at least one team before adding matches.{" "}
-              <a href="/teams/new" className="underline text-[var(--accent-strong)]">
+              <Link href="/teams/new" className="underline text-[var(--accent-strong)]">
                 Create a team
-              </a>
+              </Link>
             </div>
           </div>
         </section>

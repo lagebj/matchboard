@@ -1,3 +1,4 @@
+import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 
@@ -10,6 +11,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
+  await requireCoachAccess();
   const { matchId } = await params;
 
   let body: unknown;

@@ -269,8 +269,8 @@ describe("Season overview service", () => {
   describe("getSeasonFairnessWarnings", () => {
     it("flags high support burden when support exceeds core", async () => {
       const blaTeamId = fixtureIds.teams["Bla"]!;
-      const hvitTeamId = fixtureIds.teams["Hvit"]!;
-      const rodTeamId = fixtureIds.teams["Rod"]!;
+      const _hvitTeamId = fixtureIds.teams["Hvit"]!;
+      const _rodTeamId = fixtureIds.teams["Rod"]!;
       const blaPlayer = fixtureIds.players.find((p) => p.coreTeamId === blaTeamId)!;
 
       await testDb.selection.createMany({
@@ -308,8 +308,8 @@ describe("Season overview service", () => {
 
     it("excludes draft data when includeDrafts is false", async () => {
       const rodTeamId = fixtureIds.teams["Rod"]!;
-      const hvitTeamId = fixtureIds.teams["Hvit"]!;
-      const blaTeamId = fixtureIds.teams["Bla"]!;
+      const _hvitTeamId = fixtureIds.teams["Hvit"]!;
+      const _blaTeamId = fixtureIds.teams["Bla"]!;
       const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
       const rodPlayer = rodPlayers[rodPlayers.length - 1]!;
 

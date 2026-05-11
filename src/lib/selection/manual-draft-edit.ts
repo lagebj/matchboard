@@ -402,7 +402,7 @@ export type ValidateManualMatchEditOptions = {
 
 export function validateManualMatchEdit(options: ValidateManualMatchEditOptions): ManualEditValidationError[] {
   const errors: ManualEditValidationError[] = [];
-  const { playerCoreTeamId, playerCoreTeamName, targetTeamId, targetTeamName, role, nonRotatable, availability, rotationPaths, alreadyInMatch, alreadyInRound } = options;
+  const { playerCoreTeamId, targetTeamId, role, nonRotatable, availability, rotationPaths, alreadyInMatch, alreadyInRound } = options;
 
   if (alreadyInMatch) {
     errors.push({

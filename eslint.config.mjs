@@ -17,6 +17,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    files: ["prisma/seed-demo.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

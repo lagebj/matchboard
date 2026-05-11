@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds, cleanTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 import { finalizeSingleMatch } from "@/lib/selection/finalize-single-match";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 

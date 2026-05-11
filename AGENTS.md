@@ -686,6 +686,7 @@ Matchboard is a private coaching app. Auth is mandatory, not optional.
 - Access is controlled by an email allowlist (`ALLOWED_COACH_EMAILS`)
 - No public signup exists or should be added unless explicitly requested
 - Every server action that reads or writes protected data must call `requireCoachAccess()`
+- Every API route that reads or writes protected data must call `requireCoachAccess()`
 - Every route showing protected app data must require authenticated coach access
 - UI-only protection is insufficient — hiding buttons is not authorization
 - Direct server action calls must fail without authorization
@@ -695,6 +696,24 @@ Matchboard is a private coaching app. Auth is mandatory, not optional.
 - Unauthenticated users redirect to sign-in
 - Authenticated but non-allowlisted users see access denied
 - Tests or verification must cover unauthorized access scenarios
+
+## Deployment and security
+
+Before deployment-related work:
+- Run `npm run lint`, `npm run build`, `npm test`, `npm run typecheck`
+- Inspect any active selection-engine branch (`fix/selection-engine-remaining-tasks`) for pending improvements
+
+Hard rules:
+- Real secrets belong only in local `.env` and deployment provider env vars
+- `.env` must never be committed
+- `.env.example` may contain placeholders only
+- `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, and similar secrets must never be exposed as `NEXT_PUBLIC_*`
+- No real player data, exports, local database files, or credentials may be committed
+- All data-mutating server actions must call `requireCoachAccess()` or equivalent
+- All data-reading server actions and API routes exposing app data must call `requireCoachAccess()` or equivalent
+- The `/api/health` endpoint must not expose business data (player counts, etc.)
+- Rate limiting is in-memory only — document this limitation for production
+- All final changes must use the `git-branch-commit-pr` skill
 
 ## Implementation style
 

@@ -51,12 +51,11 @@ export async function regroupMatchesIntoIsoWeekRounds(): Promise<RegroupResult> 
     }
   }
 
-  let roundsCreated = 0;
   let roundsMerged = 0;
   let matchesMoved = 0;
   let roundsRemoved = 0;
 
-  for (const [weekKey, group] of weekGroups) {
+  for (const [_weekKey, group] of weekGroups) {
     const canonicalRoundId = group.roundIds[0]!;
 
     if (group.roundIds.length > 1) {
@@ -149,5 +148,5 @@ export async function regroupMatchesIntoIsoWeekRounds(): Promise<RegroupResult> 
     roundsRemoved++;
   }
 
-  return { roundsCreated, roundsMerged, matchesMoved, roundsRemoved };
+  return { roundsCreated: 0, roundsMerged, matchesMoved, roundsRemoved };
 }

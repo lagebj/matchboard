@@ -33,10 +33,10 @@ function isRedirectError(error: unknown): boolean {
 }
 
 describe("Setup registry: create team persists all squad config fields", () => {
-  let fixtureIds: TestFixtureIds;
+  let _fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
-    fixtureIds = await seedTestFixture(testDb, {
+    _fixtureIds = await seedTestFixture(testDb, {
       teams: [],
       playersPerTeam: 0,
       rotationPaths: [],
@@ -130,10 +130,10 @@ describe("Setup registry: create team persists all squad config fields", () => {
 });
 
 describe("Setup registry: create match action assigns match to round by date", () => {
-  let fixtureIds: TestFixtureIds;
+  let _fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
-    fixtureIds = await seedTestFixture(testDb, {
+    _fixtureIds = await seedTestFixture(testDb, {
       teams: [
         { name: "Rovers", targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 0, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 0, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       ],

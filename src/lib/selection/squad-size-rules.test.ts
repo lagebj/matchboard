@@ -37,7 +37,7 @@ describe("Target/min/max squad size: squad below target but above minimum genera
     if (shortWarnings.length === 0 && belowMinWarnings.length === 0) {
       for (const mr of result.matchResults) {
         if (mr.selectedPlayers.length < 12) {
-          const w = mr.warnings.map((w2) => w2.code);
+          const _w = mr.warnings.map((w2) => w2.code);
         }
       }
     }

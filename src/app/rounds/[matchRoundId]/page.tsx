@@ -338,7 +338,7 @@ export default async function RoundBoardPage({
     },
   ];
 
-  const roundData = {
+  const _roundData = {
     roundLabel,
     roundId: matchRound.id,
     roundStatus: matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED",
