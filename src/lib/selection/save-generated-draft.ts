@@ -10,7 +10,6 @@ function mapSelectionCategoryToRole(category: string): SelectionRole {
   if (category === "CONFIDENCE_REBUILD") return SelectionRole.CONFIDENCE_REBUILD;
   if (category === "CORE_MATCH_DROP") return SelectionRole.CORE_MATCH_DROP;
   if (category === "REDUCED_MATCH_LOAD_DROP") return SelectionRole.REDUCED_MATCH_LOAD_DROP;
-  if (category === "DOUBLE_LOAD") return SelectionRole.DOUBLE_LOAD;
   return SelectionRole.MANUAL_OVERRIDE;
 }
 

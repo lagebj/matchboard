@@ -29,7 +29,6 @@ function isDonorRole(role: SelectionRole): boolean {
   return (
     role === SelectionRole.SUPPORT ||
     role === SelectionRole.BACKFILL ||
-    role === SelectionRole.DOUBLE_LOAD ||
     role === SelectionRole.DEVELOPMENT ||
     role === SelectionRole.CONFIDENCE_REBUILD
   );
@@ -39,7 +38,6 @@ function isReceptionRole(role: SelectionRole): boolean {
   return (
     role === SelectionRole.SUPPORT ||
     role === SelectionRole.BACKFILL ||
-    role === SelectionRole.DOUBLE_LOAD ||
     role === SelectionRole.DEVELOPMENT ||
     role === SelectionRole.CONFIDENCE_REBUILD
   );
