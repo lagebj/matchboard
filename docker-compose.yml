@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: matchboard-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: matchboard
+      POSTGRES_PASSWORD: matchboard
+      POSTGRES_DB: matchboard
+    volumes:
+      - matchboard-pgdata:/var/lib/postgresql/data
+
+volumes:
+  matchboard-pgdata:

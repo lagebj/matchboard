@@ -98,7 +98,7 @@ The season overview (`/season`) is the fairness control surface for the planning
 - TypeScript
 - Tailwind CSS
 - Prisma
-- SQLite
+- PostgreSQL (local via Docker Compose or Neon)
 
 ## Local development setup
 
@@ -115,21 +115,33 @@ cd matchboard
 npm install
 ```
 
-### 3. Configure environment
+### 3. Start local Postgres
+
+```bash
+npm run docker:up
+```
+
+This starts a local Postgres container via Docker Compose on `localhost:5432`.
+
+### 4. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Default `.env`:
+Default `.env` points at local Docker Compose Postgres:
 
 ```dotenv
-DATABASE_URL="file:./matchboard.local.db"
+DATABASE_URL="postgresql://matchboard:matchboard@localhost:5432/matchboard?schema=public"
+DIRECT_URL="postgresql://matchboard:matchboard@localhost:5432/matchboard?schema=public"
+TEST_DATABASE_URL="postgresql://matchboard:matchboard@localhost:5432/matchboard_test?schema=public"
 ```
 
-The app reads `.env` from the repo root. The local-first model means all data stays on the coach's machine. Do not commit `.env` or any local database file.
+For production, switch to Neon Postgres pooled/direct URLs (see `.env.example`).
 
-### 4. Set up the database
+Do not commit `.env` or any database credentials.
+
+### 5. Set up the database
 
 ```bash
 npm run db:generate    # Generate Prisma client into src/generated/prisma
@@ -142,7 +154,7 @@ For active schema development:
 npm run db:migrate:dev  # Create and apply a new migration
 ```
 
-### 5. Optional: seed fake demo data
+### 6. Optional: seed fake demo data
 
 ```bash
 npm run db:seed:demo
@@ -150,7 +162,7 @@ npm run db:seed:demo
 
 Demo seed creates fake players, teams, rotation paths, and match rounds. Never replace it with real player data.
 
-### 6. Start the dev server
+### 7. Start the dev server
 
 ```bash
 npm run dev
@@ -171,6 +183,11 @@ Runs on `http://localhost:3333`.
 | `npm run db:migrate` | Apply schema migrations |
 | `npm run db:migrate:dev` | Create and apply a new migration |
 | `npm run db:seed:demo` | Seed fake demo data |
+| `npm run db:export` | Export all app state to JSON |
+| `npm run db:import` | Import app state from JSON export |
+| `npm run docker:up` | Start local Postgres via Docker Compose |
+| `npm run docker:down` | Stop local Postgres |
+| `npm run docker:reset` | Reset local Postgres (destroys data) |
 
 ## Source of truth
 
@@ -329,7 +346,7 @@ RotationPath is the single source of truth for automatic non-core player movemen
 This repo is intended to stay safe for a public remote:
 
 - Never commit real player names or private roster data
-- Never commit local SQLite database files (`.db`, `.sqlite`, journal files)
+- Never commit database credentials or Neon connection strings
 - Never commit `.env` or machine-specific secrets
 - Keep imported or exported real data in ignored local directories only
 - Demo and example data committed to the repo must be fake
@@ -366,7 +383,7 @@ fix: preserve finalized selection history on recalculation
 docs: rewrite local setup and agent workflow guide
 refactor: move selection filtering into domain helpers
 test: cover support-team eligibility rules
-chore: tighten gitignore for local sqlite and env files
+chore: switch from SQLite to PostgreSQL
 ```
 
 Keep each commit focused on one logical change. Do not mix unrelated cleanup with behavior changes.

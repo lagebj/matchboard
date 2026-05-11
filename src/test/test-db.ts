@@ -1,14 +1,10 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import "dotenv/config";
 import { PrismaClient } from "@/generated/prisma/client";
-import path from "node:path";
-import os from "node:os";
-import fs from "node:fs";
-import { execSync } from "node:child_process";
-import Database from "better-sqlite3";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 
 let testDb: PrismaClient | null = null;
-let testDbPath: string | null = null;
-let setupCounter = 0;
 
 export function getTestDb(): PrismaClient {
   if (!testDb) {
@@ -17,77 +13,55 @@ export function getTestDb(): PrismaClient {
   return testDb;
 }
 
-export function getTestDbPath(): string {
-  if (!testDbPath) {
-    throw new Error("Test database not initialized. Call setupTestDb() first.");
+function createAdapter(url: string) {
+  if (url.includes(".neon.tech")) {
+    return new PrismaNeon({ connectionString: url });
   }
-  return testDbPath;
+  const pool = new pg.Pool({ connectionString: url });
+  return new PrismaPg(pool);
 }
 
 export async function setupTestDb(): Promise<PrismaClient> {
-  setupCounter++;
-  if (testDb) return testDb;
+  if (testDb) {
+    await cleanTestDb(testDb);
+    return testDb;
+  }
 
-  testDbPath = path.join(os.tmpdir(), `matchboard-test-${process.pid}.db`);
+  const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
 
-  try {
-    fs.unlinkSync(testDbPath);
-  } catch {}
+  if (!connectionString) {
+    throw new Error("TEST_DATABASE_URL or DATABASE_URL must be set for tests.");
+  }
 
-  const sqlite = new Database(testDbPath);
-  sqlite.close();
-
-  execSync(
-    `DATABASE_URL="file:${testDbPath}" npx prisma db push --schema prisma/schema.prisma --accept-data-loss --force-reset`,
-    { stdio: "pipe", cwd: process.cwd() },
-  );
-
-  const adapter = new PrismaBetterSqlite3({ url: `file:${testDbPath}` });
+  const adapter = createAdapter(connectionString);
   testDb = new PrismaClient({ adapter, log: [] });
+  await cleanTestDb(testDb);
 
   return testDb;
 }
 
 export async function teardownTestDb(): Promise<void> {
-  setupCounter--;
-  if (setupCounter > 0) return;
-
   if (testDb) {
     await testDb.$disconnect();
     testDb = null;
-  }
-
-  if (testDbPath && fs.existsSync(testDbPath)) {
-    try {
-      fs.unlinkSync(testDbPath);
-    } catch {}
-    testDbPath = null;
   }
 }
 
 export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.selectionAudit.deleteMany();
-  await db.warning.deleteMany()
-  await db.movementLedger.deleteMany()
-  await db.selection.deleteMany()
-  await db.availability.deleteMany()
-  await db.playerLock.deleteMany()
-  await db.match.deleteMany()
-  await db.matchRound.deleteMany()
-  await db.planningPeriod.deleteMany()
-  await db.season.deleteMany()
-  await db.player.deleteMany()
-  await db.rotationPath.deleteMany()
-  await db.team.deleteMany()
-  await db.ruleConfig.deleteMany()
-
-  const dbPath = getTestDbPath();
-  const sqlite = new Database(dbPath);
-  try {
-    sqlite.exec("DELETE FROM sqlite_sequence");
-  } finally {
-    sqlite.close();
-  }
+  await db.warning.deleteMany();
+  await db.movementLedger.deleteMany();
+  await db.selection.deleteMany();
+  await db.availability.deleteMany();
+  await db.playerLock.deleteMany();
+  await db.match.deleteMany();
+  await db.matchRound.deleteMany();
+  await db.planningPeriod.deleteMany();
+  await db.season.deleteMany();
+  await db.player.deleteMany();
+  await db.rotationPath.deleteMany();
+  await db.team.deleteMany();
+  await db.ruleConfig.deleteMany();
 }
 
 export type TestFixtureIds = {

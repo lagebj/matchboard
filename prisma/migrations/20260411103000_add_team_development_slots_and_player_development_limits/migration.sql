@@ -1,5 +1,0 @@
-ALTER TABLE "Team"
-ADD COLUMN "developmentSlots" INTEGER NOT NULL DEFAULT 0;
-
-ALTER TABLE "Player"
-ADD COLUMN "maxDevelopmentMatches" INTEGER;
