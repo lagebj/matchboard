@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -195,12 +196,20 @@ export async function finalizeMatchAction(formData: FormData) {
     throw new Error("Match ID is required.");
   }
 
-  const overrideReason = formData.get("overrideReason");
-  const overrideReasonStr = typeof overrideReason === "string" && overrideReason.trim() ? overrideReason.trim() : undefined;
+  const overrideReasonCategory = formData.get("overrideReasonCategory");
+  const overrideReasonDetail = formData.get("overrideReasonDetail");
 
   const { finalizeSingleMatch } = await import("@/lib/selection/finalize-single-match");
+  const { OVERRIDE_REASON_CATEGORIES } = await import("@/lib/selection/types");
 
-  const result = await finalizeSingleMatch(matchId, overrideReasonStr);
+  const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
+    ? (overrideReasonCategory as OverrideReasonCategory)
+    : undefined;
+  const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
+    ? overrideReasonDetail.trim()
+    : undefined;
+
+  const result = await finalizeSingleMatch(matchId, category, detail);
 
   if (!result.success) {
     const queryParams: Record<string, string> = {};

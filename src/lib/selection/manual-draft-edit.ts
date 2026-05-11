@@ -1,6 +1,7 @@
-import { OverrideReasonCategory as PrismaOverrideReasonCategory, SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
+import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { AutomaticSelectionCategory, OverrideReasonCategory } from "@/lib/selection/types";
 import { HARD_RULE_OVERRIDE_CATEGORIES, OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
@@ -16,15 +17,6 @@ export type ManualEditValidationError = {
   message: string;
   requiresOverride: boolean;
 };
-
-function formatOverrideReason(category: OverrideReasonCategory, detail?: string | null): string {
-  if (detail) return `${category}: ${detail}`;
-  return category;
-}
-
-function toPrismaCategory(category: OverrideReasonCategory): PrismaOverrideReasonCategory {
-  return PrismaOverrideReasonCategory[category.toUpperCase() as keyof typeof PrismaOverrideReasonCategory];
-}
 
 export function validateOverrideReason(
   category: OverrideReasonCategory | undefined,

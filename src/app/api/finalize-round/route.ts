@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { rateLimit } from "@/lib/rate-limit";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 export async function POST(request: Request) {
   const { allowed } = rateLimit("finalize-round", 5, 60_000);
@@ -15,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { matchRoundId, overrideReason } = (body ?? {}) as Record<string, unknown>;
+  const { matchRoundId, overrideReasonCategory, overrideReasonDetail } = (body ?? {}) as Record<string, unknown>;
 
   if (!matchRoundId || typeof matchRoundId !== "string") {
     return NextResponse.json(
@@ -24,14 +26,15 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    const result = await finalizeMatchRound(
-      matchRoundId,
-      typeof overrideReason === "string" && overrideReason.trim().length > 0
-        ? overrideReason
-        : undefined,
-    );
+  const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
+    ? overrideReasonCategory as OverrideReasonCategory
+    : undefined;
+  const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
+    ? overrideReasonDetail.trim()
+    : undefined;
 
+  try {
+    const result = await finalizeMatchRound(matchRoundId, category, detail);
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Finalization failed";

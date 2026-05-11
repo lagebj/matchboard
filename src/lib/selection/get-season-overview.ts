@@ -400,6 +400,165 @@ async function getSeasonFairnessWarningsInternal(
     }
   }
 
+  const supportPaths = await db.rotationPath.findMany({
+    where: { active: true, role: "SUPPORT" },
+    select: {
+      fromTeamId: true,
+      toTeamId: true,
+      fromTeam: { select: { name: true } },
+      toTeam: { select: { name: true } },
+    },
+  });
+
+  const supportMovements = await db.movementLedger.findMany({
+    where: {
+      matchRound: { planningPeriodId },
+      role: "SUPPORT",
+      ...(includeDrafts ? {} : { isDraft: false }),
+    },
+    select: { fromTeamId: true, toTeamId: true },
+  });
+
+  const usedPathKeys = new Set(
+    supportMovements.map((m) => `${m.fromTeamId}:${m.toTeamId}`),
+  );
+
+  for (const path of supportPaths) {
+    const key = `${path.fromTeamId}:${path.toTeamId}`;
+    if (!usedPathKeys.has(key)) {
+      warnings.push({
+        severity: "SCORING_PREFERENCE",
+        rule: "expected_support_path_unused",
+        message: `Active support path from ${path.fromTeam.name} to ${path.toTeam.name} has no support selections this planning period.`,
+        teamId: path.fromTeamId,
+        teamName: path.fromTeam.name,
+        basedOnDraft: includeDrafts,
+      });
+    }
+  }
+
+  const selectionsByRound = await db.selection.findMany({
+    where: {
+      matchRound: { planningPeriodId },
+      status: includeDrafts ? { in: [SelectionStatus.FINALIZED, SelectionStatus.DRAFT] } : { in: [SelectionStatus.FINALIZED] },
+      player: { removedAt: null, active: true },
+    },
+    select: {
+      playerId: true,
+      role: true,
+      matchRoundId: true,
+      match: { select: { startsAt: true } },
+      player: {
+        select: {
+          firstName: true,
+          lastName: true,
+          coreTeamId: true,
+          coreTeam: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { match: { startsAt: "asc" } },
+  });
+
+  const roundsByDate = await db.matchRound.findMany({
+    where: { planningPeriodId },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  if (roundsByDate.length >= 3) {
+    const playerRoundRoles = new Map<string, Map<string, boolean>>();
+    for (const sel of selectionsByRound) {
+      const isNonCore = sel.role !== "CORE";
+      if (!playerRoundRoles.has(sel.playerId)) {
+        playerRoundRoles.set(sel.playerId, new Map());
+      }
+      if (isNonCore) {
+        playerRoundRoles.get(sel.playerId)!.set(sel.matchRoundId, true);
+      }
+    }
+
+    const roundIdOrder = roundsByDate.map((r) => r.id);
+
+    for (const [playerId, movedRounds] of playerRoundRoles) {
+      if (movedRounds.size < 3) continue;
+
+      let consecutive = 0;
+      let maxConsecutive = 0;
+      for (const roundId of roundIdOrder) {
+        if (movedRounds.has(roundId)) {
+          consecutive++;
+          if (consecutive > maxConsecutive) maxConsecutive = consecutive;
+        } else {
+          consecutive = 0;
+        }
+      }
+
+      if (maxConsecutive >= 3) {
+        const playerInfo = selectionsByRound.find((s) => s.playerId === playerId);
+        const playerName = playerInfo
+          ? `${playerInfo.player.firstName}${playerInfo.player.lastName ? ` ${playerInfo.player.lastName}` : ""}`
+          : playerId;
+        const teamId = playerInfo?.player.coreTeam?.id ?? "";
+        const teamName = playerInfo?.player.coreTeam?.name ?? "";
+
+        warnings.push({
+          severity: "WARNING",
+          rule: "player_moved_consecutive_rounds",
+          message: `${playerName} has been moved (non-core) for ${maxConsecutive} consecutive rounds — consider rotation.`,
+          playerId,
+          playerName,
+          teamId,
+          teamName,
+          basedOnDraft: includeDrafts,
+        });
+      }
+    }
+  }
+
+  for (const round of roundsByDate) {
+    const roundSelections = selectionsByRound.filter((s) => s.matchRoundId === round.id);
+    const teamSupportPerRound = new Map<string, { teamName: string; supportCount: number; playerCount: number }>();
+
+    for (const sel of roundSelections) {
+      const teamId = sel.player.coreTeam?.id ?? "";
+      const teamName = sel.player.coreTeam?.name ?? "";
+      if (!teamId) continue;
+
+      const existing = teamSupportPerRound.get(teamId) ?? { teamName, supportCount: 0, playerCount: 0 };
+      existing.playerCount++;
+      if (sel.role === "SUPPORT") existing.supportCount++;
+      teamSupportPerRound.set(teamId, existing);
+    }
+
+    for (const [teamId, teamData] of teamSupportPerRound) {
+      if (teamData.playerCount === 0 || teamData.supportCount === 0) continue;
+      const avgSupportPerPlayer = teamData.supportCount / teamData.playerCount;
+
+      for (const sel of roundSelections) {
+        const playerTeamId = sel.player.coreTeam?.id ?? "";
+        if (playerTeamId !== teamId) continue;
+        if (sel.role !== "SUPPORT") continue;
+
+        const playerAllRoundSupport = playerStats.get(sel.playerId)?.support ?? 0;
+        if (playerAllRoundSupport > avgSupportPerPlayer * 2 && playerAllRoundSupport >= 2) {
+          const playerName = `${sel.player.firstName}${sel.player.lastName ? ` ${sel.player.lastName}` : ""}`;
+          warnings.push({
+            severity: "SCORING_PREFERENCE",
+            rule: "team_round_disproportionate_support",
+            message: `${playerName} is sent as support in round ${round.name} — team has ${teamData.supportCount} support assignment${teamData.supportCount !== 1 ? "s" : ""} across ${teamData.playerCount} player${teamData.playerCount !== 1 ? "s" : ""}.`,
+            playerId: sel.playerId,
+            playerName,
+            teamId,
+            teamName: teamData.teamName,
+            basedOnDraft: includeDrafts,
+          });
+          break;
+        }
+      }
+    }
+  }
+
   return warnings;
 }
 

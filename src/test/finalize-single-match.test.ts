@@ -143,7 +143,7 @@ describe("Per-match finalization", () => {
     expect(resultWithoutReason.hardBlocked).toBe(false);
     expect(resultWithoutReason.needsOverride).toBe(true);
 
-    const resultWithReason = await finalizeSingleMatch(firstMatchId, "Coach reviewed and accepts the risk");
+    const resultWithReason = await finalizeSingleMatch(firstMatchId, "coach_judgement");
     expect(resultWithReason.success).toBe(true);
     expect(resultWithReason.finalizedSelectionCount).toBeGreaterThan(0);
   });

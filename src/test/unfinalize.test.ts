@@ -100,11 +100,11 @@ describe("Unfinalize match round", () => {
       },
     });
 
-    await finalizeMatchRound(fixtureIds.matchRoundId, "Coach override reason");
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement");
 
     const beforeSelections = await testDb.selection.findMany({
       where: { matchRoundId: fixtureIds.matchRoundId, status: "FINALIZED" },
-      select: { ruleConfigVersion: true, overrideReason: true },
+      select: { ruleConfigVersion: true, overrideReason: true, overrideReasonCategory: true, overrideReasonDetail: true },
     });
     expect(beforeSelections.some((s) => s.overrideReason !== null)).toBe(true);
 
@@ -112,11 +112,13 @@ describe("Unfinalize match round", () => {
 
     const afterSelections = await testDb.selection.findMany({
       where: { matchRoundId: fixtureIds.matchRoundId, status: "DRAFT" },
-      select: { ruleConfigVersion: true, overrideReason: true },
+      select: { ruleConfigVersion: true, overrideReason: true, overrideReasonCategory: true, overrideReasonDetail: true },
     });
     for (const s of afterSelections) {
       expect(s.ruleConfigVersion).toBeNull();
       expect(s.overrideReason).toBeNull();
+      expect(s.overrideReasonCategory).toBeNull();
+      expect(s.overrideReasonDetail).toBeNull();
     }
   });
 
@@ -213,7 +215,7 @@ describe("Unfinalize match round", () => {
       },
     });
 
-    await finalizeMatchRound(fixtureIds.matchRoundId, "Coach override");
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement");
 
     await unfinalizeMatchRound(fixtureIds.matchRoundId);
 
@@ -386,17 +388,19 @@ describe("Unfinalize single match", () => {
       },
     });
 
-    await finalizeSingleMatch(firstMatchId, "Override reason");
+    await finalizeSingleMatch(firstMatchId, "coach_judgement");
 
     await unfinalizeSingleMatch(firstMatchId);
 
     const selections = await testDb.selection.findMany({
       where: { matchId: firstMatchId, status: "DRAFT" },
-      select: { ruleConfigVersion: true, overrideReason: true },
+      select: { ruleConfigVersion: true, overrideReason: true, overrideReasonCategory: true, overrideReasonDetail: true },
     });
     for (const s of selections) {
       expect(s.ruleConfigVersion).toBeNull();
       expect(s.overrideReason).toBeNull();
+      expect(s.overrideReasonCategory).toBeNull();
+      expect(s.overrideReasonDetail).toBeNull();
     }
   });
 });

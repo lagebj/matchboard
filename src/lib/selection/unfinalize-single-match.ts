@@ -73,6 +73,8 @@ export async function unfinalizeSingleMatch(
         status: SelectionStatus.DRAFT,
         ruleConfigVersion: null,
         overrideReason: null,
+        overrideReasonCategory: null,
+        overrideReasonDetail: null,
       },
     });
 

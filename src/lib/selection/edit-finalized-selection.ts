@@ -1,5 +1,7 @@
 import { type Prisma, type SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
+import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 export type FinalizedSelectionEditResult = {
   success: boolean;
@@ -14,6 +16,8 @@ export async function editFinalizedSelection(
     role?: SelectionRole;
     playerId?: string;
     explanation?: Record<string, unknown>;
+    overrideReasonCategory?: OverrideReasonCategory;
+    overrideReasonDetail?: string;
   },
 ): Promise<FinalizedSelectionEditResult> {
   if (!changeReason || changeReason.trim().length === 0) {
@@ -68,7 +72,11 @@ export async function editFinalizedSelection(
         ...(updatedData.role ? { role: updatedData.role } : {}),
         ...(updatedData.playerId ? { playerId: updatedData.playerId } : {}),
         ...(updatedData.explanation !== undefined ? { explanation: updatedData.explanation as Prisma.InputJsonValue } : {}),
-        overrideReason: changeReason,
+        overrideReason: updatedData.overrideReasonCategory
+          ? formatOverrideReason(updatedData.overrideReasonCategory, updatedData.overrideReasonDetail)
+          : changeReason,
+        ...(updatedData.overrideReasonCategory ? { overrideReasonCategory: toPrismaCategory(updatedData.overrideReasonCategory) } : {}),
+        ...(updatedData.overrideReasonDetail !== undefined ? { overrideReasonDetail: updatedData.overrideReasonDetail ?? null } : {}),
       },
     });
 
