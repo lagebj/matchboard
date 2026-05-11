@@ -27,7 +27,7 @@ The Today page must always show the next action based on this workflow state.
 - TypeScript
 - Tailwind
 - Prisma
-- SQLite
+- PostgreSQL (local Docker Compose or Neon)
 
 ## Product boundary
 
@@ -670,7 +670,7 @@ Required test coverage should include:
 
 ## Data safety
 
-Never commit real player names, private roster data, or local SQLite data.
+Never commit real player names, private roster data, or database credentials.
 
 Demo data must be fake.
 

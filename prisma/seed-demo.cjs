@@ -1,12 +1,29 @@
-import { db } from "../src/generated/prisma/client";
+import "dotenv/config";
+
+function createAdapter(url) {
+  if (url.includes(".neon.tech")) {
+    const { PrismaNeon } = require("@prisma/adapter-neon");
+    return new PrismaNeon({ connectionString: url });
+  }
+  const { PrismaPg } = require("@prisma/adapter-pg");
+  const { Pool } = require("pg");
+  const pool = new Pool({ connectionString: url });
+  return new PrismaPg(pool);
+}
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL must be set for seeding.");
+}
+
+const adapter = createAdapter(connectionString);
+const db = new (require("../src/generated/prisma/client").PrismaClient)({ adapter, log: ["warn", "error"] });
 
 async function main() {
-  // Create demo season
   const season = await db.season.create({
     data: { name: "Demo Season" },
   });
 
-  // Planning period
   const period = await db.planningPeriod.create({
     data: {
       name: "Spring Block 1",
@@ -16,7 +33,6 @@ async function main() {
     },
   });
 
-  // Match round
   const round = await db.matchRound.create({
     data: {
       name: "R1",
@@ -24,12 +40,11 @@ async function main() {
     },
   });
 
-  // Teams A, B, C
   const teamA = await db.team.create({
     data: {
       name: "Team A",
       targetSquadSize: 11,
-      minimumAcceptedSquadSize: 9,
+      minAcceptedSquadSize: 9,
       supportPriority: 100,
     },
   });
@@ -40,7 +55,6 @@ async function main() {
     data: { name: "Team C", targetSquadSize: 11, supportPriority: 30 },
   });
 
-  // Matches for each team in the round
   const _matchA = await db.match.create({
     data: {
       matchRoundId: round.id,
@@ -69,7 +83,6 @@ async function main() {
     },
   });
 
-  // Helper to create a player
   async function createPlayer(first, last, coreTeamId, code, pos) {
     return await db.player.create({
       data: {
@@ -88,7 +101,6 @@ async function main() {
     });
   }
 
-  // 34 players distributed across teams (example subset)
   const players = [];
   for (let i = 1; i <= 34; i++) {
     const team = i % 3 === 1 ? teamA.id : i % 3 === 2 ? teamB.id : teamC.id;
@@ -97,7 +109,6 @@ async function main() {
     players.push(player);
   }
 
-  // Rotation paths (A->B support, B->C support, B->A development, C->B development)
   await db.rotationPath.createMany({
     data: [
       { fromTeamId: teamA.id, toTeamId: teamB.id, role: "SUPPORT", purpose: "leadership", active: true },
