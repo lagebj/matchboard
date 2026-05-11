@@ -77,11 +77,11 @@ function makeCandidate(overrides: Partial<RotationCandidate> & { id: string; pla
 }
 
 describe("Consecutive support rotation scoring", () => {
-  let fixtureIds: TestFixtureIds;
+  let _fixtureIds: TestFixtureIds;
 
   beforeAll(async () => {
     testDb = await setupTestDb();
-    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 14 });
+    _fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 14 });
   });
 
   afterAll(async () => {

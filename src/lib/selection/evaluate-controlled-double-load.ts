@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import type { GeneratedSelection, SelectedPlayer, SelectionWarning } from "@/lib/selection/types";
 
-type DoubleLoadPath = {
+type _DoubleLoadPath = {
   id: string;
   fromTeamId: string;
   toTeamId: string;

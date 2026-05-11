@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import type { SelectionRole } from "@/generated/prisma/client";
 import {
   Calendar,
   MapPin,
@@ -247,7 +248,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 {grouped.map((group) => (
                   <div key={group.role}>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <RoleBadge role={group.role as any} />
+                      <RoleBadge role={group.role as SelectionRole} />
                       <span className="text-[10px] text-[var(--text-muted)]">{group.players.length}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">

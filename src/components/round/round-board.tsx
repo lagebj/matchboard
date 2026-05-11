@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useCallback, useRef } from "react";
-import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
 import {
   addPlayerToMatchAction,
   removePlayerFromMatchAction,
@@ -22,10 +21,10 @@ import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/rounds/[matchRoundId]/actions";
-import { severityFromDbSeverity } from "@/components/ui/severity-badge";
+import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
 
-type SelectionRole = "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT";
+type SelectionRole = UISelectionRole;
 
 type PlayerInColumn = {
   id: string;
@@ -97,9 +96,7 @@ type RoundBoardProps = {
 
 const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
 
-const ROLE_CHANGE_OPTIONS: SelectionRole[] = ["CORE", "SUPPORT", "DEVELOPMENT"];
-
-const ROLE_LABELS: Record<string, string> = {
+const _ROLE_LABELS: Record<string, string> = {
   CORE: "Core",
   SUPPORT: "Support",
   BACKFILL: "Squad repair",
@@ -111,7 +108,7 @@ function PlayerChip({
   isDraggable,
   onDragStart,
   onRemove,
-  onRoleChange,
+  onRoleChange: _onRoleChangeProp,
   isPending,
   isFinalized,
   onTouchStart,
@@ -137,7 +134,7 @@ function PlayerChip({
           ? "border-zinc-600/40 bg-zinc-800/30 text-zinc-400"
           : "";
 
-  const isNonCore = player.role && player.role !== "CORE" && player.coreTeamName !== player.selectionCategory
+  const _isNonCore = player.role && player.role !== "CORE" && player.coreTeamName !== player.selectionCategory
     ? true
     : false;
 
@@ -336,7 +333,7 @@ function MatchColumnComponent({
 export function RoundBoard({
   roundLabel,
   roundStatus,
-  roundId,
+  roundId: _roundId,
   matchRoundId,
   hasDraftSelections,
   hasMatches,
@@ -389,7 +386,7 @@ export function RoundBoard({
   const teamsNeedingSupport = 0;
   const backfillNeeded = 0;
   const blockingWarnings = warningSummary?.blocking ?? 0;
-  const requiresOverrideWarnings = warningSummary?.high ?? 0;
+  const _requiresOverrideWarnings = warningSummary?.high ?? 0;
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
@@ -447,6 +444,7 @@ export function RoundBoard({
         });
       } catch {}
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
     [matchRoundId, overrideReason, startTransition, determineRole],
   );
 
@@ -557,6 +555,7 @@ export function RoundBoard({
       setTouchDragPlayerId(null);
       setTouchDropTarget(null);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
     [matchRoundId, overrideReason, startTransition, determineRole],
   );
 

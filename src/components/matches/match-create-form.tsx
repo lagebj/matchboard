@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createMatchAction } from "@/app/matches/actions";
@@ -31,9 +32,9 @@ export function MatchCreateForm({
     return (
       <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
         Create at least one team before adding matches.{" "}
-        <a href="/teams/new" className="underline text-[var(--accent-strong)]">
+        <Link href="/teams/new" className="underline text-[var(--accent-strong)]">
           Create a team
-        </a>
+        </Link>
       </div>
     );
   }

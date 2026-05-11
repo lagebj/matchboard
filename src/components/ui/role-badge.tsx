@@ -18,7 +18,8 @@ export type SelectionRole =
   | "CORE_MATCH_DROP"
   | "DROPPED"
   | "UNAVAILABLE"
-  | "MANUAL";
+  | "MANUAL"
+  | "MANUAL_OVERRIDE";
 
 type RoleConfig = {
   label: string;
@@ -82,6 +83,12 @@ const roleConfig: Record<SelectionRole, RoleConfig> = {
   },
   MANUAL: {
     label: "Manual",
+    icon: ShieldCheck,
+    className:
+      "bg-zinc-700/40 text-zinc-300 border-zinc-500/40",
+  },
+  MANUAL_OVERRIDE: {
+    label: "Override",
     icon: ShieldCheck,
     className:
       "bg-zinc-700/40 text-zinc-300 border-zinc-500/40",

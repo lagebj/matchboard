@@ -55,7 +55,7 @@ const VALID_FORMATS = ["SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"] as const;
 
 export type MatchFormState = { error: string };
 
-const INITIAL_STATE: MatchFormState = { error: "" };
+const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
   await requireCoachAccess();
@@ -73,7 +73,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     });
     if (!team) throw new Error("Team not found.");
 
-    const weekKey = formatIsoWeekKey(startsAt);
+    const _weekKey = formatIsoWeekKey(startsAt);
     const weekLabel = formatIsoWeekLabel(startsAt);
     const { startsAt: weekStart, endsAt: weekEnd } = getWeekRange(startsAt);
 

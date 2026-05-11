@@ -190,7 +190,7 @@ export async function getSeasonPlayerRoundMatrix(
       (rid) => !selectedRoundIds.has(rid) && !unavailableByPlayerRound.has(`${player.id}:${rid}`),
     ).length;
 
-    const lastMovement = cells.length > 0
+    const _lastMovement = cells.length > 0
       ? cells.reduce((latest, c) => {
           if (c.role !== "CORE" && c.status === "FINALIZED") return c;
           return latest;
@@ -375,7 +375,7 @@ async function getSeasonFairnessWarningsInternal(
   }
 
   const teamSupportCounts = new Map<string, { teamName: string; totalSupportSent: number; playerCount: number }>();
-  for (const [playerId, stats] of playerStats) {
+  for (const [_playerId, stats] of playerStats) {
     const existing = teamSupportCounts.get(stats.teamId) ?? { teamName: stats.teamName, totalSupportSent: 0, playerCount: 0 };
     existing.totalSupportSent += stats.support;
     existing.playerCount++;
@@ -618,7 +618,7 @@ export async function getMovementPathSummary(
   planningPeriodId: string,
   includeDrafts: boolean = false,
 ): Promise<MovementPathRow[]> {
-  const selectionStatusFilter = includeDrafts
+  const _selectionStatusFilter = includeDrafts
     ? { in: [SelectionStatus.FINALIZED, SelectionStatus.DRAFT] }
     : { in: [SelectionStatus.FINALIZED] };
 
@@ -734,7 +734,7 @@ export async function getPlayerMovementTimeline(
     orderBy: { match: { startsAt: "asc" } },
   });
 
-  const matchRoundIds = [...new Set(selections.map((s) => s.matchRoundId))];
+  const _matchRoundIds = [...new Set(selections.map((s) => s.matchRoundId))];
 
   const movementWhere: Record<string, unknown> = { playerId };
   if (planningPeriodId) {

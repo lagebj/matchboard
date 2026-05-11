@@ -102,7 +102,7 @@ describe("Season fairness warnings — new warnings", () => {
     const rodTeamId = fixtureIds.teams["Rod"]!;
     const blaPlayer = fixtureIds.players.find((p) => p.coreTeamId === blaTeamId)!;
 
-    const roundId = fixtureIds.matchRoundId;
+    const _roundId = fixtureIds.matchRoundId;
 
     for (let i = 0; i < 3; i++) {
       const mr = await testDb.matchRound.create({

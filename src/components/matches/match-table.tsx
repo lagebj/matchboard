@@ -1,6 +1,5 @@
 "use client";
 
-import { deleteMatchAction } from "@/app/matches/actions";
 import Link from "next/link";
 
 type MatchRow = {

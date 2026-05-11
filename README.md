@@ -426,6 +426,14 @@ Matchboard is designed for deployment to Vercel with Neon Postgres. Do not deplo
 - [ ] AUTH_URL set to deployed domain URL
 - [ ] No real credentials in committed files
 - [ ] Auth protection verified (unauthenticated users cannot access data)
+- [ ] `npm run lint`, `npm run build`, `npm test`, `npm run typecheck` all pass
+
+### Security notes
+
+- Rate limiting is in-memory only (`src/lib/rate-limit.ts`). It resets on server restart and does not work across multiple instances. For production behind multiple Vercel instances, consider a Redis-backed rate limiter.
+- The `/api/health` endpoint is public and returns `{ ok: true }` only — no business data is exposed.
+- All other API routes and server actions enforce `requireCoachAccess()`.
+- Never expose `DATABASE_URL`, `AUTH_SECRET`, or other secrets as `NEXT_PUBLIC_*` variables.
 
 ## Coding style
 

@@ -15,6 +15,8 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
 .env.*.backup
 !.env.example
 *.crt
@@ -38,7 +40,12 @@ next-env.d.ts
 /data/
 /exports/
 /imports/
-*.local.db
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+tmp/
 
 # Logs and OS
 .DS_Store

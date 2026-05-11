@@ -84,7 +84,7 @@ describe("Season export regression", () => {
   });
 
   it("squad repair counted in backfillMatches not coreMatches", async () => {
-    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const _rodTeamId = fixtureIds.teams["Rod"]!;
     const blaPlayer = fixtureIds.players.filter((p) => p.coreTeamId === fixtureIds.teams["Bla"]!)[5]!;
 
     await testDb.selection.create({

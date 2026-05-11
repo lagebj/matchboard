@@ -277,9 +277,9 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
               <tr>
                 <td className="px-4 py-10 text-center app-copy-muted" colSpan={8}>
                   No players yet.{" "}
-                  <a href="/players/new" className="underline text-[var(--accent-strong)]">
+                  <Link href="/players/new" className="underline text-[var(--accent-strong)]">
                     Create a player
-                  </a>
+                  </Link>
                 </td>
               </tr>
             ) : null}
