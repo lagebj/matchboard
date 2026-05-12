@@ -55,7 +55,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
     formData.set("minSupportPlayers", "0");
     formData.set("developmentSlots", "2");
 
-    const { createTeamAction } = await import("@/app/teams/actions");
+    const { createTeamAction } = await import("@/app/(app)/teams/actions");
 
     try {
       await createTeamAction(formData);
@@ -85,7 +85,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
     formData.set("minSupportPlayers", "0");
     formData.set("developmentSlots", "2");
 
-    const { createTeamAction } = await import("@/app/teams/actions");
+    const { createTeamAction } = await import("@/app/(app)/teams/actions");
 
     try {
       await createTeamAction(formData);
@@ -112,7 +112,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
     formData.set("minSupportPlayers", "1");
     formData.set("developmentSlots", "3");
 
-    const { createTeamAction } = await import("@/app/teams/actions");
+    const { createTeamAction } = await import("@/app/(app)/teams/actions");
 
     try {
       await createTeamAction(formData);
@@ -154,7 +154,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData.set("matchType", "FRIENDLY");
     formData.set("gameFormat", "ELEVEN_A_SIDE");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     try {
       await createMatchAction({ error: "" }, formData);
@@ -185,7 +185,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData.set("matchType", "LEAGUE");
     formData.set("gameFormat", "NINE_A_SIDE");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     const result = await createMatchAction({ error: "" }, formData);
     expect(result.error).toBeTruthy();
@@ -200,7 +200,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData.set("matchType", "FRIENDLY");
     formData.set("gameFormat", "ELEVEN_A_SIDE");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     const result = await createMatchAction({ error: "" }, formData);
     expect(result.error).toBeTruthy();
@@ -217,7 +217,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData.set("matchType", "INVALID_TYPE");
     formData.set("gameFormat", "ELEVEN_A_SIDE");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     const result = await createMatchAction({ error: "" }, formData);
     expect(result.error).toContain("Match type");
@@ -234,7 +234,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData.set("matchType", "FRIENDLY");
     formData.set("gameFormat", "INVALID_FORMAT");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     const result = await createMatchAction({ error: "" }, formData);
     expect(result.error).toContain("Game format");
@@ -251,7 +251,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData1.set("matchType", "FRIENDLY");
     formData1.set("gameFormat", "ELEVEN_A_SIDE");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     try { await createMatchAction({ error: "" }, formData1); } catch (error: unknown) { if (!isRedirectError(error)) throw error; }
 
@@ -284,7 +284,7 @@ describe("Setup registry: create match action assigns match to round by date", (
     formData1.set("matchType", "FRIENDLY");
     formData1.set("gameFormat", "ELEVEN_A_SIDE");
 
-    const { createMatchAction } = await import("@/app/matches/actions");
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
 
     try { await createMatchAction({ error: "" }, formData1); } catch (error: unknown) { if (!isRedirectError(error)) throw error; }
 

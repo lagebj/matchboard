@@ -5,7 +5,7 @@ import {
   addPlayerToMatchAction,
   removePlayerFromMatchAction,
   changePlayerRoleAction,
-} from "@/app/rounds/[matchRoundId]/draft-selection-actions";
+} from "@/app/(app)/rounds/[matchRoundId]/draft-selection-actions";
 import {
   ShieldCheck,
   Trash2,
@@ -20,7 +20,7 @@ import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialo
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
-import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/rounds/[matchRoundId]/actions";
+import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/(app)/rounds/[matchRoundId]/actions";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
 import type { WarningSeverity } from "@/generated/prisma/client";
 

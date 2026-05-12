@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
-import { removePlayerAction, togglePlayerActiveAction, updatePlayerAction } from "@/app/players/actions";
+import { removePlayerAction, togglePlayerActiveAction, updatePlayerAction } from "@/app/(app)/players/actions";
 import { PlayerEditorForm, PlayerSummaryCard } from "@/components/players/player-editor-form";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";

@@ -1,4 +1,4 @@
-import { saveRulesAction } from "@/app/rules/actions";
+import { saveRulesAction } from "@/app/(app)/rules/actions";
 import type { MatchboardRuleConfig } from "@/lib/rules/get-rules";
 
 function RuleSection({

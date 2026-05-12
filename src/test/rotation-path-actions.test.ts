@@ -62,7 +62,7 @@ describe("Rotation path server actions", () => {
       formData.set("priority", "1");
       formData.set("redirectTeamId", alphaId);
 
-      const { createRotationPathAction } = await import("@/app/rules/actions");
+      const { createRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       try {
         await createRotationPathAction({ error: "" }, formData);
@@ -90,7 +90,7 @@ describe("Rotation path server actions", () => {
       formData.set("toTeamId", alphaId);
       formData.set("role", "DEVELOPMENT");
 
-      const { createRotationPathAction } = await import("@/app/rules/actions");
+      const { createRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       const result = await createRotationPathAction({ error: "" }, formData);
       expect(result.error).toContain("different");
@@ -105,7 +105,7 @@ describe("Rotation path server actions", () => {
       formData.set("toTeamId", betaId);
       formData.set("role", "SUPPORT");
 
-      const { createRotationPathAction } = await import("@/app/rules/actions");
+      const { createRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       const result = await createRotationPathAction({ error: "" }, formData);
       expect(result.error).toContain("already exists");
@@ -122,7 +122,7 @@ describe("Rotation path server actions", () => {
       formData.set("purpose", "Alpha development to Beta");
       formData.set("redirectTeamId", alphaId);
 
-      const { createRotationPathAction } = await import("@/app/rules/actions");
+      const { createRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       try {
         await createRotationPathAction({ error: "" }, formData);
@@ -150,7 +150,7 @@ describe("Rotation path server actions", () => {
       formData.set("maxDoubleLoadsPerPeriod", "3");
       formData.set("redirectTeamId", alphaId);
 
-      const { createRotationPathAction } = await import("@/app/rules/actions");
+      const { createRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       try {
         await createRotationPathAction({ error: "" }, formData);
@@ -177,7 +177,7 @@ describe("Rotation path server actions", () => {
       formData.set("toTeamId", betaId);
       formData.set("role", "INVALID_ROLE");
 
-      const { createRotationPathAction } = await import("@/app/rules/actions");
+      const { createRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       const result = await createRotationPathAction({ error: "" }, formData);
       expect(result.error).toContain("Role must be one of");
@@ -199,7 +199,7 @@ describe("Rotation path server actions", () => {
       formData.set("pathId", path.id);
       formData.set("redirectTeamId", alphaId);
 
-      const { toggleRotationPathActiveAction } = await import("@/app/rules/actions");
+      const { toggleRotationPathActiveAction } = await import("@/app/(app)/rules/actions");
 
       try {
         await toggleRotationPathActiveAction({ error: "" }, formData);
@@ -229,7 +229,7 @@ describe("Rotation path server actions", () => {
       formData.set("priority", "5");
       formData.set("redirectTeamId", alphaId);
 
-      const { updateRotationPathAction } = await import("@/app/rules/actions");
+      const { updateRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       try {
         await updateRotationPathAction({ error: "" }, formData);
@@ -256,7 +256,7 @@ describe("Rotation path server actions", () => {
       formData.set("pathId", path.id);
       formData.set("redirectTeamId", alphaId);
 
-      const { deleteRotationPathAction } = await import("@/app/rules/actions");
+      const { deleteRotationPathAction } = await import("@/app/(app)/rules/actions");
 
       try {
         await deleteRotationPathAction({ error: "" }, formData);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { removePlayerAction } from "@/app/players/actions";
+import { removePlayerAction } from "@/app/(app)/players/actions";
 import { PlayerTable } from "@/components/players/player-table";
 import { db } from "@/lib/db";
 import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
