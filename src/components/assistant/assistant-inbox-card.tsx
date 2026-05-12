@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { AssistantIssue } from "@/domain/assistant-manager/types";
-import { getSeverityBadgeClasses, getStatusBadgeClasses } from "@/domain/assistant-manager/mock-data";
+import { getSeverityBadgeClasses, getStatusBadgeClasses } from "@/domain/assistant-manager/utils/issue-grouping";
 
 type AssistantInboxCardProps = {
   issue: AssistantIssue;

@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { RoundReview, AssistantIssue } from "@/domain/assistant-manager/types";
 import { fetchRoundReview, fetchAssistantIssues } from "@/domain/assistant-manager/actions";
-import { getReadinessClasses, getSeverityBadgeClasses } from "@/domain/assistant-manager/mock-data";
+import { getReadinessClasses, getSeverityBadgeClasses } from "@/domain/assistant-manager/utils/issue-grouping";
 import { TeamReadinessCard } from "./team-readiness-card";
 import { DecisionPanel } from "./decision-panel";
 

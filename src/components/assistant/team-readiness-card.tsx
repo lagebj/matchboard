@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TeamReadiness } from "@/domain/assistant-manager/types";
-import { getReadinessClasses } from "@/domain/assistant-manager/mock-data";
+import { getReadinessClasses } from "@/domain/assistant-manager/utils/issue-grouping";
 
 function readinessLabel(state: string): string {
   switch (state) {

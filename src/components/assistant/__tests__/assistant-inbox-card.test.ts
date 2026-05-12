@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getSeverityBadgeClasses, sortIssuesBySeverity } from "../../../domain/assistant-manager/mock-data";
+import { getSeverityBadgeClasses, sortIssuesBySeverity } from "../../../domain/assistant-manager/utils/issue-grouping";
 import type { AssistantIssue } from "../../../domain/assistant-manager/types";
 
 const makeIssue = (overrides: Partial<AssistantIssue> & { id: string }): AssistantIssue => ({

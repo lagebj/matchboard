@@ -4,8 +4,8 @@ import { useState, useEffect, useTransition } from "react";
 import type { AssistantIssue } from "@/domain/assistant-manager/types";
 import { fetchAssistantIssues } from "@/domain/assistant-manager/actions";
 import { AssistantInboxCard } from "./assistant-inbox-card";
-import { sortIssuesBySeverity, groupIssues } from "@/domain/assistant-manager/mock-data";
-import type { IssueGroup } from "@/domain/assistant-manager/mock-data";
+import { sortIssuesBySeverity, groupIssues } from "@/domain/assistant-manager/utils/issue-grouping";
+import type { IssueGroup } from "@/domain/assistant-manager/utils/issue-grouping";
 
 const sectionConfig: Array<{ key: IssueGroup; label: string }> = [
   { key: "needs_action", label: "Needs Action" },

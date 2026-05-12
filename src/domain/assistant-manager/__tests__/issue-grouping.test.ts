@@ -5,7 +5,7 @@ import {
   getSeverityBadgeClasses,
   getStatusBadgeClasses,
   getReadinessClasses,
-} from "../mock-data";
+} from "../utils/issue-grouping";
 import type { AssistantIssue } from "../types";
 
 const makeIssue = (overrides: Partial<AssistantIssue> & { id: string }): AssistantIssue => ({
