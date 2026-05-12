@@ -1,21 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
-import { formatDate, formatIsoWeekLabel } from "@/lib/date-utils";
-import { getTeamFairnessGroups } from "@/lib/workflow/get-team-fairness-gaps";
+import { type RoundStatus } from "@/lib/round-status";
+import { formatDate } from "@/lib/date-utils";
 import { getPlanningPeriodFairness, type FairnessFlag } from "@/lib/selection/get-planning-period-fairness";
 import { getTeamBurden } from "@/lib/selection/get-team-burden";
 import { formatAvailabilityStatus } from "@/lib/player-metrics";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { SeverityBadge, severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
+import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
 import { type WarningSeverity } from "@/generated/prisma/client";
 import { requireCoachAccess } from "@/lib/auth";
 
-type ActionCard = {
-  group: string;
+type ActionItem = {
   severity: "blocking" | "high" | "medium" | "info";
   title: string;
   detail: string;
@@ -23,19 +20,16 @@ type ActionCard = {
   actionLabel: string;
 };
 
-function formatSeverityBadge(severity: "blocking" | "high" | "medium" | "info") {
-  return <SeverityBadge severity={severity} />;
-}
-
 type RoundProgress = {
   id: string;
   name: string;
   status: RoundStatus;
+  matchCount: number;
+  warningCount: number;
 };
 
 function computeRoundProgress(rounds: { id: string; name: string; status: string; matches: { id: string }[]; warnings: { severity: string; rule: string }[] }[]): RoundProgress[] {
   return rounds.map((r) => {
-    const hasMatches = r.matches.length > 0;
     const hasDraft = r.status === "DRAFT";
     const isFinalized = r.status === "FINALIZED";
     const blockingCount = r.warnings.filter((w) => {
@@ -43,86 +37,49 @@ function computeRoundProgress(rounds: { id: string; name: string; status: string
       return sev === "blocking";
     }).length;
 
-    if (isFinalized) return { id: r.id, name: r.name, status: "FINALIZED" as const };
-    if (hasDraft && blockingCount > 0) return { id: r.id, name: r.name, status: "BLOCKED" as const };
-    if (hasDraft) return { id: r.id, name: r.name, status: "READY" as const };
-    if (hasMatches) return { id: r.id, name: r.name, status: "NOT_GENERATED" as const };
-    return { id: r.id, name: r.name, status: "NOT_GENERATED" as const };
+    if (isFinalized) return { id: r.id, name: r.name, status: "FINALIZED" as const, matchCount: r.matches.length, warningCount: 0 };
+    if (hasDraft && blockingCount > 0) return { id: r.id, name: r.name, status: "BLOCKED" as const, matchCount: r.matches.length, warningCount: blockingCount };
+    if (hasDraft) return { id: r.id, name: r.name, status: "READY" as const, matchCount: r.matches.length, warningCount: 0 };
+    return { id: r.id, name: r.name, status: "NOT_GENERATED" as const, matchCount: r.matches.length, warningCount: 0 };
   });
 }
 
 export default async function TodayPage() {
+  await requireCoachAccess();
+
   const activePlanningPeriod = await db.planningPeriod.findFirst({
     orderBy: { startDate: "desc" },
   });
-
-  const activeMatchRound = activePlanningPeriod
-    ? await db.matchRound.findFirst({
-        where: { planningPeriodId: activePlanningPeriod.id, status: { not: "FINALIZED" } },
-        include: {
-          matches: {
-            include: { team: { select: { id: true, name: true } } },
-            orderBy: [{ startsAt: "asc" }],
-          },
-          warnings: {
-            where: { resolved: false },
-            select: { id: true, rule: true, message: true, severity: true, matchId: true, teamId: true },
-            orderBy: [{ createdAt: "desc" }],
-          },
-        },
-        orderBy: { createdAt: "asc" },
-      })
-    : null;
 
   const allMatchRounds = activePlanningPeriod
     ? await db.matchRound.findMany({
         where: { planningPeriodId: activePlanningPeriod.id },
         include: {
-          matches: { select: { id: true } },
+          matches: { select: { id: true, startsAt: true, team: { select: { name: true } }, opponent: true, homeAway: true } },
           warnings: { where: { resolved: false }, select: { severity: true, rule: true } },
         },
         orderBy: { createdAt: "asc" },
       })
     : [];
 
-  const [selections, recentFinalizedSelections, players, teams, fairnessData, teamBurdenData] = await Promise.all([
-    activeMatchRound
-      ? db.selection.findMany({
-          where: {
-            matchId: { in: activeMatchRound.matches.map((m) => m.id) },
-            status: { in: [SelectionStatus.DRAFT, SelectionStatus.FINALIZED] },
-          },
-          include: { player: { select: { id: true } } },
-          orderBy: [{ createdAt: "desc" }],
-        })
-      : Promise.resolve([]),
-    db.selection.findMany({
-      where: { status: SelectionStatus.FINALIZED },
-      include: {
-        player: { select: { id: true } },
-        match: { include: { team: { select: { name: true } } } },
-      },
-      orderBy: [{ createdAt: "desc" }],
-      take: 3,
-    }),
-    db.player.findMany({
-      where: { active: true, removedAt: null },
-      include: { coreTeam: { select: { id: true, name: true } } },
-      orderBy: [
-        { coreTeam: { name: "asc" } },
-        { firstName: "asc" },
-        { lastName: "asc" },
-        { playerCode: "asc" },
-      ],
-    }),
-    db.team.findMany({
-      where: { archivedAt: null },
-      include: {
-        corePlayers: { where: { removedAt: null }, select: { id: true } },
-        toRotationPaths: { select: { fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { id: true, name: true } } } },
-      },
-      orderBy: [{ name: "asc" }],
-    }),
+  const roundProgress = computeRoundProgress(allMatchRounds);
+
+  const teams = await db.team.findMany({
+    where: { archivedAt: null },
+    include: {
+      corePlayers: { where: { removedAt: null }, select: { id: true, currentAvailability: true } },
+      toRotationPaths: { select: { fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { id: true, name: true } } } },
+    },
+    orderBy: [{ name: "asc" }],
+  });
+
+  const players = await db.player.findMany({
+    where: { active: true, removedAt: null },
+    include: { coreTeam: { select: { id: true, name: true } } },
+    orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
+  });
+
+  const [fairnessData, teamBurdenData] = await Promise.all([
     activePlanningPeriod
       ? getPlanningPeriodFairness(activePlanningPeriod.id)
       : Promise.resolve({ players: [], planningPeriodId: "" }),
@@ -131,626 +88,255 @@ export default async function TodayPage() {
       : Promise.resolve({ teams: [], planningPeriodId: "" }),
   ]);
 
-  const selectedPlayerIdsByMatchId = new Map<string, string[]>();
-  for (const selection of selections) {
-    const existing = selectedPlayerIdsByMatchId.get(selection.matchId) ?? [];
-    existing.push(selection.player.id);
-    selectedPlayerIdsByMatchId.set(selection.matchId, existing);
-  }
-
-  // --- Next Action ---
-  const blockingWarnings = activeMatchRound
-    ? activeMatchRound.warnings.filter((w) => {
-        const sev = w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule);
-        return sev === "blocking";
-      })
-    : [];
-
-  const roundStatus = deriveRoundStatus({
-    dbStatus: activeMatchRound?.status ?? null,
-    hasDraftSelections: selections.some((s) => s.status === "DRAFT"),
-    hasMatches: (activeMatchRound?.matches.length ?? 0) > 0,
-    blockingWarningCount: blockingWarnings.length,
-  });
-
-  const teamCount = await db.team.count({ where: { archivedAt: null } });
-  const playerCount = await db.player.count({ where: { removedAt: null } });
+  const teamCount = teams.length;
+  const playerCount = players.length;
   const totalMatchCount = await db.match.count();
+  const hasSetup = teamCount > 0 && playerCount > 0 && totalMatchCount > 0;
 
-  type NextAction = { label: string; href: string };
+  const nextRound = roundProgress.find((r) => r.status !== "FINALIZED");
 
-  const nextAction: NextAction | null = (() => {
-    if (teamCount === 0) {
-      return { label: "Create a team to get started", href: "/teams/new" };
-    }
-    if (playerCount === 0) {
-      return { label: "Add players to your teams", href: "/players/new" };
-    }
-    if (totalMatchCount === 0) {
-      return { label: "Create a match to plan a round", href: "/matches/new" };
-    }
-    if (!activePlanningPeriod || !activeMatchRound) {
-      return { label: "Select a round", href: "/rounds" };
-    }
-    if (roundStatus === "NOT_GENERATED") {
-      return { label: `Generate squads for ${activeMatchRound.name}`, href: `/rounds/${activeMatchRound.id}` };
-    }
-    if (roundStatus === "BLOCKED") {
-      return { label: `Review ${blockingWarnings.length} warning${blockingWarnings.length === 1 ? "" : "s"} and finalize with override`, href: `/rounds/${activeMatchRound.id}#warnings` };
-    }
-    if (roundStatus === "DRAFT") {
-      return { label: `Finalize ${activeMatchRound.name}`, href: `/rounds/${activeMatchRound.id}` };
-    }
-    if (roundStatus === "READY") {
-      return { label: `Finalize ${activeMatchRound.name}`, href: `/rounds/${activeMatchRound.id}` };
-    }
-    return { label: "View finalized rounds", href: "/history" };
-  })();
-
-  // --- Active Round Summary ---
-  const matchCount = activeMatchRound?.matches.length ?? 0;
-  const draftSelectionCount = selections.filter((s) => s.status === SelectionStatus.DRAFT).length;
-  const roundLabel = activeMatchRound
-    ? (activeMatchRound.matches.length > 0
-        ? formatIsoWeekLabel(activeMatchRound.matches[0]!.startsAt)
-        : activeMatchRound.name)
+  const activeMatchRound = nextRound
+    ? allMatchRounds.find((r) => r.id === nextRound.id) ?? null
     : null;
 
-  const roundWarnings = activeMatchRound?.warnings ?? [];
-  const warningCounts = {
-    blocking: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "blocking").length,
-    high: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "high").length,
-    medium: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "medium").length,
-    info: roundWarnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "info").length,
-  };
+  const actionItems: ActionItem[] = [];
 
-  // --- Fairness Checks ---
-  const fairnessGroups = getTeamFairnessGroups(players, selectedPlayerIdsByMatchId).slice(0, 4);
-  const flaggedPlayers = fairnessData.players.filter((p) => p.flags.length > 0);
+  if (!hasSetup) {
+    // setup phase — no action items beyond setup
+  } else {
+    const blockingWarnings = activeMatchRound
+      ? allMatchRounds.find((r) => r.id === activeMatchRound.id)?.warnings.filter((w) => {
+          const sev = w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule);
+          return sev === "blocking";
+        }) ?? []
+      : [];
 
-  // --- Action Cards ---
-  const actionCards: ActionCard[] = [];
-
-  const unavailablePlayers = players.filter(
-    (p) => p.currentAvailability !== "AVAILABLE",
-  );
-  for (const p of unavailablePlayers) {
-    const severity: "blocking" | "high" | "medium" | "info" =
-      p.currentAvailability === "INJURED" || p.currentAvailability === "SICK" ? "high" : "info";
-    actionCards.push({
-      group: "Availability",
-      severity,
-      title: `${p.firstName} ${p.lastName} is ${formatAvailabilityStatus(p.currentAvailability).toLowerCase()}`,
-      detail: `${p.coreTeam.name} player may affect squad depth.`,
-      actionHref: `/players/${p.id}`,
-      actionLabel: "Open profile",
-    });
-  }
-
-  for (const team of teams) {
-    const coreCount = team.corePlayers.length;
-    const targetSquad = team.targetSquadSize ?? 7;
-    const minSquad = team.minAcceptedSquadSize ?? 5;
-    if (coreCount < minSquad) {
-      actionCards.push({
-        group: "Support needs",
-        severity: "high",
-        title: `${team.name} has low core depth`,
-        detail: `${coreCount} core players. Minimum accepted: ${minSquad}. Target: ${targetSquad}.`,
-        actionHref: "/teams",
-        actionLabel: "Review team",
+    for (const w of blockingWarnings) {
+      actionItems.push({
+        severity: "blocking",
+        title: w.rule,
+        detail: "Hard block — requires override to finalize",
+        actionHref: `/rounds/${activeMatchRound?.id ?? ""}`,
+        actionLabel: "Open round",
       });
     }
 
-    const supportPaths = team.toRotationPaths.filter((p) => p.role === "SUPPORT");
-    for (const path of supportPaths) {
-      const sourceCore = teams.find((t) => t.id === path.fromTeam.id);
-      if (sourceCore) {
-        const sourceCoreCount = sourceCore.corePlayers.length;
-        const sourceMinSquad = sourceCore.minAcceptedSquadSize ?? 5;
-        if (sourceCoreCount - 1 < sourceMinSquad) {
-          actionCards.push({
-            group: "Squad repair consequences",
-            severity: "medium",
-            title: `${path.fromTeam.name} may be short if supporting ${team.name}`,
-            detail: `${path.fromTeam.name} has ${sourceCoreCount} core players. Sending one to support ${team.name} may drop below minimum.`,
-            actionHref: "/teams",
-            actionLabel: "Review paths",
-          });
-        }
+    const unavailablePlayers = players.filter((p) => p.currentAvailability !== "AVAILABLE");
+    for (const p of unavailablePlayers) {
+      actionItems.push({
+        severity: p.currentAvailability === "INJURED" || p.currentAvailability === "SICK" ? "high" : "info",
+        title: `${p.firstName} ${p.lastName} — ${formatAvailabilityStatus(p.currentAvailability).toLowerCase()}`,
+        detail: p.coreTeam.name,
+        actionHref: `/players/${p.id}`,
+        actionLabel: "Profile",
+      });
+    }
+
+    for (const team of teams) {
+      const coreCount = team.corePlayers.length;
+      const minSquad = team.minAcceptedSquadSize ?? 5;
+      if (coreCount < minSquad) {
+        actionItems.push({
+          severity: "high",
+          title: `${team.name} — low core depth`,
+          detail: `${coreCount} core players (min: ${minSquad})`,
+          actionHref: `/teams/${team.id}`,
+          actionLabel: "Team detail",
+        });
       }
     }
-  }
 
-  for (const p of flaggedPlayers) {
-    const flagLabels = p.flags.map((f: FairnessFlag) =>
-      f === "support_burden_review" ? "Support burden review"
-      : f === "hidden_promotion_review" ? "Hidden promotion review"
-      : "Core exposure review",
-    );
-    actionCards.push({
-      group: "Fairness flags",
-      severity: "high",
-      title: `${p.playerName}: ${flagLabels.join(", ")}`,
-      detail: `Core: ${p.coreCount}, Support: ${p.supportCount}, Development: ${p.developmentCount}. Available rounds: ${p.availableRounds}.`,
-      actionHref: `/players/${p.playerId}`,
-      actionLabel: "Open profile",
-    });
-  }
-
-  for (const teamBurden of teamBurdenData.teams) {
-    if (teamBurden.highDonorBurden) {
-      actionCards.push({
-        group: "Team burden",
+    for (const p of fairnessData.players.filter((p) => p.flags.length > 0).slice(0, 3)) {
+      const flagLabels = p.flags.map((f: FairnessFlag) =>
+        f === "support_burden_review" ? "High support burden"
+        : f === "hidden_promotion_review" ? "Low development exposure"
+        : "Low core exposure",
+      );
+      actionItems.push({
         severity: "high",
-        title: `${teamBurden.teamName}: high donor burden`,
-        detail: `Donated players in every round of the planning period (${teamBurden.totalDonations} total donations). Consider squad repair or reduced voluntary movement.`,
-        actionHref: "/teams",
-        actionLabel: "Review team",
+        title: `${p.playerName} — ${flagLabels.join(", ")}`,
+        detail: `Core: ${p.coreCount}, Support: ${p.supportCount}, Dev: ${p.developmentCount}`,
+        actionHref: `/players/${p.playerId}`,
+        actionLabel: "Profile",
       });
     }
-    if (teamBurden.repeatedSupportShortfall) {
-      actionCards.push({
-        group: "Team burden",
-        severity: "medium",
-        title: `${teamBurden.teamName}: repeated support shortage`,
-        detail: `Missed target support in multiple rounds of the planning period.`,
-        actionHref: "/teams",
-        actionLabel: "Review team",
-      });
-    }
-    for (const [_roundId, delta] of Object.entries(teamBurden.continuityDeltaByRound)) {
-      const maxChanges = teams.find((t) => t.id === teamBurden.teamId)?.maxPlayerChangesPerRound ?? 0;
-      if (maxChanges > 0 && delta > maxChanges) {
-        actionCards.push({
-          group: "Team burden",
-          severity: "info",
-          title: `${teamBurden.teamName}: low continuity`,
-          detail: `${delta} player changes from previous round (max configured: ${maxChanges}).`,
-          actionHref: "/teams",
-          actionLabel: "Review team",
+
+    for (const teamBurden of teamBurdenData.teams) {
+      if (teamBurden.highDonorBurden) {
+        actionItems.push({
+          severity: "high",
+          title: `${teamBurden.teamName} — high donor burden`,
+          detail: `${teamBurden.totalDonations} total donations across all rounds`,
+          actionHref: `/teams/${teams.find((t) => t.name === teamBurden.teamName)?.id ?? ""}`,
+          actionLabel: "Team detail",
         });
       }
     }
   }
 
-  // Add blocking warnings from active round
-  for (const w of blockingWarnings) {
-    const match = activeMatchRound?.matches.find((m) => m.id === w.matchId);
-    actionCards.push({
-      group: "Blocking warnings",
-      severity: "blocking",
-      title: w.message,
-      detail: `Rule: ${w.rule}${match ? ` — ${match.team.name}` : ""}`,
-      actionHref: `/rounds/${activeMatchRound?.id ?? ""}#warnings`,
-      actionLabel: "View round",
-    });
-  }
-
-  const actionCardsBySeverity = new Map<"blocking" | "high" | "medium" | "info", ActionCard[]>();
-  const severityOrder: ("blocking" | "high" | "medium" | "info")[] = ["blocking", "high", "medium", "info"];
-  for (const sev of severityOrder) {
-    actionCardsBySeverity.set(sev, actionCards.filter((c) => c.severity === sev));
-  }
-
-  // --- Recently Finalized ---
-  const uniqueFinalized = new Map<string, (typeof recentFinalizedSelections)[number]>();
-  for (const sel of recentFinalizedSelections) {
-    if (!uniqueFinalized.has(sel.matchId)) {
-      uniqueFinalized.set(sel.matchId, sel);
-    }
-  }
+  const blockingItems = actionItems.filter((a) => a.severity === "blocking");
+  const highItems = actionItems.filter((a) => a.severity === "high");
+  const infoItems = actionItems.filter((a) => a.severity === "info" || a.severity === "medium");
 
   return (
-    <main className="flex min-h-full flex-col gap-6 text-foreground">
-      <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-            Today
-          </span>
-          <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-            Active round
-          </span>
+    <div className="flex flex-col gap-4">
+      {!hasSetup ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Get started</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {teamCount === 0 && (
+              <Link href="/teams/new" className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 text-sm font-medium text-zinc-100 hover:bg-zinc-700/30">
+                Create a team
+              </Link>
+            )}
+            {teamCount > 0 && playerCount === 0 && (
+              <Link href="/players/new" className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 text-sm font-medium text-zinc-100 hover:bg-zinc-700/30">
+                Add players
+              </Link>
+            )}
+            {playerCount > 0 && totalMatchCount === 0 && (
+              <Link href="/matches/new" className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 text-sm font-medium text-zinc-100 hover:bg-zinc-700/30">
+                Create a match
+              </Link>
+            )}
+          </div>
         </div>
-
-        <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-          Today
-        </h1>
-        <p className="mt-4 max-w-3xl text-sm app-copy-soft sm:text-base">
-          {teamCount === 0
-            ? "Start by creating a team."
-            : playerCount === 0
-              ? "Add players to your teams."
-              : totalMatchCount === 0
-                ? "Create matches to plan rounds."
-                : "Review the active round, blockers, and the next safe action."}
-        </p>
-
-        {nextAction && (
-          <div className="mt-6 rounded-[1.6rem] border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Next action
-            </p>
-            <Link
-              className="mt-3 block text-xl font-semibold text-zinc-50 hover:underline"
-              href={nextAction.href}
-            >
-              {nextAction.label}
-            </Link>
-            <Link
-              className="mt-2 block text-sm app-copy-soft hover:text-zinc-50"
-              href={nextAction.href}
-            >
-              Go to &rarr;
-            </Link>
-          </div>
-        )}
-      </section>
-
-      {teamCount === 0 || playerCount === 0 || totalMatchCount === 0 ? (
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Setup progress
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Get started</h2>
-            <p className="mt-2 text-sm app-copy-soft">
-              Complete each step to start planning match rounds.
-            </p>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className={`rounded-[1.35rem] border p-4 ${teamCount > 0 ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.08)]" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}>
-              <p className="text-sm font-semibold text-zinc-100">
-                {teamCount > 0 ? "Teams created" : "Create teams"}
-              </p>
-              <p className="mt-1 text-sm app-copy-soft">
-                {teamCount > 0 ? `${teamCount} team${teamCount === 1 ? "" : "s"}` : "Add teams to the registry."}
-              </p>
-              {teamCount === 0 && (
+      ) : (
+        <>
+          {nextRound && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Next round</p>
+                  <StatusBadge status={nextRound.status} />
+                </div>
                 <Link
-                  className="mt-3 inline-flex h-8 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50"
-                  href="/teams/new"
+                  href={`/rounds/${nextRound.id}`}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20"
                 >
-                  Create team
+                  Open round
                 </Link>
-              )}
-            </div>
-            <div className={`rounded-[1.35rem] border p-4 ${playerCount > 0 ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.08)]" : teamCount === 0 ? "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)] opacity-50" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}>
-              <p className="text-sm font-semibold text-zinc-100">
-                {playerCount > 0 ? "Players created" : "Add players"}
-              </p>
-              <p className="mt-1 text-sm app-copy-soft">
-                {playerCount > 0 ? `${playerCount} player${playerCount === 1 ? "" : "s"}` : teamCount === 0 ? "Create a team first." : "Add players to teams."}
-              </p>
-              {playerCount === 0 && teamCount > 0 && (
-                <Link
-                  className="mt-3 inline-flex h-8 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50"
-                  href="/players/new"
-                >
-                  Create player
-                </Link>
-              )}
-            </div>
-            <div className={`rounded-[1.35rem] border p-4 ${totalMatchCount > 0 ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.08)]" : playerCount === 0 ? "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)] opacity-50" : "border-[var(--border-soft)] bg-[rgba(255,255,255,0.025)]"}`}>
-              <p className="text-sm font-semibold text-zinc-100">
-                {totalMatchCount > 0 ? "Matches created" : "Add matches"}
-              </p>
-              <p className="mt-1 text-sm app-copy-soft">
-                {totalMatchCount > 0 ? `${totalMatchCount} match${totalMatchCount === 1 ? "" : "es"}` : playerCount === 0 ? "Add players first." : "Create matches for rounds."}
-              </p>
-              {totalMatchCount === 0 && playerCount > 0 && (
-                <Link
-                  className="mt-3 inline-flex h-8 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50"
-                  href="/matches/new"
-                >
-                  Create match
-                </Link>
-              )}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Active Round Summary
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">
-            {roundLabel ?? "No active round"}
-          </h2>
-        </div>
-
-        {activeMatchRound ? (
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">Status</p>
-              <div className="mt-2">
-                <StatusBadge status={roundStatus} />
               </div>
+              <p className="text-sm font-medium text-zinc-100">{nextRound.name}</p>
+              <p className="text-xs text-zinc-400">{nextRound.matchCount} matches{nextRound.warningCount > 0 ? ` · ${nextRound.warningCount} blocker${nextRound.warningCount === 1 ? "" : "s"}` : ""}</p>
             </div>
-            <div className="rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">Matches</p>
-              <p className="mt-2 text-2xl font-semibold text-zinc-50">{matchCount}</p>
+          )}
+
+          {blockingItems.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-red-400">Blocked</p>
+              {blockingItems.map((item, i) => (
+                <div key={i} className="flex items-start justify-between gap-2 rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-red-200">{item.title}</p>
+                    <p className="text-[11px] text-red-300/60">{item.detail}</p>
+                  </div>
+                  <Link href={item.actionHref} className="shrink-0 text-[11px] font-medium text-red-300 hover:text-red-100">
+                    {item.actionLabel}
+                  </Link>
+                </div>
+              ))}
             </div>
-            <div className="rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">Draft selections</p>
-              <p className="mt-2 text-2xl font-semibold text-zinc-50">{draftSelectionCount}</p>
+          )}
+
+          {highItems.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Needs attention</p>
+              {highItems.slice(0, 4).map((item, i) => (
+                <div key={i} className="flex items-start justify-between gap-2 rounded-md border border-amber-900/30 bg-amber-950/10 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-zinc-200">{item.title}</p>
+                    <p className="text-[11px] text-zinc-400">{item.detail}</p>
+                  </div>
+                  <Link href={item.actionHref} className="shrink-0 text-[11px] font-medium text-zinc-400 hover:text-zinc-200">
+                    {item.actionLabel}
+                  </Link>
+                </div>
+              ))}
+              {highItems.length > 4 && (
+                <p className="text-[11px] text-zinc-500">+{highItems.length - 4} more</p>
+              )}
             </div>
-            <div className="rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">Warnings</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {warningCounts.blocking > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-300">
-                    {warningCounts.blocking} blocking
-                  </span>
-                )}
-                {warningCounts.high > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300">
-                    {warningCounts.high} override{warningCounts.high !== 1 ? "s" : ""}
-                  </span>
-                )}
-                {(warningCounts.blocking === 0 && warningCounts.high === 0) && (
-                  roundWarnings.length > 0 ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400">
-                      {roundWarnings.length} informational only
-                    </span>
-                  ) : (
-                    <span className="text-xs app-copy-muted">None</span>
-                  )
+          )}
+
+          {roundProgress.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Rounds</p>
+                {roundProgress.some((r) => r.status === "NOT_GENERATED") && activePlanningPeriod && (
+                  <form action={async () => {
+                    "use server";
+                    await requireCoachAccess();
+                    const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
+                    await populateAllDrafts(activePlanningPeriod.id);
+                  }}>
+                    <button
+                      type="submit"
+                      className="inline-flex h-6 items-center gap-1 rounded border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2 text-[11px] font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20"
+                    >
+                      Populate all
+                    </button>
+                  </form>
                 )}
               </div>
-            </div>
-
-            {/* Support / squad repair status row */}
-            <div className="md:col-span-2 xl:col-span-4 rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">Matches in round</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {activeMatchRound.matches.map((match) => (
+              <div className="flex flex-col gap-0.5">
+                {roundProgress.map((rp) => (
                   <Link
-                    key={match.id}
-                    className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
-                    href={`/selection/${match.id}`}
+                    key={rp.id}
+                    href={`/rounds/${rp.id}`}
+                    className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-zinc-800/40"
                   >
-                    <p className="text-sm font-semibold text-zinc-100">
-                      {match.team.name} vs. {match.opponent}
-                    </p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      {formatDate(match.startsAt)} · {formatIsoWeekLabel(match.startsAt)}
-                    </p>
+                    <span className="font-medium text-zinc-200">{rp.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-500">{rp.matchCount}m</span>
+                      <StatusBadge status={rp.status} />
+                    </div>
                   </Link>
                 ))}
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="mt-6 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
-            No active round. Create a match round to get started.
-          </div>
-        )}
-      </section>
-
-      {allMatchRounds.length > 0 && (
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Setup Progress
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Round generation status</h2>
-            <p className="mt-2 text-sm app-copy-soft">
-              Rounds in this planning period. Use Populate all to generate drafts for all ungenerated rounds.
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {computeRoundProgress(allMatchRounds).map((rp) => (
-              <Link
-                key={rp.id}
-                className="rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4 hover:bg-[rgba(255,255,255,0.05)]"
-                href={`/rounds/${rp.id}`}
-              >
-                <p className="text-sm font-semibold text-zinc-100">{rp.name}</p>
-                <div className="mt-2">
-                  <StatusBadge status={rp.status} />
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {computeRoundProgress(allMatchRounds).some((r) => r.status === "NOT_GENERATED") && activePlanningPeriod && (
-            <div className="mt-4">
-              <form action={async () => {
-                "use server";
-                await requireCoachAccess();
-                const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
-                await populateAllDrafts(activePlanningPeriod.id);
-              }}>
-                <button
-                  type="submit"
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-4 text-sm font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20 transition-colors"
-                >
-                  Populate all rounds
-                </button>
-              </form>
-            </div>
           )}
 
-          {computeRoundProgress(allMatchRounds).some((r) => r.status === "DRAFT" || r.status === "BLOCKED" || r.status === "READY") && activePlanningPeriod && (
-            <div className="mt-2">
-              <form action={async () => {
-                "use server";
-                await requireCoachAccess();
-                const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
-                const db = (await import("@/lib/db")).db;
-                const draftRounds = await db.matchRound.findMany({
-                  where: { planningPeriodId: activePlanningPeriod.id, status: "DRAFT" },
-                  select: { id: true },
-                });
-                for (const round of draftRounds) {
-                  await refreshDraftRound(round.id);
-                }
-              }}>
-                <button
-                  type="submit"
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-4 text-sm font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors"
-                >
-                  Regenerate all drafts
-                </button>
-              </form>
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Blocking Warnings
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">
-            Issues that prevent finalization
-          </h2>
-        </div>
-
-        <div className="mt-6 grid gap-6">
-          {severityOrder.map((sev) => {
-            const cards = actionCardsBySeverity.get(sev) ?? [];
-            if (cards.length === 0) return null;
-            return (
-              <div key={sev}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted mb-3">
-                  {sev === "blocking" ? "Blocking" : sev === "high" ? "High" : sev === "medium" ? "Medium" : "Info"}
-                </p>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {cards.slice(0, 6).map((card) => (
-                    <div
-                      key={`${card.group}-${card.title}`}
-                      className="rounded-[1.35rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4"
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Upcoming matches</p>
+            {allMatchRounds.flatMap((r) => r.matches.map((m) => ({ ...m, roundId: r.id, roundName: r.name }))).length === 0 ? (
+              <p className="text-xs text-zinc-500">No matches scheduled</p>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {allMatchRounds.flatMap((r) => r.matches.map((m) => ({ ...m, roundId: r.id, roundName: r.name })))
+                  .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+                  .slice(0, 8)
+                  .map((m) => (
+                    <Link
+                      key={m.id}
+                      href={`/rounds/${m.roundId}`}
+                      className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-zinc-800/40"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-semibold text-zinc-100">{card.title}</p>
-                        {formatSeverityBadge(card.severity)}
-                      </div>
-                      <p className="mt-2 text-sm app-copy-soft">{card.detail}</p>
-                      <Link
-                        className="mt-3 inline-flex h-8 items-center rounded-full border app-hairline px-3 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                        href={card.actionHref}
-                      >
-                        {card.actionLabel}
-                      </Link>
-                    </div>
+                      <span className="text-zinc-200">{m.team.name} vs {m.opponent}</span>
+                      <span className="text-zinc-500">{formatDate(m.startsAt)}</span>
+                    </Link>
                   ))}
-                </div>
               </div>
-            );
-          })}
-          {actionCards.length === 0 && (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
-              No blocking or high-severity issues right now.
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
 
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Fairness Checks
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Teams with match allocation deviations</h2>
-          <p className="mt-2 text-sm app-copy-soft">
-            Fairness impact across the planning period. Counts include core and floating work together.
-          </p>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3">
-          {fairnessGroups.length > 0 ? (
-            fairnessGroups.map((group) => (
-              <div
-                key={group.teamId}
-                className="rounded-[1.45rem] border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-100">{group.teamName}</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Fair target right now: {group.targetMatchCount} saved match
-                      {group.targetMatchCount === 1 ? "" : "es"} per active player.
-                    </p>
+          {infoItems.length > 0 && (
+            <details className="group">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300">
+                Diagnostics ({infoItems.length})
+              </summary>
+              <div className="mt-1.5 flex flex-col gap-0.5">
+                {infoItems.map((item, i) => (
+                  <div key={i} className="flex items-start justify-between gap-2 rounded-md px-2 py-1.5 text-xs">
+                    <span className="text-zinc-400">{item.title}</span>
+                    <Link href={item.actionHref} className="shrink-0 text-zinc-500 hover:text-zinc-300">{item.actionLabel}</Link>
                   </div>
-                  <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--warning)]">
-                    {group.players.length} behind
-                  </span>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-2">
-                  {group.players.slice(0, 3).map((player) => (
-                    <div
-                      key={player.playerId}
-                      className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.16)] px-4 py-3"
-                    >
-                      <Link
-                        className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
-                        href={`/players/${player.playerId}`}
-                      >
-                        {player.playerName}
-                      </Link>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {player.currentMatchCount} saved match{player.currentMatchCount === 1 ? "" : "es"}.
-                        Behind by {player.gap} compared with teammates on {player.targetMatchCount}.
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
-              No fairness deviations are currently visible among active players.
-            </div>
+            </details>
           )}
-        </div>
-      </section>
-
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Recently Finalized
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Last finalized rounds</h2>
-          </div>
-          <Link
-            className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-            href="/history"
-          >
-            Open history
-          </Link>
-        </div>
-
-        <div className="mt-6 grid gap-3 lg:grid-cols-2">
-          {uniqueFinalized.size > 0 ? (
-            [...uniqueFinalized.values()].map((selection) => (
-              <Link
-                key={selection.id}
-                className="rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 hover:bg-[rgba(255,255,255,0.05)]"
-                href={`/selection/${selection.matchId}`}
-              >
-                <p className="text-sm font-semibold text-zinc-100">
-                  {selection.match.team.name} vs. {selection.match.opponent}
-                </p>
-                <p className="mt-1 text-sm app-copy-soft">
-                  {formatDate(selection.match.startsAt)} · {formatIsoWeekLabel(selection.match.startsAt)}
-                </p>
-              </Link>
-            ))
-          ) : (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
-              No finalized selections yet.
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
+        </>
+      )}
+    </div>
   );
 }

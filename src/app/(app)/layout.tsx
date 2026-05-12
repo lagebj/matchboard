@@ -2,7 +2,6 @@ import { SidebarNav } from "@/components/shell/sidebar-nav";
 import { TopContextBar } from "@/components/shell/top-context-bar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserNav } from "@/components/shell/user-nav";
-import { MobileUserNav } from "@/components/shell/mobile-user-nav";
 
 export default function AppLayout({
   children,
@@ -24,13 +23,12 @@ export default function AppLayout({
           </div>
         </header>
         <main className="flex-1 pb-20 lg:pb-0">
-          <div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6">
+          <div className="mx-auto w-full max-w-[96rem] px-3 py-3 sm:px-5">
             {children}
           </div>
         </main>
       </div>
       <MobileNav />
-      <MobileUserNav />
     </div>
   );
 }

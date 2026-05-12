@@ -346,9 +346,5 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     nextTeamId,
   };
 
-  return (
-    <main className="flex min-h-full flex-col gap-6 text-foreground">
-      <TeamDetail data={data} />
-    </main>
-  );
+  return <TeamDetail data={data} />;
 }
