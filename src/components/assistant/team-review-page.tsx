@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { TeamReadiness, SelectionExplanation, Recommendation } from "@/domain/assistant-manager/types";
-import { getTeamReadiness, getSelectionExplanation } from "@/domain/assistant-manager/service";
+import { fetchTeamReadiness, fetchSelectionExplanation } from "@/domain/assistant-manager/actions";
 import { TeamReadinessCard } from "./team-readiness-card";
 import { RuleImpactPanel } from "./rule-impact-panel";
 import { CrossTeamImpactPanel } from "./cross-team-impact-panel";
@@ -17,8 +17,8 @@ export function TeamReviewPage({ teamId }: { teamId: string }) {
   useEffect(() => {
     startTransition(async () => {
       const [r, e] = await Promise.all([
-        getTeamReadiness(teamId),
-        getSelectionExplanation("TEAM", teamId),
+        fetchTeamReadiness(teamId),
+        fetchSelectionExplanation("TEAM", teamId),
       ]);
       setReadiness(r);
       setExplanation(e);

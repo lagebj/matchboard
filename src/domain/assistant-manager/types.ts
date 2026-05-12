@@ -178,6 +178,7 @@ export interface TeamReadiness {
 export interface MatchReview {
   matchId: string;
   teamId: string;
+  teamName?: string;
   roundId?: string;
   readinessState: ReadinessState;
   selectedPlayerIds: string[];

@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { MatchReview } from "@/domain/assistant-manager/types";
-import { getMatchReview } from "@/domain/assistant-manager/service";
+import { fetchMatchReview } from "@/domain/assistant-manager/actions";
 import { RuleImpactPanel } from "./rule-impact-panel";
 import { CrossTeamImpactPanel } from "./cross-team-impact-panel";
 import { RecommendationPanel } from "./recommendation-panel";
@@ -27,7 +27,7 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
 
   useEffect(() => {
     startTransition(async () => {
-      const data = await getMatchReview(matchId);
+      const data = await fetchMatchReview(matchId);
       setReview(data);
     });
   }, [matchId, startTransition]);
@@ -127,8 +127,8 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
                 disabled={!overrideReason.trim()}
                 onClick={() => {
                   startTransition(async () => {
-                    const { recordDecision } = await import("@/domain/assistant-manager/service");
-                    await recordDecision({
+                    const { createDecision } = await import("@/domain/assistant-manager/actions");
+                    await createDecision({
                       decisionType: "MATCH_REVIEW",
                       entityType: "MATCH",
                       entityId: matchId,

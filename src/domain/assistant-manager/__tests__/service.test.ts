@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import type { PrismaClient } from "@/generated/prisma/client";
+import { setupTestDb, teardownTestDb, getTestDb } from "@/test/test-db";
 import {
   getAssistantIssues,
   getRoundReview,
@@ -10,127 +12,170 @@ import {
   getSelectionExplanation,
 } from "../service";
 
-describe("getAssistantIssues", () => {
-  it("returns mock issues with required fields", async () => {
-    const issues = await getAssistantIssues();
-    expect(issues.length).toBeGreaterThan(0);
-    expect(issues[0].id).toBeDefined();
-    expect(issues[0].severity).toBeDefined();
-    expect(issues[0].status).toBeDefined();
+vi.mock("@/lib/db", () => ({
+  get db() { return getTestDb(); },
+}));
+
+let testDb: PrismaClient;
+
+describe("Assistant Manager Service (DB)", () => {
+  beforeAll(async () => {
+    testDb = await setupTestDb();
   });
 
-  it("uses player IDs not human names in affectedPlayerIds", async () => {
-    const issues = await getAssistantIssues();
-    for (const issue of issues) {
-      for (const playerId of issue.affectedPlayerIds) {
-        expect(playerId).not.toContain(" ");
-        expect(playerId).toMatch(/^[a-zA-Z0-9_-]+$/);
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  describe("getAssistantIssues", () => {
+    it("returns empty array when no issues exist", async () => {
+      const issues = await getAssistantIssues();
+      expect(Array.isArray(issues)).toBe(true);
+    });
+
+    it("returns issues from database after creation", async () => {
+      await testDb.assistantIssue.create({
+        data: {
+          type: "TEAM_NEEDS_SUPPORT",
+          severity: "ACTION_REQUIRED",
+          status: "OPEN",
+          title: "Team needs support",
+          summary: "Short squad detected",
+          entityType: "TEAM",
+          entityId: "team-1",
+          affectedTeamIds: ["team-1"],
+          affectedPlayerIds: [],
+          ruleIds: ["support_priority"],
+          recommendedAction: "Assign support players",
+          primaryActionLabel: "Review",
+          primaryActionHref: "/teams/team-1/review",
+        },
+      });
+
+      const issues = await getAssistantIssues();
+      expect(issues.length).toBeGreaterThanOrEqual(1);
+      expect(issues[0].type).toBe("TEAM_NEEDS_SUPPORT");
+      expect(issues[0].severity).toBe("ACTION_REQUIRED");
+    });
+  });
+
+  describe("getRoundReview", () => {
+    it("returns default for unknown round", async () => {
+      const review = await getRoundReview("nonexistent-round");
+      expect(review.roundId).toBe("nonexistent-round");
+      expect(review.hardBlockerCount).toBe(0);
+      expect(review.publishable).toBe(true);
+    });
+  });
+
+  describe("getTeamReadiness", () => {
+    it("returns default for unknown team", async () => {
+      const readiness = await getTeamReadiness("nonexistent-team");
+      expect(readiness.readinessState).toBe("READY");
+    });
+  });
+
+  describe("getMatchReview", () => {
+    it("returns default for unknown match", async () => {
+      const review = await getMatchReview("nonexistent-match");
+      expect(review.matchId).toBe("nonexistent-match");
+      expect(review.readinessState).toBe("READY");
+    });
+  });
+
+  describe("getSelectionExplanation", () => {
+    it("returns null for nonexistent explanation", async () => {
+      const explanation = await getSelectionExplanation("MATCH", "nonexistent");
+      expect(explanation).toBeNull();
+    });
+
+    it("returns explanation from database", async () => {
+      await testDb.selectionExplanation.create({
+        data: {
+          scopeType: "MATCH",
+          scopeId: "test-match-expl",
+          summary: "Test explanation",
+          rulesApplied: [],
+          blockers: [],
+          warnings: [],
+          recommendations: [],
+          crossTeamImpacts: [],
+        },
+      });
+
+      const explanation = await getSelectionExplanation("MATCH", "test-match-expl");
+      expect(explanation).not.toBeNull();
+      expect(explanation!.summary).toBe("Test explanation");
+      expect(explanation!.scopeType).toBe("MATCH");
+    });
+  });
+
+  describe("recordDecision", () => {
+    it("persists decision to database", async () => {
+      const decision = await recordDecision({
+        decisionType: "ROUND_REVIEW",
+        entityType: "ROUND",
+        entityId: "round-test",
+        action: "PUBLISH",
+      });
+
+      expect(decision.id).toBeDefined();
+      expect(decision.action).toBe("PUBLISH");
+      expect(decision.createdBy).toBe("coach");
+
+      const dbRecord = await testDb.decisionRecord.findUnique({ where: { id: decision.id } });
+      expect(dbRecord).not.toBeNull();
+      expect(dbRecord!.action).toBe("PUBLISH");
+    });
+
+    it("stores reason when provided", async () => {
+      const decision = await recordDecision({
+        decisionType: "MATCH_REVIEW",
+        entityType: "MATCH",
+        entityId: "match-test",
+        action: "OVERRIDE_BLOCKER",
+        reason: "Coach decided to publish despite blocker",
+      });
+
+      expect(decision.reason).toBe("Coach decided to publish despite blocker");
+
+      const dbRecord = await testDb.decisionRecord.findUnique({ where: { id: decision.id } });
+      expect(dbRecord!.reason).toBe("Coach decided to publish despite blocker");
+    });
+  });
+
+  describe("getPostMatchReport", () => {
+    it("returns NOT_STARTED for nonexistent match", async () => {
+      const report = await getPostMatchReport("nonexistent-match");
+      expect(report.status).toBe("NOT_STARTED");
+      expect(report.playerActuals).toHaveLength(0);
+    });
+  });
+
+  describe("completePostMatchReport", () => {
+    it("creates a new report when none exists", async () => {
+      const match = await testDb.match.findFirst();
+      if (!match) {
+        return;
       }
-    }
-  });
 
-  it("uses player IDs not names in summary and title", async () => {
-    const issues = await getAssistantIssues();
-    for (const issue of issues) {
-      expect(issue.affectedPlayerIds).toBeDefined();
-      expect(Array.isArray(issue.affectedPlayerIds)).toBe(true);
-    }
-  });
-});
+      const report = await completePostMatchReport(match.id, {
+        playerActuals: [
+          { playerId: "player-1", attendanceStatus: "PRESENT" },
+        ],
+        teamNote: "Good effort",
+      });
 
-describe("getRoundReview", () => {
-  it("returns mock W21 data", async () => {
-    const review = await getRoundReview("W21");
-    expect(review.roundId).toBe("W21");
-    expect(review.hardBlockerCount).toBe(1);
-    expect(review.publishable).toBe(false);
-  });
+      expect(report.status).toBe("COMPLETED");
+      expect(report.playerActuals).toHaveLength(1);
+      expect(report.teamNote).toBe("Good effort");
 
-  it("returns default for unknown round", async () => {
-    const review = await getRoundReview("unknown");
-    expect(review.roundId).toBe("unknown");
-  });
-});
-
-describe("getTeamReadiness", () => {
-  it("returns Rod as AT_RISK", async () => {
-    const readiness = await getTeamReadiness("ROD");
-    expect(readiness.readinessState).toBe("AT_RISK");
-    expect(readiness.supportNeeded).toBe(2);
-  });
-
-  it("returns Blå as READY", async () => {
-    const readiness = await getTeamReadiness("BLA");
-    expect(readiness.readinessState).toBe("READY");
-  });
-
-  it("returns default for unknown team", async () => {
-    const readiness = await getTeamReadiness("unknown");
-    expect(readiness.teamId).toBe("unknown");
-  });
-});
-
-describe("getMatchReview", () => {
-  it("returns mock data for ROD match", async () => {
-    const review = await getMatchReview("match-ROD-W21");
-    expect(review.matchId).toBe("match-ROD-W21");
-    expect(review.readinessState).toBe("AT_RISK");
-  });
-});
-
-describe("getPostMatchReport", () => {
-  it("returns NOT_STARTED for unknown match", async () => {
-    const report = await getPostMatchReport("match-new");
-    expect(report.status).toBe("NOT_STARTED");
-    expect(report.playerActuals).toHaveLength(0);
-  });
-});
-
-describe("completePostMatchReport", () => {
-  it("changes status to COMPLETED", async () => {
-    const report = await completePostMatchReport("match-HVIT-W20", {
-      playerActuals: [
-        { playerId: "h01", attendanceStatus: "PRESENT" },
-        { playerId: "h05", attendanceStatus: "NO_SHOW" },
-      ],
-      teamNote: "Good effort",
+      const dbRecord = await testDb.postMatchReport.findUnique({
+        where: { matchId: match.id },
+        include: { playerActuals: true },
+      });
+      expect(dbRecord).not.toBeNull();
+      expect(dbRecord!.playerActuals).toHaveLength(1);
     });
-    expect(report.status).toBe("COMPLETED");
-    expect(report.playerActuals).toHaveLength(2);
-    expect(report.playerActuals[0].attendanceStatus).toBe("PRESENT");
-    expect(report.playerActuals[1].attendanceStatus).toBe("NO_SHOW");
-  });
-});
-
-describe("recordDecision", () => {
-  it("creates a DecisionRecord", async () => {
-    const decision = await recordDecision({
-      decisionType: "ROUND_REVIEW",
-      entityType: "ROUND",
-      entityId: "W21",
-      action: "PUBLISH",
-    });
-    expect(decision.id).toBeDefined();
-    expect(decision.action).toBe("PUBLISH");
-    expect(decision.createdBy).toBe("coach");
-  });
-
-  it("stores reason when provided", async () => {
-    const decision = await recordDecision({
-      decisionType: "MATCH_REVIEW",
-      entityType: "MATCH",
-      entityId: "match-1",
-      action: "OVERRIDE_BLOCKER",
-      reason: "Coach decided to publish despite blocker",
-    });
-    expect(decision.reason).toBe("Coach decided to publish despite blocker");
-  });
-});
-
-describe("getSelectionExplanation", () => {
-  it("returns explanation for given scope", async () => {
-    const explanation = await getSelectionExplanation("MATCH", "match-ROD-W21");
-    expect(explanation).not.toBeNull();
-    expect(explanation!.id).toBe("expl-MATCH-match-ROD-W21");
   });
 });

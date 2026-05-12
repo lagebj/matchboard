@@ -3,8 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { PostMatchReport, PostMatchPlayerActual, AttendanceStatus } from "@/domain/assistant-manager/types";
-import { getPostMatchReport, completePostMatchReport } from "@/domain/assistant-manager/service";
-import { recordDecision } from "@/domain/assistant-manager/service";
+import { fetchPostMatchReport, finalizePostMatchReport, createDecision } from "@/domain/assistant-manager/actions";
 
 const ATTENDANCE_OPTIONS: AttendanceStatus[] = ["PRESENT", "NO_SHOW", "LATE_CANCELLATION", "ABSENT_CONFIRMED", "UNKNOWN"];
 
@@ -36,7 +35,7 @@ export function PostMatchPage({ matchId }: { matchId: string }) {
 
   useEffect(() => {
     startTransition(async () => {
-      const data = await getPostMatchReport(matchId);
+      const data = await fetchPostMatchReport(matchId);
       setReport(data);
     });
   }, [matchId, startTransition]);
@@ -61,17 +60,17 @@ export function PostMatchPage({ matchId }: { matchId: string }) {
 
   const handleComplete = () => {
     startTransition(async () => {
-      await completePostMatchReport(matchId, {
+      await finalizePostMatchReport(matchId, {
         teamNote: teamNote || undefined,
         playerActuals: playerActuals.filter((p) => p.playerId.trim()),
       });
-      await recordDecision({
+      await createDecision({
         decisionType: "POST_MATCH",
         entityType: "MATCH",
         entityId: matchId,
         action: "MARK_MATCH_COMPLETE",
       });
-      const updated = await getPostMatchReport(matchId);
+      const updated = await fetchPostMatchReport(matchId);
       setReport(updated);
     });
   };

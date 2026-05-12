@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Recommendation, DecisionType, AssistantIssueEntityType } from "@/domain/assistant-manager/types";
-import { recordDecision } from "@/domain/assistant-manager/service";
+import { createDecision } from "@/domain/assistant-manager/actions";
 
 function confidenceLabel(confidence: string): string {
   switch (confidence) {
@@ -36,7 +36,7 @@ export function RecommendationPanel({ recommendation, decisionType = "ASSISTANT_
 
   const handleAccept = () => {
     startTransition(async () => {
-      await recordDecision({
+      await createDecision({
         decisionType,
         entityType,
         entityId,
@@ -134,7 +134,7 @@ export function RecommendationPanel({ recommendation, decisionType = "ASSISTANT_
                 disabled={!rejectReason.trim()}
                 onClick={() => {
                   startTransition(async () => {
-                    await recordDecision({
+                    await createDecision({
                       decisionType,
                       entityType,
                       entityId,

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { DecisionType, AssistantIssueEntityType, DecisionAction } from "@/domain/assistant-manager/types";
-import { recordDecision } from "@/domain/assistant-manager/service";
+import { createDecision } from "@/domain/assistant-manager/actions";
 
 type DecisionPanelProps = {
   decisionType: DecisionType;
@@ -21,7 +21,7 @@ export function DecisionPanel({ decisionType, entityType, entityId, action, acti
 
   const handleAction = (providedReason?: string) => {
     startTransition(async () => {
-      await recordDecision({
+      await createDecision({
         decisionType,
         entityType,
         entityId,

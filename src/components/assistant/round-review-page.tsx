@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { RoundReview, AssistantIssue } from "@/domain/assistant-manager/types";
-import { getRoundReview, getAssistantIssues } from "@/domain/assistant-manager/service";
+import { fetchRoundReview, fetchAssistantIssues } from "@/domain/assistant-manager/actions";
 import { getReadinessClasses, getSeverityBadgeClasses } from "@/domain/assistant-manager/mock-data";
 import { TeamReadinessCard } from "./team-readiness-card";
 import { DecisionPanel } from "./decision-panel";
@@ -28,8 +28,8 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
   useEffect(() => {
     startTransition(async () => {
       const [r, i] = await Promise.all([
-        getRoundReview(roundId),
-        getAssistantIssues(),
+        fetchRoundReview(roundId),
+        fetchAssistantIssues(),
       ]);
       setReview(r);
       setIssues(i.filter((issue) => issue.entityType === "ROUND" || issue.entityType === "TEAM"));
@@ -158,8 +158,8 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
                 disabled={!overrideReason.trim()}
                 onClick={() => {
                   startTransition(async () => {
-                    const { recordDecision } = await import("@/domain/assistant-manager/service");
-                    await recordDecision({
+                    const { createDecision } = await import("@/domain/assistant-manager/actions");
+                    await createDecision({
                       decisionType: "ROUND_REVIEW",
                       entityType: "ROUND",
                       entityId: review.roundId,

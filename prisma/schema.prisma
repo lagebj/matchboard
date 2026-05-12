@@ -484,7 +484,7 @@ model SelectionExplanation {
 
 model PostMatchReport {
   id          String   @id @default(cuid())
-  matchId     String
+  matchId     String   @unique
   status      String
   teamNote    String?
   completedBy String?
@@ -493,7 +493,6 @@ model PostMatchReport {
   updatedAt   DateTime @updatedAt
   playerActuals PostMatchPlayerActual[]
 
-  @@index([matchId])
   @@index([status])
 }
 
@@ -506,7 +505,9 @@ model PostMatchPlayerActual {
   note             String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  report           PostMatchReport @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reportId         String
+
+  report           PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([matchId])
   @@index([playerId])

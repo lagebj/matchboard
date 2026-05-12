@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import type { AssistantIssue } from "@/domain/assistant-manager/types";
-import { getAssistantIssues } from "@/domain/assistant-manager/service";
+import { fetchAssistantIssues } from "@/domain/assistant-manager/actions";
 import { AssistantInboxCard } from "./assistant-inbox-card";
 import { sortIssuesBySeverity, groupIssues } from "@/domain/assistant-manager/mock-data";
 import type { IssueGroup } from "@/domain/assistant-manager/mock-data";
@@ -20,7 +20,7 @@ export function AssistantInboxPage() {
 
   useEffect(() => {
     startTransition(async () => {
-      const data = await getAssistantIssues();
+      const data = await fetchAssistantIssues();
       setIssues(data);
     });
   }, [startTransition]);
