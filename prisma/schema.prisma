@@ -414,3 +414,101 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model AssistantIssue {
+  id                    String   @id @default(cuid())
+  type                  String
+  severity              String
+  status                String
+  title                 String
+  summary               String
+  entityType            String
+  entityId              String
+  affectedTeamIds       Json
+  affectedPlayerIds     Json
+  ruleIds               Json
+  recommendedAction     String
+  primaryActionLabel    String
+  primaryActionHref     String
+  secondaryActionLabel  String?
+  secondaryActionHref   String?
+  createdAt             DateTime @default(now())
+  resolvedAt            DateTime?
+  resolutionDecisionId  String?
+
+  @@index([status])
+  @@index([severity])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model DecisionRecord {
+  id               String   @id @default(cuid())
+  decisionType     String
+  entityType       String
+  entityId         String
+  recommendationId String?
+  action           String
+  reason           String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  beforeSnapshot   Json?
+  afterSnapshot    Json?
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model SelectionExplanation {
+  id              String   @id @default(cuid())
+  scopeType       String
+  scopeId         String
+  matchId         String?
+  teamId          String?
+  playerId        String?
+  summary         String
+  rulesApplied    Json
+  blockers        Json
+  warnings        Json
+  recommendations Json
+  crossTeamImpacts Json
+  createdAt       DateTime @default(now())
+
+  @@index([scopeType, scopeId])
+  @@index([matchId])
+  @@index([teamId])
+  @@index([playerId])
+  @@index([createdAt])
+}
+
+model PostMatchReport {
+  id          String   @id @default(cuid())
+  matchId     String
+  status      String
+  teamNote    String?
+  completedBy String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  playerActuals PostMatchPlayerActual[]
+
+  @@index([matchId])
+  @@index([status])
+}
+
+model PostMatchPlayerActual {
+  id               String   @id @default(cuid())
+  matchId          String
+  playerId         String
+  attendanceStatus String
+  actualPositions  Json?
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  report           PostMatchReport @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([playerId])
+  @@index([attendanceStatus])
+}

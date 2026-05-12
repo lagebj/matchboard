@@ -10,6 +10,7 @@ import {
   Trophy,
   Sliders,
   TrendingUp,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  { href: "/assistant", label: "Assistant", icon: Bot },
   { href: "/", label: "Today", icon: LayoutDashboard },
   { href: "/rounds", label: "Rounds", icon: CalendarRange },
   { href: "/players", label: "Players", icon: Users },
