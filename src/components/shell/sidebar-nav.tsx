@@ -3,14 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  Bot,
   CalendarRange,
   Users,
   Shield,
-  Trophy,
-  Sliders,
-  TrendingUp,
-  Bot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,13 +19,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/assistant", label: "Assistant", icon: Bot },
-  { href: "/", label: "Today", icon: LayoutDashboard },
-  { href: "/rounds", label: "Rounds", icon: CalendarRange },
-  { href: "/players", label: "Players", icon: Users },
+  { href: "/fixtures", label: "Fixtures", icon: CalendarRange },
   { href: "/teams", label: "Teams", icon: Shield },
-  { href: "/matches", label: "Matches", icon: Trophy },
-  { href: "/rules", label: "Rules", icon: Sliders },
-  { href: "/season", label: "Season", icon: TrendingUp },
+  { href: "/players", label: "Players", icon: Users },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -75,7 +67,7 @@ export function SidebarNav({ warningCount }: { warningCount?: number }) {
                       {item.badge}
                     </span>
                   )}
-                  {item.href === "/rounds" && warningCount != null && warningCount > 0 && (
+                  {item.href === "/fixtures" && warningCount != null && warningCount > 0 && (
                     <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-900/50 px-1 text-[9px] font-bold text-amber-300">
                       {warningCount}
                     </span>

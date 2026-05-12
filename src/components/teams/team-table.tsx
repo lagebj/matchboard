@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { SortableHeader } from "@/components/sortable-header";
 import {
   applySortDirection,
@@ -309,6 +310,9 @@ export function TeamTable({
                   <td className="px-4 py-3 app-copy-soft">{team.matches}</td>
                   <td className="px-4 py-3">
                     <div className="flex max-w-xs flex-col gap-2">
+                      <Link href={`/teams/${team.id}/configuration`} className="rounded-full border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 text-center">
+                        Configure
+                      </Link>
                       <form action={team.removeAction}>
                         <button
                           className="h-9 w-full rounded-full border border-[rgba(185,128,119,0.3)] px-3 text-sm font-medium text-[var(--danger)] hover:bg-[rgba(185,128,119,0.08)] disabled:cursor-not-allowed disabled:border-[rgba(202,209,219,0.14)] disabled:text-[var(--text-muted)]"

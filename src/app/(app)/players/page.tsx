@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { removePlayerAction } from "@/app/(app)/players/actions";
 import { PlayerTable } from "@/components/players/player-table";
+import { PlayerAssignmentBoard } from "@/components/players/player-assignment-board";
 import { db } from "@/lib/db";
 import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
 
@@ -89,8 +91,12 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
           </Link>
         </div>
       ) : (
-        <>
-          {unavailablePlayers.length > 0 && (
+         <>
+           <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading assignment board...</div>}>
+             <PlayerAssignmentBoard />
+           </Suspense>
+
+           {unavailablePlayers.length > 0 && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Unavailable ({unavailablePlayers.length})</p>
               <div className="flex flex-wrap gap-1.5">

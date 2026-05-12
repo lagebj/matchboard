@@ -51,7 +51,9 @@ export type DecisionAction =
   | "PUBLISH"
   | "MARK_STALE"
   | "DISMISS"
-  | "MARK_MATCH_COMPLETE";
+  | "MARK_MATCH_COMPLETE"
+  | "MOVE_PLAYER_TO_TEAM"
+  | "UPDATE_TEAM_CONFIGURATION";
 
 export type DecisionType =
   | "ASSISTANT_ISSUE"
@@ -59,7 +61,9 @@ export type DecisionType =
   | "TEAM_REVIEW"
   | "MATCH_REVIEW"
   | "PLAYER_EXCEPTION"
-  | "POST_MATCH";
+  | "POST_MATCH"
+  | "PLAYER_ASSIGNMENT"
+  | "TEAM_CONFIGURATION";
 
 export type AttendanceStatus =
   | "PRESENT"

@@ -5,14 +5,14 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pg", "@prisma/adapter-pg", "@prisma/adapter-neon"],
   async redirects() {
     return [
-      { source: "/matches", destination: "/rounds", permanent: true },
-      { source: "/assistant", destination: "/", permanent: true },
-      { source: "/matchday", destination: "/rounds", permanent: true },
+      { source: "/today", destination: "/assistant", permanent: true },
+      { source: "/matches", destination: "/fixtures", permanent: true },
+      { source: "/matchday", destination: "/fixtures", permanent: true },
       { source: "/planner", destination: "/history", permanent: true },
       { source: "/rotation", destination: "/history", permanent: true },
-      { source: "/tactics", destination: "/rounds", permanent: true },
+      { source: "/tactics", destination: "/fixtures", permanent: true },
       { source: "/availability", destination: "/players", permanent: true },
-      { source: "/weeks/:weekKey", destination: "/rounds", permanent: true },
+      { source: "/weeks/:weekKey", destination: "/fixtures", permanent: true },
     ];
   },
 };
