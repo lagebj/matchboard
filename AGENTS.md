@@ -710,14 +710,35 @@ Matchboard is a private coaching app. Auth is mandatory, not optional.
 
 Before deployment-related work:
 - Run `npm run lint`, `npm run build`, `npm test`, `npm run typecheck`
+- Verify no secrets are tracked: `git ls-files | xargs grep -l "postgresql://\|neon.tech\|client_secret\|PRIVATE KEY" 2>/dev/null` should return nothing relevant
 - Inspect any active selection-engine branch (`fix/selection-engine-remaining-tasks`) for pending improvements
 
-Hard rules:
-- Real secrets belong only in local `.env` and deployment provider env vars
+### Hosting
+
+Matchboard is deployed to **Vercel** with **Neon Postgres**. SQLite is not used for production persistence.
+
+- Runtime queries use `DATABASE_URL` (Neon pooled connection)
+- Prisma CLI/migrations use `DIRECT_URL` (Neon direct connection)
+- `prisma.config.ts` configures the datasource URL from `DIRECT_URL` for CLI operations
+- `src/lib/db.ts` auto-detects Neon from the connection string and uses the appropriate adapter
+
+### Production migrations
+
+- **Never run `prisma migrate dev` against production.**
+- Production migrations must be run deliberately from a local machine: `npx prisma migrate deploy` with `DIRECT_URL` targeting Neon.
+- Migrations must not run as part of the Vercel build process.
+- The `postinstall` script runs `prisma generate` only — not migrations.
+
+### Hard rules
+
+- Real secrets belong only in local `.env` and Vercel environment variables
 - `.env` must never be committed
 - `.env.example` may contain placeholders only
+- `.vercel/` must never be committed
+- Vercel environment variables must never be committed to the repository
 - `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, and similar secrets must never be exposed as `NEXT_PUBLIC_*`
 - No real player data, exports, local database files, or credentials may be committed
+- Deployment must not happen until lint/build/security checks pass
 - All data-mutating server actions must call `requireCoachAccess()` or equivalent
 - All data-reading server actions and API routes exposing app data must call `requireCoachAccess()` or equivalent
 - The `/api/health` endpoint must not expose business data (player counts, etc.)
