@@ -394,46 +394,109 @@ This repo is intended to stay safe for a public remote:
 - Demo and example data committed to the repo must be fake
 - Seed data uses fictional player names (P1, P2, etc.) and team names (Team A, Team B, Team C)
 
-## Vercel deployment prerequisites
+## Vercel deployment
 
-Matchboard is designed for deployment to Vercel with Neon Postgres. Do not deploy without auth enabled.
+Matchboard is deployed to **Vercel** with **Neon Postgres** as the production database. SQLite is not used for production persistence — only PostgreSQL is supported.
 
-### Required environment variables (set in Vercel project settings)
+Do not deploy without auth enabled. All server actions and API routes must enforce `requireCoachAccess()`.
+
+### 1. Prerequisites
+
+- A [Neon](https://neon.tech) Postgres database (created and migrated)
+- A [Vercel](https://vercel.com) account
+- A Google Cloud project with OAuth credentials
+- Node.js 22 LTS recommended
+
+### 2. Required environment variables
+
+Set these in the Vercel project dashboard under Settings → Environment Variables. **Do not commit these values to the repository.**
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | Neon pooled connection (hostname includes `-pooler`) |
-| `DIRECT_URL` | Neon direct connection (for Prisma migrations) |
-| `AUTH_SECRET` | Generated with `npx auth secret` |
-| `AUTH_GOOGLE_ID` | Google OAuth client ID |
-| `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
-| `AUTH_URL` | Your deployed URL (e.g. `https://matchboard.vercel.app`) |
-| `ALLOWED_COACH_EMAILS` | Comma-separated coach email allowlist |
+| `DATABASE_URL` | Neon **pooled** connection string (hostname includes `-pooler`). Used by the runtime app for queries. |
+| `DIRECT_URL` | Neon **direct** connection string (no `-pooler`). Used by Prisma CLI for migrations. |
+| `AUTH_SECRET` | Generated with `npx auth secret`. Server-side only. |
+| `AUTH_GOOGLE_ID` | Google OAuth client ID from Google Cloud Console. |
+| `AUTH_GOOGLE_SECRET` | Google OAuth client secret from Google Cloud Console. |
+| `AUTH_URL` | Your deployed URL (e.g. `https://matchboard.vercel.app`). Auth.js uses this for callbacks. |
+| `ALLOWED_COACH_EMAILS` | Comma-separated list of coach email addresses. Only these users can access the app. |
 
-### Google OAuth setup for deployment
+**Never prefix secrets with `NEXT_PUBLIC_`** — they would be exposed to the browser.
 
-1. In Google Cloud Console, add your deployed domain to:
-   - Authorized JavaScript origins: `https://your-domain.vercel.app`
-   - Authorized redirect URIs: `https://your-domain.vercel.app/api/auth/callback/google`
-2. Copy the Client ID and Client Secret to Vercel environment variables
+### 3. Neon database notes
 
-### Deployment checklist
+- The runtime app uses `DATABASE_URL` (pooled connection) for queries via `@prisma/adapter-neon` or `@prisma/adapter-pg`.
+- Prisma CLI (migrations, generate) uses `DIRECT_URL` (direct connection) configured in `prisma.config.ts`.
+- The Prisma schema (`prisma/schema.prisma`) declares `provider = "postgresql"` with no inline `url` — the URL is provided via `prisma.config.ts` and environment variables.
+- `src/lib/db.ts` auto-detects Neon vs. local Postgres from the connection string and uses the appropriate adapter.
 
-- [ ] Neon Postgres database created and migrated
-- [ ] AUTH_SECRET generated and set in Vercel
-- [ ] Google OAuth credentials configured for deployed domain
-- [ ] ALLOWED_COACH_EMAILS set with real coach email addresses
-- [ ] AUTH_URL set to deployed domain URL
-- [ ] No real credentials in committed files
-- [ ] Auth protection verified (unauthenticated users cannot access data)
-- [ ] `npm run lint`, `npm run build`, `npm test`, `npm run typecheck` all pass
+### 4. Prisma migration notes
+
+- **Production migrations must be run deliberately from a local machine** targeting the Neon database using `DIRECT_URL`. Do not run migrations as part of the Vercel build process.
+- Before first deployment, run: `npx prisma migrate deploy` with `DIRECT_URL` pointing to your Neon database.
+- The `postinstall` script runs `prisma generate` (not migrations).
+- Never use `prisma migrate dev` against production.
+- If production schema already matches the latest migration, no action is needed.
+
+### 5. Google OAuth redirect URL
+
+In Google Cloud Console → APIs & Services → Credentials, configure:
+
+**Authorized JavaScript origins:**
+- `http://localhost:3333` (local development)
+- `https://your-domain.vercel.app` (production)
+
+**Authorized redirect URIs:**
+- `http://localhost:3333/api/auth/callback/google` (local development)
+- `https://your-domain.vercel.app/api/auth/callback/google` (production)
+
+If using Vercel preview deployments, add the preview URL as well.
+
+After changing the production URL, update `AUTH_URL` in Vercel environment variables and redeploy.
+
+### 6. Vercel project setup
+
+1. Push the repository to GitHub.
+2. In Vercel dashboard: **New Project** → import the GitHub repository.
+3. Framework preset: **Next.js** (should be auto-detected).
+4. Build command: `next build` (Vercel default).
+5. Install command: `npm install` (Vercel default).
+6. Output directory: default (`.next`).
+7. Node.js version: 22.x (set in Project Settings → Node.js Version).
+8. Add all seven environment variables from section 2.
+9. Deploy.
+
+**Do not commit `.vercel/`** — it is in `.gitignore`.
+
+### 7. Post-deploy verification checklist
+
+After deployment, verify:
+
+- [ ] Production URL loads and shows the sign-in page
+- [ ] Sign-in page is themed (dark background) and does not show sidebar/topbar
+- [ ] Unauthorized users (not on allowlist) are denied access
+- [ ] An allowlisted coach can sign in via Google
+- [ ] Protected pages render after authentication
+- [ ] Neon database connection works (create a team to test)
+- [ ] `/api/health` returns `{ ok: true }` with no business data
+- [ ] No secrets visible in browser source or Vercel logs
+- [ ] No protected data accessible without authentication
+
+### 8. Rollback and disable access
+
+If a deployment has issues:
+
+- **Rollback:** In Vercel dashboard → Deployments → find the last known-good deployment → **Promote to Production**.
+- **Disable access:** Set `ALLOWED_COACH_EMAILS` to an empty string or remove it — all app access will be denied.
 
 ### Security notes
 
-- Rate limiting is in-memory only (`src/lib/rate-limit.ts`). It resets on server restart and does not work across multiple instances. For production behind multiple Vercel instances, consider a Redis-backed rate limiter.
+- Rate limiting is in-memory only. It resets on server restart and does not work across multiple Vercel instances. For production, consider a Redis-backed rate limiter.
 - The `/api/health` endpoint is public and returns `{ ok: true }` only — no business data is exposed.
 - All other API routes and server actions enforce `requireCoachAccess()`.
 - Never expose `DATABASE_URL`, `AUTH_SECRET`, or other secrets as `NEXT_PUBLIC_*` variables.
+- `.env` is for local development only and must never be committed.
+- `.vercel/` is local build metadata and must never be committed.
 
 ## Coding style
 

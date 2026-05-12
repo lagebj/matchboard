@@ -90,3 +90,77 @@ describe("Security audit: .gitignore coverage", () => {
     expect(gitignore).toContain(".vercel");
   });
 });
+
+describe("Security audit: Vercel deployment readiness", () => {
+  it("postinstall script does not run prisma migrate deploy", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "package.json"), "utf-8"),
+    );
+    const postinstall = pkg.scripts.postinstall;
+    expect(postinstall).toBeDefined();
+    expect(postinstall).not.toContain("migrate deploy");
+    expect(postinstall).toContain("prisma generate");
+  });
+
+  it("prisma.config.ts uses DIRECT_URL for CLI operations", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const config = fs.readFileSync(
+      path.join(process.cwd(), "prisma.config.ts"),
+      "utf-8",
+    );
+    expect(config).toContain("DIRECT_URL");
+    expect(config).toContain("DATABASE_URL");
+    expect(config).toMatch(/env\("DIRECT_URL"\)/);
+  });
+
+  it("prisma schema uses postgresql provider without inline url", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const schema = fs.readFileSync(
+      path.join(process.cwd(), "prisma/schema.prisma"),
+      "utf-8",
+    );
+    expect(schema).toContain('provider = "postgresql"');
+    expect(schema).not.toContain("url =");
+  });
+
+  it(".env.example contains all required Vercel env vars as placeholders", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envExample = fs.readFileSync(
+      path.join(process.cwd(), ".env.example"),
+      "utf-8",
+    );
+    const requiredVars = [
+      "DATABASE_URL",
+      "DIRECT_URL",
+      "AUTH_SECRET",
+      "AUTH_GOOGLE_ID",
+      "AUTH_GOOGLE_SECRET",
+      "AUTH_URL",
+      "ALLOWED_COACH_EMAILS",
+    ];
+    for (const v of requiredVars) {
+      const line = envExample
+        .split("\n")
+        .find((l) => l.includes(v) && !l.trimStart().startsWith("#"));
+      expect(line, `Missing non-comment line for ${v}`).toBeDefined();
+    }
+  });
+
+  it("runtime db client uses DATABASE_URL and auto-detects Neon", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dbCode = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/db.ts"),
+      "utf-8",
+    );
+    expect(dbCode).toContain("DATABASE_URL");
+    expect(dbCode).toContain(".neon.tech");
+    expect(dbCode).toContain("PrismaNeon");
+    expect(dbCode).toContain("PrismaPg");
+  });
+});
