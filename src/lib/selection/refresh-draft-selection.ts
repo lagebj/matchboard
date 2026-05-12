@@ -4,6 +4,7 @@ import { generateSelection } from "@/lib/selection/generate-selection";
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound, createGeneratedDraftSelection } from "@/lib/selection/save-generated-draft";
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
+import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 
 type SelectionExplanationRow = { explanation: Prisma.JsonValue };
 
@@ -267,6 +268,7 @@ export async function refreshDraftRound(matchRoundId: string) {
 
   const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
   await persistRoundWarnings(warnings);
+  await persistRoundExplanations(generatedRound);
 
   return { preservedManualDraft: false };
 }

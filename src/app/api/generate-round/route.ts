@@ -1,6 +1,7 @@
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
+import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
 
     const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
     await persistRoundWarnings(warnings);
+    await persistRoundExplanations(generatedRound);
 
     return NextResponse.json({
       roundId,
