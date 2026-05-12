@@ -256,11 +256,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
                       {group.players.map((p) => (
                         <span
                           key={p.id}
+                          title={p.controlledDoubleLoad ? `${p.playerName} (double-load)` : p.playerName}
                           className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
                             p.status === "FINALIZED"
                               ? "border-emerald-700/40 bg-emerald-900/10 text-emerald-200"
                               : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]"
-                          }`}
+                          } ${p.controlledDoubleLoad ? "ring-1 ring-red-500/40" : ""}`}
                         >
                           <Link href={`/players/${p.playerId}`} className="hover:text-zinc-50 transition-colors">
                             {p.playerName}

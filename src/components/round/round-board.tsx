@@ -144,11 +144,12 @@ function PlayerChip({
       draggable={isDraggable && !isFinalized}
       onDragStart={isDraggable && onDragStart ? (e) => onDragStart(e, player.id, null, player.role) : undefined}
       onTouchStart={isDraggable && !isFinalized && onTouchStart ? () => onTouchStart(player.id, null, player.role) : undefined}
+      title={player.controlledDoubleLoad ? `${player.name} (double-load)` : player.name}
       className={`group flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
         isDraggable && !isFinalized
           ? "cursor-grab border-[var(--border-soft)] bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)] active:cursor-grabbing"
           : "border-[var(--border-soft)] bg-[var(--surface-muted)]"
-      } ${availabilityClass} ${isTouchDragging ? "opacity-30" : ""}`}
+      } ${availabilityClass} ${isTouchDragging ? "opacity-30" : ""} ${player.controlledDoubleLoad ? "ring-1 ring-red-500/40" : ""}`}
     >
       {isDraggable && !isFinalized && (
         <GripVertical className="h-3 w-3 shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
