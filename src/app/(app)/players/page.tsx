@@ -11,373 +11,188 @@ type PlayersPageProps = {
   }>;
 };
 
-function formatSavedMessage(saved?: string): string | null {
-  if (saved === "created") {
-    return "Player created.";
-  }
-
-  if (saved === "removed") {
-    return "Player removed.";
-  }
-
-  return null;
-}
-
 export default async function PlayersPage({ searchParams }: PlayersPageProps) {
   const { error, saved } = await searchParams;
 
   const [players, teams] = await Promise.all([
     db.player.findMany({
-      where: {
-        removedAt: null,
-      },
-      include: {
-        coreTeam: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [
-        {
-          coreTeam: {
-            name: "asc",
-          },
-        },
-        { firstName: "asc" },
-        { lastName: "asc" },
-        { playerCode: "asc" },
-      ],
+      where: { removedAt: null },
+      include: { coreTeam: { select: { id: true, name: true } } },
+      orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
     }),
     db.team.findMany({
-      where: {
-        archivedAt: null,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
+      where: { archivedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
-  const activeCount = players.filter((player) => player.active).length;
-  const inactiveCount = players.length - activeCount;
-  const rotatablePlayers = players.filter((player) => !player.nonRotatable);
-  const unavailablePlayers = players.filter(
-    (player) => player.currentAvailability !== "AVAILABLE",
-  );
-  const nextProfilePlayer = players[0] ?? null;
-  const teamSnapshots = teams.map((team) => {
-    const teamPlayers = players.filter((player) => player.coreTeamId === team.id);
+  const activePlayers = players.filter((p) => p.active);
+  const unavailablePlayers = activePlayers.filter((p) => p.currentAvailability !== "AVAILABLE");
 
-    return {
-      active: teamPlayers.filter((player) => player.active).length,
-      rotatable: teamPlayers.filter((player) => !player.nonRotatable).length,
-      team,
-      unavailable: teamPlayers.filter((player) => player.currentAvailability !== "AVAILABLE").length,
-    };
-  });
+  const playersByTeam = new Map<string, typeof activePlayers>();
+  for (const team of teams) {
+    playersByTeam.set(team.id, []);
+  }
+  const unassigned: typeof activePlayers = [];
+  for (const player of activePlayers) {
+    const group = playersByTeam.get(player.coreTeamId);
+    if (group) {
+      group.push(player);
+    } else {
+      unassigned.push(player);
+    }
+  }
 
   return (
-    <main className="flex min-h-full flex-col gap-8 text-foreground">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-        <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-                Players
-              </span>
-              <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Availability, load, and movement history.
-              </span>
-            </div>
+    <div className="flex flex-col gap-3">
+      {error && (
+        <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>
+      )}
+      {saved === "created" && (
+        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Player created.</div>
+      )}
+      {saved === "removed" && (
+        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Player removed.</div>
+      )}
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
-              <div>
-                <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  Players
-                </h1>
-                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Availability, load, and movement history.
-                </p>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Link
-                    className="inline-flex h-11 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    href="/players/new"
-                  >
-                    Create player
-                  </Link>
-                  <Link
-                    className="inline-flex h-11 items-center rounded-full border app-hairline bg-[rgba(255,255,255,0.03)] px-5 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                    href="/teams"
-                  >
-                    Open teams
-                  </Link>
-                  <Link
-                    className="inline-flex h-11 items-center rounded-full border app-hairline bg-[rgba(255,255,255,0.03)] px-5 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                    href="/history"
-                  >
-                    Open history
-                  </Link>
-                </div>
-              </div>
-
-              <div className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.035)] p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Next profile
-                </p>
-                {nextProfilePlayer ? (
-                  <div className="mt-4 flex flex-col gap-4">
-                    <div>
-                      <p className="text-lg font-semibold text-zinc-50">
-                        {formatPlayerName(nextProfilePlayer)}
-                      </p>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {nextProfilePlayer.coreTeam.name} · {formatAvailabilityStatus(nextProfilePlayer.currentAvailability)}
-                      </p>
-                    </div>
-                    <p className="text-sm app-copy-soft">Open the full profile for details.</p>
-                    <Link
-                      className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                      href={`/players/${nextProfilePlayer.id}`}
-                    >
-                      Open player profile
-                    </Link>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm leading-6 app-copy-soft">
-                    No active player records yet. Create the first player after the teams are in place.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="grid gap-4">
-          <section className="app-panel rounded-[1.75rem] p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Player overview
-            </p>
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                  Active players
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-50">{activeCount}</p>
-                <p className="mt-2 text-sm app-copy-soft">Available for selection.</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-                  <p className="text-sm font-medium text-zinc-100">{rotatablePlayers.length} rotatable player(s)</p>
-                <p className="mt-1 text-sm app-copy-soft">Eligible for rotation.</p>
-                </div>
-                <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-                  <p className="text-sm font-medium text-zinc-100">{inactiveCount} inactive record(s)</p>
-                  <p className="mt-1 text-sm app-copy-soft">Not available for selection.</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="app-panel rounded-[1.75rem] p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Quick check
-            </p>
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-                <p className="text-sm font-medium text-zinc-100">Check which players need attention.</p>
-                <p className="mt-1 text-sm app-copy-soft">Review availability and status before selection.</p>
-              </div>
-            </div>
-          </section>
-        </aside>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                Needs attention
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-zinc-50">Needs attention</h2>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                Unavailable now
-              </p>
-              <div className="mt-4 flex flex-col gap-3">
-                {unavailablePlayers.length > 0 ? (
-                  unavailablePlayers.slice(0, 5).map((player) => (
-                    <Link
-                      key={player.id}
-                      className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
-                      href={`/players/${player.id}`}
-                    >
-                      <p className="text-sm font-semibold text-zinc-100">{formatPlayerName(player)}</p>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {player.coreTeam.name} · {formatAvailabilityStatus(player.currentAvailability)}
-                      </p>
-                    </Link>
-                  ))
-                ) : (
-                  <p className="text-sm leading-6 app-copy-soft">
-                    No one is currently marked injured, sick, or away.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                Rotatable players
-              </p>
-              <div className="mt-4 flex flex-col gap-3">
-                {rotatablePlayers.length > 0 ? (
-                  rotatablePlayers.slice(0, 5).map((player) => (
-                    <Link
-                      key={player.id}
-                      className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
-                      href={`/players/${player.id}`}
-                    >
-                      <p className="text-sm font-semibold text-zinc-100">{formatPlayerName(player)}</p>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {player.coreTeam.name} · Rotatable
-                      </p>
-                    </Link>
-                  ))
-                ) : (
-                  <p className="text-sm leading-6 app-copy-soft">
-                    No players are currently eligible for rotation.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
-                Team snapshots
-              </p>
-              <div className="mt-4 flex flex-col gap-3">
-                {teamSnapshots.length > 0 ? (
-                  teamSnapshots.map((snapshot) => (
-                    <div
-                      key={snapshot.team.id}
-                      className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3"
-                    >
-                      <p className="text-sm font-semibold text-zinc-100">{snapshot.team.name}</p>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {snapshot.active} active · {snapshot.unavailable} unavailable · {snapshot.rotatable} rotatable
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm leading-6 app-copy-soft">
-                    Team snapshots appear here once team records exist.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Player table
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Player table</h2>
-          <div className="mt-6 grid gap-3">
-            {[
-              "Use the needs-attention view to see which players have changed status or are relevant to the next selection.",
-              "Open an individual profile when you need detailed attributes, rotation history, or movement records.",
-              "Use the table for bulk scanning, sorting, and removals.",
-            ].map((note) => (
-              <div
-                key={note}
-                className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft"
-              >
-                {note}
-              </div>
-            ))}
-          </div>
-        </section>
-      </section>
-
-      <div className="flex flex-col gap-3">
-        {error ? (
-          <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
-            {error}
-          </div>
-        ) : null}
-
-        {formatSavedMessage(saved) ? (
-          <div className="rounded-2xl border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
-            {formatSavedMessage(saved)}
-          </div>
-        ) : null}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Players · {activePlayers.length} active
+        </p>
+        <div className="flex gap-2">
+          {teams.length > 0 && (
+            <Link
+              href="/players/new"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20"
+            >
+              Add player
+            </Link>
+          )}
+        </div>
       </div>
 
       {teams.length === 0 ? (
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <h2 className="text-lg font-semibold text-zinc-50">No teams yet</h2>
-          <p className="mt-1 text-sm leading-6 app-copy-soft">
-            Create at least one team before adding players.
-          </p>
-          <div className="mt-4">
-            <Link
-              className="inline-flex h-10 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-              href="/teams/new"
-            >
-              Create a team
-            </Link>
-          </div>
-        </section>
+        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
+          <p className="text-sm font-medium text-zinc-200">No teams yet</p>
+          <p className="mt-1 text-xs text-zinc-400">Create a team before adding players.</p>
+          <Link href="/teams/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
+            Create team
+          </Link>
+        </div>
       ) : players.length === 0 ? (
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <h2 className="text-lg font-semibold text-zinc-50">No players yet</h2>
-          <p className="mt-1 text-sm leading-6 app-copy-soft">
-            Add players to the registry.
-          </p>
-          <div className="mt-4">
-            <Link
-              className="inline-flex h-10 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-              href="/players/new"
-            >
-              Create player
-            </Link>
-          </div>
-        </section>
+        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
+          <p className="text-sm font-medium text-zinc-200">No players yet</p>
+          <p className="mt-1 text-xs text-zinc-400">Add players to teams.</p>
+          <Link href="/players/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
+            Add player
+          </Link>
+        </div>
       ) : (
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <PlayerTable
-          players={players.map((player) => ({
-            id: player.id,
-            firstName: player.firstName,
-            lastName: player.lastName,
-            active: player.active,
-            coreTeam: player.coreTeam,
-            currentAvailability: player.currentAvailability,
-            primaryPosition: player.primaryPosition,
-            secondaryPosition: player.secondaryPosition,
-            tertiaryPosition: player.tertiaryPosition,
-            nonRotatable: player.nonRotatable,
-            reducedMatchLoadAllowed: player.reducedMatchLoadAllowed,
-            supportSuitability: player.supportSuitability,
-            developmentReadiness: player.developmentReadiness,
-            removeAction: removePlayerAction.bind(null, player.id),
-          }))}
-          />
-        </section>
+        <>
+          {unavailablePlayers.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Unavailable ({unavailablePlayers.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {unavailablePlayers.slice(0, 8).map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/players/${p.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-amber-900/30 bg-amber-950/10 px-2 py-1 text-xs text-amber-200 hover:bg-amber-900/20"
+                  >
+                    {formatPlayerName(p)}
+                    <span className="text-[10px] text-amber-300/50">{formatAvailabilityStatus(p.currentAvailability)}</span>
+                  </Link>
+                ))}
+                {unavailablePlayers.length > 8 && (
+                  <span className="inline-flex items-center px-2 py-1 text-xs text-zinc-500">+{unavailablePlayers.length - 8} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 lg:grid-cols-3">
+            {teams.map((team) => {
+              const teamPlayers = playersByTeam.get(team.id) ?? [];
+              return (
+                <div key={team.id} className="flex flex-col gap-1.5 rounded-md border border-zinc-700/40 bg-zinc-800/20 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Link href={`/teams/${team.id}`} className="text-xs font-semibold text-zinc-200 hover:text-zinc-100">
+                      {team.name}
+                    </Link>
+                    <span className="text-[10px] text-zinc-500">{teamPlayers.length} players</span>
+                  </div>
+                  {teamPlayers.length === 0 ? (
+                    <p className="text-xs text-zinc-500 py-1">No players assigned</p>
+                  ) : (
+                    <div className="flex flex-col gap-0.5">
+                      {teamPlayers.map((player) => (
+                        <Link
+                          key={player.id}
+                          href={`/players/${player.id}`}
+                          className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs hover:bg-zinc-700/30"
+                        >
+                          <span className="text-zinc-200">{formatPlayerName(player)}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-zinc-500">{player.primaryPosition}</span>
+                            {player.nonRotatable && <span className="text-[9px] text-zinc-600">locked</span>}
+                            {player.currentAvailability !== "AVAILABLE" && (
+                              <span className="text-[9px] text-amber-400/60">{formatAvailabilityStatus(player.currentAvailability)}</span>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {unassigned.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Unassigned ({unassigned.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {unassigned.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/players/${p.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700/50 bg-zinc-800/30 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700/30"
+                  >
+                    {formatPlayerName(p)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <details className="group">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300">
+              Full table
+            </summary>
+            <div className="mt-2">
+              <PlayerTable
+                players={players.map((player) => ({
+                  id: player.id,
+                  firstName: player.firstName,
+                  lastName: player.lastName,
+                  active: player.active,
+                  coreTeam: player.coreTeam,
+                  currentAvailability: player.currentAvailability,
+                  primaryPosition: player.primaryPosition,
+                  secondaryPosition: player.secondaryPosition,
+                  tertiaryPosition: player.tertiaryPosition,
+                  nonRotatable: player.nonRotatable,
+                  reducedMatchLoadAllowed: player.reducedMatchLoadAllowed,
+                  supportSuitability: player.supportSuitability,
+                  developmentReadiness: player.developmentReadiness,
+                  removeAction: removePlayerAction.bind(null, player.id),
+                }))}
+              />
+            </div>
+          </details>
+        </>
       )}
-    </main>
+    </div>
   );
 }

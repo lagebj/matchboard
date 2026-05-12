@@ -17,10 +17,10 @@ export async function UserNav() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white" title={email}>
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white" title={name}>
         {initials}
       </div>
-      <span className="hidden text-sm text-gray-300 sm:inline">{name}</span>
+      <span className="hidden text-xs text-gray-400 sm:inline">{name}</span>
       <form
         action={async () => {
           "use server";
@@ -29,10 +29,11 @@ export async function UserNav() {
       >
         <button
           type="submit"
-          className="ml-1 rounded p-1 text-gray-400 hover:text-white"
+          className="ml-0.5 rounded p-1 text-gray-400 hover:text-white"
           title="Sign out"
+          aria-label="Sign out"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-3.5 w-3.5" />
         </button>
       </form>
     </div>

@@ -59,242 +59,95 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
 
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
 
-  const hardLimitCards = [
-    {
-      label: "Spacing",
-      value: `${rules.minDaysBetweenAnyMatches}d`,
-      note: "Minimum gap between finalized appearances for the same player.",
-    },
-    {
-      label: "Rule version",
-      value: `v${rules.version}`,
-      note: "Current rule configuration version. Finalized rounds reference the version at the time of finalization.",
-    },
-    {
-      label: "Warning threshold",
-      value: String(rules.warningThreshold),
-      note: "Maximum warnings before human review is required for a round.",
-    },
-  ];
-
   return (
-    <main className="flex min-h-full flex-col gap-8 text-foreground">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-        <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-              Rules
-            </span>
-            <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-              Selection rules, support priority, and squad repair behavior.
-            </span>
-            </div>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Rules · v{rules.version}</p>
+          <span className="text-[10px] text-zinc-500">{rules.minDaysBetweenAnyMatches}d spacing</span>
+        </div>
+        <div className="flex gap-1.5">
+          <Link
+            className="h-6 rounded border border-zinc-700/50 bg-zinc-800/30 px-2 text-[10px] font-medium text-zinc-400 hover:text-zinc-200"
+            href="/api/rules"
+            download
+          >
+            Export
+          </Link>
+          <Link
+            className="h-6 rounded border border-zinc-700/50 bg-zinc-800/30 px-2 text-[10px] font-medium text-zinc-400 hover:text-zinc-200"
+            href="#rule-import-section"
+          >
+            Import
+          </Link>
+        </div>
+      </div>
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
-              <div>
-                <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  Rules
-                </h1>
-                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Selection rules, support priority, and squad repair behavior.
-                </p>
-              </div>
-
-              <div className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.035)] p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Current posture
-                </p>
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
-                    <p className="text-sm font-medium text-zinc-100">Rule version {rules.version}</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Finalized rounds reference the rule version at the time of finalization.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
-                    <p className="text-sm font-medium text-zinc-100">
-                      {rules.minDaysBetweenAnyMatches}-day minimum gap between matches
-                    </p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Spacing limit between finalized appearances.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="grid gap-4">
-          <section className="app-panel rounded-[1.75rem] p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Notes
-            </p>
-            <div className="mt-4 grid gap-3">
-              {[
-                "The feature file still defines behavior. This page only edits thresholds and tie-break preferences.",
-                "Hard limits should change sparingly because they can invalidate large parts of the candidate pool.",
-                "Soft preferences are safest to tweak when you want better tie-break behavior without changing eligibility.",
-              ].map((note) => (
-                <div
-                  key={note}
-                  className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft"
-                >
-                  {note}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="app-panel rounded-[1.75rem] p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Import/Export
-            </p>
-            <p className="mt-2 text-sm app-copy-soft">Export the current rule configuration or import a new one.</p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                className="inline-flex h-10 items-center rounded-full border border-[rgba(106,153,219,0.32)] bg-[rgba(106,153,219,0.12)] px-4 text-sm font-medium text-[#8bb8f0] hover:bg-[rgba(106,153,219,0.18)]"
-                href="/api/rules"
-                download
-              >
-                Export rules
-              </Link>
-              <Link
-                className="inline-flex h-10 items-center rounded-full border app-hairline bg-[rgba(255,255,255,0.03)] px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                href="#rule-import-section"
-              >
-                Import rules
-              </Link>
-            </div>
-          </section>
-        </aside>
-      </section>
+      {error && <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>}
+      {imported && <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Rules imported successfully.</div>}
 
       {(validation.errors.length > 0 || validation.warnings.length > 0) && (
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Rule Validation
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Configuration check</h2>
-
-          <div className="mt-4 flex flex-col gap-3">
-            {validation.errors.map((err) => (
-              <div key={err.code} className="rounded-[1.3rem] border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-4 py-3">
-                <p className="text-sm font-semibold text-[#f0cbc5]">{err.field}: {err.message}</p>
-              </div>
-            ))}
-            {validation.warnings.map((warn) => (
-              <div key={warn.code} className="rounded-[1.3rem] border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.06)] px-4 py-3">
-                <p className="text-sm text-[var(--warning)]">{warn.field}: {warn.message}</p>
-              </div>
-            ))}
-            {validation.errors.length === 0 && validation.warnings.length === 0 && (
-              <div className="rounded-[1.3rem] border border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.08)] px-4 py-3">
-                <p className="text-sm text-[var(--accent-strong)]">No errors or warnings. Current rule configuration passes validation.</p>
-              </div>
-            )}
-          </div>
-        </section>
+        <div className="flex flex-col gap-1.5">
+          {validation.errors.map((err) => (
+            <div key={err.code} className="rounded-md border border-red-800/30 bg-red-900/15 px-3 py-2 text-xs text-red-300">
+              <span className="font-medium">{err.field}:</span> {err.message}
+            </div>
+          ))}
+          {validation.warnings.map((warn) => (
+            <div key={warn.code} className="rounded-md border border-amber-700/30 bg-amber-900/15 px-3 py-2 text-xs text-amber-300">
+              <span className="font-medium">{warn.field}:</span> {warn.message}
+            </div>
+          ))}
+        </div>
       )}
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Configuration
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">These values block or allow candidate sets outright</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {hardLimitCards.map((card) => (
-              <div
-                key={card.label}
-                className="rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] app-copy-muted">
-                  {card.label}
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-zinc-50">{card.value}</p>
-                <p className="mt-2 text-sm leading-6 app-copy-soft">{card.note}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </section>
-
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Rotation paths
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">Movement eligibility between teams</h2>
-            <p className="mt-1 text-sm app-copy-soft">A player may only be selected outside their core team when an active rotation path exists for the exact role.</p>
-          </div>
+      <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Rotation paths</p>
+          <span className="text-[10px] text-zinc-500">{rotationPathItems.length} active</span>
         </div>
 
         {rotationPathItems.length > 0 ? (
-          <div className="mt-4 grid gap-1.5">
+          <div className="mt-2 flex flex-col gap-1.5">
             {rotationPathItems.map((path) => (
               <RotationPathCard key={path.id} path={path} teamId={path.fromTeamId} direction="outgoing" />
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-            <p className="text-sm app-copy-soft">No rotation paths configured. Add paths to enable support, development, or squad repair movement between teams.</p>
-          </div>
+          <p className="mt-2 text-xs text-zinc-500">No rotation paths. Add paths to enable support, development, or squad repair movement between teams.</p>
         )}
 
-        <details className="mt-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)]">
-          <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-zinc-100 hover:bg-[rgba(255,255,255,0.04)]">
-            Add rotation path
-          </summary>
-          <div className="px-5 pb-5">
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[10px] font-medium text-zinc-400 hover:text-zinc-200">Add rotation path</summary>
+          <div className="mt-2">
             <RotationPathCreateForm teams={teamOptions} />
           </div>
         </details>
-      </section>
-
-      <div className="flex flex-col gap-3">
-        {error ? (
-          <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
-            {error}
-          </div>
-        ) : null}
-        {imported ? (
-          <div className="rounded-2xl border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
-            Rules imported successfully.
-          </div>
-        ) : null}
       </div>
 
-      <section id="rule-import-section" className="app-panel rounded-[1.75rem] p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-          Import Rules
-        </p>
-        <h2 className="mt-2 text-xl font-semibold text-zinc-50">Upload a rule configuration file</h2>
-        <p className="mt-2 text-sm app-copy-soft">Paste or upload a previously exported rule configuration JSON. The system validates the configuration before applying.</p>
-
-        <div className="mt-6">
-          <form action="/api/rules" method="POST" className="flex flex-col gap-4">
-            <textarea
-              name="rulesJson"
-              rows={6}
-              placeholder="Paste rule configuration JSON here..."
-              className="rounded-[1.2rem] border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-[rgba(106,153,219,0.3)] focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center rounded-full border border-[rgba(106,153,219,0.32)] bg-[rgba(106,153,219,0.12)] px-4 text-sm font-medium text-[#8bb8f0] hover:bg-[rgba(106,153,219,0.18)]"
-            >
-              Validate and import
-            </button>
-          </form>
-        </div>
-      </section>
-
-      <section className="app-panel rounded-[1.75rem] p-6">
+      <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Configuration</p>
         <RulesForm rules={rules} saved={saved === "1"} />
-      </section>
-    </main>
+      </div>
+
+      <div id="rule-import-section" className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Import rules</p>
+        <p className="mt-1 text-xs text-zinc-500">Paste a previously exported rule configuration JSON.</p>
+        <form action="/api/rules" method="POST" className="mt-2 flex flex-col gap-2">
+          <textarea
+            name="rulesJson"
+            rows={4}
+            placeholder="Paste rule configuration JSON..."
+            className="rounded-md border border-zinc-700/40 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="h-7 rounded-md border border-blue-700/30 bg-blue-900/20 px-3 text-xs font-medium text-blue-300 hover:bg-blue-900/30"
+          >
+            Validate and import
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

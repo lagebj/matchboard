@@ -2,6 +2,9 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { formatDate } from "@/lib/date-utils";
+import { deriveRoundStatus } from "@/lib/round-status";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { MatchTable } from "@/components/matches/match-table";
 
 type MatchesPageProps = {
@@ -10,12 +13,6 @@ type MatchesPageProps = {
     saved?: string;
   }>;
 };
-
-function formatSavedMessage(saved?: string): string | null {
-  if (saved === "created") return "Match created.";
-  if (saved === "deleted") return "Match removed.";
-  return null;
-}
 
 export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const { error, saved } = await searchParams;
@@ -29,10 +26,45 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const matches = await db.match.findMany({
     include: {
       team: { select: { name: true } },
-      matchRound: { select: { name: true, status: true } },
+      matchRound: {
+        select: {
+          name: true,
+          status: true,
+          warnings: {
+            where: { resolved: false },
+            select: { severity: true, matchId: true },
+          },
+        },
+      },
+      selections: {
+        where: { status: { in: ["DRAFT", "FINALIZED"] } },
+        select: { status: true },
+      },
     },
     orderBy: [{ startsAt: "asc" }],
   });
+
+  type MatchItem = typeof matches[number];
+  const matchesByRound = new Map<string, { roundName: string; roundStatus: string; matches: MatchItem[] }>();
+  const ungrouped: MatchItem[] = [];
+
+  for (const match of matches) {
+    const roundId = match.matchRoundId;
+    if (!roundId) {
+      ungrouped.push(match);
+      continue;
+    }
+    const existing = matchesByRound.get(roundId);
+    if (existing) {
+      existing.matches.push(match);
+    } else {
+      matchesByRound.set(roundId, {
+        roundName: match.matchRound?.name ?? roundId,
+        roundStatus: match.matchRound?.status ?? "DRAFT",
+        matches: [match],
+      });
+    }
+  }
 
   const matchRows = matches.map((m) => ({
     gameFormat: m.gameFormat,
@@ -48,84 +80,130 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   }));
 
   return (
-    <main className="flex min-h-full flex-col gap-8 text-foreground">
-      <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-              Matches
-            </span>
-            <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-              Match details, dates, and round assignment.
-            </span>
-          </div>
+    <div className="flex flex-col gap-3">
+      {error && (
+        <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>
+      )}
+      {saved === "created" && (
+        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Match created.</div>
+      )}
+      {saved === "deleted" && (
+        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Match removed.</div>
+      )}
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                Matches
-              </h1>
-              <p className="mt-4 text-sm app-copy-soft sm:text-base">
-                {teams.length === 0
-                  ? "Create a team before adding matches."
-                  : "Register match details for each team. Matches are assigned to rounds by date."}
-              </p>
-            </div>
-
-            {teams.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  className="inline-flex h-11 items-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                  href="/matches/new"
-                >
-                  Create match
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div className="flex flex-col gap-3">
-        {error && (
-          <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
-            {error}
-          </div>
-        )}
-        {formatSavedMessage(saved) && (
-          <div className="rounded-2xl border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
-            {formatSavedMessage(saved)}
-          </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Matches · {matches.length}</p>
+        {teams.length > 0 && (
+          <Link
+            href="/matches/new"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20"
+          >
+            Add match
+          </Link>
         )}
       </div>
 
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Match Registry
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">All matches</h2>
-          <p className="mt-2 text-sm app-copy-soft">
-            {teams.length === 0
-              ? "You need at least one team before creating matches."
-              : "Matches are assigned to match rounds based on date."}
-          </p>
+      {teams.length === 0 ? (
+        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
+          <p className="text-sm font-medium text-zinc-200">No teams yet</p>
+          <p className="mt-1 text-xs text-zinc-400">Create a team before adding matches.</p>
+          <Link href="/teams/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
+            Create team
+          </Link>
         </div>
+      ) : matches.length === 0 ? (
+        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
+          <p className="text-sm font-medium text-zinc-200">No matches yet</p>
+          <p className="mt-1 text-xs text-zinc-400">Register match details for each team.</p>
+          <Link href="/matches/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
+            Add match
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3">
+            {[...matchesByRound.entries()].map(([roundId, { roundName, roundStatus, matches: roundMatches }]) => {
+              const firstMatch = roundMatches[0];
+              const roundWarnings = firstMatch?.matchRound?.warnings ?? [];
+              const blockingCount = roundWarnings.filter((w) => w.severity === "HARD_BLOCK").length;
+              const derivedStatus = deriveRoundStatus({
+                dbStatus: roundStatus,
+                hasDraftSelections: roundMatches.some((m) => m.selections.some((s) => s.status === "DRAFT")),
+                hasMatches: roundMatches.length > 0,
+                blockingWarningCount: blockingCount,
+              });
 
-        <div className="mt-6">
-          {teams.length === 0 ? (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
-              No teams yet.{" "}
-              <Link href="/teams/new" className="underline text-[var(--accent-strong)]">
-                Create a team
-              </Link>{" "}
-              before adding matches.
+              return (
+                <div key={roundId} className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Link href={`/rounds/${roundId}`} className="text-xs font-semibold text-zinc-300 hover:text-zinc-100">
+                        {roundName}
+                      </Link>
+                      <StatusBadge status={derivedStatus} />
+                    </div>
+                    <Link
+                      href={`/rounds/${roundId}`}
+                      className="text-[11px] font-medium text-zinc-500 hover:text-zinc-300"
+                    >
+                      Open round
+                    </Link>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {roundMatches.map((match) => {
+                      const draftCount = match.selections.filter((s) => s.status === "DRAFT").length;
+                      const matchWarnings = (match.matchRound?.warnings ?? []).filter((w) => w.matchId === match.id);
+                      const warningCount = matchWarnings.length;
+                      return (
+                        <Link
+                          key={match.id}
+                          href={`/matches/${match.id}`}
+                          className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-zinc-800/40"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-zinc-200">{match.team.name} vs {match.opponent}</span>
+                            <span className="text-zinc-600">{match.homeAway === "HOME" ? "H" : "A"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {draftCount > 0 && <span className="text-[10px] text-zinc-400">{draftCount} sel</span>}
+                            {warningCount > 0 && <span className="text-[10px] text-amber-400">{warningCount}w</span>}
+                            <span className="text-zinc-500">{formatDate(match.startsAt)}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {ungrouped.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Ungrouped</p>
+                {ungrouped.map((match) => (
+                  <Link
+                    key={match.id}
+                    href={`/matches/${match.id}`}
+                    className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-zinc-800/40"
+                  >
+                    <span className="text-zinc-200">{match.team.name} vs {match.opponent}</span>
+                    <span className="text-zinc-500">{formatDate(match.startsAt)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <details className="group">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300">
+              Full table
+            </summary>
+            <div className="mt-2">
+              <MatchTable matches={matchRows} />
             </div>
-          ) : (
-            <MatchTable matches={matchRows} />
-          )}
-        </div>
-      </section>
-    </main>
+          </details>
+        </>
+      )}
+    </div>
   );
 }

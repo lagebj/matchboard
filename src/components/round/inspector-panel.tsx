@@ -20,6 +20,7 @@ type InspectorPlayer = {
   explanations: ExplanationItem[];
   priorityScore: number | null;
   manualOverride: boolean;
+  controlledDoubleLoad?: boolean;
 };
 
 type InspectorPanelProps = {

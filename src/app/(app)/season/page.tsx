@@ -12,13 +12,7 @@ export default async function SeasonPage() {
   const activePlanningPeriod = planningPeriods[0] ?? null;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-50">Season</h1>
-        <p className="text-sm text-[var(--text-muted)]">
-          Track load, movement, and fairness across the planning period.
-        </p>
-      </div>
+    <div className="flex flex-col gap-3">
       <SeasonOverviewClient
         planningPeriods={planningPeriods}
         activePlanningPeriodId={activePlanningPeriod?.id ?? null}

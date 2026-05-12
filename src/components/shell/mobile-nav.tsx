@@ -8,7 +8,7 @@ import {
   Users,
   Shield,
   Trophy,
-  History,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,7 +24,7 @@ const mobileNavItems: MobileNavItem[] = [
   { href: "/players", label: "Players", icon: Users },
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/matches", label: "Matches", icon: Trophy },
-  { href: "/history", label: "History", icon: History },
+  { href: "/season", label: "Season", icon: TrendingUp },
 ];
 
 function isActive(pathname: string, href: string): boolean {

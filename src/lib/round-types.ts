@@ -10,4 +10,5 @@ export type PlayerInMatch = {
   priorityScore: number | null;
   manualOverride: boolean;
   playerPosition: string;
+  controlledDoubleLoad: boolean;
 };

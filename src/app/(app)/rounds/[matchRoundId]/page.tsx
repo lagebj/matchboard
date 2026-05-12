@@ -235,6 +235,7 @@ export default async function RoundBoardPage({
         priorityScore: (explanation.priorityScore as number | null) ?? null,
         manualOverride: (explanation.manualOverride as boolean) ?? false,
         playerPosition: sel.player.primaryPosition ?? "",
+        controlledDoubleLoad: sel.controlledDoubleLoad ?? false,
       });
     }
 
@@ -256,6 +257,7 @@ export default async function RoundBoardPage({
           priorityScore: null,
           manualOverride: false,
           playerPosition: "",
+          controlledDoubleLoad: false,
         });
       }
     }
@@ -384,14 +386,15 @@ export default async function RoundBoardPage({
       players: s.players
         .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
        .map((p) => ({
-           id: p.playerId,
-           name: p.playerName,
-           coreTeamName: p.coreTeamName,
-           primaryPosition: p.playerPosition || undefined,
-           playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
-           role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
-           manualOverride: p.manualOverride,
-          warningCount: (() => {
+            id: p.playerId,
+            name: p.playerName,
+            coreTeamName: p.coreTeamName,
+            primaryPosition: p.playerPosition || undefined,
+            playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
+            role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
+            manualOverride: p.manualOverride,
+            controlledDoubleLoad: p.controlledDoubleLoad,
+           warningCount: (() => {
             const matchWarnings = unresolvedWarnings.filter(
               (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
             );

@@ -180,7 +180,7 @@ export async function getSeasonPlayerRoundMatrix(
     const developmentMatches = cells.filter((c) => c.role === "DEVELOPMENT").length;
     const backfillMatches = cells.filter((c) => c.role === "BACKFILL").length;
     const doubleLoadRounds = cells.filter((c) => c.controlledDoubleLoad).length;
-    const roundsPlayed = new Set(cells.map((c) => c.matchRoundId)).size;
+    const roundsPlayed = cells.length;
     const totalSelections = cells.length;
     const unavailableRounds = roundIds.filter(
       (rid) => unavailableByPlayerRound.has(`${player.id}:${rid}`),

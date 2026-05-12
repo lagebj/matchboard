@@ -49,6 +49,7 @@ export default async function MatchDetailPage({
       selectionReason: (explanation?.summary as string) ?? "",
       priorityScore: (explanation?.priorityScore as number | null) ?? null,
       overrideReason: s.overrideReason,
+      controlledDoubleLoad: s.controlledDoubleLoad ?? false,
     };
   });
 
