@@ -24,6 +24,7 @@ type SelectionRow = {
   role: string;
   status: string;
   manualOverride: boolean;
+  controlledDoubleLoad: boolean;
   selectionReason: string;
   priorityScore: number | null;
   overrideReason: string | null;
@@ -265,6 +266,9 @@ export function MatchDetail({ match }: { match: MatchData }) {
                             {p.playerName}
                           </Link>
                           <span className="text-[10px] text-[var(--text-muted)]">{p.coreTeamName}</span>
+                          {p.controlledDoubleLoad && (
+                            <span className="text-[8px] text-red-400 uppercase font-semibold">2x</span>
+                          )}
                           {p.manualOverride && (
                             <span className="text-[8px] text-amber-400 uppercase">ovr</span>
                           )}

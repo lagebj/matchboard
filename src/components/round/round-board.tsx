@@ -35,6 +35,7 @@ type PlayerInColumn = {
   role?: SelectionRole;
   selectionCategory?: string;
   manualOverride?: boolean;
+  controlledDoubleLoad?: boolean;
   availability?: string;
   playerCoreTeamId?: string;
   warningCount?: number;
@@ -157,6 +158,9 @@ function PlayerChip({
         <span className="shrink-0 text-[9px] text-[var(--text-muted)] uppercase">{player.primaryPosition}</span>
       )}
       <span className="shrink-0 text-[9px] text-[var(--text-muted)]">{player.coreTeamName}</span>
+      {player.controlledDoubleLoad && (
+        <span className="shrink-0 text-[8px] text-red-400 uppercase font-semibold">2x</span>
+      )}
       {player.manualOverride && (
         <span className="shrink-0 text-[8px] text-amber-400 uppercase">ovr</span>
       )}
