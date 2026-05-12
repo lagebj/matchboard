@@ -107,6 +107,7 @@ export async function createGeneratedDraftSelection(
             sourceTeamName: player.coreTeamName,
             targetTeamName: generatedSelection.teamName,
             chosenPosition: player.chosenPosition ?? null,
+            explanations: player.explanations,
           },
         },
       });
@@ -157,6 +158,7 @@ export async function createGeneratedDraftRound(
               sourceTeamName: player.coreTeamName,
               targetTeamName: matchResult.teamName,
               chosenPosition: player.chosenPosition ?? null,
+              explanations: player.explanations,
             },
           },
         });

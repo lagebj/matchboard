@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
+import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
+import { generateRoundIssues } from "@/lib/selection/generate-round-issues";
 
 export type PopulateAllResult = {
   planningPeriodId: string;
@@ -74,6 +76,8 @@ export async function populateAllDrafts(
 
       const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
       await persistRoundWarnings(warnings);
+      await persistRoundExplanations(generatedRound);
+      await generateRoundIssues(matchRound.id);
 
       results.push({
         matchRoundId: matchRound.id,

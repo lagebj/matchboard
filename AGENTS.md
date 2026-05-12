@@ -792,3 +792,17 @@ Avoid:
 
 - `docs/domain.md` — deleted, do not reference
 - `docs/spec-ux-overhaul.md` — superseded by `docs/specs/ux-overhaul.md`
+
+## Assistant Manager Workflow Rules
+
+When implementing workflow, selection, squad review, player profile, team review, or match review changes:
+
+- Update supporting docs before implementation.
+- Do not duplicate selection-engine logic in UI components.
+- Use player IDs in stored payloads and external/public payloads.
+- Do not store player names inside assistant issues, explanations, recommendations, decision records, or cross-team impact payloads.
+- Do not introduce ability scores, best-XI language, permanent weak/strong labels, or public player ranking.
+- Overrides must require a reason.
+- Selection-affecting actions must create an auditable DecisionRecord.
+- Use the git-branch-commit-pr workflow.
+- Do not commit internal work logs, scratch notes, or handover documents.
