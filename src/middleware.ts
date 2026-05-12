@@ -1,7 +1,7 @@
-import { auth } from "@/auth";
+import { edgeAuth } from "@/auth-edge";
 import { NextResponse } from "next/server";
 
-export default auth((req) => {
+export default edgeAuth((req) => {
   const path = req.nextUrl.pathname;
 
   const isPublic =
