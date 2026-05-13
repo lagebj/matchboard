@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
       { source: "/today", destination: "/assistant", permanent: true },
       { source: "/matches", destination: "/fixtures", permanent: true },
       { source: "/matchday", destination: "/fixtures", permanent: true },
-      { source: "/planner", destination: "/history", permanent: true },
-      { source: "/rotation", destination: "/history", permanent: true },
-      { source: "/tactics", destination: "/fixtures", permanent: true },
       { source: "/availability", destination: "/players", permanent: true },
       { source: "/weeks/:weekKey", destination: "/fixtures", permanent: true },
     ];

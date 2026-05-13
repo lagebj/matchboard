@@ -30,9 +30,30 @@
 - Use contextual terms: "projected shape", "current match shape", "position coverage", "squad readiness", "development focus".
 - Player IDs for external payloads, names only where internal UI permission allows.
 
+## Navigation Model
+
+Primary navigation (4 items): Assistant, Fixtures, Teams, Players.
+
+Canonical routes:
+- `/assistant` — Smart inbox for what needs action now
+- `/fixtures` — Period → round → match hierarchy with actions
+- `/teams` — Team registry
+- `/players` — Player assignment board and registry
+- `/teams/[teamId]` — Team detail workspace
+- `/teams/[teamId]/configuration` — Team configuration and rules
+- `/rounds/[matchRoundId]` — Round board (accessible from fixtures/assistant links)
+- `/rounds` — Rounds list (accessible from fixtures/assistant links)
+- `/matches/[matchId]` — Match detail (accessible from fixtures/rounds)
+- `/season` — Season overview (accessible from fixtures/assistant links)
+- `/rules` — Rules configuration (accessible from team config links)
+- `/history` — Audit of finalized selections and movement
+- `/teams/new`, `/players/new`, `/matches/new` — Create forms
+
+Redirects: `/` → `/assistant`, `/today` → `/assistant`, `/matches` → `/fixtures`
+
 ## Page Responsibilities
 
-### Today (`/`)
+### Assistant (`/assistant`)
 Smart inbox for what needs action now.
 - Next actionable round/match work
 - Problems requiring coach action
@@ -41,6 +62,12 @@ Smart inbox for what needs action now.
 - Availability gaps / unknown RSVPs
 - Hard blockers
 - Collapsed diagnostics: warnings, fairness checks
+
+### Fixtures (`/fixtures`)
+Period → round → match hierarchy.
+- Period cards with readiness state and issue counts
+- Round sections with generate/review links
+- Match rows with readiness badge, selected count, issue count, post-match link
 
 ### Rounds (`/rounds`)
 Round action dashboard.
@@ -56,11 +83,12 @@ Round workbench — the primary planning surface.
 - Finalization controls
 
 ### Players (`/players`)
-Player maintenance workspace.
-- Group by team/core group + Unassigned
+Player assignment board and registry.
+- Drag-and-drop team assignment columns
+- Unassigned column for players without a team
+- Group by team/core group
 - Quick access to player profile
 - Primary actions: Add player, Edit player, Manage assignments
-- Remove "Needs attention" unless it contains concrete fixable issues
 
 ### Player Profile (`/players/[playerId]`)
 The microscope — compact operating view of one player.
@@ -73,11 +101,10 @@ The microscope — compact operating view of one player.
 - Three-column desktop layout, stacked mobile
 
 ### Teams (`/teams`)
-Team-flow configuration map.
-- Rotation paths exposed directly as visual flow
-- Inline edit for key config (squad size, support priority)
-- No simultaneous horizontal and vertical scrolling
-- Link to Team Detail for deeper analysis
+Team registry linking to team detail pages.
+- Dense table with core player count, squad limits, support priority
+- Link to `/teams/[teamId]` for detail
+- Link to `/teams/new` for creation
 
 ### Team Detail (`/teams/[teamId]`)
 The control tower — single operating view for one squad.
@@ -89,11 +116,18 @@ The control tower — single operating view for one squad.
 - Development summary
 - Cross-team impact for support changes
 
-### Matches (`/matches`)
-Match operations list.
-- Each match listed directly, grouped by round
-- Status, squad size, blockers visible
-- Primary actions: Open, Generate/review, Finalize, Edit
+### Team Configuration (`/teams/[teamId]/configuration`)
+Team squad settings and rule display.
+- Editable: target squad size, max squad size, support priority
+- Read-only: global rules list with current values
+- Audit trail via DecisionRecord
+
+### Matches (`/matches/[matchId]`)
+Match detail view.
+- Match info, opponent, date, venue
+- Squad selection summary
+- Warnings and blockers
+- Post-match report link
 
 ### Rules (`/rules`)
 Advanced global rule configuration.

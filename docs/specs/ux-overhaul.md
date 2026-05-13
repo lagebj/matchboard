@@ -22,7 +22,7 @@ The primary user is a youth football coach resolving real constraints under time
 - Next.js 16 App Router (Turbopack)
 - TypeScript
 - Tailwind CSS
-- Prisma + SQLite (local-first)
+- Prisma + PostgreSQL (Neon)
 - lucide-react for icons
 - Vitest for tests
 
@@ -68,7 +68,7 @@ Follow existing conventions:
 
 ## Boundaries
 
-- **Always do:** Run `npm test` and `npx tsc --noEmit` after changes, keep domain logic out of React components, use existing Tailwind setup, preserve local-first SQLite model
+- **Always do:** Run `npm test` and `npx tsc --noEmit` after changes, keep domain logic out of React components, use existing Tailwind setup
 - **Ask first:** Adding new npm dependencies, changing Prisma schema, changing API endpoints
 - **Never do:** Commit real player data, reference docs/domain.md (deleted), break features/matchboard.feature expectations, introduce auth or multi-user concepts, add pages beyond the 6 canonical routes
 
