@@ -1,7 +1,7 @@
 import type { TeamConfiguration, TeamRuleConfiguration } from "./types";
 import { db } from "@/lib/db";
 
-const KNOWN_RULES: TeamRuleConfiguration[] = [
+export const KNOWN_RULES: TeamRuleConfiguration[] = [
   {
     ruleId: "own-core-preference",
     name: "Own core first",
