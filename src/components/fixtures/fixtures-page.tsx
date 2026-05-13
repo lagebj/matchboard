@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch, SelectionState } from "@/domain/fixtures/types";
 import { fetchFixturesOverview, fixturePopulateAllAction, fixtureRegenerateAllAction, fixtureClearAllDraftsAction, fixtureGenerateRoundAction, fixtureRegenerateRoundAction, fixtureClearRoundDraftAction, fixtureFinalizeRoundAction, fixtureUnfinalizeRoundAction, fixtureRegenerateMatchAction, fixtureClearMatchDraftAction, fixtureFinalizeMatchAction } from "@/domain/fixtures/actions";
 
@@ -50,6 +51,7 @@ function ActionButton({ label, onClick, disabled, variant = "default" }: {
 
 function MatchActions({ match, roundId, roundState }: { match: FixtureMatch; roundId: string; roundState: SelectionState }) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   if (roundState === "FINALIZED") return null;
@@ -71,6 +73,7 @@ function MatchActions({ match, roundId, roundState }: { match: FixtureMatch; rou
               const result = await fixtureGenerateRoundAction({ error: "" }, fd);
               if (result.error) setResultMessage(result.error);
               else setResultMessage("Squads generated");
+              router.refresh();
             });
           }}
         />
@@ -85,6 +88,7 @@ function MatchActions({ match, roundId, roundState }: { match: FixtureMatch; rou
               fd.set("matchId", match.id);
               const result = await fixtureRegenerateMatchAction({ error: "" }, fd);
               if (result.error) setResultMessage(result.error);
+              router.refresh();
             });
           }}
         />
@@ -100,6 +104,7 @@ function MatchActions({ match, roundId, roundState }: { match: FixtureMatch; rou
               const fd = new FormData();
               fd.set("matchId", match.id);
               await fixtureClearMatchDraftAction(fd);
+              router.refresh();
             });
           }}
         />
@@ -116,6 +121,7 @@ function MatchActions({ match, roundId, roundState }: { match: FixtureMatch; rou
               fd.set("matchId", match.id);
               const result = await fixtureFinalizeMatchAction({ error: "" }, fd);
               if (result.error) setResultMessage(result.error);
+              router.refresh();
             });
           }}
         />
@@ -160,6 +166,7 @@ function MatchRow({ match, roundId, roundState }: { match: FixtureMatch; roundId
 
 function RoundSection({ round }: { round: FixtureRound }) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   const actions = round.availableActions;
@@ -194,6 +201,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
                   const result = await fixtureGenerateRoundAction({ error: "" }, fd);
                   if (result.error) setResultMessage(result.error);
                   else setResultMessage("Squads generated");
+                  router.refresh();
                 });
               }}
             />
@@ -209,6 +217,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
                   const result = await fixtureRegenerateRoundAction({ error: "" }, fd);
                   if (result.error) setResultMessage(result.error);
                   else setResultMessage("Squads regenerated");
+                  router.refresh();
                 });
               }}
             />
@@ -224,6 +233,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
                   const fd = new FormData();
                   fd.set("roundId", round.id);
                   await fixtureClearRoundDraftAction(fd);
+                  router.refresh();
                 });
               }}
             />
@@ -240,6 +250,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
                   fd.set("roundId", round.id);
                   const result = await fixtureFinalizeRoundAction({ error: "" }, fd);
                   if (result.error) setResultMessage(result.error);
+                  router.refresh();
                 });
               }}
             />
@@ -255,6 +266,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
                   fd.set("roundId", round.id);
                   const result = await fixtureUnfinalizeRoundAction({ error: "" }, fd);
                   if (result.error) setResultMessage(result.error);
+                  router.refresh();
                 });
               }}
             />
@@ -279,6 +291,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
   const hasNotGenerated = period.rounds.some((r) => r.selectionState === "NOT_GENERATED");
   const hasDraftRounds = period.rounds.some((r) => r.selectionState === "DRAFT" || r.selectionState === "BLOCKED" || r.selectionState === "READY");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   return (
@@ -301,6 +314,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
                   const result = await fixturePopulateAllAction({ error: "" }, fd);
                   if (result.error) setResultMessage(result.error);
                   else setResultMessage(result.result ?? "Done");
+                  router.refresh();
                 });
               }}
             />
@@ -316,6 +330,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
                   const result = await fixtureRegenerateAllAction({ error: "" }, fd);
                   if (result.error) setResultMessage(result.error);
                   else setResultMessage(result.result ?? "Done");
+                  router.refresh();
                 });
               }}
             />
@@ -331,6 +346,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
                   const fd = new FormData();
                   fd.set("planningPeriodId", period.id);
                   await fixtureClearAllDraftsAction(fd);
+                  router.refresh();
                 });
               }}
             />

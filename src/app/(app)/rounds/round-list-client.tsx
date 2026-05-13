@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ShieldCheck, Unlock } from "lucide-react";
 import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
 
@@ -56,6 +57,7 @@ const statusConfig: Record<RoundListItem["derivedStatus"], { label: string; bord
 };
 
 export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
+  const router = useRouter();
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [regroupResult, setRegroupResult] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                 startTransition(async () => {
                   const result = await regroupRoundsAction();
                   if (result.result) setRegroupResult(result.result);
+                  router.refresh();
                 });
               }}
             >
@@ -103,6 +106,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                   const fd = new FormData();
                   fd.set("planningPeriodId", activePlanningPeriodId);
                   await populateAllAction({ error: "" }, fd);
+                  router.refresh();
                 });
               }}
             >
@@ -119,6 +123,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                   fd.set("planningPeriodId", activePlanningPeriodId);
                   const result = await regenerateAllDraftsAction({ error: "" }, fd);
                   if (result.result) setRegenerateResult(result.result);
+                  router.refresh();
                 });
               }}
             >
@@ -206,10 +211,11 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                       disabled={isPending}
                       onClick={() => {
                         startTransition(async () => {
-                          const fd = new FormData();
-                          fd.set("roundId", round.id);
-                          await generateRoundAction({ error: "" }, fd);
-                        });
+                           const fd = new FormData();
+                           fd.set("roundId", round.id);
+                           await generateRoundAction({ error: "" }, fd);
+                           router.refresh();
+                         });
                       }}
                       type="button"
                     >
@@ -224,10 +230,11 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                       disabled={isPending}
                       onClick={() => {
                         startTransition(async () => {
-                          const fd = new FormData();
-                          fd.set("matchRoundId", round.id);
-                          await finalizeRoundFromListAction(fd);
-                        });
+                           const fd = new FormData();
+                           fd.set("matchRoundId", round.id);
+                           await finalizeRoundFromListAction(fd);
+                           router.refresh();
+                         });
                       }}
                       type="button"
                     >
@@ -244,10 +251,11 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                       onClick={() => {
                         if (!confirm("Un-finalize this round? Selections will revert to draft and can be recalculated.")) return;
                         startTransition(async () => {
-                          const fd = new FormData();
-                          fd.set("matchRoundId", round.id);
-                          await unfinalizeRoundFromListAction({ error: "" }, fd);
-                        });
+                           const fd = new FormData();
+                           fd.set("matchRoundId", round.id);
+                           await unfinalizeRoundFromListAction({ error: "" }, fd);
+                           router.refresh();
+                         });
                       }}
                       type="button"
                     >
@@ -291,6 +299,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                     formData.set("planningPeriodId", activePlanningPeriodId!);
                     await clearAllDraftsAction(formData);
                     setShowClearAllDialog(false);
+                    router.refresh();
                   });
                 }}
               >

@@ -3,6 +3,12 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { FixturesPage } from "../fixtures-page";
 import type { FixturePeriod, FixtureRound, FixtureMatch } from "@/domain/fixtures/types";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("@/domain/fixtures/actions", () => ({
   fetchFixturesOverview: vi.fn(),
   fixturePopulateAllAction: vi.fn(),

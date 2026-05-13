@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Lock,
   CheckCircle2,
+  ClipboardList,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 
@@ -170,6 +171,15 @@ export function MatchDetail({ match }: { match: MatchData }) {
           <ArrowLeft className="h-3.5 w-3.5" />
           All matches
         </Link>
+        {(matchFinalized || roundFinalizedFlag) && (
+          <Link
+            href={`/matches/${match.id}/post-match`}
+            className="inline-flex items-center gap-1 ml-auto text-xs font-medium text-[var(--accent-strong)] hover:text-zinc-50 transition-colors"
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            Post-match registration
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -256,20 +266,17 @@ export function MatchDetail({ match }: { match: MatchData }) {
                       {group.players.map((p) => (
                         <span
                           key={p.id}
-                          title={p.controlledDoubleLoad ? `${p.playerName} (double-load)` : p.playerName}
+                          title={p.playerName}
                           className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
                             p.status === "FINALIZED"
                               ? "border-emerald-700/40 bg-emerald-900/10 text-emerald-200"
                               : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]"
-                          } ${p.controlledDoubleLoad ? "ring-1 ring-red-500/40" : ""}`}
+                          }`}
                         >
                           <Link href={`/players/${p.playerId}`} className="hover:text-zinc-50 transition-colors">
                             {p.playerName}
                           </Link>
                           <span className="text-[10px] text-[var(--text-muted)]">{p.coreTeamName}</span>
-                          {p.controlledDoubleLoad && (
-                            <span className="text-[8px] text-red-400 uppercase font-semibold">2x</span>
-                          )}
                           {p.manualOverride && (
                             <span className="text-[8px] text-amber-400 uppercase">ovr</span>
                           )}

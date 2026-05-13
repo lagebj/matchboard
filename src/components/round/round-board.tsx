@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   addPlayerToMatchAction,
   removePlayerFromMatchAction,
@@ -144,12 +145,12 @@ function PlayerChip({
       draggable={isDraggable && !isFinalized}
       onDragStart={isDraggable && onDragStart ? (e) => onDragStart(e, player.id, null, player.role) : undefined}
       onTouchStart={isDraggable && !isFinalized && onTouchStart ? () => onTouchStart(player.id, null, player.role) : undefined}
-      title={player.controlledDoubleLoad ? `${player.name} (double-load)` : player.name}
+      title={player.name}
       className={`group flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
         isDraggable && !isFinalized
           ? "cursor-grab border-[var(--border-soft)] bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)] active:cursor-grabbing"
           : "border-[var(--border-soft)] bg-[var(--surface-muted)]"
-      } ${availabilityClass} ${isTouchDragging ? "opacity-30" : ""} ${player.controlledDoubleLoad ? "ring-1 ring-red-500/40" : ""}`}
+      } ${availabilityClass} ${isTouchDragging ? "opacity-30" : ""}`}
     >
       {isDraggable && !isFinalized && (
         <GripVertical className="h-3 w-3 shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -159,9 +160,6 @@ function PlayerChip({
         <span className="shrink-0 text-[9px] text-[var(--text-muted)] uppercase">{player.primaryPosition}</span>
       )}
       <span className="shrink-0 text-[9px] text-[var(--text-muted)]">{player.coreTeamName}</span>
-      {player.controlledDoubleLoad && (
-        <span className="shrink-0 text-[8px] text-red-400 uppercase font-semibold">2x</span>
-      )}
       {player.manualOverride && (
         <span className="shrink-0 text-[8px] text-amber-400 uppercase">ovr</span>
       )}
@@ -210,6 +208,7 @@ function MatchColumnComponent({
   touchDragPlayerId?: string | null;
   matchRoundId: string;
 }) {
+  const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFinalizing, startFinalizing] = useTransition();
   const dateStr = match.matchDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -275,6 +274,7 @@ function MatchColumnComponent({
                   fd.set("matchId", match.matchId);
                   fd.set("matchRoundId", matchRoundId);
                   await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
+                  router.refresh();
                 });
               }}
               type="button"
@@ -350,6 +350,7 @@ export function RoundBoard({
   movementSummary,
   fairnessMetrics,
 }: RoundBoardProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
@@ -446,11 +447,12 @@ export function RoundBoard({
             rmFd.set("matchRoundId", matchRoundId);
             await removePlayerFromMatchAction(rmFd);
           }
+          router.refresh();
         });
       } catch {}
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
-    [matchRoundId, overrideReason, startTransition, determineRole],
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
+    [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 
   const handleDropOnAvailable = useCallback(
@@ -463,15 +465,16 @@ export function RoundBoard({
         if (!fromMatchId) return;
 
         startTransition(async () => {
-          const fd = new FormData();
-          fd.set("matchId", fromMatchId);
-          fd.set("playerId", playerId);
-          fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatchAction(fd);
-        });
+           const fd = new FormData();
+           fd.set("matchId", fromMatchId);
+           fd.set("playerId", playerId);
+           fd.set("matchRoundId", matchRoundId);
+           await removePlayerFromMatchAction(fd);
+           router.refresh();
+         });
       } catch {}
     },
-    [matchRoundId, startTransition],
+    [matchRoundId, startTransition, router],
   );
 
   const handleRemovePlayer = useCallback(
@@ -482,9 +485,10 @@ export function RoundBoard({
         fd.set("playerId", playerId);
         fd.set("matchRoundId", matchRoundId);
         await removePlayerFromMatchAction(fd);
+        router.refresh();
       });
     },
-    [matchRoundId, startTransition],
+    [matchRoundId, startTransition, router],
   );
 
   const handleRoleChange = useCallback(
@@ -499,9 +503,10 @@ export function RoundBoard({
           fd.set("overrideReason", overrideReason.trim());
         }
         await changePlayerRoleAction(fd);
+        router.refresh();
       });
     },
-    [matchRoundId, overrideReason, startTransition],
+    [matchRoundId, overrideReason, startTransition, router],
   );
 
   const findDropTargetAt = (x: number, y: number): { type: "match"; matchId: string } | { type: "available" } | null => {
@@ -526,24 +531,25 @@ export function RoundBoard({
         const isCoreMove = initialAvailable.find((p) => p.id === dragData.playerId)?.coreTeamId === matches.find((m) => m.matchId === matchId)?.teamId;
 
         startTransition(async () => {
-          const addFd = new FormData();
-          addFd.set("matchId", matchId);
-          addFd.set("playerId", dragData.playerId);
-          addFd.set("role", role);
-          addFd.set("matchRoundId", matchRoundId);
-          const reason = overrideReason.trim() || (dragData.fromMatchId ? `Moving player from another match` : (isCoreMove ? undefined : `Manual placement on non-core team`));
-          if (reason) addFd.set("overrideReason", reason);
+           const addFd = new FormData();
+           addFd.set("matchId", matchId);
+           addFd.set("playerId", dragData.playerId);
+           addFd.set("role", role);
+           addFd.set("matchRoundId", matchRoundId);
+           const reason = overrideReason.trim() || (dragData.fromMatchId ? `Moving player from another match` : (isCoreMove ? undefined : `Manual placement on non-core team`));
+           if (reason) addFd.set("overrideReason", reason);
 
-          const addResult = await addPlayerToMatchAction(addFd);
+           const addResult = await addPlayerToMatchAction(addFd);
 
-          if (addResult?.success !== false && dragData.fromMatchId) {
-            const rmFd = new FormData();
-            rmFd.set("matchId", dragData.fromMatchId);
-            rmFd.set("playerId", dragData.playerId);
-            rmFd.set("matchRoundId", matchRoundId);
-            await removePlayerFromMatchAction(rmFd);
-          }
-        });
+           if (addResult?.success !== false && dragData.fromMatchId) {
+             const rmFd = new FormData();
+             rmFd.set("matchId", dragData.fromMatchId);
+             rmFd.set("playerId", dragData.playerId);
+             rmFd.set("matchRoundId", matchRoundId);
+             await removePlayerFromMatchAction(rmFd);
+           }
+           router.refresh();
+         });
       } else {
         if (!dragData.fromMatchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
 
@@ -554,6 +560,7 @@ export function RoundBoard({
           fd.set("playerId", dragData.playerId);
           fd.set("matchRoundId", matchRoundId);
           await removePlayerFromMatchAction(fd);
+          router.refresh();
         });
       }
       touchDragRef.current = null;
@@ -561,7 +568,7 @@ export function RoundBoard({
       setTouchDropTarget(null);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
-    [matchRoundId, overrideReason, startTransition, determineRole],
+    [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 
   const handleFinalize = (reason: string) => {
@@ -631,6 +638,7 @@ export function RoundBoard({
                 const fd = new FormData();
                 fd.set("matchRoundId", matchRoundId);
                 await regenerateRoundAction({ error: "" }, fd);
+                router.refresh();
               });
             }}
             type="button"
@@ -672,6 +680,7 @@ export function RoundBoard({
                 const fd = new FormData();
                 fd.set("matchRoundId", matchRoundId);
                 await unfinalizeRoundAction({ error: "" }, fd);
+                router.refresh();
               });
             }}
             type="button"
@@ -851,6 +860,7 @@ export function RoundBoard({
                     formData.set("matchRoundId", matchRoundId);
                     await clearRoundDraftAction(formData);
                     setShowClearRoundDialog(false);
+                    router.refresh();
                   });
                 }}
               >
@@ -954,6 +964,7 @@ export function RoundBoard({
                     }
                     await finalizeSingleMatchFromBoardAction({ error: "" }, fd);
                     setFinalizingMatchId(null);
+                    router.refresh();
                   });
                 }}
               >
