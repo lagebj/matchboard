@@ -93,7 +93,7 @@ export async function movePlayerToTeam(input: MovePlayerToTeamInput): Promise<Pl
 
   await db.player.update({
     where: { id: input.playerId },
-    data: { coreTeamId: input.targetTeamId! },
+    data: { coreTeamId: input.targetTeamId },
   });
 
   const targetTeam = input.targetTeamId

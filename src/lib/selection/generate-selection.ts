@@ -410,8 +410,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       const exclusionReason = "Excluded because the player is inactive.";
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: false,
         explanations: [buildExplanation("inactive_player", exclusionReason, true)],
         finalSelected: false,
@@ -432,8 +432,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       const exclusionReason = `Excluded because the player is currently marked as ${player.currentAvailability.toLowerCase()}.`;
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: false,
         explanations: [buildExplanation("availability_rule", exclusionReason, true)],
         finalSelected: false,
@@ -456,8 +456,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       const exclusionReason = `Excluded because the player is manually locked out of this match round.${lockReason}`;
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: false,
         explanations: [buildExplanation("player_locked_out", exclusionReason, true)],
         finalSelected: false,
@@ -495,8 +495,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       const exclusionReason = `Excluded because the player has unknown availability. Confirm availability before selection.`;
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: false,
         explanations: [buildExplanation("unknown_availability", exclusionReason, true)],
         finalSelected: false,
@@ -516,8 +516,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     if (!eligibility.allowed) {
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: false,
         explanations: [buildExplanation("target_team_eligibility", eligibility.explanation, true)],
         finalSelected: false,
@@ -544,8 +544,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     if (registeredConflict) {
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: false,
         explanations: [buildExplanation(registeredConflict.code, registeredConflict.reason, true)],
         finalSelected: false,
@@ -620,7 +620,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
         .map(async (candidate) => ({
           candidate,
           inferredDroppedCoreMatches: await getCoreMatchDropHistory({
-            coreTeamId: candidate.player.coreTeamId,
+            coreTeamId: candidate.player.coreTeamId ?? "",
             currentMatchDate: match.startsAt,
             currentMatchId: match.id,
             minDaysBetweenAnyMatches: rules.minDaysBetweenAnyMatches,
@@ -661,8 +661,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: candidate.player.coreTeam.id,
-        coreTeamName: candidate.player.coreTeam.name,
+        coreTeamId: candidate.player.coreTeam?.id ?? candidate.player.coreTeamId ?? "",
+        coreTeamName: candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown",
         eligibility: true,
         explanations: [
           buildExplanation("eligible_core_player", "Eligible as a core player before applying the drop rule.", true),
@@ -712,8 +712,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     if (candidateCategory === "DEVELOPMENT" && isDevelopmentBlocked(player)) {
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: true,
         explanations: [
           buildExplanation("rotation_path_allowed", eligibilityExplanation, true),
@@ -735,7 +735,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     const cooldownResult = checkPathCooldown(
       player.id,
-      player.coreTeamId,
+      player.coreTeamId ?? "",
       currentMatchRecord.teamId,
       candidateCategory,
       rotationPaths,
@@ -746,8 +746,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     if (cooldownResult.blocked) {
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: true,
         explanations: [
           buildExplanation("rotation_path_allowed", eligibilityExplanation, true),
@@ -790,8 +790,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
       excludedPlayers.push({
         autoSelected: false,
-        coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+        coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
         eligibility: true,
         explanations: [
           buildExplanation("rotation_path_allowed", eligibilityExplanation, true),
@@ -1001,7 +1001,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       explanations.push(
         buildExplanation(
           "support_priority_over_core",
-          `${candidate.playerName} was prioritized because ${candidate.player.coreTeam.name} is configured as a support source team for ${currentMatchRecord.team.name}.`,
+          `${candidate.playerName} was prioritized because ${candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown"} is configured as a support source team for ${currentMatchRecord.team.name}.`,
           true,
         ),
       );
@@ -1013,7 +1013,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
           "development_priority_over_core",
           fillsReservedDevelopmentSlot
             ? `${candidate.playerName} was prioritized to fill one of ${reservedDevelopmentPlayers} reserved development slot(s) for ${currentMatchRecord.team.name}.`
-            : `${candidate.playerName} was prioritized as a development player because ${candidate.player.coreTeam.name} is configured as a development source team for ${currentMatchRecord.team.name}.`,
+            : `${candidate.playerName} was prioritized as a development player because ${candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown"} is configured as a development source team for ${currentMatchRecord.team.name}.`,
           true,
         ),
       );
@@ -1101,8 +1101,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     selectedPlayers.push({
       autoSelected: true,
       chosenPosition: candidate.chosenPosition,
-      coreTeamId: candidate.player.coreTeam.id,
-      coreTeamName: candidate.player.coreTeam.name,
+      coreTeamId: candidate.player.coreTeam?.id ?? candidate.player.coreTeamId ?? "",
+      coreTeamName: candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown",
       eligibility: true,
       explanations,
       finalSelected: false,
@@ -1205,8 +1205,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     selectedPlayers.push({
       autoSelected: true,
       chosenPosition: getPrimaryChosenPosition(player.primaryPosition),
-      coreTeamId: player.coreTeam.id,
-        coreTeamName: player.coreTeam.name,
+      coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
+        coreTeamName: player.coreTeam?.name ?? player.coreTeamId ?? "Unknown",
       eligibility: true,
       explanations,
       finalSelected: false,
@@ -1232,8 +1232,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
     excludedPlayers.push({
       autoSelected: false,
-      coreTeamId: candidate.player.coreTeam.id,
-      coreTeamName: candidate.player.coreTeam.name,
+      coreTeamId: candidate.player.coreTeam?.id ?? candidate.player.coreTeamId ?? "",
+      coreTeamName: candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown",
       eligibility: true,
         explanations: [
           buildExplanation("eligible_core_player", "Eligible as a core player before final squad capping.", true),
@@ -1300,7 +1300,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
             (p) => p.toTeamId === currentMatchRecord.teamId && p.role === "SUPPORT",
           ),
         )
-        .map((player) => player.coreTeam.name),
+        .map((player) => player.coreTeam?.name ?? player.coreTeamId ?? "Unknown"),
     )];
     warnings.push({
       severity: "WARNING",
@@ -1372,8 +1372,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     selectedPlayers.push({
       autoSelected: false,
       chosenPosition: getPrimaryChosenPosition(playerRecord.primaryPosition),
-      coreTeamId: playerRecord.coreTeam.id,
-      coreTeamName: playerRecord.coreTeam.name,
+      coreTeamId: playerRecord.coreTeam?.id ?? playerRecord.coreTeamId ?? "",
+      coreTeamName: playerRecord.coreTeam?.name ?? "Unknown",
       eligibility: eligibility.allowed,
       explanations: [
         buildExplanation("player_locked_in", `${playerName} was included because the player is manually locked in for this match round.`, true),

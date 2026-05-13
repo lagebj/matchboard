@@ -19,7 +19,7 @@ type PlayerInput = {
   ballControl: number;
   bestSide: BestSide;
   concentration: number;
-  coreTeamId: string;
+  coreTeamId: string | null;
   currentAvailability: AvailabilityStatus;
   decisionMaking: number;
   effort: number;
@@ -148,11 +148,11 @@ function readAvailabilityStatus(formData: FormData): AvailabilityStatus {
   throw new Error("Availability must be Available, Injured, Sick, Away, Tentative, or Unknown.");
 }
 
-async function readCoreTeamId(formData: FormData): Promise<string> {
+async function readCoreTeamId(formData: FormData): Promise<string | null> {
   const coreTeamId = readText(formData, "coreTeamId");
 
   if (!coreTeamId) {
-    throw new Error("Core team is required.");
+    return null;
   }
 
   const team = await db.team.findFirst({

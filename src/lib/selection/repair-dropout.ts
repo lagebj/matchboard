@@ -152,9 +152,9 @@ export async function repairDropout(
       },
       ...(sourceTeamIds.length > 0
         ? {
-            coreTeamId: { in: sourceTeamIds },
+            coreTeamId: { in: sourceTeamIds.filter((id): id is string => id !== null) },
           }
-        : { coreTeamId: droppedPlayerCoreTeamId }),
+        : { coreTeamId: droppedPlayerCoreTeamId ?? undefined }),
     },
     include: {
       coreTeam: {
@@ -202,7 +202,7 @@ export async function repairDropout(
       positionNeedPenalty * 1;
 
     eligibleReplacements.push({
-      coreTeamId: candidate.coreTeamId,
+      coreTeamId: candidate.coreTeamId ?? "",
       playerId: candidate.id,
       playerName: formatPlayerName(candidate),
       primaryPosition: candidate.primaryPosition,

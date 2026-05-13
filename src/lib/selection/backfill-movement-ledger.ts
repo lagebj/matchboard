@@ -64,7 +64,7 @@ export async function backfillMovementLedger(): Promise<BackfillMovementLedgerRe
           matchRoundId: sel.matchRoundId,
           matchId: sel.matchId,
           playerId: sel.playerId,
-          fromTeamId: sel.player.coreTeamId,
+          fromTeamId: sel.player.coreTeamId ?? "unknown",
           toTeamId: sel.match.teamId,
           role: sel.role as SelectionRole,
           controlledDoubleLoad: sel.controlledDoubleLoad ?? false,

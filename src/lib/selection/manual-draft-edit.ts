@@ -96,7 +96,7 @@ export async function addPlayerToDraftMatch(
     });
 
     const pathResult = canMoveForRole(
-      player.coreTeamId,
+      player.coreTeamId ?? "",
       match.teamId,
       role as AutomaticSelectionCategory,
       player.nonRotatable,
@@ -106,7 +106,7 @@ export async function addPlayerToDraftMatch(
     if (!pathResult.valid && !overrideReasonCategory) {
       return {
         success: false,
-        errors: [`No valid ${role} rotation path from ${player.coreTeam.name} to ${match.team.name}. Override reason required.`],
+        errors: [`No valid ${role} rotation path from ${player.coreTeam?.name ?? "Unassigned"} to ${match.team.name}. Override reason required.`],
         warnings,
       };
     }
@@ -178,7 +178,7 @@ export async function addPlayerToDraftMatch(
         summary: `Manually added as ${role}`,
         manuallyAdded: true,
         autoSelected: false,
-        sourceTeamName: player.coreTeam.name,
+        sourceTeamName: player.coreTeam?.name ?? "Unassigned",
         targetTeamName: match.team.name,
       },
     },
@@ -190,7 +190,7 @@ export async function addPlayerToDraftMatch(
         matchRoundId: match.matchRoundId,
         matchId,
         playerId,
-        fromTeamId: player.coreTeamId,
+        fromTeamId: player.coreTeamId ?? "",
         toTeamId: match.teamId,
         role,
         isDraft: true,
@@ -298,7 +298,7 @@ export async function changeDraftPlayerRole(
     });
 
     const pathResult = canMoveForRole(
-      player.coreTeamId,
+      player.coreTeamId ?? "",
       selection.match.teamId,
       newRole as AutomaticSelectionCategory,
       player.nonRotatable,
@@ -308,7 +308,7 @@ export async function changeDraftPlayerRole(
     if (!pathResult.valid && !overrideReasonCategory) {
       return {
         success: false,
-        errors: [`No valid ${newRole} rotation path from ${player.coreTeam.name} to ${selection.match.team.name}. Override reason required.`],
+        errors: [`No valid ${newRole} rotation path from ${player.coreTeam?.name ?? "Unassigned"} to ${selection.match.team.name}. Override reason required.`],
         warnings,
       };
     }
@@ -339,7 +339,7 @@ export async function changeDraftPlayerRole(
         summary: `Role changed from ${selection.role} to ${newRole}`,
         manuallyAdded: false,
         autoSelected: false,
-        sourceTeamName: player.coreTeam.name,
+        sourceTeamName: player.coreTeam?.name ?? "Unassigned",
         targetTeamName: selection.match.team.name,
       },
     },
@@ -359,7 +359,7 @@ export async function changeDraftPlayerRole(
         matchRoundId: selection.match.matchRoundId,
         matchId,
         playerId,
-        fromTeamId: player.coreTeamId,
+        fromTeamId: player.coreTeamId ?? "",
         toTeamId: selection.match.teamId,
         role: newRole,
         isDraft: true,

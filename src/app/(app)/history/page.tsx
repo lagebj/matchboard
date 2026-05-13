@@ -77,7 +77,7 @@ export default async function HistoryPage() {
       totalFinalizedAppearances: number;
     }
   >();
-  const playerCoreTeamNameById = new Map(players.map((player) => [player.id, player.coreTeam.name]));
+  const playerCoreTeamNameById = new Map(players.map((player) => [player.id, player.coreTeam?.name ?? "Unassigned"]));
 
     for (const selectionSnapshot of finalizedSelectionSnapshots) {
       const selectionPlayer = selectionSnapshot;
@@ -131,7 +131,7 @@ export default async function HistoryPage() {
 
     return {
       coreTeamAppearances: history?.coreTeamAppearances ?? 0,
-      coreTeamName: player.coreTeam.name,
+      coreTeamName: player.coreTeam?.name ?? "Unassigned",
       firstName: player.firstName,
       floatCount: history?.floatCount ?? 0,
       latestMovementDate: history?.latestMovementDate ?? null,

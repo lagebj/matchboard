@@ -144,7 +144,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h1 className="text-sm font-semibold text-zinc-50">{formatPlayerName(player)}</h1>
-          <span className="rounded border border-zinc-700/50 bg-zinc-800/30 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">{player.coreTeam.name}</span>
+          <span className="rounded border border-zinc-700/50 bg-zinc-800/30 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">{player.coreTeam?.name ?? "Unassigned"}</span>
           <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${
             player.currentAvailability === "AVAILABLE"
               ? "border-emerald-700/40 bg-emerald-900/20 text-emerald-300"

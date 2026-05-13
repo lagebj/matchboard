@@ -44,7 +44,7 @@ model Player {
   lastName              String?
   active                Boolean            @default(true)
   removedAt             DateTime?
-  coreTeamId            String
+  coreTeamId            String?
   nonRotatable          Boolean            @default(false)
   reducedMatchLoadAllowed Boolean          @default(false)
   supportSuitability    String             @default("neutral")
@@ -75,7 +75,7 @@ model Player {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
-  coreTeam          Team                  @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
+  coreTeam          Team?                 @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
 
   availabilities Availability[]
   selections Selection[]

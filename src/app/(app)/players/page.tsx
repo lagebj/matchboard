@@ -38,7 +38,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
   }
   const unassigned: typeof activePlayers = [];
   for (const player of activePlayers) {
-    const group = playersByTeam.get(player.coreTeamId);
+    const group = player.coreTeamId ? playersByTeam.get(player.coreTeamId) : undefined;
     if (group) {
       group.push(player);
     } else {

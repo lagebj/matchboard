@@ -9,7 +9,7 @@ export type PathDestination = {
 };
 
 export type PlayerRecord = Player & {
-  coreTeam: Pick<Team, "id" | "name">;
+  coreTeam: Pick<Team, "id" | "name"> | null;
   rotationPathsFromCoreTeam: PathDestination[];
 };
 

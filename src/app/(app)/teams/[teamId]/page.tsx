@@ -183,7 +183,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       playerId: s.player.id,
       playerName: formatPlayerName(s.player),
       role: s.role,
-      sourceTeamName: s.player.coreTeam.name,
+      sourceTeamName: s.player.coreTeam?.name ?? "Unassigned",
       explanation: (s.explanation as Record<string, unknown> | null)?.summary as string | null ?? null,
     }));
 
