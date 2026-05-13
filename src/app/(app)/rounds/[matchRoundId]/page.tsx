@@ -133,8 +133,8 @@ export default async function RoundBoardPage({
   const availablePlayerList = eligiblePlayers.map((p) => ({
     id: p.id,
     name: formatPlayerName(p),
-    coreTeamName: p.coreTeam.name,
-    coreTeamId: p.coreTeamId,
+    coreTeamName: p.coreTeam?.name ?? "Unassigned",
+    coreTeamId: p.coreTeamId ?? "",
     primaryPosition: p.primaryPosition,
   }));
 
@@ -167,13 +167,13 @@ export default async function RoundBoardPage({
     }
   }
   for (const sel of selections) {
-    if (sel.role === "SUPPORT") {
+    if (sel.role === "SUPPORT" && sel.player.coreTeamId) {
       supportSentByTeamId.set(sel.player.coreTeamId, (supportSentByTeamId.get(sel.player.coreTeamId) ?? 0) + 1);
       const match = matchRound.matches.find((m) => m.id === sel.matchId);
       if (match) {
         supportReceivedByTeamId.set(match.teamId, (supportReceivedByTeamId.get(match.teamId) ?? 0) + 1);
       }
-    } else if (sel.role === "DEVELOPMENT") {
+    } else if (sel.role === "DEVELOPMENT" && sel.player.coreTeamId) {
       devSentByTeamId.set(sel.player.coreTeamId, (devSentByTeamId.get(sel.player.coreTeamId) ?? 0) + 1);
       const match = matchRound.matches.find((m) => m.id === sel.matchId);
       if (match) {
@@ -189,9 +189,10 @@ export default async function RoundBoardPage({
 
   const unavailableByTeamId = new Map<string, typeof allPlayers>();
   for (const p of allPlayers) {
-    const existing = unavailableByTeamId.get(p.coreTeamId) ?? [];
+    const teamId = p.coreTeamId ?? "";
+    const existing = unavailableByTeamId.get(teamId) ?? [];
     existing.push(p);
-    unavailableByTeamId.set(p.coreTeamId, existing);
+    unavailableByTeamId.set(teamId, existing);
   }
 
   const unresolvedWarnings = matchRound.warnings.filter((w) => !w.resolved);
@@ -228,7 +229,7 @@ export default async function RoundBoardPage({
       players.push({
         playerId: sel.player.id,
         playerName: formatPlayerName(sel.player),
-        coreTeamName: sel.player.coreTeam.name,
+        coreTeamName: sel.player.coreTeam?.name ?? "Unassigned",
         selectionCategory: sel.role as PlayerInMatch["selectionCategory"],
         selectionReason: (explanation.summary as string) ?? "",
         explanations,
@@ -246,7 +247,7 @@ export default async function RoundBoardPage({
         players.push({
           playerId: p.id,
           playerName: formatPlayerName(p),
-          coreTeamName: p.coreTeam.name,
+    coreTeamName: p.coreTeam?.name ?? "Unassigned",
           selectionCategory: "UNAVAILABLE",
           selectionReason: `Unavailable: ${p.currentAvailability}`,
           explanations: [{
@@ -362,12 +363,12 @@ export default async function RoundBoardPage({
 
   const playerCoreTeamMap = new Map<string, string>();
   for (const sel of selections) {
-    if (!playerCoreTeamMap.has(sel.player.id)) {
+    if (!playerCoreTeamMap.has(sel.player.id) && sel.player.coreTeamId) {
       playerCoreTeamMap.set(sel.player.id, sel.player.coreTeamId);
     }
   }
   for (const p of eligiblePlayers) {
-    if (!playerCoreTeamMap.has(p.id)) {
+    if (!playerCoreTeamMap.has(p.id) && p.coreTeamId) {
       playerCoreTeamMap.set(p.id, p.coreTeamId);
     }
   }

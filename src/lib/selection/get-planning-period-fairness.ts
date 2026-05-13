@@ -154,8 +154,8 @@ export async function getPlanningPeriodFairness(
       flags,
       playerId: player.id,
       playerName: formatPlayerName(player),
-      teamId: player.coreTeamId,
-      teamName: player.coreTeam.name,
+      teamId: player.coreTeamId ?? "unassigned",
+      teamName: player.coreTeam?.name ?? "Unassigned",
     });
   }
 

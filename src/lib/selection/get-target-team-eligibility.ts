@@ -1,7 +1,7 @@
 import type { Player, Team } from "@/generated/prisma/client";
 
 type EligibilityPlayer = Pick<Player, "coreTeamId" | "nonRotatable"> & {
-  coreTeam: Pick<Team, "id" | "name">;
+  coreTeam: Pick<Team, "id" | "name"> | null;
 };
 
 type PathDestination = {
@@ -36,14 +36,14 @@ export function getTargetTeamEligibility(
   if (player.nonRotatable) {
     return {
       allowed: false,
-      explanation: `Excluded because ${player.coreTeam.name} players can only move between teams when not marked as non-rotatable.`,
+      explanation: `Excluded because ${player.coreTeam?.name ?? "Unassigned"} players can only move between teams when not marked as non-rotatable.`,
     };
   }
 
   if (!pathDestinations || pathDestinations.length === 0) {
     return {
       allowed: false,
-      explanation: `Excluded because no rotation path allows ${player.coreTeam.name} players to move to ${targetTeam.name}.`,
+      explanation: `Excluded because no rotation path allows ${player.coreTeam?.name ?? "Unassigned"} players to move to ${targetTeam.name}.`,
     };
   }
 
@@ -54,7 +54,7 @@ export function getTargetTeamEligibility(
   if (!matchingPath) {
     return {
       allowed: false,
-      explanation: `Excluded because no rotation path allows movement from ${player.coreTeam.name} to ${targetTeam.name}.`,
+      explanation: `Excluded because no rotation path allows movement from ${player.coreTeam?.name ?? "Unassigned"} to ${targetTeam.name}.`,
     };
   }
 
@@ -62,7 +62,7 @@ export function getTargetTeamEligibility(
 
   return {
     allowed: true,
-    explanation: `Eligible to move from ${player.coreTeam.name} to ${targetTeam.name} via ${pathRole.toLowerCase()} path.`,
+    explanation: `Eligible to move from ${player.coreTeam?.name ?? "Unassigned"} to ${targetTeam.name} via ${pathRole.toLowerCase()} path.`,
     selectionCategory: pathRole === "SUPPORT" ? "SUPPORT"
       : pathRole === "DEVELOPMENT" ? "DEVELOPMENT"
       : pathRole === "CONFIDENCE_REBUILD" ? "CONFIDENCE_REBUILD"

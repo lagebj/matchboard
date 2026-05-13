@@ -42,7 +42,7 @@ export default async function MatchDetailPage({
       id: s.id,
       playerId: s.playerId,
       playerName: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
-      coreTeamName: s.player.coreTeam.name,
+      coreTeamName: s.player.coreTeam?.name ?? "Unassigned",
       role: s.role,
       status: s.status,
       manualOverride: (explanation?.manualOverride as boolean) ?? false,

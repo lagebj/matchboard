@@ -21,7 +21,7 @@ type PlayerRow = {
   coreTeam: {
     id: string;
     name: string;
-  };
+  } | null;
   currentAvailability: "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
   firstName: string;
   id: string;
@@ -59,7 +59,7 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
 
   const sortedPlayers = [...players].sort((left, right) => {
     if (sortKey === "coreTeam") {
-      return applySortDirection(compareText(left.coreTeam.name, right.coreTeam.name), sortDirection);
+      return applySortDirection(compareText(left.coreTeam?.name ?? "Unassigned", right.coreTeam?.name ?? "Unassigned"), sortDirection);
     }
 
     if (sortKey === "availability") {
@@ -178,7 +178,7 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
                     {formatPlayerName(player)}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-zinc-100">{player.coreTeam.name}</td>
+                <td className="px-4 py-3 text-zinc-100">{player.coreTeam?.name ?? "Unassigned"}</td>
                 <td className="px-4 py-3">
                   {editingAvailabilityId === player.id ? (
                     <select

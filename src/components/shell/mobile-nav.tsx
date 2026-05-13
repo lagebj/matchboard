@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  Bot,
   CalendarRange,
   Users,
   Shield,
-  Trophy,
-  Bot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,11 +18,9 @@ type MobileNavItem = {
 
 const mobileNavItems: MobileNavItem[] = [
   { href: "/assistant", label: "Assistant", icon: Bot },
-  { href: "/", label: "Today", icon: LayoutDashboard },
-  { href: "/rounds", label: "Rounds", icon: CalendarRange },
-  { href: "/players", label: "Players", icon: Users },
+  { href: "/fixtures", label: "Fixtures", icon: CalendarRange },
   { href: "/teams", label: "Teams", icon: Shield },
-  { href: "/matches", label: "Matches", icon: Trophy },
+  { href: "/players", label: "Players", icon: Users },
 ];
 
 function isActive(pathname: string, href: string): boolean {

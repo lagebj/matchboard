@@ -434,17 +434,20 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
-### Canonical routes (7 only)
+### Canonical routes
 
+Primary navigation (4 items):
+- `/assistant` — assistant manager, next action, setup progress, blockers
+- `/fixtures` — period → round → match hierarchy with actions
+- `/teams` — team registry linking to team detail pages
+- `/players` — player assignment board and registry
+
+Other canonical routes:
 | Route | Purpose |
 |-------|---------|
-| `/` | Today — next action, setup progress, active round, blockers |
 | `/rounds` | Rounds — generate, review, finalize per match round |
-| `/players` | Players — table-first player registry, availability, load, movement history |
-| `/teams` | Teams — table-first team registry linking to team detail pages |
-| `/matches` | Matches — table-first match registry |
-| `/rules` | Rules — selection rules, support priority, rotation paths |
-| `/season` | Season — player-by-round matrix, movement paths, fairness overview, season-level warnings |
+| `/season` | Season — player-by-round matrix, movement paths, fairness overview |
+| `/history` | Historical audit of finalized selections and movement |
 
 Setup registry create routes (no top-level nav):
 - `/teams/new` — create team form
@@ -455,10 +458,16 @@ Detail routes (no top-level nav):
 - `/rounds/[matchRoundId]` — round board
 - `/players/[playerId]` — player profile
 - `/teams/[teamId]` — team detail workspace
+- `/teams/[teamId]/configuration` — team configuration and rules
 - `/matches/[matchId]` — match detail
 
 Secondary routes (no top-level nav):
-- `/history` — historical audit of finalized selections and movement
+- `/rules` — selection rules, support priority, rotation paths
+
+Redirects:
+- `/` → `/assistant`
+- `/today` → `/assistant`
+- `/matches` → `/fixtures`
 
 ### Setup registries are table-first
 
@@ -498,9 +507,9 @@ Team detail has these sections:
 
 ### Navigation model
 
-- **Sidebar**: 7 items (Today, Rounds, Players, Teams, Matches, Rules, Season)
+- **Sidebar**: 4 items (Assistant, Fixtures, Teams, Players)
 - **Top context bar**: season, planning period, active round status, primary action
-- **Mobile nav**: 6 items (Today, Rounds, Players, Teams, Matches, Season)
+- **Mobile nav**: adapted from sidebar items
 
 ### Auth layout rules
 

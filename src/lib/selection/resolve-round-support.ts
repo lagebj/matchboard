@@ -494,8 +494,8 @@ async function resolveSquadRepairInner(
             playerId: player.id,
             playerName: player.firstName + (player.lastName ? ` ${player.lastName}` : ""),
             primaryPosition: player.primaryPosition,
-            coreTeamId: player.coreTeam.id,
-            coreTeamName: player.coreTeam.name,
+            coreTeamId: player.coreTeam?.id ?? "",
+            coreTeamName: player.coreTeam?.name ?? "Unassigned",
             nonRotatable: player.nonRotatable,
           });
         }
@@ -566,8 +566,8 @@ async function resolveSquadRepairInner(
         const backfillPlayer: SelectedPlayer = {
           autoSelected: true,
           chosenPosition: candidate.primaryPosition,
-          coreTeamId: candidate.coreTeam.id,
-          coreTeamName: candidate.coreTeam.name,
+          coreTeamId: candidate.coreTeam?.id ?? "",
+          coreTeamName: candidate.coreTeam?.name ?? "Unassigned",
           eligibility: true,
           explanations: [
             { code: "squad_repair_priority_2_path_player", summary: `${playerName} was selected as squad repair priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`, hardRule: false },
@@ -615,8 +615,8 @@ async function resolveSquadRepairInner(
         const backfillPlayer: SelectedPlayer = {
           autoSelected: true,
           chosenPosition: candidate.primaryPosition,
-          coreTeamId: candidate.coreTeam.id,
-          coreTeamName: candidate.coreTeam.name,
+          coreTeamId: candidate.coreTeam?.id ?? "",
+          coreTeamName: candidate.coreTeam?.name ?? "Unassigned",
           eligibility: true,
           explanations: [
             { code: "squad_repair_priority_3_other", summary: `${playerName} was selected as squad repair priority 3 for ${match.team.name}: rotatable player from another team with a configured backfill path.`, hardRule: false },

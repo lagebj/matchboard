@@ -103,7 +103,7 @@ export async function searchEntities(query: string) {
     players: players.map((p) => ({
       id: p.id,
       name: p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName,
-      coreTeamName: p.coreTeam.name,
+      coreTeamName: p.coreTeam?.name ?? "Unassigned",
     })),
     teams: teams.map((t) => ({ id: t.id, name: t.name })),
   };

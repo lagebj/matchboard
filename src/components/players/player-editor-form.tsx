@@ -19,7 +19,7 @@ import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics
 
 type TeamOption = Pick<Team, "id" | "name">;
 
-type PlayerWithCoreTeam = Player & { coreTeam: Pick<Team, "id" | "name"> };
+type PlayerWithCoreTeam = Player & { coreTeam: Pick<Team, "id" | "name"> | null };
 
 type PlayerEditorFormProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -312,7 +312,7 @@ export function PlayerSummaryCard({ player }: { player: PlayerWithCoreTeam }) {
         <p className="text-sm font-medium uppercase tracking-wide app-copy-muted">Player</p>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-50">{formatPlayerName(player)}</h1>
         <p className="text-sm app-copy-soft">
-          {player.coreTeam.name} · {formatAvailabilityStatus(player.currentAvailability)}
+          {player.coreTeam?.name ?? "Unassigned"} · {formatAvailabilityStatus(player.currentAvailability)}
         </p>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

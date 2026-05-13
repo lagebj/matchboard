@@ -204,14 +204,14 @@ export function buildRepeatRotationBlockReason(
   const recentTargetTeamName = mostRecentAppearance.match.team.name;
 
   if (candidateCategory === "SUPPORT") {
-    return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam.name} must get an own core-team match before ${playerName} can take another support slot.`;
+    return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before ${playerName} can take another support slot.`;
   }
 
   if (candidateCategory === "DEVELOPMENT") {
-    return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam.name} must get an own core-team match before ${playerName} can take another development slot.`;
+    return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before ${playerName} can take another development slot.`;
   }
 
-  return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam.name} must get an own core-team match before ${playerName} can rotate again.`;
+  return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before ${playerName} can rotate again.`;
 }
 
 export function buildRegisteredMatchConflict(
