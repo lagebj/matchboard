@@ -40,13 +40,16 @@ describe("Fixtures Service unit tests", () => {
         id: "r1",
         title: "Round 1",
         readinessState: "READY",
-        generated: true,
-        published: false,
+        selectionState: "DRAFT",
+        hasDraftSelections: true,
+        hasMatches: true,
         unresolvedIssueCount: 0,
+        availableActions: ["recreateDraft", "clearDraft", "finalize"],
         matches: [],
       };
-      expect(round.generated).toBe(true);
-      expect(round.published).toBe(false);
+      expect(round.selectionState).toBe("DRAFT");
+      expect(round.hasDraftSelections).toBe(true);
+      expect(round.availableActions).toContain("finalize");
     });
 
     it("FixtureMatch has required fields", () => {
@@ -57,11 +60,14 @@ describe("Fixtures Service unit tests", () => {
         teamName: "Bla",
         opponent: "Opponent",
         readinessState: "READY",
+        selectionState: "DRAFT",
         selectedPlayerCount: 0,
         unresolvedIssueCount: 0,
+        availableActions: ["recreateDraft", "clearDraft", "finalize"],
       };
       expect(match.teamId).toBe("team-1");
-      expect(match.unresolvedIssueCount).toBe(0);
+      expect(match.selectionState).toBe("DRAFT");
+      expect(match.availableActions).toContain("finalize");
     });
   });
 });

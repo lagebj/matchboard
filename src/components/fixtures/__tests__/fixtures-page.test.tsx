@@ -5,6 +5,17 @@ import type { FixturePeriod, FixtureRound, FixtureMatch } from "@/domain/fixture
 
 vi.mock("@/domain/fixtures/actions", () => ({
   fetchFixturesOverview: vi.fn(),
+  fixturePopulateAllAction: vi.fn(),
+  fixtureRegenerateAllAction: vi.fn(),
+  fixtureClearAllDraftsAction: vi.fn(),
+  fixtureGenerateRoundAction: vi.fn(),
+  fixtureRegenerateRoundAction: vi.fn(),
+  fixtureClearRoundDraftAction: vi.fn(),
+  fixtureFinalizeRoundAction: vi.fn(),
+  fixtureUnfinalizeRoundAction: vi.fn(),
+  fixtureRegenerateMatchAction: vi.fn(),
+  fixtureClearMatchDraftAction: vi.fn(),
+  fixtureFinalizeMatchAction: vi.fn(),
 }));
 
 const { fetchFixturesOverview } = vi.mocked(
@@ -18,8 +29,10 @@ const makeMatch = (overrides: Partial<FixtureMatch> = {}): FixtureMatch => ({
   teamName: "Bla",
   opponent: "Opponent",
   readinessState: "READY",
-  selectedPlayerCount: 11,
+  selectionState: "NOT_GENERATED",
+  selectedPlayerCount: 0,
   unresolvedIssueCount: 0,
+  availableActions: ["createDraft"],
   ...overrides,
 });
 
@@ -27,9 +40,11 @@ const makeRound = (overrides: Partial<FixtureRound> = {}): FixtureRound => ({
   id: "r1",
   title: "Round 1",
   readinessState: "READY",
-  generated: true,
-  published: false,
+  selectionState: "NOT_GENERATED",
+  hasDraftSelections: false,
+  hasMatches: true,
   unresolvedIssueCount: 0,
+  availableActions: ["createDraft"],
   matches: [makeMatch()],
   ...overrides,
 });
@@ -65,26 +80,6 @@ describe("FixturesPage", () => {
     });
   });
 
-  it("shows readiness badges for at-risk matches", async () => {
-    fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({
-          readinessState: "AT_RISK",
-          matches: [makeMatch({ readinessState: "AT_RISK" })],
-        })],
-      })],
-    });
-
-    await act(() => {
-      render(<FixturesPage />);
-    });
-
-    await waitFor(() => {
-      const atRiskBadges = screen.getAllByText("At risk");
-      expect(atRiskBadges.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
   it("shows empty state when no periods exist", async () => {
     fetchFixturesOverview.mockResolvedValue({ periods: [] });
 
@@ -97,11 +92,17 @@ describe("FixturesPage", () => {
     });
   });
 
-  it("shows selected player count per match", async () => {
+  it("shows selection state badges per match", async () => {
     fetchFixturesOverview.mockResolvedValue({
       periods: [makePeriod({
         rounds: [makeRound({
-          matches: [makeMatch({ selectedPlayerCount: 8 })],
+          selectionState: "DRAFT",
+          availableActions: ["recreateDraft", "clearDraft", "finalize"],
+          matches: [makeMatch({
+            selectionState: "DRAFT",
+            selectedPlayerCount: 8,
+            availableActions: ["recreateDraft", "clearDraft", "finalize"],
+          })],
         })],
       })],
     });
@@ -112,15 +113,19 @@ describe("FixturesPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("8 selected")).toBeInTheDocument();
+      const draftBadges = screen.getAllByText("Draft");
+      expect(draftBadges.length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  it("shows not playable badge for hard-blocked matches", async () => {
+  it("shows blocked state badge for hard-blocked rounds", async () => {
     fetchFixturesOverview.mockResolvedValue({
       periods: [makePeriod({
         rounds: [makeRound({
+          selectionState: "BLOCKED",
           readinessState: "NOT_PLAYABLE",
-          matches: [makeMatch({ readinessState: "NOT_PLAYABLE" })],
+          availableActions: ["recreateDraft", "clearDraft", "finalize"],
+          matches: [makeMatch({ selectionState: "DRAFT", availableActions: ["recreateDraft", "clearDraft", "finalize"] })],
         })],
       })],
     });
@@ -130,8 +135,52 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      const notPlayableBadges = screen.getAllByText("Not playable");
-      expect(notPlayableBadges.length).toBeGreaterThanOrEqual(1);
+      const blockedBadges = screen.getAllByText("Blocked");
+      expect(blockedBadges.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it("shows finalize action for ready rounds", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [makePeriod({
+        rounds: [makeRound({
+          selectionState: "READY",
+          availableActions: ["recreateDraft", "clearDraft", "finalize"],
+          matches: [makeMatch({
+            selectionState: "DRAFT",
+            availableActions: ["recreateDraft", "clearDraft", "finalize"],
+          })],
+        })],
+      })],
+    });
+
+    await act(() => {
+      render(<FixturesPage />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Finalize round")).toBeInTheDocument();
+    });
+  });
+
+  it("shows populate all action for periods with not-generated rounds", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [makePeriod({
+        rounds: [makeRound({
+          selectionState: "NOT_GENERATED",
+          availableActions: ["createDraft"],
+          matches: [makeMatch({ selectionState: "NOT_GENERATED", availableActions: ["createDraft"] })],
+        })],
+      })],
+    });
+
+    await act(() => {
+      render(<FixturesPage />);
+    });
+
+    await waitFor(() => {
+      const populateButtons = screen.getAllByText("Populate all rounds");
+      expect(populateButtons.length).toBeGreaterThanOrEqual(1);
     });
   });
 });
