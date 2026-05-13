@@ -1,3 +1,7 @@
+export type SelectionState = "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED";
+
+export type SelectionAction = "createDraft" | "recreateDraft" | "clearDraft" | "finalize" | "unfinalize";
+
 export interface FixturesOverview {
   periods: FixturePeriod[];
 }
@@ -16,9 +20,11 @@ export interface FixtureRound {
   title: string;
   dateRange?: string;
   readinessState?: "READY" | "WATCH" | "AT_RISK" | "NOT_PLAYABLE";
-  generated: boolean;
-  published: boolean;
+  selectionState: SelectionState;
+  hasDraftSelections: boolean;
+  hasMatches: boolean;
   unresolvedIssueCount: number;
+  availableActions: SelectionAction[];
   matches: FixtureMatch[];
 }
 
@@ -31,7 +37,9 @@ export interface FixtureMatch {
   startsAt?: string;
   venue?: string;
   readinessState?: "READY" | "WATCH" | "AT_RISK" | "NOT_PLAYABLE";
+  selectionState: SelectionState;
   selectedPlayerCount?: number;
   unresolvedIssueCount: number;
   postMatchStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  availableActions: SelectionAction[];
 }

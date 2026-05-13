@@ -1,6 +1,8 @@
 import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch } from "./types";
 import { db } from "@/lib/db";
 import { WarningSeverity } from "@/generated/prisma/client";
+import { deriveRoundStatus } from "@/lib/round-status";
+import { getRoundActions, getMatchActions, deriveMatchSelectionState } from "./selection-state-utils";
 
 function mapReadiness(worstSeverity: string | undefined): "READY" | "WATCH" | "AT_RISK" | "NOT_PLAYABLE" {
   if (worstSeverity === "HARD_BLOCK") return "NOT_PLAYABLE";
@@ -48,10 +50,14 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
     where: { matchRoundId: { in: allRoundIds.length > 0 ? allRoundIds : undefined } },
   });
 
+  const roundBlockingWarningCounts = new Map<string, number>();
   const roundIssueCounts = new Map<string, number>();
   for (const w of roundWarnings) {
     if (w.matchRoundId) {
       roundIssueCounts.set(w.matchRoundId, (roundIssueCounts.get(w.matchRoundId) ?? 0) + 1);
+      if (w.severity === "HARD_BLOCK") {
+        roundBlockingWarningCounts.set(w.matchRoundId, (roundBlockingWarningCounts.get(w.matchRoundId) ?? 0) + 1);
+      }
     }
   }
 
@@ -66,46 +72,51 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
     }
   }
 
-  const roundStatusMap = new Map<string, string>();
+  const roundWarningSeverityMap = new Map<string, string>();
   for (const w of roundWarnings) {
     if (!w.matchRoundId) continue;
-    const current = roundStatusMap.get(w.matchRoundId);
+    const current = roundWarningSeverityMap.get(w.matchRoundId);
     if (!current || (w.severity === "HARD_BLOCK" && current !== "HARD_BLOCK")) {
       if (w.severity === WarningSeverity.HARD_BLOCK) {
-        roundStatusMap.set(w.matchRoundId, "HARD_BLOCK");
+        roundWarningSeverityMap.set(w.matchRoundId, "HARD_BLOCK");
       } else if (w.severity === WarningSeverity.REQUIRES_OVERRIDE && current !== "HARD_BLOCK") {
-        roundStatusMap.set(w.matchRoundId, "REQUIRES_OVERRIDE");
+        roundWarningSeverityMap.set(w.matchRoundId, "REQUIRES_OVERRIDE");
       } else if (w.severity === WarningSeverity.WARNING && !current) {
-        roundStatusMap.set(w.matchRoundId, "WARNING");
+        roundWarningSeverityMap.set(w.matchRoundId, "WARNING");
       }
     }
   }
 
-  const matchStatusMap = new Map<string, string>();
+  const matchWarningSeverityMap = new Map<string, string>();
   for (const w of matchWarnings) {
     if (!w.matchId) continue;
-    const current = matchStatusMap.get(w.matchId);
+    const current = matchWarningSeverityMap.get(w.matchId);
     if (!current || (w.severity === "HARD_BLOCK" && current !== "HARD_BLOCK")) {
       if (w.severity === WarningSeverity.HARD_BLOCK) {
-        matchStatusMap.set(w.matchId, "HARD_BLOCK");
+        matchWarningSeverityMap.set(w.matchId, "HARD_BLOCK");
       } else if (w.severity === WarningSeverity.REQUIRES_OVERRIDE && current !== "HARD_BLOCK") {
-        matchStatusMap.set(w.matchId, "REQUIRES_OVERRIDE");
+        matchWarningSeverityMap.set(w.matchId, "REQUIRES_OVERRIDE");
       } else if (w.severity === WarningSeverity.WARNING && !current) {
-        matchStatusMap.set(w.matchId, "WARNING");
+        matchWarningSeverityMap.set(w.matchId, "WARNING");
       }
     }
   }
 
-  const draftSelections = allMatchIds.length > 0
+  const allSelections = allMatchIds.length > 0
     ? await db.selection.findMany({
-        where: { matchId: { in: allMatchIds }, status: "DRAFT" },
-        select: { matchId: true },
+        where: { matchId: { in: allMatchIds } },
+        select: { matchId: true, status: true },
       })
     : [];
 
-  const matchSelectionCounts = new Map<string, number>();
-  for (const s of draftSelections) {
-    matchSelectionCounts.set(s.matchId, (matchSelectionCounts.get(s.matchId) ?? 0) + 1);
+  const matchDraftCounts = new Map<string, number>();
+  const matchFinalizedCounts = new Map<string, number>();
+  for (const s of allSelections) {
+    if (s.status === "DRAFT") {
+      matchDraftCounts.set(s.matchId, (matchDraftCounts.get(s.matchId) ?? 0) + 1);
+    } else if (s.status === "FINALIZED") {
+      matchFinalizedCounts.set(s.matchId, (matchFinalizedCounts.get(s.matchId) ?? 0) + 1);
+    }
   }
 
   const postMatchReports = await db.postMatchReport.findMany({
@@ -121,28 +132,63 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
   const periods: FixturePeriod[] = seasons.flatMap((season) =>
     season.planningPeriods.map((period) => {
       const rounds: FixtureRound[] = period.matchRounds.map((round) => {
-        const matches: FixtureMatch[] = round.matches.map((match) => ({
-          id: match.id,
-          title: `${match.team.name} vs ${match.opponent}`,
-          teamId: match.teamId,
-          teamName: match.team.name,
-          opponent: match.opponent,
-          startsAt: match.startsAt?.toISOString(),
-          venue: match.homeAway === "HOME" ? "Home" : match.homeAway === "AWAY" ? "Away" : undefined,
-          readinessState: mapReadiness(matchStatusMap.get(match.id)),
-          selectedPlayerCount: matchSelectionCounts.get(match.id) ?? 0,
-          unresolvedIssueCount: matchIssueCounts.get(match.id) ?? 0,
-          postMatchStatus: (postMatchStatusMap.get(match.id) as FixtureMatch["postMatchStatus"]) ?? undefined,
-        }));
+        const roundDraftSelectionCount = round.matches.reduce(
+          (sum, m) => sum + (matchDraftCounts.get(m.id) ?? 0), 0,
+        );
+        const hasDraftSelections = roundDraftSelectionCount > 0;
+        const hasMatches = round.matches.length > 0;
+        const blockingWarningCount = roundBlockingWarningCounts.get(round.id) ?? 0;
+
+        const derivedRoundStatus = deriveRoundStatus({
+          dbStatus: round.status,
+          hasDraftSelections,
+          hasMatches,
+          blockingWarningCount,
+        });
+
+        const matches: FixtureMatch[] = round.matches.map((match) => {
+          const matchDraftCount = matchDraftCounts.get(match.id) ?? 0;
+          const matchFinalizedCount = matchFinalizedCounts.get(match.id) ?? 0;
+          const matchSelectionState = deriveMatchSelectionState(
+            derivedRoundStatus,
+            matchDraftCount > 0,
+            matchFinalizedCount > 0,
+          );
+          const matchActions = getMatchActions(
+            derivedRoundStatus,
+            matchDraftCount > 0,
+            hasDraftSelections,
+          );
+
+          return {
+            id: match.id,
+            title: `${match.team.name} vs ${match.opponent}`,
+            teamId: match.teamId,
+            teamName: match.team.name,
+            opponent: match.opponent,
+            startsAt: match.startsAt?.toISOString(),
+            venue: match.homeAway === "HOME" ? "Home" : match.homeAway === "AWAY" ? "Away" : undefined,
+            readinessState: mapReadiness(matchWarningSeverityMap.get(match.id)),
+            selectionState: matchSelectionState,
+            selectedPlayerCount: matchDraftCount + matchFinalizedCount,
+            unresolvedIssueCount: matchIssueCounts.get(match.id) ?? 0,
+            postMatchStatus: (postMatchStatusMap.get(match.id) as FixtureMatch["postMatchStatus"]) ?? undefined,
+            availableActions: matchActions,
+          };
+        });
+
+        const roundActions = getRoundActions(derivedRoundStatus, hasMatches);
 
         return {
           id: round.id,
           title: round.name,
           dateRange: undefined,
-          readinessState: mapReadiness(roundStatusMap.get(round.id)),
-          generated: round.status !== "NOT_GENERATED",
-          published: round.status === "FINALIZED",
+          readinessState: mapReadiness(roundWarningSeverityMap.get(round.id)),
+          selectionState: derivedRoundStatus,
+          hasDraftSelections,
+          hasMatches,
           unresolvedIssueCount: roundIssueCounts.get(round.id) ?? 0,
+          availableActions: roundActions,
           matches,
         };
       });

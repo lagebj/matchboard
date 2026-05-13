@@ -30,8 +30,9 @@ describe("Fixtures Service", () => {
 
       const round = period.rounds[0];
       expect(round.matches.length).toBeGreaterThanOrEqual(1);
-      expect(round.generated).toBe(true);
-      expect(round.published).toBe(false);
+      expect(round.selectionState).toBeDefined();
+      expect(round.hasDraftSelections).toBeDefined();
+      expect(round.hasMatches).toBe(true);
     });
 
     it("includes match details", async () => {
