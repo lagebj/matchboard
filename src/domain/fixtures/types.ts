@@ -40,6 +40,6 @@ export interface FixtureMatch {
   selectionState: SelectionState;
   selectedPlayerCount?: number;
   unresolvedIssueCount: number;
-  postMatchStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  postMatchStatus?: "NOT_STARTED" | "DRAFT" | "REPORTED" | "LOCKED";
   availableActions: SelectionAction[];
 }

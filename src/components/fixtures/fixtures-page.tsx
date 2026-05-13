@@ -18,8 +18,26 @@ function SelectionStateBadge({ state }: { state: SelectionState }) {
   const config = selectionStateConfig[state];
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.borderClass} ${config.textClass}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${config.dotClass}`} />
+      <span className={`inline-block h-1.5 w-1.5 rounded-full ${config.dotClass}`} />
       {config.label}
+    </span>
+  );
+}
+
+const postMatchStatusConfig: Record<string, { label: string; textClass: string }> = {
+  NOT_STARTED: { label: "No report", textClass: "text-zinc-500" },
+  DRAFT: { label: "Draft report", textClass: "text-amber-400" },
+  REPORTED: { label: "Reported", textClass: "text-blue-400" },
+  LOCKED: { label: "Locked report", textClass: "text-emerald-400" },
+};
+
+function PostMatchBadge({ status }: { status?: string }) {
+  if (!status || status === "NOT_STARTED") return null;
+  const cfg = postMatchStatusConfig[status];
+  if (!cfg) return null;
+  return (
+    <span className={`text-[10px] font-medium uppercase tracking-wider ${cfg.textClass}`}>
+      {cfg.label}
     </span>
   );
 }
@@ -146,6 +164,7 @@ function MatchRow({ match, roundId, roundState }: { match: FixtureMatch; roundId
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SelectionStateBadge state={match.selectionState} />
+          <PostMatchBadge status={match.postMatchStatus} />
           {typeof match.selectedPlayerCount === "number" && match.selectedPlayerCount > 0 && (
             <span className="text-[10px] text-zinc-500">{match.selectedPlayerCount} selected</span>
           )}
@@ -156,9 +175,14 @@ function MatchRow({ match, roundId, roundState }: { match: FixtureMatch; roundId
       </div>
       <div className="flex items-center gap-2">
         <MatchActions match={match} roundId={roundId} roundState={roundState} />
-        <Link href={`/rounds/${roundId}`} className="text-[10px] text-zinc-400 hover:text-zinc-200 ml-auto">
-          Open board
-        </Link>
+        <div className="flex items-center gap-2 ml-auto">
+          <Link href={`/matches/${match.id}`} className="text-[10px] text-zinc-400 hover:text-zinc-200">
+            Match detail
+          </Link>
+          <Link href={`/rounds/${roundId}`} className="text-[10px] text-zinc-400 hover:text-zinc-200">
+            Open board
+          </Link>
+        </div>
       </div>
     </div>
   );

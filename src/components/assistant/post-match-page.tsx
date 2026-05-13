@@ -3,89 +3,48 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { SelectionRole } from "@/generated/prisma/client";
 import {
-  seedPostMatchReport,
+  seedMatchReport,
   addGoalToReport,
   removeGoalFromReport,
   updateMatchResult,
-  addPlayerAppearance,
-  removePlayerAppearance,
-  finalizePostMatchReport,
+  addActualPlayer,
+  removeActualPlayer,
+  submitMatchReport,
+  lockMatchReport,
+  reopenMatchReport,
+  markPlannedAbsence,
+  removePlannedAbsence,
+  updateAttendanceStatus,
+  updatePlayerStats,
 } from "@/app/(app)/matches/[matchId]/post-match/actions";
+import type { MatchReportDetail } from "@/app/(app)/matches/[matchId]/post-match/actions";
 
-type PlayerActual = {
-  id: string;
-  playerId: string;
-  playerName: string;
-  coreTeamName: string;
-  source: string;
-  attendanceStatus: string;
-  selectionRole?: string;
+type ReportData = MatchReportDetail;
+
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  NOT_STARTED: { label: "Not started", color: "border-zinc-600/40 bg-zinc-800/30 text-zinc-400" },
+  DRAFT: { label: "Draft", color: "border-amber-700/40 bg-amber-900/15 text-amber-300" },
+  REPORTED: { label: "Reported", color: "border-blue-700/40 bg-blue-900/15 text-blue-300" },
+  LOCKED: { label: "Locked", color: "border-emerald-700/40 bg-emerald-900/15 text-emerald-300" },
 };
 
-type GoalData = {
-  id: string;
-  playerId: string | null;
-  playerName?: string;
-  minute: number | null;
-  type: string;
+const ABSENCE_REASON_LABELS: Record<string, string> = {
+  NO_SHOW: "No-show",
+  SICK: "Sick",
+  INJURED: "Injured",
+  DECLINED: "Declined",
+  NO_RSVP: "No RSVP",
+  OTHER: "Other",
 };
-
-type ReportData = {
-  id: string;
-  matchId: string;
-  status: string;
-  homeGoals: number | null;
-  awayGoals: number | null;
-  teamNote: string | null;
-  completedBy: string | null;
-  completedAt: string | null;
-  playerActuals: PlayerActual[];
-  goals: GoalData[];
-  teamName: string;
-  opponent: string;
-  homeAway: string;
-  plannedSelections: PlannedSelection[];
-};
-
-type PlannedSelection = {
-  playerId: string;
-  playerName: string;
-  coreTeamName: string;
-  role: SelectionRole;
-};
-
-const _ATTENDANCE_OPTIONS = ["PRESENT", "NO_SHOW", "LATE_CANCELLATION", "ABSENT_CONFIRMED", "UNKNOWN"] as const;
-
-function _attendanceLabel(status: string): string {
-  const map: Record<string, string> = {
-    PRESENT: "Present",
-    NO_SHOW: "No-show",
-    LATE_CANCELLATION: "Late cancellation",
-    ABSENT_CONFIRMED: "Absent confirmed",
-    UNKNOWN: "Unknown",
-  };
-  return map[status] ?? status;
-}
 
 function sourceLabel(source: string): string {
   return source === "PLANNED" ? "From plan" : "Added manually";
 }
 
-const ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
-
-const ROLE_LABELS: Record<string, string> = {
-  CORE: "Core",
-  SUPPORT: "Support",
-  BACKFILL: "Squad repair",
-  DEVELOPMENT: "Development",
-};
-
 export function PostMatchPage({ matchId, initialReport }: { matchId: string; initialReport: ReportData | null }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const report = initialReport;
   const [homeGoals, setHomeGoals] = useState(initialReport?.homeGoals?.toString() ?? "");
   const [awayGoals, setAwayGoals] = useState(initialReport?.awayGoals?.toString() ?? "");
   const [teamNote, setTeamNote] = useState(initialReport?.teamNote ?? "");
@@ -94,20 +53,25 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
   const [newGoalMinute, setNewGoalMinute] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const report = initialReport;
+  const status = report?.status ?? "NOT_STARTED";
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.NOT_STARTED;
+  const isLocked = status === "LOCKED";
+  const isDraft = status === "DRAFT";
+  const isReported = status === "REPORTED";
+  const _isEditable = isDraft;
+
   const handleSeed = () => {
     setError(null);
     startTransition(async () => {
-      const result = await seedPostMatchReport(matchId);
-      if (result.success) {
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to create report.");
-      }
+      const result = await seedMatchReport(matchId);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to create report.");
     });
   };
 
   const handleSaveResult = () => {
-    if (!report) return;
+    if (!report || report.status === "NOT_STARTED") return;
     setError(null);
     startTransition(async () => {
       const result = await updateMatchResult(report.id, {
@@ -115,11 +79,8 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
         awayGoals: awayGoals === "" ? undefined : parseInt(awayGoals, 10),
         teamNote: teamNote || undefined,
       });
-      if (result.success) {
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to save result.");
-      }
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to save result.");
     });
   };
 
@@ -127,33 +88,64 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
     if (!report || !newPlayerId.trim()) return;
     setError(null);
     startTransition(async () => {
-      const result = await addPlayerAppearance(report.id, {
+      const result = await addActualPlayer(report.id, {
         playerId: newPlayerId.trim(),
         attendanceStatus: "PRESENT",
       });
-      if (result.success) {
-        setNewPlayerId("");
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to add player.");
-      }
+      if (result.success) { setNewPlayerId(""); router.refresh(); }
+      else setError(result.error ?? "Failed to add player.");
     });
   };
 
   const handleRemovePlayer = (appearanceId: string) => {
     setError(null);
     startTransition(async () => {
-      const result = await removePlayerAppearance(appearanceId);
-      if (result.success) {
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to remove player.");
-      }
+      const result = await removeActualPlayer(appearanceId);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to remove player.");
+    });
+  };
+
+  const handleAttendanceChange = (appearanceId: string, newStatus: string) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await updateAttendanceStatus(appearanceId, newStatus);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to update attendance.");
+    });
+  };
+
+  const handleMarkAbsence = (playerId: string, reason: string, note?: string) => {
+    if (!report) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await markPlannedAbsence(report.id, { playerId, reason: reason as "NO_SHOW" | "SICK" | "INJURED" | "DECLINED" | "NO_RSVP" | "OTHER", note });
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to mark absence.");
+    });
+  };
+
+  const handleRemoveAbsence = (absenceId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await removePlannedAbsence(absenceId);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to remove absence.");
+    });
+  };
+
+  const handleUpdateStats = (playerId: string, goals: number, assists: number) => {
+    if (!report) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await updatePlayerStats(report.id, { playerId, goals, assists });
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to update stats.");
     });
   };
 
   const handleAddGoal = () => {
-    if (!report || !newGoalPlayerId) return;
+    if (!report) return;
     setError(null);
     startTransition(async () => {
       const result = await addGoalToReport(report.id, {
@@ -161,13 +153,8 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
         minute: newGoalMinute ? parseInt(newGoalMinute, 10) : undefined,
         type: "NORMAL",
       });
-      if (result.success) {
-        setNewGoalPlayerId("");
-        setNewGoalMinute("");
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to add goal.");
-      }
+      if (result.success) { setNewGoalPlayerId(""); setNewGoalMinute(""); router.refresh(); }
+      else setError(result.error ?? "Failed to add goal.");
     });
   };
 
@@ -175,29 +162,46 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
     setError(null);
     startTransition(async () => {
       const result = await removeGoalFromReport(goalId);
-      if (result.success) {
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to remove goal.");
-      }
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to remove goal.");
     });
   };
 
-  const handleFinalize = () => {
+  const handleSubmit = () => {
     if (!report) return;
-    if (!confirm("Finalize this post-match report? It cannot be edited after finalization.")) return;
+    if (!confirm("Submit this post-match report? It will be marked as REPORTED.")) return;
     setError(null);
     startTransition(async () => {
-      const result = await finalizePostMatchReport(report.id);
-      if (result.success) {
-        router.refresh();
-      } else {
-        setError(result.error ?? "Failed to finalize report.");
-      }
+      const result = await submitMatchReport(report.id);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to submit report.");
     });
   };
 
-  if (!report) {
+  const handleLock = () => {
+    if (!report) return;
+    if (!confirm("Lock this report? It cannot be edited after locking.")) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await lockMatchReport(report.id);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to lock report.");
+    });
+  };
+
+  const handleReopen = (targetStatus?: "DRAFT" | "REPORTED") => {
+    if (!report) return;
+    const label = targetStatus === "DRAFT" ? "draft" : "reported";
+    if (!confirm(`Reopen this report to ${label} status?`)) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await reopenMatchReport(report.id, targetStatus);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to reopen report.");
+    });
+  };
+
+  if (!report || report.status === "NOT_STARTED") {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
@@ -224,12 +228,8 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
     );
   }
 
-  const isCompleted = report.status === "COMPLETED";
-  const plannedByRole = ROLE_ORDER.map((role) => ({
-    role,
-    label: ROLE_LABELS[role] ?? role,
-    players: report.plannedSelections.filter((s) => s.role === role),
-  })).filter((g) => g.players.length > 0);
+  const _plannedPlayerIds = new Set(report.plannedSelections.map((s) => s.playerId));
+  const absentPlayerIds = new Set(report.absences.map((a) => a.playerId));
 
   return (
     <div className="flex flex-col gap-5">
@@ -241,19 +241,60 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Post-match registration</p>
       </div>
 
+      {/* Header */}
       <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-base font-semibold text-zinc-50">{report.teamName} vs {report.opponent}</p>
             <p className="text-sm text-[var(--text-muted)]">{report.homeAway === "HOME" ? "Home" : "Away"} match</p>
           </div>
-          <span className={`rounded-full border px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-            isCompleted
-              ? "border-emerald-700/40 bg-emerald-900/15 text-emerald-300"
-              : "border-amber-700/40 bg-amber-900/15 text-amber-300"
-          }`}>
-            {isCompleted ? "Completed" : "In progress"}
+          <span className={`rounded-full border px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${cfg.color}`}>
+            {cfg.label}
           </span>
+        </div>
+
+        {/* Lifecycle actions */}
+        <div className="flex items-center gap-2 mt-3">
+          {isDraft && (
+            <button
+              className="rounded-lg border border-blue-700/40 bg-blue-900/20 px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-900/30 transition-colors disabled:opacity-50"
+              disabled={isPending}
+              onClick={handleSubmit}
+              type="button"
+            >
+              Submit report
+            </button>
+          )}
+          {isReported && (
+            <button
+              className="rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+              disabled={isPending}
+              onClick={handleLock}
+              type="button"
+            >
+              Lock report
+            </button>
+          )}
+          {isLocked && (
+            <button
+              className="rounded-lg border border-amber-700/40 bg-amber-900/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+              disabled={isPending}
+              onClick={() => handleReopen("REPORTED")}
+              type="button"
+            >
+              Reopen (reported)
+            </button>
+          )}
+          {(isReported || isLocked) && (
+            <button
+              className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+              disabled={isPending}
+              onClick={() => handleReopen("DRAFT")}
+              type="button"
+            >
+              Reopen as draft
+            </button>
+          )}
         </div>
       </div>
 
@@ -264,7 +305,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
       {/* Result */}
       <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
         <h2 className="text-sm font-semibold text-zinc-100 mb-3">Result</h2>
-        {isCompleted ? (
+        {isLocked ? (
           <p className="text-lg font-bold text-zinc-50">
             {report.homeGoals ?? 0} &ndash; {report.awayGoals ?? 0}
           </p>
@@ -310,7 +351,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
                 <li key={g.id} className="flex items-center gap-2 text-sm text-zinc-200">
                   <span className="font-medium">{g.playerName ?? "Unknown"}</span>
                   {g.minute !== null && <span className="text-xs text-[var(--text-muted)]">{g.minute}&apos;</span>}
-                  {!isCompleted && (
+                  {!isLocked && (
                     <button
                       className="text-red-400/60 hover:text-red-300 text-xs ml-auto"
                       onClick={() => handleRemoveGoal(g.id)}
@@ -324,7 +365,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
               ))}
             </ul>
           )}
-          {!isCompleted && (
+          {!isLocked && (
             <div className="flex items-center gap-2 mt-2">
               <select
                 value={newGoalPlayerId}
@@ -358,7 +399,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
         </div>
 
         {/* Notes */}
-        {!isCompleted && (
+        {!isLocked && (
           <div className="mt-4">
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">Team notes</label>
             <textarea
@@ -370,7 +411,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
             />
           </div>
         )}
-        {isCompleted && report.teamNote && (
+        {isLocked && report.teamNote && (
           <div className="mt-4">
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">Team notes</label>
             <p className="text-sm text-zinc-200">{report.teamNote}</p>
@@ -378,29 +419,96 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
         )}
       </div>
 
-      {/* Planned vs Actual */}
-      <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
-        <h2 className="text-sm font-semibold text-zinc-100 mb-3">Actual squad</h2>
-
-        {plannedByRole.length > 0 && (
-          <div className="mb-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Planned squad</p>
-            {plannedByRole.map((group) => (
-              <div key={group.role} className="flex flex-wrap gap-1.5 mb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] shrink-0 w-20">{group.label}:</span>
-                {group.players.map((p) => (
-                  <span key={p.playerId} className="text-xs text-zinc-300">{p.playerName}</span>
-                ))}
+      {/* Planned squad */}
+      {report.plannedSelections.length > 0 && (
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+          <h2 className="text-sm font-semibold text-zinc-100 mb-3">Planned squad</h2>
+          <div className="flex flex-col gap-1">
+            {report.plannedSelections.map((s) => (
+              <div key={s.playerId} className="flex items-center gap-2 text-sm">
+                <span className="text-zinc-200">{s.playerName}</span>
+                <span className="text-[10px] text-[var(--text-muted)]">({s.coreTeamName})</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded border border-zinc-600/40 bg-zinc-800/30 text-zinc-400">{s.role}</span>
+                {absentPlayerIds.has(s.playerId) && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded border border-red-700/40 bg-red-900/15 text-red-300">Absent</span>
+                )}
               </div>
             ))}
           </div>
-        )}
+        </div>
+      )}
 
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Actual attendance</p>
+      {/* Absences */}
+      {report.absences.length > 0 && (
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+          <h2 className="text-sm font-semibold text-zinc-100 mb-3">Planned absences</h2>
+          <div className="flex flex-col gap-1">
+            {report.absences.map((a) => (
+              <div key={a.id} className="flex items-center gap-2 text-sm">
+                <span className="text-zinc-200">{a.playerName}</span>
+                <span className="text-[10px] text-[var(--text-muted)]">({a.coreTeamName})</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded border border-red-700/40 bg-red-900/15 text-red-300">
+                  {ABSENCE_REASON_LABELS[a.reason] ?? a.reason}
+                </span>
+                {a.note && <span className="text-xs text-[var(--text-muted)]">{a.note}</span>}
+                {!isLocked && (
+                  <button
+                    className="text-red-400/60 hover:text-red-300 text-xs ml-auto"
+                    onClick={() => handleRemoveAbsence(a.id)}
+                    disabled={isPending}
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mark absence (draft only) */}
+      {isDraft && report.plannedSelections.length > 0 && (
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+          <h2 className="text-sm font-semibold text-zinc-100 mb-3">Mark planned absence</h2>
+          <div className="flex flex-col gap-2">
+            {report.plannedSelections
+              .filter((s) => !absentPlayerIds.has(s.playerId))
+              .filter((s) => !report.playerActuals.some((a) => a.playerId === s.playerId))
+              .map((s) => (
+                <div key={s.playerId} className="flex items-center gap-2 text-sm">
+                  <span className="text-zinc-200">{s.playerName}</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">({s.coreTeamName})</span>
+                  <select
+                    className="rounded border app-hairline bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 text-xs text-zinc-50"
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleMarkAbsence(s.playerId, e.target.value);
+                        e.target.value = "";
+                      }
+                    }}
+                  >
+                    <option value="">Mark absent...</option>
+                    <option value="NO_SHOW">No-show</option>
+                    <option value="SICK">Sick</option>
+                    <option value="INJURED">Injured</option>
+                    <option value="DECLINED">Declined</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actual squad */}
+      <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+        <h2 className="text-sm font-semibold text-zinc-100 mb-3">Actual squad</h2>
         {report.playerActuals.length === 0 ? (
           <p className="text-xs text-zinc-500">No player actuals recorded.</p>
         ) : (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             {report.playerActuals.map((p) => (
               <div key={p.id} className="flex items-center gap-2 text-sm">
                 <span className="text-zinc-200">{p.playerName}</span>
@@ -408,8 +516,21 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
                 <span className={`text-[10px] px-1.5 py-0.5 rounded border ${p.source === "PLANNED" ? "border-zinc-600/40 bg-zinc-800/30 text-zinc-400" : "border-amber-700/40 bg-amber-900/15 text-amber-300"}`}>
                   {sourceLabel(p.source)}
                 </span>
-                <span className="text-[10px] text-[var(--text-muted)]">{_attendanceLabel(p.attendanceStatus)}</span>
-                {!isCompleted && (
+                {!isLocked && (
+                  <select
+                    value={p.attendanceStatus}
+                    onChange={(e) => handleAttendanceChange(p.id, e.target.value)}
+                    className="rounded border app-hairline bg-[rgba(255,255,255,0.03)] px-1 py-0.5 text-[10px] text-zinc-50"
+                  >
+                    <option value="PRESENT">Present</option>
+                    <option value="NO_SHOW">No-show</option>
+                    <option value="UNKNOWN">Unknown</option>
+                  </select>
+                )}
+                {isLocked && (
+                  <span className="text-[10px] text-[var(--text-muted)]">{p.attendanceStatus}</span>
+                )}
+                {!isLocked && (
                   <button
                     className="text-red-400/60 hover:text-red-300 text-xs ml-auto"
                     onClick={() => handleRemovePlayer(p.id)}
@@ -424,13 +545,13 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
           </div>
         )}
 
-        {!isCompleted && (
+        {!isLocked && (
           <div className="flex items-center gap-2 mt-3">
             <input
               type="text"
               value={newPlayerId}
               onChange={(e) => setNewPlayerId(e.target.value)}
-              placeholder="Player ID (use player name in future)"
+              placeholder="Player ID"
               className="flex-1 rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 py-1 text-xs text-zinc-50 placeholder:text-zinc-600"
             />
             <button
@@ -445,21 +566,61 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
         )}
       </div>
 
-      {/* Finalize */}
-      {!isCompleted && (
-        <button
-          className="rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
-          disabled={isPending}
-          onClick={handleFinalize}
-          type="button"
-        >
-          {isPending ? "Finalizing..." : "Finalize post-match report"}
-        </button>
+      {/* Player stats (REPORTED or LOCKED) */}
+      {(isReported || isLocked) && report.playerStats.length > 0 && (
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+          <h2 className="text-sm font-semibold text-zinc-100 mb-3">Player stats</h2>
+          <div className="flex flex-col gap-1">
+            {report.playerStats.map((s) => (
+              <div key={s.id} className="flex items-center gap-3 text-sm">
+                <span className="text-zinc-200">{s.playerName}</span>
+                <span className="text-xs text-[var(--text-muted)]">{s.goals}G {s.assists}A</span>
+                {!isLocked && (
+                  <>
+                    <button
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200"
+                      onClick={() => handleUpdateStats(s.playerId, s.goals + 1, s.assists)}
+                      disabled={isPending}
+                      type="button"
+                    >
+                      +Goal
+                    </button>
+                    <button
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200"
+                      onClick={() => handleUpdateStats(s.playerId, Math.max(0, s.goals - 1), s.assists)}
+                      disabled={isPending}
+                      type="button"
+                    >
+                      -Goal
+                    </button>
+                    <button
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200"
+                      onClick={() => handleUpdateStats(s.playerId, s.goals, s.assists + 1)}
+                      disabled={isPending}
+                      type="button"
+                    >
+                      +Assist
+                    </button>
+                    <button
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200"
+                      onClick={() => handleUpdateStats(s.playerId, s.goals, Math.max(0, s.assists - 1))}
+                      disabled={isPending}
+                      type="button"
+                    >
+                      -Assist
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      {isCompleted && report.completedAt && (
+      {/* Lock info */}
+      {isLocked && report.completedAt && (
         <div className="rounded-lg border border-emerald-700/40 bg-emerald-900/15 px-4 py-2 text-sm text-emerald-300">
-          Report finalized{report.completedBy ? ` by ${report.completedBy}` : ""} on {new Date(report.completedAt).toLocaleDateString()}.
+          Report locked{report.completedBy ? ` by ${report.completedBy}` : ""} on {new Date(report.completedAt).toLocaleDateString()}.
         </div>
       )}
     </div>

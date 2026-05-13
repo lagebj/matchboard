@@ -3,24 +3,202 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import type { MatchReportStatus, PlannedAbsenceReason } from "@/generated/prisma/client";
 
-export async function seedPostMatchReport(matchId: string): Promise<{ success: boolean; error?: string; reportId?: string }> {
+export type MatchReportDetail = {
+  id: string;
+  matchId: string;
+  status: MatchReportStatus | "NOT_STARTED";
+  homeGoals: number | null;
+  awayGoals: number | null;
+  teamNote: string | null;
+  completedBy: string | null;
+  completedAt: string | null;
+  teamName: string;
+  opponent: string;
+  homeAway: string;
+  plannedSelections: Array<{
+    playerId: string;
+    playerName: string;
+    coreTeamName: string;
+    role: string;
+  }>;
+  playerActuals: Array<{
+    id: string;
+    playerId: string;
+    playerName: string;
+    coreTeamName: string;
+    source: string;
+    attendanceStatus: string;
+  }>;
+  absences: Array<{
+    id: string;
+    playerId: string;
+    playerName: string;
+    coreTeamName: string;
+    reason: PlannedAbsenceReason;
+    note: string | null;
+  }>;
+  playerStats: Array<{
+    id: string;
+    playerId: string;
+    playerName: string;
+    goals: number;
+    assists: number;
+  }>;
+  goals: Array<{
+    id: string;
+    playerId: string | null;
+    playerName?: string;
+    minute: number | null;
+    type: string;
+  }>;
+};
+
+export async function getMatchReport(matchId: string): Promise<MatchReportDetail> {
+  await requireCoachAccess();
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      teamId: true,
+      opponent: true,
+      homeAway: true,
+      team: { select: { id: true, name: true } },
+      selections: {
+        where: { status: "FINALIZED" },
+        select: {
+          playerId: true,
+          role: true,
+          player: {
+            select: { id: true, firstName: true, lastName: true, coreTeam: { select: { name: true } } },
+          },
+        },
+        orderBy: [{ role: "asc" }],
+      },
+    },
+  });
+
+  if (!match) throw new Error("Match not found.");
+
+  const report = await db.postMatchReport.findUnique({
+    where: { matchId },
+    include: {
+      playerActuals: {
+        include: {
+          player: { select: { id: true, firstName: true, lastName: true, coreTeam: { select: { name: true } } } },
+        },
+      },
+      goals: {
+        include: {
+          player: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: [{ minute: "asc" }],
+      },
+      absences: {
+        include: {
+          player: { select: { id: true, firstName: true, lastName: true, coreTeam: { select: { name: true } } } },
+        },
+      },
+      playerStats: {
+        include: {
+          player: { select: { id: true, firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  const plannedSelections = match.selections.map((s) => ({
+    playerId: s.playerId,
+    playerName: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
+    coreTeamName: s.player.coreTeam?.name ?? "Unassigned",
+    role: s.role,
+  }));
+
+  if (!report) {
+    return {
+      id: "",
+      matchId: match.id,
+      status: "NOT_STARTED",
+      homeGoals: null,
+      awayGoals: null,
+      teamNote: null,
+      completedBy: null,
+      completedAt: null,
+      teamName: match.team.name,
+      opponent: match.opponent,
+      homeAway: match.homeAway,
+      plannedSelections,
+      playerActuals: [],
+      absences: [],
+      playerStats: [],
+      goals: [],
+    };
+  }
+
+  return {
+    id: report.id,
+    matchId: report.matchId,
+    status: report.status,
+    homeGoals: report.homeGoals,
+    awayGoals: report.awayGoals,
+    teamNote: report.teamNote,
+    completedBy: report.completedBy,
+    completedAt: report.completedAt?.toISOString() ?? null,
+    teamName: match.team.name,
+    opponent: match.opponent,
+    homeAway: match.homeAway,
+    plannedSelections,
+    playerActuals: report.playerActuals.map((p) => ({
+      id: p.id,
+      playerId: p.playerId,
+      playerName: `${p.player.firstName} ${p.player.lastName ?? ""}`.trim(),
+      coreTeamName: p.player.coreTeam?.name ?? "Unassigned",
+      source: p.source,
+      attendanceStatus: p.attendanceStatus,
+    })),
+    absences: report.absences.map((a) => ({
+      id: a.id,
+      playerId: a.playerId,
+      playerName: `${a.player.firstName} ${a.player.lastName ?? ""}`.trim(),
+      coreTeamName: a.player.coreTeam?.name ?? "Unassigned",
+      reason: a.reason,
+      note: a.note,
+    })),
+    playerStats: report.playerStats.map((s) => ({
+      id: s.id,
+      playerId: s.playerId,
+      playerName: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
+      goals: s.goals,
+      assists: s.assists,
+    })),
+    goals: report.goals.map((g) => ({
+      id: g.id,
+      playerId: g.playerId,
+      playerName: g.player ? `${g.player.firstName} ${g.player.lastName ?? ""}`.trim() : undefined,
+      minute: g.minute,
+      type: g.type,
+    })),
+  };
+}
+
+export async function seedMatchReport(matchId: string): Promise<{ success: boolean; error?: string; reportId?: string }> {
   await requireCoachAccess();
 
   try {
+    const existing = await db.postMatchReport.findUnique({ where: { matchId } });
+    if (existing) {
+      return { success: false, error: "A report already exists for this match." };
+    }
+
     const match = await db.match.findUnique({
       where: { id: matchId },
       select: {
         id: true,
-        matchRoundId: true,
-        teamId: true,
         selections: {
           where: { status: "FINALIZED" },
-          select: {
-            id: true,
-            playerId: true,
-            role: true,
-          },
+          select: { playerId: true, role: true },
         },
       },
     });
@@ -29,22 +207,10 @@ export async function seedPostMatchReport(matchId: string): Promise<{ success: b
       return { success: false, error: "Match not found." };
     }
 
-    if (match.selections.length === 0) {
-      return { success: false, error: "No finalized selections found for this match. Finalize the round first." };
-    }
-
-    const existing = await db.postMatchReport.findUnique({
-      where: { matchId },
-    });
-
-    if (existing) {
-      return { success: false, error: "A post-match report already exists for this match." };
-    }
-
     const report = await db.postMatchReport.create({
       data: {
         matchId,
-        status: "IN_PROGRESS",
+        status: "DRAFT",
         playerActuals: {
           create: match.selections.map((s) => ({
             matchId,
@@ -61,7 +227,303 @@ export async function seedPostMatchReport(matchId: string): Promise<{ success: b
 
     return { success: true, reportId: report.id };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to create post-match report." };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create report." };
+  }
+}
+
+export async function updateMatchResult(
+  reportId: string,
+  data: { homeGoals?: number; awayGoals?: number; teamNote?: string },
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status === "LOCKED") return { success: false, error: "Cannot update a locked report. Reopen it first." };
+
+    await db.postMatchReport.update({
+      where: { id: reportId },
+      data: {
+        ...(data.homeGoals !== undefined ? { homeGoals: data.homeGoals } : {}),
+        ...(data.awayGoals !== undefined ? { awayGoals: data.awayGoals } : {}),
+        ...(data.teamNote !== undefined ? { teamNote: data.teamNote } : {}),
+      },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update result." };
+  }
+}
+
+export async function addActualPlayer(
+  reportId: string,
+  data: { playerId: string; attendanceStatus?: string },
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    const existing = await db.postMatchPlayerActual.findFirst({
+      where: { reportId, playerId: data.playerId },
+    });
+    if (existing) return { success: false, error: "Player already in actual squad." };
+
+    await db.postMatchPlayerActual.create({
+      data: {
+        reportId,
+        matchId: report.matchId,
+        playerId: data.playerId,
+        source: "ADDED_POST_MATCH",
+        attendanceStatus: data.attendanceStatus ?? "PRESENT",
+      },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to add player." };
+  }
+}
+
+export async function removeActualPlayer(appearanceId: string): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const appearance = await db.postMatchPlayerActual.findUnique({
+      where: { id: appearanceId },
+      include: { report: { select: { matchId: true, status: true } } },
+    });
+    if (!appearance) return { success: false, error: "Appearance not found." };
+    if (appearance.report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    await db.postMatchPlayerActual.delete({ where: { id: appearanceId } });
+
+    revalidatePath(`/matches/${appearance.report.matchId}`);
+    revalidatePath(`/matches/${appearance.report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to remove player." };
+  }
+}
+
+export async function updateAttendanceStatus(
+  appearanceId: string,
+  attendanceStatus: string,
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const appearance = await db.postMatchPlayerActual.findUnique({
+      where: { id: appearanceId },
+      include: { report: { select: { matchId: true, status: true } } },
+    });
+    if (!appearance) return { success: false, error: "Appearance not found." };
+    if (appearance.report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    await db.postMatchPlayerActual.update({
+      where: { id: appearanceId },
+      data: { attendanceStatus },
+    });
+
+    revalidatePath(`/matches/${appearance.report.matchId}`);
+    revalidatePath(`/matches/${appearance.report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update attendance." };
+  }
+}
+
+export async function markPlannedAbsence(
+  reportId: string,
+  data: { playerId: string; reason: PlannedAbsenceReason; note?: string },
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    await db.matchReportAbsence.upsert({
+      where: { matchReportId_playerId: { matchReportId: reportId, playerId: data.playerId } },
+      update: { reason: data.reason, note: data.note ?? null },
+      create: {
+        matchReportId: reportId,
+        matchId: report.matchId,
+        playerId: data.playerId,
+        reason: data.reason,
+        note: data.note ?? null,
+      },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to mark absence." };
+  }
+}
+
+export async function removePlannedAbsence(absenceId: string): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const absence = await db.matchReportAbsence.findUnique({
+      where: { id: absenceId },
+      include: { report: { select: { matchId: true, status: true } } },
+    });
+    if (!absence) return { success: false, error: "Absence not found." };
+    if (absence.report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    await db.matchReportAbsence.delete({ where: { id: absenceId } });
+
+    revalidatePath(`/matches/${absence.report.matchId}`);
+    revalidatePath(`/matches/${absence.report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to remove absence." };
+  }
+}
+
+export async function updatePlayerStats(
+  reportId: string,
+  data: { playerId: string; goals?: number; assists?: number },
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    const actualPlayer = await db.postMatchPlayerActual.findFirst({
+      where: { reportId, playerId: data.playerId },
+    });
+    if (!actualPlayer) return { success: false, error: "Player must be in actual squad before receiving stats." };
+
+    if ((data.goals ?? 0) < 0 || (data.assists ?? 0) < 0) {
+      return { success: false, error: "Goals and assists must be non-negative." };
+    }
+
+    await db.matchReportPlayerStat.upsert({
+      where: { matchReportId_playerId: { matchReportId: reportId, playerId: data.playerId } },
+      update: {
+        ...(data.goals !== undefined ? { goals: data.goals } : {}),
+        ...(data.assists !== undefined ? { assists: data.assists } : {}),
+      },
+      create: {
+        matchReportId: reportId,
+        playerId: data.playerId,
+        goals: data.goals ?? 0,
+        assists: data.assists ?? 0,
+      },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update stats." };
+  }
+}
+
+export async function submitMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({
+      where: { id: reportId },
+      include: { playerActuals: true },
+    });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status !== "DRAFT") return { success: false, error: "Only DRAFT reports can be submitted." };
+
+    await db.postMatchReport.update({
+      where: { id: reportId },
+      data: { status: "REPORTED" },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+    revalidatePath("/rounds");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to submit report." };
+  }
+}
+
+export async function lockMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status !== "REPORTED") return { success: false, error: "Only REPORTED reports can be locked." };
+
+    await db.postMatchReport.update({
+      where: { id: reportId },
+      data: { status: "LOCKED", completedAt: new Date() },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+    revalidatePath("/rounds");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to lock report." };
+  }
+}
+
+export async function reopenMatchReport(
+  reportId: string,
+  targetStatus?: "DRAFT" | "REPORTED",
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status !== "LOCKED" && report.status !== "REPORTED") {
+      return { success: false, error: "Only LOCKED or REPORTED reports can be reopened." };
+    }
+    if (report.status === "REPORTED" && targetStatus !== "DRAFT") {
+      return { success: false, error: "A REPORTED report can only be reopened to DRAFT status." };
+    }
+
+    const newStatus = targetStatus ?? (report.status === "LOCKED" ? "REPORTED" : "DRAFT");
+
+    await db.postMatchReport.update({
+      where: { id: reportId },
+      data: { status: newStatus, completedAt: null },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+    revalidatePath("/rounds");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to reopen report." };
   }
 }
 
@@ -72,17 +534,9 @@ export async function addGoalToReport(
   await requireCoachAccess();
 
   try {
-    const report = await db.postMatchReport.findUnique({
-      where: { id: reportId },
-    });
-
-    if (!report) {
-      return { success: false, error: "Report not found." };
-    }
-
-    if (report.status === "COMPLETED") {
-      return { success: false, error: "Cannot add goals to a completed report." };
-    }
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status === "LOCKED") return { success: false, error: "Cannot add goals to a locked report. Reopen it first." };
 
     await db.goal.create({
       data: {
@@ -110,14 +564,8 @@ export async function removeGoalFromReport(goalId: string): Promise<{ success: b
       where: { id: goalId },
       include: { report: { select: { matchId: true, status: true } } },
     });
-
-    if (!goal) {
-      return { success: false, error: "Goal not found." };
-    }
-
-    if (goal.report.status === "COMPLETED") {
-      return { success: false, error: "Cannot remove goals from a completed report." };
-    }
+    if (!goal) return { success: false, error: "Goal not found." };
+    if (goal.report.status === "LOCKED") return { success: false, error: "Cannot remove goals from a locked report. Reopen it first." };
 
     await db.goal.delete({ where: { id: goalId } });
 
@@ -127,143 +575,5 @@ export async function removeGoalFromReport(goalId: string): Promise<{ success: b
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to remove goal." };
-  }
-}
-
-export async function updateMatchResult(
-  reportId: string,
-  data: { homeGoals?: number; awayGoals?: number; teamNote?: string },
-): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
-
-  try {
-    const report = await db.postMatchReport.findUnique({
-      where: { id: reportId },
-    });
-
-    if (!report) {
-      return { success: false, error: "Report not found." };
-    }
-
-    if (report.status === "COMPLETED") {
-      return { success: false, error: "Cannot update a completed report." };
-    }
-
-    await db.postMatchReport.update({
-      where: { id: reportId },
-      data: {
-        ...(data.homeGoals !== undefined ? { homeGoals: data.homeGoals } : {}),
-        ...(data.awayGoals !== undefined ? { awayGoals: data.awayGoals } : {}),
-        ...(data.teamNote !== undefined ? { teamNote: data.teamNote } : {}),
-      },
-    });
-
-    revalidatePath(`/matches/${report.matchId}`);
-    revalidatePath(`/matches/${report.matchId}/post-match`);
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to update result." };
-  }
-}
-
-export async function addPlayerAppearance(
-  reportId: string,
-  data: { playerId: string; attendanceStatus?: string },
-): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
-
-  try {
-    const report = await db.postMatchReport.findUnique({
-      where: { id: reportId },
-    });
-
-    if (!report) {
-      return { success: false, error: "Report not found." };
-    }
-
-    if (report.status === "COMPLETED") {
-      return { success: false, error: "Cannot add players to a completed report." };
-    }
-
-    await db.postMatchPlayerActual.create({
-      data: {
-        reportId,
-        matchId: report.matchId,
-        playerId: data.playerId,
-        source: "ADDED_POST_MATCH",
-        attendanceStatus: data.attendanceStatus ?? "PRESENT",
-      },
-    });
-
-    revalidatePath(`/matches/${report.matchId}`);
-    revalidatePath(`/matches/${report.matchId}/post-match`);
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to add player." };
-  }
-}
-
-export async function removePlayerAppearance(
-  appearanceId: string,
-): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
-
-  try {
-    const appearance = await db.postMatchPlayerActual.findUnique({
-      where: { id: appearanceId },
-      include: { report: { select: { matchId: true, status: true } } },
-    });
-
-    if (!appearance) {
-      return { success: false, error: "Appearance not found." };
-    }
-
-    if (appearance.report.status === "COMPLETED") {
-      return { success: false, error: "Cannot remove players from a completed report." };
-    }
-
-    await db.postMatchPlayerActual.delete({ where: { id: appearanceId } });
-
-    revalidatePath(`/matches/${appearance.report.matchId}`);
-    revalidatePath(`/matches/${appearance.report.matchId}/post-match`);
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to remove player." };
-  }
-}
-
-export async function finalizePostMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
-
-  try {
-    const report = await db.postMatchReport.findUnique({
-      where: { id: reportId },
-    });
-
-    if (!report) {
-      return { success: false, error: "Report not found." };
-    }
-
-    if (report.status === "COMPLETED") {
-      return { success: false, error: "Report is already completed." };
-    }
-
-    await db.postMatchReport.update({
-      where: { id: reportId },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-      },
-    });
-
-    revalidatePath(`/matches/${report.matchId}`);
-    revalidatePath(`/matches/${report.matchId}/post-match`);
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to finalize report." };
   }
 }

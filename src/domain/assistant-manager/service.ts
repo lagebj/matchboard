@@ -458,7 +458,7 @@ export async function completePostMatchReport(
     await db.postMatchReport.update({
       where: { matchId },
       data: {
-        status: "COMPLETED",
+        status: "LOCKED",
         teamNote: input.teamNote,
         completedBy: "coach",
         completedAt: new Date(),
@@ -483,7 +483,7 @@ export async function completePostMatchReport(
     const report = await db.postMatchReport.create({
       data: {
         matchId,
-        status: "COMPLETED",
+        status: "LOCKED",
         teamNote: input.teamNote,
         completedBy: "coach",
         completedAt: new Date(),

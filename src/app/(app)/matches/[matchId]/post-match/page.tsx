@@ -55,6 +55,20 @@ export default async function PostMatchRoute({ params }: PageProps) {
         },
         orderBy: [{ minute: "asc" }],
       },
+      absences: {
+        include: {
+          player: {
+            select: { firstName: true, lastName: true, coreTeam: { select: { name: true } } },
+          },
+        },
+      },
+      playerStats: {
+        include: {
+          player: {
+            select: { firstName: true, lastName: true },
+          },
+        },
+      },
     },
   });
 
@@ -88,6 +102,21 @@ export default async function PostMatchRoute({ params }: PageProps) {
       playerName: g.player ? `${g.player.firstName} ${g.player.lastName ?? ""}`.trim() : undefined,
       minute: g.minute,
       type: g.type,
+    })),
+    absences: report.absences.map((a) => ({
+      id: a.id,
+      playerId: a.playerId,
+      playerName: `${a.player.firstName} ${a.player.lastName ?? ""}`.trim(),
+      coreTeamName: a.player.coreTeam?.name ?? "Unassigned",
+      reason: a.reason,
+      note: a.note,
+    })),
+    playerStats: report.playerStats.map((s) => ({
+      id: s.id,
+      playerId: s.playerId,
+      playerName: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
+      goals: s.goals,
+      assists: s.assists,
     })),
     teamName: match.team.name,
     opponent: match.opponent,

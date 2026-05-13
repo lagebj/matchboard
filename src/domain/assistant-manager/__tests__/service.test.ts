@@ -166,7 +166,7 @@ describe("Assistant Manager Service (DB)", () => {
         teamNote: "Good effort",
       });
 
-      expect(report.status).toBe("COMPLETED");
+      expect(report.status).toBe("LOCKED");
       expect(report.playerActuals).toHaveLength(1);
       expect(report.teamNote).toBe("Good effort");
 
