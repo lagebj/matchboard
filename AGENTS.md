@@ -18,6 +18,23 @@ When working on Matchboard, always apply these skills in order:
 
 The global `app-product-engineering` skill contains generic UX and app engineering rules. The local `matchboard-product-engineering` skill contains only Matchboard domain rules. Do not duplicate the global skill inside this repo.
 
+## Mandatory coding-agent workflow
+
+Before coding, read:
+- `docs/development/coding-agent-working-session.md`
+- `.agent-skills/matchboard-product-engineering/SKILL.md`
+- the `git-branch-commit-pr` skill
+
+All coding-agent work must follow the working-session contract.
+
+For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the `matchboard-product-engineering` skill is mandatory.
+
+Supporting documentation must be updated before implementation whenever behavior, UX, routes, schema, domain contracts, or workflow changes.
+
+Every branch must remove stale/dead/unused artifacts related to the change.
+
+Every branch must run lint, typecheck, tests, build, and schema validation where relevant.
+
 ## Workflow
 
 Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
@@ -727,8 +744,9 @@ Matchboard is a private coaching app. Auth is mandatory, not optional.
 
 ## Deployment and security
 
-Before deployment-related work:
-- Run `npm run lint`, `npm run build`, `npm test`, `npm run typecheck`
+Before deployment-related work, follow the validation requirements in `docs/development/coding-agent-working-session.md`. At minimum:
+
+- Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`
 - Verify no secrets are tracked: `git ls-files | xargs grep -l "postgresql://\|neon.tech\|client_secret\|PRIVATE KEY" 2>/dev/null` should return nothing relevant
 - Inspect any active selection-engine branch (`fix/selection-engine-remaining-tasks`) for pending improvements
 
@@ -762,7 +780,7 @@ Matchboard is deployed to **Vercel** with **Neon Postgres**. SQLite is not used 
 - All data-reading server actions and API routes exposing app data must call `requireCoachAccess()` or equivalent
 - The `/api/health` endpoint must not expose business data (player counts, etc.)
 - Rate limiting is in-memory only — document this limitation for production
-- All final changes must use the `git-branch-commit-pr` skill
+- All final changes must use the `git-branch-commit-pr` skill (see mandatory coding-agent workflow)
 
 ## Implementation style
 
@@ -814,8 +832,9 @@ Avoid:
 
 ## Assistant Manager Workflow Rules
 
-When implementing workflow, selection, squad review, player profile, team review, or match review changes:
+When implementing workflow, selection, squad review, player profile, team review, or match review changes, follow the mandatory coding-agent workflow in `docs/development/coding-agent-working-session.md` and the `matchboard-product-engineering` skill.
 
+Key rules:
 - Update supporting docs before implementation.
 - Do not duplicate selection-engine logic in UI components.
 - Use player IDs in stored payloads and external/public payloads.
@@ -823,5 +842,5 @@ When implementing workflow, selection, squad review, player profile, team review
 - Do not introduce ability scores, best-XI language, permanent weak/strong labels, or public player ranking.
 - Overrides must require a reason.
 - Selection-affecting actions must create an auditable DecisionRecord.
-- Use the git-branch-commit-pr workflow.
+- Use the `git-branch-commit-pr` workflow.
 - Do not commit internal work logs, scratch notes, or handover documents.
