@@ -17,7 +17,7 @@ The primary workflow is:
 3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust draft squads if needed.
 4. **Finalize** — Lock one round at a time. Finalized rounds become history and cannot be silently mutated.
 
-The Today page always shows the next action based on workflow state.
+The Assistant page always shows the next action based on workflow state.
 
 ## Core rules
 
