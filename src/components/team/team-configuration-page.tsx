@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import Link from "next/link";
 import type { TeamConfiguration } from "@/domain/team-configuration/types";
 import { fetchTeamConfiguration, updateTeamConfigurationAction } from "@/domain/team-configuration/actions";
 
-function RuleRow({ rule }: { rule: TeamConfiguration["rules"][0] }) {
+function RuleRow({ rule, onEdit }: { rule: TeamConfiguration["rules"][0]; onEdit?: () => void }) {
   return (
     <div className="flex items-start justify-between gap-4 rounded border border-zinc-800 bg-zinc-900/30 px-3 py-2">
       <div className="min-w-0 flex-1">
@@ -17,7 +17,11 @@ function RuleRow({ rule }: { rule: TeamConfiguration["rules"][0] }) {
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${rule.scope === "TEAM" ? "bg-blue-900/30 text-blue-300" : "bg-zinc-800 text-zinc-400"}`}>
           {rule.scope}
         </span>
-        {rule.editable ? (
+        {rule.editable && onEdit ? (
+          <button onClick={onEdit} className="rounded bg-emerald-900/30 px-1.5 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-900/50">
+            Edit
+          </button>
+        ) : rule.editable ? (
           <span className="rounded bg-emerald-900/30 px-1.5 py-0.5 text-[10px] text-emerald-300">Editable</span>
         ) : (
           <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">Read-only</span>
@@ -111,6 +115,12 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
     });
   }, [teamId, startTransition]);
 
+  const squadSettingsRef = useRef<HTMLDivElement>(null);
+
+  function scrollToSquadSettings() {
+    squadSettingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   if (isPending && !config) {
     return <div className="p-4 text-sm text-zinc-500">Loading team configuration...</div>;
   }
@@ -148,7 +158,7 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-2">
+      <section ref={squadSettingsRef} className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-zinc-300">Squad settings</h2>
         <SquadSettingsForm config={config} />
       </section>
@@ -157,7 +167,13 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
         <h2 className="text-sm font-semibold text-zinc-300">Rule configuration</h2>
         <p className="text-xs text-zinc-500">Rules may be implemented globally, but this page shows how they affect this team.</p>
         <div className="flex flex-col gap-1.5">
-          {config.rules.map((rule) => <RuleRow key={rule.ruleId} rule={rule} />)}
+          {config.rules.map((rule) => (
+            <RuleRow
+              key={rule.ruleId}
+              rule={rule}
+              onEdit={rule.editable ? scrollToSquadSettings : undefined}
+            />
+          ))}
         </div>
       </section>
     </div>
