@@ -111,6 +111,9 @@ export async function getConsecutiveSupportCount(
 
   for (const roundId of sortedRoundIds) {
     const roles = roleByRound.get(roundId);
+    // BACKFILL is a legacy role. It counts as support for rotation penalty
+    // purposes because players sent as squad repair were still doing
+    // non-core movement away from their development path.
     const hasSupport = roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL));
     if (hasSupport) {
       totalSupportRounds++;
@@ -119,6 +122,7 @@ export async function getConsecutiveSupportCount(
 
   for (const roundId of sortedRoundIds) {
     const roles = roleByRound.get(roundId);
+    // BACKFILL counts as support for consecutive rotation penalty
     if (roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL))) {
       consecutive++;
     } else {

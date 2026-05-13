@@ -71,12 +71,12 @@ describe("getPathBasedCategory role-specificity", () => {
     expect(getPathBasedCategory(player, match)).toBe("SUPPORT");
   });
 
-  it("returns BACKFILL when BACKFILL path exists", () => {
+  it("returns SUPPORT when BACKFILL path exists (BACKFILL routes as SUPPORT)", () => {
     const player = makePlayer([
       { fromTeamId: teamA, toTeamId: teamB, role: "BACKFILL", cooldownRounds: null },
     ]);
     const match = makeMatch(teamB, 0);
-    expect(getPathBasedCategory(player, match)).toBe("BACKFILL");
+    expect(getPathBasedCategory(player, match)).toBe("SUPPORT");
   });
 
   it("prioritizes SUPPORT over DEVELOPMENT when both paths exist", () => {
@@ -88,12 +88,20 @@ describe("getPathBasedCategory role-specificity", () => {
     expect(getPathBasedCategory(player, match)).toBe("SUPPORT");
   });
 
-  it("returns CONFIDENCE_REBUILD when CONFIDENCE_REBUILD path exists", () => {
+  it("returns DEVELOPMENT when CONFIDENCE_REBUILD path exists (CONFIDENCE_REBUILD routes as DEVELOPMENT)", () => {
+    const player = makePlayer([
+      { fromTeamId: teamA, toTeamId: teamB, role: "CONFIDENCE_REBUILD", cooldownRounds: null },
+    ]);
+    const match = makeMatch(teamB, 2);
+    expect(getPathBasedCategory(player, match)).toBe("DEVELOPMENT");
+  });
+
+  it("returns null when CONFIDENCE_REBUILD path exists but team has zero development slots", () => {
     const player = makePlayer([
       { fromTeamId: teamA, toTeamId: teamB, role: "CONFIDENCE_REBUILD", cooldownRounds: null },
     ]);
     const match = makeMatch(teamB, 0);
-    expect(getPathBasedCategory(player, match)).toBe("CONFIDENCE_REBUILD");
+    expect(getPathBasedCategory(player, match)).toBeNull();
   });
 
   it("returns null when DEVELOPMENT path exists but team has zero development slots", () => {

@@ -29,10 +29,14 @@ function isCoreRole(role: SelectionRole): boolean {
 }
 
 function isSupportRole(role: SelectionRole): boolean {
+  // BACKFILL is a legacy role grouped with SUPPORT for fairness scoring.
+  // New generation produces SUPPORT only.
   return role === SelectionRole.SUPPORT || role === SelectionRole.BACKFILL;
 }
 
 function isDevelopmentRole(role: SelectionRole): boolean {
+  // CONFIDENCE_REBUILD is a legacy role grouped with DEVELOPMENT for fairness scoring.
+  // New generation produces DEVELOPMENT only.
   return role === SelectionRole.DEVELOPMENT || role === SelectionRole.CONFIDENCE_REBUILD;
 }
 

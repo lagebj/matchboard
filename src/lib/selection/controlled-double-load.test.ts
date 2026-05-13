@@ -8,7 +8,7 @@ vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
 }));
 
-describe("Controlled double-load: allowed when all guard conditions met", () => {
+describe("Same-round uniqueness: players appear in at most one match per round (no double-load)", () => {
   let fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
@@ -29,32 +29,42 @@ describe("Controlled double-load: allowed when all guard conditions met", () => 
   });
   afterAll(async () => { await teardownTestDb(); });
 
-  it("player can be selected for both matches when double-load is enabled and matches are on different dates", async () => {
+  it("no player appears in two matches in the same round (controlled double-load removed from generation)", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
+    // generation no longer assigns a player to two matches in the same round
     const doubleLoadPlayers = result.matchResults.flatMap((r) =>
       r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
     );
-    expect(doubleLoadPlayers.length).toBeGreaterThan(0);
+    expect(doubleLoadPlayers.length).toBe(0);
+
+    // same-round uniqueness: each player appears in at most one match
+    const playerToMatches = new Map<string, string[]>();
+    for (const mr of result.matchResults) {
+      for (const p of mr.selectedPlayers) {
+        const existing = playerToMatches.get(p.playerId) ?? [];
+        existing.push(mr.teamName);
+        playerToMatches.set(p.playerId, existing);
+      }
+    }
+    for (const [, matchNames] of playerToMatches) {
+      expect(new Set(matchNames).size).toBe(1);
+    }
   });
 
-  it("double-load selection has the correct role from rotation path", async () => {
+  it("no controlled_double_load warnings are generated", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
 
-    const doubleLoadPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.controlledDoubleLoad === true),
+    const doubleLoadWarnings = result.roundWarnings.filter(
+      (w) => w.code === "controlled_double_load" || w.code === "double_load_exceeded_max" || w.code === "double_load_squad_full",
     );
-    for (const p of doubleLoadPlayers) {
-      expect(p.selectionCategory).toBe("SUPPORT");
-      expect(p.controlledDoubleLoad).toBe(true);
-      expect(p.explanations.some((e) => e.code === "controlled_double_load")).toBe(true);
-    }
+    expect(doubleLoadWarnings.length).toBe(0);
   });
 });
 
-describe("Controlled double-load: rejected when matches are on the same date", () => {
+describe("Same-round uniqueness: same-date matches prevent any cross-match assignment", () => {
   let fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
@@ -86,7 +96,7 @@ describe("Controlled double-load: rejected when matches are on the same date", (
   });
 });
 
-describe("Controlled double-load: rejected when not explicitly enabled", () => {
+describe("Same-round uniqueness: default rule without allowDoubleLoad", () => {
   let fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
@@ -135,7 +145,7 @@ describe("Controlled double-load: rejected when not explicitly enabled", () => {
   });
 });
 
-describe("Controlled double-load: rejected when rest spacing is not met", () => {
+describe("Same-round uniqueness: insufficient rest spacing has no double-load", () => {
   let fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
@@ -167,7 +177,7 @@ describe("Controlled double-load: rejected when rest spacing is not met", () => 
   });
 });
 
-describe("Controlled double-load: non-rotatable player cannot be double-loaded outside core team", () => {
+describe("Same-round uniqueness: non-rotatable player cannot appear outside core team", () => {
   let fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();
@@ -196,22 +206,23 @@ describe("Controlled double-load: non-rotatable player cannot be double-loaded o
   });
   afterAll(async () => { await teardownTestDb(); });
 
-  it("non-rotatable player is never double-loaded outside core team", async () => {
+  it("non-rotatable player only appears in their own team", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
     const nrPlayer = fixtureIds.players.find((p) => p.coreTeamName === "A")!;
 
     for (const mr of result.matchResults) {
       for (const p of mr.selectedPlayers) {
-        if (p.playerId === nrPlayer.id && p.controlledDoubleLoad === true) {
-          expect(p.controlledDoubleLoad).not.toBe(true);
+        if (p.playerId === nrPlayer.id && p.coreTeamId !== mr.teamId) {
+          // Non-rotatable player should not appear outside their core team
+          expect(p.coreTeamId).toBe(mr.teamId);
         }
       }
     }
   });
 });
 
-describe("Controlled double-load: cannot bypass rotation path validation", () => {
+describe("Same-round uniqueness: no rotation path means no cross-team movement", () => {
   let fixtureIds: TestFixtureIds;
   beforeAll(async () => {
     testDb = await setupTestDb();

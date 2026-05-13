@@ -2,6 +2,10 @@ import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import type { GeneratedRound, GeneratedSelection, SelectedPlayer } from "@/lib/selection/types";
 
+// Maps in-memory selection categories to Prisma SelectionRole enum values.
+// BACKFILL and CONFIDENCE_REBUILD are legacy roles retained for backward
+// compatibility with historical data and manual overrides. New generation
+// only produces CORE, SUPPORT, and DEVELOPMENT.
 function mapSelectionCategoryToRole(category: string): SelectionRole {
   if (category === "CORE") return SelectionRole.CORE;
   if (category === "SUPPORT") return SelectionRole.SUPPORT;
@@ -13,6 +17,8 @@ function mapSelectionCategoryToRole(category: string): SelectionRole {
   return SelectionRole.MANUAL_OVERRIDE;
 }
 
+// A non-core movement requires a MovementLedger entry.
+// controlledDoubleLoad is a legacy flag (no new true values are generated).
 function isNonCoreMovement(player: SelectedPlayer, targetTeamId: string): boolean {
   if (player.selectionCategory === "SUPPORT") return true;
   if (player.selectionCategory === "DEVELOPMENT") return true;
@@ -30,6 +36,8 @@ async function createMovementLedgerEntry(
   targetTeamId: string,
 ) {
   const role = mapSelectionCategoryToRole(player.selectionCategory);
+  // controlledDoubleLoad is a legacy flag. No new true values are written
+  // by the generation engine. Kept for backward compatibility.
   const isControlledDoubleLoad = player.controlledDoubleLoad === true;
 
   if (isControlledDoubleLoad && player.coreTeamId === targetTeamId) {

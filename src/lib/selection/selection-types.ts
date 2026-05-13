@@ -38,7 +38,7 @@ export type EvaluatedPlayer = {
   playerPosition: string;
 };
 
-export type RotationCandidateCategory = "DEVELOPMENT" | "SUPPORT" | "BACKFILL" | "CONFIDENCE_REBUILD";
+export type RotationCandidateCategory = "DEVELOPMENT" | "SUPPORT";
 
 export type EligibleRotationPlayer = EvaluatedPlayer & {
   candidateCategory: RotationCandidateCategory;

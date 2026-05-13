@@ -9,11 +9,13 @@ type PathDestination = {
   role: string;
 };
 
+import type { SelectionCategory } from "@/lib/selection/types";
+
 export type TargetTeamEligibility =
   | {
       allowed: true;
       explanation: string;
-      selectionCategory: "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD";
+      selectionCategory: SelectionCategory;
     }
   | {
       allowed: false;
@@ -58,14 +60,22 @@ export function getTargetTeamEligibility(
     };
   }
 
-  const pathRole = matchingPath.role as "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD";
+  const pathRole = matchingPath.role;
+
+  // Generation only produces SUPPORT and DEVELOPMENT.
+  // BACKFILL and CONFIDENCE_REBUILD are legacy roles retained for
+  // backward compatibility of historical data and manual override.
+  // When a BACKFILL path is found, the player is routed as SUPPORT
+  // for squad repair purposes. CONFIDENCE_REBUILD paths route as
+  // DEVELOPMENT.
+  const generationCategory: "SUPPORT" | "DEVELOPMENT" =
+    pathRole === "DEVELOPMENT" || pathRole === "CONFIDENCE_REBUILD"
+      ? "DEVELOPMENT"
+      : "SUPPORT";
 
   return {
     allowed: true,
-    explanation: `Eligible to move from ${player.coreTeam?.name ?? "Unassigned"} to ${targetTeam.name} via ${pathRole.toLowerCase()} path.`,
-    selectionCategory: pathRole === "SUPPORT" ? "SUPPORT"
-      : pathRole === "DEVELOPMENT" ? "DEVELOPMENT"
-      : pathRole === "CONFIDENCE_REBUILD" ? "CONFIDENCE_REBUILD"
-      : "BACKFILL",
+    explanation: `Eligible to move from ${player.coreTeam?.name ?? "Unassigned"} to ${targetTeam.name} via ${generationCategory.toLowerCase()} path.`,
+    selectionCategory: generationCategory,
   };
 }

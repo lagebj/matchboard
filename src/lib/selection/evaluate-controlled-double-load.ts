@@ -1,3 +1,19 @@
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │ QUARANTINED: This module is no longer part of the generation       │
+// │ pipeline. Controlled double-load has been removed from planned     │
+// │ generation. A player must not be planned for two matches in the   │
+// │ same round/week. This file is retained for:                       │
+// │   1. Historical data migration (migrate-double-load-roles.ts)     │
+// │   2. Manual overrides that may still reference controlled         │
+// │      double-load concepts                                        │
+// │   3. Reference for understanding the old pipeline                 │
+// │                                                                  │
+// │ DO NOT re-add this to generateRound() or any generation path.    │
+// │ Actual double-load (from post-match reports) is tracked via the   │
+// │ effective participation layer, not via Selection.controlledDouble  │
+// │ Load.                                                             │
+// └─────────────────────────────────────────────────────────────────────┘
+
 import { db } from "@/lib/db";
 import type { GeneratedSelection, SelectedPlayer, SelectionWarning } from "@/lib/selection/types";
 

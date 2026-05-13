@@ -11,6 +11,22 @@ export type PathPolicyResult =
   | { valid: true; path: RotationPathEdge; explanation: string }
   | { valid: false; explanation: string };
 
+function pathRoleMatchesCategory(pathRole: string, category: AutomaticSelectionCategory): boolean {
+  const normalizedPathRole = pathRole.toUpperCase();
+  const normalizedCategory = category.toUpperCase();
+
+  // Exact match always works
+  if (normalizedPathRole === normalizedCategory) return true;
+
+  // BACKFILL rotation paths authorize SUPPORT movement
+  if (normalizedCategory === "SUPPORT" && normalizedPathRole === "BACKFILL") return true;
+
+  // CONFIDENCE_REBUILD rotation paths authorize DEVELOPMENT movement
+  if (normalizedCategory === "DEVELOPMENT" && normalizedPathRole === "CONFIDENCE_REBUILD") return true;
+
+  return false;
+}
+
 export function getValidPathForRole(
   paths: RotationPathEdge[],
   fromTeamId: string,
@@ -23,7 +39,7 @@ export function getValidPathForRole(
         p.fromTeamId === fromTeamId &&
         p.toTeamId === toTeamId &&
         p.active &&
-        p.role.toUpperCase() === role.toUpperCase(),
+        pathRoleMatchesCategory(p.role, role),
     ) ?? null
   );
 }
@@ -111,7 +127,7 @@ export function filterPathsForRole(
   paths: RotationPathEdge[],
   role: AutomaticSelectionCategory,
 ): RotationPathEdge[] {
-  return paths.filter((p) => p.active && p.role.toUpperCase() === role.toUpperCase());
+  return paths.filter((p) => p.active && pathRoleMatchesCategory(p.role, role));
 }
 
 export function getSourceTeamIdsForRole(

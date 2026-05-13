@@ -364,7 +364,7 @@ export async function resolveSquadRepair(
   warnings: SelectionWarning[];
 }> {
   const backfillPaths = await db.rotationPath.findMany({
-    where: { active: true, role: "BACKFILL" },
+    where: { active: true, role: { in: ["SUPPORT", "BACKFILL"] } },
     select: { fromTeamId: true, toTeamId: true, role: true },
   });
 
@@ -454,7 +454,7 @@ async function resolveSquadRepairInner(
         warnings.push({
           severity: "WARNING",
           code: "squad_repair_no_path_available",
-          message: `${match.team.name} needs squad repair (${selectedCount} players, target ${match.team.targetSquadSize}) but has no configured backfill paths.`,
+          message: `${match.team.name} needs squad repair (${selectedCount} players, target ${match.team.targetSquadSize}) but has no configured support or backfill paths.`,
         });
       }
       continue;
@@ -527,7 +527,7 @@ async function resolveSquadRepairInner(
         playerName: candidate.playerName,
         playerPosition: candidate.primaryPosition,
         priorityScore: 90,
-        selectionCategory: "BACKFILL",
+        selectionCategory: "SUPPORT",
         selectionReason: `Selected as squad repair priority 1 for ${match.team.name}: own core team player who was sent as support.`,
       };
 
@@ -570,7 +570,7 @@ async function resolveSquadRepairInner(
           coreTeamName: candidate.coreTeam?.name ?? "Unassigned",
           eligibility: true,
           explanations: [
-            { code: "squad_repair_priority_2_path_player", summary: `${playerName} was selected as squad repair priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`, hardRule: false },
+            { code: "squad_repair_priority_2_path_player", summary: `${playerName} was selected as squad repair priority 2 for ${match.team.name}: player from team with active rotation path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -579,8 +579,8 @@ async function resolveSquadRepairInner(
           playerName,
           playerPosition: candidate.primaryPosition,
           priorityScore: 80,
-          selectionCategory: "BACKFILL",
-          selectionReason: `Selected as squad repair priority 2 for ${match.team.name}: player from team with active BACKFILL or DEVELOPMENT rotation path.`,
+          selectionCategory: "SUPPORT",
+          selectionReason: `Selected as squad repair priority 2 for ${match.team.name}: player from team with active rotation path.`,
         };
 
         matchResults[resultIdx] = {
@@ -619,7 +619,7 @@ async function resolveSquadRepairInner(
           coreTeamName: candidate.coreTeam?.name ?? "Unassigned",
           eligibility: true,
           explanations: [
-            { code: "squad_repair_priority_3_other", summary: `${playerName} was selected as squad repair priority 3 for ${match.team.name}: rotatable player from another team with a configured backfill path.`, hardRule: false },
+            { code: "squad_repair_priority_3_other", summary: `${playerName} was selected as squad repair priority 3 for ${match.team.name}: rotatable player from another team with a configured rotation path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -628,8 +628,8 @@ async function resolveSquadRepairInner(
           playerName,
           playerPosition: candidate.primaryPosition,
           priorityScore: 70,
-          selectionCategory: "BACKFILL",
-          selectionReason: `Selected as squad repair priority 3 for ${match.team.name}: rotatable player from configured backfill path.`,
+          selectionCategory: "SUPPORT",
+          selectionReason: `Selected as squad repair priority 3 for ${match.team.name}: rotatable player from configured rotation path.`,
         };
 
         matchResults[resultIdx] = {

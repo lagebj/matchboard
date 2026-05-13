@@ -963,10 +963,6 @@ export async function generateSelection(matchId: string, options?: { deferRotati
         ? `Selected as an eligible support player for ${currentMatchRecord.team.name}.`
       : candidate.candidateCategory === "DEVELOPMENT"
         ? `Selected as a development player for ${currentMatchRecord.team.name}.`
-      : candidate.candidateCategory === "BACKFILL"
-        ? `Selected as a backfill player for ${currentMatchRecord.team.name}.`
-      : candidate.candidateCategory === "CONFIDENCE_REBUILD"
-        ? `Selected as a confidence rebuild player for ${currentMatchRecord.team.name}.`
       : `Selected as an eligible rotation player for ${currentMatchRecord.team.name}.`;
     const explanations = [
       buildExplanation("rotation_path_allowed", candidate.eligibilityExplanation, true),

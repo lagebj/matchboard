@@ -19,7 +19,7 @@ type DownstreamSlot = {
   maxSquadSize: number;
   currentDevCount: number;
   targetDevSlots: number;
-  role: "DEVELOPMENT" | "BACKFILL";
+  role: "DEVELOPMENT" | "SUPPORT";
 };
 
 export type RoutedDrop = {
@@ -33,7 +33,7 @@ export type RoutedDrop = {
   fromMatchId: string;
   fromTeamId: string;
   fromTeamName: string;
-  role: "BACKFILL" | "DEVELOPMENT";
+  role: "SUPPORT" | "DEVELOPMENT";
   positionFit: "primary" | "secondary" | "tertiary" | "none";
   priorityBonus: number;
   nonRotatable: boolean;
@@ -105,7 +105,7 @@ export async function routeCoreMatchDrops(
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
   const downstreamPaths: RotationPathRow[] = rotationPaths.filter(
-    (path) => path.role === "DEVELOPMENT" || path.role === "BACKFILL",
+    (path) => path.role === "DEVELOPMENT" || path.role === "SUPPORT" || path.role === "BACKFILL",
   );
 
   const routedDrops: RoutedDrop[] = [];
@@ -153,7 +153,9 @@ export async function routeCoreMatchDrops(
       if (currentCount >= maxSquadSize) continue;
 
       const path = candidateDownstreamPaths.find((p) => p.toTeamId === matchData.teamId);
-      const role: "DEVELOPMENT" | "BACKFILL" = path?.role === "DEVELOPMENT" ? "DEVELOPMENT" : "BACKFILL";
+      // BACKFILL rotation paths route as SUPPORT for squad repair.
+      // CONFIDENCE_REBUILD rotation paths route as DEVELOPMENT.
+      const role: "SUPPORT" | "DEVELOPMENT" = path?.role === "DEVELOPMENT" || path?.role === "CONFIDENCE_REBUILD" ? "DEVELOPMENT" : "SUPPORT";
       const currentDevCount = matchResult.selectedPlayers.filter((p) => p.selectionCategory === "DEVELOPMENT").length;
       const targetDevSlots = matchData.team.developmentSlots ?? 0;
 
@@ -191,7 +193,7 @@ export async function routeCoreMatchDrops(
 
     if (!bestSlot) continue;
 
-    const role: "BACKFILL" | "DEVELOPMENT" = bestSlot.role;
+    const role: "SUPPORT" | "DEVELOPMENT" = bestSlot.role;
 
     const bestNeededPositions = getNeededPositions(
       bestSlot.matchResult.selectedPlayers,

@@ -1,4 +1,4 @@
-import { ROLE_PRIORITY_ORDER, type GeneratedSelection, type SelectedPlayer, type SelectionWarning } from "@/lib/selection/types";
+import { type GeneratedSelection, type SelectedPlayer, type SelectionWarning } from "@/lib/selection/types";
 
 type PlayerAssignment = {
   matchId: string;
@@ -7,8 +7,9 @@ type PlayerAssignment = {
 };
 
 function getRolePriority(selectionCategory: string): number {
-  const idx = ROLE_PRIORITY_ORDER.indexOf(selectionCategory as typeof ROLE_PRIORITY_ORDER[number]);
-  return idx >= 0 ? idx : ROLE_PRIORITY_ORDER.length;
+  const legacyOrder = ["SUPPORT", "DEVELOPMENT", "BACKFILL", "CONFIDENCE_REBUILD", "CORE"] as const;
+  const idx = legacyOrder.indexOf(selectionCategory as typeof legacyOrder[number]);
+  return idx >= 0 ? idx : legacyOrder.length;
 }
 
 export type ConflictResolution = {

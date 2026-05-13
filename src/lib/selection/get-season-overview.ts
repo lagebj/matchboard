@@ -315,7 +315,11 @@ async function getSeasonFairnessWarningsInternal(
     if (s.role === "CORE") existing.core++;
     else if (s.role === "SUPPORT") existing.support++;
     else if (s.role === "DEVELOPMENT") existing.development++;
+    // BACKFILL is a legacy role. In the UI it is shown as "Squad repair" under
+    // the support category. Counts are kept separate for historical drill-down.
     else if (s.role === "BACKFILL") existing.backfill++;
+    // controlledDoubleLoad is a legacy flag. New generation does not set it.
+    // The count is kept for historical audit.
     if (s.controlledDoubleLoad) existing.doubleLoad++;
     playerStats.set(s.playerId, existing);
   }
