@@ -3,7 +3,6 @@ import { generateSelection } from "@/lib/selection/generate-selection";
 import { resolveRoundSupport, resolveSquadRepair } from "@/lib/selection/resolve-round-support";
 import { routeCoreMatchDrops, type RoutedDrop } from "@/lib/selection/route-core-match-drops";
 import { resolveRoundConflicts } from "@/lib/selection/resolve-round-conflicts";
-import { evaluateControlledDoubleLoad } from "@/lib/selection/evaluate-controlled-double-load";
 import { validateGeneratedRoundInvariants } from "@/lib/selection/validate-generated-round-invariants";
 import type {
   CoreMatchDropCandidate,
@@ -116,20 +115,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   // Phase 5b: Self-squad-repair — re-include excluded own-core players for teams below target
   finalResults = selfSquadRepairBelowTarget(finalResults, sortedMatches, allAssignedPlayerIds);
 
-  // Phase 6: Controlled double-load evaluation
-  const doubleLoadResult = await evaluateControlledDoubleLoad(
-    finalResults,
-    allAssignedPlayerIds,
-    matchRoundId,
-  );
-  roundWarnings.push(...doubleLoadResult.warnings);
-  finalResults = doubleLoadResult.matchResults;
-
-  for (const assignment of doubleLoadResult.assignments) {
-    allAssignedPlayerIds.add(assignment.playerId);
-  }
-
-  // Phase 7: Post-pipeline validation and warning persistence
+  // Phase 6: Post-pipeline validation and warning persistence
   const rotationPaths = await db.rotationPath.findMany({
     where: { active: true },
     select: { fromTeamId: true, toTeamId: true, role: true, active: true },
@@ -417,8 +403,8 @@ function selfSquadRepairBelowTarget(
       playerName: p.playerName,
       playerPosition: p.playerPosition,
       priorityScore: p.priorityScore ?? 0,
-       selectionCategory: "BACKFILL" as const,
-       selectionReason: `Re-included in ${result.teamName} as squad repair to meet target squad size after support rotation.`,
+      selectionCategory: "SUPPORT" as const,
+      selectionReason: `Re-included in ${result.teamName} as squad repair to meet target squad size after support rotation.`,
     }));
 
     for (const p of toReinclude) {

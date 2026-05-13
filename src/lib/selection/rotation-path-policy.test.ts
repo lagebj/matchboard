@@ -95,10 +95,12 @@ describe("rotation-path-policy", () => {
   });
 
   describe("filterPathsForRole", () => {
-    it("filters to only SUPPORT paths", () => {
+    it("filters to only SUPPORT paths (includes BACKFILL paths that authorize SUPPORT)", () => {
       const paths = filterPathsForRole(activePaths, "SUPPORT");
-      expect(paths).toHaveLength(1);
-      expect(paths[0]!.role).toBe("SUPPORT");
+      // activePaths has: A→B SUPPORT and C→B BACKFILL
+      expect(paths).toHaveLength(2);
+      expect(paths.some((p) => p.role === "SUPPORT")).toBe(true);
+      expect(paths.some((p) => p.role === "BACKFILL")).toBe(true);
     });
 
     it("filters to only DEVELOPMENT paths", () => {
@@ -117,9 +119,11 @@ describe("rotation-path-policy", () => {
   });
 
   describe("getSourceTeamIdsForRole", () => {
-    it("returns source team IDs for SUPPORT paths to team B", () => {
+    it("returns source team IDs for SUPPORT paths to team B (includes BACKFILL paths)", () => {
       const ids = getSourceTeamIdsForRole(activePaths, teamB, "SUPPORT");
-      expect(ids).toEqual([teamA]);
+      // A→B SUPPORT and C→B BACKFILL both authorize SUPPORT movement
+      expect(ids).toContain(teamA);
+      expect(ids).toContain(teamC);
     });
 
     it("returns source team IDs for DEVELOPMENT paths to team C", () => {
@@ -155,12 +159,12 @@ describe("rotation-path-policy", () => {
       expect(result.valid).toBe(false);
     });
 
-    it("backfill path does not permit support", () => {
+    it("BACKFILL path permits SUPPORT movement (squad repair uses SUPPORT role)", () => {
       const backfillPathOnly: RotationPathEdge[] = [
         { fromTeamId: teamA, toTeamId: teamC, role: "BACKFILL", active: true },
       ];
       const result = canMoveForRole(teamA, teamC, "SUPPORT", false, backfillPathOnly);
-      expect(result.valid).toBe(false);
+      expect(result.valid).toBe(true);
     });
 
     it("support path does not permit development", () => {
@@ -186,34 +190,39 @@ describe("rotation-path-policy", () => {
       expect(reverseResult.valid).toBe(false);
     });
 
-    it("fairness cannot override path validity", () => {
-      const noPathsForSupport: RotationPathEdge[] = [
+    it("fairness cannot override path validity: DEVELOPMENT path does not permit SUPPORT", () => {
+      const devPathOnly: RotationPathEdge[] = [
         { fromTeamId: teamA, toTeamId: teamC, role: "DEVELOPMENT", active: true },
-        { fromTeamId: teamB, toTeamId: teamC, role: "BACKFILL", active: true },
       ];
 
-      const result = canMoveForRole(teamA, teamC, "SUPPORT", false, noPathsForSupport);
+      const result = canMoveForRole(teamA, teamC, "SUPPORT", false, devPathOnly);
       expect(result.valid).toBe(false);
       expect(result.explanation).toContain("SUPPORT");
-
-      const result2 = canMoveForRole(teamB, teamC, "SUPPORT", false, noPathsForSupport);
-      expect(result2.valid).toBe(false);
     });
 
-    it("no invalid fallback support", () => {
+    it("no invalid fallback support: DEVELOPMENT does not permit SUPPORT", () => {
       const noSupportPaths: RotationPathEdge[] = [
         { fromTeamId: teamA, toTeamId: teamC, role: "DEVELOPMENT", active: true },
-        { fromTeamId: teamB, toTeamId: teamC, role: "BACKFILL", active: true },
       ];
 
       const checkA = canMoveForRole(teamA, teamC, "SUPPORT", false, noSupportPaths);
       expect(checkA.valid).toBe(false);
 
-      const checkB = canMoveForRole(teamB, teamC, "SUPPORT", false, noSupportPaths);
-      expect(checkB.valid).toBe(false);
-
       const checkC = canMoveForRole(teamC, teamA, "SUPPORT", false, noSupportPaths);
       expect(checkC.valid).toBe(false);
+    });
+
+    it("BACKFILL path permits SUPPORT (squad repair uses SUPPORT)", () => {
+      const backfillPaths: RotationPathEdge[] = [
+        { fromTeamId: teamA, toTeamId: teamC, role: "BACKFILL", active: true },
+        { fromTeamId: teamB, toTeamId: teamC, role: "BACKFILL", active: true },
+      ];
+
+      const checkA = canMoveForRole(teamA, teamC, "SUPPORT", false, backfillPaths);
+      expect(checkA.valid).toBe(true);
+
+      const checkB = canMoveForRole(teamB, teamC, "SUPPORT", false, backfillPaths);
+      expect(checkB.valid).toBe(true);
     });
 
     it("non-rotatable blocks automatic support", () => {

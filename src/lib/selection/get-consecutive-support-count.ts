@@ -1,5 +1,6 @@
-import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isSupportRole } from "./effective-participation";
 
 export type ConsecutiveSupportResult = {
   consecutiveSupportRounds: number;
@@ -106,20 +107,20 @@ export async function getConsecutiveSupportCount(
     .sort(([, a], [, b]) => b.localeCompare(a))
     .map(([id]) => id);
 
-  let consecutive = 0;
   let totalSupportRounds = 0;
 
   for (const roundId of sortedRoundIds) {
     const roles = roleByRound.get(roundId);
-    const hasSupport = roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL));
-    if (hasSupport) {
+    if (roles && [...roles].some((r) => isSupportRole(r as "SUPPORT" | "BACKFILL"))) {
       totalSupportRounds++;
     }
   }
 
+  let consecutive = 0;
+
   for (const roundId of sortedRoundIds) {
     const roles = roleByRound.get(roundId);
-    if (roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL))) {
+    if (roles && [...roles].some((r) => isSupportRole(r as "SUPPORT" | "BACKFILL"))) {
       consecutive++;
     } else {
       break;

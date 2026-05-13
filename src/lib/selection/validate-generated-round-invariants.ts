@@ -13,6 +13,9 @@ export type InvariantViolation = {
   targetTeamId?: string;
 };
 
+// Legacy roles BACKFILL and CONFIDENCE_REBUILD are kept for
+// backward compatibility with historical data and manual overrides.
+// New generation only produces SUPPORT and DEVELOPMENT as non-core roles.
 const NON_CORE_ROLES: Set<string> = new Set(["SUPPORT", "DEVELOPMENT", "BACKFILL", "CONFIDENCE_REBUILD"]);
 
 export function validateGeneratedRoundInvariants(

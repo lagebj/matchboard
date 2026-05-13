@@ -259,7 +259,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
         supportReceivedCount: roundSelections.filter(
           (s) => s.player.coreTeamId !== team.id && s.role === "SUPPORT",
         ).length,
-        backfillReceivedCount: roundSelections.filter(
+        squadRepairReceivedCount: roundSelections.filter(
           (s) => s.role === "BACKFILL",
         ).length,
         developmentReceivedCount: roundSelections.filter(
@@ -330,7 +330,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     coreCountThisRound,
     sentAsSupportCount: sentAsSupport.length,
     receivedSupportCount: receivedPlayers.filter((p) => p.role === "SUPPORT").length,
-    receivedBackfillCount: receivedPlayers.filter((p) => p.role === "BACKFILL").length,
+    receivedSquadRepairCount: receivedPlayers.filter((p) => p.role === "BACKFILL").length,
     receivedDevelopmentCount: receivedPlayers.filter((p) => p.role === "DEVELOPMENT").length,
     warningCount: roundWarnings.length,
     selectedPlayers: coreSelected,

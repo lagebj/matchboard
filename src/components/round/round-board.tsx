@@ -85,7 +85,7 @@ type RoundBoardProps = {
     supportReceived: number;
     developmentSent: number;
     developmentReceived: number;
-    backfillReceived: number;
+    squadRepairReceived: number;
     drops: number;
   };
   fairnessMetrics: Array<{
@@ -390,7 +390,7 @@ export function RoundBoard({
     return count >= m.targetSquadSize;
   }).length;
   const teamsNeedingSupport = 0;
-  const backfillNeeded = 0;
+  const squadRepairNeeded = 0;
   const blockingWarnings = warningSummary?.blocking ?? 0;
   const _requiresOverrideWarnings = warningSummary?.high ?? 0;
 
@@ -609,7 +609,7 @@ export function RoundBoard({
         totalTeams={matches.length}
         completeTeams={completeTeams}
         teamsNeedingSupport={teamsNeedingSupport}
-        backfillNeeded={backfillNeeded}
+        squadRepairNeeded={squadRepairNeeded}
         blockingWarnings={blockingWarnings}
         totalSelected={totalSelected}
         totalTarget={totalTarget}

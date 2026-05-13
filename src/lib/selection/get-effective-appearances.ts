@@ -1,3 +1,21 @@
+/**
+ * @deprecated Use `effective-participation.ts` instead.
+ *
+ * This module is superseded by the effective participation layer which provides:
+ * - More granular source tracking (PLANNED_DRAFT, PLANNED_FINALIZED, ACTUAL_REPORTED, ACTUAL_LOCKED)
+ * - Role classification helpers (isCoreRole, isSupportRole, isDevelopmentRole)
+ * - Proper NO_SHOW and absence handling
+ * - countsForLoad/countsForFairness/countsForSeasonStats flags
+ * - Season stats with flags
+ *
+ * Migration guide:
+ * - getEffectiveAppearancesForMatch → getEffectiveMatchParticipation
+ * - getEffectiveAppearancesForRound → getEffectiveRoundParticipation
+ * - getPlayerActualSeasonStats → getEffectiveSeasonStats (note: requires planningPeriodId)
+ *
+ * This file is retained temporarily until all consumers are migrated.
+ * See: src/app/(app)/players/[playerId]/page.tsx for the remaining consumer.
+ */
 import { db } from "@/lib/db";
 
 export type EffectiveAppearance = {

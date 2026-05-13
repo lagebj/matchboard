@@ -100,14 +100,8 @@ export function getAutomaticSelectionCategoryForRotationCandidate(
     return "DEVELOPMENT";
   }
 
-  if (candidateCategory === "BACKFILL") {
-    return "BACKFILL";
-  }
-
-  if (candidateCategory === "CONFIDENCE_REBUILD") {
-    return "CONFIDENCE_REBUILD";
-  }
-
+  // RotationCandidateCategory no longer includes BACKFILL or CONFIDENCE_REBUILD.
+  // These are generation-only SUPPORT/DEVELOPMENT now.
   return "DEVELOPMENT";
 }
 
@@ -115,34 +109,24 @@ export function getPathBasedCategory(
   player: PlayerRecord,
   targetMatch: MatchRecord,
 ): RotationCandidateCategory | null {
-  const supportPath = player.rotationPathsFromCoreTeam.find(
-    (path) => path.toTeamId === targetMatch.teamId && path.role === "SUPPORT",
+  // SUPPORT paths (and BACKFILL paths, which route as SUPPORT)
+  // always take priority over development.
+  const supportOrBackfillPath = player.rotationPathsFromCoreTeam.find(
+    (path) => path.toTeamId === targetMatch.teamId && (path.role === "SUPPORT" || path.role === "BACKFILL"),
   );
-  if (supportPath) {
+  if (supportOrBackfillPath) {
     return "SUPPORT";
   }
 
+  // DEVELOPMENT paths (and CONFIDENCE_REBUILD paths, which route as DEVELOPMENT)
+  // are gated by whether the team has development slots configured.
   if (targetMatch.team.developmentSlots > 0) {
-    const devPath = player.rotationPathsFromCoreTeam.find(
-      (path) => path.toTeamId === targetMatch.teamId && path.role === "DEVELOPMENT",
+    const devOrConfidencePath = player.rotationPathsFromCoreTeam.find(
+      (path) => path.toTeamId === targetMatch.teamId && (path.role === "DEVELOPMENT" || path.role === "CONFIDENCE_REBUILD"),
     );
-    if (devPath) {
+    if (devOrConfidencePath) {
       return "DEVELOPMENT";
     }
-  }
-
-  const backfillPath = player.rotationPathsFromCoreTeam.find(
-    (path) => path.toTeamId === targetMatch.teamId && path.role === "BACKFILL",
-  );
-  if (backfillPath) {
-    return "BACKFILL";
-  }
-
-  const confidencePath = player.rotationPathsFromCoreTeam.find(
-    (path) => path.toTeamId === targetMatch.teamId && path.role === "CONFIDENCE_REBUILD",
-  );
-  if (confidencePath) {
-    return "CONFIDENCE_REBUILD";
   }
 
   return null;

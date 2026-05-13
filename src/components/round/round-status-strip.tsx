@@ -12,7 +12,7 @@ type RoundStatusStripProps = {
   totalTeams: number;
   completeTeams: number;
   teamsNeedingSupport: number;
-  backfillNeeded: number;
+  squadRepairNeeded: number;
   blockingWarnings: number;
   totalSelected: number;
   totalTarget: number;
@@ -30,7 +30,7 @@ export function RoundStatusStrip({
   totalTeams,
   completeTeams,
   teamsNeedingSupport,
-  backfillNeeded,
+  squadRepairNeeded,
   blockingWarnings,
   totalSelected,
   totalTarget,
@@ -60,11 +60,11 @@ export function RoundStatusStrip({
     });
   }
 
-  if (backfillNeeded > 0) {
+  if (squadRepairNeeded > 0) {
     items.push({
       icon: ArrowLeftRight,
       label: "Squad repair required",
-      value: backfillNeeded,
+      value: squadRepairNeeded,
       variant: "warning",
     });
   }

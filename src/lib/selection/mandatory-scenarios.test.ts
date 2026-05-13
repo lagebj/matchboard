@@ -153,21 +153,31 @@ describe("Mandatory: backfill priority order", () => {
   });
   afterAll(async () => { await teardownTestDb(); });
 
-  it("backfill players are produced when a team loses players to support", async () => {
+  it("teams that lose players to support are filled by players from other teams", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
-    const backfillPlayers = result.matchResults.flatMap((r) =>
-      r.selectedPlayers.filter((p) => p.selectionCategory === "BACKFILL"),
+
+    // After round-level resolution, teams that lost players to support
+    // should have received players from other teams (either as support
+    // resolution, core drop routing, or squad repair).
+    // Verify that cross-team movement exists.
+    const crossTeamPlayers = result.matchResults.flatMap((r) =>
+      r.selectedPlayers.filter((p) => p.coreTeamId !== r.teamId),
     );
-    expect(backfillPlayers.length).toBeGreaterThan(0);
+    expect(crossTeamPlayers.length).toBeGreaterThan(0);
+
+    // Verify that every team has at least minimum squad size
+    for (const mr of result.matchResults) {
+      expect(mr.selectedPlayers.length).toBeGreaterThanOrEqual(7); // min accepted squad size from fixture
+    }
   });
 
-  it("non-rotatable players are never used as generic backfill", async () => {
+  it("non-rotatable players are never used as movement outside their core team", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const result = await generateMatchRound(fixtureIds.matchRoundId);
     for (const mr of result.matchResults) {
       for (const p of mr.selectedPlayers) {
-        if (p.selectionCategory === "BACKFILL") {
+        if (p.coreTeamId !== mr.teamId) {
           const dbPlayer = await testDb.player.findUnique({ where: { id: p.playerId } });
           expect(dbPlayer?.nonRotatable).toBe(false);
         }

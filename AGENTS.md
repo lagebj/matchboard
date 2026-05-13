@@ -88,8 +88,7 @@ The round-level pipeline runs in strict phase order:
 3. Cross-match conflict resolution
 4. Development routing
 5. Squad repair (repairing teams weakened by support movement)
-6. Controlled double-load evaluation
-7. Post-pipeline validation and warning persistence
+6. Post-pipeline validation and warning persistence
 
 No phase may be skipped. Each phase must complete before the next begins.
 
@@ -165,70 +164,48 @@ The `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive select
 
 Support priority is a **rank**, not a weight. Lower number = higher priority. Priority 1 is resolved before priority 2. The `supportPriority` field on the Team model uses ascending sort order (`ORDER BY supportPriority ASC`). The UI label must say "support priority rank: 1 is highest". Do not use ambiguous labels like "support priority" without the rank clarification.
 
-## Backfill rules
+## Squad repair rules (was "Backfill rules")
 
-"Squad repair" is the user-facing term. BACKFILL is the internal code role and rotation path role.
+"Squad repair" is the user-facing term. The generation engine now produces `role = SUPPORT` for squad repair (was previously `role = BACKFILL`). `BACKFILL` remains in the Prisma enum for backward compatibility of historical data and manual overrides.
 
-When a player fills a gap in a squad weakened by support/development movement, that selection must use `role = BACKFILL`, not `role = CORE` with a prose explanation. The explanation field supplements the role; it does not replace it.
+When a player fills a gap in a squad weakened by support/development movement, the generation engine assigns `role = SUPPORT` with a squad repair explanation code. The explanation field provides the repair context; the role identifies the movement type.
 
-If a player is re-included in their own team after being temporarily dropped, that is also BACKFILL (not CORE), because the player is filling a squad gap created by outbound movement.
-
-Existing data where squad repair is stored as `role = CORE` with explanation containing "squad repair" must be migrated to `role = BACKFILL`.
-
-When a player is moved from their core team as support, their own team may need squad repair.
+If a player is re-included in their own team after being temporarily dropped, the generation engine assigns `role = SUPPORT` with the `self_squad_repair` explanation code.
 
 Squad repair priority order:
 
 1. Own core team player moved as support, if matches are on different dates and the player can play both
-2. Players from teams connected by an active DEVELOPMENT rotation path to the receiving team, where `nonRotatable = false`. The DEVELOPMENT path gates the team-to-team direction. The assigned role is BACKFILL.
-3. Any player from another team with an active BACKFILL rotation path to the receiving team, where `nonRotatable = false`
+2. Players from teams connected by an active DEVELOPMENT or SUPPORT rotation path to the receiving team, where `nonRotatable = false`
+3. Any player from another team with an active SUPPORT or BACKFILL rotation path to the receiving team, where `nonRotatable = false`
 
 Rules:
 - Non-rotatable players must never be used as generic squad repair
-- Squad repair must respect same-round conflict rules unless controlled double-load explicitly allows
+- Squad repair must respect same-round conflict rules
 - If no valid squad repair exists, generate a warning instead of silently weakening the team
 
-## Controlled double-load rules
+### Legacy Backfill data
 
-Same-round player uniqueness is the default. A player appears once per match. Controlled double-load is an explicit exception where a player appears in a second match in the same round.
+Historical data with `role = BACKFILL` must still be readable. The `SelectionRole.BACKFILL` enum value is retained. New generation never produces `role = BACKFILL`. Manual draft edits may still assign any role including BACKFILL if the coach explicitly overrides with a reason.
 
-### Controlled double-load is a modifier, not a standalone role
+## Same-round uniqueness (was "Controlled double-load rules")
 
-A double-loaded player has **one Selection row per match** with the base role they serve in that match. The `controlledDoubleLoad` boolean flag marks that this is a second same-round assignment.
+Same-round player uniqueness is the default. A player must not be planned for two matches in the same round/week.
 
-Correct model:
-- `role = SUPPORT`, `controlledDoubleLoad = true` — player supports team Rød as their second match this round
-- `role = DEVELOPMENT`, `controlledDoubleLoad = true` — player does development in team Blå as their second match this round
-- `role = CORE`, `controlledDoubleLoad = true` — player plays for their own team again in a second match this round (same team, different date)
+The generation engine does NOT produce controlled double-load. The `evaluate-controlled-double-load.ts` module is quarantined and removed from the pipeline.
 
-Incorrect model (deprecated, must be migrated):
-- `role = CONTROLLED_DOUBLE_LOAD` as a standalone role (old data)
-- Two rows for the same player in the same match (one as DOUBLE_LOAD, one as SUPPORT/DEVELOPMENT/CORE)
+### Controlled double-load is removed from generation
 
-A player must never have two Selection rows in the same match. If a player double-loads across two matches in a round, they have two rows total (one per match), each with their base role, and the second row has `controlledDoubleLoad = true`.
+The `controlledDoubleLoad` field on `Selection` is marked as legacy. No new `true` values should be written by the generation engine.
 
-### Controlled double-load requirements
+Existing `controlledDoubleLoad = true` data must still be readable for season overview and audit. The `migrate-double-load-roles.ts` utility remains available for historical migration.
 
-A controlled double-load requires all of the following:
-- Matches on different dates
-- Minimum rest spacing between matches (configurable per rotation path)
-- Controlled double-load explicitly enabled for the rotation path or team configuration
-- Player has not exceeded the maximum double-load count in the planning period
-- Fairness debt is tracked for the double-loaded player
-- Players are rotated across eligible double-load candidates over time
+### Actual double-load from post-match reports
 
-Controlled double-load cannot bypass rotation path validation.
-Controlled double-load cannot move non-rotatable players outside their core team.
-Controlled double-load is evaluated after all other movement phases complete.
-
-### Migration for existing data
-
-Existing Selection rows with `role = DOUBLE_LOAD` must be migrated:
-1. For each DOUBLE_LOAD row, find the player's other Selection in the same round (same matchRoundId, different matchId)
-2. Set `controlledDoubleLoad = true` on the other Selection row
-3. Determine the base role from the rotation path context (SUPPORT, DEVELOPMENT, CORE, or BACKFILL)
-4. Update `role` to the base role value
-5. Delete the standalone DOUBLE_LOAD row after merging data
+Actual double-load (a player appearing in two post-match reports in the same round) may happen because reality forced it. It:
+- Must affect future fairness/load
+- Must NOT mutate finalized planned selections
+- Must be recorded as actual history
+- Is tracked via the effective participation layer, not via `controlledDoubleLoad`
 
 ## Target / min / max squad size
 

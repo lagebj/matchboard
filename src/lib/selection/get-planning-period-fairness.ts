@@ -1,6 +1,7 @@
-import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { formatPlayerName } from "@/lib/player-metrics";
+import { isCoreRole, isSupportRole, isDevelopmentRole } from "./effective-participation";
 
 export type FairnessFlag =
   | "support_burden_review"
@@ -23,18 +24,6 @@ export type PlanningPeriodFairness = {
   players: PlayerFairnessResult[];
   planningPeriodId: string;
 };
-
-function isCoreRole(role: SelectionRole): boolean {
-  return role === SelectionRole.CORE;
-}
-
-function isSupportRole(role: SelectionRole): boolean {
-  return role === SelectionRole.SUPPORT || role === SelectionRole.BACKFILL;
-}
-
-function isDevelopmentRole(role: SelectionRole): boolean {
-  return role === SelectionRole.DEVELOPMENT || role === SelectionRole.CONFIDENCE_REBUILD;
-}
 
 export async function getPlanningPeriodFairness(
   planningPeriodId: string,

@@ -26,8 +26,12 @@ export function getPlanningPeriodFairnessBonus(
   const counts = planningPeriodCounts.get(playerId);
   if (!counts) return 0;
 
+  // Support-role candidates (SUPPORT, including former BACKFILL-equivalent)
+  // get fairness penalties to rotate support assignments.
+  const isSupportCategory = candidateCategory === "SUPPORT";
+
   if (counts.coreCount === 0) {
-    if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL") {
+    if (isSupportCategory) {
       return -8;
     }
     if (candidateCategory === "DEVELOPMENT") {
@@ -36,12 +40,12 @@ export function getPlanningPeriodFairnessBonus(
   }
 
   if (counts.supportCount > counts.coreCount) {
-    if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL") {
+    if (isSupportCategory) {
       return -6;
     }
   }
 
-  if (candidateCategory === "SUPPORT" || candidateCategory === "BACKFILL") {
+  if (isSupportCategory) {
     return counts.supportCount * -2;
   }
 

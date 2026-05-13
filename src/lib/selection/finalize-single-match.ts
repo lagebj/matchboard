@@ -136,6 +136,9 @@ export async function finalizeSingleMatch(
     },
   });
 
+  // Legacy: controlledDoubleLoad was a previous-generation concept.
+  // No new true values are written by the engine. This query handles
+  // any remaining legacy data from before the match-first refactor.
   const controlledDoubleLoadSelections = await db.selection.findMany({
     where: {
       matchId,

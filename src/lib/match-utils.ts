@@ -25,6 +25,10 @@ export function formatSelectionRole(role: SelectionRole): string {
   }
 }
 
+// A floating role is any non-core role where the player is movement-eligible.
+// BACKFILL, CONFIDENCE_REBUILD, CORE_MATCH_DROP, and REDUCED_MATCH_LOAD_DROP
+// are legacy roles retained for backward compatibility with historical data.
+// New generation only produces SUPPORT and DEVELOPMENT as floating roles.
 export function isFloatingSelectionRole(role: SelectionRole): boolean {
   return (
     role === "SUPPORT" ||
