@@ -10,37 +10,8 @@ export async function getConsecutiveSupportCount(
   playerId: string,
   currentMatchDate: Date,
 ): Promise<ConsecutiveSupportResult> {
-  const supportSelections = await db.selection.findMany({
-    where: {
-      playerId,
-      status: SelectionStatus.FINALIZED,
-      role: SelectionRole.SUPPORT,
-      match: {
-        startsAt: {
-          lt: currentMatchDate,
-        },
-      },
-    },
-    select: {
-      matchRoundId: true,
-      match: {
-        select: {
-          startsAt: true,
-        },
-      },
-    },
-    orderBy: {
-      match: {
-        startsAt: "desc",
-      },
-    },
-  });
-
-  const uniqueRoundIds = [...new Set(supportSelections.map((s) => s.matchRoundId))];
-  let consecutive = 0;
-
-  if (uniqueRoundIds.length > 0) {
-    const allRecentSelections = await db.selection.findMany({
+  const [allSelections, reportedReports] = await Promise.all([
+    db.selection.findMany({
       where: {
         playerId,
         status: SelectionStatus.FINALIZED,
@@ -52,6 +23,7 @@ export async function getConsecutiveSupportCount(
       },
       select: {
         matchRoundId: true,
+        matchId: true,
         role: true,
         match: {
           select: {
@@ -64,37 +36,98 @@ export async function getConsecutiveSupportCount(
           startsAt: "desc",
         },
       },
-    });
+    }),
+    db.postMatchReport.findMany({
+      where: {
+        status: { in: ["REPORTED", "LOCKED"] },
+      },
+      select: {
+        id: true,
+        matchId: true,
+      },
+    }),
+  ]);
 
-    const roundsByDate = new Map<string, string>();
-    for (const s of allRecentSelections) {
-      roundsByDate.set(s.matchRoundId, s.match.startsAt.toISOString());
+  const reportedMatchRoundMap = new Map<string, string>();
+  const reportedReportIds: string[] = [];
+
+  for (const report of reportedReports) {
+    const sel = allSelections.find((s) => s.matchId === report.matchId);
+    if (sel) {
+      reportedMatchRoundMap.set(report.matchId, sel.matchRoundId);
+      reportedReportIds.push(report.id);
     }
+  }
 
-    const sortedRoundIds = [...roundsByDate.entries()]
-      .sort(([, a], [, b]) => b.localeCompare(a))
-      .map(([id]) => id);
+  const reportedMatchIds = new Set(reportedMatchRoundMap.keys());
 
-    const roleByRound = new Map<string, Set<string>>();
-    for (const s of allRecentSelections) {
-      if (!roleByRound.has(s.matchRoundId)) {
-        roleByRound.set(s.matchRoundId, new Set());
+  let noShowMatchIds = new Set<string>();
+  let absentMatchIds = new Set<string>();
+
+  if (reportedReportIds.length > 0) {
+    const [noShows, absences] = await Promise.all([
+      db.postMatchPlayerActual.findMany({
+        where: {
+          reportId: { in: reportedReportIds },
+          playerId,
+          attendanceStatus: "NO_SHOW",
+        },
+        select: { matchId: true },
+      }),
+      db.matchReportAbsence.findMany({
+        where: {
+          matchReportId: { in: reportedReportIds },
+          playerId,
+        },
+        select: { matchId: true },
+      }),
+    ]);
+    noShowMatchIds = new Set(noShows.map((n) => n.matchId));
+    absentMatchIds = new Set(absences.map((a) => a.matchId));
+  }
+
+  const roundsByDate = new Map<string, string>();
+  const roleByRound = new Map<string, Set<string>>();
+
+  for (const s of allSelections) {
+    if (reportedMatchIds.has(s.matchId)) {
+      if (noShowMatchIds.has(s.matchId) || absentMatchIds.has(s.matchId)) {
+        continue;
       }
-      roleByRound.get(s.matchRoundId)!.add(s.role);
     }
+    roundsByDate.set(s.matchRoundId, s.match.startsAt.toISOString());
+    if (!roleByRound.has(s.matchRoundId)) {
+      roleByRound.set(s.matchRoundId, new Set());
+    }
+    roleByRound.get(s.matchRoundId)!.add(s.role);
+  }
 
-    for (const roundId of sortedRoundIds) {
-      const roles = roleByRound.get(roundId);
-      if (roles && roles.has(SelectionRole.SUPPORT)) {
-        consecutive++;
-      } else {
-        break;
-      }
+  const sortedRoundIds = [...roundsByDate.entries()]
+    .sort(([, a], [, b]) => b.localeCompare(a))
+    .map(([id]) => id);
+
+  let consecutive = 0;
+  let totalSupportRounds = 0;
+
+  for (const roundId of sortedRoundIds) {
+    const roles = roleByRound.get(roundId);
+    const hasSupport = roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL));
+    if (hasSupport) {
+      totalSupportRounds++;
+    }
+  }
+
+  for (const roundId of sortedRoundIds) {
+    const roles = roleByRound.get(roundId);
+    if (roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL))) {
+      consecutive++;
+    } else {
+      break;
     }
   }
 
   return {
     consecutiveSupportRounds: consecutive,
-    totalSupportRounds: uniqueRoundIds.length,
+    totalSupportRounds,
   };
 }

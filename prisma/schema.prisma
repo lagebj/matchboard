@@ -83,6 +83,8 @@ model Player {
   locks PlayerLock[]
   postMatchActuals PostMatchPlayerActual[]
   goals Goal[]
+  matchReportAbsences MatchReportAbsence[]
+  matchReportStats MatchReportPlayerStat[]
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
 }
@@ -484,19 +486,36 @@ model SelectionExplanation {
   @@index([createdAt])
 }
 
+enum MatchReportStatus {
+  DRAFT
+  REPORTED
+  LOCKED
+}
+
+enum PlannedAbsenceReason {
+  NO_SHOW
+  SICK
+  INJURED
+  DECLINED
+  NO_RSVP
+  OTHER
+}
+
 model PostMatchReport {
-  id          String   @id @default(cuid())
-  matchId     String   @unique
-  status      String
+  id          String             @id @default(cuid())
+  matchId     String             @unique
+  status      MatchReportStatus  @default(DRAFT)
   homeGoals   Int?
   awayGoals   Int?
   teamNote    String?
   completedBy String?
   completedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  playerActuals PostMatchPlayerActual[]
-  goals        Goal[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  playerActuals  PostMatchPlayerActual[]
+  goals          Goal[]
+  absences       MatchReportAbsence[]
+  playerStats    MatchReportPlayerStat[]
 
   @@index([status])
 }
@@ -506,7 +525,7 @@ model PostMatchPlayerActual {
   matchId          String
   playerId         String
   source           String   @default("PLANNED")
-  attendanceStatus String
+  attendanceStatus String   @default("UNKNOWN")
   actualPositions  Json?
   note             String?
   createdAt        DateTime @default(now())
@@ -534,5 +553,39 @@ model Goal {
   player             Player?         @relation(fields: [playerId], references: [id])
 
   @@index([reportId])
+  @@index([playerId])
+}
+
+model MatchReportAbsence {
+  id           String              @id @default(cuid())
+  matchReportId String
+  matchId      String
+  playerId     String
+  reason       PlannedAbsenceReason
+  note         String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  report       PostMatchReport @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
+  player       Player          @relation(fields: [playerId], references: [id])
+
+  @@unique([matchReportId, playerId])
+  @@index([matchId])
+  @@index([playerId])
+}
+
+model MatchReportPlayerStat {
+  id           String   @id @default(cuid())
+  matchReportId String
+  playerId     String
+  goals        Int      @default(0)
+  assists      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  report       PostMatchReport @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
+  player       Player          @relation(fields: [playerId], references: [id])
+
+  @@unique([matchReportId, playerId])
   @@index([playerId])
 }

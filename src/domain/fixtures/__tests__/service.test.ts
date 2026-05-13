@@ -156,13 +156,13 @@ describe("Fixtures Service", () => {
       await testDb.postMatchReport.create({
         data: {
           matchId,
-          status: "COMPLETED",
+          status: "LOCKED",
         },
       });
 
       const overview = await getFixturesOverview();
       const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
-      expect(match?.postMatchStatus).toBe("COMPLETED");
+      expect(match?.postMatchStatus).toBe("LOCKED");
     });
   });
 });

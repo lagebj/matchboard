@@ -17,6 +17,7 @@ import {
   getPlayerAttributeAverages,
   getPlayerPositionSummary,
 } from "@/lib/player-metrics";
+import { getPlayerActualSeasonStats } from "@/lib/selection/get-effective-appearances";
 
 type PlayerPageProps = {
   params: Promise<{
@@ -41,7 +42,7 @@ function formatRoleCount(history: Array<{ role: SelectionRole }>, roleType: Sele
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats] = await Promise.all([
     db.player.findFirst({
       where: { id: playerId, removedAt: null },
       include: { coreTeam: { select: { id: true, name: true } } },
@@ -97,6 +98,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       orderBy: [{ createdAt: "desc" }],
       take: 20,
     }),
+    getPlayerActualSeasonStats(playerId),
   ]);
 
   if (!player) notFound();
@@ -218,6 +220,18 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             </div>
             {lastFinalized && <p className="mt-2 text-[10px] text-zinc-500">Last: {formatDate(lastFinalized.match.startsAt)} vs {lastFinalized.match.opponent}</p>}
           </div>
+
+          {(actualStats.actualAppearances > 0 || actualStats.goals > 0 || actualStats.assists > 0) && (
+            <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Match stats (reported)</p>
+              <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
+                <div><p className="text-zinc-500">Apps</p><p className="text-blue-300 font-medium">{actualStats.actualAppearances}</p></div>
+                <div><p className="text-zinc-500">Goals</p><p className="text-emerald-300 font-medium">{actualStats.goals}</p></div>
+                <div><p className="text-zinc-500">Assists</p><p className="text-amber-300 font-medium">{actualStats.assists}</p></div>
+                <div><p className="text-zinc-500">Absent</p><p className="text-red-300 font-medium">{actualStats.plannedButAbsent}</p></div>
+              </div>
+            </div>
+          )}
 
           {involvementPreview.length > 0 && (
             <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">

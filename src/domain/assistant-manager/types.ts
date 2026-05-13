@@ -218,7 +218,7 @@ export interface PostMatchPlayerActual {
 
 export interface PostMatchReport {
   matchId: string;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  status: "NOT_STARTED" | "DRAFT" | "REPORTED" | "LOCKED";
   teamNote?: string;
   playerActuals: PostMatchPlayerActual[];
   completedBy?: string;

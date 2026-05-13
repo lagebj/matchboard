@@ -36,6 +36,11 @@ export default async function MatchDetailPage({
 
   if (!match) notFound();
 
+  const postMatchReport = await db.postMatchReport.findUnique({
+    where: { matchId },
+    select: { status: true },
+  });
+
   const selectionData = match.selections.map((s) => {
     const explanation = s.explanation as Record<string, unknown> | null;
     return {
@@ -92,6 +97,7 @@ export default async function MatchDetailPage({
           matchRoundStatus: match.matchRound.status,
           matchFit: match.matchFit,
           notes: match.notes,
+          postMatchStatus: postMatchReport?.status ?? undefined,
           selections: selectionData,
           warnings: warningData,
         }}

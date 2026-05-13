@@ -53,6 +53,7 @@ type MatchData = {
   matchRoundStatus: string;
   matchFit: string;
   notes: string | null;
+  postMatchStatus?: string;
   selections: SelectionRow[];
   warnings: WarningRow[];
 };
@@ -171,15 +172,13 @@ export function MatchDetail({ match }: { match: MatchData }) {
           <ArrowLeft className="h-3.5 w-3.5" />
           All matches
         </Link>
-        {(matchFinalized || roundFinalizedFlag) && (
-          <Link
-            href={`/matches/${match.id}/post-match`}
-            className="inline-flex items-center gap-1 ml-auto text-xs font-medium text-[var(--accent-strong)] hover:text-zinc-50 transition-colors"
-          >
-            <ClipboardList className="h-3.5 w-3.5" />
-            Post-match registration
-          </Link>
-        )}
+         <Link
+           href={`/matches/${match.id}/post-match`}
+           className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors"
+         >
+           <ClipboardList className="h-3.5 w-3.5" />
+           Post-match
+         </Link>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -196,9 +195,20 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   {dateStr} at {timeStr}
                 </p>
               </div>
-              <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${statusColor(match.matchRoundStatus)}`}>
-                {formatStatus(match.matchRoundStatus)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${statusColor(match.matchRoundStatus)}`}>
+                  {formatStatus(match.matchRoundStatus)}
+                </span>
+                {match.postMatchStatus && match.postMatchStatus !== "NOT_STARTED" && (
+                  <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${
+                    match.postMatchStatus === "LOCKED" ? "bg-emerald-900/15 text-emerald-300 border border-emerald-700/40" :
+                    match.postMatchStatus === "REPORTED" ? "bg-blue-900/15 text-blue-300 border border-blue-700/40" :
+                    "bg-amber-900/15 text-amber-300 border border-amber-700/40"
+                  }`}>
+                  {match.postMatchStatus === "DRAFT" ? "Draft report" : match.postMatchStatus === "REPORTED" ? "Reported" : match.postMatchStatus === "LOCKED" ? "Report locked" : match.postMatchStatus}
+                </span>
+                )}
+              </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
