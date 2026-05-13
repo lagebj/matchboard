@@ -8,6 +8,16 @@ If code, UI, schema, tests, README, and `features/matchboard.feature` disagree, 
 
 When workflow or UX semantics change, update `features/matchboard.feature`, `AGENTS.md`, and `README.md` before implementing. Do not implement product-shape changes before aligning supporting docs.
 
+## Required skills
+
+When working on Matchboard, always apply these skills in order:
+
+1. **`git-branch-commit-pr`** — for all coding-agent work: branch creation, commits, and PRs
+2. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
+3. **`matchboard-product-engineering`** (local, `.agent-skills/matchboard-product-engineering/SKILL.md`) — for Matchboard-specific domain rules: selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages
+
+The global `app-product-engineering` skill contains generic UX and app engineering rules. The local `matchboard-product-engineering` skill contains only Matchboard domain rules. Do not duplicate the global skill inside this repo.
+
 ## Workflow
 
 Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
