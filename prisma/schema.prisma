@@ -81,6 +81,8 @@ model Player {
   selections Selection[]
   ledgerEntries MovementLedger[]
   locks PlayerLock[]
+  postMatchActuals PostMatchPlayerActual[]
+  goals Goal[]
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
 }
@@ -486,12 +488,15 @@ model PostMatchReport {
   id          String   @id @default(cuid())
   matchId     String   @unique
   status      String
+  homeGoals   Int?
+  awayGoals   Int?
   teamNote    String?
   completedBy String?
   completedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   playerActuals PostMatchPlayerActual[]
+  goals        Goal[]
 
   @@index([status])
 }
@@ -500,6 +505,7 @@ model PostMatchPlayerActual {
   id               String   @id @default(cuid())
   matchId          String
   playerId         String
+  source           String   @default("PLANNED")
   attendanceStatus String
   actualPositions  Json?
   note             String?
@@ -508,8 +514,25 @@ model PostMatchPlayerActual {
   reportId         String
 
   report           PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  player           Player          @relation(fields: [playerId], references: [id])
 
   @@index([matchId])
   @@index([playerId])
   @@index([attendanceStatus])
+}
+
+model Goal {
+  id                 String   @id @default(cuid())
+  reportId           String
+  playerId           String?
+  minute             Int?
+  type               String   @default("NORMAL")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  report             PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  player             Player?         @relation(fields: [playerId], references: [id])
+
+  @@index([reportId])
+  @@index([playerId])
 }
