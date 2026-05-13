@@ -57,7 +57,7 @@ type HistoryRound = {
   coreCount: number;
   supportSentCount: number;
   supportReceivedCount: number;
-  backfillReceivedCount: number;
+  squadRepairReceivedCount: number;
   developmentReceivedCount: number;
 };
 
@@ -110,7 +110,7 @@ type TeamDetailData = {
   coreCountThisRound: number;
   sentAsSupportCount: number;
   receivedSupportCount: number;
-  receivedBackfillCount: number;
+  receivedSquadRepairCount: number;
   receivedDevelopmentCount: number;
   warningCount: number;
   selectedPlayers: Array<{
@@ -572,7 +572,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
             <span>{round.coreCount} core</span>
             {round.supportSentCount > 0 && <span>{round.supportSentCount} sent as support</span>}
             {round.supportReceivedCount > 0 && <span>{round.supportReceivedCount} received support</span>}
-            {round.backfillReceivedCount > 0 && <span>{round.backfillReceivedCount} received squad repair</span>}
+            {round.squadRepairReceivedCount > 0 && <span>{round.squadRepairReceivedCount} received squad repair</span>}
             {round.developmentReceivedCount > 0 && <span>{round.developmentReceivedCount} received development</span>}
           </div>
         </Link>
@@ -732,7 +732,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
           <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Received</p>
             <p className="mt-1 text-2xl font-semibold text-zinc-50">
-              {data.receivedSupportCount + data.receivedBackfillCount + data.receivedDevelopmentCount}
+              {data.receivedSupportCount + data.receivedSquadRepairCount + data.receivedDevelopmentCount}
             </p>
           </div>
           {data.warningCount > 0 && (

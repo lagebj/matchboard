@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isCoreRole, isDevelopmentRole } from "./effective-participation";
 
 export type PlayerRoundCell = {
   matchRoundId: string;
@@ -312,11 +313,13 @@ async function getSeasonFairnessWarningsInternal(
       teamId: s.player.coreTeam?.id ?? "",
       teamName: s.player.coreTeam?.name ?? "",
     };
-    if (s.role === "CORE") existing.core++;
+    if (isCoreRole(s.role)) existing.core++;
     else if (s.role === "SUPPORT") existing.support++;
-    else if (s.role === "DEVELOPMENT") existing.development++;
+    else if (isDevelopmentRole(s.role)) existing.development++;
     // BACKFILL is a legacy role. In the UI it is shown as "Squad repair" under
     // the support category. Counts are kept separate for historical drill-down.
+    // isSupportRole() groups BACKFILL with SUPPORT for fairness/penalty logic,
+    // but in the season overview matrix backfill has its own column.
     else if (s.role === "BACKFILL") existing.backfill++;
     // controlledDoubleLoad is a legacy flag. New generation does not set it.
     // The count is kept for historical audit.

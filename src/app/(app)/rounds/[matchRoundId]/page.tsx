@@ -153,7 +153,7 @@ export default async function RoundBoardPage({
   const supportReceivedByTeamId = new Map<string, number>();
   const devSentByTeamId = new Map<string, number>();
   const devReceivedByTeamId = new Map<string, number>();
-  const backfillReceivedCountByTeamId = new Map<string, number>();
+  const squadRepairReceivedByTeamId = new Map<string, number>();
   const dropsCountByTeamId = new Map<string, number>();
 
   const FLOATING_ROLES = new Set(["SUPPORT", "BACKFILL", "DEVELOPMENT", "CONFIDENCE_REBUILD"]);
@@ -182,7 +182,7 @@ export default async function RoundBoardPage({
     } else if (sel.role === "BACKFILL") {
       const match = matchRound.matches.find((m) => m.id === sel.matchId);
       if (match) {
-        backfillReceivedCountByTeamId.set(match.teamId, (backfillReceivedCountByTeamId.get(match.teamId) ?? 0) + 1);
+        squadRepairReceivedByTeamId.set(match.teamId, (squadRepairReceivedByTeamId.get(match.teamId) ?? 0) + 1);
       }
     }
   }
@@ -295,7 +295,7 @@ export default async function RoundBoardPage({
       selectedCount,
       players,
       supportStatus,
-      backfillCount: backfillReceivedCountByTeamId.get(match.teamId) ?? 0,
+      squadRepairCount: squadRepairReceivedByTeamId.get(match.teamId) ?? 0,
       warningCount: matchWarnings.length,
       isFinalized: matchRound.status === "FINALIZED",
     };
@@ -305,7 +305,7 @@ export default async function RoundBoardPage({
   const totalSupportReceived = Array.from(supportReceivedByTeamId.values()).reduce((a, b) => a + b, 0);
   const totalDevSent = Array.from(devSentByTeamId.values()).reduce((a, b) => a + b, 0);
   const totalDevReceived = Array.from(devReceivedByTeamId.values()).reduce((a, b) => a + b, 0);
-  const totalBackfillReceived = Array.from(backfillReceivedCountByTeamId.values()).reduce((a, b) => a + b, 0);
+  const totalSquadRepairReceived = Array.from(squadRepairReceivedByTeamId.values()).reduce((a, b) => a + b, 0);
   const totalDrops = Array.from(dropsCountByTeamId.values()).reduce((a, b) => a + b, 0);
 
   const warnings = unresolvedWarnings.map((w) => ({
@@ -355,7 +355,7 @@ export default async function RoundBoardPage({
       supportReceived: totalSupportReceived,
       developmentSent: totalDevSent,
       developmentReceived: totalDevReceived,
-      backfillReceived: totalBackfillReceived,
+      squadRepairReceived: totalSquadRepairReceived,
       drops: totalDrops,
     },
     fairnessMetrics,
@@ -456,7 +456,7 @@ export default async function RoundBoardPage({
           supportReceived: totalSupportReceived,
           developmentSent: totalDevSent,
           developmentReceived: totalDevReceived,
-          backfillReceived: totalBackfillReceived,
+          squadRepairReceived: totalSquadRepairReceived,
           drops: totalDrops,
         }}
         fairnessMetrics={fairnessMetrics}

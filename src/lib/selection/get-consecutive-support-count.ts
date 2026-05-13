@@ -1,5 +1,6 @@
-import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isSupportRole } from "./effective-participation";
 
 export type ConsecutiveSupportResult = {
   consecutiveSupportRounds: number;
@@ -106,24 +107,20 @@ export async function getConsecutiveSupportCount(
     .sort(([, a], [, b]) => b.localeCompare(a))
     .map(([id]) => id);
 
-  let consecutive = 0;
   let totalSupportRounds = 0;
 
   for (const roundId of sortedRoundIds) {
     const roles = roleByRound.get(roundId);
-    // BACKFILL is a legacy role. It counts as support for rotation penalty
-    // purposes because players sent as squad repair were still doing
-    // non-core movement away from their development path.
-    const hasSupport = roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL));
-    if (hasSupport) {
+    if (roles && [...roles].some((r) => isSupportRole(r as "SUPPORT" | "BACKFILL"))) {
       totalSupportRounds++;
     }
   }
 
+  let consecutive = 0;
+
   for (const roundId of sortedRoundIds) {
     const roles = roleByRound.get(roundId);
-    // BACKFILL counts as support for consecutive rotation penalty
-    if (roles && (roles.has(SelectionRole.SUPPORT) || roles.has(SelectionRole.BACKFILL))) {
+    if (roles && [...roles].some((r) => isSupportRole(r as "SUPPORT" | "BACKFILL"))) {
       consecutive++;
     } else {
       break;

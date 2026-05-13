@@ -438,3 +438,58 @@ async function getEffectiveRoundParticipationForPlayer(
   }
   return allRows;
 }
+
+export async function getPlayerAllTimeStats(
+  playerId: string,
+): Promise<{
+  actualAppearances: number;
+  goals: number;
+  assists: number;
+  plannedButAbsent: number;
+}> {
+  const reports = await db.postMatchReport.findMany({
+    where: { status: { in: ["REPORTED", "LOCKED"] } },
+    select: { id: true, matchId: true },
+  });
+
+  if (reports.length === 0) {
+    return { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 };
+  }
+
+  const reportIds = reports.map((r) => r.id);
+
+  const [actuals, stats, absences] = await Promise.all([
+    db.postMatchPlayerActual.findMany({
+      where: {
+        reportId: { in: reportIds },
+        playerId,
+        attendanceStatus: { not: "NO_SHOW" },
+      },
+      select: { id: true },
+    }),
+    db.matchReportPlayerStat.findMany({
+      where: {
+        matchReportId: { in: reportIds },
+        playerId,
+      },
+      select: { goals: true, assists: true },
+    }),
+    db.matchReportAbsence.findMany({
+      where: {
+        matchReportId: { in: reportIds },
+        playerId,
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  const goals = stats.reduce((sum, s) => sum + s.goals, 0);
+  const assists = stats.reduce((sum, s) => sum + s.assists, 0);
+
+  return {
+    actualAppearances: actuals.length,
+    goals,
+    assists,
+    plannedButAbsent: absences.length,
+  };
+}

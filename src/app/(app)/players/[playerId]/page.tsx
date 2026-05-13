@@ -17,7 +17,7 @@ import {
   getPlayerAttributeAverages,
   getPlayerPositionSummary,
 } from "@/lib/player-metrics";
-import { getPlayerActualSeasonStats } from "@/lib/selection/get-effective-appearances";
+import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 
 type PlayerPageProps = {
   params: Promise<{
@@ -98,7 +98,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       orderBy: [{ createdAt: "desc" }],
       take: 20,
     }),
-    getPlayerActualSeasonStats(playerId),
+    getPlayerAllTimeStats(playerId),
   ]);
 
   if (!player) notFound();
