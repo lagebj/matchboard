@@ -36,6 +36,11 @@ export default async function MatchDetailPage({
 
   if (!match) notFound();
 
+  const coachingIntents = await db.coachingIntent.findMany({
+    where: { scopeType: "MATCH", scopeId: matchId },
+    orderBy: { createdAt: "desc" },
+  });
+
   const postMatchReport = await db.postMatchReport.findUnique({
     where: { matchId },
     select: { status: true },
@@ -55,6 +60,7 @@ export default async function MatchDetailPage({
       priorityScore: (explanation?.priorityScore as number | null) ?? null,
       overrideReason: s.overrideReason,
       controlledDoubleLoad: s.controlledDoubleLoad ?? false,
+      matchdayResponsibility: s.matchdayResponsibility ?? undefined,
     };
   });
 
@@ -100,6 +106,8 @@ export default async function MatchDetailPage({
           postMatchStatus: postMatchReport?.status ?? undefined,
           selections: selectionData,
           warnings: warningData,
+          coachingIntent: coachingIntents[0]?.category ?? undefined,
+          coachingIntentId: coachingIntents[0]?.id ?? undefined,
         }}
       />
     </div>

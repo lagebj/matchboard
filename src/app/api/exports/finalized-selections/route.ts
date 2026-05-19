@@ -43,6 +43,7 @@ type CoachRow = {
   role: string;
   overrideReason: string | null;
   explanation: string | null;
+  matchdayResponsibility: string | null;
 };
 
 type ParentRow = {
@@ -136,6 +137,7 @@ export async function GET(request: Request) {
           ? selection.explanation
           : JSON.stringify(selection.explanation)
         : null,
+      matchdayResponsibility: selection.matchdayResponsibility ?? null,
     }));
 
     return new Response(JSON.stringify({ visibility: "coach", selections: coachRows }, null, 2), {
@@ -193,14 +195,15 @@ export async function GET(request: Request) {
           ? selection.explanation
           : JSON.stringify(selection.explanation)
         : "",
+      matchdayResponsibility: selection.matchdayResponsibility ?? "",
     }));
 
     const body = [
-      ["Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Override Reason", "Explanation"]
+      ["Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Override Reason", "Explanation", "Responsibility"]
         .map(escapeCsv)
         .join(","),
       ...rows.map((row) =>
-        [row.date, row.team, row.homeOrAway, row.opponent, row.playerName, row.sourceTeam, row.role, row.overrideReason, row.explanation]
+        [row.date, row.team, row.homeOrAway, row.opponent, row.playerName, row.sourceTeam, row.role, row.overrideReason, row.explanation, row.matchdayResponsibility]
           .map(escapeCsv)
           .join(","),
       ),
@@ -244,7 +247,7 @@ export async function GET(request: Request) {
     const body = finalizedSelections.length
       ? finalizedSelections.map((s) => {
           const header = `${s.match.team.name} vs. ${s.match.opponent}\n${formatDate(s.match.startsAt)} · ${formatMatchVenue(s.match.homeAway)}`;
-          const player = `- ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} (${s.player.coreTeam?.name ?? ""}, ${formatSelectionRole(s.role)})`;
+          const player = `- ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} (${s.player.coreTeam?.name ?? ""}, ${formatSelectionRole(s.role)}${s.matchdayResponsibility ? `, ${s.matchdayResponsibility}` : ""})`;
           const override = s.overrideReason ? `\n  Override: ${s.overrideReason}` : "";
           const explanation = s.explanation ? `\n  Explanation: ${typeof s.explanation === "string" ? s.explanation : JSON.stringify(s.explanation)}` : "";
           return `${header}\n${player}${override}${explanation}`;
@@ -294,9 +297,9 @@ export async function GET(request: Request) {
         const heading = `## ${s.match.team.name} vs. ${s.match.opponent}`;
         const meta = `${formatDate(s.match.startsAt)} | ${formatMatchVenue(s.match.homeAway)}`;
         const table = [
-          "| Player | Source Team | Role | Override | Explanation |",
-          "| --- | --- | --- | --- | --- |",
-          `| ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} | ${s.player.coreTeam?.name ?? ""} | ${formatSelectionRole(s.role)} | ${s.overrideReason ?? "—"} | ${s.explanation ? (typeof s.explanation === "string" ? s.explanation : JSON.stringify(s.explanation)) : "—"} |`,
+          "| Player | Source Team | Role | Responsibility | Override | Explanation |",
+          "| --- | --- | --- | --- | --- | --- |",
+          `| ${s.player.firstName}${s.player.lastName ? ` ${s.player.lastName}` : ""} | ${s.player.coreTeam?.name ?? ""} | ${formatSelectionRole(s.role)} | ${s.matchdayResponsibility ?? "—"} | ${s.overrideReason ?? "—"} | ${s.explanation ? (typeof s.explanation === "string" ? s.explanation : JSON.stringify(s.explanation)) : "—"} |`,
         ].join("\n");
         return `${heading}\n\n${meta}\n\n${table}`;
       }).join("\n\n")

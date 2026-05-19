@@ -85,6 +85,8 @@ model Player {
   goals Goal[]
   matchReportAbsences MatchReportAbsence[]
   matchReportStats MatchReportPlayerStat[]
+  readinessSignals PlayerReadinessSignal[]
+  executionFeedback MatchExecutionFeedback[]
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
 }
@@ -110,7 +112,8 @@ model Match {
   team       Team       @relation(fields: [teamId], references: [id], onDelete: Restrict)
   selections Selection[]
   movementLedger MovementLedger[]
-
+  teamReflection  TeamReflection?
+  executionFeedback MatchExecutionFeedback[]
   @@index([startsAt, createdAt])
 }
 
@@ -189,6 +192,7 @@ model Selection {
   overrideReason        String?
   overrideReasonCategory OverrideReasonCategory?
   overrideReasonDetail  String?
+  matchdayResponsibility MatchdayResponsibilityType?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
@@ -332,6 +336,72 @@ enum WarningSeverity {
   SCORING_PREFERENCE
 }
 
+enum CoachingIntentCategory {
+  TEAM_FIRST
+  RESET_AFTER_ERROR
+  SUPPORT_TEAMMATES
+  POSITIONAL_DISCIPLINE
+  PLAY_THROUGH_TEAM
+  DEFENSIVE_RECOVERY
+  CONFIDENCE_REBUILD
+  CHALLENGE_EXPOSURE
+  STABILIZE_WEAKER_TEAM
+  PROTECT_MATCH_FUNCTION
+}
+
+enum CoachingIntentScopeType {
+  PLANNING_PERIOD
+  MATCH_ROUND
+  MATCH
+  TEAM
+  SELECTION
+}
+
+enum MatchdayResponsibilityType {
+  STABILIZER
+  CONNECTOR
+  RECOVERY_LEADER
+  WIDTH_HOLDER
+  CHALLENGE_PLAYER
+  CONFIDENCE_REBUILD_PLAYER
+}
+
+enum ReadinessSignalType {
+  EFFORT_TREND
+  ATTENDANCE_RELIABILITY
+  LEARNING_BEHAVIOR
+  TEAM_FIRST_BEHAVIOR
+  RESET_AFTER_ERROR_RELIABILITY
+  COACH_TRUST
+}
+
+enum ReadinessSignalValue {
+  RISING
+  STABLE
+  FALLING
+  HIGH
+  MEDIUM
+  LOW
+  STRONG
+  OK
+  NEEDS_ATTENTION
+}
+
+enum FeedbackCategory {
+  EFFORT
+  TEAM_HELP
+  RESET_AFTER_MISTAKE
+  POSITIONAL_DISCIPLINE
+  TEAMMATE_INVOLVEMENT
+}
+
+enum FeedbackNextAction {
+  NO_ACTION
+  MONITOR
+  ADJUST_PLANNING
+  COACH_CONVERSATION
+}
+
 model Warning {
   id           String          @id @default(cuid())
   matchRoundId String
@@ -464,26 +534,18 @@ model DecisionRecord {
   @@index([action])
 }
 
-model SelectionExplanation {
-  id              String   @id @default(cuid())
-  scopeType       String
-  scopeId         String
-  matchId         String?
-  teamId          String?
-  playerId        String?
-  summary         String
-  rulesApplied    Json
-  blockers        Json
-  warnings        Json
-  recommendations Json
-  crossTeamImpacts Json
-  createdAt       DateTime @default(now())
+model CoachingIntent {
+  id          String  @id @default(cuid())
+  scopeType   CoachingIntentScopeType
+  scopeId     String
+  category    CoachingIntentCategory
+  note        String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([scopeType, scopeId])
-  @@index([matchId])
-  @@index([teamId])
-  @@index([playerId])
-  @@index([createdAt])
+  @@index([category])
 }
 
 enum MatchReportStatus {
@@ -588,4 +650,82 @@ model MatchReportPlayerStat {
 
   @@unique([matchReportId, playerId])
   @@index([playerId])
+}
+
+model PlayerReadinessSignal {
+  id          String              @id @default(cuid())
+  playerId    String
+  signalType  ReadinessSignalType
+  value       ReadinessSignalValue
+  note        String?
+  recordedBy  String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  player      Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([playerId, signalType])
+  @@index([playerId])
+  @@index([signalType])
+}
+
+model MatchExecutionFeedback {
+  id          String           @id @default(cuid())
+  matchId     String
+  playerId    String
+  category    FeedbackCategory
+  value       String
+  observableBehavior String?
+  nextAction  FeedbackNextAction @default(NO_ACTION)
+  note        String?
+  recordedBy  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  match       Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player      Player           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([matchId, playerId, category])
+  @@index([matchId])
+  @@index([playerId])
+  @@index([category])
+}
+
+model TeamReflection {
+  id              String   @id @default(cuid())
+  matchId         String   @unique
+  effort          String?
+  teamCohesion    String?
+  positionalShape String?
+  recoveryBehavior String?
+  note            String?
+  recordedBy      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  match           Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}
+
+model SelectionExplanation {
+  id              String   @id @default(cuid())
+  scopeType       String
+  scopeId         String
+  matchId         String?
+  teamId          String?
+  playerId        String?
+  summary         String
+  rulesApplied    Json
+  blockers        Json
+  warnings        Json
+  recommendations Json
+  crossTeamImpacts Json
+  coachingIntentCategory CoachingIntentCategory?
+  matchdayResponsibility MatchdayResponsibilityType?
+  createdAt       DateTime @default(now())
+
+  @@index([scopeType, scopeId])
+  @@index([matchId])
+  @@index([teamId])
+  @@index([playerId])
+  @@index([createdAt])
 }

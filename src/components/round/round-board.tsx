@@ -23,6 +23,7 @@ import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/(app)/rounds/[matchRoundId]/actions";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
+import { MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, type MatchdayResponsibilityType } from "@/lib/coaching/types";
 import type { WarningSeverity } from "@/generated/prisma/client";
 
 type SelectionRole = UISelectionRole;
@@ -40,6 +41,7 @@ type PlayerInColumn = {
   availability?: string;
   playerCoreTeamId?: string;
   warningCount?: number;
+  matchdayResponsibility?: string | null;
 };
 
 type MatchColumn = {
@@ -162,6 +164,14 @@ function PlayerChip({
       <span className="shrink-0 text-[9px] text-[var(--text-muted)]">{player.coreTeamName}</span>
       {player.manualOverride && (
         <span className="shrink-0 text-[8px] text-amber-400 uppercase">ovr</span>
+      )}
+      {player.matchdayResponsibility && (
+        <span
+          className="shrink-0 text-[8px] text-blue-400"
+          title={MATCHDAY_RESPONSIBILITY_DESCRIPTIONS[player.matchdayResponsibility as MatchdayResponsibilityType]}
+        >
+          {player.matchdayResponsibility === "CONFIDENCE_REBUILD_PLAYER" ? "CR" : player.matchdayResponsibility === "CHALLENGE_PLAYER" ? "CH" : player.matchdayResponsibility === "RECOVERY_LEADER" ? "RL" : player.matchdayResponsibility === "WIDTH_HOLDER" ? "WH" : player.matchdayResponsibility === "CONNECTOR" ? "CN" : "ST"}
+        </span>
       )}
       {player.warningCount && player.warningCount > 0 && (
         <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />

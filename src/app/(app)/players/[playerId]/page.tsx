@@ -18,6 +18,7 @@ import {
   getPlayerPositionSummary,
 } from "@/lib/player-metrics";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
+import { ReadinessSignalEditor } from "@/components/players/readiness-signal-editor";
 
 type PlayerPageProps = {
   params: Promise<{
@@ -42,7 +43,7 @@ function formatRoleCount(history: Array<{ role: SelectionRole }>, roleType: Sele
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats, readinessSignals] = await Promise.all([
     db.player.findFirst({
       where: { id: playerId, removedAt: null },
       include: { coreTeam: { select: { id: true, name: true } } },
@@ -99,6 +100,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       take: 20,
     }),
     getPlayerAllTimeStats(playerId),
+    db.playerReadinessSignal.findMany({
+      where: { playerId },
+      orderBy: { signalType: "asc" },
+    }),
   ]);
 
   if (!player) notFound();
@@ -255,6 +260,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               </div>
             </div>
           )}
+           <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Readiness</p>
+             <ReadinessSignalEditor playerId={player.id} signals={readinessSignals.map((s) => ({ id: s.id, signalType: s.signalType, value: s.value, note: s.note }))} />
+           </div>
         </div>
 
         {/* Col 3: Movement, Explanations, Actions */}

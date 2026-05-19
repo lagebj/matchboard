@@ -16,6 +16,8 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
+import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 
 type SelectionRow = {
   id: string;
@@ -29,6 +31,7 @@ type SelectionRow = {
   selectionReason: string;
   priorityScore: number | null;
   overrideReason: string | null;
+  matchdayResponsibility?: string | null;
 };
 
 type WarningRow = {
@@ -56,6 +59,8 @@ type MatchData = {
   postMatchStatus?: string;
   selections: SelectionRow[];
   warnings: WarningRow[];
+  coachingIntent?: string;
+  coachingIntentId?: string;
 };
 
 const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
@@ -258,6 +263,15 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {match.notes && (
               <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
             )}
+
+             <div className="mt-3">
+               <CoachingIntentSelector
+                 scopeType="MATCH"
+                 scopeId={match.id}
+                 currentIntent={match.coachingIntent}
+                 currentIntentId={match.coachingIntentId}
+               />
+             </div>
           </div>
 
           {grouped.length > 0 ? (
@@ -290,6 +304,11 @@ export function MatchDetail({ match }: { match: MatchData }) {
                           {p.manualOverride && (
                             <span className="text-[8px] text-amber-400 uppercase">ovr</span>
                           )}
+                          <MatchdayResponsibilitySelector
+                            selectionId={p.id}
+                            currentResponsibility={p.matchdayResponsibility}
+                            status={p.status}
+                          />
                         </span>
                       ))}
                     </div>

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { GeneratedRound } from "@/lib/selection/types";
+import type { CoachingIntentCategory, MatchdayResponsibilityType } from "@/lib/coaching/types";
 
 type PersistableExplanation = {
   scopeType: "ROUND" | "MATCH" | "TEAM" | "PLAYER";
@@ -13,6 +14,8 @@ type PersistableExplanation = {
   warnings: Array<{ code: string; message: string; severity?: string }>;
   recommendations: Array<{ summary: string }>;
   crossTeamImpacts: Array<{ description: string }>;
+  coachingIntentCategory?: CoachingIntentCategory;
+  matchdayResponsibility?: MatchdayResponsibilityType;
 };
 
 function buildMatchExplanation(
@@ -120,11 +123,20 @@ export function buildPersistableExplanations(
 
 export async function persistRoundExplanations(
   generatedRound: GeneratedRound,
+  matchIntentMap?: Map<string, CoachingIntentCategory>,
 ): Promise<void> {
   const explanations = buildPersistableExplanations(generatedRound);
   if (explanations.length === 0) return;
 
   const matchRoundId = generatedRound.matchRoundId;
+
+  if (matchIntentMap) {
+    for (const explanation of explanations) {
+      if (explanation.matchId && matchIntentMap.has(explanation.matchId)) {
+        explanation.coachingIntentCategory = matchIntentMap.get(explanation.matchId);
+      }
+    }
+  }
 
   await db.$transaction(async (tx) => {
     await tx.selectionExplanation.deleteMany({
@@ -158,6 +170,7 @@ export async function persistRoundExplanations(
           warnings: explanation.warnings ?? [],
           recommendations: explanation.recommendations ?? [],
           crossTeamImpacts: explanation.crossTeamImpacts ?? [],
+          coachingIntentCategory: explanation.coachingIntentCategory,
         },
       });
     }
