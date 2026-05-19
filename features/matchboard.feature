@@ -1,6 +1,9 @@
 Feature: Matchboard football operations workspace
 
-  Matchboard is a local-first web app for youth football match-round selection.
+  Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
+
+  It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
+
   Matchboard generates selections per match round.
   A match round is the operational planning unit.
   The season or planning period is the fairness and load-balancing context.
@@ -37,7 +40,7 @@ Feature: Matchboard football operations workspace
   Tables are allowed for audit, history, export preview, and dense configuration, but the main workflow must use football operations workspaces.
 
   Background:
-    Given the app has a local database
+    Given the app has a hosted PostgreSQL database
     And the coach can configure seasons
     And the coach can configure planning periods
     And the coach can configure teams
@@ -68,7 +71,8 @@ Feature: Matchboard football operations workspace
     Scenario: Matchboard is not a club management system
       Given the coach uses the app
       Then the app must not manage club membership, registration, payments, or communication
-      And the app must not provide authentication or multi-user workflows
+      And the app must not provide public signup or multi-tenant auth
+      And the app must not expose internal planning tags to parent-facing exports
 
 
   Rule: Main domain hierarchy
@@ -3337,3 +3341,492 @@ Feature: Matchboard football operations workspace
       Given a selection has role "SUPPORT" but no corresponding movement ledger entry
       When the app validates before finalization or export
       Then the validation must generate a warning about missing movement ledger entry
+
+
+  # ===== Coaching intent and execution model =====
+
+  Rule: Coaching intent
+
+    Every generated selection must be connected to coach-visible football intention where relevant. Coaching intent does not override hard eligibility rules. It informs explanations and warnings.
+
+    Intent categories:
+    - team_first — prioritize team function over individual development
+    - reset_after_error — prioritize reset and recovery after mistakes
+    - support_teammates — prioritize helping teammates over individual stats
+    - positional_discipline — prioritize staying in position and team shape
+    - play_through_team — prioritize connecting with teammates over solo actions
+    - defensive_recovery — prioritize defensive responsibility and recovery
+    - confidence_rebuild — prioritize a safer context with specific success criteria for a player who needs it
+    - challenge_exposure — provide a harder match context because effort and readiness support it
+    - stabilize_weaker_team — prioritize stabilizing a team that needs support
+    - protect_match_function — prioritize making the match viable for all players
+
+    Scenario: Match stores coaching intent
+      Given the coach creates or edits a match
+      When the coach records match intent
+      Then the match must store the primary football goal
+      And the match may store team risks
+      And the match may store player responsibility focus
+      And the match intent must be visible during squad generation
+      And the match intent must be preserved in finalized history
+
+    Scenario: Intent informs explanations without overriding hard rules
+      Given a match has coaching intent "stabilize_weaker_team"
+      And player "p1" is unavailable for the match date
+      When the coach generates selections
+      Then player "p1" must not be selected because availability is a hard rule
+      And the explanation must distinguish the blocked hard rule from the coaching intent
+
+    Scenario: Generated selections expose coaching intent where relevant
+      Given a match has coaching intent "challenge_exposure"
+      And player "p2" is selected as DEVELOPMENT on a rotation path that serves the challenge_exposure intent
+      When the coach reviews the generated squad
+      Then the selection may reference the coaching intent it serves
+      And the intent reference must be coach-facing by default
+
+    Scenario: Intent can be edited by the coach before finalization
+      Given a match has coaching intent "team_first"
+      And the match round is in DRAFT state
+      When the coach changes the match intent to "support_teammates"
+      Then the match intent must be updated
+      And draft selections may be regenerated to reflect the updated intent
+
+    Scenario: Finalized history preserves intent snapshots
+      Given a match had coaching intent "defensive_recovery" when finalized
+      When the coach reviews the finalized round history
+      Then the intent snapshot must be preserved from the finalization time
+      And the intent must remain visible in coach-facing review
+
+    Scenario: Intent remains coach-facing unless explicitly exported through parent-safe language
+      Given a match has coaching intent "confidence_rebuild"
+      When the coach creates a parent-facing export
+      Then the coaching intent must not appear directly in the export
+      And neutral language such as "suitable challenge" or "development opportunity" may be used instead
+
+
+  Rule: Matchday responsibility
+
+    Player selection must support match execution, not only squad completion. A matchday responsibility may be assigned to a selected player to describe their execution focus for that match.
+
+    Matchday responsibilities are coach-facing execution concepts, separate from selection roles. They do not change eligibility.
+
+    Allowed matchday responsibilities:
+    - stabilizer — helps the team stay calm, connected, and organized
+    - connector — looks for simple team actions and helps involve teammates
+    - recovery_leader — reacts quickly after ball loss and models reset behavior
+    - width_holder — protects team shape and avoids unnecessary central crowding
+    - challenge_player — receives a harder match context because effort and readiness support it
+    - confidence_rebuild_player — receives a safer or clearer context with specific success criteria
+
+    Scenario: Selection has matchday responsibility
+      Given player "p1" is selected for match "m1"
+      When the coach reviews the generated squad
+      Then the selection may have a matchday responsibility
+      And the responsibility may be "stabilizer", "connector", "recovery_leader", "width_holder", "challenge_player", or "confidence_rebuild_player"
+      And the responsibility must be coach-facing by default
+      And the responsibility must not change eligibility rules
+
+    Scenario: Responsibility is preserved in finalized history
+      Given player "p1" is selected for match "m1" with matchday responsibility "stabilizer"
+      And match "m1" is finalized
+      When the coach reviews the finalized round
+      Then the matchday responsibility must be preserved in the selection record
+      And the responsibility must remain visible in coach-facing review
+
+    Scenario: Responsibility is separate from player identity and permanent labels
+      Given player "p1" has matchday responsibility "challenge_player" for match "m1"
+      When the coach reviews a different match "m2"
+      Then player "p1" may have a different matchday responsibility or no responsibility for match "m2"
+      And the responsibility must never become a permanent label attached to the player
+      And the responsibility must never appear as a fixed player rating
+
+    Scenario: Responsibility must be explained using observable football language
+      Given player "p2" has matchday responsibility "recovery_leader" for match "m1"
+      When the coach views the explanation for this responsibility
+      Then the explanation must use observable football behavior such as "react quickly after ball loss" or "helps team reset"
+      And the explanation must not use character labels such as "lazy" or "selfish" or "bad attitude"
+
+    Scenario: Parent-facing export uses neutral language for responsibility
+      Given player "p1" has matchday responsibility "confidence_rebuild_player" for match "m1"
+      When the coach creates a parent-facing export
+      Then the matchday responsibility must not appear in the export
+      Or if context is needed, the export must use neutral language such as "development opportunity" or "suitable challenge"
+
+
+  Rule: Player readiness signals
+
+    Readiness is soft coaching context and must not become hidden ranking or punishment. Readiness signals inform scoring preferences and coach warnings but must not create automatic exclusion or permanent labels.
+
+    Initial readiness signals:
+    - effort trend — rising / stable / falling
+    - attendance reliability — high / medium / low
+    - learning behavior — strong / ok / needs_attention
+    - team-first behavior — strong / ok / needs_attention
+    - reset-after-error reliability — strong / ok / needs_attention
+    - coach trust — high / medium / low
+
+    Scenario: Readiness informs warning but does not exclude
+      Given player "p1" is eligible for match "m1"
+      And player "p1" has reset-after-error reliability "needs_attention"
+      When the coach generates selections
+      Then player "p1" may still be selected
+      And the coach may receive a warning
+      And the warning must explain the observable concern
+      And the warning must not be visible in parent-facing exports
+
+    Scenario: Readiness must not create automatic punishment
+      Given player "p2" has effort trend "falling"
+      When selections are generated
+      Then player "p2" must not be automatically excluded only because of the effort signal
+      And any exclusion must be explained through hard eligibility, squad constraints, or explicit coach override
+      And the readiness signal must not become a permanent label on the player
+
+    Scenario: Readiness must not override hard eligibility rules
+      Given player "p3" has coach trust "high"
+      And player "p3" does not have a valid rotation path to the target team
+      When selections are generated
+      Then player "p3" must still not be selected for non-core movement to the target team
+      And high readiness must not override rotation path validation
+
+    Scenario: Readiness signals are coach-editable and explainable
+      Given player "p1" has effort trend "falling"
+      When the coach edits player "p1" readiness
+      Then the coach may change effort trend to "stable" or "rising"
+      And the change must be recorded with a timestamp
+      And the coach may add an explanation for the change
+      And readiness must be time-bound and reviewable
+
+    Scenario: Readiness signals are excluded from parent-facing exports
+      Given player "p1" has readiness signals recorded
+      When the coach creates a parent-facing export
+      Then readiness signals must not appear in the export
+      And no readiness-derived labels or rankings must appear in the export
+
+    Scenario: Readiness uses observable behavior categories
+      Given the app supports readiness signals
+      Then effort trend must use "rising", "stable", or "falling"
+      And attendance reliability must use "high", "medium", or "low"
+      And learning behavior must use "strong", "ok", or "needs_attention"
+      And team-first behavior must use "strong", "ok", or "needs_attention"
+      And reset-after-error reliability must use "strong", "ok", or "needs_attention"
+      And coach trust must use "high", "medium", or "low"
+      And readiness must never use labels such as "lazy", "selfish", "bad attitude", or "weak player"
+
+
+  Rule: Match execution feedback
+
+    Matchboard captures observable match behavior without becoming a punishment system. Feedback is coach-facing by default, describes behavior not character, and is optional and lightweight.
+
+    Initial feedback categories:
+    - effort
+    - team help
+    - reset after mistake
+    - positional discipline
+    - teammate involvement
+
+    Allowed observable feedback examples:
+    - helped teammate after ball loss
+    - stopped after mistake
+    - recovered position quickly
+    - drifted too far from home zone
+    - looked for pass instead of forcing solo action
+    - tracked runner after teammate was beaten
+    - encouraged teammate after mistake
+    - gave up on recovery run
+    - stayed available for pass
+    - involved weaker teammate in play
+
+    Disallowed feedback language:
+    - lazy
+    - selfish
+    - bad attitude
+    - weak player
+    - not good enough
+    - useless
+    - problem player
+
+    Scenario: Coach records player execution feedback
+      Given match "m1" has been played
+      And player "p1" was selected for match "m1"
+      When the coach records feedback
+      Then the feedback may include effort, team help, reset after mistake, positional discipline, and teammate involvement
+      And the feedback must use observable football behavior
+      And the feedback must remain coach-facing by default
+      And the feedback may inform future coach warnings and planning suggestions
+
+    Scenario: Feedback must use observable behavior not character labels
+      Given the coach records feedback for player "p1"
+      When the coach types feedback text
+      Then the app must accept observable behavior descriptions such as "recovered position quickly"
+      And the app must reject disallowed labels such as "lazy" or "bad attitude"
+      And the app must warn the coach if disallowed language is entered
+
+    Scenario: Feedback must not mutate finalized planned selections
+      Given match "m1" has a finalized planned squad
+      And the coach records post-match feedback for player "p1"
+      When the feedback is saved
+      Then the finalized planned selections must not be modified
+      And the feedback must be stored as a separate record linked to the match and player
+
+    Scenario: Feedback may contribute to effective participation history
+      Given player "p1" actually appeared in the post-match report for match "m1"
+      When the coach records feedback for player "p1"
+      Then the feedback may be linked to the effective participation record
+      And the feedback must not be confused with the planned selection
+      And actual participation must remain separate from planned selection
+
+    Scenario: Feedback is excluded from parent-facing exports
+      Given player "p1" has coach-facing feedback recorded
+      When the coach creates a parent-facing export
+      Then the feedback must not appear in the export
+      And no feedback-derived labels or ratings must appear in the export
+
+    Scenario: Coach records team-level post-match reflection
+      Given match "m1" has been played
+      When the coach records a team-level reflection
+      Then the reflection may include match effort, team cohesion, positional shape, and recovery behavior
+      And the reflection must use observable football language
+      And the reflection must remain coach-facing by default
+
+    Scenario: Feedback is optional and lightweight
+      Given match "m1" has been played
+      When the coach views the match detail
+      Then recording feedback must be optional
+      And feedback should be recorded only where useful
+      And missing feedback must not block any workflow
+
+
+  Rule: Coach-facing and parent-facing language separation
+
+    Internal planning reasons must not leak into parent or player exports. The app supports coach view and parent/player export view with strict separation.
+
+    Coach-facing language may include:
+    - movement direction and source/target team
+    - selection role (CORE, SUPPORT, DEVELOPMENT, SQUAD_REPAIR)
+    - matchday responsibility
+    - support burden and fairness impact
+    - readiness signals
+    - execution feedback
+    - override reason
+    - rule warnings
+    - internal explanation
+    - coaching intent
+
+    Parent-facing language must use neutral terms such as:
+    - rotation
+    - suitable challenge
+    - team balance
+    - availability
+    - match experience
+    - development opportunity
+    - squad adjustment
+    - planning period
+    - match group
+
+    Parent-facing language must avoid:
+    - low readiness
+    - weak player
+    - support burden
+    - confidence rebuild
+    - effort concern
+    - coach trust
+    - needs_attention
+    - internal ranking
+    - punishment
+    - selection debt
+    - culture debt
+    - hidden judgement
+
+    Scenario: Coach export includes internal roles and explanations
+      Given finalized selections exist
+      When the coach exports coach-facing planning information
+      Then the export may include selection roles, movement direction, explanations, override reasons, readiness notes, and feedback where relevant
+
+    Scenario: Parent export hides internal judgement
+      Given a selection has coach-facing notes about effort, readiness, support burden, or confidence rebuild
+      When the coach exports a parent-facing squad message
+      Then the export must hide internal judgement
+      And the export must use neutral language such as rotation, suitable challenge, team balance, availability, or development opportunity
+      And the export must not include readiness signals, execution feedback, or coaching intent
+
+    Scenario: Player names and personal data must not be sent to external AI services
+      Given the app uses any external AI or analytics service
+      When player data is sent to the service
+      Then the app must use stable player IDs only
+      And must not include player names, readiness signals, feedback text, or coach notes
+      And must sanitize payloads to remove personally identifiable information
+
+    Scenario: Hosted architecture does not make coach-facing data public
+      Given the app is deployed on a hosted platform
+      When a non-coach user attempts to access coach-facing data
+      Then the app must require authenticated coach access
+      And coach-facing data must not be accessible without authentication
+      And coach-facing data must not appear in public APIs or public URLs
+
+
+  Rule: Explanation requirements
+
+    Important selection decisions must be explainable through rules, intent, and impact. Every non-obvious selection should have a machine-readable explanation that the coach can review.
+
+    Scenario: Coach asks why a player was selected
+      Given player "p1" is selected for match "m1"
+      When the coach asks why player "p1" was selected
+      Then Matchboard must explain the selection role
+      And the movement path or override reason
+      And the coaching intent served where relevant
+      And the matchday responsibility where assigned
+      And any fairness, load, support, or risk impact
+
+    Scenario: Coach asks why a player was not selected
+      Given player "p1" is not selected for match "m1"
+      When the coach asks why player "p1" was not selected
+      Then Matchboard must explain whether the cause was a hard eligibility rule, scoring preference, squad constraint, fairness concern, or coach override
+      And the explanation must not imply punishment unless the coach explicitly recorded an override reason
+
+    Scenario: Coach asks which rule blocked a move
+      Given player "p1" was not selected for support because of a rule
+      When the coach asks why player "p1" was blocked
+      Then Matchboard must identify the specific rule that blocked the move
+      And must distinguish between hard eligibility rules and scoring preferences
+      And must explain whether the block can be overridden with a manual reason
+
+    Scenario: Coach asks what risk a manual change creates
+      Given the coach manually adds or removes a player from a draft squad
+      When the change is confirmed
+      Then Matchboard must show impact on warnings, round status, match status, explanations, fairness, and movement ledger
+      And must show same-round conflicts, availability issues, squad size impact, and support burden changes
+
+    Scenario: Explanation distinguishes hard rules from scoring preferences
+      Given player "p1" is not selected because of availability (hard rule)
+      And player "p2" is ranked below player "p3" because of fairness scoring (soft preference)
+      When the coach asks for explanations
+      Then the explanation for player "p1" must identify availability as a hard eligibility rule
+      And the explanation for player "p2" must identify fairness as a scoring preference that can be overridden
+
+    Scenario: Explanation distinguishes planned selection from actual participation
+      Given player "p1" was planned as CORE for match "m1"
+      And player "p1" actually appeared as support in the post-match report for match "m1"
+      When the coach reviews history
+      Then the explanation must distinguish the planned selection from actual participation
+      And planned selection and actual participation must not be confused
+
+    Scenario: Explanation uses stable player IDs in external contexts
+      Given the app generates an export or external payload
+      When the explanation is included in the payload
+      Then player references must use stable player IDs
+      And must not include player names in external or sanitized contexts
+
+
+  Rule: Manual draft change impact analysis
+
+    Manual changes are allowed, but Matchboard must explain what changed and what debt or risk was created. Manual changes support real matchday reality: late absence, emergency support, sickness, injury, availability change, coach judgement, squad size repair, real-world backfill, and actual participation differing from planned selection.
+
+    Scenario: Manual add recalculates warnings and impact
+      Given match "m1" is in DRAFT state
+      When the coach manually adds player "p1" to match "m1"
+      Then Matchboard must recalculate match status, round status, warnings, explanations, and fairness impact
+      And must recalculate the movement ledger for the change
+      And must show the impact of the change
+
+    Scenario: Manual add shows same-round conflict
+      Given player "p1" is already selected for match "m2" in the same round as match "m1"
+      When the coach manually adds player "p1" to match "m1"
+      Then Matchboard must warn about the same-round conflict
+      And must require an override reason
+
+    Scenario: Emergency backfill is recorded as actual participation
+      Given match "m1" has a finalized planned squad
+      And player "p1" was not part of the finalized planned squad
+      When the coach manually records player "p1" as participating
+      Then Matchboard must record this as actual participation
+      And must not rewrite the finalized planned selection
+      And must show impact on load, fairness, support burden, and same-round conflicts
+      And must require or preserve a coach-facing reason if normal rules were violated
+
+    Scenario: Actual double-load is tracked through participation not planned selections
+      Given player "p1" actually appeared in two post-match reports in the same round
+      When the coach records post-match data
+      Then the actual double-load must be tracked as effective participation history
+      And must affect future fairness and load calculations
+      And must not mutate finalized planned selections
+
+    Scenario: Manual removal preserves audit history
+      Given player "p1" is selected for match "m1" in DRAFT state
+      When the coach manually removes player "p1"
+      Then the removal must be recorded with a reason
+      And the movement ledger must be updated
+      And warnings, explanations, and fairness impact must be recalculated
+
+
+  Rule: Misuse guardrails
+
+    Matchboard must protect development, belonging, and privacy while supporting honest coach judgement. Matchboard must not become a punishment engine, a hidden player ranking ladder, a moral scoring system, a parent-visible judgement tool, a tool for hard early sorting, a fake equality generator, a generic scheduling system, a generic club-management system, or a public player evaluation system.
+
+    Scenario: Readiness cannot become automatic punishment
+      Given player "p1" has readiness signal "needs_attention"
+      When selections are generated
+      Then player "p1" must not be automatically excluded only because of that signal
+      And any exclusion must be explained through hard eligibility, squad constraints, or explicit coach override
+
+    Scenario: Parent export cannot expose internal judgement
+      Given player "p1" has coach-facing feedback and readiness signals
+      When the coach creates a parent-facing export
+      Then the feedback must not be included
+      And the readiness signals must not be included
+      And the export must use neutral planning language
+
+    Scenario: Movement remains temporary and explainable
+      Given player "p1" is selected as SUPPORT for Team C from Team B
+      When the coach reviews the movement
+      Then the movement must be explained by rotation path, team need, and fairness context
+      And the movement must not be described as a permanent label or identity change
+      And the player must be expected to return to their core team
+
+    Scenario: Stable belonging remains protected
+      Given player "p1" has a core team
+      When player "p1" is moved as support or development
+      Then player "p1" must retain their core team membership
+      And the movement must not redefine the player's team identity
+      And the player must be shown as belonging to their core team with a temporary assignment
+
+    Scenario: Coach judgement remains explicit when overriding rules
+      Given the coach manually overrides a domain rule
+      When the override is saved
+      Then the override must require a structured reason category and detail
+      And the override must appear in the finalization summary
+      And the override must not be silently applied
+
+    Scenario: Hosted deployment does not weaken privacy boundaries
+      Given the app is deployed on a hosted platform
+      When coach-facing data is stored
+      Then the data must be protected by authenticated coach access
+      And the hosted architecture must not make planning data public
+      And readiness, feedback, and internal explanations must remain coach-facing by default
+
+    Scenario: Player development context does not become public labels
+      Given player "p1" has readiness signals and matchday responsibilities recorded
+      When any export or external-facing view is generated
+      Then readiness signals must not appear in parent-facing exports
+      And matchday responsibilities must not appear in parent-facing exports without explicit coach choice and neutral language
+      And no permanent player ranking or level label must be generated or stored
+
+    Scenario: Stronger players can support without permanent identity change
+      Given player "p1" from Team A is selected as SUPPORT for Team C
+      When the coach reviews the selection
+      Then the explanation must describe the movement as "sent as support" or "supporting Team C"
+      And must never describe it as "demoted" or "benched" or "punished"
+      And player "p1" must remain listed under Team A as core team member
+
+    Scenario: Challenge exposure is based on readiness and context not permanent level
+      Given player "p2" receives a challenge_exposure matchday responsibility
+      When the coach reviews the responsibility
+      Then the responsibility must be described in observable football terms
+      And must not imply a permanent level upgrade or downgrade
+      And must be changeable from match to match
+
+    Scenario: Social participation does not define football ceiling
+      Given a player participates in support roles across several rounds
+      When fairness analysis is performed
+      Then support burden must be tracked to prevent over-reliance on the same players
+      And support must not define the player's permanent football ceiling
+      And development opportunity must remain available alongside support duty
