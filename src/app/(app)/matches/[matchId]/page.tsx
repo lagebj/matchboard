@@ -107,6 +107,7 @@ export default async function MatchDetailPage({
           selections: selectionData,
           warnings: warningData,
           coachingIntent: coachingIntents[0]?.category ?? undefined,
+          coachingIntentId: coachingIntents[0]?.id ?? undefined,
         }}
       />
     </div>
