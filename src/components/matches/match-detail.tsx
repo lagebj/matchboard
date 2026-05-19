@@ -16,6 +16,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { COACHING_INTENT_LABELS, MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, type CoachingIntentCategory, type MatchdayResponsibilityType } from "@/lib/coaching/types";
 
 type SelectionRow = {
   id: string;
@@ -29,6 +30,7 @@ type SelectionRow = {
   selectionReason: string;
   priorityScore: number | null;
   overrideReason: string | null;
+  matchdayResponsibility?: string | null;
 };
 
 type WarningRow = {
@@ -56,6 +58,7 @@ type MatchData = {
   postMatchStatus?: string;
   selections: SelectionRow[];
   warnings: WarningRow[];
+  coachingIntent?: string;
 };
 
 const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
@@ -258,6 +261,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {match.notes && (
               <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
             )}
+
+            {match.coachingIntent && (
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
+                Intent: {COACHING_INTENT_LABELS[match.coachingIntent as CoachingIntentCategory] ?? match.coachingIntent}
+              </p>
+            )}
           </div>
 
           {grouped.length > 0 ? (
@@ -289,6 +298,11 @@ export function MatchDetail({ match }: { match: MatchData }) {
                           <span className="text-[10px] text-[var(--text-muted)]">{p.coreTeamName}</span>
                           {p.manualOverride && (
                             <span className="text-[8px] text-amber-400 uppercase">ovr</span>
+                          )}
+                          {p.matchdayResponsibility && (
+                            <span className="text-[8px] text-blue-400" title={MATCHDAY_RESPONSIBILITY_DESCRIPTIONS[p.matchdayResponsibility as MatchdayResponsibilityType]}>
+                              {p.matchdayResponsibility === "CONFIDENCE_REBUILD_PLAYER" ? "CR" : p.matchdayResponsibility === "CHALLENGE_PLAYER" ? "CH" : p.matchdayResponsibility === "RECOVERY_LEADER" ? "RL" : p.matchdayResponsibility === "WIDTH_HOLDER" ? "WH" : p.matchdayResponsibility === "CONNECTOR" ? "CN" : "ST"}
+                            </span>
                           )}
                         </span>
                       ))}

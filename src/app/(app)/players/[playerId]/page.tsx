@@ -18,6 +18,7 @@ import {
   getPlayerPositionSummary,
 } from "@/lib/player-metrics";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
+import { READINESS_SIGNAL_LABELS, type ReadinessSignalType } from "@/lib/coaching/types";
 
 type PlayerPageProps = {
   params: Promise<{
@@ -42,7 +43,7 @@ function formatRoleCount(history: Array<{ role: SelectionRole }>, roleType: Sele
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats, readinessSignals] = await Promise.all([
     db.player.findFirst({
       where: { id: playerId, removedAt: null },
       include: { coreTeam: { select: { id: true, name: true } } },
@@ -99,6 +100,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       take: 20,
     }),
     getPlayerAllTimeStats(playerId),
+    db.playerReadinessSignal.findMany({
+      where: { playerId },
+      orderBy: { signalType: "asc" },
+    }),
   ]);
 
   if (!player) notFound();
@@ -250,6 +255,19 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                           : "bg-amber-900/20 text-amber-400"
                       }`}>{entry.status === SelectionStatus.FINALIZED ? "F" : "D"}</span>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {readinessSignals.length > 0 && (
+            <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Readiness</p>
+              <div className="flex flex-col gap-1">
+                {readinessSignals.map((signal) => (
+                  <div key={signal.id} className="flex justify-between text-xs">
+                    <span className="text-[var(--text-muted)]">{READINESS_SIGNAL_LABELS[signal.signalType as ReadinessSignalType] ?? signal.signalType}</span>
+                    <span className={`font-medium ${["RISING", "HIGH", "STRONG"].includes(signal.value) ? "text-emerald-400" : signal.value === "OK" ? "text-zinc-300" : "text-amber-400"}`}>{signal.value}</span>
                   </div>
                 ))}
               </div>
