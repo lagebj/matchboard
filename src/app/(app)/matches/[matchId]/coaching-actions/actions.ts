@@ -51,8 +51,13 @@ export async function setCoachingIntentAction(
 
     revalidatePath(`/matches/${scopeType === "MATCH" ? scopeId : ""}`);
     revalidatePath(`/rounds`);
+    revalidatePath(`/assistant`);
+
     if (scopeType === "MATCH_ROUND") {
       revalidatePath(`/rounds/${scopeId}`);
+    }
+    if (scopeType === "PLANNING_PERIOD") {
+      revalidatePath(`/season`);
     }
 
     return { success: true };
@@ -74,8 +79,13 @@ export async function removeCoachingIntentAction(
 
     revalidatePath(`/matches/${intent.scopeType === "MATCH" ? intent.scopeId : ""}`);
     revalidatePath(`/rounds`);
+    revalidatePath(`/assistant`);
+
     if (intent.scopeType === "MATCH_ROUND") {
       revalidatePath(`/rounds/${intent.scopeId}`);
+    }
+    if (intent.scopeType === "PLANNING_PERIOD") {
+      revalidatePath(`/season`);
     }
 
     return { success: true };
