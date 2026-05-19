@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { PostMatchPage } from "@/components/assistant/post-match-page";
+import { MatchFeedbackSection } from "@/components/matches/match-feedback-section";
+import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { requireCoachAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -124,5 +126,56 @@ export default async function PostMatchRoute({ params }: PageProps) {
     plannedSelections,
   } : null;
 
-  return <PostMatchPage matchId={matchId} initialReport={initialReport} />;
+  const [feedbackEntries, teamReflection] = await Promise.all([
+    db.matchExecutionFeedback.findMany({
+      where: { matchId },
+      orderBy: [{ category: "asc" }, { playerId: "asc" }],
+      select: {
+        id: true,
+        playerId: true,
+        category: true,
+        value: true,
+        observableBehavior: true,
+        nextAction: true,
+        note: true,
+      },
+    }),
+    db.teamReflection.findUnique({
+      where: { matchId },
+      select: { id: true, effort: true, teamCohesion: true, positionalShape: true, recoveryBehavior: true, note: true },
+    }),
+  ]);
+
+  const feedbackData = feedbackEntries.map((f) => ({
+    id: f.id,
+    playerId: f.playerId,
+    category: f.category,
+    value: f.value,
+    observableBehavior: f.observableBehavior,
+    nextAction: f.nextAction,
+    note: f.note,
+  }));
+
+  const playerOptions = match.selections.map((s) => ({
+    id: s.playerId,
+    name: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
+  }));
+
+  const reflectionData = teamReflection
+    ? {
+        effort: teamReflection.effort,
+        teamCohesion: teamReflection.teamCohesion,
+        positionalShape: teamReflection.positionalShape,
+        recoveryBehavior: teamReflection.recoveryBehavior,
+        note: teamReflection.note,
+      }
+    : null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <PostMatchPage matchId={matchId} initialReport={initialReport} />
+      <MatchFeedbackSection matchId={matchId} feedback={feedbackData} players={playerOptions} />
+      <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
+    </div>
+  );
 }
