@@ -14,6 +14,18 @@ When working on Matchboard user-facing features, apply both:
 
 Do not duplicate the global skill's rules inside this file.
 
+## Product framing
+
+Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
+
+It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
+
+## Coaching loop
+
+Matchboard supports: intent → selection → responsibility → execution → reflection → learning
+
+This loop must be reflected in the UI workflow, not just the selection engine.
+
 ## Assistant Manager workflow
 
 The Today/Assistant page must always show the next action based on workflow state:
@@ -124,7 +136,41 @@ Use neutral coaching language for all movement and selection descriptions:
 
 BACKFILL remains the internal code role. Use "squad repair" in all user-facing UI and documentation.
 
-## Readiness states
+## Readiness signals
+
+Readiness is soft coaching context, not a hard ranking system. It must not create automatic punishment, permanent labels, or parent-visible judgement.
+
+Initial readiness signals: effort trend, attendance reliability, learning behavior, team-first behavior, reset-after-error reliability, coach trust.
+
+Low readiness cannot automatically exclude an eligible player. Strong readiness cannot automatically override hard eligibility rules. Readiness must be coach-editable, time-bound, and based on observable behavior.
+
+## Coaching intent
+
+Coaching intent can be attached to planning periods, match rounds, matches, teams, and selections. Intent informs explanations and warnings but does not silently override hard eligibility rules.
+
+Intent categories: team_first, reset_after_error, support_teammates, positional_discipline, play_through_team, defensive_recovery, confidence_rebuild, challenge_exposure, stabilize_weaker_team, protect_match_function.
+
+Intent remains coach-facing unless explicitly exported through neutral parent-safe language.
+
+## Matchday responsibilities
+
+Matchday responsibilities are coach-facing execution concepts separate from selection roles. They must never change player eligibility. They may change from match to match.
+
+Allowed responsibilities: stabilizer, connector, recovery_leader, width_holder, challenge_player, confidence_rebuild_player.
+
+## Feedback language
+
+Post-match feedback describes behavior, not character. Disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player. Allowed language uses observable behavior descriptions.
+
+## Parent-facing language
+
+Internal planning reasons must not leak into parent-facing exports. Parent-facing language must use neutral terms (rotation, suitable challenge, team balance, availability, development opportunity). Parent-facing language must never use: low readiness, weak player, support burden, confidence rebuild, effort concern, coach trust, needs_attention, internal ranking, punishment, selection debt.
+
+## Misuse guardrails
+
+Matchboard must not become: a punishment engine, a hidden player ranking ladder, a moral scoring system, a parent-visible judgement tool, a tool for hard early sorting, a fake equality generator, a generic scheduling system, a generic club-management system, or a public player evaluation system.
+
+Movement is temporary and explainable. Stable belonging is protected. Coach judgement remains explicit when overriding rules. Hosted deployment does not weaken privacy boundaries.
 
 Round and match readiness has five states:
 

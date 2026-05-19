@@ -1,6 +1,8 @@
 # Matchboard Agent Instructions
 
-Matchboard is a local-first web app for youth football match-round selection, controlled player movement, and squad history tracking.
+Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
+
+It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
 `features/matchboard.feature` is the single behavioral source of truth for domain behavior, selection rules, and expected outcomes.
 
@@ -42,9 +44,13 @@ Matchboard is set up by adding teams, players, and matches. The coach can then p
 The primary coach workflow is:
 
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
-2. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
-3. **Review** — Inspect draft selections, warnings, and fairness impact per round. Resolve blockers. Manually adjust draft squads if needed.
-4. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
+2. **Define intent** — Set match purpose, team risk, desired football behavior, support need, development focus.
+3. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
+4. **Review** — Inspect draft selections, warnings, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
+5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
+6. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
+7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
+8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
 The Today page must always show the next action based on this workflow state.
 
@@ -54,7 +60,7 @@ The Today page must always show the next action based on this workflow state.
 - TypeScript
 - Tailwind
 - Prisma
-- PostgreSQL (local Docker Compose or Neon)
+- PostgreSQL (Neon for production, Docker Compose for local dev)
 - Auth.js (Google OAuth, email allowlist)
 
 ## Product boundary
@@ -67,6 +73,9 @@ It does not:
 - manage a club
 - support public signup or multi-tenant auth
 - store real player data in the repo
+- serve as a parent communication platform
+- serve as a public player evaluation system
+- serve as a punishment or ranking engine
 
 Note: Matchboard does have a match creation form for recording match details (opponent, date, home/away, type, format). This is match data entry, not fixture creation or season scheduling.
 
@@ -114,6 +123,208 @@ Movement is based on:
 Movement is not a punishment or permanent label.
 
 Do not design artificial equal-strength balancing. The app should create useful squad selections, not flatten all groups into generic equality.
+
+### Coaching intent and execution model
+
+Matchboard is not only a selection engine. Matchboard supports:
+
+intent → selection → responsibility → execution → reflection → learning
+
+Selection logic must not be changed without preserving explainability and child-safe language.
+
+Coaching intent can be attached to:
+- planning periods
+- match rounds
+- matches
+- teams
+- selections
+
+Intent categories (initial set):
+- team_first — prioritize team function over individual development
+- reset_after_error — prioritize reset and recovery after mistakes
+- support_teammates — prioritize helping teammates over individual stats
+- positional_discipline — prioritize staying in position and team shape
+- play_through_team — prioritize connecting with teammates over solo actions
+- defensive_recovery — prioritize defensive responsibility and recovery
+- confidence_rebuild — prioritize a safer context with specific success criteria
+- challenge_exposure — provide a harder match context because effort and readiness support it
+- stabilize_weaker_team — prioritize stabilizing a team that needs support
+- protect_match_function — prioritize making the match viable for all players
+
+Rules:
+- Intent informs explanations and warnings but does not silently override hard eligibility rules.
+- Intent can be edited by the coach before finalization.
+- Intent remains coach-facing unless explicitly exported through neutral parent-safe language.
+- Finalized history preserves intent snapshots from finalization time.
+
+### Matchday responsibilities
+
+Matchday responsibilities are coach-facing execution concepts separate from selection roles.
+
+Allowed responsibilities (initial set):
+- stabilizer — helps the team stay calm, connected, and organized
+- connector — looks for simple team actions and helps involve teammates
+- recovery_leader — reacts quickly after ball loss and models reset behavior
+- width_holder — protects team shape and avoids unnecessary central crowding
+- challenge_player — receives a harder match context because effort and readiness support it
+- confidence_rebuild_player — receives a safer or clearer context with specific success criteria
+
+Rules:
+- A selected player may receive a matchday responsibility.
+- Responsibility must be coach-facing by default.
+- Responsibility must be preserved in finalized history.
+- Responsibility must never change player eligibility by itself.
+- Responsibility must be explained using observable football language.
+- Responsibility must be separate from player identity, level, or permanent label.
+- Responsibility may change from match to match.
+
+### Player readiness signals
+
+Readiness is soft coaching context, not a hard ranking system.
+
+Initial readiness signals:
+- effort trend — rising / stable / falling
+- attendance reliability — high / medium / low
+- learning behavior — strong / ok / needs_attention
+- team-first behavior — strong / ok / needs_attention
+- reset-after-error reliability — strong / ok / needs_attention
+- coach trust — high / medium / low
+
+Rules:
+- Readiness may influence scoring preferences and coach warnings.
+- Readiness must not create automatic punishment.
+- Readiness must not permanently label a player.
+- Readiness must not be included in parent-facing exports.
+- Readiness must be coach-editable and explainable.
+- Readiness must be time-bound or reviewable.
+- Readiness must be based on observable behavior where possible.
+- Low readiness cannot automatically exclude an eligible player.
+- Strong readiness cannot automatically override hard eligibility rules.
+
+### Post-match reflection and feedback
+
+Matchboard supports lightweight post-match feedback based on observable behavior.
+
+Feedback categories (initial set):
+- effort
+- team help
+- reset after mistake
+- positional discipline
+- teammate involvement
+
+Rules:
+- Feedback is coach-facing by default.
+- Feedback describes behavior, not character.
+- Feedback is optional and lightweight.
+- Feedback should be recorded only where useful.
+- Feedback must not shame players.
+- Feedback must not become automatic punishment.
+- Feedback can inform future warnings, readiness signals, and planning suggestions.
+- Feedback must not mutate finalized planned selections.
+- Actual participation belongs to post-match reality/history and must stay separate from planned selection.
+- Feedback must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
+- Feedback must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
+
+### Coach-facing vs parent-facing language
+
+Internal planning reasons must not leak into parent/player exports.
+
+Coach-facing language may include:
+- movement direction and source/target team
+- selection role
+- matchday responsibility
+- support burden and fairness impact
+- readiness signals
+- execution feedback
+- override reason
+- rule warnings
+- internal explanation
+- coaching intent
+
+Parent-facing language must use neutral terms:
+- rotation
+- suitable challenge
+- team balance
+- availability
+- match experience
+- development opportunity
+- squad adjustment
+- planning period
+- match group
+
+Parent-facing language must never use:
+- low readiness, weak player, support burden, confidence rebuild, effort concern, coach trust, needs_attention, internal ranking, punishment, selection debt, culture debt, hidden judgement
+
+Rules:
+- Coach export includes internal roles, movement direction, explanations, override reasons, readiness notes, and feedback where relevant.
+- Parent export hides internal planning tags and judgement.
+- Player names and personal data must not be sent to external AI services. Use stable player IDs and sanitize payloads.
+- Hosted architecture does not make coach-facing data public.
+
+### Explanation model
+
+Every non-obvious selection should be explainable through:
+- selection role
+- movement path or manual override
+- coaching intent
+- matchday responsibility if assigned
+- relevant warnings
+- fairness impact
+- load impact
+- support impact
+- risk created or mitigated
+- distinction between hard rule and scoring preference
+- distinction between planned selection and actual participation
+
+Rules:
+- Coach can ask why a player was selected.
+- Coach can ask why a player was not selected.
+- Coach can ask which rule blocked a move.
+- Coach can ask what risk a manual change creates.
+- Explanation must distinguish hard eligibility rules from scoring preferences.
+- Explanation must distinguish planned selection from actual participation.
+- Explanation must cite the rule, intent, and relevant impact where possible.
+- Explanation must use stable player IDs in external/sanitized contexts.
+
+### Manual draft change impact analysis
+
+Manual changes are allowed, but the app must explain impact.
+
+Manual changes should support real matchday reality:
+- late absence, emergency support, sickness, injury, availability change, coach judgement, squad size repair, real-world backfill, actual participation differing from planned selection
+
+Rules:
+- Adding a player manually recalculates warnings, round status, match status, explanations, fairness impact, and movement ledger.
+- Manual add shows same-round conflict, availability, squad size, path validity, support burden, fairness impact, and need for override reason.
+- Emergency backfill close to matchday is recorded as actual participation, not retroactively pretending the generation engine planned it.
+- Actual double-load caused by real-world backfill is tracked through effective participation/history and must not mutate finalized planned selections.
+- Manual removal preserves audit history.
+- Manual changes require coach-facing explanation if they violate normal rules or create notable fairness/load/support impact.
+
+### Misuse guardrails
+
+Matchboard must not become:
+- a punishment engine
+- a hidden player ranking ladder
+- a moral scoring system
+- a parent-visible judgement tool
+- a tool for hard early sorting
+- a fake equality generator
+- a generic scheduling system
+- a generic club-management system
+- a public player evaluation system
+
+Guardrail rules:
+- Low readiness cannot automatically exclude a player.
+- Feedback cannot be shown in parent export.
+- Movement remains temporary and explainable.
+- Stable belonging remains protected.
+- Coach judgement remains explicit when overriding rules.
+- Hosted deployment does not weaken privacy boundaries.
+- Player development context does not become public labels.
+- Stronger players can be used for support without permanently redefining their identity.
+- Weaker but hungry players can receive challenge where behavior and context support it.
+- Social participation is respected, but it must not silently define the football ceiling for the whole group.
 
 ### Consecutive support rotation
 
