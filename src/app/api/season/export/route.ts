@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
       overrideReasonCategory: true,
       overrideReasonDetail: true,
       explanation: true,
+      matchdayResponsibility: true,
       player: {
         select: {
           firstName: true,
@@ -128,6 +129,7 @@ export async function GET(request: NextRequest) {
     overrideReasonCategory: string | null;
     overrideReasonDetail: string | null;
     explanation: string | null;
+    matchdayResponsibility: string | null;
   };
 
   type MovementRow = {
@@ -158,6 +160,7 @@ export async function GET(request: NextRequest) {
         ? s.explanation
         : JSON.stringify(s.explanation)
       : null,
+    matchdayResponsibility: s.matchdayResponsibility ?? null,
   }));
 
   const movementRows: MovementRow[] = movements.map((m) => ({
@@ -218,7 +221,7 @@ export async function GET(request: NextRequest) {
       endDate: formatDate(planningPeriod.endDate),
       finalizedRounds: roundIds.length,
       visibility,
-      selections: isParent ? selectionRows.map(({ overrideReasonCategory: _orc, overrideReasonDetail: _ord, explanation: _exp, sourceTeam: _st, controlledDoubleLoad: _cdl, ...rest }) => rest) : selectionRows,
+      selections: isParent ? selectionRows.map(({ overrideReasonCategory: _orc, overrideReasonDetail: _ord, explanation: _exp, sourceTeam: _st, controlledDoubleLoad: _cdl, matchdayResponsibility: _mr, ...rest }) => rest) : selectionRows,
       movements: isParent ? movementRows.map(({ fromTeam: _ft, toTeam: _tt, role: _r, ...rest }) => rest) : movementRows,
       playerStats: isParent
         ? statsRows.map(({ coreMatches: _cm, supportMatches: _sm, developmentMatches: _dm, backfillMatches: _bm, doubleLoadRounds: _dlr, ...rest }) => rest)
@@ -247,9 +250,9 @@ export async function GET(request: NextRequest) {
         sections.push([r.round, r.date, r.team, r.homeOrAway, r.opponent, r.playerName, r.position].map(escapeCsv).join(","));
       }
     } else {
-      sections.push(["Round", "Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Double-Load", "Position", "Override Category", "Override Detail", "Explanation"].map(escapeCsv).join(","));
+      sections.push(["Round", "Date", "Team", "Home/Away", "Opponent", "Player", "Source Team", "Role", "Double-Load", "Responsibility", "Position", "Override Category", "Override Detail", "Explanation"].map(escapeCsv).join(","));
       for (const r of selectionRows) {
-        sections.push([r.round, r.date, r.team, r.homeOrAway, r.opponent, r.playerName, r.sourceTeam, r.role, r.controlledDoubleLoad ? "Yes" : "", r.position, r.overrideReasonCategory ?? "", r.overrideReasonDetail ?? "", r.explanation ?? ""].map(escapeCsv).join(","));
+        sections.push([r.round, r.date, r.team, r.homeOrAway, r.opponent, r.playerName, r.sourceTeam, r.role, r.controlledDoubleLoad ? "Yes" : "", r.matchdayResponsibility ?? "", r.position, r.overrideReasonCategory ?? "", r.overrideReasonDetail ?? "", r.explanation ?? ""].map(escapeCsv).join(","));
       }
     }
 
@@ -319,7 +322,7 @@ export async function GET(request: NextRequest) {
           if (isParent) {
             lines.push(`    ${r.playerName} (${r.position})`);
           } else {
-            lines.push(`    ${r.playerName} (${r.sourceTeam} → ${r.team}, ${r.role}${r.controlledDoubleLoad ? ", double-load" : ""}${r.position ? `, ${r.position}` : ""})`);
+            lines.push(`    ${r.playerName} (${r.sourceTeam} → ${r.team}, ${r.role}${r.matchdayResponsibility ? `, ${r.matchdayResponsibility}` : ""}${r.controlledDoubleLoad ? ", double-load" : ""}${r.position ? `, ${r.position}` : ""})`);
           }
         }
         lines.push("");
@@ -387,10 +390,10 @@ export async function GET(request: NextRequest) {
           md.push(`- ${r.playerName}`);
         }
       } else {
-        md.push("| Player | Source | Role | Double-Load | Position | Override |");
-        md.push("| --- | --- | --- | --- | --- | --- |");
+        md.push("| Player | Source | Role | Responsibility | Double-Load | Position | Override |");
+        md.push("| --- | --- | --- | --- | --- | --- | --- |");
         for (const r of matchRows) {
-          md.push(`| ${r.playerName} | ${r.sourceTeam} | ${r.role} | ${r.controlledDoubleLoad ? "Yes" : "—"} | ${r.position} | ${r.overrideReasonCategory ? `${r.overrideReasonCategory}${r.overrideReasonDetail ? `: ${r.overrideReasonDetail}` : ""}` : "—"} |`);
+          md.push(`| ${r.playerName} | ${r.sourceTeam} | ${r.role} | ${r.matchdayResponsibility ?? "—"} | ${r.controlledDoubleLoad ? "Yes" : "—"} | ${r.position} | ${r.overrideReasonCategory ? `${r.overrideReasonCategory}${r.overrideReasonDetail ? `: ${r.overrideReasonDetail}` : ""}` : "—"} |`);
         }
       }
       md.push("");
