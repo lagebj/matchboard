@@ -52,9 +52,8 @@ type PlayerStatsExportRow = {
   [key: string]: unknown;
 };
 
-const COACH_ONLY_FIELDS = [
+const COACH_ONLY_REMOVALS = [
   "sourceTeam",
-  "role",
   "controlledDoubleLoad",
   "overrideReasonCategory",
   "overrideReasonDetail",
@@ -63,24 +62,27 @@ const COACH_ONLY_FIELDS = [
   "coachingIntentCategory",
 ] as const;
 
-const PARENT_SAFE_REPLACEMENTS: Record<string, string> = {
+const PARENT_SAFE_ROLE_MAP: Record<string, string> = {
   CORE: "selected",
   SUPPORT: "rotation",
   DEVELOPMENT: "development opportunity",
   BACKFILL: "squad adjustment",
   CONFIDENCE_REBUILD: "development opportunity",
+  REDUCED_MATCH_LOAD_DROP: "rest",
+  CORE_MATCH_DROP: "rest",
+  MANUAL_OVERRIDE: "selection",
 };
 
-export function sanitizeSelectionForParent(row: SelectionExportRow): Omit<SelectionExportRow, typeof COACH_ONLY_FIELDS[number]> & Record<string, unknown> {
+export function sanitizeSelectionForParent(row: SelectionExportRow): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(row)) {
-    if (COACH_ONLY_FIELDS.includes(key as typeof COACH_ONLY_FIELDS[number])) {
+    if (COACH_ONLY_REMOVALS.includes(key as typeof COACH_ONLY_REMOVALS[number])) {
       continue;
     }
 
     if (key === "role" && typeof value === "string") {
-      sanitized[key] = PARENT_SAFE_REPLACEMENTS[value] ?? value;
+      sanitized["role"] = PARENT_SAFE_ROLE_MAP[value] ?? value;
       continue;
     }
 
@@ -88,17 +90,17 @@ export function sanitizeSelectionForParent(row: SelectionExportRow): Omit<Select
   }
 
   if (row.matchdayResponsibility) {
-    sanitized.roleContext = PARENT_SAFE_RESPONSIBILITY_MAP[row.matchdayResponsibility] ?? "team role";
+    sanitized["roleContext"] = PARENT_SAFE_RESPONSIBILITY_MAP[row.matchdayResponsibility] ?? "team role";
   }
 
   if (row.coachingIntentCategory) {
-    sanitized.intentContext = PARENT_SAFE_INTENT_MAP[row.coachingIntentCategory] ?? "match planning";
+    sanitized["intentContext"] = PARENT_SAFE_INTENT_MAP[row.coachingIntentCategory] ?? "match planning";
   }
 
   return sanitized;
 }
 
-export function sanitizeMovementForParent(row: MovementExportRow): Omit<MovementExportRow, "fromTeam" | "toTeam" | "role"> & Record<string, unknown> {
+export function sanitizeMovementForParent(row: MovementExportRow): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(row)) {
@@ -108,12 +110,12 @@ export function sanitizeMovementForParent(row: MovementExportRow): Omit<Movement
     sanitized[key] = value;
   }
 
-  sanitized.movementDirection = "rotation";
+  sanitized["movementDirection"] = "rotation";
 
   return sanitized;
 }
 
-export function sanitizePlayerStatsForParent(row: PlayerStatsExportRow): Omit<PlayerStatsExportRow, "supportMatches" | "developmentMatches" | "squadRepairMatches" | "doubleLoadRounds" | "readinessSignals" | "feedback" | "coachingIntent"> & Record<string, unknown> {
+export function sanitizePlayerStatsForParent(row: PlayerStatsExportRow): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(row)) {
@@ -124,12 +126,13 @@ export function sanitizePlayerStatsForParent(row: PlayerStatsExportRow): Omit<Pl
       key === "doubleLoadRounds" ||
       key === "readinessSignals" ||
       key === "feedback" ||
-      key === "coachingIntent" ||
-      key === "coreMatches"
+      key === "coachingIntent"
     ) {
-      if (key === "coreMatches" && typeof value === "number") {
-        sanitized.matchesStarted = value;
-      }
+      continue;
+    }
+
+    if (key === "coreMatches" && typeof value === "number") {
+      sanitized["matchesStarted"] = value;
       continue;
     }
 

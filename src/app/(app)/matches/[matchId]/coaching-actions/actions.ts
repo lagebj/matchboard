@@ -51,6 +51,9 @@ export async function setCoachingIntentAction(
 
     revalidatePath(`/matches/${scopeType === "MATCH" ? scopeId : ""}`);
     revalidatePath(`/rounds`);
+    if (scopeType === "MATCH_ROUND") {
+      revalidatePath(`/rounds/${scopeId}`);
+    }
 
     return { success: true };
   } catch (error) {
@@ -71,6 +74,9 @@ export async function removeCoachingIntentAction(
 
     revalidatePath(`/matches/${intent.scopeType === "MATCH" ? intent.scopeId : ""}`);
     revalidatePath(`/rounds`);
+    if (intent.scopeType === "MATCH_ROUND") {
+      revalidatePath(`/rounds/${intent.scopeId}`);
+    }
 
     return { success: true };
   } catch (error) {

@@ -264,13 +264,14 @@ export function MatchDetail({ match }: { match: MatchData }) {
               <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
             )}
 
-            <div className="mt-3">
-              <CoachingIntentSelector
-                matchId={match.id}
-                currentIntent={match.coachingIntent}
-                currentIntentId={match.coachingIntentId}
-              />
-            </div>
+             <div className="mt-3">
+               <CoachingIntentSelector
+                 scopeType="MATCH"
+                 scopeId={match.id}
+                 currentIntent={match.coachingIntent}
+                 currentIntentId={match.coachingIntentId}
+               />
+             </div>
           </div>
 
           {grouped.length > 0 ? (

@@ -11,4 +11,5 @@ export type PlayerInMatch = {
   manualOverride: boolean;
   playerPosition: string;
   controlledDoubleLoad: boolean;
+  matchdayResponsibility?: string | null;
 };

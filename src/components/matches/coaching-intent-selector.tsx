@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { COACHING_INTENT_CATEGORIES, COACHING_INTENT_LABELS } from "@/lib/coaching/types";
+import { COACHING_INTENT_CATEGORIES, COACHING_INTENT_LABELS, type CoachingIntentScopeType } from "@/lib/coaching/types";
 
 type CoachingIntentSelectorProps = {
-  matchId: string;
+  scopeType: CoachingIntentScopeType;
+  scopeId: string;
   currentIntent?: string;
   currentIntentId?: string;
+  label?: string;
 };
 
-export function CoachingIntentSelector({ matchId, currentIntent, currentIntentId }: CoachingIntentSelectorProps) {
+export function CoachingIntentSelector({ scopeType, scopeId, currentIntent, currentIntentId, label }: CoachingIntentSelectorProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>(currentIntent ?? "");
@@ -18,7 +20,7 @@ export function CoachingIntentSelector({ matchId, currentIntent, currentIntentId
     setError(null);
     startTransition(async () => {
       const { setCoachingIntentAction } = await import("@/app/(app)/matches/[matchId]/coaching-actions/actions");
-      const result = await setCoachingIntentAction("MATCH", matchId, category, null);
+      const result = await setCoachingIntentAction(scopeType, scopeId, category, null);
       if (!result.success) {
         setError(result.error ?? "Failed to set intent.");
       }
@@ -44,9 +46,11 @@ export function CoachingIntentSelector({ matchId, currentIntent, currentIntentId
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-        Coaching intent
-      </label>
+      {label && (
+        <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+          {label}
+        </label>
+      )}
       <select
         className="rounded-md border border-zinc-700/60 bg-zinc-800/50 px-2 py-1.5 text-xs text-zinc-200 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
         value={selected}

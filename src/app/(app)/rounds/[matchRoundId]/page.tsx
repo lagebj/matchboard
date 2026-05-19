@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { RoundBoard } from "@/components/round/round-board";
+import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
@@ -65,7 +66,7 @@ export default async function RoundBoardPage({
 
   const matchIds = matchRound.matches.map((m) => m.id);
 
-  const [selections, allPlayers, rotationPaths] = await Promise.all([
+  const [selections, allPlayers, rotationPaths, roundIntents, matchIntents] = await Promise.all([
     db.selection.findMany({
       where: {
         matchId: { in: matchIds },
@@ -111,6 +112,16 @@ export default async function RoundBoardPage({
         toTeamId: true,
         role: true,
       },
+    }),
+    db.coachingIntent.findMany({
+      where: { scopeType: "MATCH_ROUND", scopeId: matchRoundId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, category: true, scopeType: true, scopeId: true },
+    }),
+    db.coachingIntent.findMany({
+      where: { scopeType: "MATCH", scopeId: { in: matchIds } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, category: true, scopeType: true, scopeId: true },
     }),
   ]);
 
@@ -237,6 +248,7 @@ export default async function RoundBoardPage({
         manualOverride: (explanation.manualOverride as boolean) ?? false,
         playerPosition: sel.player.primaryPosition ?? "",
         controlledDoubleLoad: sel.controlledDoubleLoad ?? false,
+        matchdayResponsibility: sel.matchdayResponsibility,
       });
     }
 
@@ -386,16 +398,17 @@ export default async function RoundBoardPage({
       isFinalized: s.isFinalized,
       players: s.players
         .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
-       .map((p) => ({
-            id: p.playerId,
-            name: p.playerName,
-            coreTeamName: p.coreTeamName,
-            primaryPosition: p.playerPosition || undefined,
-            playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
-            role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
-            manualOverride: p.manualOverride,
-            controlledDoubleLoad: p.controlledDoubleLoad,
-           warningCount: (() => {
+        .map((p) => ({
+             id: p.playerId,
+             name: p.playerName,
+             coreTeamName: p.coreTeamName,
+             primaryPosition: p.playerPosition || undefined,
+             playerCoreTeamId: playerCoreTeamMap.get(p.playerId) ?? "",
+             role: p.selectionCategory as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT",
+             manualOverride: p.manualOverride,
+             controlledDoubleLoad: p.controlledDoubleLoad,
+             matchdayResponsibility: p.matchdayResponsibility,
+            warningCount: (() => {
             const matchWarnings = unresolvedWarnings.filter(
               (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
             );
@@ -461,6 +474,35 @@ export default async function RoundBoardPage({
         }}
         fairnessMetrics={fairnessMetrics}
       />
+      {matchRound.status !== "FINALIZED" && (
+        <div className="flex flex-col gap-3">
+          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+            <h3 className="text-sm font-semibold text-zinc-200 mb-3">Coaching intent</h3>
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-[var(--text-muted)]">Round intent</div>
+              <CoachingIntentSelector
+                scopeType="MATCH_ROUND"
+                scopeId={matchRoundId}
+                currentIntent={roundIntents[0]?.category ?? undefined}
+                currentIntentId={roundIntents[0]?.id ?? undefined}
+                label="Round intent"
+              />
+              {matchIntents.length > 0 && (
+                <div className="mt-2 flex flex-col gap-1">
+                  {matchIntents.map((intent) => {
+                    const match = matchRound.matches.find((m) => m.id === intent.scopeId);
+                    return (
+                      <div key={intent.id} className="text-[10px] text-[var(--text-muted)]">
+                        {match ? `${match.team.name} vs ${match.opponent}` : intent.scopeId}: {intent.category}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

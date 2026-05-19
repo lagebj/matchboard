@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
+import { sanitizeSelectionForParent as _sanitizeSelection, sanitizeMovementForParent as _sanitizeMovement, sanitizePlayerStatsForParent as _sanitizeStats } from "@/lib/export/parent-safe-filter";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
 type VisibilityMode = "coach" | "parent";
@@ -221,11 +222,9 @@ export async function GET(request: NextRequest) {
       endDate: formatDate(planningPeriod.endDate),
       finalizedRounds: roundIds.length,
       visibility,
-      selections: isParent ? selectionRows.map(({ overrideReasonCategory: _orc, overrideReasonDetail: _ord, explanation: _exp, sourceTeam: _st, controlledDoubleLoad: _cdl, matchdayResponsibility: _mr, ...rest }) => rest) : selectionRows,
-      movements: isParent ? movementRows.map(({ fromTeam: _ft, toTeam: _tt, role: _r, ...rest }) => rest) : movementRows,
-      playerStats: isParent
-        ? statsRows.map(({ coreMatches: _cm, supportMatches: _sm, developmentMatches: _dm, backfillMatches: _bm, doubleLoadRounds: _dlr, ...rest }) => rest)
-        : statsRows,
+      selections: isParent ? selectionRows.map((r) => _sanitizeSelection({ ...r, overrideReasonCategory: r.overrideReasonCategory ?? undefined, overrideReasonDetail: r.overrideReasonDetail ?? undefined, explanation: r.explanation ?? undefined, controlledDoubleLoad: r.controlledDoubleLoad } as Parameters<typeof _sanitizeSelection>[0])) : selectionRows,
+      movements: isParent ? movementRows.map((r): Record<string, unknown> => _sanitizeMovement({ ...r })) : movementRows,
+      playerStats: isParent ? statsRows.map((r): Record<string, unknown> => _sanitizeStats({ ...r, readinessSignals: undefined, feedback: undefined, coachingIntent: undefined })) : statsRows,
     };
     return new Response(JSON.stringify(data, null, 2), {
       headers: {
