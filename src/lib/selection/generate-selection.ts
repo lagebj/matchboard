@@ -16,6 +16,8 @@ import {
   isSupportAvoidSuitability,
 } from "@/lib/selection/selection-eligibility";
 import { type PlanningPeriodRoleCounts, getRecentLoadScore } from "@/lib/selection/selection-fairness";
+import { type ReadinessSignalEntry } from "@/lib/selection/readiness-scoring";
+import { getNegativeReadinessSignals } from "@/lib/selection/readiness-scoring";
 import {
   buildCandidateBlockerSummary,
   buildRegisteredMatchConflict,
@@ -95,7 +97,7 @@ function getPlayerName(player: Pick<Player, "firstName" | "lastName">): string {
 
 export async function generateSelection(matchId: string, options?: { deferRotation?: boolean }): Promise<GeneratedSelection> {
   const deferRotation = options?.deferRotation ?? false;
-  const [match, players, rules, registeredMatches, savedSelections, rotationPaths, finalizedPathHistory] = await Promise.all([
+  const [match, players, rules, registeredMatches, savedSelections, rotationPaths, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
     db.match.findUnique({
       where: { id: matchId },
       include: {
@@ -232,11 +234,24 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       },
       orderBy: [{ createdAt: "desc" }],
     }),
+    db.playerReadinessSignal.findMany({
+      select: {
+        playerId: true,
+        signalType: true,
+        value: true,
+      },
+    }),
   ]);
 
   if (!match) {
     throw new Error("Match not found.");
   }
+
+  const readinessSignals: ReadinessSignalEntry[] = readinessSignalsRaw.map((s) => ({
+    playerId: s.playerId,
+    signalType: s.signalType as ReadinessSignalEntry["signalType"],
+    value: s.value as ReadinessSignalEntry["value"],
+  }));
 
   const playerLocks = await db.playerLock.findMany({
     where: {
@@ -818,7 +833,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       player.tertiaryPosition,
       neededPositions,
     );
-    const suitabilityScore = getSuitabilityAndReadinessScore(player, candidateCategory);
+    const suitabilityScore = getSuitabilityAndReadinessScore(player, candidateCategory, readinessSignals);
 
     availableRotationCandidates.push({
       candidateCategory,
@@ -1438,6 +1453,24 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       message: `${excludedPlayer.playerName} is a ${match.team.name} core player and was not selected. Reason: ${excludedPlayer.exclusionReason}`,
       playerId: excludedPlayer.playerId,
     });
+  }
+
+  for (const sel of selectedPlayers) {
+    const negativeSignals = getNegativeReadinessSignals(sel.playerId, readinessSignals);
+    for (const signal of negativeSignals) {
+      const signalLabel = signal.signalType === "EFFORT_TREND" ? "Effort trend falling"
+        : signal.signalType === "ATTENDANCE_RELIABILITY" ? "Low attendance reliability"
+        : signal.signalType === "LEARNING_BEHAVIOR" ? "Needs attention in learning behavior"
+        : signal.signalType === "TEAM_FIRST_BEHAVIOR" ? "Needs attention in team-first behavior"
+        : signal.signalType === "RESET_AFTER_ERROR_RELIABILITY" ? "Needs attention in reset-after-error reliability"
+        : "Low coach trust";
+      warnings.push({
+        severity: "SCORING_PREFERENCE",
+        code: `readiness_${signal.signalType.toLowerCase()}`,
+        message: `${sel.playerName}: ${signalLabel} — may affect selection preference.`,
+        playerId: sel.playerId,
+      });
+    }
   }
 
   return {

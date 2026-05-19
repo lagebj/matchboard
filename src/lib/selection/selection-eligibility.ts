@@ -1,22 +1,26 @@
 import type { AutomaticSelectionCategory } from "@/lib/selection/types";
 import type { MatchRecord, PathDestination, PlayerRecord, RotationCandidateCategory } from "@/lib/selection/selection-types";
+import { type ReadinessSignalEntry, getReadinessScoreModifier } from "@/lib/selection/readiness-scoring";
 
 export function getSuitabilityAndReadinessScore(
   player: PlayerRecord,
   candidateCategory: RotationCandidateCategory,
+  readinessSignals: ReadinessSignalEntry[] = [],
 ): number {
+  let score = 0;
+
   if (candidateCategory === "SUPPORT") {
-    if (player.supportSuitability === "strong") return 15;
-    if (player.supportSuitability === "avoid") return -25;
-    return 0;
+    if (player.supportSuitability === "strong") score += 15;
+    else if (player.supportSuitability === "avoid") score -= 25;
   }
 
   if (candidateCategory === "DEVELOPMENT") {
-    if (player.developmentReadiness === "ready") return 10;
-    return 0;
+    if (player.developmentReadiness === "ready") score += 10;
   }
 
-  return 0;
+  score += getReadinessScoreModifier(player.id, readinessSignals);
+
+  return score;
 }
 
 export function isDevelopmentBlocked(player: PlayerRecord): boolean {
