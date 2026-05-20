@@ -55,6 +55,12 @@ const SCORING_PREFERENCE_CODES = new Set([
   "registered_minimum_match_spacing",
   "round_player_conflict",
   "round_conflict_demoted",
+  "readiness_effort_trend",
+  "readiness_attendance_reliability",
+  "readiness_learning_behavior",
+  "readiness_team_first_behavior",
+  "readiness_reset_after_error_reliability",
+  "readiness_coach_trust",
 ]);
 
 export function mapWarningSeverity(code: string): WarningSeverity {
