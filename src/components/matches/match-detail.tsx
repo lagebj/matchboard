@@ -61,6 +61,7 @@ type MatchData = {
   warnings: WarningRow[];
   coachingIntent?: string;
   coachingIntentId?: string;
+  inheritedIntentScope?: "round" | "planning period";
 };
 
 const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
@@ -265,13 +266,18 @@ export function MatchDetail({ match }: { match: MatchData }) {
             )}
 
              <div className="mt-3">
-               <CoachingIntentSelector
-                 scopeType="MATCH"
-                 scopeId={match.id}
-                 currentIntent={match.coachingIntent}
-                 currentIntentId={match.coachingIntentId}
-               />
-             </div>
+                <CoachingIntentSelector
+                  scopeType="MATCH"
+                  scopeId={match.id}
+                  currentIntent={match.coachingIntent}
+                  currentIntentId={match.coachingIntentId}
+                />
+                {match.inheritedIntentScope && match.coachingIntent && (
+                  <p className="mt-1 text-[10px] text-zinc-500">
+                    Inherited from {match.inheritedIntentScope}
+                  </p>
+                )}
+              </div>
           </div>
 
           {grouped.length > 0 ? (
