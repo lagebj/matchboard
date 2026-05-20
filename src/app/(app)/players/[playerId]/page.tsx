@@ -260,8 +260,8 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               </div>
             </div>
           )}
-           <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
-             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Readiness</p>
+           <div id="readiness" className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Readiness</p>
              <ReadinessSignalEditor playerId={player.id} signals={readinessSignals.map((s) => ({ id: s.id, signalType: s.signalType, value: s.value, note: s.note }))} />
            </div>
         </div>

@@ -76,7 +76,7 @@ export default async function SeasonPage() {
           <p className="text-xs font-medium text-amber-200">Readiness signals requiring attention</p>
           <div className="mt-2 flex flex-col gap-1">
             {readinessWarningData.map((rw, i) => (
-              <a key={i} href={`/players/${rw.playerId}`} className="text-[11px] text-amber-300/70 hover:text-amber-200 transition-colors">
+              <a key={i} href={`/players/${rw.playerId}#readiness`} className="text-[11px] text-amber-300/70 hover:text-amber-200 transition-colors">
                 {rw.playerName} <span className="text-zinc-500">·</span> {rw.teamName} <span className="text-zinc-500">·</span> {rw.label}
               </a>
             ))}

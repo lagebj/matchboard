@@ -205,7 +205,7 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
                   )}
                   {f.value === "NEEDS_ATTENTION" && FEEDBACK_TO_READINESS[f.category] && (
                     <Link
-                      href={`/players/${f.playerId}`}
+                      href={`/players/${f.playerId}#readiness`}
                       className="inline-block mt-1 text-[10px] text-amber-400/80 hover:text-amber-300 transition-colors"
                     >
                       Consider updating {READINESS_LABELS[FEEDBACK_TO_READINESS[f.category]]} readiness signal →

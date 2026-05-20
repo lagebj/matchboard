@@ -66,7 +66,7 @@ export default async function RoundBoardPage({
 
   const matchIds = matchRound.matches.map((m) => m.id);
 
-  const [selections, allPlayers, rotationPaths, roundIntents, matchIntents] = await Promise.all([
+  const [selections, allPlayers, rotationPaths, roundIntents, matchIntents, readinessSignalsRaw] = await Promise.all([
     db.selection.findMany({
       where: {
         matchId: { in: matchIds },
@@ -123,6 +123,10 @@ export default async function RoundBoardPage({
       orderBy: { createdAt: "desc" },
       select: { id: true, category: true, scopeType: true, scopeId: true },
     }),
+    db.playerReadinessSignal.findMany({
+      where: { value: { in: ["FALLING", "LOW", "NEEDS_ATTENTION"] } },
+      select: { playerId: true, signalType: true, value: true },
+    }),
   ]);
 
   const eligiblePlayers = await db.player.findMany({
@@ -140,6 +144,22 @@ export default async function RoundBoardPage({
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
+
+  const playerNegativeReadiness = new Map<string, string[]>();
+  const READINESS_SIGNAL_LABELS: Record<string, string> = {
+    EFFORT_TREND: "Effort ↓",
+    ATTENDANCE_RELIABILITY: "Attendance ↓",
+    LEARNING_BEHAVIOR: "Learning ↓",
+    TEAM_FIRST_BEHAVIOR: "Team-first ↓",
+    RESET_AFTER_ERROR_RELIABILITY: "Reset ↓",
+    COACH_TRUST: "Trust ↓",
+  };
+  for (const rs of readinessSignalsRaw) {
+    const labels = playerNegativeReadiness.get(rs.playerId) ?? [];
+    const label = READINESS_SIGNAL_LABELS[rs.signalType] ?? rs.signalType;
+    labels.push(label);
+    playerNegativeReadiness.set(rs.playerId, labels);
+  }
 
   const availablePlayerList = eligiblePlayers.map((p) => ({
     id: p.id,
@@ -387,6 +407,7 @@ export default async function RoundBoardPage({
 
   const boardMatches = squads.map((s) => {
     const matchRecord = matchRound.matches.find((m) => m.id === s.matchId);
+    const matchIntent = matchIntents.find((i) => i.scopeId === s.matchId);
     return {
       matchId: s.matchId,
       teamId: matchRecord?.teamId ?? "",
@@ -396,6 +417,8 @@ export default async function RoundBoardPage({
       targetSquadSize: s.targetSquadSize,
       minSquadSize: s.minSquadSize,
       isFinalized: s.isFinalized,
+      coachingIntentCategory: matchIntent?.category ?? undefined,
+      coachingIntentId: matchIntent?.id ?? undefined,
       players: s.players
         .filter((p) => p.selectionCategory === "CORE" || p.selectionCategory === "SUPPORT" || p.selectionCategory === "BACKFILL" || p.selectionCategory === "DEVELOPMENT")
         .map((p) => ({
@@ -408,12 +431,13 @@ export default async function RoundBoardPage({
              manualOverride: p.manualOverride,
              controlledDoubleLoad: p.controlledDoubleLoad,
              matchdayResponsibility: p.matchdayResponsibility,
-            warningCount: (() => {
-            const matchWarnings = unresolvedWarnings.filter(
-              (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
-            );
-            return matchWarnings.length;
-          })(),
+             warningCount: (() => {
+             const matchWarnings = unresolvedWarnings.filter(
+               (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
+             );
+             return matchWarnings.length;
+           })(),
+             negativeReadinessSignals: playerNegativeReadiness.get(p.playerId) ?? [],
         })),
     };
   });
@@ -424,6 +448,7 @@ export default async function RoundBoardPage({
     coreTeamName: p.coreTeamName,
     coreTeamId: p.coreTeamId,
     primaryPosition: p.primaryPosition,
+    negativeReadinessSignals: playerNegativeReadiness.get(p.id) ?? [],
   }));
 
   const rotationPathMap: Record<string, string[]> = {};
