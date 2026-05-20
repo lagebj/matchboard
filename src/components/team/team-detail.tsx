@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatPlayerName } from "@/lib/player-metrics";
+import { formatSeverity, formatSelectionRole } from "@/lib/match-utils";
+import type { SelectionRole } from "@/generated/prisma/client";
 import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
 import { RotationPathCard } from "@/components/rules/rotation-path-card";
 
@@ -443,7 +445,7 @@ function CurrentRoundTab({
                     {p.playerName}
                   </span>
                   <span className="shrink-0 text-[10px] app-copy-muted">
-                    {p.role === "SUPPORT" ? "Support" : p.role === "BACKFILL" ? "Squad repair" : p.role === "DEVELOPMENT" ? "Development" : p.role} · from {p.sourceTeamName}
+                    {formatSelectionRole(p.role as SelectionRole)} · from {p.sourceTeamName}
                   </span>
                 </div>
                 {p.explanation && (
@@ -469,7 +471,7 @@ function CurrentRoundTab({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">
-                      {w.severity}
+                      {formatSeverity(w.severity)}
                     </span>
                     <Link
                       className="text-[10px] app-copy-muted hover:text-zinc-50"

@@ -8,6 +8,9 @@ import {
   type MovementPathRow,
   type MovementTimelineEntry,
 } from "@/lib/selection/get-season-overview";
+import { READINESS_SIGNAL_LABELS, READINESS_VALUE_LABELS, type ReadinessSignalType, type ReadinessSignalValue } from "@/lib/coaching/types";
+import { formatSelectionRole } from "@/lib/match-utils";
+import type { SelectionRole } from "@/generated/prisma/client";
 
 type PlanningPeriodOption = {
   id: string;
@@ -30,7 +33,8 @@ type FilterState =
   | "low_development"
   | "double_load"
   | "dropped_recently"
-  | "unavailable_heavy";
+  | "unavailable_heavy"
+  | "negative_readiness";
 
 type SortState =
   | "name"
@@ -40,7 +44,8 @@ type SortState =
   | "development_count"
   | "double_load_count"
   | "drops"
-  | "warnings";
+  | "warnings"
+  | "readiness";
 
 const ROLE_CELL_STYLES: Record<string, string> = {
   CORE: "bg-emerald-900/30 text-emerald-300 border-emerald-700/30",
@@ -184,6 +189,7 @@ export function SeasonOverviewClient({
           <option value="double_load">Double-load used</option>
           <option value="dropped_recently">Dropped recently</option>
           <option value="unavailable_heavy">Unavailable-heavy</option>
+          <option value="negative_readiness">Negative readiness</option>
         </select>
 
         <select
@@ -199,6 +205,7 @@ export function SeasonOverviewClient({
           <option value="double_load_count">Sort: Double-load</option>
           <option value="drops">Sort: Drops</option>
           <option value="warnings">Sort: Warnings</option>
+          <option value="readiness">Sort: Readiness</option>
         </select>
 
         <div className="ml-auto flex items-center gap-2">
@@ -315,9 +322,12 @@ export function SeasonOverviewClient({
                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
                   Unav
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
-                  Warn
-                </th>
+                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                   Warn
+                 </th>
+                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                   Rdy
+                 </th>
               </tr>
             </thead>
             <tbody>
@@ -422,6 +432,21 @@ export function SeasonOverviewClient({
                       <span className="inline-flex items-center gap-0.5 text-amber-400">
                         <AlertTriangle className="h-3 w-3" />
                         {player.warningCount}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-600">0</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    {player.negativeReadinessSignals.length > 0 ? (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-orange-400 cursor-help"
+                        title={player.negativeReadinessSignals
+                          .map((s) => `${READINESS_SIGNAL_LABELS[s.signalType as ReadinessSignalType] ?? s.signalType}: ${READINESS_VALUE_LABELS[s.value as ReadinessSignalValue] ?? s.value}`)
+                          .join(", ")}
+                      >
+                        <span className="text-[11px]">⚡</span>
+                        {player.negativeReadinessSignals.length}
                       </span>
                     ) : (
                       <span className="text-zinc-600">0</span>
@@ -545,7 +570,7 @@ export function SeasonOverviewClient({
                           "bg-zinc-800/20 text-zinc-400"
                         }`}
                       >
-                        {path.role}
+                        {formatSelectionRole(path.role as SelectionRole)}
                       </span>
                     </td>
                     <td className="py-1.5 pr-3 text-center text-zinc-200">
@@ -602,6 +627,8 @@ function applyFilter(
       return players.filter((p) => p.droppedRounds > 0);
     case "unavailable_heavy":
       return players.filter((p) => p.unavailableRounds > 1);
+    case "negative_readiness":
+      return players.filter((p) => p.negativeReadinessSignals.length > 0).sort((a, b) => b.negativeReadinessSignals.length - a.negativeReadinessSignals.length);
     case "by_core_team":
       return [...players].sort((a, b) =>
         a.coreTeamName.localeCompare(b.coreTeamName),
@@ -635,6 +662,8 @@ function applySort(
       return sorted.sort((a, b) => b.droppedRounds - a.droppedRounds);
     case "warnings":
       return sorted.sort((a, b) => b.warningCount - a.warningCount);
+    case "readiness":
+      return sorted.sort((a, b) => b.negativeReadinessSignals.length - a.negativeReadinessSignals.length);
     default:
       return sorted;
   }

@@ -8,8 +8,16 @@ import {
   type FeedbackNextAction,
   FEEDBACK_CATEGORIES,
   FEEDBACK_NEXT_ACTIONS,
+  getReadinessSuggestionForFeedback,
 } from "@/lib/coaching/types";
 import { checkDisallowedLanguage } from "@/lib/coaching/match-execution-feedback";
+
+type ReadinessSuggestionFromFeedback = {
+  signalType: string;
+  suggestedValue: string;
+  signalLabel: string;
+  valueLabel: string;
+};
 
 export async function createMatchFeedbackAction(
   matchId: string,
@@ -19,7 +27,7 @@ export async function createMatchFeedbackAction(
   observableBehavior: string | null,
   nextAction: string | null,
   note: string | null,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; readinessSuggestion?: ReadinessSuggestionFromFeedback | null }> {
   await requireCoachAccess();
 
   if (!FEEDBACK_CATEGORIES.includes(category as FeedbackCategory)) {
@@ -56,7 +64,9 @@ export async function createMatchFeedbackAction(
     revalidatePath(`/matches/${matchId}/post-match`);
     revalidatePath(`/players/${playerId}`);
 
-    return { success: true };
+    const readinessSuggestion = getReadinessSuggestionForFeedback(category, value);
+
+    return { success: true, readinessSuggestion };
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return { success: false, error: "Feedback for this player and category already exists for this match. Update it instead." };

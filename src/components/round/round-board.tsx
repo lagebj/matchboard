@@ -23,7 +23,7 @@ import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/(app)/rounds/[matchRoundId]/actions";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
-import { MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, COACHING_INTENT_LABELS, type MatchdayResponsibilityType } from "@/lib/coaching/types";
+import { MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, COACHING_INTENT_LABELS, type MatchdayResponsibilityType, type ReadinessSignalType, READINESS_SIGNAL_LABELS } from "@/lib/coaching/types";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { WarningSeverity } from "@/generated/prisma/client";
 
@@ -183,7 +183,7 @@ function PlayerChip({
       {player.negativeReadinessSignals && player.negativeReadinessSignals.length > 0 && (
         <span
           className="shrink-0 text-[8px] text-orange-400/80"
-          title={`Readiness: ${player.negativeReadinessSignals.join(", ")}`}
+          title={`Readiness: ${player.negativeReadinessSignals.map((s) => READINESS_SIGNAL_LABELS[s as ReadinessSignalType] ?? s).join(", ")}`}
         >
           ⚡{player.negativeReadinessSignals.length}
         </span>
