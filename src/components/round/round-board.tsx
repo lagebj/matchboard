@@ -23,7 +23,8 @@ import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/(app)/rounds/[matchRoundId]/actions";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
-import { MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, type MatchdayResponsibilityType } from "@/lib/coaching/types";
+import { MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, COACHING_INTENT_LABELS, type MatchdayResponsibilityType } from "@/lib/coaching/types";
+import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { WarningSeverity } from "@/generated/prisma/client";
 
 type SelectionRole = UISelectionRole;
@@ -42,6 +43,7 @@ type PlayerInColumn = {
   playerCoreTeamId?: string;
   warningCount?: number;
   matchdayResponsibility?: string | null;
+  negativeReadinessSignals?: string[];
 };
 
 type MatchColumn = {
@@ -54,6 +56,8 @@ type MatchColumn = {
   minSquadSize: number;
   isFinalized: boolean;
   players: PlayerInColumn[];
+  coachingIntentCategory?: string;
+  coachingIntentId?: string;
 };
 
 type WarningEntry = {
@@ -176,6 +180,14 @@ function PlayerChip({
       {player.warningCount && player.warningCount > 0 && (
         <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />
       )}
+      {player.negativeReadinessSignals && player.negativeReadinessSignals.length > 0 && (
+        <span
+          className="shrink-0 text-[8px] text-orange-400/80"
+          title={`Readiness: ${player.negativeReadinessSignals.join(", ")}`}
+        >
+          ⚡{player.negativeReadinessSignals.length}
+        </span>
+      )}
       {!isFinalized && onRemove && (
         <button
           className="shrink-0 ml-auto text-red-400/60 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -265,6 +277,19 @@ function MatchColumnComponent({
         <div className="flex flex-col gap-0.5 min-w-0">
           <p className="text-sm font-semibold text-zinc-50 truncate">{match.teamName}</p>
           <p className="text-[11px] text-[var(--text-muted)]">vs {match.opponent} · {dateStr}</p>
+          {!match.isFinalized && (
+            <CoachingIntentSelector
+              scopeType="MATCH"
+              scopeId={match.matchId}
+              currentIntent={match.coachingIntentCategory}
+              currentIntentId={match.coachingIntentId}
+            />
+          )}
+          {match.isFinalized && match.coachingIntentCategory && (
+            <span className="text-[9px] text-zinc-500">
+              {COACHING_INTENT_LABELS[match.coachingIntentCategory as keyof typeof COACHING_INTENT_LABELS] ?? match.coachingIntentCategory}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider border ${squadFillingConfig.className}`}>

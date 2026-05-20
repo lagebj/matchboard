@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { GeneratedSelection, SelectedPlayer, ExcludedPlayer, SelectionWarning } from "@/lib/selection/types";
 import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
+import { type ReadinessSignalEntry, getReadinessScoreModifier } from "@/lib/selection/readiness-scoring";
 
 type SupportSlot = {
   matchId: string;
@@ -57,6 +58,7 @@ function buildDonorDropExplanation(
 
 export async function resolveRoundSupport(
   matchResults: GeneratedSelection[],
+  readinessSignals: ReadinessSignalEntry[] = [],
 ): Promise<{
   resolvedMatchResults: GeneratedSelection[];
   roundWarnings: SelectionWarning[];
@@ -249,6 +251,9 @@ export async function resolveRoundSupport(
         const aConsecutive = donorPlayerConsecutive.get(a.id) ?? 0;
         const bConsecutive = donorPlayerConsecutive.get(b.id) ?? 0;
         if (aConsecutive !== bConsecutive) return aConsecutive - bConsecutive;
+        const aReadiness = getReadinessScoreModifier(a.id, readinessSignals);
+        const bReadiness = getReadinessScoreModifier(b.id, readinessSignals);
+        if (aReadiness !== bReadiness) return bReadiness - aReadiness;
         return a.playerCode - b.playerCode;
       });
 
@@ -359,6 +364,7 @@ export async function resolveSquadRepair(
   matchResults: GeneratedSelection[],
   assignedPlayerIds: Set<string>,
   supportAssignments?: Array<{ playerId: string; fromTeamId: string; toTeamId: string }>,
+  readinessSignals: ReadinessSignalEntry[] = [],
 ): Promise<{
   matchResults: GeneratedSelection[];
   warnings: SelectionWarning[];
@@ -402,7 +408,7 @@ export async function resolveSquadRepair(
     }
   }
 
-  return resolveSquadRepairInner(matchResults, backfillPaths, matches, updatedAssignedIds, supportAssignments);
+  return resolveSquadRepairInner(matchResults, backfillPaths, matches, updatedAssignedIds, supportAssignments, readinessSignals);
 }
 
 type TeamInfo = {
@@ -431,6 +437,7 @@ async function resolveSquadRepairInner(
   matches: MatchWithTeam[],
   assignedPlayerIds: Set<string>,
   supportAssignments?: Array<{ playerId: string; fromTeamId: string; toTeamId: string }>,
+  readinessSignals: ReadinessSignalEntry[] = [],
 ): Promise<{ matchResults: GeneratedSelection[]; warnings: SelectionWarning[] }> {
   const warnings: SelectionWarning[] = [];
 
@@ -555,6 +562,13 @@ async function resolveSquadRepairInner(
         orderBy: [{ playerCode: "asc" }],
       });
 
+      devSourceCandidates.sort((a, b) => {
+        const aReadiness = getReadinessScoreModifier(a.id, readinessSignals);
+        const bReadiness = getReadinessScoreModifier(b.id, readinessSignals);
+        if (aReadiness !== bReadiness) return bReadiness - aReadiness;
+        return a.playerCode - b.playerCode;
+      });
+
       for (const candidate of devSourceCandidates) {
         if (filled >= shortfall || filled >= maxSquadRepair) break;
         if (assignedPlayerIds.has(candidate.id)) continue;
@@ -602,6 +616,13 @@ async function resolveSquadRepairInner(
         },
         include: { coreTeam: { select: { id: true, name: true } } },
         orderBy: [{ playerCode: "asc" }],
+      });
+
+      otherCandidates.sort((a, b) => {
+        const aReadiness = getReadinessScoreModifier(a.id, readinessSignals);
+        const bReadiness = getReadinessScoreModifier(b.id, readinessSignals);
+        if (aReadiness !== bReadiness) return bReadiness - aReadiness;
+        return a.playerCode - b.playerCode;
       });
 
       for (const candidate of otherCandidates) {

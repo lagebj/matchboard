@@ -12,6 +12,7 @@ import type {
   SelectedPlayer,
   SelectionWarning,
 } from "@/lib/selection/types";
+import { type ReadinessSignalEntry } from "@/lib/selection/readiness-scoring";
 
 export async function generateMatchRound(matchRoundId: string): Promise<GeneratedRound> {
   const matchRound = await db.matchRound.findUnique({
@@ -38,6 +39,20 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   if (!matchRound) {
     throw new Error("Match round not found.");
   }
+
+  const readinessSignalsRaw = await db.playerReadinessSignal.findMany({
+    select: {
+      playerId: true,
+      signalType: true,
+      value: true,
+    },
+  });
+
+  const readinessSignals: ReadinessSignalEntry[] = readinessSignalsRaw.map((s) => ({
+    playerId: s.playerId,
+    signalType: s.signalType as ReadinessSignalEntry["signalType"],
+    value: s.value as ReadinessSignalEntry["value"],
+  }));
 
   if (matchRound.matches.length === 0) {
     return {
@@ -68,7 +83,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   }
 
   // Phase 2: Round-level required support resolution
-  const supportResolution = await resolveRoundSupport(matchResults);
+  const supportResolution = await resolveRoundSupport(matchResults, readinessSignals);
   roundWarnings.push(...supportResolution.roundWarnings);
 
   // Phase 3: Cross-match conflict resolution
@@ -108,6 +123,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
     finalResults,
     allAssignedPlayerIds,
     supportResolution.supportAssignments,
+    readinessSignals,
   );
   roundWarnings.push(...squadRepairResult.warnings);
   finalResults = squadRepairResult.matchResults;

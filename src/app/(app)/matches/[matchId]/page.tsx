@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
+import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +37,7 @@ export default async function MatchDetailPage({
 
   if (!match) notFound();
 
-  const coachingIntents = await db.coachingIntent.findMany({
-    where: { scopeType: "MATCH", scopeId: matchId },
-    orderBy: { createdAt: "desc" },
-  });
+  const activeIntent = await getActiveCoachingIntentForMatch(matchId);
 
   const postMatchReport = await db.postMatchReport.findUnique({
     where: { matchId },
@@ -76,6 +74,12 @@ export default async function MatchDetailPage({
     message: w.message,
   }));
 
+  const matchIntent = await db.coachingIntent.findMany({
+    where: { scopeType: "MATCH", scopeId: matchId },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
@@ -106,8 +110,11 @@ export default async function MatchDetailPage({
           postMatchStatus: postMatchReport?.status ?? undefined,
           selections: selectionData,
           warnings: warningData,
-          coachingIntent: coachingIntents[0]?.category ?? undefined,
-          coachingIntentId: coachingIntents[0]?.id ?? undefined,
+          coachingIntent: activeIntent?.category ?? undefined,
+          coachingIntentId: matchIntent[0]?.id ?? undefined,
+          inheritedIntentScope: activeIntent && activeIntent.scopeType !== "MATCH"
+            ? (activeIntent.scopeType === "MATCH_ROUND" ? "round" : "planning period")
+            : undefined,
         }}
       />
     </div>

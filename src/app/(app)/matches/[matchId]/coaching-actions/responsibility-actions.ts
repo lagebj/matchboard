@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import {
   type MatchdayResponsibilityType,
   MATCHDAY_RESPONSIBILITIES,
 } from "@/lib/coaching/types";
+import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
 
 export async function setMatchdayResponsibilityAction(
   selectionId: string,
@@ -33,6 +35,24 @@ export async function setMatchdayResponsibilityAction(
       where: { id: selectionId },
       data: { matchdayResponsibility: responsibility as MatchdayResponsibilityType | null },
     });
+
+    const updatedSelection = await db.selection.findUnique({
+      where: { id: selectionId },
+      select: { explanation: true },
+    });
+
+    if (updatedSelection?.explanation) {
+      const enriched = enrichExplanation(
+        updatedSelection.explanation as Record<string, unknown>,
+        { matchdayResponsibility: (responsibility as MatchdayResponsibilityType | null) ?? undefined },
+      );
+      if (enriched) {
+        await db.selection.update({
+          where: { id: selectionId },
+          data: { explanation: enriched as unknown as Prisma.InputJsonValue },
+        });
+      }
+    }
 
     revalidatePath(`/matches/${selection.matchId}`);
     revalidatePath(`/rounds`);
