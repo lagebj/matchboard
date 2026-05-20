@@ -14,6 +14,11 @@ export type PlayerRoundCell = {
   opponent?: string;
 };
 
+export type ReadinessSignalEntry = {
+  signalType: string;
+  value: string;
+};
+
 export type PlayerRowSummary = {
   playerId: string;
   playerName: string;
@@ -29,6 +34,7 @@ export type PlayerRowSummary = {
   droppedRounds: number;
   unavailableRounds: number;
   warningCount: number;
+  negativeReadinessSignals: ReadinessSignalEntry[];
   lastMovementDate: Date | null;
   cells: PlayerRoundCell[];
 };
@@ -155,6 +161,25 @@ export async function getSeasonPlayerRoundMatrix(
     playerMap.set(p.id, p);
   }
 
+  const readinessSignals = await db.playerReadinessSignal.findMany({
+    where: {
+      playerId: { in: players.map((p) => p.id) },
+      value: { in: ["FALLING", "LOW", "NEEDS_ATTENTION"] },
+    },
+    select: {
+      playerId: true,
+      signalType: true,
+      value: true,
+    },
+  });
+
+  const negativeReadinessByPlayer = new Map<string, ReadinessSignalEntry[]>();
+  for (const rs of readinessSignals) {
+    const existing = negativeReadinessByPlayer.get(rs.playerId) ?? [];
+    existing.push({ signalType: rs.signalType, value: rs.value });
+    negativeReadinessByPlayer.set(rs.playerId, existing);
+  }
+
   const cellsByPlayer = new Map<string, PlayerRoundCell[]>();
   for (const s of selections) {
     const existing = cellsByPlayer.get(s.playerId) ?? [];
@@ -213,6 +238,7 @@ export async function getSeasonPlayerRoundMatrix(
       droppedRounds,
       unavailableRounds,
       warningCount: 0,
+      negativeReadinessSignals: negativeReadinessByPlayer.get(player.id) ?? [],
       lastMovementDate: null,
       cells,
     });

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { FEEDBACK_CATEGORIES, FEEDBACK_CATEGORY_LABELS, FEEDBACK_NEXT_ACTIONS, type FeedbackCategory } from "@/lib/coaching/types";
+import { FEEDBACK_CATEGORIES, FEEDBACK_CATEGORY_LABELS, FEEDBACK_NEXT_ACTIONS, FEEDBACK_VALUES, FEEDBACK_VALUE_LABELS, NEXT_ACTION_LABELS, FEEDBACK_TO_READINESS, READINESS_SIGNAL_LABELS, type FeedbackCategory, type ReadinessSignalType, type ReadinessSignalValue } from "@/lib/coaching/types";
+import { formatFeedbackValue, formatNextAction } from "@/lib/match-utils";
 
 type FeedbackEntry = {
   id: string;
@@ -19,42 +20,18 @@ type PlayerOption = {
   name: string;
 };
 
+type ReadinessSuggestion = {
+  signalType: ReadinessSignalType;
+  suggestedValue: ReadinessSignalValue;
+  signalLabel: string;
+  valueLabel: string;
+  playerId: string;
+};
+
 type MatchFeedbackSectionProps = {
   matchId: string;
   feedback: FeedbackEntry[];
   players: PlayerOption[];
-};
-
-const FEEDBACK_VALUES = ["POSITIVE", "NEUTRAL", "NEEDS_ATTENTION"] as const;
-
-const FEEDBACK_VALUE_LABELS: Record<string, string> = {
-  POSITIVE: "Positive",
-  NEUTRAL: "Neutral",
-  NEEDS_ATTENTION: "Needs attention",
-};
-
-const NEXT_ACTION_LABELS: Record<string, string> = {
-  NO_ACTION: "No action",
-  MONITOR: "Monitor",
-  ADJUST_PLANNING: "Adjust planning",
-  COACH_CONVERSATION: "Coach conversation",
-};
-
-const FEEDBACK_TO_READINESS: Record<string, string> = {
-  EFFORT: "EFFORT_TREND",
-  TEAM_HELP: "TEAM_FIRST_BEHAVIOR",
-  RESET_AFTER_MISTAKE: "RESET_AFTER_ERROR_RELIABILITY",
-  POSITIONAL_DISCIPLINE: "LEARNING_BEHAVIOR",
-  TEAMMATE_INVOLVEMENT: "TEAM_FIRST_BEHAVIOR",
-};
-
-const READINESS_LABELS: Record<string, string> = {
-  EFFORT_TREND: "Effort trend",
-  ATTENDANCE_RELIABILITY: "Attendance reliability",
-  LEARNING_BEHAVIOR: "Learning behavior",
-  TEAM_FIRST_BEHAVIOR: "Team-first behavior",
-  RESET_AFTER_ERROR_RELIABILITY: "Reset-after-error reliability",
-  COACH_TRUST: "Coach trust",
 };
 
 export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedbackSectionProps) {
@@ -66,14 +43,26 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
   const [observableBehavior, setObservableBehavior] = useState("");
   const [selectedNextAction, setSelectedNextAction] = useState("NO_ACTION");
   const [note, setNote] = useState("");
+  const [readinessSuggestion, setReadinessSuggestion] = useState<ReadinessSuggestion | null>(null);
+  const [suggestionApplied, setSuggestionApplied] = useState(false);
 
   function handleAdd() {
     if (!selectedPlayer || !selectedCategory || !selectedValue) return;
     setError(null);
+    setReadinessSuggestion(null);
+    setSuggestionApplied(false);
     startTransition(async () => {
       const { createMatchFeedbackAction } = await import("@/app/(app)/matches/[matchId]/post-match/feedback-actions");
       const result = await createMatchFeedbackAction(matchId, selectedPlayer, selectedCategory, selectedValue, observableBehavior || null, selectedNextAction, note || null);
       if (result.success) {
+        if (result.readinessSuggestion) {
+          setReadinessSuggestion({
+            ...result.readinessSuggestion,
+            signalType: result.readinessSuggestion.signalType as ReadinessSignalType,
+            suggestedValue: result.readinessSuggestion.suggestedValue as ReadinessSignalValue,
+            playerId: selectedPlayer,
+          });
+        }
         setSelectedPlayer("");
         setSelectedCategory("");
         setSelectedValue("");
@@ -84,6 +73,27 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
         setError(result.error ?? "Failed to add feedback.");
       }
     });
+  }
+
+  function handleAcceptSuggestion() {
+    if (!readinessSuggestion) return;
+    startTransition(async () => {
+      const { setReadinessSignalAction } = await import("@/app/(app)/players/[playerId]/coaching-actions/actions");
+      const result = await setReadinessSignalAction(
+        readinessSuggestion.playerId,
+        readinessSuggestion.signalType,
+        readinessSuggestion.suggestedValue,
+        null,
+      );
+      if (result.success) {
+        setReadinessSuggestion(null);
+        setSuggestionApplied(true);
+      }
+    });
+  }
+
+  function handleDismissSuggestion() {
+    setReadinessSuggestion(null);
   }
 
   function handleDelete(feedbackId: string) {
@@ -100,6 +110,36 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
       <h3 className="text-sm font-semibold text-zinc-200 mb-3">Post-match feedback</h3>
 
       {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+
+      {readinessSuggestion && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-700/40 bg-amber-900/15 px-3 py-2">
+          <span className="text-[10px] text-amber-300">
+            Set <span className="font-semibold">{readinessSuggestion.signalLabel}</span> to <span className="font-semibold">{readinessSuggestion.valueLabel}</span>?
+          </span>
+          <button
+            type="button"
+            onClick={handleAcceptSuggestion}
+            disabled={isPending}
+            className="rounded border border-amber-600/40 bg-amber-800/30 px-2 py-0.5 text-[10px] font-medium text-amber-200 hover:bg-amber-700/40 disabled:opacity-40 transition-colors"
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            onClick={handleDismissSuggestion}
+            disabled={isPending}
+            className="rounded border border-zinc-600/40 bg-zinc-800/30 px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-700/40 disabled:opacity-40 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {suggestionApplied && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-emerald-700/40 bg-emerald-900/15 px-3 py-2">
+          <span className="text-[10px] text-emerald-300">Readiness signal updated.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
         <select
@@ -182,6 +222,7 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
         <div className="mt-4 flex flex-col gap-2">
           {feedback.map((f) => {
             const player = players.find((p) => p.id === f.playerId);
+            const readinessMapping = (FEEDBACK_TO_READINESS as Record<string, { signalType: ReadinessSignalType; suggestedValue: ReadinessSignalValue } | null>)[f.category];
             return (
               <div key={f.id} className="flex items-start gap-2 rounded-md border border-zinc-700/40 bg-zinc-800/20 px-3 py-2">
                 <div className="flex-1 min-w-0">
@@ -191,24 +232,24 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
                     <span className="text-[var(--text-muted)]">{FEEDBACK_CATEGORY_LABELS[f.category as FeedbackCategory] ?? f.category}</span>
                     <span className="text-zinc-500 mx-1">·</span>
                     <span className={f.value === "POSITIVE" ? "text-emerald-400" : f.value === "NEEDS_ATTENTION" ? "text-amber-400" : "text-zinc-300"}>
-                      {FEEDBACK_VALUE_LABELS[f.value] ?? f.value}
+                      {formatFeedbackValue(f.value)}
                     </span>
                   </p>
                   {f.observableBehavior && (
                     <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{f.observableBehavior}</p>
                   )}
                   {f.nextAction && f.nextAction !== "NO_ACTION" && (
-                    <p className="text-[10px] text-blue-400 mt-0.5">Next: {NEXT_ACTION_LABELS[f.nextAction] ?? f.nextAction}</p>
+                    <p className="text-[10px] text-blue-400 mt-0.5">Next: {formatNextAction(f.nextAction)}</p>
                   )}
                   {f.note && (
                     <p className="text-[10px] text-zinc-500 mt-0.5">{f.note}</p>
                   )}
-                  {f.value === "NEEDS_ATTENTION" && FEEDBACK_TO_READINESS[f.category] && (
+                  {f.value === "NEEDS_ATTENTION" && readinessMapping && (
                     <Link
                       href={`/players/${f.playerId}#readiness`}
                       className="inline-block mt-1 text-[10px] text-amber-400/80 hover:text-amber-300 transition-colors"
                     >
-                      Consider updating {READINESS_LABELS[FEEDBACK_TO_READINESS[f.category]]} readiness signal →
+                      Consider updating {READINESS_SIGNAL_LABELS[readinessMapping.signalType]} readiness signal →
                     </Link>
                   )}
                 </div>

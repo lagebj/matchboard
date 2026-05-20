@@ -18,6 +18,7 @@ import {
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
+import { formatWarningCode } from "@/lib/match-utils";
 
 type SelectionRow = {
   id: string;
@@ -426,12 +427,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 <ul className="flex flex-col gap-1.5">
                   {blockingWarnings.map((w) => (
                     <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                      <strong>{w.code}</strong>: {w.message}
+                      <strong>{formatWarningCode(w.code)}</strong>: {w.message}
                     </li>
                   ))}
                   {requiresOverrideWarnings.map((w) => (
                     <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                      <strong>{w.code}</strong>: {w.message}
+                      <strong>{formatWarningCode(w.code)}</strong>: {w.message}
                     </li>
                   ))}
                 </ul>
@@ -448,7 +449,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   <ul className="mt-2 flex flex-col gap-1.5">
                     {otherWarnings.map((w) => (
                       <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                        <strong>{w.code}</strong>: {w.message}
+                        <strong>{formatWarningCode(w.code)}</strong>: {w.message}
                       </li>
                     ))}
                   </ul>

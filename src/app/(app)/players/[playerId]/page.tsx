@@ -5,7 +5,7 @@ import { removePlayerAction, togglePlayerActiveAction, updatePlayerAction } from
 import { PlayerEditorForm } from "@/components/players/player-editor-form";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
-import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
+import { formatSelectionRole, isFloatingSelectionRole, formatExplanation } from "@/lib/match-utils";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
 import {
   formatAvailabilityStatus,
@@ -294,7 +294,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                     {sel.overrideReason && <span className="text-amber-400 ml-1">Override</span>}
                     {sel.explanation && (
                       <p className="text-zinc-500 mt-0.5 truncate">
-                        {typeof sel.explanation === "string" ? sel.explanation : JSON.stringify(sel.explanation)}
+                        {formatExplanation(sel.explanation)}
                       </p>
                     )}
                   </div>

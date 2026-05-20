@@ -161,6 +161,18 @@ export default async function PostMatchRoute({ params }: PageProps) {
     name: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
   }));
 
+  const allPlayers = await db.player.findMany({
+    where: { removedAt: null, active: true },
+    select: { id: true, firstName: true, lastName: true, coreTeam: { select: { name: true } } },
+    orderBy: [{ coreTeam: { name: "asc" } }, { firstName: "asc" }],
+  });
+
+  const allPlayerOptions = allPlayers.map((p) => ({
+    id: p.id,
+    name: `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`,
+    teamName: p.coreTeam?.name ?? "Unassigned",
+  }));
+
   const reflectionData = teamReflection
     ? {
         effort: teamReflection.effort,
@@ -173,7 +185,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <PostMatchPage matchId={matchId} initialReport={initialReport} />
+      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} />
       <MatchFeedbackSection matchId={matchId} feedback={feedbackData} players={playerOptions} />
       <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
     </div>

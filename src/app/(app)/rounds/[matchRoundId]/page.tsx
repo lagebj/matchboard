@@ -7,6 +7,8 @@ import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
+import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
+import type { CoachingIntentCategory } from "@/lib/coaching/types";
 
 type RoundBoardPageProps = {
   params: Promise<{
@@ -518,7 +520,7 @@ export default async function RoundBoardPage({
                     const match = matchRound.matches.find((m) => m.id === intent.scopeId);
                     return (
                       <div key={intent.id} className="text-[10px] text-[var(--text-muted)]">
-                        {match ? `${match.team.name} vs ${match.opponent}` : intent.scopeId}: {intent.category}
+                        {match ? `${match.team.name} vs ${match.opponent}` : intent.scopeId}: {COACHING_INTENT_LABELS[intent.category as CoachingIntentCategory] ?? intent.category}
                       </div>
                     );
                   })}

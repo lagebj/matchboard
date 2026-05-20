@@ -108,6 +108,32 @@ export const READINESS_SIGNAL_LABELS: Record<ReadinessSignalType, string> = {
   COACH_TRUST: "Coach trust",
 };
 
+export const READINESS_VALUE_LABELS: Record<ReadinessSignalValue, string> = {
+  RISING: "rising",
+  STABLE: "stable",
+  FALLING: "falling",
+  HIGH: "high",
+  MEDIUM: "medium",
+  LOW: "low",
+  STRONG: "strong",
+  OK: "ok",
+  NEEDS_ATTENTION: "needs attention",
+};
+
+export const FEEDBACK_VALUES = [
+  "POSITIVE",
+  "NEUTRAL",
+  "NEEDS_ATTENTION",
+] as const;
+
+export type FeedbackValue = (typeof FEEDBACK_VALUES)[number];
+
+export const FEEDBACK_VALUE_LABELS: Record<FeedbackValue, string> = {
+  POSITIVE: "Positive",
+  NEUTRAL: "Neutral",
+  NEEDS_ATTENTION: "Needs attention",
+};
+
 export const FEEDBACK_CATEGORIES = [
   "EFFORT",
   "TEAM_HELP",
@@ -135,6 +161,13 @@ export const FEEDBACK_NEXT_ACTIONS = [
 
 export type FeedbackNextAction = (typeof FEEDBACK_NEXT_ACTIONS)[number];
 
+export const NEXT_ACTION_LABELS: Record<FeedbackNextAction, string> = {
+  NO_ACTION: "No action",
+  MONITOR: "Monitor",
+  ADJUST_PLANNING: "Adjust planning",
+  COACH_CONVERSATION: "Coach conversation",
+};
+
 export const DISALLOWED_FEEDBACK_TERMS = [
   "lazy",
   "selfish",
@@ -146,6 +179,36 @@ export const DISALLOWED_FEEDBACK_TERMS = [
 ] as const;
 
 export type DisallowedFeedbackTerm = (typeof DISALLOWED_FEEDBACK_TERMS)[number];
+
+export const FEEDBACK_TO_READINESS: Record<FeedbackCategory, { signalType: ReadinessSignalType; suggestedValue: ReadinessSignalValue } | null> = {
+  EFFORT: { signalType: "EFFORT_TREND", suggestedValue: "FALLING" },
+  TEAM_HELP: { signalType: "TEAM_FIRST_BEHAVIOR", suggestedValue: "NEEDS_ATTENTION" },
+  RESET_AFTER_MISTAKE: { signalType: "RESET_AFTER_ERROR_RELIABILITY", suggestedValue: "NEEDS_ATTENTION" },
+  POSITIONAL_DISCIPLINE: { signalType: "LEARNING_BEHAVIOR", suggestedValue: "NEEDS_ATTENTION" },
+  TEAMMATE_INVOLVEMENT: { signalType: "TEAM_FIRST_BEHAVIOR", suggestedValue: "NEEDS_ATTENTION" },
+};
+
+export type ReadinessSuggestion = {
+  signalType: ReadinessSignalType;
+  suggestedValue: ReadinessSignalValue;
+  signalLabel: string;
+  valueLabel: string;
+};
+
+export function getReadinessSuggestionForFeedback(
+  category: string,
+  value: string,
+): ReadinessSuggestion | null {
+  if (value !== "NEEDS_ATTENTION") return null;
+  const mapping = (FEEDBACK_TO_READINESS as Record<string, { signalType: ReadinessSignalType; suggestedValue: ReadinessSignalValue } | null>)[category];
+  if (!mapping) return null;
+  return {
+    signalType: mapping.signalType,
+    suggestedValue: mapping.suggestedValue,
+    signalLabel: READINESS_SIGNAL_LABELS[mapping.signalType],
+    valueLabel: READINESS_VALUE_LABELS[mapping.suggestedValue],
+  };
+}
 
 export const PARENT_SAFE_INTENT_MAP: Record<CoachingIntentCategory, string> = {
   TEAM_FIRST: "team balance",

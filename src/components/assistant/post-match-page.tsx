@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatSelectionRole, formatAttendanceStatus } from "@/lib/match-utils";
+import type { SelectionRole } from "@/generated/prisma/client";
 import {
   seedMatchReport,
   addGoalToReport,
@@ -42,7 +44,7 @@ function sourceLabel(source: string): string {
   return source === "PLANNED" ? "From plan" : "Added manually";
 }
 
-export function PostMatchPage({ matchId, initialReport }: { matchId: string; initialReport: ReportData | null }) {
+export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId: string; initialReport: ReportData | null; allPlayers: Array<{ id: string; name: string; teamName: string }> }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [homeGoals, setHomeGoals] = useState(initialReport?.homeGoals?.toString() ?? "");
@@ -85,11 +87,11 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
   };
 
   const handleAddPlayer = () => {
-    if (!report || !newPlayerId.trim()) return;
+    if (!report || !newPlayerId) return;
     setError(null);
     startTransition(async () => {
       const result = await addActualPlayer(report.id, {
-        playerId: newPlayerId.trim(),
+        playerId: newPlayerId,
         attendanceStatus: "PRESENT",
       });
       if (result.success) { setNewPlayerId(""); router.refresh(); }
@@ -428,7 +430,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
               <div key={s.playerId} className="flex items-center gap-2 text-sm">
                 <span className="text-zinc-200">{s.playerName}</span>
                 <span className="text-[10px] text-[var(--text-muted)]">({s.coreTeamName})</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded border border-zinc-600/40 bg-zinc-800/30 text-zinc-400">{s.role}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded border border-zinc-600/40 bg-zinc-800/30 text-zinc-400">{formatSelectionRole(s.role as SelectionRole)}</span>
                 {absentPlayerIds.has(s.playerId) && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded border border-red-700/40 bg-red-900/15 text-red-300">Absent</span>
                 )}
@@ -528,7 +530,7 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
                   </select>
                 )}
                 {isLocked && (
-                  <span className="text-[10px] text-[var(--text-muted)]">{p.attendanceStatus}</span>
+                   <span className="text-[10px] text-[var(--text-muted)]">{formatAttendanceStatus(p.attendanceStatus)}</span>
                 )}
                 {!isLocked && (
                   <button
@@ -547,16 +549,22 @@ export function PostMatchPage({ matchId, initialReport }: { matchId: string; ini
 
         {!isLocked && (
           <div className="flex items-center gap-2 mt-3">
-            <input
-              type="text"
+            <select
               value={newPlayerId}
               onChange={(e) => setNewPlayerId(e.target.value)}
-              placeholder="Player ID"
-              className="flex-1 rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 py-1 text-xs text-zinc-50 placeholder:text-zinc-600"
-            />
+              className="flex-1 rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 py-1 text-xs text-zinc-100"
+              disabled={isPending}
+            >
+              <option value="">Add player…</option>
+              {allPlayers
+                .filter((p) => !report?.playerActuals.some((a) => a.playerId === p.id))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.teamName})</option>
+                ))}
+            </select>
             <button
               className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
-              disabled={isPending || !newPlayerId.trim()}
+              disabled={isPending || !newPlayerId}
               onClick={handleAddPlayer}
               type="button"
             >

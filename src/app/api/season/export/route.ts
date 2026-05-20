@@ -3,7 +3,8 @@ import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { formatDate } from "@/lib/date-utils";
-import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
+import { formatMatchVenue, formatSelectionRole, formatReadinessSignalType } from "@/lib/match-utils";
+import { READINESS_VALUE_LABELS, type ReadinessSignalValue } from "@/lib/coaching/types";
 import { sanitizeSelectionForParent as _sanitizeSelection, sanitizeMovementForParent as _sanitizeMovement, sanitizePlayerStatsForParent as _sanitizeStats } from "@/lib/export/parent-safe-filter";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
@@ -114,6 +115,24 @@ export async function GET(request: NextRequest) {
     orderBy: { match: { startsAt: "asc" } },
   });
 
+  const readinessSignals = await db.playerReadinessSignal.findMany({
+    where: {
+      playerId: { in: [...new Set(selections.map((s) => s.playerId))] },
+    },
+    select: {
+      playerId: true,
+      signalType: true,
+      value: true,
+    },
+  });
+
+  const readinessByPlayer = new Map<string, string[]>();
+  for (const rs of readinessSignals) {
+    const existing = readinessByPlayer.get(rs.playerId) ?? [];
+    existing.push(`${formatReadinessSignalType(rs.signalType)}: ${READINESS_VALUE_LABELS[rs.value as ReadinessSignalValue] ?? rs.value}`);
+    readinessByPlayer.set(rs.playerId, existing);
+  }
+
   const isParent = visibility === "parent";
 
   type SelectionRow = {
@@ -183,6 +202,7 @@ export async function GET(request: NextRequest) {
     developmentMatches: number;
     backfillMatches: number;
     doubleLoadRounds: number;
+    readinessSignals: string[];
   };
 
   const playerStats = new Map<string, StatsRow>();
@@ -199,6 +219,7 @@ export async function GET(request: NextRequest) {
       developmentMatches: 0,
       backfillMatches: 0,
       doubleLoadRounds: 0,
+      readinessSignals: readinessByPlayer.get(key) ?? [],
     };
     if (s.role === "CORE") existing.coreMatches++;
     else if (s.role === "SUPPORT") existing.supportMatches++;
@@ -277,9 +298,9 @@ export async function GET(request: NextRequest) {
         sections.push([s.playerName, s.coreTeam, String(s.roundsPlayed), ""].map(escapeCsv).join(","));
       }
     } else {
-      sections.push(["Player", "Team", "Rounds", "Core", "Support", "Development", "Squad Repair", "Double-Load"].map(escapeCsv).join(","));
+      sections.push(["Player", "Team", "Rounds", "Core", "Support", "Development", "Squad Repair", "Double-Load", "Readiness Signals"].map(escapeCsv).join(","));
       for (const s of statsRows) {
-        sections.push([s.playerName, s.coreTeam, String(s.roundsPlayed), String(s.coreMatches), String(s.supportMatches), String(s.developmentMatches), String(s.backfillMatches), String(s.doubleLoadRounds)].map(escapeCsv).join(","));
+        sections.push([s.playerName, s.coreTeam, String(s.roundsPlayed), String(s.coreMatches), String(s.supportMatches), String(s.developmentMatches), String(s.backfillMatches), String(s.doubleLoadRounds), s.readinessSignals.join("; ")].map(escapeCsv).join(","));
       }
     }
 
@@ -345,9 +366,9 @@ export async function GET(request: NextRequest) {
         lines.push(`${s.playerName} (${s.coreTeam}): ${s.roundsPlayed} round(s)`);
       }
     } else {
-      lines.push("Player | Team | Rounds | Core | Support | Dev | Repair | 2x-Load");
+      lines.push("Player | Team | Rounds | Core | Support | Dev | Repair | 2x-Load | Readiness");
       for (const s of statsRows) {
-        lines.push(`${s.playerName} | ${s.coreTeam} | ${s.roundsPlayed} | ${s.coreMatches} | ${s.supportMatches} | ${s.developmentMatches} | ${s.backfillMatches} | ${s.doubleLoadRounds}`);
+        lines.push(`${s.playerName} | ${s.coreTeam} | ${s.roundsPlayed} | ${s.coreMatches} | ${s.supportMatches} | ${s.developmentMatches} | ${s.backfillMatches} | ${s.doubleLoadRounds} | ${s.readinessSignals.length > 0 ? s.readinessSignals.join(", ") : "—"}`);
       }
     }
 
@@ -419,10 +440,10 @@ export async function GET(request: NextRequest) {
       md.push(`| ${s.playerName} | ${s.coreTeam} | ${s.roundsPlayed} |`);
     }
   } else {
-    md.push("| Player | Team | Rounds | Core | Support | Development | Squad Repair | Double-Load |");
-    md.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+    md.push("| Player | Team | Rounds | Core | Support | Development | Squad Repair | Double-Load | Readiness |");
+    md.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
     for (const s of statsRows) {
-      md.push(`| ${s.playerName} | ${s.coreTeam} | ${s.roundsPlayed} | ${s.coreMatches} | ${s.supportMatches} | ${s.developmentMatches} | ${s.backfillMatches} | ${s.doubleLoadRounds} |`);
+      md.push(`| ${s.playerName} | ${s.coreTeam} | ${s.roundsPlayed} | ${s.coreMatches} | ${s.supportMatches} | ${s.developmentMatches} | ${s.backfillMatches} | ${s.doubleLoadRounds} | ${s.readinessSignals.length > 0 ? s.readinessSignals.join(", ") : "—"} |`);
     }
   }
 
