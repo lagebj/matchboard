@@ -4,6 +4,15 @@ import { CoachingIntentSelector } from "@/components/matches/coaching-intent-sel
 
 export const dynamic = "force-dynamic";
 
+const READINESS_LABELS: Record<string, string> = {
+  EFFORT_TREND: "Effort trend falling",
+  ATTENDANCE_RELIABILITY: "Low attendance reliability",
+  LEARNING_BEHAVIOR: "Needs attention in learning behavior",
+  TEAM_FIRST_BEHAVIOR: "Needs attention in team-first behavior",
+  RESET_AFTER_ERROR_RELIABILITY: "Needs attention in reset-after-error reliability",
+  COACH_TRUST: "Low coach trust",
+};
+
 export default async function SeasonPage() {
   const planningPeriods = await db.planningPeriod.findMany({
     orderBy: { startDate: "desc" },
@@ -19,6 +28,38 @@ export default async function SeasonPage() {
       })
     : null;
 
+  const readinessWarnings = await db.playerReadinessSignal.findMany({
+    where: { value: { in: ["FALLING", "LOW", "NEEDS_ATTENTION"] } },
+    select: {
+      playerId: true,
+      signalType: true,
+      value: true,
+    },
+  });
+
+  const readinessPlayerIds = [...new Set(readinessWarnings.map((rw) => rw.playerId))];
+
+  const readinessPlayers = readinessPlayerIds.length > 0
+    ? await db.player.findMany({
+        where: { id: { in: readinessPlayerIds } },
+        select: { id: true, firstName: true, lastName: true, coreTeam: { select: { id: true, name: true } } },
+      })
+    : [];
+
+  const playerMap = new Map(readinessPlayers.map((p) => [p.id, p]));
+
+  const readinessWarningData = readinessWarnings.map((rw) => {
+    const player = playerMap.get(rw.playerId);
+    return {
+      playerId: rw.playerId,
+      playerName: player ? `${player.firstName} ${player.lastName ?? ""}`.trim() : rw.playerId,
+      teamName: player?.coreTeam?.name ?? "Unassigned",
+      signalType: rw.signalType,
+      value: rw.value,
+      label: READINESS_LABELS[rw.signalType] ?? rw.signalType,
+    };
+  });
+
   return (
     <div className="flex flex-col gap-3">
       {activePlanningPeriod && (
@@ -29,6 +70,18 @@ export default async function SeasonPage() {
           currentIntentId={planningPeriodIntent?.id ?? undefined}
           label="Planning period intent"
         />
+      )}
+      {readinessWarningData.length > 0 && (
+        <div className="rounded-2xl border border-amber-700/30 bg-amber-900/10 px-4 py-3">
+          <p className="text-xs font-medium text-amber-200">Readiness signals requiring attention</p>
+          <div className="mt-2 flex flex-col gap-1">
+            {readinessWarningData.map((rw, i) => (
+              <a key={i} href={`/players/${rw.playerId}`} className="text-[11px] text-amber-300/70 hover:text-amber-200 transition-colors">
+                {rw.playerName} <span className="text-zinc-500">·</span> {rw.teamName} <span className="text-zinc-500">·</span> {rw.label}
+              </a>
+            ))}
+          </div>
+        </div>
       )}
       <SeasonOverviewClient
         planningPeriods={planningPeriods}

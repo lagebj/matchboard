@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { AssistantInboxPage } from "@/components/assistant/assistant-inbox-page";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
-import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 
 export default async function AssistantPage() {
   const planningPeriod = await db.planningPeriod.findFirst({

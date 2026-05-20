@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { FEEDBACK_CATEGORIES, FEEDBACK_CATEGORY_LABELS, FEEDBACK_NEXT_ACTIONS, type FeedbackCategory } from "@/lib/coaching/types";
 
@@ -37,6 +38,23 @@ const NEXT_ACTION_LABELS: Record<string, string> = {
   MONITOR: "Monitor",
   ADJUST_PLANNING: "Adjust planning",
   COACH_CONVERSATION: "Coach conversation",
+};
+
+const FEEDBACK_TO_READINESS: Record<string, string> = {
+  EFFORT: "EFFORT_TREND",
+  TEAM_HELP: "TEAM_FIRST_BEHAVIOR",
+  RESET_AFTER_MISTAKE: "RESET_AFTER_ERROR_RELIABILITY",
+  POSITIONAL_DISCIPLINE: "LEARNING_BEHAVIOR",
+  TEAMMATE_INVOLVEMENT: "TEAM_FIRST_BEHAVIOR",
+};
+
+const READINESS_LABELS: Record<string, string> = {
+  EFFORT_TREND: "Effort trend",
+  ATTENDANCE_RELIABILITY: "Attendance reliability",
+  LEARNING_BEHAVIOR: "Learning behavior",
+  TEAM_FIRST_BEHAVIOR: "Team-first behavior",
+  RESET_AFTER_ERROR_RELIABILITY: "Reset-after-error reliability",
+  COACH_TRUST: "Coach trust",
 };
 
 export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedbackSectionProps) {
@@ -184,6 +202,14 @@ export function MatchFeedbackSection({ matchId, feedback, players }: MatchFeedba
                   )}
                   {f.note && (
                     <p className="text-[10px] text-zinc-500 mt-0.5">{f.note}</p>
+                  )}
+                  {f.value === "NEEDS_ATTENTION" && FEEDBACK_TO_READINESS[f.category] && (
+                    <Link
+                      href={`/players/${f.playerId}`}
+                      className="inline-block mt-1 text-[10px] text-amber-400/80 hover:text-amber-300 transition-colors"
+                    >
+                      Consider updating {READINESS_LABELS[FEEDBACK_TO_READINESS[f.category]]} readiness signal →
+                    </Link>
                   )}
                 </div>
                 <button
