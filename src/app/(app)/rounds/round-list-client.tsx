@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Unlock } from "lucide-react";
 import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
+import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 
 type RoundListItem = {
   id: string;
@@ -60,6 +61,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [finalizingRoundId, setFinalizingRoundId] = useState<string | null>(null);
   const [regroupResult, setRegroupResult] = useState<string | null>(null);
   const [regenerateResult, setRegenerateResult] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -228,18 +230,11 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                     <button
                       className="h-8 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
                       disabled={isPending}
-                      onClick={() => {
-                        startTransition(async () => {
-                           const fd = new FormData();
-                           fd.set("matchRoundId", round.id);
-                           await finalizeRoundFromListAction(fd);
-                           router.refresh();
-                         });
-                      }}
+                      onClick={() => setFinalizingRoundId(round.id)}
                       type="button"
                     >
                       <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
-                      {isPending ? "Finalizing..." : "Finalize round"}
+                      Finalize round
                     </button>
                   </div>
                 )}
@@ -268,6 +263,30 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
             );
           })}
         </div>
+      )}
+
+      {finalizingRoundId && (
+        <ConfirmFinalizeDialog
+          isOpen={true}
+          onClose={() => setFinalizingRoundId(null)}
+          onConfirm={(category, detail) => {
+            startTransition(async () => {
+              const fd = new FormData();
+              fd.set("matchRoundId", finalizingRoundId);
+              if (category) fd.set("overrideReasonCategory", category);
+              if (detail) fd.set("overrideReasonDetail", detail);
+              await finalizeRoundFromListAction(fd);
+              setFinalizingRoundId(null);
+              router.refresh();
+            });
+          }}
+          blockingWarningCount={0}
+          requiresOverrideCount={0}
+          totalWarnings={0}
+          selectedCount={0}
+          targetSquadSize={0}
+          matchCount={0}
+        />
       )}
 
       {showClearAllDialog && (

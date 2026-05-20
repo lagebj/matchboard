@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import type { SelectionRole } from "@/generated/prisma/client";
 import {
   Calendar,
@@ -138,6 +139,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const roundFinalized = searchParams.get("roundFinalized");
   const [isPending, startTransition] = useTransition();
   const [showAllWarnings, setShowAllWarnings] = useState(false);
+  const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
 
   const dateStr = match.startsAt.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -381,25 +383,24 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   </p>
                 )}
                 {hasOverrideWarnings && (
-                  <div className="mb-2">
-                    <label className="text-xs text-[var(--text-muted)] block mb-1" htmlFor={`override-reason-${match.id}`}>Override reason (required)</label>
-                    <input
-                      id={`override-reason-${match.id}`}
-                      className="h-8 w-full rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-xs text-zinc-50"
-                      placeholder="Why are you overriding?"
-                    />
-                  </div>
+                  <OverrideReasonInput
+                    hasBlockingWarnings={true}
+                    value={matchOverrideReason}
+                    onChange={setMatchOverrideReason}
+                  />
                 )}
                 <button
                   className="w-full rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
-                  disabled={isPending}
+                  disabled={isPending || (hasOverrideWarnings && (!matchOverrideReason.category || matchOverrideReason.detail.trim().length < 10))}
                   onClick={() => {
                     startTransition(async () => {
                       const fd = new FormData();
                       fd.set("matchId", match.id);
-                      if (requiresOverrideWarnings.length > 0) {
-                        const reason = (document.getElementById(`override-reason-${match.id}`) as HTMLInputElement)?.value ?? "";
-                        fd.set("overrideReason", reason);
+                      if (hasOverrideWarnings && matchOverrideReason.category) {
+                        fd.set("overrideReasonCategory", matchOverrideReason.category);
+                      }
+                      if (hasOverrideWarnings && matchOverrideReason.detail.trim()) {
+                        fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
                       }
                       const { finalizeMatchAction } = await import("@/app/(app)/matches/actions");
                       await finalizeMatchAction(fd);
