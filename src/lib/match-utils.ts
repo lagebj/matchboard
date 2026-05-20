@@ -133,6 +133,22 @@ export function formatAttendanceStatus(status: string): string {
   }
 }
 
+export const OVERRIDE_REASON_CATEGORY_LABELS: Record<string, string> = {
+  squad_too_small: "Squad too small",
+  support_missing: "Support missing",
+  development_opportunity: "Development opportunity",
+  double_load_needed: "Double load needed",
+  availability_changed: "Availability changed",
+  coach_judgement: "Coach judgement",
+  match_already_played: "Match already played",
+  data_correction: "Data correction",
+  other: "Other",
+};
+
+export function formatOverrideReasonCategory(category: string): string {
+  return OVERRIDE_REASON_CATEGORY_LABELS[category] ?? category.replace(/_/g, " ");
+}
+
 // A floating role is any non-core role where the player is movement-eligible.
 // BACKFILL, CONFIDENCE_REBUILD, CORE_MATCH_DROP, and REDUCED_MATCH_LOAD_DROP
 // are legacy roles retained for backward compatibility with historical data.

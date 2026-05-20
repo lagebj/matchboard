@@ -18,6 +18,7 @@ import {
   Unlock,
 } from "lucide-react";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
+import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
@@ -392,7 +393,7 @@ export function RoundBoard({
   const [overrideReason, setOverrideReason] = useState("");
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
-  const [matchOverrideReason, setMatchOverrideReason] = useState("");
+  const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
 
   const touchDragRef = useRef<{ playerId: string; fromMatchId: string | null; currentRole: SelectionRole } | null>(null);
   const [touchDragPlayerId, setTouchDragPlayerId] = useState<string | null>(null);
@@ -606,7 +607,7 @@ export function RoundBoard({
     [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 
-  const handleFinalize = (reason: string) => {
+  const handleFinalize = (overrideReasonCategory: string, overrideReasonDetail: string) => {
     const form = document.createElement("form");
     form.method = "POST";
     form.action = `/rounds/${matchRoundId}`;
@@ -616,12 +617,19 @@ export function RoundBoard({
     matchRoundIdInput.name = "matchRoundId";
     matchRoundIdInput.value = matchRoundId;
     form.appendChild(matchRoundIdInput);
-    if (reason) {
-      const reasonInput = document.createElement("input");
-      reasonInput.type = "hidden";
-      reasonInput.name = "overrideReason";
-      reasonInput.value = reason;
-      form.appendChild(reasonInput);
+    if (overrideReasonCategory) {
+      const categoryInput = document.createElement("input");
+      categoryInput.type = "hidden";
+      categoryInput.name = "overrideReasonCategory";
+      categoryInput.value = overrideReasonCategory;
+      form.appendChild(categoryInput);
+    }
+    if (overrideReasonDetail) {
+      const detailInput = document.createElement("input");
+      detailInput.type = "hidden";
+      detailInput.name = "overrideReasonDetail";
+      detailInput.value = overrideReasonDetail;
+      form.appendChild(detailInput);
     }
     document.body.appendChild(form);
     form.submit();
@@ -839,7 +847,7 @@ export function RoundBoard({
             onRoleChange={handleRoleChange}
             showFinalizeMatch={(matchId: string) => {
               setFinalizingMatchId(matchId);
-              setMatchOverrideReason("");
+              setMatchOverrideReason({ category: "", detail: "" });
             }}
             onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
               touchDragRef.current = { playerId, fromMatchId, currentRole: currentRole ?? "CORE" };
@@ -867,6 +875,7 @@ export function RoundBoard({
         selectedCount={totalSelected}
         targetSquadSize={totalTarget}
         matchCount={matches.length}
+        warnings={actionableWarnings.map((w) => ({ severity: w.severity ?? "WARNING", message: w.message, rule: w.code }))}
       />
 
       {showClearRoundDialog && (
@@ -954,21 +963,13 @@ export function RoundBoard({
                         )}
                       </div>
                     )}
-                    {(hardBlocks > 0 || requiresOverride > 0) && (
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-zinc-200" htmlFor="match-override-reason">
-                          Override reason
-                        </label>
-                        <textarea
-                          id="match-override-reason"
-                          className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
-                          rows={2}
-                          placeholder="Explain why (min 10 characters)..."
-                          value={matchOverrideReason}
-                          onChange={(e) => setMatchOverrideReason(e.target.value)}
-                        />
-                      </div>
-                    )}
+                     {(hardBlocks > 0 || requiresOverride > 0) && (
+                       <OverrideReasonInput
+                         hasBlockingWarnings={true}
+                         value={matchOverrideReason}
+                         onChange={setMatchOverrideReason}
+                       />
+                     )}
                   </>
                 );
               })()}
@@ -987,15 +988,19 @@ export function RoundBoard({
                   if (!m) return true;
                   const mWarnings = warnings.filter((w) => w.teamName === m.teamName);
                   const hasBlocking = mWarnings.some((w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE");
-                  return hasBlocking && matchOverrideReason.trim().length < 10;
+                  if (!hasBlocking) return false;
+                  return !matchOverrideReason.category || matchOverrideReason.detail.trim().length < 10;
                 })()}
                 onClick={() => {
                   startTransition(async () => {
                     const fd = new FormData();
                     fd.set("matchId", finalizingMatchId);
                     fd.set("matchRoundId", matchRoundId);
-                    if (matchOverrideReason.trim()) {
-                      fd.set("overrideReason", matchOverrideReason.trim());
+                    if (matchOverrideReason.category) {
+                      fd.set("overrideReasonCategory", matchOverrideReason.category);
+                    }
+                    if (matchOverrideReason.detail.trim()) {
+                      fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
                     }
                     await finalizeSingleMatchFromBoardAction({ error: "" }, fd);
                     setFinalizingMatchId(null);

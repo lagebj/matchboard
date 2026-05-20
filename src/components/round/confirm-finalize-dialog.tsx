@@ -3,17 +3,25 @@
 import { useState } from "react";
 import { AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { SeverityBadge } from "@/components/ui/severity-badge";
+import { OverrideReasonInput } from "@/components/round/override-reason-input";
+
+type WarningSummary = {
+  severity: string;
+  message: string;
+  rule: string;
+};
 
 type ConfirmFinalizeDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (overrideReason: string) => void;
+  onConfirm: (overrideReasonCategory: string, overrideReasonDetail: string) => void;
   blockingWarningCount: number;
   requiresOverrideCount: number;
   totalWarnings: number;
   selectedCount: number;
   targetSquadSize: number;
   matchCount: number;
+  warnings?: WarningSummary[];
 };
 
 export function ConfirmFinalizeDialog({
@@ -26,27 +34,33 @@ export function ConfirmFinalizeDialog({
   selectedCount,
   targetSquadSize,
   matchCount,
+  warnings = [],
 }: ConfirmFinalizeDialogProps) {
-  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideReason, setOverrideReason] = useState({ category: "", detail: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const hasWarnings = blockingWarningCount > 0 || requiresOverrideCount > 0;
   const needsOverride = hasWarnings;
-  const overrideValid = !needsOverride || overrideReason.trim().length >= 10;
+  const categoryValid = !needsOverride || overrideReason.category !== "";
+  const detailValid = !needsOverride || overrideReason.detail.trim().length >= 10;
+  const overrideValid = !needsOverride || (categoryValid && detailValid);
 
   const handleConfirm = () => {
     if (!overrideValid) return;
     setIsSubmitting(true);
-    onConfirm(overrideReason.trim());
+    onConfirm(overrideReason.category, overrideReason.detail.trim());
   };
+
+  const blockingWarnings = warnings.filter((w) => w.severity === "HARD_BLOCK");
+  const overrideWarnings = warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4">
+      <div className="relative z-10 w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4 shrink-0">
           <h3 className="text-base font-semibold text-zinc-100">
             Finalize round
           </h3>
@@ -59,7 +73,7 @@ export function ConfirmFinalizeDialog({
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 px-5 py-4">
+        <div className="flex flex-col gap-4 px-5 py-4 overflow-y-auto">
           <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">
             <p className="text-sm text-zinc-200">
               <span className="font-semibold">{selectedCount}</span> players selected across{" "}
@@ -85,6 +99,13 @@ export function ConfirmFinalizeDialog({
                       {blockingWarningCount} blocking {blockingWarningCount === 1 ? "issue" : "issues"} — override reason required to finalize
                     </span>
                   </div>
+                  {blockingWarnings.length > 0 && (
+                    <ul className="mt-1.5 ml-5 list-disc text-xs text-red-400/80 space-y-0.5">
+                      {blockingWarnings.map((w, i) => (
+                        <li key={i}>{w.message}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 
@@ -96,34 +117,26 @@ export function ConfirmFinalizeDialog({
                       {requiresOverrideCount} {requiresOverrideCount === 1 ? "issue requires" : "issues require"} override reason
                     </span>
                   </div>
+                  {overrideWarnings.length > 0 && (
+                    <ul className="mt-1.5 ml-5 list-disc text-xs text-amber-400/80 space-y-0.5">
+                      {overrideWarnings.map((w, i) => (
+                        <li key={i}>{w.message}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {needsOverride && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-zinc-200" htmlFor="override-reason">
-                Override reason
-              </label>
-              <textarea
-                id="override-reason"
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
-                rows={3}
-                placeholder="Explain why these issues are being overridden (min 10 characters)..."
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-              />
-              {overrideReason.length > 0 && overrideReason.trim().length < 10 && (
-                <p className="text-xs text-amber-300">
-                  Override reason must be at least 10 characters.
-                </p>
-              )}
-            </div>
-          )}
+          <OverrideReasonInput
+            hasBlockingWarnings={needsOverride}
+            value={overrideReason}
+            onChange={setOverrideReason}
+          />
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
+        <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3 shrink-0">
           <button
             className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
             onClick={onClose}
