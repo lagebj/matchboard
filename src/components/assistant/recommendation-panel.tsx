@@ -64,10 +64,10 @@ export function RecommendationPanel({ recommendation, decisionType = "ASSISTANT_
         </div>
       )}
 
-      {recommendation.warnings.length > 0 && (
+      {recommendation.signals.length > 0 && (
         <div className="mt-2 flex flex-col gap-0.5">
-          {recommendation.warnings.map((w, i) => (
-            <p key={i} className="text-[10px] text-amber-400">{w}</p>
+          {recommendation.signals.map((s, i) => (
+            <p key={i} className="text-[10px] text-amber-400">{s}</p>
           ))}
         </div>
       )}

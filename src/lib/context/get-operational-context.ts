@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 export type OperationalContext = {
   season: { id: string; name: string } | null;
   planningPeriod: { id: string; name: string; startDate: Date; endDate: Date } | null;
-  matchRound: { id: string; name: string; status: string; hasDraftSelections: boolean; hasMatches: boolean; blockingWarningCount: number } | null;
+  matchRound: { id: string; name: string; status: string; hasDraftSelections: boolean; hasMatches: boolean; blockedSignalCount: number } | null;
 };
 
 export async function getOperationalContext(): Promise<OperationalContext> {
@@ -66,7 +66,7 @@ async function enrichMatchRound(id: string, name: string, status: string): Promi
     db.warning.count({ where: { matchRoundId: id, resolved: false, severity: "HARD_BLOCK" } }),
   ]);
 
-  return { id, name, status, hasDraftSelections: draftCount > 0, hasMatches: matchCount > 0, blockingWarningCount: blockingCount };
+  return { id, name, status, hasDraftSelections: draftCount > 0, hasMatches: matchCount > 0, blockedSignalCount: blockingCount };
 }
 
 export async function searchEntities(query: string) {

@@ -58,16 +58,16 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium text-zinc-200">{review.title}</p>
           <div className="flex items-center gap-2">
-            {review.hardBlockerCount > 0 && (
-              <span className="text-[10px] text-red-400">{review.hardBlockerCount} hard blocker{review.hardBlockerCount !== 1 ? "s" : ""}</span>
+            {review.blockedConditionCount > 0 && (
+              <span className="text-[10px] text-red-400">{review.blockedConditionCount} Blocked {review.blockedConditionCount !== 1 ? "conditions" : "condition"}</span>
             )}
             <span className="text-[10px] text-zinc-500">{review.teamReadiness.length} teams</span>
           </div>
         </div>
         <p className="text-[11px] text-zinc-400 mt-1">
-          {review.publishable
-            ? "This round is ready to publish."
-            : "Publishing is blocked because unresolved hard blockers exist."}
+          {review.finalizeable
+            ? "This round is ready to finalize."
+            : "Finalization requires override reason for unresolved conditions."}
         </p>
       </div>
 
@@ -96,30 +96,30 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
       )}
 
       <div className="flex items-center gap-2">
-        {review.publishable ? (
-          <DecisionPanel
-            decisionType="ROUND_REVIEW"
-            entityType="ROUND"
-            entityId={review.roundId}
-            action="PUBLISH"
-            actionLabel="Publish round"
-            reasonRequired={false}
-          />
-        ) : (
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              disabled
-              className="h-7 rounded border border-zinc-700/40 bg-zinc-800/30 px-3 text-xs font-medium text-zinc-600 cursor-not-allowed"
-            >
-              Publish (blocked)
-            </button>
+      {review.finalizeable ? (
+        <DecisionPanel
+          decisionType="ROUND_REVIEW"
+          entityType="ROUND"
+          entityId={review.roundId}
+          action="FINALIZE"
+          actionLabel="Finalize round"
+          reasonRequired={false}
+        />
+      ) : (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled
+            className="h-7 rounded border border-zinc-700/40 bg-zinc-800/30 px-3 text-xs font-medium text-zinc-600 cursor-not-allowed"
+          >
+            Finalize (conditions require review)
+          </button>
             <button
               type="button"
               onClick={() => setShowOverrideModal(true)}
               className="h-7 rounded border border-red-700/40 bg-red-900/20 px-3 text-xs font-semibold text-red-300 hover:bg-red-900/30"
             >
-              Override and publish with reason
+              Override and finalize with reason
             </button>
           </div>
         )}
@@ -130,14 +130,14 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOverrideModal(false)} />
           <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
             <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Override and publish</h3>
+              <h3 className="text-base font-semibold text-zinc-100">Override and finalize</h3>
               <p className="text-sm text-zinc-300">
-                This round has {review.hardBlockerCount} hard blocker{review.hardBlockerCount !== 1 ? "s" : ""}. Overriding requires a reason.
+                This round has {review.blockedConditionCount} Blocked {review.blockedConditionCount !== 1 ? "conditions" : "condition"}. Overriding requires a reason.
               </p>
               <textarea
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="Reason for overriding blockers..."
+                placeholder="Reason for overriding Blocked conditions..."
                 className="rounded-md border border-zinc-700/40 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
                 rows={3}
               />
@@ -172,7 +172,7 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
                 }}
                 className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 disabled:opacity-50"
               >
-                Override and publish
+                Override and finalize
               </button>
             </div>
           </div>

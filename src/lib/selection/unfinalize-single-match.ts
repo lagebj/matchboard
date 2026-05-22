@@ -110,7 +110,7 @@ export async function unfinalizeSingleMatch(
           dbStatus: "DRAFT",
           hasDraftSelections: true,
           hasMatches: round.matches.length > 0,
-          blockingWarningCount: unresolvedBlocking,
+          blockedSignalCount: unresolvedBlocking,
         });
 
         await tx.matchRound.update({

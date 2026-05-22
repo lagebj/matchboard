@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { AlertTriangle, ShieldCheck, X } from "lucide-react";
-import { SeverityBadge } from "@/components/ui/severity-badge";
+import { SignalBadge } from "@/components/ui/severity-badge";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
+import { signalCategoryFromSeverity } from "@/lib/selection/persist-warnings";
 
-type WarningSummary = {
+type SignalSummary = {
   severity: string;
   message: string;
   rule: string;
@@ -15,33 +16,33 @@ type ConfirmFinalizeDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (overrideReasonCategory: string, overrideReasonDetail: string) => void;
-  blockingWarningCount: number;
-  requiresOverrideCount: number;
-  totalWarnings: number;
+  blockedCount: number;
+  decisionRequiredCount: number;
+  totalSignalCount: number;
   selectedCount: number;
   targetSquadSize: number;
   matchCount: number;
-  warnings?: WarningSummary[];
+  signals?: SignalSummary[];
 };
 
 export function ConfirmFinalizeDialog({
   isOpen,
   onClose,
   onConfirm,
-  blockingWarningCount,
-  requiresOverrideCount,
-  totalWarnings,
+  blockedCount,
+  decisionRequiredCount,
+  totalSignalCount,
   selectedCount,
   targetSquadSize,
   matchCount,
-  warnings = [],
+  signals = [],
 }: ConfirmFinalizeDialogProps) {
   const [overrideReason, setOverrideReason] = useState({ category: "", detail: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const hasIssues = blockingWarningCount > 0 || requiresOverrideCount > 0;
+  const hasIssues = blockedCount > 0 || decisionRequiredCount > 0;
   const needsOverride = hasIssues;
   const categoryValid = !needsOverride || overrideReason.category !== "";
   const detailValid = !needsOverride || overrideReason.detail.trim().length >= 10;
@@ -53,8 +54,8 @@ export function ConfirmFinalizeDialog({
     onConfirm(overrideReason.category, overrideReason.detail.trim());
   };
 
-  const blockedConditions = warnings.filter((w) => w.severity === "HARD_BLOCK");
-  const decisionRequiredConditions = warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
+  const blockedConditions = signals.filter((s) => signalCategoryFromSeverity(s.severity as Parameters<typeof signalCategoryFromSeverity>[0]) === "BLOCKED");
+  const decisionRequiredConditions = signals.filter((s) => signalCategoryFromSeverity(s.severity as Parameters<typeof signalCategoryFromSeverity>[0]) === "DECISION_REQUIRED");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -82,45 +83,45 @@ export function ConfirmFinalizeDialog({
             </p>
           </div>
 
-          {totalWarnings > 0 && (
+          {totalSignalCount > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden="true" />
                 <span className="text-sm font-medium text-zinc-200">
-                  {totalWarnings} {totalWarnings === 1 ? "issue" : "issues"} need attention
+                  {totalSignalCount} {totalSignalCount === 1 ? "issue" : "issues"} need attention
                 </span>
               </div>
 
-              {blockingWarningCount > 0 && (
+              {blockedCount > 0 && (
                 <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <SeverityBadge severity="blocking" />
+                    <SignalBadge level="blocked" />
                     <span className="text-sm text-red-300">
-                      {blockingWarningCount} Blocked {blockingWarningCount === 1 ? "condition" : "conditions"} — override reason required to finalize
+                      {blockedCount} Blocked {blockedCount === 1 ? "condition" : "conditions"} — override reason required to finalize
                     </span>
                   </div>
                   {blockedConditions.length > 0 && (
                     <ul className="mt-1.5 ml-5 list-disc text-xs text-red-400/80 space-y-0.5">
-                      {blockedConditions.map((w, i) => (
-                        <li key={i}>{w.message}</li>
+                      {blockedConditions.map((s, i) => (
+                        <li key={i}>{s.message}</li>
                       ))}
                     </ul>
                   )}
                 </div>
               )}
 
-              {requiresOverrideCount > 0 && (
+              {decisionRequiredCount > 0 && (
                 <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <SeverityBadge severity="high" />
+                    <SignalBadge level="decisionRequired" />
                     <span className="text-sm text-amber-300">
-                      {requiresOverrideCount} {requiresOverrideCount === 1 ? "decision requires" : "decisions require"} override reason
+                      {decisionRequiredCount} {decisionRequiredCount === 1 ? "decision requires" : "decisions require"} override reason
                     </span>
                   </div>
                   {decisionRequiredConditions.length > 0 && (
                     <ul className="mt-1.5 ml-5 list-disc text-xs text-amber-400/80 space-y-0.5">
-                      {decisionRequiredConditions.map((w, i) => (
-                        <li key={i}>{w.message}</li>
+                      {decisionRequiredConditions.map((s, i) => (
+                        <li key={i}>{s.message}</li>
                       ))}
                     </ul>
                   )}

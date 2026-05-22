@@ -80,10 +80,10 @@ describe("formatWarningCode", () => {
 
 describe("formatSeverity", () => {
   it("formats severity levels", () => {
-    expect(formatSeverity("HARD_BLOCK")).toBe("Blocking");
-    expect(formatSeverity("REQUIRES_OVERRIDE")).toBe("Requires override");
-    expect(formatSeverity("WARNING")).toBe("Warning");
-    expect(formatSeverity("SCORING_PREFERENCE")).toBe("Preference");
+    expect(formatSeverity("HARD_BLOCK")).toBe("Blocked");
+    expect(formatSeverity("REQUIRES_OVERRIDE")).toBe("Decision required");
+    expect(formatSeverity("WARNING")).toBe("Planning note");
+    expect(formatSeverity("SCORING_PREFERENCE")).toBe("Explanation");
   });
 
   it("returns unknown severity as-is", () => {

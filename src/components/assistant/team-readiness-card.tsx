@@ -70,10 +70,10 @@ export function TeamReadinessCard({ readiness }: TeamReadinessCardProps) {
           {readiness.rotationPressure}
         </span>
       </div>
-      {readiness.warnings.length > 0 && (
+      {readiness.signals.length > 0 && (
         <div className="mt-2 flex flex-col gap-0.5">
-          {readiness.warnings.map((w, i) => (
-            <p key={i} className="text-[10px] text-amber-400">{w}</p>
+          {readiness.signals.map((s, i) => (
+            <p key={i} className="text-[10px] text-amber-400">{s}</p>
           ))}
         </div>
       )}

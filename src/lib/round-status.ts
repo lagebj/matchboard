@@ -4,13 +4,13 @@ export function deriveRoundStatus(params: {
   dbStatus: string | null;
   hasDraftSelections: boolean;
   hasMatches: boolean;
-  blockingWarningCount: number;
+  blockedSignalCount: number;
 }): RoundStatus {
-  const { dbStatus, hasDraftSelections, hasMatches, blockingWarningCount } = params;
+  const { dbStatus, hasDraftSelections, hasMatches, blockedSignalCount } = params;
 
   if (dbStatus === "FINALIZED") return "FINALIZED";
   if (dbStatus === "DRAFT") {
-    if (blockingWarningCount > 0) return "BLOCKED";
+    if (blockedSignalCount > 0) return "BLOCKED";
     if (hasDraftSelections) return "READY";
     return "DRAFT";
   }

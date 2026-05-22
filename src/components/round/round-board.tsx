@@ -428,13 +428,13 @@ export function RoundBoard({
   const squadRepairNeeded = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length, 0);
   const blockedCount = signalSummary?.blocked ?? warningSummary?.blocking ?? 0;
   const decisionRequiredCount = signalSummary?.decisionRequired ?? warningSummary?.high ?? 0;
-  const planningNoteCount = signalSummary?.planningNote ?? (warningSummary?.medium ?? 0) + (warningSummary?.info ?? 0);
+  const _planningNoteCount = signalSummary?.planningNote ?? (warningSummary?.medium ?? 0) + (warningSummary?.info ?? 0);
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
     hasDraftSelections,
     hasMatches,
-    blockingWarningCount: blockedCount,
+    blockedSignalCount: blockedCount,
   });
 
   const assignedPlayerIds = new Set<string>();
@@ -847,13 +847,13 @@ export function RoundBoard({
         isOpen={showFinalizeDialog}
         onClose={() => setShowFinalizeDialog(false)}
         onConfirm={handleFinalize}
-        blockingWarningCount={blockedCount}
-        requiresOverrideCount={decisionRequiredCount}
-        totalWarnings={prominentSignals.length + planningNotes.length}
+        blockedCount={blockedCount}
+        decisionRequiredCount={decisionRequiredCount}
+        totalSignalCount={prominentSignals.length + planningNotes.length}
         selectedCount={totalSelected}
         targetSquadSize={totalTarget}
         matchCount={matches.length}
-        warnings={prominentSignals.map((w) => ({ severity: w.severity ?? "WARNING", message: w.message, rule: w.code }))}
+        signals={prominentSignals.map((w) => ({ severity: w.severity ?? "WARNING", message: w.message, rule: w.code }))}
       />
 
       {showClearRoundDialog && (

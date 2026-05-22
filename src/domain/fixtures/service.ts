@@ -137,13 +137,13 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
         );
         const hasDraftSelections = roundDraftSelectionCount > 0;
         const hasMatches = round.matches.length > 0;
-        const blockingWarningCount = roundBlockingWarningCounts.get(round.id) ?? 0;
+        const blockedSignalCount = roundBlockingWarningCounts.get(round.id) ?? 0;
 
         const derivedRoundStatus = deriveRoundStatus({
           dbStatus: round.status,
           hasDraftSelections,
           hasMatches,
-          blockingWarningCount,
+          blockedSignalCount,
         });
 
         const matches: FixtureMatch[] = round.matches.map((match) => {
