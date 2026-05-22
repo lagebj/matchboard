@@ -327,6 +327,40 @@ Guardrail rules:
 - Weaker but hungry players can receive challenge where behavior and context support it.
 - Social participation is respected, but it must not silently define the football ceiling for the whole group.
 
+### Opponent teams and encounter observations
+
+Matchboard stores opponent teams as reusable private match-planning entities.
+
+1. Every match must reference one persisted opponent team while preserving `Match.opponent` as a historical match-time display-name snapshot.
+2. `Match.matchFit` is the existing sporting-fit observation and must be reused, not duplicated. No new sporting-fit model or enum may be introduced.
+3. Match-environment observations are separate from sporting-fit feedback. They describe individual encounters, never fixed traits of an opponent team.
+4. Matchboard must never introduce designed fields for opponent player names, opponent coach names, parent or spectator names, referee names, shirt numbers connected to incidents, contact information, physical descriptions, or identifying details about individuals.
+5. Free-text opponent summaries must be short (max 500 characters), factual, coach-facing, and explicitly prohibit identifying details. The form must reject obvious email, phone, and URL patterns.
+6. Serious Fair Play concerns are handled through club processes outside Matchboard. Matchboard records follow-up status only.
+7. Opponent encounter context must not automatically alter selection-engine outcomes: no eligibility changes, no support priority changes, no development movement changes, no squad repair changes, no fairness scoring changes, no readiness signal changes, no warning changes, no blocker changes, no finalisation behaviour changes.
+8. Opponent observation data must not appear in parent-facing exports.
+9. Opponent observation data must not appear in external AI payloads.
+10. Use the `ux-webapp-design-craft` skill for all user-facing interaction and visual work related to this feature.
+11. Preserve existing child-sensitive, non-labelling language rules.
+
+Required user-facing terminology for opponent features:
+
+| Concept | Use | Never use |
+|---------|-----|-----------|
+| Reusable opponent identity | Opponent team | Bad team, Problem team, Unsafe team |
+| Match history against opponent | Previous encounters, Encounter history | Risk history, Opponent rating |
+| Post-match observation | Post-match observation | Opponent evaluation |
+| Sporting fit | Sporting match fit | Opponent strength, Opponent quality score |
+| Environment assessment | Match environment | Threat assessment |
+| Fair Play concern | Fair Play concern, Observed concern | Bad behaviour, Red flag |
+| Serious observation | Serious concern observed | Unsafe team, Dangerous team |
+| Follow-up | Follow-up | Action required |
+| Summary | Brief factual summary | Incident report |
+| No concern | No concern observed | Clean record |
+| Not assessed | Not assessed | Unknown risk |
+
+Required UI must never display: blacklist, reputation score, Fair Play score, opponent rating, opponent quality score, hostile parents, aggressive coach, dirty players, weak opponent, strong opponent, avoid this team.
+
 ### Consecutive support rotation
 
 The selection engine penalizes players who have been sent as support for consecutive rounds. This is a scoring preference, not a hard rule.

@@ -77,6 +77,20 @@ Feedback is coach-facing by default, describes behavior not character, is option
 
 Feedback can inform future warnings, readiness signals, and planning suggestions. Feedback must not mutate finalized planned selections. Actual participation belongs to post-match reality/history and must stay separate from planned selection.
 
+## Opponent encounter history
+
+Matchboard supports reusable opponent-team registration and match-linked encounter history. After a match, coaches can record private observations about the match environment (opponent players, coaching staff, spectator/sideline context) and sporting fit through existing match-fit feedback.
+
+The feature is coach-facing. It records encounters rather than rating opponents. It does not store opponent individual identities. It does not automatically alter squad selection. It is not a public rating, blacklist, or formal incident-reporting system.
+
+Opponent observations are separate from sporting-match-fit feedback. The existing `Match.matchFit` field is reused as the sporting-fit context for encounters. No duplicate sporting-fit model exists.
+
+Post-match observations use neutral, observable language: "Fair Play concern", "Observed concern", "Serious concern observed". They never use labeling language like "Bad team", "Unsafe team", or "Risk team".
+
+Match-environment observations, concern categories, factual summaries, and follow-up status are excluded from parent-facing exports and external AI payloads. Opponent-team display names may appear as normal fixture information in parent-facing contexts.
+
+The selection engine is unchanged: opponent identity, match-fit history, and environment observations do not alter eligibility, support priority, development movement, squad repair, fairness, readiness, warnings, blockers, or finalisation.
+
 ## Coach-facing vs parent-facing exports
 
 Internal planning reasons, readiness notes, support burden, confidence rebuild, effort concerns, and execution feedback must not leak into parent-facing exports.

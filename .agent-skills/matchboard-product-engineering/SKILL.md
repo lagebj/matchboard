@@ -172,6 +172,21 @@ Matchboard must not become: a punishment engine, a hidden player ranking ladder,
 
 Movement is temporary and explainable. Stable belonging is protected. Coach judgement remains explicit when overriding rules. Hosted deployment does not weaken privacy boundaries.
 
+## Opponent encounters and observations
+
+Encounter observations use observable, non-identifying language. Sporting-match-fit feedback (`Match.matchFit`) and environment observations remain separate. Opponent context is not an automatic selection input. Parent-facing exports and external payloads must exclude opponent observation data. Named-person data must not be stored. No opponent blacklist or moral score may be created.
+
+Rules:
+- `Match.matchFit` is the existing sporting-fit observation. No duplicate sporting-fit model may be introduced.
+- Opponent encounters describe individual matches, never fixed traits of an opponent team.
+- Environment observations use: Not assessed, Positive experience, Acceptable experience, Concern observed, Serious concern observed.
+- Concern categories describe observable conditions: pressure on referee decisions, disrespectful language, unsporting conduct, physical play/safety concern, threats/intimidation, discriminatory language, sideline atmosphere, safe match framework not supported, other observable concern.
+- No field may store opponent player names, coach names, parent/spectator names, referee names, shirt numbers, contact information, or identifying details.
+- Factual summaries max 500 characters, reject obvious email/phone/URL patterns.
+- Serious concerns: informational callout only, not a block. Follow-up handled through club Fair Play processes outside Matchboard.
+- Opponent encounter data must not change: eligibility, support priority, development movement, squad repair, fairness, readiness, warnings, blockers, or finalisation.
+- Opponent observations excluded from parent-facing exports and external AI payloads.
+
 Round and match readiness has five states:
 
 | Status | Meaning |
