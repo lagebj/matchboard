@@ -61,7 +61,7 @@ type MatchColumn = {
   coachingIntentId?: string;
 };
 
-type WarningEntry = {
+type SignalEntry = {
   code: string;
   message: string;
   severity?: WarningSeverity;
@@ -85,14 +85,8 @@ type RoundBoardProps = {
   matches: MatchColumn[];
   availablePlayers: PlayerInColumn[];
   rotationPathMap: Record<string, string[]>;
-  warnings: WarningEntry[];
+  warnings: SignalEntry[];
   signalSummary?: SignalSummary;
-  warningSummary?: {
-    blocking: number;
-    high: number;
-    medium: number;
-    info: number;
-  };
   movementSummary: {
     supportSent: number;
     supportReceived: number;
@@ -376,7 +370,6 @@ export function RoundBoard({
   rotationPathMap,
   warnings,
   signalSummary,
-  warningSummary,
   movementSummary,
   fairnessMetrics,
 }: RoundBoardProps) {
@@ -426,9 +419,9 @@ export function RoundBoard({
     return assigned < m.minSquadSize;
   }).length;
   const squadRepairNeeded = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length, 0);
-  const blockedCount = signalSummary?.blocked ?? warningSummary?.blocking ?? 0;
-  const decisionRequiredCount = signalSummary?.decisionRequired ?? warningSummary?.high ?? 0;
-  const _planningNoteCount = signalSummary?.planningNote ?? (warningSummary?.medium ?? 0) + (warningSummary?.info ?? 0);
+  const blockedCount = signalSummary?.blocked ?? 0;
+  const decisionRequiredCount = signalSummary?.decisionRequired ?? 0;
+  const _planningNoteCount = signalSummary?.planningNote ?? 0;
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,

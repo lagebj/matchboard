@@ -93,33 +93,3 @@ export function signalLevelFromCode(code: string): SignalLevel {
   return "planningNote";
 }
 
-// Deprecated: kept for backward compatibility during migration
-export type Severity = "blocking" | "high" | "medium" | "info";
-
-export function severityFromDbSeverity(dbSeverity: WarningSeverity): Severity {
-  const level = signalLevelFromDbSeverity(dbSeverity);
-  switch (level) {
-    case "blocked": return "blocking";
-    case "decisionRequired": return "high";
-    case "planningNote": return "medium";
-  }
-}
-
-export function SeverityBadge({ severity }: { severity: Severity }) {
-  const level: SignalLevel = severity === "blocking" ? "blocked" : severity === "high" ? "decisionRequired" : "planningNote";
-  return <SignalBadge level={level} />;
-}
-
-export function severityConfigFor(severity: Severity): SignalConfig {
-  const level: SignalLevel = severity === "blocking" ? "blocked" : severity === "high" ? "decisionRequired" : "planningNote";
-  return signalConfigFor(level);
-}
-
-export function severityFromCode(code: string): Severity {
-  const level = signalLevelFromCode(code);
-  switch (level) {
-    case "blocked": return "blocking";
-    case "decisionRequired": return "high";
-    case "planningNote": return "medium";
-  }
-}

@@ -73,28 +73,3 @@ export function SignalCard({
     </div>
   );
 }
-
-// Deprecated: kept for backward compatibility during migration
-type WarningSeverity = "blocking" | "high" | "medium" | "info";
-
-type WarningCardProps = {
-  severity: WarningSeverity;
-  title: string;
-  message: string;
-  playerName?: string;
-  teamName?: string;
-  rule?: string;
-};
-
-function toSignalLevel(severity: WarningSeverity): SignalLevel {
-  switch (severity) {
-    case "blocking": return "blocked";
-    case "high": return "decisionRequired";
-    case "medium": return "planningNote";
-    case "info": return "planningNote";
-  }
-}
-
-export function WarningCard(props: WarningCardProps) {
-  return <SignalCard level={toSignalLevel(props.severity)} title={props.title} message={props.message} playerName={props.playerName} teamName={props.teamName} rule={props.rule} />;
-}
