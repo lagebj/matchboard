@@ -22,8 +22,11 @@ Feature: Matchboard football operations workspace
   Non-rotatable players must never be used as generic squad repair.
   If no valid squad repair exists, the app must generate a warning instead of silently weakening the team.
 
-  A player should normally only be selected once per match round unless an explicit controlled double-load rule allows otherwise.
-  Controlled double-load requires: matches on different dates, minimum rest spacing between matches, explicit player permission or configuration, fairness debt tracking, and rotation across eligible players over time.
+  A player may have at most one planned match assignment per match round.
+  Planned assignments represent intended match opportunity.
+  Moving a player between matches transfers the assignment.
+  The planning engine must never create more than one planned selection for the same player in the same match round.
+  Actual additional appearances may happen through post-match reality reporting and are recorded as historical participation, not as planned assignments.
 
   Matchboard must feel like a football management cockpit, not an admin CRUD app.
   The main workflow must be inspired by Football Manager-style interaction patterns:
@@ -416,8 +419,9 @@ Feature: Matchboard football operations workspace
   Rule: Match round is the weekly selection unit
 
     The selection engine must treat a match round as the planning unit.
-    A player can only be selected once in the same match round unless controlled double-load applies.
-    The round-level pipeline runs in strict order: per-match core selection, round-level required support resolution, round-level conflict resolution, development routing, squad repair, controlled double-load evaluation, and post-pipeline validation.
+    A player may have at most one planned selection in the same match round.
+    The round-level pipeline runs in strict order: per-match core selection, round-level required support resolution, round-level conflict resolution, development routing, squad repair, and post-pipeline validation.
+    No phase may create a second planned selection for the same player in the same round.
 
     Scenario: Coach creates match round containing several team matches
       Given teams exist in the team registry
@@ -440,8 +444,7 @@ Feature: Matchboard football operations workspace
       And then resolve cross-match player conflicts
       And then route development movements
       And then repair squads weakened by support movement
-      And then evaluate controlled double-load candidates
-      And then validate generated invariants and persist warnings
+      And then validate generated invariants and persist plan integrity signals
 
     Scenario: Round-level generation fills minimum core before rotation
       Given match round "R1" contains matches for Team A, Team B, and Team C
@@ -451,49 +454,35 @@ Feature: Matchboard football operations workspace
       Then the app must first select at least 8 Team A core players for Team A
       And then resolve support assignments across all matches
       And then route development movements and squad repair
-      And then evaluate controlled double-load
 
-    Scenario: Player can only be selected once per match round
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match and a Team B match
-      When player "p1" is selected for Team B
-      Then player "p1" must not be selected for Team A in match round "R1"
-      And player "p1" must be unavailable for all other matches in match round "R1"
+    Scenario: Generation assigns a player at most once in a round
+      Given player "p1" is eligible for more than one match in match round "R1"
+      When Matchboard generates draft selections for "R1"
+      Then "p1" must be assigned to at most one match in "R1"
+      And the app must not create a second planned selection for "p1"
 
-    Scenario: Controlled double-load allows second selection with guard conditions
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match on Saturday and a Team B match on Sunday
-      And controlled double-load is enabled for the rotation path from Team A to Team B
-      And minimum rest spacing between matches is met
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" may be selected for both Team A and Team B
-      And the second selection must be marked as controlled double-load
-      And fairness debt must be tracked for player "p1"
+    Scenario: Moving a player transfers the planned assignment
+      Given player "p1" is assigned to match "M1" in draft round "R1"
+      When the coach moves "p1" to match "M2" in the same round
+      Then "p1" must no longer be assigned to "M1"
+      And "p1" must be assigned to "M2"
+      And the transfer must occur atomically
+      And there must never be two active planned selections for "p1" in "R1"
 
-    Scenario: Controlled double-load rejected when rest spacing not met
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match and a Team B match on the same date
-      And controlled double-load is enabled for the rotation path from Team A to Team B
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" must not be selected twice
-      And the app must reject the double-load because rest spacing is not met
+    Scenario: Manual add rejects a duplicate planned assignment
+      Given player "p1" is already assigned to match "M1" in match round "R1"
+      When the coach attempts to manually add "p1" to match "M2" in "R1"
+      Then the app must reject the add operation
+      And the app must explain that a player can have only one planned match opportunity per round
+      And the app must offer movement from "M1" to "M2" instead
 
-    Scenario: Controlled double-load rejected when not explicitly enabled
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match on Saturday and a Team B match on Sunday
-      And controlled double-load is not enabled for any path in match round "R1"
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" must not be selected for both matches
-      And the app must treat same-round uniqueness as the default rule
-
-    Scenario: Match-round uniqueness overrides date spacing without controlled double-load
-      Given player "p2" is selected for Team B in match round "R1"
-      And player "p2" has Team A as core team
-      And Team A has a match in match round "R1" at least 3 days later
-      And controlled double-load is not enabled
-      When match round "R1" is validated
-      Then player "p2" must not be selected for Team A
-      And the app must explain that match-round uniqueness applies unless controlled double-load is enabled
+    Scenario: Corrupted duplicate planned data is an integrity blocker
+      Given persisted draft data contains player "p1" in two matches in match round "R1"
+      When the coach opens the Round Board
+      Then the app must show a Blocked system-integrity issue
+      And the app must identify the affected player and matches
+      And the app must not allow normal finalisation until the invalid state is corrected
+      And this must be treated as exceptional invalid data, not a normal planning option
 
     Scenario: Date spacing applies outside same match round
       Given player "p3" is selected for a match in match round "R1"
@@ -505,7 +494,7 @@ Feature: Matchboard football operations workspace
 
   Rule: Selection roles
 
-    A selection can be core, support, backfill, development, confidence_rebuild, core_match_drop, reduced_match_load_drop, double_load, or manual_override.
+    A selection can be core, support, backfill, development, confidence_rebuild, core_match_drop, reduced_match_load_drop, or manual_override.
     Backfill is the internal code role for squad repair — a player covering a squad gap caused by support movement.
 
     Scenario: Core selection
@@ -533,14 +522,6 @@ Feature: Matchboard football operations workspace
       When player "c1" is selected for Team B to receive harder match context
       Then the selection role must be "development"
 
-    Scenario: Controlled double-load selection
-      Given player "p1" is selected for Team A core in match round "R1"
-      And player "p1" is also selected for Team B support in match round "R1" under controlled double-load
-      When selections are finalized
-      Then the second selection role must be "double_load"
-      And the selection must reference the controlled double-load authorization
-      And fairness debt must be recorded for player "p1"
-
     Scenario: Confidence rebuild selection
       Given player "p4" is selected outside their normal context to receive a safer match experience
       When the coach marks the selection purpose as confidence rebuild
@@ -556,14 +537,14 @@ Feature: Matchboard football operations workspace
 
   Rule: Role precedence
 
-    The round-level pipeline resolves roles in strict phase order: core selection, required support, conflict resolution, development routing, squad repair, controlled double-load evaluation, and validation.
+    The round-level pipeline resolves roles in strict phase order: core selection, required support, conflict resolution, development routing, squad repair, and validation.
     Support chains have precedence over development and core selections.
     Required support for higher-priority receiving teams must be resolved before lower-priority support.
     Squad repair caused by required support must be resolved before optional development.
     Development must be resolved before surplus drops are routed downstream.
-    Controlled double-load is evaluated after all other movement is complete.
+    No phase may create a second planned selection for the same player in the same round.
     Required support must be fulfilled before fairness optimization, cosmetic balancing, and generic rotation.
-    If required support cannot be fulfilled, the app must generate a warning and must not silently weaken the receiving team.
+    If required support cannot be fulfilled, the app must generate a plan integrity signal and must not silently weaken the receiving team.
 
     Scenario: Support is selected before development and core
       Given Team C requires support
@@ -584,8 +565,7 @@ Feature: Matchboard football operations workspace
       And then resolve cross-match player conflicts
       And then route development movements
       And then repair squads weakened by support
-      And then evaluate controlled double-load
-      And then validate invariants and persist warnings
+      And then validate invariants and persist plan integrity signals
 
     Scenario: Squad repair does not starve from development routing
       Given Team B needs squad repair after supplying support players
@@ -633,41 +613,115 @@ Feature: Matchboard football operations workspace
       Then the app must generate a warning that Team B squad repair could not be fulfilled
       And the app must not silently leave Team B weakened
 
-    Scenario: Controlled double-load is evaluated after all other phases
-      Given match round "R1" has completed core, support, conflict, development, and squad repair phases
-      And controlled double-load is enabled for some rotation paths
-      When the app evaluates controlled double-load
-      Then only players not yet selected in the round may be considered for double-load
-      And double-load must respect date spacing, rest rules, and fairness debt tracking
+    Scenario: Pipeline never creates duplicate planned assignments
+      Given match round "R1" contains matches for Team A, Team B, and Team C
+      And player "p1" is eligible for multiple matches in the round
+      When the app generates match round "R1"
+      Then each player must appear in at most one planned selection per match round
+      And no phase may create a second planned selection for the same player
 
 
-  Rule: Rule severity
+   Rule: Plan integrity signals
 
-    Rules can be hard_block, requires_override, warning, or scoring_preference.
+     Matchboard reserves prominent unresolved issue signals for conditions that directly affect planned match opportunity, selection validity, or minimum match viability.
 
-    Scenario: Hard block requires override reason to finalize
-      Given player "p1" is selected twice in the same match round
-      When the app validates the match round
-      Then validation must fail with severity "hard_block"
-      And the coach can still finalize by providing an override reason
+     Prominent signals are either Blocked or Decision required.
 
-    Scenario: Requires override allows coach decision with reason
-      Given Team C falls below minimum support count
-      When the coach attempts to finalize the match round
-      Then the app must require a manual override reason
-      And the warning severity must be "requires_override"
+     Conditions that make a plan less ideal but do not remove a player's planned opportunity, select an unavailable player, create invalid persisted duplicate assignments, or leave a match below minimum size are Planning notes only.
 
-    Scenario: Warning does not block finalization
-      Given Team A is below target squad size but above minimum accepted squad size
-      When the app validates the match round
-      Then the app must show a warning
-      And the app may allow finalization
+     Selection ranking and engine rationale are shown as "Why this selection" explanations and must never be counted or displayed as unresolved issues.
 
-    Scenario: Scoring preference affects ranking
-      Given two players are eligible for the same support role
-      And one player has primary position matching the support need
-      When the app ranks support candidates
-      Then the primary position match should rank higher as a scoring preference
+     Blocked conditions prevent normal finalisation until resolved or an explicitly permitted exceptional path is used.
+
+     Decision required conditions require a conscious coach decision and recorded reason before finalisation.
+
+     Planning notes are useful context that does not affect finalisation flow.
+
+     Scenario: Squad below minimum size is blocked
+       Given match "M1" has fewer selected players than its configured minimum accepted squad size
+       When the Round Board validates the plan
+       Then the match must be marked "Blocked"
+       And the issue must explain the current selected count and configured minimum
+       And normal finalisation must be prevented until resolved
+
+     Scenario: Selected unavailable player is blocked
+       Given player "p1" is selected for match "M1"
+       And "p1" is unavailable for the round
+       When the Round Board validates the plan
+       Then the match must be marked "Blocked"
+       And the issue must explain that the planned squad includes an unavailable player
+       And normal finalisation must be prevented
+
+     Scenario: Duplicate planned assignment found in persisted data is blocked
+       Given invalid persisted data assigns player "p1" to two planned matches in the same round
+       When the Round Board validates the plan
+       Then the round must be marked "Blocked"
+       And the issue must be described as a planning integrity failure
+       And normal finalisation must be prevented
+
+     Scenario: Available eligible player without planned match opportunity requires decision
+       Given player "p1" is active
+       And "p1" is eligible for planning in match round "R1"
+       And "p1" is recorded as available for "R1"
+       And "p1" is not assigned to any planned match in "R1"
+       When the Round Board validates participation coverage
+       Then the round must show "Decision required"
+       And the issue must state that "p1" has no planned match opportunity this round
+       And finalisation must require either assignment of "p1" or a recorded reason
+
+     Scenario: Repeated missed planned opportunities are highlighted within the same decision
+       Given player "p1" is available and unassigned in match round "R3"
+       And "p1" was also available and received no planned match opportunity in at least one earlier round in the same planning period
+       When the Round Board explains the current decision
+       Then the issue must state that the current missing opportunity repeats an earlier omission
+       And the repeated history must increase explanatory prominence
+       And the app must not create a second duplicate issue for the same current omission
+
+     Scenario: Below target but above minimum is a planning note only
+       Given match "M1" has fewer players than its target squad size
+       And "M1" meets its minimum accepted squad size
+       When the Round Board presents squad status
+       Then it must display "Playable · below target"
+       And it may show a Planning note
+       And it must not create a Blocked or Decision required issue
+       And it must not increase unresolved issue counts
+
+     Scenario: Missing preferred support is not an unresolved issue when the plan remains valid
+       Given a team receives less support than configured as preferred
+       And the match remains at or above minimum accepted squad size
+       And no available eligible player loses their only planned match opportunity
+       When Matchboard presents the plan
+       Then it may show a Planning note describing reduced support
+       And it must not show a prominent unresolved issue
+
+     Scenario: Missing squad repair is not an unresolved issue when no integrity condition is created
+       Given a sending team cannot be repaired to its preferred target after supplying support
+       And the sending team remains at or above minimum accepted squad size
+       And no available eligible player loses their planned match opportunity
+       When Matchboard presents the plan
+       Then it may show a Planning note
+       And it must not create a Blocked or Decision required issue
+
+     Scenario: Position fallback is explanation or planning context
+       Given a player is used in a secondary or tertiary permitted position
+       And no configured hard planning rule is violated
+       When Matchboard explains the selection
+       Then it must present the position choice as Planning note or "Why this selection"
+       And it must not present the player as warning-marked
+
+     Scenario: Selection scoring preference is explanation only
+       Given one eligible player ranked ahead of another through a scoring preference
+       When the coach inspects the selection
+       Then Matchboard must explain the ranking under "Why this selection"
+       And it must not create a persisted unresolved issue
+       And it must not increase warning or issue counts
+
+     Scenario: Opponent history never becomes a plan-integrity issue
+       Given a match has previous opponent encounter context
+       When the coach plans squads
+       Then opponent history may appear in Opponent context
+       And it must not appear as Blocked, Decision required or Planning note in participation coverage
+       And it must not affect squad generation
 
 
   Rule: Rotation graph
@@ -1099,7 +1153,7 @@ Feature: Matchboard football operations workspace
       And player "x1" is already selected for another match in the same match round
       When the app resolves squad repair for Team B
       Then player "x1" must not be selected as squad repair
-      And the app must respect same-round player uniqueness unless controlled double-load explicitly allows
+      And the app must enforce same-round player uniqueness
 
     Scenario: Warning when no valid squad repair exists for weakened team
       Given Team B supplied player "b1" as support to Team C
@@ -1110,91 +1164,89 @@ Feature: Matchboard football operations workspace
       And the app must not silently accept the shortfall
 
 
-  Rule: Controlled double-load
+  Rule: One planned assignment per player per round
 
-    Same-round player uniqueness is the default rule. Controlled double-load is an explicit exception that allows a player to be selected for two matches in the same round under strict guard conditions.
-    Controlled double-load must not be treated as normal rotation. It is a planned exception with fairness debt tracking.
+    During draft planning, a player may belong to at most one planned match squad in a match round.
 
-    A controlled double-load requires all of the following:
-    - The two matches are on different dates
-    - Minimum rest spacing between matches is met (configurable per rotation path)
-    - Controlled double-load is explicitly enabled for the rotation path or team configuration
-    - The player has not exceeded the configured maximum double-load count in the planning period
-    - Fairness debt is tracked for the double-loaded player
-    - The player is rotated out of double-load eligibility if other eligible players exist
+    A player shown on the Round Board represents one planned match opportunity.
 
-    Scenario: Controlled double-load allowed when all guard conditions are met
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match on Saturday and a Team B match on Sunday
-      And controlled double-load is enabled for the rotation path from Team A to Team B
-      And rest spacing between Saturday and Sunday meets the minimum requirement
-      And player "p1" has not exceeded the maximum double-load count in the planning period
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" may be selected for both matches
-      And the second selection role must be "double_load"
-      And fairness debt must be recorded for player "p1"
+    Moving a player from one match to another transfers the planned assignment. It must never duplicate the planned assignment.
 
-    Scenario: Controlled double-load rejected when matches are on the same date
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match and a Team B match on the same date
-      And controlled double-load is enabled for the rotation path from Team A to Team B
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" must not be selected for both matches
-      And the app must reject the double-load because matches are on the same date
+    The user interface must not provide a deliberate workflow for adding the same player to multiple planned matches in a round.
 
-    Scenario: Controlled double-load rejected when rest spacing is not met
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match on Saturday morning and a Team B match on Saturday afternoon
-      And controlled double-load is enabled for the rotation path from Team A to Team B
-      And minimum rest spacing is 24 hours
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" must not be selected for both matches
-      And the app must reject the double-load because rest spacing is not met
+    The server must reject any draft-generation, manual-add, manual-move, role-change or finalisation mutation that would persist more than one active planned selection for the same player in the same match round.
 
-    Scenario: Controlled double-load rejected when not explicitly enabled
-      Given player "p1" has Team A as core team
-      And match round "R1" contains a Team A match on Saturday and a Team B match on Sunday
-      And controlled double-load is not enabled for any path in match round "R1"
-      When the app evaluates controlled double-load for match round "R1"
-      Then player "p1" must not be selected for both matches
-      And same-round uniqueness must apply as the default rule
+    Historical data created under older behaviour may be displayed as legacy history if it already exists, but new planning behaviour must never create planned double load.
 
-    Scenario: Controlled double-load rejected when player exceeds maximum count
-      Given player "p1" has already been double-loaded twice in this planning period
-      And the maximum double-load count per player per planning period is 2
-      And controlled double-load is enabled for the rotation path
-      And matches are on different dates with sufficient rest spacing
-      When the app evaluates controlled double-load for the current match round
-      Then player "p1" must not be selected for double-load
-      And the app must prefer another eligible player who has not exceeded the maximum
+    Scenario: Generation assigns a player at most once in a round
+      Given player "p1" is eligible for more than one match in match round "R1"
+      When Matchboard generates draft selections for "R1"
+      Then "p1" must be assigned to at most one match in "R1"
+      And the app must not create a second planned selection for "p1"
 
-    Scenario: Controlled double-load rotates across eligible players
-      Given player "p1" and player "p2" are both eligible for double-load in the same match round
-      And player "p1" has been double-loaded once in the planning period
-      And player "p2" has never been double-loaded
-      When the app selects double-load candidates
-      Then player "p2" should rank above player "p1"
-      And double-load burden must rotate fairly across eligible players
+    Scenario: Moving a player transfers the planned assignment
+      Given player "p1" is assigned to match "M1" in draft round "R1"
+      When the coach moves "p1" to match "M2" in the same round
+      Then "p1" must no longer be assigned to "M1"
+      And "p1" must be assigned to "M2"
+      And the transfer must occur atomically
+      And there must never be two active planned selections for "p1" in "R1"
 
-    Scenario: Controlled double-load fairness debt is tracked
-      Given player "p1" is selected for a controlled double-load in match round "R1"
-      When the app calculates fairness for the planning period
-      Then player "p1" fairness debt must include the extra match load from double-load
-      And the extra load must be factored into future selection and rotation decisions
+    Scenario: Manual add rejects a duplicate planned assignment
+      Given player "p1" is already assigned to match "M1" in match round "R1"
+      When the coach attempts to manually add "p1" to match "M2" in "R1"
+      Then the app must reject the add operation
+      And the app must explain that a player can have only one planned match opportunity per round
+      And the app must offer movement from "M1" to "M2" instead
 
-    Scenario: Controlled double-load cannot bypass rotation path validation
-      Given player "p1" has Team A as core team
-      And no rotation path exists from Team A to Team B
-      And controlled double-load is enabled globally
-      When the app evaluates controlled double-load for a Team A to Team B movement
-      Then player "p1" must not be double-loaded to Team B
-      And rotation path validation applies to double-load just as it does to all other non-core movement
+    Scenario: Corrupted duplicate planned data is an integrity blocker
+      Given persisted draft data contains player "p1" in two matches in match round "R1"
+      When the coach opens the Round Board
+      Then the app must show a Blocked system-integrity issue
+      And the app must identify the affected player and matches
+      And the app must not allow normal finalisation until the invalid state is corrected
+      And this must be treated as exceptional invalid data, not a normal planning option
 
-    Scenario: Non-rotatable player cannot be double-loaded outside core team
-      Given player "p1" is marked as non-rotatable
-      And controlled double-load is enabled for a rotation path from Team A to Team B
-      When the app evaluates controlled double-load
-      Then player "p1" must not be selected for double-load outside their core team
+
+  Rule: Actual participation may differ from planned selection
+
+    Finalised planned selections record the intended match opportunity before matchday.
+
+    Post-match reports record who actually participated.
+
+    A player not present in a finalised planned squad may be recorded as an actual participant when the player was called in outside Matchboard due to real matchday circumstances.
+
+    Adding an unplanned actual participant must not rewrite or invalidate the finalised planned squad.
+
+    A player may have actual appearances in more than one match in the same round when real matchday circumstances caused an additional appearance.
+
+    Additional actual appearances are historical participation/load facts used in future fairness context. They are not planned double loads and must not be presented as player misconduct or a planning warning.
+
+    Scenario: Emergency cover is recorded as unplanned actual participation
+      Given match "M1" has a finalised planned squad
+      And player "p1" is not part of that finalised planned squad
+      When the coach records that "p1" actually participated in "M1"
+      Then the app must require an unplanned-appearance reason
+      And the app must store "p1" as an unplanned actual participant
+      And the app must not add "p1" to the finalised planned squad
+      And the app must not alter the historical planned selection
+
+    Scenario: Actual additional appearance is allowed after matchday
+      Given player "p1" was actually recorded as participating in match "M1" in round "R1"
+      And player "p1" was later called in to play match "M2" in the same round
+      When the coach records actual participation for "M2"
+      Then the app must allow the additional actual appearance
+      And the app must require an unplanned-appearance reason if "p1" was not planned for "M2"
+      And the app must label the record as an additional actual appearance in the round
+      And the app must not mark the finalised planned squads as invalid
+
+    Scenario: Additional actual appearances affect future participation context
+      Given player "p1" has one additional actual appearance in planning period "P1"
+      When future fairness or load context is calculated
+      Then the additional actual appearance must count as actual match participation
+      And it may be considered when comparing otherwise equivalent future movement candidates
+      And it must not automatically remove "p1" from their normal core match opportunity
+      And it must not create an active planning warning against "p1"
 
 
   Rule: Core match drops and downstream routing
@@ -2283,7 +2335,7 @@ Feature: Matchboard football operations workspace
     Scenario: Season export includes player statistics
       Given finalized selections exist
       When the coach exports season data
-      Then the export must include per-player statistics: rounds played, core matches, support matches, development matches, squad repair matches, and double-load rounds
+      Then the export must include per-player statistics: rounds played, core matches, support matches, development matches, and squad repair matches
 
     Scenario: Season export is available from the season overview page
       Given the coach is on the season overview page
@@ -3116,7 +3168,7 @@ Feature: Matchboard football operations workspace
 
   Rule: Season overview and fairness control surface
 
-    Matchboard must provide a season/planning-period overview showing which players played for which team in each round, how often they moved as support or development, total match load, drops, unavailable rounds, double-load, and fairness warnings. The overview must support both finalized-only history and finalized-plus-draft planning views.
+    Matchboard must provide a season/planning-period overview showing which players played for which team in each round, how often they moved as support or development, total match load, drops, unavailable rounds, and fairness context. The overview must support both finalized-only history and finalized-plus-draft planning views.
 
     The season overview is the fairness control surface, not a decorative analytics page. It exists to help the coach trust or challenge the season pattern.
 
@@ -3168,10 +3220,11 @@ Feature: Matchboard football operations workspace
       When the coach views the season overview
       Then "p1" development column must show 1
 
-    Scenario: Overview summarizes double-load per player
-      Given player "p1" has 1 finalized DOUBLE_LOAD selection
+    Scenario: Overview summarizes legacy double-load per player
+      Given player "p1" has 1 finalized selection marked with controlledDoubleLoad = true from a previous planning period
       When the coach views the season overview
-      Then "p1" double-load column must show 1
+      Then "p1" legacy additional-assignment column must show 1
+      And the column must be labelled as legacy, not as a current planning feature
 
     Scenario: Overview summarizes drops/rests per player
       Given player "p1" is available in round "R3" but not selected
@@ -3218,30 +3271,21 @@ Feature: Matchboard football operations workspace
     Background:
       Given the app uses structured selection data model corrections
 
-    # ---- Controlled double-load is a modifier, not a role ----
-
-    Scenario: Controlled double-load is stored as a flag on a base role, not a standalone role
-      Given player "p1" has Team A as core team
-      And match round "R1" has a Team A match on Saturday and a Team B match on Sunday
-      And controlled double-load is enabled for the rotation path from Team A to Team B
-      When player "p1" is selected as SUPPORT for Team B in the Sunday match as their second same-round assignment
-      Then the selection row must have role "SUPPORT" and controlledDoubleLoad = true
-      And the selection row must NOT have role "CONTROLLED_DOUBLE_LOAD" or "DOUBLE_LOAD"
+    # ---- One planned assignment per player per round ----
 
     Scenario: A player must not have two selection rows in the same match
       Given player "p1" is assigned to match "M1" in match round "R1"
       And player "p1" already has one selection row in match "M1"
       When the app attempts to add a second selection row for player "p1" in match "M1"
       Then the app must reject the duplicate selection
-      And the app must generate a HARD_BLOCK warning about duplicate player in match
+      And the app must generate a DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE Blocked signal
 
-    Scenario: Existing DOUBLE_LOAD role rows must be migrated to base role plus controlledDoubleLoad flag
-      Given existing finalized data has player "p1" with role "DOUBLE_LOAD" in match "M2" of round "R1"
-      And player "p1" also has a role "CORE" or "SUPPORT" or "DEVELOPMENT" row in match "M1" of round "R1"
-      When the migration runs
-      Then the DOUBLE_LOAD row must be deleted
-      And the other selection row for "p1" in round "R1" must have controlledDoubleLoad = true updated
-      And the base role on that row must reflect the actual football role (SUPPORT, DEVELOPMENT, CORE, or BACKFILL)
+    Scenario: Existing legacy controlledDoubleLoad data remains readable
+      Given existing finalized data has player "p1" with controlledDoubleLoad = true from a previous planning period
+      When the coach views historical season data
+      Then the app must display the data as legacy history labelled "legacy additional assignment"
+      And the app must not present it as a currently supported planning feature
+      And new planning behaviour must never create controlledDoubleLoad = true
 
     # ---- Movement ledger is mandatory ----
 
@@ -3264,11 +3308,11 @@ Feature: Matchboard football operations workspace
       When the app saves the generated draft
       Then a movement ledger entry must exist for player "p1" in match round "R1"
 
-    Scenario: Controlled double-load creates a movement ledger entry even when sourceTeam equals targetTeam
-      Given player "p1" has Team A as core team
-      And player "p1" is selected as CORE for Team A in a second same-round match with controlledDoubleLoad = true
-      When the app saves the generated draft
-      Then a movement ledger entry must exist for player "p1" tracking the double-load fairness debt
+    Scenario: Legacy movement ledger entries for controlledDoubleLoad remain readable
+      Given existing finalized data has player "p1" with a movement ledger entry marked with controlledDoubleLoad = true
+      When the coach views historical season data
+      Then the movement ledger entry must remain readable as legacy data
+      And new planning behaviour must never create movement ledger entries with controlledDoubleLoad = true
 
     Scenario: Core selection where player stays in own team does not create a movement ledger entry
       Given player "p1" has Team A as core team
@@ -3322,7 +3366,7 @@ Feature: Matchboard football operations workspace
       Given the coach manually adds a player who violates a rotation path
       When the coach provides an override reason
       Then the override reason must include a category from the predefined list
-      And the category must be one of: squad_too_small, support_missing, development_opportunity, double_load_needed, availability_changed, coach_judgement, match_already_played, data_correction, other
+      And the category must be one of: squad_too_small, support_missing, development_opportunity, no_planned_match_opportunity, availability_changed, coach_judgement, match_already_played, data_correction, other
       And free-text detail must be provided for hard rule violations
 
     Scenario: Generic "Manual override" alone is not a sufficient override reason
@@ -3743,12 +3787,13 @@ Feature: Matchboard football operations workspace
       And must show impact on load, fairness, support burden, and same-round conflicts
       And must require or preserve a coach-facing reason if normal rules were violated
 
-    Scenario: Actual double-load is tracked through participation not planned selections
+    Scenario: Additional actual appearance is tracked through participation not planned selections
       Given player "p1" actually appeared in two post-match reports in the same round
       When the coach records post-match data
-      Then the actual double-load must be tracked as effective participation history
+      Then the additional actual appearance must be tracked as effective participation history
       And must affect future fairness and load calculations
       And must not mutate finalized planned selections
+      And must not create a planning warning against "p1"
 
     Scenario: Manual removal preserves audit history
       Given player "p1" is selected for match "m1" in DRAFT state

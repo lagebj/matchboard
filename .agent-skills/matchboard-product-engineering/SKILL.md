@@ -16,7 +16,7 @@ Do not duplicate the global skill's rules inside this file.
 
 ## Product framing
 
-Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
+Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals/explainability, finalized history, and post-match reflection across a planning period.
 
 It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
@@ -32,7 +32,7 @@ The Today/Assistant page must always show the next action based on workflow stat
 
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Populate all** — Generate draft selections for all rounds. No round is finalized.
-3. **Review** — Inspect drafts, warnings, fairness impact. Resolve blockers. Manually adjust if needed.
+3. **Review** — Inspect drafts, plan integrity signals, fairness impact. Resolve blockers. Manually adjust if needed.
 4. **Finalize** — Lock one round at a time, or lock individual matches within a round.
 
 The assistant must not skip steps or suggest finalization before draft review.
@@ -42,7 +42,7 @@ The assistant must not skip steps or suggest finalization before draft review.
 Fixtures (`/fixtures`) is the one-stop shop for the period → round → match hierarchy.
 
 - Primary action: populate all, generate round, finalize
-- Each level shows readiness state, warning counts, selected player counts
+- Each level shows readiness state, plan integrity signal counts, selected player counts
 - Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections
 
 ## Team configuration
@@ -76,9 +76,8 @@ The orchestrator must be thin. Selection concerns are:
 - rotation path policy (`rotation-path-policy.ts`)
 - invariant validation (`validate-generated-round-invariants.ts`)
 - support selection, squad repair, development selection
-- controlled double-load evaluation
 - core selection, season fairness, conflict validation
-- warning generation and persistence, explanation generation
+- plan integrity signal generation and persistence, explanation generation
 - manual edit validation, draft clearing, draft regeneration
 - finalization/snapshotting
 
@@ -92,8 +91,7 @@ Every non-obvious selection decision must have an explanation:
 
 - Why was a player sent as support? → rotation path + team need
 - Why was a player not selected? → conflict, availability, or fairness rotation
-- Why was a player double-loaded? → controlled exception with reason
-- Why does a warning exist? → severity, affected entity, blocking condition
+- Why does a plan integrity signal exist? → category, affected entity, reason
 
 Explanations are stored in the database and displayed to the coach. If the UI cannot explain a selection result, the engine must provide the explanation.
 
@@ -146,7 +144,7 @@ Low readiness cannot automatically exclude an eligible player. Strong readiness 
 
 ## Coaching intent
 
-Coaching intent can be attached to planning periods, match rounds, matches, teams, and selections. Intent informs explanations and warnings but does not silently override hard eligibility rules.
+Coaching intent can be attached to planning periods, match rounds, matches, teams, and selections. Intent informs explanations and plan integrity signals but does not silently override hard eligibility rules.
 
 Intent categories: team_first, reset_after_error, support_teammates, positional_discipline, play_through_team, defensive_recovery, confidence_rebuild, challenge_exposure, stabilize_weaker_team, protect_match_function.
 
@@ -184,7 +182,7 @@ Rules:
 - No field may store opponent player names, coach names, parent/spectator names, referee names, shirt numbers, contact information, or identifying details.
 - Factual summaries max 500 characters, reject obvious email/phone/URL patterns.
 - Serious concerns: informational callout only, not a block. Follow-up handled through club Fair Play processes outside Matchboard.
-- Opponent encounter data must not change: eligibility, support priority, development movement, squad repair, fairness, readiness, warnings, blockers, or finalisation.
+- Opponent encounter data must not change: eligibility, support priority, development movement, squad repair, fairness, readiness, plan integrity signals, blockers, or finalisation.
 - Opponent observations excluded from parent-facing exports and external AI payloads.
 
 Round and match readiness has five states:
@@ -193,10 +191,10 @@ Round and match readiness has five states:
 |--------|---------|
 | NOT_GENERATED | No selections yet |
 | DRAFT | Selections generated, not finalized |
-| BLOCKED | Draft with HARD_BLOCK warnings |
+| BLOCKED | Draft with Blocked conditions |
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
-Actionable warnings (HARD_BLOCK, REQUIRES_OVERRIDE) appear as count summaries and per-player icons. Informational warnings (WARNING, SCORING_PREFERENCE) are hidden behind a toggle. Surface actionable issues, not every observation.
+Blocked conditions and Decision required conditions appear as count summaries and per-player icons. Planning notes are hidden behind a toggle. Surface actionable issues, not every observation.
 
-The coach can always finalize by providing an override reason. No warning severity can absolutely prevent finalization. HARD_BLOCK and REQUIRES_OVERRIDE both require an override reason; they differ in presentation severity, not in whether they can be overridden.
+The coach can always finalize by providing an override reason. No condition can absolutely prevent finalization, but Blocked conditions require conscious acceptance and recorded reason. Decision required conditions also require an override reason. Planning notes must not require acknowledgement in the finalization dialog.

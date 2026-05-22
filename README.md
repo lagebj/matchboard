@@ -1,6 +1,6 @@
 # Matchboard
 
-Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
+Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals/explainability, finalized history, and post-match reflection across a planning period.
 
 It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
@@ -15,7 +15,7 @@ The primary workflow is:
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Define intent** — Set match purpose, team risk, desired football behavior, support need, development focus.
 3. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round uses round-level orchestration (not match-by-match). No round is finalized.
-4. **Review** — Inspect draft selections, warnings, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
+4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
 6. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
@@ -36,16 +36,16 @@ The interface prioritises actionable football decisions over configuration expos
 ## Core rules
 
 - **RotationPath is the single source of truth for non-core player movement.** A player may only be selected outside their core team when an active directed RotationPath exists from core team to target team for the exact role being assigned, unless manually overridden with a reason. Each path authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL. A SUPPORT path does not permit DEVELOPMENT or BACKFILL movement. Paths are directional. No path means no automatic non-core selection. Fairness scoring cannot make an invalid path valid. The legacy `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility — they are scheduled for removal.
-- **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a warning is generated — the team is never silently weakened. Support priority uses ascending sort order: lower number = higher priority (priority 1 is resolved before priority 2).
+- **Team support is priority 1.** Required support must be fulfilled before development movement, fairness optimization, cosmetic balancing, or generic rotation. If required support cannot be fulfilled, a Blocked or Decision required condition is generated — the team is never silently weakened. Support priority uses ascending sort order: lower number = higher priority (priority 1 is resolved before priority 2).
  - **Squad repair follows support movement.** When a player fills a squad gap caused by support/development movement, the generation engine assigns `role = SUPPORT` with a squad repair explanation code. `BACKFILL` remains in the Prisma enum for backward compatibility of historical data and manual overrides. The user-facing term is "squad repair", not "backfill". Squad repair priority: (1) own core team player moved as support if matches are on different dates, (2) players from teams connected by an active DEVELOPMENT or SUPPORT rotation path to the receiving team where `nonRotatable = false`, (3) any other player from another team with an active SUPPORT or BACKFILL rotation path where `nonRotatable = false`. Non-rotatable players are never used as generic squad repair.
   - **Movement ledger is mandatory.** Every non-core player movement must create a MovementLedger entry. Support, development, and squad repair from another team all create ledger entries. The movement ledger is the authoritative record of player movement. The export must never show empty movements when non-core selections exist.
-- **Same-round player uniqueness is the default.** A player must not be planned for two matches in the same round/week. The generation engine does NOT produce controlled double-load. Existing historical data with `controlledDoubleLoad = true` must still be readable. Actual double-load from post-match reports is tracked through effective participation/history and must not mutate finalized planned selections.
-- **Target squad size is a planning target, not a hard cap.** A team may be selected above target up to `maxSquadSize`. Below `targetSquadSize` but above `minAcceptedSquadSize` generates a WARNING. Below `minAcceptedSquadSize` is a hard floor requiring manual override.
+- **Same-round player uniqueness is the default.** A player must not be planned for two matches in the same round/week. The generation engine does NOT produce controlled double-load. Existing historical data with `controlledDoubleLoad = true` must still be readable. Actual double-load from post-match reports is tracked through effective participation/history and must not mutate finalized planned selections. Additional actual appearances from post-match reports are recorded separately as unplanned participation and do not mutate finalized planned selections.
+- **Target squad size is a planning target, not a hard cap.** A team may be selected above target up to `maxSquadSize`. Below `targetSquadSize` but above `minAcceptedSquadSize` generates a Planning note. Below `minAcceptedSquadSize` is a hard floor requiring manual override.
 - **The match round is the operational planning unit.** The season/planning period is the fairness and load-balancing context.
-- **Warnings are persisted to the database** and read back by the UI and finalization logic. HARD_BLOCK warnings prevent finalization. REQUIRES_OVERRIDE warnings allow finalization with a reason.
+- **Plan integrity signals are persisted to the database** and read back by the UI and finalization logic. Blocked conditions prevent normal finalization (require conscious override with reason). Decision required conditions allow finalization with a recorded reason. Planning notes are informational and do not block finalization.
 - **Draft selections are editable and not final history.** The coach can manually add, remove, change role, or replace players in draft match squads. Manual edits use the same domain validation as automatic generation. UI-only validation is not enough.
 - **Finalized rounds become hard history.** Finalized selections cannot be edited without an audit trail.
-- **Manual override requires reason.** When a manual edit bypasses a hard rule, the reason must include a structured category (squad_too_small, support_missing, development_opportunity, double_load_needed, availability_changed, coach_judgement, match_already_played, data_correction, other) and free-text detail. Generic "Manual override" alone is not sufficient. The reason must be persisted with the selection and appear in the finalization summary.
+- **Manual override requires reason.** When a manual edit bypasses a hard rule, the reason must include a structured category (squad_too_small, support_missing, development_opportunity, no_planned_match_opportunity, double_load_needed [legacy only], availability_changed, coach_judgement, match_already_played, data_correction, other) and free-text detail. Generic "Manual override" alone is not sufficient. The reason must be persisted with the selection and appear in the finalization summary.
 
 It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
@@ -55,7 +55,7 @@ Matchboard supports a coaching loop: intent → selection → responsibility →
 
 Coaching intent can be attached to planning periods, match rounds, matches, teams, and selections. Intent categories include team_first, reset_after_error, support_teammates, positional_discipline, play_through_team, defensive_recovery, confidence_rebuild, challenge_exposure, stabilize_weaker_team, and protect_match_function.
 
-Intent informs explanations and warnings but does not silently override hard eligibility rules. Intent can be edited by the coach before finalization. Intent remains coach-facing unless explicitly exported through neutral parent-safe language. Finalized history preserves intent snapshots from finalization time.
+Intent informs explanations and plan integrity signals but does not silently override hard eligibility rules. Intent can be edited by the coach before finalization. Intent remains coach-facing unless explicitly exported through neutral parent-safe language. Finalized history preserves intent snapshots from finalization time.
 
 ## Matchday responsibilities
 
@@ -75,7 +75,7 @@ Matchboard supports lightweight post-match feedback based on observable behavior
 
 Feedback is coach-facing by default, describes behavior not character, is optional and lightweight, and must not shame players or become automatic punishment. Disallowed feedback language includes: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player. Allowed language uses observable behavior: helped teammate after ball loss, recovered position quickly, stayed available for pass.
 
-Feedback can inform future warnings, readiness signals, and planning suggestions. Feedback must not mutate finalized planned selections. Actual participation belongs to post-match reality/history and must stay separate from planned selection.
+Feedback can inform future plan integrity signals, readiness signals, and planning suggestions. Feedback must not mutate finalized planned selections. Actual participation belongs to post-match reality/history and must stay separate from planned selection.
 
 ## Opponent encounter history
 
@@ -89,7 +89,7 @@ Post-match observations use neutral, observable language: "Fair Play concern", "
 
 Match-environment observations, concern categories, factual summaries, and follow-up status are excluded from parent-facing exports and external AI payloads. Opponent-team display names may appear as normal fixture information in parent-facing contexts.
 
-The selection engine is unchanged: opponent identity, match-fit history, and environment observations do not alter eligibility, support priority, development movement, squad repair, fairness, readiness, warnings, blockers, or finalisation.
+The selection engine is unchanged: opponent identity, match-fit history, and environment observations do not alter eligibility, support priority, development movement, squad repair, fairness, readiness, plan integrity signals, blockers, or finalisation.
 
 ## Coach-facing vs parent-facing exports
 
@@ -101,13 +101,13 @@ Player names and personal data must not be sent to external AI services. Use sta
 
 ## Explanation model
 
-Every non-obvious selection should be explainable through: selection role, movement path or manual override, coaching intent, matchday responsibility, relevant warnings, fairness impact, load impact, support impact, risk created or mitigated, distinction between hard rule and scoring preference, and distinction between planned selection and actual participation.
+Every non-obvious selection should be explainable through: selection role, movement path or manual override, coaching intent, matchday responsibility, relevant plan integrity signals (blocked conditions, decisions required, planning notes), fairness impact, load impact, support impact, risk created or mitigated, distinction between hard rule and scoring preference, and distinction between planned selection and actual participation.
 
 ## Manual draft change impact analysis
 
 Manual changes are allowed, but the app must explain impact. Manual changes should support real matchday reality: late absence, emergency support, sickness, injury, availability change, coach judgement, squad size repair, real-world backfill, and actual participation differing from planned selection.
 
-Adding a player manually recalculates warnings, round status, match status, explanations, fairness impact, and movement ledger. Emergency backfill close to matchday is recorded as actual participation, not retroactively pretending the generation engine planned it. Actual double-load caused by real-world backfill is tracked through effective participation/history and must not mutate finalized planned selections. Manual removal preserves audit history. Manual changes require coach-facing explanation if they violate normal rules or create notable fairness/load/support impact.
+Adding a player manually recalculates plan integrity signals, round status, match status, explanations, fairness impact, and movement ledger. Emergency backfill close to matchday is recorded as actual participation, not retroactively pretending the generation engine planned it. Actual double-load caused by real-world backfill is tracked through effective participation/history and must not mutate finalized planned selections. Manual removal preserves audit history. Manual changes require coach-facing explanation if they violate normal rules or create notable fairness/load/support impact.
 
 ## Privacy and external AI handling
 
@@ -127,11 +127,11 @@ Low readiness cannot automatically exclude a player. Feedback cannot be shown in
 |--------|---------|
 | NOT_GENERATED | No selections yet |
 | DRAFT | Selections generated, not finalized |
-| BLOCKED | Draft with HARD_BLOCK warnings |
+| BLOCKED | Draft with Blocked conditions |
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
-BLOCKED and READY are derived status values — they are not stored in the database. BLOCKED = draft + HARD_BLOCK warnings. READY = draft + no blockers.
+BLOCKED and READY are derived status values — they are not stored in the database. BLOCKED = draft + Blocked condition. READY = draft + no Blocked or Decision required conditions.
 
 ## How populate all works
 
@@ -139,16 +139,16 @@ Populate all generates draft selections for all non-finalized rounds in the acti
 
 ## How round review works
 
-After populate all, each round has draft selections, warnings, and explanations. The coach reviews warnings by round, fixes issues per match, and may manually adjust draft squads before finalization. Rounds with HARD_BLOCK warnings cannot be finalized until the blocker is resolved. Rounds with REQUIRES_OVERRIDE warnings can be finalized with a manual override reason.
+After populate all, each round has draft selections, plan integrity signals, and explanations. The coach reviews plan integrity signals by round, fixes issues per match, and may manually adjust draft squads before finalization. Rounds with Blocked conditions require conscious override to finalize. Rounds with Decision required conditions can be finalized with a recorded reason.
 
 ## How manual draft editing works
 
-Draft match squads can be manually edited before finalization. The coach can add players, remove players, change player roles, or replace players. Manual edits use the same domain validation as automatic generation — UI-only validation is not enough. Every non-core movement must have a valid RotationPath or an explicit manual override reason. Same-round conflicts, availability, squad size, and non-rotatable rules are all validated. Manual edits recalculate match status, round status, warnings, explanations, and fairness impact. Finalized selections cannot be edited by normal draft actions.
+Draft match squads can be manually edited before finalization. The coach can add players, remove players, change player roles, or replace players. Manual edits use the same domain validation as automatic generation — UI-only validation is not enough. Every non-core movement must have a valid RotationPath or an explicit manual override reason. Same-round conflicts, availability, squad size, and non-rotatable rules are all validated. Manual edits recalculate match status, round status, plan integrity signals, explanations, and fairness impact. Finalized selections cannot be edited by normal draft actions.
 
 ## How clear draft actions work
 
 Draft selections can be cleared at three levels:
-- **Clear all** — removes all non-finalized draft data (selections, warnings, explanations, movement ledger, provisional context) across all rounds in the planning period
+- **Clear all** — removes all non-finalized draft data (selections, plan integrity signals, explanations, movement ledger, provisional context) across all rounds in the planning period
 - **Clear round** — removes draft data for one selected round only
 - **Clear match** — removes draft data for one selected match only
 
@@ -156,27 +156,27 @@ Clear actions preserve finalized selections, finalized history, teams, players, 
 
 ## How finalization works
 
-Finalizing a round locks all selections as immutable history. The app checks for HARD_BLOCK warnings before allowing finalization. Finalized selections cannot be edited without an explicit reopen or audit entry. Finalized rounds contribute to season/planning-period fairness calculations.
+Finalizing a round locks all selections as immutable history. The app checks for Blocked conditions before allowing finalization. Finalized selections cannot be edited without an explicit reopen or audit entry. Finalized rounds contribute to season/planning-period fairness calculations.
 
 ## How un-finalization works
 
-Finalized matches and rounds can be un-finalized to revert selections back to DRAFT for recalculation. Un-finalization reverts Selection.status from FINALIZED to DRAFT, clears ruleConfigVersion and overrideReason, reverts MovementLedger.isDraft from false to true, and re-derives round status from warnings. Per-match un-finalization keeps the round as FINALIZED if other matches are still finalized. When all matches in a round are un-finalized, the round status reverts based on its warnings. Un-finalization requires confirmation and is not silent.
+Finalized matches and rounds can be un-finalized to revert selections back to DRAFT for recalculation. Un-finalization reverts Selection.status from FINALIZED to DRAFT, clears ruleConfigVersion and overrideReason, reverts MovementLedger.isDraft from false to true, and re-derives round status from plan integrity signals. Per-match un-finalization keeps the round as FINALIZED if other matches are still finalized. When all matches in a round are un-finalized, the round status reverts based on its plan integrity signals. Un-finalization requires confirmation and is not silent.
 
 ## How season overview works
 
 The season overview (`/season`) is the fairness control surface for the planning period. It helps the coach understand whether player load, support burden, development exposure, drops, and movement are fair across the season.
 
-**Primary view: Player × round matrix.** Each row is a player, each column is a round. Cells show the role (Core, Support, Development, Squad repair, Double-load) and team for that round. Summary columns show rounds played, core matches, support count, development count, double-load rounds, drops, and fairness warnings.
+**Primary view: Player × round matrix.** Each row is a player, each column is a round. Cells show the role (Core, Support, Development, Squad repair) and team for that round. Summary columns show rounds played, core matches, support count, development count, additional actual appearances, drops, and plan integrity signal count.
 
-**Finalized only vs. Include drafts.** The coach can toggle between finalized-only history and finalized-plus-draft planning. Draft selections are always visually distinct from finalized history — they are never mixed without clear labeling. Unavailable rounds do not count as fairness debt. Double-load players see multiple role badges stacked per round (e.g., Core + 2x), but "rounds played" counts unique rounds, not total selection records.
+**Finalized only vs. Include drafts.** The coach can toggle between finalized-only history and finalized-plus-draft planning. Draft selections are always visually distinct from finalized history — they are never mixed without clear labeling. Unavailable rounds do not count as fairness debt. Additional actual appearances from post-match reports are tracked separately from planned selections.
 
-**Movement path summary.** A secondary view shows team-to-team movement totals: source team, target team, role, count, unique players, last used, and warnings. Each path row is drillable.
+**Movement path summary.** A secondary view shows team-to-team movement totals: source team, target team, role, count, unique players, last used, and plan integrity signals. Each path row is drillable.
 
 **Player drill-down.** Clicking a player shows their movement timeline across rounds: round, date, team, role, draft/finalized state, and explanation. The timeline is scoped to the selected planning period.
 
-**Fairness warnings.** The overview generates warnings such as high support burden, low development exposure, repeated double-load, consecutive movement, and disproportionate team support. Each warning includes severity, affected player/team/path, reason, drill-down link, and whether it is based on finalized-only or draft-included data.
+**Plan integrity signals.** The overview generates signals such as high support burden, low development exposure, repeated additional actual appearances, consecutive movement, and disproportionate team support. Each signal includes category (Blocked/Decision required/Planning note), affected player/team/path, reason, drill-down link, and whether it is based on finalized-only or draft-included data.
 
-**Season export.** The coach can export finalized match data and season statistics from the season overview page. Available formats: CSV, JSON, TXT, Markdown. Available visibility modes: coach (includes roles, warnings, movement paths, explanations, override reasons) and parent (hides internal planning tags and judgement, uses neutral language such as rotation, suitable challenge, team balance, availability, or development opportunity). Coach export includes selection details per match, movement rows with from/to team and role, and per-player statistics (rounds played, core matches, support matches, development matches, squad repair, double-load rounds). Parent export includes per-selection rows with round, date, team, home/away, opponent, and player position, movement direction without team names or role labels, and per-player statistics with rounds played.
+**Season export.** The coach can export finalized match data and season statistics from the season overview page. Available formats: CSV, JSON, TXT, Markdown. Available visibility modes: coach (includes roles, plan integrity signals, movement paths, explanations, override reasons) and parent (hides internal planning tags and judgement, uses neutral language such as rotation, suitable challenge, team balance, availability, or development opportunity). Coach export includes selection details per match, movement rows with from/to team and role, and per-player statistics (rounds played, core matches, support matches, development matches, squad repair, additional actual appearances). Parent export includes per-selection rows with round, date, team, home/away, opponent, and player position, movement direction without team names or role labels, and per-player statistics with rounds played.
 
 ## Stack
 
@@ -357,12 +357,12 @@ The team detail page is the primary team workspace. It answers:
 - Who is moving out as support
 - Who is moving in as support/squad repair/development
 - Whether the team is short
-- What warnings exist for this team
+- What plan integrity signals exist for this team
 - What the team's movement and fairness situation looks like
 
 Team detail sections:
 - **Team header** — name, squad limits (target, minimum, maximum), minimum core, support priority
-- **Team summary strip** — current round status, core count, sent as support count, received support/squad repair/development counts, warning count
+- **Team summary strip** — current round status, core count, sent as support count, received support/squad repair/development counts, plan integrity signal count
 - **Squad tab** — core roster grouped by planning status (core regulars, support candidates, development candidates, non-rotatable, reduced match load, availability problems)
 - **Current Round tab** — who is selected, sent, received, dropped for the active round, with selection reason and movement language
 - **Movement tab** — movement history across rounds (sent as support, received support, received squad repair, received development)
@@ -397,7 +397,7 @@ The round-level selection engine runs in this order:
 3. Cross-match conflict resolution (`resolveRoundConflicts`)
 4. Development routing (`routeCoreMatchDrops`)
 5. Squad repair — repairing teams weakened by support movement
-6. Post-pipeline validation and warning persistence
+6. Post-pipeline validation and plan integrity signal persistence
 
 Key rules enforced by the engine:
 
@@ -409,14 +409,16 @@ Key rules enforced by the engine:
 - **Non-rotatable players are never used as generic squad repair**
 - **Invalid path eligibility is a hard eligibility problem** — not a ranking problem. Fairness scoring cannot make an invalid path valid.
 - **Same-round player uniqueness is the default** — a player must not be planned for two matches in the same round. Controlled double-load has been removed from generation. Actual double-load from post-match reports is tracked through effective participation.
-- **Target squad size is a planning target, not a hard cap** — teams may exceed target up to maxSquadSize. Below target but above minAcceptedSquadSize generates WARNING only.
-- Warnings are generated and persisted when support or squad repair cannot be fulfilled — the team is never silently weakened
+- **Target squad size is a planning target, not a hard cap** — teams may exceed target up to maxSquadSize. Below target but above minAcceptedSquadSize generates a Planning note only.
+- Plan integrity signals are generated and persisted when support or squad repair cannot be fulfilled — the team is never silently weakened
 - Donor teams must not fall below `minCorePlayers` during support resolution
 - Rotation paths are directional — movement cannot happen without an explicit path in the correct direction
 - Each player can only appear once per match round unless actual participation differs from planned selection
 - Draft selections are editable — manual edits use same domain validation as automatic generation
 - Finalized selections are immutable — manual overrides require an audit reason
 - Manual override requires reason and must appear in finalization summary
+- Below target but above minimum generates a Planning note, not a Blocked condition
+- Plan integrity signals are generated and persisted — the team is never silently weakened
 
 ### Populate all workflow
 
@@ -426,7 +428,7 @@ Populate all generates drafts for all non-finalized rounds in the active plannin
 - Uses round-level orchestration (not match-by-match)
 - Does not finalize any round
 - Skips already-finalized rounds
-- Persists warnings per round after generation
+- Persists plan integrity signals per round after generation
 - Draft selections from earlier rounds may be used as provisional planning context for later rounds
 - On partial failure, successful round generations are kept and failures are reported
 
@@ -434,7 +436,7 @@ Populate all generates drafts for all non-finalized rounds in the active plannin
 
 | Path | Purpose |
 |------|---------|
-| `src/lib/selection/` | Selection engine, round-level orchestrator, support, routing, squad repair, double-load |
+| `src/lib/selection/` | Selection engine, round-level orchestrator, support, routing, squad repair |
 | `src/lib/rules/` | Rule configuration loading and validation |
 | `src/lib/` | DB client, shared utilities, player metrics, date helpers |
 | `src/app/` | Next.js App Router pages, layouts, server actions, API routes |
@@ -461,10 +463,10 @@ RotationPath is the single source of truth for automatic non-core player movemen
 
 - **Team**: configurable squad limits (`targetSquadSize`, `minAcceptedSquadSize`, `maxSquadSize`), support settings, development slots, support priority rank (1 is highest)
 - **RotationPath**: directed edges between teams with role (SUPPORT, BACKFILL, DEVELOPMENT), cooldown, and count targets
-- **Selection**: per-player per-match record with role (CORE, SUPPORT, DEVELOPMENT, SQUAD_REPAIR), status (DRAFT/FINALIZED), overrideReasonCategory (enum), overrideReasonDetail (free text), and structured explanation JSON. BACKFILL remains in the Prisma enum for backward compatibility of historical data and manual overrides. New generation produces SUPPORT with squad repair explanation codes for squad repair, not BACKFILL. DOUBLE_LOAD is not a valid role value for new generation. The `controlledDoubleLoad` field is legacy — no new `true` values are written by the generation engine. Actual double-load from post-match reports is tracked through effective participation, not via `controlledDoubleLoad`.
+- **Selection**: per-player per-match record with role (CORE, SUPPORT, DEVELOPMENT, SQUAD_REPAIR), status (DRAFT/FINALIZED), overrideReasonCategory (enum), overrideReasonDetail (free text), and structured explanation JSON. BACKFILL remains in the Prisma enum for backward compatibility of historical data and manual overrides. New generation produces SUPPORT with squad repair explanation codes for squad repair, not BACKFILL. DOUBLE_LOAD is not a valid role value for new generation. The `controlledDoubleLoad` field is legacy — no new `true` values are written by the generation engine. Actual double-load from post-match reports is tracked through effective participation, not via `controlledDoubleLoad`. Additional actual appearances from post-match reports are recorded separately as unplanned participation and do not mutate finalized planned selections.
 - **MovementLedger**: mandatory record for every non-core player movement. Created during draft generation, flipped from isDraft=true to isDraft=false during finalization. Support, development, and squad repair from another team all create ledger entries. The movement ledger is the authoritative record of player movement — the export must never show empty movements when non-core selections exist.
 - **MatchRound**: weekly planning unit — selections are generated and validated per round, not per match in isolation
-- **Warning**: per-round warnings with severity (HARD_BLOCK, REQUIRES_OVERRIDE, WARNING, SCORING_PREFERENCE), persisted to database, read by finalization logic
+- **Warning**: per-round signals with severity (HARD_BLOCK, REQUIRES_OVERRIDE, WARNING, SCORING_PREFERENCE), persisted to database, read by finalization logic. The UI displays these as Blocked, Decision required, or Planning note based on the visible signal model.
 
 ## Sensitive data policy
 
