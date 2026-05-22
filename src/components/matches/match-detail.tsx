@@ -404,7 +404,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   {blockingWarnings.length > 0 && (
                     <p className="text-xs text-red-300 mb-2">
                       <AlertTriangle className="mr-1 inline h-3 w-3" />
-                      {blockingWarnings.length} blocking {blockingWarnings.length === 1 ? "warning" : "warnings"} — override reason required.
+                      {blockingWarnings.length} Blocked {blockingWarnings.length === 1 ? "condition" : "conditions"} — override reason required.
                     </p>
                   )}
                   {hasOverrideWarnings && (
@@ -449,7 +449,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
                   <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-200 mb-2">
                     <AlertTriangle className="h-4 w-4" />
-                    Warnings ({blockingWarnings.length + requiresOverrideWarnings.length} actionable{otherWarnings.length > 0 ? `, ${otherWarnings.length} informational` : ""})
+                    Warnings ({blockingWarnings.length + requiresOverrideWarnings.length} need attention{otherWarnings.length > 0 ? `, ${otherWarnings.length} planning notes` : ""})
                   </h3>
                   <ul className="flex flex-col gap-1.5">
                     {blockingWarnings.map((w) => (
@@ -469,7 +469,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                       onClick={() => setShowAllWarnings(!showAllWarnings)}
                       type="button"
                     >
-                      {showAllWarnings ? "Hide" : `Show ${otherWarnings.length} informational ${otherWarnings.length === 1 ? "warning" : "warnings"}`}
+                      {showAllWarnings ? "Hide" : `Show ${otherWarnings.length} planning ${otherWarnings.length === 1 ? "note" : "notes"}`}
                     </button>
                   )}
                   {showAllWarnings && otherWarnings.length > 0 && (

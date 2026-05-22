@@ -356,6 +356,12 @@ export default async function RoundBoardPage({
     info: unresolvedWarnings.filter((w) => w.severity === "SCORING_PREFERENCE").length,
   };
 
+  const signalSummary = {
+    blocked: unresolvedWarnings.filter((w) => w.severity === "HARD_BLOCK").length,
+    decisionRequired: unresolvedWarnings.filter((w) => w.severity === "REQUIRES_OVERRIDE").length,
+    planningNote: unresolvedWarnings.filter((w) => w.severity === "WARNING" || w.severity === "SCORING_PREFERENCE").length,
+  };
+
   const uniqueSelectedPlayerIds = new Set<string>();
   for (const s of selections) {
     if (SELECTED_ROLES.has(s.role)) {
@@ -490,6 +496,7 @@ export default async function RoundBoardPage({
         rotationPathMap={rotationPathMap}
         warnings={warnings}
         warningSummary={warningSummary}
+        signalSummary={signalSummary}
         movementSummary={{
           supportSent: totalSupportSent,
           supportReceived: totalSupportReceived,

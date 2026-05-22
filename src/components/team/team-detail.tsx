@@ -458,7 +458,7 @@ function CurrentRoundTab({
         {roundWarnings.length > 0 && (
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Warnings
+              Plan integrity signals
             </p>
             <div className="mt-2 flex flex-col gap-1.5">
               {roundWarnings.map((w) => (
@@ -736,7 +736,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
           </div>
           {data.warningCount > 0 && (
             <div className="rounded-2xl border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f0cbc5]">Warnings</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f0cbc5]">Signals</p>
               <p className="mt-1 text-2xl font-semibold text-[#f0cbc5]">{data.warningCount}</p>
             </div>
           )}

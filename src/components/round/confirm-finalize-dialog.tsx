@@ -41,8 +41,8 @@ export function ConfirmFinalizeDialog({
 
   if (!isOpen) return null;
 
-  const hasWarnings = blockingWarningCount > 0 || requiresOverrideCount > 0;
-  const needsOverride = hasWarnings;
+  const hasIssues = blockingWarningCount > 0 || requiresOverrideCount > 0;
+  const needsOverride = hasIssues;
   const categoryValid = !needsOverride || overrideReason.category !== "";
   const detailValid = !needsOverride || overrideReason.detail.trim().length >= 10;
   const overrideValid = !needsOverride || (categoryValid && detailValid);
@@ -53,8 +53,8 @@ export function ConfirmFinalizeDialog({
     onConfirm(overrideReason.category, overrideReason.detail.trim());
   };
 
-  const blockingWarnings = warnings.filter((w) => w.severity === "HARD_BLOCK");
-  const overrideWarnings = warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
+  const blockedConditions = warnings.filter((w) => w.severity === "HARD_BLOCK");
+  const decisionRequiredConditions = warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -87,7 +87,7 @@ export function ConfirmFinalizeDialog({
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden="true" />
                 <span className="text-sm font-medium text-zinc-200">
-                  {totalWarnings} {totalWarnings === 1 ? "warning" : "warnings"}
+                  {totalWarnings} {totalWarnings === 1 ? "issue" : "issues"} need attention
                 </span>
               </div>
 
@@ -96,12 +96,12 @@ export function ConfirmFinalizeDialog({
                   <div className="flex items-center gap-2">
                     <SeverityBadge severity="blocking" />
                     <span className="text-sm text-red-300">
-                      {blockingWarningCount} blocking {blockingWarningCount === 1 ? "issue" : "issues"} — override reason required to finalize
+                      {blockingWarningCount} Blocked {blockingWarningCount === 1 ? "condition" : "conditions"} — override reason required to finalize
                     </span>
                   </div>
-                  {blockingWarnings.length > 0 && (
+                  {blockedConditions.length > 0 && (
                     <ul className="mt-1.5 ml-5 list-disc text-xs text-red-400/80 space-y-0.5">
-                      {blockingWarnings.map((w, i) => (
+                      {blockedConditions.map((w, i) => (
                         <li key={i}>{w.message}</li>
                       ))}
                     </ul>
@@ -114,12 +114,12 @@ export function ConfirmFinalizeDialog({
                   <div className="flex items-center gap-2">
                     <SeverityBadge severity="high" />
                     <span className="text-sm text-amber-300">
-                      {requiresOverrideCount} {requiresOverrideCount === 1 ? "issue requires" : "issues require"} override reason
+                      {requiresOverrideCount} {requiresOverrideCount === 1 ? "decision requires" : "decisions require"} override reason
                     </span>
                   </div>
-                  {overrideWarnings.length > 0 && (
+                  {decisionRequiredConditions.length > 0 && (
                     <ul className="mt-1.5 ml-5 list-disc text-xs text-amber-400/80 space-y-0.5">
-                      {overrideWarnings.map((w, i) => (
+                      {decisionRequiredConditions.map((w, i) => (
                         <li key={i}>{w.message}</li>
                       ))}
                     </ul>
