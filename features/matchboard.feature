@@ -4005,3 +4005,366 @@ Feature: Matchboard football operations workspace
       Then no visible component may contain "Local-first" or "Local first"
       And no page title may be "Dashboard" when referring to /assistant
       And no navigation label may use "Command center", "Decision inbox", "Decision debt", "Structured review room", "Optimization output", "Workspace", "Entity", or "Resource"
+
+
+  Rule: Opponent teams and encounter observations
+
+    Matchboard stores opponent teams as reusable private match-planning entities.
+    Every match is linked to one persisted opponent team while preserving the historical match-time display name.
+    After a match, the coach may record structured, private observations about the match environment.
+    Opponent observations describe individual encounters, never fixed traits of an opponent team.
+    The selection engine remains unchanged: opponent data does not alter squad generation.
+
+
+    Scenario: Creating a match requires selecting or creating an opponent team
+      Given the coach is creating a new match
+      When the coach enters match details
+      Then the form must present an opponent team field
+      And the field must allow selecting an existing opponent team
+      And the field must allow creating a new opponent team inline
+      And the field must be required
+
+    Scenario: Selecting an existing opponent team links the match
+      Given opponent team "Bryne G11 Hvit" exists
+      When the coach selects "Bryne G11 Hvit" for a new match
+      Then the match must store the opponent team's ID as opponentTeamId
+      And the match must store "Bryne G11 Hvit" in the opponent field as a match-time snapshot
+      And the opponent field must not change when the opponent team displayName is later renamed
+
+    Scenario: Creating a new opponent team inline
+      Given no opponent team matching "Stabæk G12 Blå" exists
+      When the coach types "Stabæk G12 Blå" in the opponent team field
+      Then the form must offer a "Create opponent team: Stabæk G12 Blå" option
+      When the coach confirms creation
+      Then a new OpponentTeam record must be created with displayName "Stabæk G12 Blå"
+      And the match must be linked to the new opponent team
+      And the match must store "Stabæk G12 Blå" in the opponent field
+
+    Scenario: Opponent team name normalization prevents duplicates
+      Given opponent team "Bryne G11 Hvit" exists with normalizedName "bryne g11 hvit"
+      When the coach enters "  bryne   G11 hvit " in the opponent team field
+      Then the form must not offer duplicate creation as the primary option
+      And the form must resolve to the existing "Bryne G11 Hvit" opponent team
+      And no duplicate opponent team record must be created
+
+    Scenario: Opponent teams are private coach-facing context
+      Given an opponent team exists
+      Then opponent teams must not be publicly accessible
+      And opponent teams must not appear in parent-facing exports
+      And opponent team records must not be sent to external AI payloads
+
+    Scenario: Historical migration backfills opponent team relations
+      Given existing matches store only Match.opponent text
+      When the migration runs
+      Then each unique normalized opponent name must create one OpponentTeam record
+      And each existing match must receive an opponentTeamId linking it to the corresponding OpponentTeam
+      And historical Match.opponent text must remain unchanged
+      And no match must remain without an opponentTeamId after migration
+      And opponent strings differing only by casing or whitespace must link to the same normalized opponent team
+
+    Scenario: Opponent team display name snapshot is preserved
+      Given match M1 was created with opponent display name "Bryne G11 Hvit"
+      And the opponent team displayName is later changed to "Bryne G11 White"
+      Then M1.opponent must still show "Bryne G11 Hvit"
+      And must not be rewritten to "Bryne G11 White"
+
+    Scenario: Referenced opponent teams cannot be hard deleted
+      Given opponent team OT1 is referenced by one or more matches
+      Then deleting OT1 must be restricted
+      And the database must enforce onDelete: Restrict on the match relation
+
+
+    Scenario: Match fit uses existing field and values
+      Given Match.matchFit already exists as the sporting-fit observation
+      Then no new sporting-fit model or enum must be introduced
+      And Match.matchFit must remain the sporting-fit observation for a played encounter
+
+    Scenario: Match fit describes the encounter not the opponent
+      Given match M1 has matchFit GOOD_FIT
+      Then matchFit must describe how suitable the challenge was for the squad that played
+      And matchFit must not be a permanent level classification of the opponent team
+      And matchFit must not be a behavioural observation
+
+    Scenario: Match fit values use required user-facing labels
+      Given the following Match.fit values exist
+        | Value               | Required user-facing label                    |
+        | UNKNOWN             | Not assessed                                  |
+        | TOO_EASY            | Too little challenge for this squad           |
+        | GOOD_FIT            | Suitable challenge for this squad             |
+        | TOO_HARD            | Too much challenge for this squad             |
+        | CHAOTIC             | Difficult to assess due to match conditions   |
+        | SUPPORT_OVERPOWERED | Our support level made the match less suitable |
+        | SUPPORT_TOO_LOW     | Our support level did not meet the match need  |
+      Then opponent encounter history must display these exact labels
+      And numeric ordinals must not appear in UI
+
+    Scenario: Match fit does not automatically change future selections
+      Given Team C match M1 was recorded as matchFit TOO_HARD
+      When the app generates the next match round
+      Then the app must not automatically change Team C support targets
+      And the app must not automatically change player eligibility
+      And the app must not automatically change squad generation
+
+    Scenario: Advisory match-fit ordinal mapping is internal
+      Given the following advisory ordinal mapping
+        | MatchFit value       | Internal ordinal |
+        | UNKNOWN              | null            |
+        | TOO_EASY             | -1              |
+        | GOOD_FIT             | 0               |
+        | TOO_HARD             | 1               |
+        | CHAOTIC              | null            |
+        | SUPPORT_OVERPOWERED  | null            |
+        | SUPPORT_TOO_LOW      | null            |
+      Then the ordinal mapping must be a domain helper only
+      And the numeric ordinal must not appear in UI
+      And the ordinal must not be stored as an opponent score
+      And the ordinal must not be aggregated into automatic recommendations in this branch
+      And CHAOTIC, SUPPORT_OVERPOWERED, and SUPPORT_TOO_LOW must map to null because they do not cleanly express opponent challenge independently of match circumstances
+
+
+    Scenario: Recording a match environment observation
+      Given match M1 has been played
+      When the coach records a post-match observation for M1
+      Then at most one OpponentEncounterObservation may exist per match
+      And the observation must be linked to the match and the match's opponent team
+      And the observation must not be a permanent label on the opponent team
+
+    Scenario: Observation overall environment values
+      Given the coach is recording a match environment observation
+      Then the available overall environment values must be
+        | Value              | Label                     |
+        | NOT_ASSESSED       | Not assessed              |
+        | POSITIVE           | Positive experience       |
+        | ACCEPTABLE         | Acceptable experience     |
+        | CONCERN            | Concern observed          |
+        | SERIOUS_CONCERN    | Serious concern observed  |
+
+    Scenario: Observation area values
+      Given the coach is recording a match environment observation
+      Then three observation areas must be available
+        | Field concept                | Label                             |
+        | opponentPlayersContext       | Opponent players                  |
+        | opponentStaffContext        | Opponent coaching/staff environment |
+        | spectatorSidelineContext    | Spectator/sideline environment    |
+      And each area must use the same values as overall environment
+      And individual areas may remain NOT_ASSESSED
+
+    Scenario: Observation area consistency
+      Given the coach is recording a match environment observation
+      When any individual area is marked CONCERN
+      Then overall environment must be CONCERN or SERIOUS_CONCERN
+      When any individual area is marked SERIOUS_CONCERN
+      Then overall environment must be SERIOUS_CONCERN
+      When overall environment is POSITIVE or ACCEPTABLE
+      And no area is CONCERN or SERIOUS_CONCERN
+      Then individual areas may be NOT_ASSESSED, POSITIVE, or ACCEPTABLE
+      When the form submission violates consistency rules
+      Then the form must reject the save with the message "Overall match environment must be marked as a concern when a concern is recorded in an observed area"
+      Or the message "Overall match environment must be marked as a serious concern when a serious concern is recorded in an observed area"
+
+    Scenario: Concern categories are required when concern is recorded
+      Given the coach is recording a match environment observation
+      When overall environment is CONCERN or SERIOUS_CONCERN
+      Then at least one concern category must be selected
+      When any individual area is CONCERN or SERIOUS_CONCERN
+      Then at least one concern category must be selected
+      When concern categories are missing and required
+      Then the form must reject the save with the message "Select at least one observable concern category when a concern is recorded"
+
+    Scenario: Concern categories use exact values and labels
+      Given the coach is recording a concern observation
+      Then the available categories must be
+        | Value                                | Label                                    |
+        | PRESSURE_ON_REFEREE_DECISIONS        | Pressure directed at referee decisions    |
+        | DISRESPECTFUL_LANGUAGE_OR_SHOUTING    | Disrespectful language or shouting        |
+        | UNSPORTING_MATCH_CONDUCT              | Unsporting match conduct                  |
+        | PHYSICAL_PLAY_OR_SAFETY_CONCERN       | Physical play or situation causing safety concern |
+        | THREATS_OR_INTIMIDATION               | Threatening or intimidating conduct       |
+        | DISCRIMINATORY_OR_DEGRADING_LANGUAGE   | Discriminatory or degrading language      |
+        | SIDELINE_ATMOSPHERE_CONCERN            | Sideline atmosphere concern               |
+        | SAFE_MATCH_FRAME_NOT_SUPPORTED          | Safe match framework was not supported    |
+        | OTHER_OBSERVABLE_CONCERN               | Other observable concern                  |
+      And categories must describe an observed event or condition, never an individual
+      And duplicate category values must be stored only once
+
+    Scenario: Factual summary field requirements
+      Given the coach is entering a factual summary
+      Then the field label must be "Brief factual summary"
+      And maximum length must be 500 characters
+      And helper text "Describe what affected the match environment. Do not include names, shirt numbers or identifying details." must be always visible
+      When overall environment is SERIOUS_CONCERN
+      Then a factual summary is required
+      And the form must show "Add a brief factual summary for a serious concern. Do not include names or identifying details."
+      When overall environment is not SERIOUS_CONCERN
+      Then a factual summary is optional
+      And empty summaries must be stored as null
+      And the form must reject text exceeding 500 characters
+      And the form must reject obvious email address patterns
+      And the form must reject obvious phone number patterns
+      And the form must reject obvious URL patterns
+
+    Scenario: Follow-up status values
+      Given the coach is recording follow-up status
+      Then the available values must be
+        | Value                                     | Label                                      |
+        | NONE                                      | No follow-up recorded                       |
+        | DISCUSSED_AFTER_MATCH                     | Discussed after match                       |
+        | INFORMED_OWN_CLUB_FAIR_PLAY_CONTACT       | Informed own club Fair Play contact          |
+        | FORMAL_FOLLOW_UP_OUTSIDE_MATCHBOARD        | Formal follow-up handled outside Matchboard  |
+        | NO_FURTHER_ACTION_REQUIRED                | No further action required                   |
+      And Matchboard records follow-up state only
+      And Matchboard must not store the formal complaint or incident-report text
+      And Matchboard must not send a report automatically
+
+    Scenario: Serious concern informational callout
+      Given the coach has set overall environment to SERIOUS_CONCERN
+      Then the UI must display the exact text "Matchboard records encounter context only. Serious concerns should be followed up through the club's Fair Play routine outside this app. Do not include names or identifying details here."
+      And the callout must be prominent but must not present the opponent team as permanently dangerous or categorised
+      And the callout must not block saving
+
+    Scenario: Saving a post-match observation
+      Given the coach has entered observation data for a played match
+      When the coach saves the observation
+      Then the observation and its category list must be saved atomically
+      And saving must not modify finalized squad selections
+      And saving must not alter warnings, blockers, movement ledger, fairness, or selection-engine state
+      And the observation must follow existing post-match lock rules
+      And no hidden edit path must bypass post-match lock semantics
+
+
+    Scenario: Coach can view opponent encounter history
+      Given an authenticated coach
+      When the coach opens the opponent encounter history for opponent team OT1
+      Then the view must show OT1 display name
+      And the view must show number of recorded matches against OT1
+      And the view must show number of matches with saved encounter observations
+      And the view must show a chronological match list with date, our team, historical opponent label, home/away, match fit label, environment observation, concern categories, follow-up status, and factual summary
+      And the view must not show numeric opponent score, averaged sporting score, star rating, opponent ranking, permanent risk colour, avoid or recommend language, automatic squad recommendation, or personal names
+
+    Scenario: Encounter history displays match fit context
+      Given match M1 against opponent OT1 was recorded with matchFit GOOD_FIT
+      And M2 against OT1 was recorded with matchFit TOO_HARD
+      Then the encounter history for OT1 must display "Suitable challenge for this squad" for M1
+      And must display "Too much challenge for this squad" for M2
+      And must not display numeric ordinals
+
+    Scenario: Encounter history empty state
+      Given opponent team OT1 has no encounter observations
+      Then the encounter history must show "No encounter observations recorded for this opponent."
+      And must not show an approval or clearance status
+
+    Scenario: Encounter history concerns are factual
+      Given encounter history shows a CONCERN or SERIOUS_CONCERN observation
+      Then concerns must be visible but not sensationalised
+      And colour must not be the only indicator of assessment state
+      And the page must not visually resemble a league table, rating table, or risk dashboard
+
+
+    Scenario: Previous encounters panel during planning
+      Given a future match is linked to opponent team OT1
+      And OT1 has prior encounters
+      When the coach views the match detail for the future match
+      Then a "Previous encounters" panel may be shown containing:
+        | total previous matches against this opponent                |
+        | up to 3 recent encounters with date, team, match fit, concern |
+        | count of encounters with overall CONCERN or SERIOUS_CONCERN |
+        | latest concern observation date where relevant              |
+        | link "View encounter history"                               |
+      And the panel must display "Previous encounter context only. Matchboard does not automatically change squad selection based on opponent history."
+      And the panel must be informational only
+      And the panel must be coach-facing only
+      And the panel must be non-blocking
+      And the panel must be excluded from parent-facing exports
+      And the panel must be excluded from external AI payloads
+
+    Scenario: Previous encounters panel must not alter selection
+      Given a future match against OT1 has previous encounter observations
+      Then the panel must not add warnings
+      And must not add blockers
+      And must not alter round status
+      And must not alter match status
+      And must not change squad generation
+      And must not change finalisation
+      And must not recommend individual player inclusion or exclusion
+
+
+    Scenario: Selection engine is unchanged by opponent history
+      Given otherwise identical match-planning inputs
+      When opponent history differs across these cases:
+        | no previous encounter history       |
+        | previous GOOD_FIT match history     |
+        | previous TOO_HARD match history     |
+        | previous positive environment observation  |
+        | previous concern observation               |
+        | previous serious concern observation       |
+      Then generated squads must be identical in every case
+      And eligibility must be identical
+      And support priority must be identical
+      And development movement must be identical
+      And squad repair must be identical
+      And fairness scoring must be identical
+      And readiness signals must be identical
+      And match warnings must be identical
+      And blockers must be identical
+      And finalisation behaviour must be identical
+
+
+    Scenario: Parent-facing exports exclude opponent observations
+      Given a coach-facing export includes opponent encounter observations
+      When the coach generates a parent-facing export
+      Then the parent-facing export must not include:
+        | environment assessment            |
+        | concern categories                |
+        | factual summary                   |
+        | follow-up status                   |
+        | encounter-history concern counts  |
+        | latest concern date                |
+      And the parent-facing export may include normal fixture information such as opponent-team display name
+
+    Scenario: External AI payloads exclude opponent observations
+      Given the application prepares external AI or service payloads
+      Then the payloads must exclude:
+        | OpponentEncounterObservation data  |
+        | factual summary text              |
+        | concern categories                |
+        | follow-up status                   |
+        | environment values                |
+        | opponent historical concern aggregates |
+
+    Scenario: No opponent person-identifying fields exist
+      Given the opponent observation data model
+      Then no field may store opponent player names
+      And no field may store opponent coach names
+      And no field may store parent or spectator names
+      And no field may store referee names
+      And no field may store shirt numbers connected to incidents
+      And no field may store contact information
+      And no field may store physical descriptions
+      And no field may store identifying details about individuals
+
+    Scenario: Opponent terminology uses required language
+      Given the app displays opponent information
+      Then the app must use "Opponent team" not "Bad team" or "Problem team"
+      And must use "Previous encounters" not "Risk history"
+      And must use "Encounter history" not "Opponent rating"
+      And must use "Post-match observation" not "Opponent evaluation"
+      And must use "Sporting match fit" not "Opponent strength"
+      And must use "Match environment" not "Threat assessment"
+      And must use "Fair Play concern" not "Bad behaviour"
+      And must use "Observed concern" not "Red flag"
+      And must use "Serious concern observed" not "Unsafe team"
+      And must use "Follow-up" not "Action required"
+      And must use "Brief factual summary" not "Incident report"
+      And must use "No concern observed" not "Clean record"
+      And must use "Not assessed" not "Unknown risk"
+      And must not use "Blacklist", "Reputation score", "Fair Play score", "Opponent rating", "Opponent quality score", "Hostile parents", "Aggressive coach", "Dirty players", "Weak opponent", "Strong opponent", or "Avoid this team"
+
+    Scenario: Opponent observations do not create a rating or blacklist
+      Given the app stores opponent encounter observations
+      Then no opponent rating must exist
+      And no opponent ranking must exist
+      And no opponent blacklist must exist
+      And no Fair Play score must exist
+      And no combined environment and sporting score must exist
+      And no opponent-level permanent classification must exist
+      And no opponent-level colour-coded status badge must exist

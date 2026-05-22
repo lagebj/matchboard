@@ -6,6 +6,7 @@ import { WarningSeverity } from "@/generated/prisma/client";
 import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
 import { populateAllDrafts } from "@/lib/selection/populate-all-drafts";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
 
@@ -151,11 +152,22 @@ describe("Populate all workflow", () => {
 
     for (const teamName of ["TeamA", "TeamB"]) {
       const teamId = fixtureIds.teams[teamName]!;
+      const opponentName = `Opponent ${teamName} W20`;
+      const normalizedName = normalizeOpponentName(opponentName);
+      const displayName = cleanOpponentDisplayName(opponentName);
+      const ot = await testDb.opponentTeam.upsert({
+        where: { normalizedName },
+        update: { displayName },
+        create: { displayName, normalizedName },
+      });
+      const opponentTeamId = ot.id;
+      fixtureIds.opponentTeamIds[normalizedName] = opponentTeamId;
       await testDb.match.create({
         data: {
           matchRoundId: round2.id,
           teamId,
-          opponent: `Opponent ${teamName} W20`,
+          opponent: opponentName,
+          opponentTeamId,
           startsAt: new Date("2025-05-05T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 11,

@@ -3,6 +3,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient | null = null;
 
@@ -73,6 +74,7 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.player.deleteMany();
   await db.rotationPath.deleteMany();
   await db.team.deleteMany();
+  await db.opponentTeam.deleteMany();
   await db.ruleConfig.deleteMany();
 }
 
@@ -91,6 +93,7 @@ export type TestFixtureIds = {
     playerCode: number;
   }>;
   matches: Record<string, string>;
+  opponentTeamIds: Record<string, string>;
   rotationPathIds: string[];
 };
 
@@ -175,15 +178,27 @@ export async function seedTestFixture(
   }
 
   const matchIds: Record<string, string> = {};
+  const opponentTeamIds: Record<string, string> = {};
   const baseDate = new Date("2025-04-28T10:00:00Z");
   const matchDates = options?.matchDates ?? {};
   for (const team of teams) {
+    const opponentName = `Opponent ${team.name}`;
+    const normalizedName = normalizeOpponentName(opponentName);
+    const displayName = cleanOpponentDisplayName(opponentName);
+    const opponentTeam = await db.opponentTeam.upsert({
+      where: { normalizedName },
+      update: { displayName },
+      create: { displayName, normalizedName },
+    });
+    const opponentTeamId = opponentTeam.id;
+    opponentTeamIds[normalizedName] = opponentTeamId;
     const matchDate = matchDates[team.name] ?? baseDate;
     const match = await db.match.create({
       data: {
         matchRoundId: round.id,
         teamId: teamIds[team.name]!,
-        opponent: `Opponent ${team.name}`,
+        opponent: opponentName,
+        opponentTeamId,
         startsAt: matchDate,
         homeAway: "HOME",
         squadSize: team.targetSquadSize ?? 11,
@@ -265,6 +280,7 @@ export async function seedTestFixture(
     teams: teamIds,
     players,
     matches: matchIds,
+    opponentTeamIds,
     rotationPathIds,
   };
 }

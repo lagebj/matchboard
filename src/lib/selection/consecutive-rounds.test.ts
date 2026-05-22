@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
 
@@ -62,11 +63,22 @@ async function createNextRound(
   baseDate.setDate(baseDate.getDate() + dateOffset * 7);
 
   for (const teamName of Object.keys(teams)) {
+    const opponentName = `Opponent ${teamName}`;
+    const normalizedName = normalizeOpponentName(opponentName);
+    const displayName = cleanOpponentDisplayName(opponentName);
+    const ot = await db.opponentTeam.upsert({
+      where: { normalizedName },
+      update: { displayName },
+      create: { displayName, normalizedName },
+    });
+    const opponentTeamId = ot.id;
+
     const match = await db.match.create({
       data: {
         matchRoundId: round.id,
         teamId: teams[teamName]!,
-        opponent: `Opponent ${teamName}`,
+        opponent: opponentName,
+        opponentTeamId,
         startsAt: new Date(baseDate),
         homeAway: "HOME",
         squadSize: 11,

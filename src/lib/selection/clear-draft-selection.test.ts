@@ -7,6 +7,7 @@ import {
   getTestDb,
   type TestFixtureIds,
 } from "@/test/test-db";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
 
@@ -65,13 +66,28 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
   }
 
   const matchIds: Record<string, string> = {};
+  const opponentTeamIds: Record<string, string> = {};
   const baseDate = new Date("2025-04-28T10:00:00Z");
   for (const t of teams) {
+    const opponentName = `Opp ${t.name}`;
+    const normalizedName = normalizeOpponentName(opponentName);
+    const displayName = cleanOpponentDisplayName(opponentName);
+    let opponentTeamId = opponentTeamIds[normalizedName];
+    if (!opponentTeamId) {
+      const ot = await testDb.opponentTeam.upsert({
+        where: { normalizedName },
+        update: { displayName },
+        create: { displayName, normalizedName },
+      });
+      opponentTeamId = ot.id;
+      opponentTeamIds[normalizedName] = opponentTeamId;
+    }
     const match = await testDb.match.create({
       data: {
         matchRoundId: round.id,
         teamId: teamIds[t.name]!,
-        opponent: `Opp ${t.name}`,
+        opponent: opponentName,
+        opponentTeamId,
         startsAt: baseDate,
         homeAway: "HOME",
         squadSize: 11,
@@ -121,6 +137,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
     teams: teamIds,
     players,
     matches: matchIds,
+    opponentTeamIds,
     rotationPathIds: [],
   };
 }
@@ -315,6 +332,7 @@ describe("clear-draft-selection", () => {
           matchRoundId: secondRound.id,
           teamId: fx.teams["Hvit"]!,
           opponent: "Opp",
+          opponentTeamId: Object.values(fx.opponentTeamIds)[0]!,
           startsAt: new Date("2025-05-05T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 11,

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 function readText(formData: FormData, fieldName: string): string {
@@ -61,7 +62,8 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   await requireCoachAccess();
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
-    const opponent = readNonEmptyString(formData, "opponent", "Opponent");
+    const opponentText = readText(formData, "opponent");
+    const opponentTeamIdInput = readText(formData, "opponentTeamId");
     const startsAt = readDate(formData, "startsAt", "Match date");
     const homeAway = readRequiredEnum(formData, "homeAway", VALID_VENUES, "Home or away");
     const matchType = readRequiredEnum(formData, "matchType", VALID_TYPES, "Match type");
@@ -72,6 +74,31 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       select: { id: true },
     });
     if (!team) throw new Error("Team not found.");
+
+    let opponentTeamId: string;
+    let opponent: string;
+
+    if (opponentTeamIdInput) {
+      const existing = await db.opponentTeam.findUnique({
+        where: { id: opponentTeamIdInput },
+        select: { id: true, displayName: true },
+      });
+      if (!existing) throw new Error("Opponent team not found.");
+      opponentTeamId = existing.id;
+      opponent = existing.displayName;
+    } else if (opponentText) {
+      const displayName = cleanOpponentDisplayName(opponentText);
+      const normalizedName = normalizeOpponentName(opponentText);
+      const upserted = await db.opponentTeam.upsert({
+        where: { normalizedName },
+        create: { displayName, normalizedName },
+        update: {},
+      });
+      opponentTeamId = upserted.id;
+      opponent = displayName;
+    } else {
+      throw new Error("Opponent team is required.");
+    }
 
     const _weekKey = formatIsoWeekKey(startsAt);
     const weekLabel = formatIsoWeekLabel(startsAt);
@@ -152,6 +179,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       data: {
         teamId,
         opponent,
+        opponentTeamId,
         startsAt,
         homeAway,
         matchType,

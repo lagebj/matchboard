@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createMatchAction } from "@/app/(app)/matches/actions";
+import { OpponentTeamSelect } from "@/components/opponents/opponent-team-select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -22,10 +23,13 @@ const INITIAL_STATE = { error: "" };
 
 export function MatchCreateForm({
   teams,
+  opponentTeams,
 }: {
   teams: { id: string; name: string }[];
+  opponentTeams: { id: string; displayName: string }[];
 }) {
   const [state, formAction] = useActionState(createMatchAction, INITIAL_STATE);
+  const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | null>(null);
   const today = new Date().toISOString().split("T")[0];
 
   if (teams.length === 0) {
@@ -66,19 +70,16 @@ export function MatchCreateForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="opponent" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
-          Opponent
-        </label>
-        <input
-          id="opponent"
-          name="opponent"
-          type="text"
-          required
-          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
-          placeholder="Opponent name"
-        />
-      </div>
+      <OpponentTeamSelect
+        opponentTeams={opponentTeams}
+        selectedId={selectedOpponentTeamId}
+        onSelectionChange={(id, _name) => {
+          setSelectedOpponentTeamId(id);
+        }}
+        onCreateNew={(_name) => {
+          setSelectedOpponentTeamId(null);
+        }}
+      />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="startsAt" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">

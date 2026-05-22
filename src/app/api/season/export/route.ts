@@ -31,6 +31,12 @@ function buildFilename(format: ExportFormat) {
   return `season-export-${today}.${format}`;
 }
 
+// Opponent encounter observations are intentionally excluded from all exports.
+// Per domain rules: opponent observation data must not appear in parent-facing
+// exports or external AI payloads. If observation data is ever added here,
+// it must be filtered through sanitizeSelectionForParent and excluded from
+// parent visibility mode entirely.
+
 export async function GET(request: NextRequest) {
   await requireCoachAccess();
   const { searchParams } = request.nextUrl;

@@ -3,11 +3,18 @@ import { db } from "@/lib/db";
 import { MatchCreateForm } from "@/components/matches/match-create-form";
 
 export default async function NewMatchPage() {
-  const teams = await db.team.findMany({
-    where: { archivedAt: null },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const [teams, opponentTeams] = await Promise.all([
+    db.team.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.opponentTeam.findMany({
+      where: { archivedAt: null },
+      orderBy: { displayName: "asc" },
+      select: { id: true, displayName: true },
+    }),
+  ]);
 
   if (teams.length === 0) {
     return (
@@ -51,7 +58,7 @@ export default async function NewMatchPage() {
       </section>
 
       <section className="app-panel rounded-[1.75rem] p-6">
-        <MatchCreateForm teams={teams} />
+        <MatchCreateForm teams={teams} opponentTeams={opponentTeams} />
       </section>
     </main>
   );

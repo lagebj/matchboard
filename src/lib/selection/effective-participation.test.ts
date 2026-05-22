@@ -14,6 +14,7 @@ import {
   getEffectiveMatchParticipation,
   getEffectiveSeasonStats,
 } from "./effective-participation";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
 
@@ -22,6 +23,19 @@ vi.mock("@/lib/db", () => ({
     return getTestDb();
   },
 }));
+
+let testOpponentTeamId: string;
+
+async function ensureTestOpponentTeam(db: PrismaClient, name: string): Promise<string> {
+  const normalizedName = normalizeOpponentName(name);
+  const displayName = cleanOpponentDisplayName(name);
+  const ot = await db.opponentTeam.upsert({
+    where: { normalizedName },
+    update: { displayName },
+    create: { displayName, normalizedName },
+  });
+  return ot.id;
+}
 
 describe("Effective participation helpers", () => {
   describe("isCoreRole", () => {
@@ -114,6 +128,7 @@ describe("Effective participation helpers", () => {
 describe("Effective participation database queries", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
+    testOpponentTeamId = await ensureTestOpponentTeam(testDb, "Test Opponent Team");
   });
 
   afterAll(async () => {
@@ -156,6 +171,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent A",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -271,6 +287,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent B",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -453,6 +470,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent NS",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -550,6 +568,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent Add",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -632,6 +651,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent Emerg",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -715,6 +735,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent DR",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -811,6 +832,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent L",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
@@ -906,6 +928,7 @@ describe("Effective participation database queries", () => {
           matchRoundId: round.id,
           teamId: team.id,
           opponent: "Opponent Stats",
+          opponentTeamId: testOpponentTeamId,
           startsAt: new Date("2025-05-01T10:00:00Z"),
           homeAway: "HOME",
           squadSize: 8,
