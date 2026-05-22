@@ -2,22 +2,28 @@ import { WarningSeverity } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import type { GeneratedRound, SelectionWarning } from "@/lib/selection/types";
 
+// Blocked conditions — the planned round or match is invalid or not viable
 const HARD_BLOCK_CODES = new Set([
   "player_in_multiple_matches",
   "duplicate_player_in_match",
   "invariant_invalid_non_core_selection",
+  "squad_below_minimum",
+  "selected_player_unavailable",
+  "duplicate_planned_assignment_integrity_failure",
 ]);
 
+// Decision required conditions — a meaningful exception must be consciously accepted
 const REQUIRES_OVERRIDE_CODES = new Set([
   "support_requirement_shortfall",
   "squad_repair_shortfall_after_resolution",
-  "squad_below_minimum",
   "repair_requires_override",
   "repair_below_minimum",
   "squad_repair_no_path_available",
   "round_player_conflict_removed",
+  "available_player_without_planned_opportunity",
 ]);
 
+// Planning notes — useful context; the plan remains valid and finalisable
 const WARNING_CODES = new Set([
   "support_shortfall_after_resolution",
   "support_below_target",
@@ -31,10 +37,15 @@ const WARNING_CODES = new Set([
   "position_mismatch",
   "repair_no_replacement_target_shortfall",
   "support_target_not_reached",
+  "below_target_but_playable",
+  "preferred_support_not_met",
+  "squad_repair_below_preferred_target",
+  "fallback_position_used",
   "double_load_exceeded_max",
   "double_load_squad_full",
 ]);
 
+// Scoring preferences — explanation only, never persisted as active issues
 const SCORING_PREFERENCE_CODES = new Set([
   "core_player_overflow",
   "development_slot_shortfall",
@@ -63,12 +74,45 @@ const SCORING_PREFERENCE_CODES = new Set([
   "readiness_coach_trust",
 ]);
 
+export type SignalCategory = "BLOCKED" | "DECISION_REQUIRED" | "PLANNING_NOTE";
+
 export function mapWarningSeverity(code: string): WarningSeverity {
   if (HARD_BLOCK_CODES.has(code)) return WarningSeverity.HARD_BLOCK;
   if (REQUIRES_OVERRIDE_CODES.has(code)) return WarningSeverity.REQUIRES_OVERRIDE;
   if (WARNING_CODES.has(code)) return WarningSeverity.WARNING;
   if (SCORING_PREFERENCE_CODES.has(code)) return WarningSeverity.SCORING_PREFERENCE;
   return WarningSeverity.WARNING;
+}
+
+export function mapToSignalCategory(code: string): SignalCategory {
+  if (HARD_BLOCK_CODES.has(code)) return "BLOCKED";
+  if (REQUIRES_OVERRIDE_CODES.has(code)) return "DECISION_REQUIRED";
+  if (WARNING_CODES.has(code)) return "PLANNING_NOTE";
+  return "PLANNING_NOTE";
+}
+
+export function signalCategoryFromSeverity(severity: WarningSeverity): SignalCategory {
+  switch (severity) {
+    case WarningSeverity.HARD_BLOCK:
+      return "BLOCKED";
+    case WarningSeverity.REQUIRES_OVERRIDE:
+      return "DECISION_REQUIRED";
+    case WarningSeverity.WARNING:
+      return "PLANNING_NOTE";
+    case WarningSeverity.SCORING_PREFERENCE:
+      return "PLANNING_NOTE";
+  }
+}
+
+export function signalCategoryLabel(category: SignalCategory): string {
+  switch (category) {
+    case "BLOCKED":
+      return "Blocked";
+    case "DECISION_REQUIRED":
+      return "Decision required";
+    case "PLANNING_NOTE":
+      return "Planning note";
+  }
 }
 
 export type PersistableWarning = {

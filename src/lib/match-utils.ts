@@ -92,10 +92,10 @@ export function formatWarningCode(code: string): string {
 
 export function formatSeverity(severity: string): string {
   switch (severity) {
-    case "HARD_BLOCK": return "Blocking";
-    case "REQUIRES_OVERRIDE": return "Requires override";
-    case "WARNING": return "Warning";
-    case "SCORING_PREFERENCE": return "Preference";
+    case "HARD_BLOCK": return "Blocked";
+    case "REQUIRES_OVERRIDE": return "Decision required";
+    case "WARNING": return "Planning note";
+    case "SCORING_PREFERENCE": return "Explanation";
     default: return severity;
   }
 }
