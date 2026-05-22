@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useId, useActionState } from "react";
-import { saveObservationAction } from "@/app/(app)/matches/[matchId]/post-match/observation-actions";
+import { saveObservationAction, updateMatchFitAction } from "@/app/(app)/matches/[matchId]/post-match/observation-actions";
 import {
   ENVIRONMENT_OBSERVATION_LABELS,
   CONCERN_CATEGORY_LABELS,
@@ -10,7 +10,8 @@ import {
   SERIOUS_CONCERN_CALLOUT,
   FACTUAL_SUMMARY_HELPER,
 } from "@/lib/opponents/observation-labels";
-import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp } from "@/generated/prisma/client";
+import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
+import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 
 type Props = {
   matchId: string;
@@ -44,18 +45,13 @@ const FOLLOW_UP_OPTIONS: { value: OpponentObservationFollowUp; label: string }[]
   Object.entries(FOLLOW_UP_LABELS) as [OpponentObservationFollowUp, string][]
 ).map(([value, label]) => ({ value, label }));
 
-const MATCH_FIT_LABELS: Record<string, string> = {
-  UNKNOWN: "Not assessed",
-  TOO_EASY: "Too little challenge for this squad",
-  GOOD_FIT: "Suitable challenge for this squad",
-  TOO_HARD: "Too much challenge for this squad",
-  CHAOTIC: "Difficult to assess due to match conditions",
-  SUPPORT_OVERPOWERED: "Our support level made the match less suitable",
-  SUPPORT_TOO_LOW: "Our support level did not meet the match need",
-};
+const MATCH_FIT_OPTIONS: { value: MatchFit; label: string }[] = (
+  Object.entries(MATCH_FIT_LABELS) as [MatchFit, string][]
+).map(([value, label]) => ({ value, label }));
 
 export function ObservationSection({ matchId, existingObservation, isLocked, matchFit }: Props) {
   const formId = useId();
+  const [matchFitValue, setMatchFitValue] = useState<string>(matchFit);
   const [overallEnvironment, setOverallEnvironment] = useState<string>(
     existingObservation?.overallEnvironment ?? "NOT_ASSESSED",
   );
@@ -74,7 +70,8 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
   const [factualSummary, setFactualSummary] = useState(existingObservation?.factualSummary ?? "");
   const [followUp, setFollowUp] = useState<string>(existingObservation?.followUp ?? "NONE");
 
-  const [state, formAction] = useActionState(saveObservationAction, { success: false, error: "" });
+  const [observationState, formAction] = useActionState(saveObservationAction, { success: false, error: "" });
+  const [matchFitState, matchFitFormAction] = useActionState(updateMatchFitAction, { success: false, error: "" });
 
   const ENVIRONMENT_SEVERITY: Record<string, number> = {
     NOT_ASSESSED: 0,
@@ -106,13 +103,12 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
         <p className="text-sm text-zinc-400">
           This report is locked. Observations cannot be edited.
         </p>
-        {existingObservation && (
-          <div className="space-y-2 text-sm text-zinc-300">
-            <p><span className="text-zinc-400">Overall environment:</span> {ENVIRONMENT_OBSERVATION_LABELS[existingObservation.overallEnvironment as MatchEnvironmentObservation] ?? existingObservation.overallEnvironment}</p>
-            {existingObservation.factualSummary && <p><span className="text-zinc-400">Summary:</span> {existingObservation.factualSummary}</p>}
-            {existingObservation.followUp !== "NONE" && <p><span className="text-zinc-400">Follow-up:</span> {FOLLOW_UP_LABELS[existingObservation.followUp as OpponentObservationFollowUp] ?? existingObservation.followUp}</p>}
-          </div>
-        )}
+        <div className="space-y-2 text-sm text-zinc-300">
+          <p><span className="text-zinc-400">Sporting match fit:</span> {MATCH_FIT_LABELS[matchFitValue as MatchFit] ?? "Not assessed"}</p>
+          <p><span className="text-zinc-400">Overall environment:</span> {existingObservation ? (ENVIRONMENT_OBSERVATION_LABELS[existingObservation.overallEnvironment as MatchEnvironmentObservation] ?? existingObservation.overallEnvironment) : "Not assessed"}</p>
+          {existingObservation?.factualSummary && <p><span className="text-zinc-400">Summary:</span> {existingObservation.factualSummary}</p>}
+          {existingObservation && existingObservation.followUp !== "NONE" && <p><span className="text-zinc-400">Follow-up:</span> {FOLLOW_UP_LABELS[existingObservation.followUp as OpponentObservationFollowUp] ?? existingObservation.followUp}</p>}
+        </div>
       </section>
     );
   }
@@ -126,9 +122,9 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
         </p>
       </div>
 
-      {state.error && (
+      {observationState.error && (
         <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
-          {state.error}
+          {observationState.error}
         </div>
       )}
 
@@ -136,24 +132,42 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
         <input type="hidden" name="matchId" value={matchId} />
 
         {/* A. Sporting match fit */}
-        <div className="space-y-2">
+        <form action={matchFitFormAction} className="space-y-2">
+          <input type="hidden" name="matchId" value={matchId} />
           <h4 className="text-sm font-semibold text-zinc-50">Sporting match fit</h4>
           <p className="text-xs text-zinc-400">
             Assess the football challenge for the squad that played in this match. This describes this encounter, not a fixed level or rating of the opponent.
           </p>
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-3">
-            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
-              matchFit === "UNKNOWN"
-                ? "bg-zinc-800/50 text-zinc-400"
-                : "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
-            }`}>
-              {MATCH_FIT_LABELS[matchFit] ?? "Not assessed"}
-            </span>
-            <p className="mt-2 text-xs text-zinc-500">
-              Sporting match fit is recorded separately in the match result section.
-            </p>
+          <div className="flex items-center gap-3">
+            <select
+              name="matchFit"
+              value={matchFitValue}
+              onChange={(e) => setMatchFitValue(e.target.value)}
+              disabled={isLocked}
+              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none flex-1 disabled:opacity-60"
+            >
+              {MATCH_FIT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {!isLocked && (
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
+              >
+                Save
+              </button>
+            )}
           </div>
-        </div>
+          {matchFitState.error && (
+            <p className="text-xs text-red-400">{matchFitState.error}</p>
+          )}
+          {matchFitState.success && matchFit !== matchFitValue && (
+            <p className="text-xs text-emerald-400">Match fit updated.</p>
+          )}
+        </form>
 
         {/* B. Match environment */}
         <div className="space-y-2">

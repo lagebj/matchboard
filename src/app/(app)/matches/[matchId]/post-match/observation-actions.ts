@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
-import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp } from "@/generated/prisma/client";
+import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 import {
   validateObservation,
   deduplicateCategories,
@@ -96,6 +96,46 @@ export async function saveObservationAction(
     }
   } catch (_error) {
     return { success: false, error: "Could not save observation." };
+  }
+
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath(`/matches/${matchId}/post-match`);
+  return { success: true, error: "" };
+}
+
+export type MatchFitActionState = {
+  success: boolean;
+  error: string;
+};
+
+export async function updateMatchFitAction(
+  _prevState: MatchFitActionState,
+  formData: FormData,
+): Promise<MatchFitActionState> {
+  const _coach = await requireCoachAccess();
+  const matchId = formData.get("matchId") as string;
+  const matchFit = formData.get("matchFit") as string;
+
+  if (!matchId) return { success: false, error: "Match ID is required." };
+
+  const validMatchFit = [
+    "UNKNOWN", "TOO_EASY", "GOOD_FIT", "TOO_HARD",
+    "CHAOTIC", "SUPPORT_OVERPOWERED", "SUPPORT_TOO_LOW",
+  ];
+  if (!validMatchFit.includes(matchFit)) {
+    return { success: false, error: "Invalid match fit value." };
+  }
+
+  const match = await db.match.findUnique({ where: { id: matchId } });
+  if (!match) return { success: false, error: "Match not found." };
+
+  try {
+    await db.match.update({
+      where: { id: matchId },
+      data: { matchFit: matchFit as MatchFit },
+    });
+  } catch (_error) {
+    return { success: false, error: "Could not update match fit." };
   }
 
   revalidatePath(`/matches/${matchId}`);
