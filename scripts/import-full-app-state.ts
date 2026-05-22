@@ -27,7 +27,7 @@ function createAdapter(url: string) {
   return new PrismaPg(pool);
 }
 
-type ExportData = {
+  type ExportData = {
   version: number;
   exportedAt: string;
   source: string;
@@ -37,6 +37,7 @@ type ExportData = {
   seasons: any[];
   planningPeriods: any[];
   matchRounds: any[];
+  opponentTeams: any[];
   matches: any[];
   availabilities: any[];
   rotationPaths: any[];
@@ -211,14 +212,47 @@ async function main() {
       roundIdMap.set(mr.id, created.id);
     }
 
+    console.log("Importing opponent teams...");
+    const opponentTeamIdMap = new Map<string, string>();
+    if (data.opponentTeams && Array.isArray(data.opponentTeams)) {
+      for (const ot of data.opponentTeams) {
+        const created = await db.opponentTeam.create({
+          data: {
+            id: ot.id,
+            displayName: ot.displayName,
+            normalizedName: ot.normalizedName,
+            archivedAt: ot.archivedAt ? new Date(ot.archivedAt) : null,
+          },
+        });
+        opponentTeamIdMap.set(ot.id, created.id);
+      }
+    }
+
     console.log("Importing matches...");
     for (const m of data.matches) {
+      let opponentTeamId: string;
+      if (m.opponentTeamId && opponentTeamIdMap.has(m.opponentTeamId)) {
+        opponentTeamId = opponentTeamIdMap.get(m.opponentTeamId)!;
+      } else {
+        const rawName = (m.opponent ?? "").trim().replace(/\s+/g, " ");
+        const normalizedName = rawName.toLowerCase();
+        const displayName = rawName || "Unknown";
+        const existing = await db.opponentTeam.findUnique({ where: { normalizedName } });
+        if (existing) {
+          opponentTeamId = existing.id;
+        } else {
+          const created = await db.opponentTeam.create({ data: { displayName, normalizedName } });
+          opponentTeamId = created.id;
+        }
+      }
+
       await db.match.create({
         data: {
           id: m.id,
           matchRoundId: roundIdMap.get(m.matchRoundId) ?? m.matchRoundId,
           teamId: m.teamId,
           opponent: m.opponent ?? "",
+          opponentTeamId,
           startsAt: new Date(m.startsAt),
           homeAway: m.homeAway ?? "HOME",
           squadSize: m.squadSize ?? 11,

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 import { getSeasonFairnessWarnings } from "@/lib/selection/get-season-overview";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
 let fixtureIds: TestFixtureIds;
@@ -113,12 +114,24 @@ describe("Season fairness warnings — new warnings", () => {
         },
       });
 
+      const opponentName = `Opponent ${i + 1}`;
+      const normalizedName = normalizeOpponentName(opponentName);
+      const displayName = cleanOpponentDisplayName(opponentName);
+      const ot = await testDb.opponentTeam.upsert({
+        where: { normalizedName },
+        update: { displayName },
+        create: { displayName, normalizedName },
+      });
+      const opponentTeamId = ot.id;
+      fixtureIds.opponentTeamIds[normalizedName] = opponentTeamId;
+
       const match = await testDb.match.create({
         data: {
           teamId: rodTeamId,
           matchRoundId: mr.id,
           startsAt: new Date(Date.now() + (i + 10) * 7 * 24 * 60 * 60 * 1000),
-          opponent: `Opponent ${i + 1}`,
+          opponent: opponentName,
+          opponentTeamId,
           homeAway: "HOME",
           matchType: "LEAGUE",
           gameFormat: "ELEVEN_A_SIDE",

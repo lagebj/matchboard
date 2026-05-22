@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 function readText(formData: FormData, fieldName: string): string {
@@ -72,6 +73,15 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       select: { id: true },
     });
     if (!team) throw new Error("Team not found.");
+
+    const normalizedName = normalizeOpponentName(opponent);
+    const displayName = cleanOpponentDisplayName(opponent);
+    const opponentTeam = await db.opponentTeam.upsert({
+      where: { normalizedName },
+      create: { displayName, normalizedName },
+      update: {},
+    });
+    const opponentTeamId = opponentTeam.id;
 
     const _weekKey = formatIsoWeekKey(startsAt);
     const weekLabel = formatIsoWeekLabel(startsAt);
@@ -152,6 +162,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       data: {
         teamId,
         opponent,
+        opponentTeamId,
         startsAt,
         homeAway,
         matchType,

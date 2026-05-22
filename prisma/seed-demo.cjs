@@ -55,11 +55,22 @@ async function main() {
     data: { name: "Team C", targetSquadSize: 11, supportPriority: 30 },
   });
 
+  const opponentTeamA = await db.opponentTeam.create({
+    data: { displayName: "Opponent A", normalizedName: "opponent a" },
+  });
+  const opponentTeamB = await db.opponentTeam.create({
+    data: { displayName: "Opponent B", normalizedName: "opponent b" },
+  });
+  const opponentTeamC = await db.opponentTeam.create({
+    data: { displayName: "Opponent C", normalizedName: "opponent c" },
+  });
+
   const _matchA = await db.match.create({
     data: {
       matchRoundId: round.id,
       teamId: teamA.id,
       opponent: "Opponent A",
+      opponentTeamId: opponentTeamA.id,
       startsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
       homeAway: "HOME",
     },
@@ -69,6 +80,7 @@ async function main() {
       matchRoundId: round.id,
       teamId: teamB.id,
       opponent: "Opponent B",
+      opponentTeamId: opponentTeamB.id,
       startsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
       homeAway: "AWAY",
     },
@@ -78,6 +90,7 @@ async function main() {
       matchRoundId: round.id,
       teamId: teamC.id,
       opponent: "Opponent C",
+      opponentTeamId: opponentTeamC.id,
       startsAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
       homeAway: "HOME",
     },

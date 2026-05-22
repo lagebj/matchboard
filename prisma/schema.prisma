@@ -96,6 +96,7 @@ model Match {
   matchRoundId                String
   teamId                      String
   opponent                    String
+  opponentTeamId              String
   startsAt                    DateTime
   homeAway                    MatchVenue
   squadSize                   Int        @default(11)
@@ -110,11 +111,28 @@ model Match {
 
   matchRound MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   team       Team       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  opponentTeam OpponentTeam @relation(fields: [opponentTeamId], references: [id], onDelete: Restrict)
   selections Selection[]
   movementLedger MovementLedger[]
   teamReflection  TeamReflection?
   executionFeedback MatchExecutionFeedback[]
+  opponentObservation OpponentEncounterObservation?
   @@index([startsAt, createdAt])
+  @@index([opponentTeamId])
+}
+
+model OpponentTeam {
+  id             String   @id @default(cuid())
+  displayName    String
+  normalizedName String   @unique
+  archivedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  matches       Match[]
+  observations  OpponentEncounterObservation[]
+
+  @@index([archivedAt, displayName])
 }
 
 model RuleConfig {
@@ -314,6 +332,34 @@ enum MatchFit {
   CHAOTIC
   SUPPORT_OVERPOWERED
   SUPPORT_TOO_LOW
+}
+
+enum MatchEnvironmentObservation {
+  NOT_ASSESSED
+  POSITIVE
+  ACCEPTABLE
+  CONCERN
+  SERIOUS_CONCERN
+}
+
+enum OpponentConcernCategory {
+  PRESSURE_ON_REFEREE_DECISIONS
+  DISRESPECTFUL_LANGUAGE_OR_SHOUTING
+  UNSPORTING_MATCH_CONDUCT
+  PHYSICAL_PLAY_OR_SAFETY_CONCERN
+  THREATS_OR_INTIMIDATION
+  DISCRIMINATORY_OR_DEGRADING_LANGUAGE
+  SIDELINE_ATMOSPHERE_CONCERN
+  SAFE_MATCH_FRAME_NOT_SUPPORTED
+  OTHER_OBSERVABLE_CONCERN
+}
+
+enum OpponentObservationFollowUp {
+  NONE
+  DISCUSSED_AFTER_MATCH
+  INFORMED_OWN_CLUB_FAIR_PLAY_CONTACT
+  FORMAL_FOLLOW_UP_OUTSIDE_MATCHBOARD
+  NO_FURTHER_ACTION_REQUIRED
 }
 
 enum GameFormat {
@@ -704,6 +750,28 @@ model TeamReflection {
   updatedAt       DateTime @updatedAt
 
   match           Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}
+
+model OpponentEncounterObservation {
+  id                       String                       @id @default(cuid())
+  matchId                  String                       @unique
+  opponentTeamId           String
+  overallEnvironment       MatchEnvironmentObservation  @default(NOT_ASSESSED)
+  opponentPlayersContext   MatchEnvironmentObservation  @default(NOT_ASSESSED)
+  opponentStaffContext     MatchEnvironmentObservation  @default(NOT_ASSESSED)
+  spectatorSidelineContext MatchEnvironmentObservation  @default(NOT_ASSESSED)
+  concernCategories        OpponentConcernCategory[]
+  factualSummary           String?
+  followUp                 OpponentObservationFollowUp  @default(NONE)
+  recordedBy               String?
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+
+  match         Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  opponentTeam  OpponentTeam @relation(fields: [opponentTeamId], references: [id], onDelete: Restrict)
+
+  @@index([opponentTeamId, createdAt])
+  @@index([overallEnvironment])
 }
 
 model SelectionExplanation {
