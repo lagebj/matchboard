@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "./round-list-client";
-import { severityFromCode, severityFromDbSeverity } from "@/components/ui/severity-badge";
+import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
 import { type WarningSeverity } from "@/generated/prisma/client";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 
@@ -46,7 +46,7 @@ export default async function RoundsPage() {
   });
 
   const roundItems: RoundItem[] = matchRounds.map((round) => {
-    const blockingCount = round.warnings.filter((w) => (w.severity ? severityFromDbSeverity(w.severity as WarningSeverity) : severityFromCode(w.rule)) === "blocking").length;
+    const blockedCount = round.warnings.filter((w) => signalCategoryFromSeverity(w.severity as WarningSeverity) === "BLOCKED").length;
     const hasDraftSelections = round.selections.length > 0;
     const hasMatches = round.matches.length > 0;
 
@@ -58,7 +58,7 @@ export default async function RoundsPage() {
         : round.name,
       matchCount: round.matches.length,
       teamNames: [...new Set(round.matches.map((m) => m.team.name))],
-      derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, hasMatches, blockingWarningCount: blockingCount }),
+      derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, hasMatches, blockedSignalCount: blockedCount }),
     };
   });
 

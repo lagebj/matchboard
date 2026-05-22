@@ -2,11 +2,11 @@
 
 import type { RuleImpact } from "@/domain/assistant-manager/types";
 
-function severityDot(severity: string): string {
-  switch (severity) {
-    case "HARD_BLOCKER": return "w-2 h-2 rounded-full bg-red-400 shrink-0";
-    case "WARNING": return "w-2 h-2 rounded-full bg-amber-400 shrink-0";
-    case "INFO": return "w-2 h-2 rounded-full bg-zinc-400 shrink-0";
+function signalDot(category: string): string {
+  switch (category) {
+    case "BLOCKED": return "w-2 h-2 rounded-full bg-red-400 shrink-0";
+    case "DECISION_REQUIRED": return "w-2 h-2 rounded-full bg-amber-400 shrink-0";
+    case "PLANNING_NOTE": return "w-2 h-2 rounded-full bg-zinc-400 shrink-0";
     default: return "w-2 h-2 rounded-full bg-zinc-400 shrink-0";
   }
 }
@@ -24,7 +24,7 @@ export function RuleImpactPanel({ ruleImpacts }: RuleImpactPanelProps) {
       <div className="mt-2 flex flex-col gap-2">
         {ruleImpacts.map((rule) => (
           <div key={rule.ruleId} className="flex items-start gap-2">
-            <div className="mt-1.5">{severityDot(rule.severity)}</div>
+            <div className="mt-1.5">{signalDot(rule.signalCategory)}</div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-zinc-200">{rule.ruleName}</p>
               <p className="text-[11px] text-zinc-400">{rule.effect}</p>

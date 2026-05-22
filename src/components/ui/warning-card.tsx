@@ -1,9 +1,9 @@
-import { OctagonAlert, AlertTriangle, AlertCircle, Info, type LucideIcon } from "lucide-react";
+import { OctagonAlert, AlertTriangle, FileText, type LucideIcon } from "lucide-react";
 
-type WarningSeverity = "blocking" | "high" | "medium" | "info";
+export type SignalLevel = "blocked" | "decisionRequired" | "planningNote";
 
-type WarningCardProps = {
-  severity: WarningSeverity;
+type SignalCardProps = {
+  level: SignalLevel;
   title: string;
   message: string;
   playerName?: string;
@@ -11,46 +11,39 @@ type WarningCardProps = {
   rule?: string;
 };
 
-const severityConfig: Record<WarningSeverity, { icon: LucideIcon; label: string; iconClass: string; borderClass: string; bgClass: string }> = {
-  blocking: {
+const signalConfig: Record<SignalLevel, { icon: LucideIcon; label: string; iconClass: string; borderClass: string; bgClass: string }> = {
+  blocked: {
     icon: OctagonAlert,
-    label: "Blocking",
+    label: "Blocked",
     iconClass: "text-red-400",
     borderClass: "border-red-800/50",
     bgClass: "bg-red-950/20",
   },
-  high: {
+  decisionRequired: {
     icon: AlertTriangle,
-    label: "High",
+    label: "Decision required",
     iconClass: "text-amber-400",
     borderClass: "border-amber-800/40",
     bgClass: "bg-amber-950/15",
   },
-  medium: {
-    icon: AlertCircle,
-    label: "Medium",
-    iconClass: "text-yellow-400",
-    borderClass: "border-yellow-800/30",
-    bgClass: "bg-yellow-950/10",
-  },
-  info: {
-    icon: Info,
-    label: "Info",
-    iconClass: "text-sky-400",
-    borderClass: "border-sky-800/30",
-    bgClass: "bg-sky-950/10",
+  planningNote: {
+    icon: FileText,
+    label: "Planning note",
+    iconClass: "text-zinc-400",
+    borderClass: "border-zinc-700/40",
+    bgClass: "bg-zinc-900/20",
   },
 };
 
-export function WarningCard({
-  severity,
+export function SignalCard({
+  level,
   title,
   message,
   playerName,
   teamName,
   rule,
-}: WarningCardProps) {
-  const config = severityConfig[severity] ?? severityConfig.info;
+}: SignalCardProps) {
+  const config = signalConfig[level] ?? signalConfig.planningNote;
   const Icon = config.icon;
 
   return (

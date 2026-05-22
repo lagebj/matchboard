@@ -9,25 +9,18 @@ import type {
   PostMatchPlayerActual,
   ReadinessState,
   RoundReview,
-  RuleImpactSeverity,
   SelectionExplanation,
   TeamReadiness,
 } from "./types";
 import { db } from "@/lib/db";
-import { WarningSeverity } from "@/generated/prisma/client";
+import { WarningSeverity, UnplannedAppearanceReason } from "@/generated/prisma/client";
+import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
 
 function mapSeverityToState(severity: string): ReadinessState {
   if (severity === "HARD_BLOCK") return "NOT_PLAYABLE";
   if (severity === "REQUIRES_OVERRIDE") return "AT_RISK";
   if (severity === "WARNING") return "WATCH";
   return "READY";
-}
-
-function mapSeverityToRuleImpact(severity: WarningSeverity): RuleImpactSeverity {
-  if (severity === WarningSeverity.HARD_BLOCK) return "HARD_BLOCKER";
-  if (severity === WarningSeverity.REQUIRES_OVERRIDE) return "HARD_BLOCKER";
-  if (severity === WarningSeverity.WARNING) return "WARNING";
-  return "INFO";
 }
 
 function mapSeverityToBlockerType(severity: WarningSeverity): "HARD" | "SOFT" | "NONE" {
@@ -128,14 +121,15 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
       teamReadiness: [],
       matchReviews: [],
       openIssueIds: [],
-      hardBlockerCount: 0,
-      publishable: true,
+      blockedConditionCount: 0,
+      decisionRequiredCount: 0,
+      finalizeable: true,
     };
   }
 
   const warnings = await db.warning.findMany({ where: { matchRoundId: roundId } });
-  const hardBlockers = warnings.filter((w) => w.severity === WarningSeverity.HARD_BLOCK);
-  const requiresOverride = warnings.filter((w) => w.severity === WarningSeverity.REQUIRES_OVERRIDE);
+  const blockedConditions = warnings.filter((w) => w.severity === WarningSeverity.HARD_BLOCK);
+  const decisionRequiredConditions = warnings.filter((w) => w.severity === WarningSeverity.REQUIRES_OVERRIDE);
 
   const matchReviews: MatchReview[] = await Promise.all(
     matchRound.matches.map(async (match) => {
@@ -161,7 +155,7 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
           ruleId: w.rule,
           ruleName: w.rule,
           effect: w.message,
-          severity: mapSeverityToRuleImpact(w.severity as WarningSeverity),
+          signalCategory: signalCategoryFromSeverity(w.severity as WarningSeverity),
           affectedPlayerIds: w.playerId ? [w.playerId] : [],
           affectedTeamIds: w.teamId ? [w.teamId] : [],
           blockerType: mapSeverityToBlockerType(w.severity as WarningSeverity),
@@ -194,7 +188,7 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
       supportNeeded,
       positionGaps: mr.positionGaps,
       rotationPressure: supportNeeded > 2 ? "HIGH" as const : supportNeeded > 0 ? "MEDIUM" as const : "LOW" as const,
-      warnings: mr.ruleImpacts.map((ri) => `${ri.ruleName}: ${ri.explanation}`),
+      signals: mr.ruleImpacts.map((ri) => `${ri.ruleName}: ${ri.explanation}`),
       ruleImpacts: mr.ruleImpacts,
     };
   });
@@ -214,8 +208,9 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
     teamReadiness,
     matchReviews,
     openIssueIds: [],
-    hardBlockerCount: hardBlockers.length,
-    publishable: hardBlockers.length === 0 && requiresOverride.length === 0,
+    blockedConditionCount: blockedConditions.length,
+    decisionRequiredCount: decisionRequiredConditions.length,
+    finalizeable: blockedConditions.length === 0 && decisionRequiredConditions.length === 0,
   };
 }
 
@@ -236,7 +231,7 @@ export async function getTeamReadiness(teamId: string, matchId?: string): Promis
       supportNeeded: 0,
       positionGaps: [],
       rotationPressure: "LOW",
-      warnings: [],
+      signals: [],
       ruleImpacts: [],
     };
   }
@@ -280,12 +275,12 @@ export async function getTeamReadiness(teamId: string, matchId?: string): Promis
     supportNeeded,
     positionGaps: [],
     rotationPressure: supportNeeded > 2 ? "HIGH" : supportNeeded > 0 ? "MEDIUM" : "LOW",
-    warnings: warnings.map((w) => `${w.rule}: ${w.message}`),
+    signals: warnings.map((w) => `${w.rule}: ${w.message}`),
     ruleImpacts: warnings.map((w) => ({
       ruleId: w.rule,
       ruleName: w.rule,
       effect: w.message,
-      severity: mapSeverityToRuleImpact(w.severity as WarningSeverity),
+      signalCategory: signalCategoryFromSeverity(w.severity as WarningSeverity),
       affectedPlayerIds: w.playerId ? [w.playerId] : [],
       affectedTeamIds: w.teamId ? [w.teamId] : [],
       blockerType: mapSeverityToBlockerType(w.severity as WarningSeverity),
@@ -341,7 +336,7 @@ export async function getMatchReview(matchId: string): Promise<MatchReview> {
       ruleId: w.rule,
       ruleName: w.rule,
       effect: w.message,
-      severity: mapSeverityToRuleImpact(w.severity as WarningSeverity),
+      signalCategory: signalCategoryFromSeverity(w.severity as WarningSeverity),
       affectedPlayerIds: w.playerId ? [w.playerId] : [],
       affectedTeamIds: w.teamId ? [w.teamId] : [],
       blockerType: mapSeverityToBlockerType(w.severity as WarningSeverity),
@@ -374,7 +369,7 @@ export async function getSelectionExplanation(
     summary: explanation.summary,
     rulesApplied: (explanation.rulesApplied as unknown as SelectionExplanation["rulesApplied"]) ?? [],
     blockers: (explanation.blockers as unknown as string[]) ?? [],
-    warnings: (explanation.warnings as unknown as string[]) ?? [],
+    signals: (explanation.warnings as unknown as string[]) ?? [],
     recommendations: (explanation.recommendations as unknown as SelectionExplanation["recommendations"]) ?? [],
     crossTeamImpacts: (explanation.crossTeamImpacts as unknown as SelectionExplanation["crossTeamImpacts"]) ?? [],
     createdAt: explanation.createdAt.toISOString(),
@@ -437,6 +432,7 @@ export async function getPostMatchReport(matchId: string): Promise<PostMatchRepo
     playerActuals: report.playerActuals.map((p) => ({
       playerId: p.playerId,
       attendanceStatus: p.attendanceStatus as PostMatchPlayerActual["attendanceStatus"],
+      unplannedAppearanceReason: p.unplannedAppearanceReason ?? undefined,
       actualPositions: (p.actualPositions as string[]) ?? [],
       note: p.note ?? undefined,
     })),
@@ -473,6 +469,7 @@ export async function completePostMatchReport(
           matchId,
           playerId: actual.playerId,
           attendanceStatus: actual.attendanceStatus,
+          unplannedAppearanceReason: (actual.unplannedAppearanceReason as UnplannedAppearanceReason | null | undefined) ?? null,
           actualPositions: actual.actualPositions ?? [],
           note: actual.note ?? null,
           reportId: existing.id,
@@ -496,6 +493,7 @@ export async function completePostMatchReport(
           matchId,
           playerId: actual.playerId,
           attendanceStatus: actual.attendanceStatus,
+          unplannedAppearanceReason: (actual.unplannedAppearanceReason as UnplannedAppearanceReason | null | undefined) ?? null,
           actualPositions: actual.actualPositions ?? [],
           note: actual.note ?? null,
           reportId: report.id,

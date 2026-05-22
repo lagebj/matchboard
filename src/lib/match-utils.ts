@@ -76,10 +76,10 @@ export function formatWarningCode(code: string): string {
     core_match_drop_priority: "Core match drop priority",
     self_squad_repair: "Self squad repair",
     position_mismatch: "Position mismatch",
-    controlled_double_load: "Controlled double load",
-    double_load_exceeded_max: "Double load exceeded max",
-    double_load_squad_full: "Double load: squad full",
-    double_load_insufficient_rest: "Double load: insufficient rest",
+    controlled_double_load: "Controlled double load (legacy)",
+    double_load_exceeded_max: "Double load exceeded max (legacy)",
+    double_load_squad_full: "Double load: squad full (legacy)",
+    double_load_insufficient_rest: "Double load: insufficient rest (legacy)",
     readiness_effort_trend: "Effort trend falling",
     readiness_attendance_reliability: "Low attendance reliability",
     readiness_learning_behavior: "Learning behavior needs attention",
@@ -92,10 +92,10 @@ export function formatWarningCode(code: string): string {
 
 export function formatSeverity(severity: string): string {
   switch (severity) {
-    case "HARD_BLOCK": return "Blocking";
-    case "REQUIRES_OVERRIDE": return "Requires override";
-    case "WARNING": return "Warning";
-    case "SCORING_PREFERENCE": return "Preference";
+    case "HARD_BLOCK": return "Blocked";
+    case "REQUIRES_OVERRIDE": return "Decision required";
+    case "WARNING": return "Planning note";
+    case "SCORING_PREFERENCE": return "Explanation";
     default: return severity;
   }
 }
@@ -133,11 +133,24 @@ export function formatAttendanceStatus(status: string): string {
   }
 }
 
+export const UNPLANNED_APPEARANCE_REASON_LABELS: Record<string, string> = {
+  EMERGENCY_SQUAD_COVER: "Emergency squad cover",
+  LATE_AVAILABILITY_CHANGE: "Late availability change",
+  NO_SHOW_REPLACEMENT: "No-show replacement",
+  INJURY_REPLACEMENT: "Injury replacement",
+  OTHER_RECORDED_REASON: "Other recorded reason",
+};
+
+export function formatUnplannedAppearanceReason(reason: string): string {
+  return UNPLANNED_APPEARANCE_REASON_LABELS[reason] ?? reason.replace(/_/g, " ");
+}
+
 export const OVERRIDE_REASON_CATEGORY_LABELS: Record<string, string> = {
   squad_too_small: "Squad too small",
   support_missing: "Support missing",
   development_opportunity: "Development opportunity",
-  double_load_needed: "Double load needed",
+  no_planned_match_opportunity: "No planned match opportunity",
+  double_load_needed: "Double load needed (legacy)",
   availability_changed: "Availability changed",
   coach_judgement: "Coach judgement",
   match_already_played: "Match already played",

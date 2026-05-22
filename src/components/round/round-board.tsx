@@ -15,7 +15,7 @@ import {
   GripVertical,
   XCircle,
   Lock,
-  Unlock,
+  RotateCcw,
 } from "lucide-react";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
@@ -61,13 +61,19 @@ type MatchColumn = {
   coachingIntentId?: string;
 };
 
-type WarningEntry = {
+type SignalEntry = {
   code: string;
   message: string;
   severity?: WarningSeverity;
   playerId?: string;
   playerName?: string;
   teamName?: string;
+};
+
+type SignalSummary = {
+  blocked: number;
+  decisionRequired: number;
+  planningNote: number;
 };
 
 type RoundBoardProps = {
@@ -79,13 +85,8 @@ type RoundBoardProps = {
   matches: MatchColumn[];
   availablePlayers: PlayerInColumn[];
   rotationPathMap: Record<string, string[]>;
-  warnings: WarningEntry[];
-  warningSummary?: {
-    blocking: number;
-    high: number;
-    medium: number;
-    info: number;
-  };
+  warnings: SignalEntry[];
+  signalSummary?: SignalSummary;
   movementSummary: {
     supportSent: number;
     supportReceived: number;
@@ -303,7 +304,7 @@ function MatchColumnComponent({
               type="button"
               title="Un-finalize this match"
             >
-              <Unlock className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           )}
           {!match.isFinalized && (
@@ -368,7 +369,7 @@ export function RoundBoard({
   availablePlayers: initialAvailable,
   rotationPathMap,
   warnings,
-  warningSummary,
+  signalSummary,
   movementSummary,
   fairnessMetrics,
 }: RoundBoardProps) {
@@ -418,13 +419,15 @@ export function RoundBoard({
     return assigned < m.minSquadSize;
   }).length;
   const squadRepairNeeded = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length, 0);
-  const blockingWarnings = warningSummary?.blocking ?? 0;
+  const blockedCount = signalSummary?.blocked ?? 0;
+  const decisionRequiredCount = signalSummary?.decisionRequired ?? 0;
+  const _planningNoteCount = signalSummary?.planningNote ?? 0;
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
     hasDraftSelections,
     hasMatches,
-    blockingWarningCount: blockingWarnings,
+    blockedSignalCount: blockedCount,
   });
 
   const assignedPlayerIds = new Set<string>();
@@ -625,11 +628,11 @@ export function RoundBoard({
     form.submit();
   };
 
-  const actionableWarnings = warnings.filter(
+  const prominentSignals = warnings.filter(
     (w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE",
   );
-  const informationalWarnings = warnings.filter(
-    (w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE",
+  const planningNotes = warnings.filter(
+    (w) => w.severity === "WARNING",
   );
 
   const [availableDragOver, setAvailableDragOver] = useState(false);
@@ -641,7 +644,8 @@ export function RoundBoard({
         completeTeams={completeTeams}
         teamsNeedingSupport={teamsNeedingSupport}
         squadRepairNeeded={squadRepairNeeded}
-        blockingWarnings={blockingWarnings}
+        blockedCount={blockedCount}
+        decisionRequiredCount={decisionRequiredCount}
         totalSelected={totalSelected}
         totalTarget={totalTarget}
       />
@@ -695,32 +699,32 @@ export function RoundBoard({
             onClick={() => setShowUnfinalizeConfirm(true)}
             type="button"
           >
-            <Unlock className="mr-1 inline h-3.5 w-3.5" />
+            <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
             Un-finalize round
           </button>
         </div>
       )}
 
-      {actionableWarnings.length > 0 && (
+      {prominentSignals.length > 0 && (
         <div className="flex items-center gap-1.5 text-xs text-amber-300">
           <AlertTriangle className="h-3.5 w-3.5" />
-          <span>{actionableWarnings.length} actionable {actionableWarnings.length === 1 ? "warning" : "warnings"} — see player markers below</span>
+          <span>{prominentSignals.length} {prominentSignals.length === 1 ? "issue needs attention" : "issues need attention"} — see player markers below</span>
         </div>
       )}
 
-      {informationalWarnings.length > 0 && (
+      {planningNotes.length > 0 && (
         <button
           className="text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors text-left"
           onClick={() => setShowAllWarnings(!showAllWarnings)}
           type="button"
         >
-          {showAllWarnings ? "Hide" : `Show ${informationalWarnings.length} informational ${informationalWarnings.length === 1 ? "warning" : "warnings"}`}
+          {showAllWarnings ? "Hide" : `Show ${planningNotes.length} planning ${planningNotes.length === 1 ? "note" : "notes"}`}
         </button>
       )}
 
-      {showAllWarnings && informationalWarnings.length > 0 && (
+      {showAllWarnings && planningNotes.length > 0 && (
         <div className="flex flex-col gap-1">
-          {informationalWarnings.map((w, i) => (
+          {planningNotes.map((w, i) => (
             <div
               key={`info-${w.code}-${i}`}
               className="rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-1.5 text-[11px] text-zinc-400"
@@ -836,13 +840,13 @@ export function RoundBoard({
         isOpen={showFinalizeDialog}
         onClose={() => setShowFinalizeDialog(false)}
         onConfirm={handleFinalize}
-        blockingWarningCount={warningSummary?.blocking ?? 0}
-        requiresOverrideCount={warningSummary?.high ?? 0}
-        totalWarnings={warnings.length}
+        blockedCount={blockedCount}
+        decisionRequiredCount={decisionRequiredCount}
+        totalSignalCount={prominentSignals.length + planningNotes.length}
         selectedCount={totalSelected}
         targetSquadSize={totalTarget}
         matchCount={matches.length}
-        warnings={actionableWarnings.map((w) => ({ severity: w.severity ?? "WARNING", message: w.message, rule: w.code }))}
+        signals={prominentSignals.map((w) => ({ severity: w.severity ?? "WARNING", message: w.message, rule: w.code }))}
       />
 
       {showClearRoundDialog && (
@@ -852,7 +856,7 @@ export function RoundBoard({
             <div className="flex flex-col gap-4 px-5 py-4">
               <h3 className="text-base font-semibold text-zinc-100">Clear round draft</h3>
               <p className="text-sm text-zinc-300">
-                Remove all draft selections and warnings for this round. Finalized data will not be affected.
+                Remove all draft selections and plan integrity signals for this round. Finalized data will not be affected.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
@@ -917,14 +921,14 @@ export function RoundBoard({
                         {hardBlocks > 0 && (
                           <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
                             <span className="text-sm text-red-300">
-                              {hardBlocks} blocking {hardBlocks === 1 ? "issue" : "issues"} — override reason required
+                              {hardBlocks} Blocked {hardBlocks === 1 ? "condition" : "conditions"} — override reason required
                             </span>
                           </div>
                         )}
                         {requiresOverride > 0 && (
                           <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
                             <span className="text-sm text-amber-300">
-                              {requiresOverride} {requiresOverride === 1 ? "issue requires" : "issues require"} override reason
+                              {requiresOverride} {requiresOverride === 1 ? "decision requires" : "decisions require"} override reason
                             </span>
                           </div>
                         )}

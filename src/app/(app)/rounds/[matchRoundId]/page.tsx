@@ -349,11 +349,10 @@ export default async function RoundBoardPage({
     teamName: matchRound.matches.find((m) => m.teamId === w.teamId)?.team.name,
   }));
 
-  const warningSummary = {
-    blocking: unresolvedWarnings.filter((w) => w.severity === "HARD_BLOCK").length,
-    high: unresolvedWarnings.filter((w) => w.severity === "REQUIRES_OVERRIDE").length,
-    medium: unresolvedWarnings.filter((w) => w.severity === "WARNING").length,
-    info: unresolvedWarnings.filter((w) => w.severity === "SCORING_PREFERENCE").length,
+  const signalSummary = {
+    blocked: unresolvedWarnings.filter((w) => w.severity === "HARD_BLOCK").length,
+    decisionRequired: unresolvedWarnings.filter((w) => w.severity === "REQUIRES_OVERRIDE").length,
+    planningNote: unresolvedWarnings.filter((w) => w.severity === "WARNING" || w.severity === "SCORING_PREFERENCE").length,
   };
 
   const uniqueSelectedPlayerIds = new Set<string>();
@@ -383,7 +382,7 @@ export default async function RoundBoardPage({
     hasMatches: matchRound.matches.length > 0,
     squads,
     warnings,
-    warningSummary,
+    signalSummary,
     movementSummary: {
       supportSent: totalSupportSent,
       supportReceived: totalSupportReceived,
@@ -489,7 +488,7 @@ export default async function RoundBoardPage({
         availablePlayers={boardAvailablePlayers}
         rotationPathMap={rotationPathMap}
         warnings={warnings}
-        warningSummary={warningSummary}
+        signalSummary={signalSummary}
         movementSummary={{
           supportSent: totalSupportSent,
           supportReceived: totalSupportReceived,

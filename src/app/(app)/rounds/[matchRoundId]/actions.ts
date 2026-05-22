@@ -33,7 +33,7 @@ export async function finalizeRoundAction(formData: FormData) {
   if (!result.success) {
     const queryParams: Record<string, string> = {};
     if (result.needsOverride) {
-      queryParams.error = "Override reason required: provide a reason to finalize despite warnings.";
+      queryParams.error = "Override reason required: provide a reason to finalize despite Blocked conditions.";
     } else {
       queryParams.error = "Finalization failed.";
     }

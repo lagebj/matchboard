@@ -18,9 +18,6 @@ type RotationPathDetail = {
   maximumCount: number | null;
   cooldownRounds: number | null;
   active: boolean;
-  allowDoubleLoad: boolean;
-  minRestSpacingHours: number | null;
-  maxDoubleLoadsPerPeriod: number | null;
 };
 
 function formatRoleDisplay(role: string): string {
@@ -149,9 +146,6 @@ export function RotationPathCard({
         {path.targetCount != null && <span>Target {path.targetCount}</span>}
         {path.maximumCount != null && <span>Max {path.maximumCount}</span>}
         {path.cooldownRounds != null && <span>Cooldown {path.cooldownRounds}r</span>}
-        {path.allowDoubleLoad && <span className="text-[var(--warning)]">Double-load</span>}
-        {path.minRestSpacingHours != null && <span>Rest {path.minRestSpacingHours}h</span>}
-        {path.maxDoubleLoadsPerPeriod != null && <span>Max DL {path.maxDoubleLoadsPerPeriod}/period</span>}
       </div>
 
       <div className="mt-3 flex items-center gap-2">
@@ -275,48 +269,6 @@ function RotationPathEditForm({
           />
         </label>
       </div>
-
-      <details className="mt-3 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-[rgba(255,255,255,0.04)]">
-          Double-load settings
-        </summary>
-        <div className="grid gap-3 p-3 sm:grid-cols-3">
-          <label className="flex items-center gap-2 text-sm text-zinc-100">
-            <input
-              name="allowDoubleLoad"
-              type="checkbox"
-              defaultChecked={path.allowDoubleLoad}
-              className="h-4 w-4 rounded"
-              disabled={isPending}
-            />
-            Allow double-load
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-100">
-            Min rest (hours)
-            <input
-              name="minRestSpacingHours"
-              type="number"
-              min={0}
-              defaultValue={path.minRestSpacingHours ?? ""}
-              className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 font-normal text-zinc-50"
-              disabled={isPending}
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-100">
-            Max DL/period
-            <input
-              name="maxDoubleLoadsPerPeriod"
-              type="number"
-              min={0}
-              defaultValue={path.maxDoubleLoadsPerPeriod ?? ""}
-              className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 font-normal text-zinc-50"
-              disabled={isPending}
-            />
-          </label>
-        </div>
-      </details>
 
       <label className="mt-3 flex items-center gap-2 text-sm text-zinc-100">
         <input

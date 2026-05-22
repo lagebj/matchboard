@@ -48,10 +48,10 @@ describe("generateRoundIssues", () => {
       where: { entityId: fixture.matchRoundId, entityType: "ROUND" },
     });
     expect(issues.length).toBeGreaterThanOrEqual(1);
-    const hardBlockerIssue = issues.find((i) => i.type === "HARD_BLOCKER_PREVENTS_PUBLISH");
+    const hardBlockerIssue = issues.find((i) => i.type === "BLOCKED_CONDITION_PREVENTS_FINALIZE");
     expect(hardBlockerIssue).toBeDefined();
     expect(hardBlockerIssue!.severity).toBe("BLOCKED");
-    expect(hardBlockerIssue!.title).toContain("Hard blocker");
+    expect(hardBlockerIssue!.title).toContain("Blocked condition");
   });
 
   it("creates TEAM_NEEDS_SUPPORT issue for team-level warnings", async () => {

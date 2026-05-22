@@ -72,7 +72,7 @@ export function OverrideReasonInput({
             id="override-reason-detail"
             className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
             rows={2}
-            placeholder="Explain why you are overriding this warning..."
+            placeholder="Explain why you are overriding this condition..."
             value={value.detail}
             onChange={(e) => onChange({ ...value, detail: e.target.value })}
           />

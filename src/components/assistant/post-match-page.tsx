@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { formatSelectionRole, formatAttendanceStatus } from "@/lib/match-utils";
+import { formatSelectionRole, formatAttendanceStatus, formatUnplannedAppearanceReason, UNPLANNED_APPEARANCE_REASON_LABELS } from "@/lib/match-utils";
 import type { SelectionRole } from "@/generated/prisma/client";
 import {
   seedMatchReport,
@@ -51,6 +51,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
   const [awayGoals, setAwayGoals] = useState(initialReport?.awayGoals?.toString() ?? "");
   const [teamNote, setTeamNote] = useState(initialReport?.teamNote ?? "");
   const [newPlayerId, setNewPlayerId] = useState("");
+  const [newPlayerReason, setNewPlayerReason] = useState<string>("");
   const [newGoalPlayerId, setNewGoalPlayerId] = useState("");
   const [newGoalMinute, setNewGoalMinute] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -93,8 +94,9 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
       const result = await addActualPlayer(report.id, {
         playerId: newPlayerId,
         attendanceStatus: "PRESENT",
+        unplannedAppearanceReason: newPlayerReason || undefined,
       });
-      if (result.success) { setNewPlayerId(""); router.refresh(); }
+      if (result.success) { setNewPlayerId(""); setNewPlayerReason(""); router.refresh(); }
       else setError(result.error ?? "Failed to add player.");
     });
   };
@@ -518,6 +520,11 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
                 <span className={`text-[10px] px-1.5 py-0.5 rounded border ${p.source === "PLANNED" ? "border-zinc-600/40 bg-zinc-800/30 text-zinc-400" : "border-amber-700/40 bg-amber-900/15 text-amber-300"}`}>
                   {sourceLabel(p.source)}
                 </span>
+                {p.source !== "PLANNED" && p.unplannedAppearanceReason && (
+                  <span className="text-[10px] text-zinc-400">
+                    {formatUnplannedAppearanceReason(p.unplannedAppearanceReason)}
+                  </span>
+                )}
                 {!isLocked && (
                   <select
                     value={p.attendanceStatus}
@@ -561,6 +568,17 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
                 .map((p) => (
                   <option key={p.id} value={p.id}>{p.name} ({p.teamName})</option>
                 ))}
+            </select>
+            <select
+              value={newPlayerReason}
+              onChange={(e) => setNewPlayerReason(e.target.value)}
+              className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 py-1 text-xs text-zinc-100"
+              disabled={isPending}
+            >
+              <option value="">Reason…</option>
+              {Object.entries(UNPLANNED_APPEARANCE_REASON_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
             <button
               className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"

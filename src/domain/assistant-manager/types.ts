@@ -29,10 +29,12 @@ export type AssistantIssueType =
   | "PLAYER_HIGH_MATCH_LOAD"
   | "POSITION_GAP"
   | "SUPPORT_MOVE_WEAKENS_SOURCE_TEAM"
-  | "HARD_BLOCKER_PREVENTS_PUBLISH"
+  | "BLOCKED_CONDITION_PREVENTS_FINALIZE"
   | "POST_MATCH_REPORT_MISSING";
 
-export type RuleImpactSeverity = "INFO" | "WARNING" | "HARD_BLOCKER";
+import type { SignalCategory } from "@/lib/selection/signal-category";
+
+export type { SignalCategory };
 
 export type BlockerType = "NONE" | "SOFT" | "HARD";
 
@@ -48,7 +50,7 @@ export type DecisionAction =
   | "OVERRIDE_BLOCKER"
   | "APPROVE_DRAFT"
   | "REJECT_DRAFT"
-  | "PUBLISH"
+  | "FINALIZE"
   | "MARK_STALE"
   | "DISMISS"
   | "MARK_MATCH_COMPLETE"
@@ -98,7 +100,7 @@ export interface RuleImpact {
   ruleId: string;
   ruleName: string;
   effect: string;
-  severity: RuleImpactSeverity;
+  signalCategory: SignalCategory;
   affectedPlayerIds: string[];
   affectedTeamIds: string[];
   blockerType: BlockerType;
@@ -124,7 +126,7 @@ export interface Recommendation {
   confidence: RecommendationConfidence;
   suggestedActions: string[];
   rulesApplied: RuleImpact[];
-  warnings: string[];
+  signals: string[];
   blockers: string[];
   crossTeamImpacts: CrossTeamImpact[];
 }
@@ -139,7 +141,7 @@ export interface SelectionExplanation {
   summary: string;
   rulesApplied: RuleImpact[];
   blockers: string[];
-  warnings: string[];
+  signals: string[];
   recommendations: Recommendation[];
   crossTeamImpacts: CrossTeamImpact[];
   createdAt: string;
@@ -174,7 +176,7 @@ export interface TeamReadiness {
   supportNeeded: number;
   positionGaps: string[];
   rotationPressure: "LOW" | "MEDIUM" | "HIGH";
-  warnings: string[];
+  signals: string[];
   ruleImpacts: RuleImpact[];
   recommendation?: Recommendation;
 }
@@ -205,13 +207,15 @@ export interface RoundReview {
   teamReadiness: TeamReadiness[];
   matchReviews: MatchReview[];
   openIssueIds: string[];
-  hardBlockerCount: number;
-  publishable: boolean;
+  blockedConditionCount: number;
+  decisionRequiredCount: number;
+  finalizeable: boolean;
 }
 
 export interface PostMatchPlayerActual {
   playerId: string;
   attendanceStatus: AttendanceStatus;
+  unplannedAppearanceReason?: string;
   actualPositions?: string[];
   note?: string;
 }

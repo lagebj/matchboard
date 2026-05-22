@@ -1,7 +1,7 @@
 export type SelectionCategory = "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL" | "CONFIDENCE_REBUILD" | "MANUAL";
 export type AutomaticSelectionCategory = Exclude<SelectionCategory, "MANUAL">;
 export type GenerationCategory = "CORE" | "SUPPORT" | "DEVELOPMENT";
-export type OverrideReasonCategory = "squad_too_small" | "support_missing" | "development_opportunity" | "double_load_needed" | "availability_changed" | "coach_judgement" | "match_already_played" | "data_correction" | "other";
+export type OverrideReasonCategory = "squad_too_small" | "support_missing" | "development_opportunity" | "no_planned_match_opportunity" | "double_load_needed" | "availability_changed" | "coach_judgement" | "match_already_played" | "data_correction" | "other";
 
 export type ExplanationRecord = {
   code: string;
@@ -113,6 +113,7 @@ export const OVERRIDE_REASON_CATEGORIES: OverrideReasonCategory[] = [
   "squad_too_small",
   "support_missing",
   "development_opportunity",
+  "no_planned_match_opportunity",
   "double_load_needed",
   "availability_changed",
   "coach_judgement",
@@ -124,6 +125,7 @@ export const OVERRIDE_REASON_CATEGORIES: OverrideReasonCategory[] = [
 export const HARD_RULE_OVERRIDE_CATEGORIES: OverrideReasonCategory[] = [
   "squad_too_small",
   "support_missing",
+  "no_planned_match_opportunity",
   "double_load_needed",
   "availability_changed",
   "data_correction",

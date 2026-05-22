@@ -19,9 +19,9 @@ type IssueMapping = {
 };
 
 const WARNING_TO_ISSUE_TYPE: Record<string, string> = {
-  player_in_multiple_matches: "HARD_BLOCKER_PREVENTS_PUBLISH",
-  duplicate_player_in_match: "HARD_BLOCKER_PREVENTS_PUBLISH",
-  invariant_invalid_non_core_selection: "HARD_BLOCKER_PREVENTS_PUBLISH",
+  player_in_multiple_matches: "BLOCKED_CONDITION_PREVENTS_FINALIZE",
+  duplicate_player_in_match: "BLOCKED_CONDITION_PREVENTS_FINALIZE",
+  invariant_invalid_non_core_selection: "BLOCKED_CONDITION_PREVENTS_FINALIZE",
   support_requirement_shortfall: "TEAM_NEEDS_SUPPORT",
   squad_repair_shortfall_after_resolution: "TEAM_NEEDS_SUPPORT",
   squad_below_minimum: "TEAM_NEEDS_SUPPORT",
@@ -107,21 +107,21 @@ export async function generateRoundIssues(matchRoundId: string): Promise<number>
 
   const issues: IssueMapping[] = [];
 
-  const hardBlockerCount = warnings.filter((w) => w.severity === WarningSeverity.HARD_BLOCK).length;
+  const blockedConditionCount = warnings.filter((w) => w.severity === WarningSeverity.HARD_BLOCK).length;
 
-  if (hardBlockerCount > 0) {
+  if (blockedConditionCount > 0) {
     issues.push({
-      type: "HARD_BLOCKER_PREVENTS_PUBLISH",
+      type: "BLOCKED_CONDITION_PREVENTS_FINALIZE",
       severity: "BLOCKED",
-      title: "Hard blockers prevent publishing",
-      summary: `${hardBlockerCount} hard blocker${hardBlockerCount !== 1 ? "s" : ""} must be resolved before this round can be published.`,
+      title: "Blocked conditions prevent finalization",
+      summary: `${blockedConditionCount} Blocked ${blockedConditionCount !== 1 ? "conditions" : "condition"} must be resolved or overridden before this round can be finalized.`,
       entityType: "ROUND",
       entityId: matchRoundId,
       affectedTeamIds: [...new Set(warnings.filter((w) => w.teamId).map((w) => w.teamId!))],
       affectedPlayerIds: [...new Set(warnings.filter((w) => w.playerId).map((w) => w.playerId!))],
       ruleIds: warnings.filter((w) => w.severity === WarningSeverity.HARD_BLOCK).map((w) => w.rule),
-      recommendedAction: "Resolve hard blockers before publishing.",
-      primaryActionLabel: "Review blockers",
+      recommendedAction: "Review Blocked conditions and provide override reason to finalize.",
+      primaryActionLabel: "Review conditions",
       primaryActionHref: `/rounds/${matchRoundId}/review`,
     });
   }

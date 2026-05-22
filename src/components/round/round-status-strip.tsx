@@ -1,5 +1,6 @@
 import {
   OctagonAlert,
+  AlertTriangle,
   ShieldCheck,
   ArrowLeftRight,
   Users,
@@ -11,7 +12,8 @@ type RoundStatusStripProps = {
   completeTeams: number;
   teamsNeedingSupport: number;
   squadRepairNeeded: number;
-  blockingWarnings: number;
+  blockedCount: number;
+  decisionRequiredCount: number;
   totalSelected: number;
   totalTarget: number;
 };
@@ -28,7 +30,8 @@ export function RoundStatusStrip({
   completeTeams,
   teamsNeedingSupport,
   squadRepairNeeded,
-  blockingWarnings,
+  blockedCount,
+  decisionRequiredCount,
   totalSelected,
   totalTarget,
 }: RoundStatusStripProps) {
@@ -59,12 +62,21 @@ export function RoundStatusStrip({
     });
   }
 
-  if (blockingWarnings > 0) {
+  if (blockedCount > 0) {
     items.push({
       icon: OctagonAlert,
-      label: "Blocking",
-      value: blockingWarnings,
+      label: "Blocked",
+      value: blockedCount,
       variant: "danger",
+    });
+  }
+
+  if (decisionRequiredCount > 0) {
+    items.push({
+      icon: AlertTriangle,
+      label: "Decision required",
+      value: decisionRequiredCount,
+      variant: "warning",
     });
   }
 

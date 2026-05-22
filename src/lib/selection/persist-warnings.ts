@@ -1,74 +1,27 @@
 import { WarningSeverity } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import type { GeneratedRound, SelectionWarning } from "@/lib/selection/types";
+import {
+  type SignalCategory,
+  type WarningSeverityValue,
+  mapWarningSeverity,
+  mapToSignalCategory,
+  signalCategoryFromSeverity,
+  signalCategoryLabel,
+} from "./signal-category";
 
-const HARD_BLOCK_CODES = new Set([
-  "player_in_multiple_matches",
-  "duplicate_player_in_match",
-  "invariant_invalid_non_core_selection",
+export type { SignalCategory, WarningSeverityValue };
+export { mapWarningSeverity, mapToSignalCategory, signalCategoryFromSeverity, signalCategoryLabel };
+
+const severityToDBSeverity = new Map<WarningSeverityValue, WarningSeverity>([
+  ["HARD_BLOCK", WarningSeverity.HARD_BLOCK],
+  ["REQUIRES_OVERRIDE", WarningSeverity.REQUIRES_OVERRIDE],
+  ["WARNING", WarningSeverity.WARNING],
+  ["SCORING_PREFERENCE", WarningSeverity.SCORING_PREFERENCE],
 ]);
 
-const REQUIRES_OVERRIDE_CODES = new Set([
-  "support_requirement_shortfall",
-  "squad_repair_shortfall_after_resolution",
-  "squad_below_minimum",
-  "repair_requires_override",
-  "repair_below_minimum",
-  "squad_repair_no_path_available",
-  "round_player_conflict_removed",
-]);
-
-const WARNING_CODES = new Set([
-  "support_shortfall_after_resolution",
-  "support_below_target",
-  "squad_repair_below_target",
-  "short_squad",
-  "core_player_unselected",
-  "support_avoid_suitability",
-  "support_no_show_history",
-  "unknown_availability_support",
-  "tentative_availability",
-  "position_mismatch",
-  "repair_no_replacement_target_shortfall",
-  "support_target_not_reached",
-  "double_load_exceeded_max",
-  "double_load_squad_full",
-]);
-
-const SCORING_PREFERENCE_CODES = new Set([
-  "core_player_overflow",
-  "development_slot_shortfall",
-  "support_backfill_priority",
-  "player_locked_in_blocked",
-  "round_support_resolution",
-  "support_priority_order",
-  "core_match_drop_for_support",
-  "core_match_drop_routed",
-  "core_match_drop_priority",
-  "self_squad_repair",
-  "squad_repair_priority_1_own_support",
-  "squad_repair_priority_2_path_player",
-  "squad_repair_priority_3_other",
-  "controlled_double_load",
-  "double_load_insufficient_rest",
-  "registered_match_conflict",
-  "registered_minimum_match_spacing",
-  "round_player_conflict",
-  "round_conflict_demoted",
-  "readiness_effort_trend",
-  "readiness_attendance_reliability",
-  "readiness_learning_behavior",
-  "readiness_team_first_behavior",
-  "readiness_reset_after_error_reliability",
-  "readiness_coach_trust",
-]);
-
-export function mapWarningSeverity(code: string): WarningSeverity {
-  if (HARD_BLOCK_CODES.has(code)) return WarningSeverity.HARD_BLOCK;
-  if (REQUIRES_OVERRIDE_CODES.has(code)) return WarningSeverity.REQUIRES_OVERRIDE;
-  if (WARNING_CODES.has(code)) return WarningSeverity.WARNING;
-  if (SCORING_PREFERENCE_CODES.has(code)) return WarningSeverity.SCORING_PREFERENCE;
-  return WarningSeverity.WARNING;
+function mapWarningSeverityToDB(code: string): WarningSeverity {
+  return severityToDBSeverity.get(mapWarningSeverity(code)) ?? WarningSeverity.WARNING;
 }
 
 export type PersistableWarning = {
@@ -92,7 +45,7 @@ function enrichWarning(
     matchId: warning.matchId ?? null,
     playerId: warning.playerId ?? null,
     teamId: warning.teamId ?? null,
-    severity: mapWarningSeverity(warning.code),
+    severity: mapWarningSeverityToDB(warning.code),
     rule: warning.code,
     message: warning.message,
   };

@@ -99,6 +99,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
       coreTeamName: p.player.coreTeam?.name ?? "Unassigned",
       source: p.source,
       attendanceStatus: p.attendanceStatus,
+      unplannedAppearanceReason: p.unplannedAppearanceReason,
     })),
     goals: report.goals.map((g) => ({
       id: g.id,

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Unlock } from "lucide-react";
+import { ShieldCheck, RotateCcw } from "lucide-react";
 import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 
@@ -254,7 +254,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                       }}
                       type="button"
                     >
-                      <Unlock className="mr-1 inline h-3.5 w-3.5" />
+                      <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
                       {isPending ? "Un-finalizing..." : "Un-finalize"}
                     </button>
                   </div>
@@ -280,9 +280,9 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
               router.refresh();
             });
           }}
-          blockingWarningCount={0}
-          requiresOverrideCount={0}
-          totalWarnings={0}
+          blockedCount={0}
+          decisionRequiredCount={0}
+          totalSignalCount={0}
           selectedCount={0}
           targetSquadSize={0}
           matchCount={0}
@@ -296,7 +296,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
             <div className="flex flex-col gap-4 px-5 py-4">
               <h3 className="text-base font-semibold text-zinc-100">Clear all draft selections</h3>
               <p className="text-sm text-zinc-300">
-                This will remove all non-finalized draft selections, warnings, and explanations across all rounds.
+                This will remove all non-finalized draft selections, plan integrity signals, and explanations across all rounds.
               </p>
               <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
                 <p className="text-sm text-amber-300">Finalized rounds and setup data will not be affected. This action cannot be undone.</p>

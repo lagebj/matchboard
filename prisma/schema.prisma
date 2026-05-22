@@ -311,6 +311,7 @@ enum OverrideReasonCategory {
   SQUAD_TOO_SMALL
   SUPPORT_MISSING
   DEVELOPMENT_OPPORTUNITY
+  NO_PLANNED_MATCH_OPPORTUNITY
   DOUBLE_LOAD_NEEDED
   AVAILABILITY_CHANGED
   COACH_JUDGEMENT
@@ -609,6 +610,14 @@ enum PlannedAbsenceReason {
   OTHER
 }
 
+enum UnplannedAppearanceReason {
+  EMERGENCY_SQUAD_COVER
+  LATE_AVAILABILITY_CHANGE
+  NO_SHOW_REPLACEMENT
+  INJURY_REPLACEMENT
+  OTHER_RECORDED_REASON
+}
+
 model PostMatchReport {
   id          String             @id @default(cuid())
   matchId     String             @unique
@@ -633,6 +642,7 @@ model PostMatchPlayerActual {
   matchId          String
   playerId         String
   source           String   @default("PLANNED")
+  unplannedAppearanceReason UnplannedAppearanceReason?
   attendanceStatus String   @default("UNKNOWN")
   actualPositions  Json?
   note             String?
