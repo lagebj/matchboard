@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
+import { PreviousEncountersPanel } from "@/components/opponents/previous-encounters-panel";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 
 export const dynamic = "force-dynamic";
@@ -117,6 +118,9 @@ export default async function MatchDetailPage({
             : undefined,
         }}
       />
+      {match.opponentTeamId && (
+        <PreviousEncountersPanel opponentTeamId={match.opponentTeamId} />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PostMatchPage } from "@/components/assistant/post-match-page";
 import { MatchFeedbackSection } from "@/components/matches/match-feedback-section";
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
+import { ObservationSection } from "@/components/opponents/observation-section";
 import { requireCoachAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,13 +16,14 @@ export default async function PostMatchRoute({ params }: PageProps) {
   await requireCoachAccess();
   const { matchId } = await params;
 
-  const match = await db.match.findUnique({
+   const match = await db.match.findUnique({
     where: { id: matchId },
     select: {
       id: true,
       teamId: true,
       opponent: true,
       homeAway: true,
+      matchFit: true,
       team: { select: { id: true, name: true } },
       selections: {
         where: { status: "FINALIZED" },
@@ -126,7 +128,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     plannedSelections,
   } : null;
 
-  const [feedbackEntries, teamReflection] = await Promise.all([
+  const [feedbackEntries, teamReflection, existingObservation] = await Promise.all([
     db.matchExecutionFeedback.findMany({
       where: { matchId },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
@@ -143,6 +145,19 @@ export default async function PostMatchRoute({ params }: PageProps) {
     db.teamReflection.findUnique({
       where: { matchId },
       select: { id: true, effort: true, teamCohesion: true, positionalShape: true, recoveryBehavior: true, note: true },
+    }),
+    db.opponentEncounterObservation.findUnique({
+      where: { matchId },
+      select: {
+        id: true,
+        overallEnvironment: true,
+        opponentPlayersContext: true,
+        opponentStaffContext: true,
+        spectatorSidelineContext: true,
+        concernCategories: true,
+        factualSummary: true,
+        followUp: true,
+      },
     }),
   ]);
 
@@ -186,6 +201,12 @@ export default async function PostMatchRoute({ params }: PageProps) {
   return (
     <div className="flex flex-col gap-4">
       <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} />
+      <ObservationSection
+        matchId={matchId}
+        existingObservation={existingObservation}
+        isLocked={initialReport?.status === "LOCKED"}
+        matchFit={match.matchFit}
+      />
       <MatchFeedbackSection matchId={matchId} feedback={feedbackData} players={playerOptions} />
       <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
     </div>
