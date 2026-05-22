@@ -1,27 +1,29 @@
 import type { AssistantIssue } from "../types";
 
-export type IssueGroup = "needs_action" | "watch" | "recently_resolved" | "upcoming";
+export type IssueGroup = "needs_action" | "ready_to_finalize" | "upcoming" | "recently_resolved";
 
 export function groupIssues(issues: AssistantIssue[]): Record<IssueGroup, AssistantIssue[]> {
   const groups: Record<IssueGroup, AssistantIssue[]> = {
     needs_action: [],
-    watch: [],
-    recently_resolved: [],
+    ready_to_finalize: [],
     upcoming: [],
+    recently_resolved: [],
   };
   for (const issue of issues) {
     if (issue.status === "RESOLVED" || issue.status === "DISMISSED") {
       groups.recently_resolved.push(issue);
-    } else if (issue.severity === "ACTION_REQUIRED" || issue.severity === "BLOCKED" || issue.severity === "CRITICAL") {
+    } else if (issue.severity === "CRITICAL" || issue.severity === "BLOCKED" || issue.severity === "ACTION_REQUIRED") {
       groups.needs_action.push(issue);
+    } else if (issue.primaryActionLabel?.toLowerCase().includes("finalize") || issue.primaryActionLabel?.toLowerCase().includes("finalise")) {
+      groups.ready_to_finalize.push(issue);
     } else if (issue.severity === "WATCH" || issue.severity === "INFO") {
       if (issue.status === "STALE") {
         groups.upcoming.push(issue);
       } else {
-        groups.watch.push(issue);
+        groups.upcoming.push(issue);
       }
     } else {
-      groups.watch.push(issue);
+      groups.upcoming.push(issue);
     }
   }
   return groups;
