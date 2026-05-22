@@ -41,7 +41,7 @@ function roundPrimaryAction(round: FixtureRound): { label: string; href: string 
   }
 }
 
-function MatchRow({ match, roundId }: { match: FixtureMatch; roundId: string }) {
+function MatchRow({ match }: { match: FixtureMatch }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
       <div className="flex items-center gap-3 min-w-0">
@@ -105,7 +105,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
         {round.matches.length === 0 ? (
           <p className="text-xs text-zinc-500 py-2">No matches in this round.</p>
         ) : (
-          round.matches.map((match) => <MatchRow key={match.id} match={match} roundId={round.id} />)
+          round.matches.map((match) => <MatchRow key={match.id} match={match} />)
         )}
       </div>
     </div>

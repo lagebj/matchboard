@@ -165,7 +165,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Finalize round")).toBeInTheDocument();
+      expect(screen.getByText("Finalize in board")).toBeInTheDocument();
     });
   });
 
@@ -185,7 +185,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      const populateButtons = screen.getAllByText("Populate all rounds");
+      const populateButtons = screen.getAllByText("Generate all draft squads");
       expect(populateButtons.length).toBeGreaterThanOrEqual(1);
     });
   });

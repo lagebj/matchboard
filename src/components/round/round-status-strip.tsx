@@ -7,8 +7,6 @@ import {
 } from "lucide-react";
 
 type RoundStatusStripProps = {
-  roundLabel: string;
-  roundStatus: "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED";
   totalTeams: number;
   completeTeams: number;
   teamsNeedingSupport: number;
@@ -26,7 +24,6 @@ type StatusItem = {
 };
 
 export function RoundStatusStrip({
-  roundStatus: _roundStatus,
   totalTeams,
   completeTeams,
   teamsNeedingSupport,
@@ -47,16 +44,9 @@ export function RoundStatusStrip({
   if (teamsNeedingSupport > 0) {
     items.push({
       icon: ShieldCheck,
-      label: "Support missing",
+      label: "Support needed",
       value: teamsNeedingSupport,
       variant: "warning",
-    });
-  } else if (totalTeams > 0) {
-    items.push({
-      icon: ShieldCheck,
-      label: "Support fulfilled",
-      value: "0",
-      variant: "success",
     });
   }
 
