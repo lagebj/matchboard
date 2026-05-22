@@ -35,39 +35,46 @@ describe("groupIssues", () => {
     ];
     const groups = groupIssues(issues);
     expect(groups.needs_action).toHaveLength(3);
-    expect(groups.watch).toHaveLength(0);
+    expect(groups.ready_to_finalize).toHaveLength(0);
   });
 
-  it("groups WATCH/INFO into watch", () => {
+  it("groups WATCH/INFO into upcoming", () => {
     const issues = [
       makeIssue({ id: "4", severity: "WATCH", status: "OPEN" }),
       makeIssue({ id: "5", severity: "INFO", status: "OPEN" }),
     ];
     const groups = groupIssues(issues);
-    expect(groups.watch).toHaveLength(2);
+    expect(groups.upcoming).toHaveLength(2);
     expect(groups.needs_action).toHaveLength(0);
+  });
+
+  it("groups finalize-label issues into ready_to_finalize", () => {
+    const issues = [
+      makeIssue({ id: "6", severity: "INFO", status: "OPEN", primaryActionLabel: "Finalize round" }),
+    ];
+    const groups = groupIssues(issues);
+    expect(groups.ready_to_finalize).toHaveLength(1);
   });
 
   it("groups RESOLVED/DISMISSED into recently_resolved", () => {
     const issues = [
-      makeIssue({ id: "6", severity: "ACTION_REQUIRED", status: "RESOLVED" }),
-      makeIssue({ id: "7", severity: "WATCH", status: "DISMISSED" }),
+      makeIssue({ id: "7", severity: "ACTION_REQUIRED", status: "RESOLVED" }),
+      makeIssue({ id: "8", severity: "WATCH", status: "DISMISSED" }),
     ];
     const groups = groupIssues(issues);
     expect(groups.recently_resolved).toHaveLength(2);
   });
 
   it("groups STALE WATCH/INFO into upcoming", () => {
-    const issues = [makeIssue({ id: "8", severity: "WATCH", status: "STALE" })];
+    const issues = [makeIssue({ id: "9", severity: "WATCH", status: "STALE" })];
     const groups = groupIssues(issues);
     expect(groups.upcoming).toHaveLength(1);
-    expect(groups.watch).toHaveLength(0);
   });
 
   it("returns empty groups for empty input", () => {
     const groups = groupIssues([]);
     expect(groups.needs_action).toHaveLength(0);
-    expect(groups.watch).toHaveLength(0);
+    expect(groups.ready_to_finalize).toHaveLength(0);
     expect(groups.recently_resolved).toHaveLength(0);
     expect(groups.upcoming).toHaveLength(0);
   });

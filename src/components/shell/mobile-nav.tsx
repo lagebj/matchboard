@@ -25,7 +25,12 @@ const mobileNavItems: MobileNavItem[] = [
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  if (href === "/fixtures") {
+    return ["/rounds", "/matches", "/opponents"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  }
+  return true;
 }
 
 export function MobileNav() {

@@ -1,8 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import { removePlayerAction } from "@/app/(app)/players/actions";
-import { PlayerTable } from "@/components/players/player-table";
-import { PlayerAssignmentBoard } from "@/components/players/player-assignment-board";
 import { db } from "@/lib/db";
 import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
 
@@ -18,7 +14,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
   const [players, teams] = await Promise.all([
     db.player.findMany({
-      where: { removedAt: null },
+      where: { removedAt: null, active: true },
       include: { coreTeam: { select: { id: true, name: true } } },
       orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
     }),
@@ -29,25 +25,15 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
     }),
   ]);
 
-  const activePlayers = players.filter((p) => p.active);
-  const unavailablePlayers = activePlayers.filter((p) => p.currentAvailability !== "AVAILABLE");
-
-  const playersByTeam = new Map<string, typeof activePlayers>();
-  for (const team of teams) {
-    playersByTeam.set(team.id, []);
-  }
-  const unassigned: typeof activePlayers = [];
-  for (const player of activePlayers) {
-    const group = player.coreTeamId ? playersByTeam.get(player.coreTeamId) : undefined;
-    if (group) {
-      group.push(player);
-    } else {
-      unassigned.push(player);
-    }
-  }
+  const unavailableCount = players.filter((p) => p.currentAvailability !== "AVAILABLE").length;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-lg font-semibold text-zinc-100">Players</h1>
+        <p className="text-xs text-zinc-500 mt-0.5">Player registry and assignment. Select a player for profile and availability.</p>
+      </div>
+
       {error && (
         <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>
       )}
@@ -59,145 +45,114 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-          Players · {activePlayers.length} active
-        </p>
-        <div className="flex gap-2">
-          {teams.length > 0 && (
-            <Link
-              href="/players/new"
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20"
-            >
-              Add player
-            </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-zinc-500">{players.length} player{players.length !== 1 ? "s" : ""}</span>
+          {unavailableCount > 0 && (
+            <span className="text-xs text-amber-400">{unavailableCount} unavailable</span>
           )}
         </div>
+        {teams.length > 0 && (
+          <Link
+            href="/players/new"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))] shrink-0"
+          >
+            Add player
+          </Link>
+        )}
       </div>
 
       {teams.length === 0 ? (
-        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
-          <p className="text-sm font-medium text-zinc-200">No teams yet</p>
-          <p className="mt-1 text-xs text-zinc-400">Create a team before adding players.</p>
-          <Link href="/teams/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-sm text-zinc-400">No teams yet.</p>
+          <p className="text-xs text-zinc-500">Create a team before adding players.</p>
+          <Link
+            href="/teams/new"
+            className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
+          >
             Create team
           </Link>
         </div>
       ) : players.length === 0 ? (
-        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
-          <p className="text-sm font-medium text-zinc-200">No players yet</p>
-          <p className="mt-1 text-xs text-zinc-400">Add players to teams.</p>
-          <Link href="/players/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-sm text-zinc-400">No players yet.</p>
+          <Link
+            href="/players/new"
+            className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
+          >
             Add player
           </Link>
         </div>
       ) : (
-         <>
-           <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading assignment board...</div>}>
-             <PlayerAssignmentBoard />
-           </Suspense>
-
-           {unavailablePlayers.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Unavailable ({unavailablePlayers.length})</p>
-              <div className="flex flex-wrap gap-1.5">
-                {unavailablePlayers.slice(0, 8).map((p) => (
+        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Player</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core team</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Position</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Availability</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Flags</th>
+                <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                   <Link
-                    key={p.id}
-                    href={`/players/${p.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-amber-900/30 bg-amber-950/10 px-2 py-1 text-xs text-amber-200 hover:bg-amber-900/20"
+                    href="/players/new"
+                    className="text-[var(--accent-strong)] hover:underline"
                   >
-                    {formatPlayerName(p)}
-                    <span className="text-[10px] text-amber-300/50">{formatAvailabilityStatus(p.currentAvailability)}</span>
+                    + Add
                   </Link>
-                ))}
-                {unavailablePlayers.length > 8 && (
-                  <span className="inline-flex items-center px-2 py-1 text-xs text-zinc-500">+{unavailablePlayers.length - 8} more</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 lg:grid-cols-3">
-            {teams.map((team) => {
-              const teamPlayers = playersByTeam.get(team.id) ?? [];
-              return (
-                <div key={team.id} className="flex flex-col gap-1.5 rounded-md border border-zinc-700/40 bg-zinc-800/20 p-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <Link href={`/teams/${team.id}`} className="text-xs font-semibold text-zinc-200 hover:text-zinc-100">
-                      {team.name}
-                    </Link>
-                    <span className="text-[10px] text-zinc-500">{teamPlayers.length} players</span>
-                  </div>
-                  {teamPlayers.length === 0 ? (
-                    <p className="text-xs text-zinc-500 py-1">No players assigned</p>
-                  ) : (
-                    <div className="flex flex-col gap-0.5">
-                      {teamPlayers.map((player) => (
-                        <Link
-                          key={player.id}
-                          href={`/players/${player.id}`}
-                          className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs hover:bg-zinc-700/30"
-                        >
-                          <span className="text-zinc-200">{formatPlayerName(player)}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-zinc-500">{player.primaryPosition}</span>
-                            {player.nonRotatable && <span className="text-[9px] text-zinc-600">locked</span>}
-                            {player.currentAvailability !== "AVAILABLE" && (
-                              <span className="text-[9px] text-amber-400/60">{formatAvailabilityStatus(player.currentAvailability)}</span>
-                            )}
-                          </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-soft)]">
+              {players.map((player) => {
+                const isUnavailable = player.currentAvailability !== "AVAILABLE";
+                return (
+                  <tr key={player.id} className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors ${isUnavailable ? "bg-amber-950/5" : ""}`}>
+                    <td className="px-4 py-2">
+                      <Link href={`/players/${player.id}`} className="font-medium text-zinc-200 hover:text-zinc-50">
+                        {formatPlayerName(player)}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">
+                      {player.coreTeam ? (
+                        <Link href={`/teams/${player.coreTeam.id}`} className="text-zinc-400 hover:text-zinc-200">
+                          {player.coreTeam.name}
                         </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {unassigned.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Unassigned ({unassigned.length})</p>
-              <div className="flex flex-wrap gap-1.5">
-                {unassigned.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/players/${p.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700/50 bg-zinc-800/30 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700/30"
-                  >
-                    {formatPlayerName(p)}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <details className="group">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300">
-              Full table
-            </summary>
-            <div className="mt-2">
-              <PlayerTable
-                players={players.map((player) => ({
-                  id: player.id,
-                  firstName: player.firstName,
-                  lastName: player.lastName,
-                  active: player.active,
-                  coreTeam: player.coreTeam,
-                  currentAvailability: player.currentAvailability,
-                  primaryPosition: player.primaryPosition,
-                  secondaryPosition: player.secondaryPosition,
-                  tertiaryPosition: player.tertiaryPosition,
-                  nonRotatable: player.nonRotatable,
-                  reducedMatchLoadAllowed: player.reducedMatchLoadAllowed,
-                  supportSuitability: player.supportSuitability,
-                  developmentReadiness: player.developmentReadiness,
-                  removeAction: removePlayerAction.bind(null, player.id),
-                }))}
-              />
-            </div>
-          </details>
-        </>
+                      ) : (
+                        <span className="text-zinc-500">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-zinc-300">
+                      {player.primaryPosition || "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`${isUnavailable ? "text-amber-300" : "text-emerald-400"}`}>
+                        {isUnavailable ? formatAvailabilityStatus(player.currentAvailability) : "Available"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        {player.nonRotatable && (
+                          <span className="inline-flex items-center rounded border border-zinc-700/40 bg-zinc-800/30 px-1.5 py-0.5 text-[9px] text-zinc-400">Locked</span>
+                        )}
+                        {player.reducedMatchLoadAllowed && (
+                          <span className="inline-flex items-center rounded border border-zinc-700/40 bg-zinc-800/30 px-1.5 py-0.5 text-[9px] text-zinc-400">RML</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <Link
+                        href={`/players/${player.id}`}
+                        className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
+                      >
+                        Profile
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -1,11 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import {
-  deleteTeamAction,
-  updateTeamConfigurationAction,
-} from "@/app/(app)/teams/actions";
-import { TeamTable } from "@/components/teams/team-table";
 import { db } from "@/lib/db";
 
 type TeamsPageProps = {
@@ -32,17 +27,8 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
         where: { removedAt: null },
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
-          primaryPosition: true,
-          nonRotatable: true,
-          reducedMatchLoadAllowed: true,
           currentAvailability: true,
-          active: true,
-          supportSuitability: true,
-          developmentReadiness: true,
         },
-        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       },
       matches: { select: { id: true } },
       fromRotationPaths: {
@@ -52,11 +38,16 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
         select: { fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { id: true, name: true } } },
       },
     },
-    orderBy: [{ name: "asc" }],
+    orderBy: [{ supportPriority: "asc" }, { name: "asc" }],
   });
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-lg font-semibold text-zinc-100">Teams</h1>
+        <p className="text-xs text-zinc-500 mt-0.5">Team registry and configuration. Select a team for detail.</p>
+      </div>
+
       {error && (
         <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>
       )}
@@ -65,124 +56,84 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Teams · {teams.length}</p>
+        <span className="text-xs text-zinc-500">{teams.length} team{teams.length !== 1 ? "s" : ""}</span>
         <Link
           href="/teams/new"
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))] shrink-0"
         >
           Add team
         </Link>
       </div>
 
       {teams.length === 0 ? (
-        <div className="rounded-md border border-zinc-700/50 bg-zinc-800/30 p-4">
-          <p className="text-sm font-medium text-zinc-200">No teams yet</p>
-          <p className="mt-1 text-xs text-zinc-400">Create a team to get started.</p>
-          <Link href="/teams/new" className="mt-2 inline-flex h-7 items-center rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 text-xs font-semibold text-[var(--accent-strong)] hover:bg-[var(--accent)]/20">
-            Create team
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-sm text-zinc-400">No teams yet.</p>
+          <Link
+            href="/teams/new"
+            className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
+          >
+            Create a team
           </Link>
         </div>
       ) : (
-        <>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {teams.map((team) => {
-              const coreCount = team.corePlayers.length;
-              const availableCount = team.corePlayers.filter((p) => p.currentAvailability === "AVAILABLE").length;
-              const isBelowMinCore = coreCount < team.minCorePlayers;
+        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Team</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Available</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Squad limits</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Support priority</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Rotation paths</th>
+                <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Matches</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-soft)]">
+              {teams.map((team) => {
+                const coreCount = team.corePlayers.length;
+                const availableCount = team.corePlayers.filter((p) => p.currentAvailability === "AVAILABLE").length;
+                const isBelowMinCore = coreCount < team.minCorePlayers;
+                const pathCount = team.fromRotationPaths.length + team.toRotationPaths.length;
 
-              return (
-                <div
-                  key={team.id}
-                  className={`flex flex-col gap-2 rounded-md border p-3 ${isBelowMinCore ? "border-red-900/40 bg-red-950/10" : "border-zinc-700/40 bg-zinc-800/20"}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <Link href={`/teams/${team.id}`} className="text-sm font-semibold text-zinc-200 hover:text-zinc-100">
-                      {team.name}
-                    </Link>
-                    {isBelowMinCore && (
-                      <span className="text-[10px] font-medium text-red-300">Below min core</span>
-                    )}
-                  </div>
-
-                  <div className="grid gap-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Core</span>
-                      <span className={isBelowMinCore ? "text-red-200" : "text-zinc-200"}>{coreCount} (min {team.minCorePlayers})</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Available</span>
-                      <span className="text-zinc-200">{availableCount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Squad target</span>
-                      <span className="text-zinc-200">{team.targetSquadSize} / {team.maxSquadSize} max</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Support priority rank</span>
-                      <span className="text-zinc-200">{team.supportPriority} (1=highest)</span>
-                    </div>
-                  </div>
-
-                  {(team.fromRotationPaths.length > 0 || team.toRotationPaths.length > 0) && (
-                    <div className="mt-1 border-t border-zinc-700/30 pt-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">Rotation paths</p>
-                      <div className="flex flex-col gap-0.5">
-                        {team.fromRotationPaths.map((p, i) => (
-                          <p key={`from-${i}`} className="text-[11px] text-zinc-400">
-                            <span className="text-zinc-200">{team.name}</span>
-                            <span className="text-zinc-500"> → </span>
-                            <span className="text-zinc-200">{p.toTeam.name}</span>
-                            <span className="ml-1 rounded bg-zinc-700/40 px-1 text-[9px] text-zinc-300">{p.role}</span>
-                          </p>
-                        ))}
-                        {team.toRotationPaths.map((p, i) => (
-                          <p key={`to-${i}`} className="text-[11px] text-zinc-400">
-                            <span className="text-zinc-200">{p.fromTeam.name}</span>
-                            <span className="text-zinc-500"> → </span>
-                            <span className="text-zinc-200">{team.name}</span>
-                            <span className="ml-1 rounded bg-zinc-700/40 px-1 text-[9px] text-zinc-300">{p.role}</span>
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <details className="group">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300">
-              Advanced table
-            </summary>
-            <div className="mt-2">
-              <TeamTable
-                teams={teams.map((team) => ({
-                  activeCorePlayers: team.corePlayers.length,
-                  developmentSlots: team.developmentSlots,
-                  developmentSourceTeamIds: [...new Set(team.toRotationPaths.filter((p) => p.role === "DEVELOPMENT").map((p) => p.fromTeam.id))],
-                  developmentSourceTeamNames: [...new Set(team.toRotationPaths.filter((p) => p.role === "DEVELOPMENT").map((p) => p.fromTeam.name))],
-                  id: team.id,
-                  matches: team.matches.length,
-                  maxSquadSize: team.maxSquadSize,
-                  minAcceptedSquadSize: team.minAcceptedSquadSize,
-                  minCorePlayers: team.minCorePlayers,
-                  minSupportCount: team.minSupportCount,
-                  minSupportPlayers: team.minSupportPlayers,
-                  name: team.name,
-                  removeAction: deleteTeamAction.bind(null, team.id),
-                  saveAction: updateTeamConfigurationAction.bind(null, team.id),
-                  supportPriority: team.supportPriority,
-                  supportSourceTeamIds: [...new Set(team.toRotationPaths.filter((p) => p.role === "SUPPORT").map((p) => p.fromTeam.id))],
-                  supportSourceTeamNames: [...new Set(team.toRotationPaths.filter((p) => p.role === "SUPPORT").map((p) => p.fromTeam.name))],
-                  targetSquadSize: team.targetSquadSize,
-                  targetSupportCount: team.targetSupportCount,
-                  maxSupportCount: team.maxSupportCount,
-                }))}
-              />
-            </div>
-          </details>
-        </>
+                return (
+                  <tr key={team.id} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                    <td className="px-4 py-2.5">
+                      <Link href={`/teams/${team.id}`} className="font-medium text-zinc-200 hover:text-zinc-50">
+                        {team.name}
+                      </Link>
+                      {isBelowMinCore && (
+                        <span className="ml-2 text-[10px] text-red-400">Below min core</span>
+                      )}
+                    </td>
+                    <td className={`px-3 py-2.5 ${isBelowMinCore ? "text-red-300" : "text-zinc-300"}`}>
+                      {coreCount} / {team.minCorePlayers} min
+                    </td>
+                    <td className="px-3 py-2.5 text-zinc-300">
+                      {availableCount}
+                    </td>
+                    <td className="px-3 py-2.5 text-zinc-300">
+                      {team.targetSquadSize} / {team.minAcceptedSquadSize}–{team.maxSquadSize}
+                    </td>
+                    <td className="px-3 py-2.5 text-zinc-300">
+                      {team.supportPriority} <span className="text-[10px] text-zinc-500">(1=highest)</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-zinc-300">
+                      {pathCount > 0 ? (
+                        <span>{pathCount} path{pathCount !== 1 ? "s" : ""}</span>
+                      ) : (
+                        <span className="text-zinc-500">None</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-zinc-300">
+                      {team.matches.length}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

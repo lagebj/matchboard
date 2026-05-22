@@ -482,7 +482,6 @@ export default async function RoundBoardPage({
       <RoundBoard
         roundLabel={roundLabel}
         roundStatus={matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED"}
-        roundId={matchRound.id}
         matchRoundId={matchRoundId}
         hasDraftSelections={selections.length > 0}
         hasMatches={matchRound.matches.length > 0}

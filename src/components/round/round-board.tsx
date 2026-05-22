@@ -73,7 +73,6 @@ type WarningEntry = {
 type RoundBoardProps = {
   roundLabel: string;
   roundStatus: "NOT_GENERATED" | "DRAFT" | "FINALIZED";
-  roundId: string;
   matchRoundId: string;
   hasDraftSelections: boolean;
   hasMatches: boolean;
@@ -105,13 +104,6 @@ type RoundBoardProps = {
 
 const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
 
-const _ROLE_LABELS: Record<string, string> = {
-  CORE: "Core",
-  SUPPORT: "Support",
-  BACKFILL: "Squad repair",
-  DEVELOPMENT: "Development",
-};
-
 function PlayerChip({
   player,
   isDraggable,
@@ -142,10 +134,6 @@ function PlayerChip({
         : player.availability === "AWAY"
           ? "border-zinc-600/40 bg-zinc-800/30 text-zinc-400"
           : "";
-
-  const _isNonCore = player.role && player.role !== "CORE" && player.coreTeamName !== player.selectionCategory
-    ? true
-    : false;
 
   return (
     <div
@@ -304,15 +292,14 @@ function MatchColumnComponent({
               className="inline-flex items-center gap-0.5 rounded p-1 text-[10px] text-zinc-400 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
               disabled={isFinalizing || isPending}
               onClick={() => {
-                if (!confirm("Un-finalize this match? Selections will revert to draft.")) return;
-                startFinalizing(async () => {
-                  const fd = new FormData();
-                  fd.set("matchId", match.matchId);
-                  fd.set("matchRoundId", matchRoundId);
-                  await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
-                  router.refresh();
-                });
-              }}
+                  startFinalizing(async () => {
+                    const fd = new FormData();
+                    fd.set("matchId", match.matchId);
+                    fd.set("matchRoundId", matchRoundId);
+                    await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
+                    router.refresh();
+                  });
+                }}
               type="button"
               title="Un-finalize this match"
             >
@@ -374,7 +361,6 @@ function MatchColumnComponent({
 export function RoundBoard({
   roundLabel,
   roundStatus,
-  roundId: _roundId,
   matchRoundId,
   hasDraftSelections,
   hasMatches,
@@ -390,10 +376,11 @@ export function RoundBoard({
   const [isPending, startTransition] = useTransition();
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
-  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideReason, _setOverrideReason] = useState("");
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
+  const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState(false);
 
   const touchDragRef = useRef<{ playerId: string; fromMatchId: string | null; currentRole: SelectionRole } | null>(null);
   const [touchDragPlayerId, setTouchDragPlayerId] = useState<string | null>(null);
@@ -425,10 +412,13 @@ export function RoundBoard({
     const count = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
     return count >= m.targetSquadSize;
   }).length;
-  const teamsNeedingSupport = 0;
-  const squadRepairNeeded = 0;
+  const _supportMovementIn = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "SUPPORT" && p.playerCoreTeamId && p.playerCoreTeamId !== m.teamId).length, 0);
+  const teamsNeedingSupport = matches.filter((m) => {
+    const assigned = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+    return assigned < m.minSquadSize;
+  }).length;
+  const squadRepairNeeded = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length, 0);
   const blockingWarnings = warningSummary?.blocking ?? 0;
-  const _requiresOverrideWarnings = warningSummary?.high ?? 0;
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
@@ -647,8 +637,6 @@ export function RoundBoard({
   return (
     <div className="flex flex-col gap-5">
       <RoundStatusStrip
-        roundLabel={roundLabel}
-        roundStatus={computedRoundStatus}
         totalTeams={matches.length}
         completeTeams={completeTeams}
         teamsNeedingSupport={teamsNeedingSupport}
@@ -657,10 +645,6 @@ export function RoundBoard({
         totalSelected={totalSelected}
         totalTarget={totalTarget}
       />
-
-      {overrideReason && (
-        <p className="text-xs text-amber-300">Override reason: {overrideReason}</p>
-      )}
 
       {roundStatus === "DRAFT" && (
         <div className="flex items-center gap-2">
@@ -698,15 +682,6 @@ export function RoundBoard({
             <Trash2 className="mr-1 inline h-3.5 w-3.5" />
             Clear
           </button>
-          <div className="flex items-center gap-2 ml-auto">
-            <input
-              value={overrideReason}
-              onChange={(e) => setOverrideReason(e.target.value)}
-              placeholder="Override reason (if needed)"
-              className="h-7 w-56 rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 text-[11px] text-zinc-50"
-              type="text"
-            />
-          </div>
         </div>
       )}
 
@@ -717,15 +692,7 @@ export function RoundBoard({
           <button
             className="ml-auto rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
             disabled={isPending}
-            onClick={() => {
-              if (!confirm("Un-finalize this round? All selections will revert to draft and can be recalculated.")) return;
-              startTransition(async () => {
-                const fd = new FormData();
-                fd.set("matchRoundId", matchRoundId);
-                await unfinalizeRoundAction({ error: "" }, fd);
-                router.refresh();
-              });
-            }}
+            onClick={() => setShowUnfinalizeConfirm(true)}
             type="button"
           >
             <Unlock className="mr-1 inline h-3.5 w-3.5" />
@@ -1010,6 +977,43 @@ export function RoundBoard({
               >
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                 {isPending ? "Finalizing..." : "Finalize match"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showUnfinalizeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowUnfinalizeConfirm(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
+            <div className="flex flex-col gap-4 px-5 py-4">
+              <h3 className="text-base font-semibold text-zinc-100">Un-finalize round</h3>
+              <p className="text-sm text-zinc-300">
+                All selections will revert to draft and can be recalculated. Finalized history will be affected.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
+              <button
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
+                onClick={() => setShowUnfinalizeConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg border border-amber-700/40 bg-amber-900/20 px-4 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => {
+                  setShowUnfinalizeConfirm(false);
+                  startTransition(async () => {
+                    const fd = new FormData();
+                    fd.set("matchRoundId", matchRoundId);
+                    await unfinalizeRoundAction({ error: "" }, fd);
+                    router.refresh();
+                  });
+                }}
+              >
+                {isPending ? "Un-finalizing..." : "Un-finalize round"}
               </button>
             </div>
           </div>
