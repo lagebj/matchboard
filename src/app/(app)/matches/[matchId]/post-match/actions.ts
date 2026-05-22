@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
-import type { MatchReportStatus, PlannedAbsenceReason } from "@/generated/prisma/client";
+import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason } from "@/generated/prisma/client";
 
 export type MatchReportDetail = {
   id: string;
@@ -30,6 +30,7 @@ export type MatchReportDetail = {
     coreTeamName: string;
     source: string;
     attendanceStatus: string;
+    unplannedAppearanceReason: string | null;
   }>;
   absences: Array<{
     id: string;
@@ -157,6 +158,7 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
       coreTeamName: p.player.coreTeam?.name ?? "Unassigned",
       source: p.source,
       attendanceStatus: p.attendanceStatus,
+      unplannedAppearanceReason: p.unplannedAppearanceReason,
     })),
     absences: report.absences.map((a) => ({
       id: a.id,
@@ -262,9 +264,17 @@ export async function updateMatchResult(
 
 export async function addActualPlayer(
   reportId: string,
-  data: { playerId: string; attendanceStatus?: string },
+  data: { playerId: string; attendanceStatus?: string; unplannedAppearanceReason?: string },
 ): Promise<{ success: boolean; error?: string }> {
   await requireCoachAccess();
+
+  const VALID_REASONS: string[] = [
+    "EMERGENCY_SQUAD_COVER",
+    "LATE_AVAILABILITY_CHANGE",
+    "NO_SHOW_REPLACEMENT",
+    "INJURY_REPLACEMENT",
+    "OTHER_RECORDED_REASON",
+  ];
 
   try {
     const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
@@ -276,6 +286,11 @@ export async function addActualPlayer(
     });
     if (existing) return { success: false, error: "Player already in actual squad." };
 
+    const reason = data.unplannedAppearanceReason?.trim();
+    const unplannedAppearanceReason = reason && VALID_REASONS.includes(reason)
+      ? (reason as UnplannedAppearanceReason)
+      : null;
+
     await db.postMatchPlayerActual.create({
       data: {
         reportId,
@@ -283,6 +298,7 @@ export async function addActualPlayer(
         playerId: data.playerId,
         source: "ADDED_POST_MATCH",
         attendanceStatus: data.attendanceStatus ?? "PRESENT",
+        unplannedAppearanceReason,
       },
     });
 

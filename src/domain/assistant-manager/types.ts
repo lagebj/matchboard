@@ -213,6 +213,7 @@ export interface RoundReview {
 export interface PostMatchPlayerActual {
   playerId: string;
   attendanceStatus: AttendanceStatus;
+  unplannedAppearanceReason?: string;
   actualPositions?: string[];
   note?: string;
 }

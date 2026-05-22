@@ -14,7 +14,7 @@ import type {
   TeamReadiness,
 } from "./types";
 import { db } from "@/lib/db";
-import { WarningSeverity } from "@/generated/prisma/client";
+import { WarningSeverity, UnplannedAppearanceReason } from "@/generated/prisma/client";
 import { signalCategoryFromSeverity } from "@/lib/selection/persist-warnings";
 
 function mapSeverityToState(severity: string): ReadinessState {
@@ -437,6 +437,7 @@ export async function getPostMatchReport(matchId: string): Promise<PostMatchRepo
     playerActuals: report.playerActuals.map((p) => ({
       playerId: p.playerId,
       attendanceStatus: p.attendanceStatus as PostMatchPlayerActual["attendanceStatus"],
+      unplannedAppearanceReason: p.unplannedAppearanceReason ?? undefined,
       actualPositions: (p.actualPositions as string[]) ?? [],
       note: p.note ?? undefined,
     })),
@@ -473,6 +474,7 @@ export async function completePostMatchReport(
           matchId,
           playerId: actual.playerId,
           attendanceStatus: actual.attendanceStatus,
+          unplannedAppearanceReason: (actual.unplannedAppearanceReason as UnplannedAppearanceReason | null | undefined) ?? null,
           actualPositions: actual.actualPositions ?? [],
           note: actual.note ?? null,
           reportId: existing.id,
@@ -496,6 +498,7 @@ export async function completePostMatchReport(
           matchId,
           playerId: actual.playerId,
           attendanceStatus: actual.attendanceStatus,
+          unplannedAppearanceReason: (actual.unplannedAppearanceReason as UnplannedAppearanceReason | null | undefined) ?? null,
           actualPositions: actual.actualPositions ?? [],
           note: actual.note ?? null,
           reportId: report.id,

@@ -133,6 +133,18 @@ export function formatAttendanceStatus(status: string): string {
   }
 }
 
+export const UNPLANNED_APPEARANCE_REASON_LABELS: Record<string, string> = {
+  EMERGENCY_SQUAD_COVER: "Emergency squad cover",
+  LATE_AVAILABILITY_CHANGE: "Late availability change",
+  NO_SHOW_REPLACEMENT: "No-show replacement",
+  INJURY_REPLACEMENT: "Injury replacement",
+  OTHER_RECORDED_REASON: "Other recorded reason",
+};
+
+export function formatUnplannedAppearanceReason(reason: string): string {
+  return UNPLANNED_APPEARANCE_REASON_LABELS[reason] ?? reason.replace(/_/g, " ");
+}
+
 export const OVERRIDE_REASON_CATEGORY_LABELS: Record<string, string> = {
   squad_too_small: "Squad too small",
   support_missing: "Support missing",
