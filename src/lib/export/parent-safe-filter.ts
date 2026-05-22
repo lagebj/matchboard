@@ -142,6 +142,29 @@ export function sanitizePlayerStatsForParent(row: PlayerStatsExportRow): Record<
   return sanitized;
 }
 
+const PARENT_EXCLUDED_FIELDS = [
+  "sourceTeam",
+  "controlledDoubleLoad",
+  "overrideReasonCategory",
+  "overrideReasonDetail",
+  "explanation",
+  "matchdayResponsibility",
+  "coachingIntentCategory",
+  "opponentEnvironment",
+  "opponentConcernCategories",
+  "opponentFactualSummary",
+  "opponentFollowUp",
+  "opponentPlayersContext",
+  "opponentStaffContext",
+  "opponentSpectatorContext",
+  "matchFit",
+  "readinessSignals",
+] as const;
+
+export function isParentExcludedField(fieldName: string): boolean {
+  return (PARENT_EXCLUDED_FIELDS as readonly string[]).includes(fieldName);
+}
+
 export function sanitizeForParentExport(data: {
   selections?: SelectionExportRow[];
   movements?: MovementExportRow[];
