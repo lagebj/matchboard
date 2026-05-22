@@ -285,9 +285,6 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       maximumCount: p.maximumCount,
       cooldownRounds: p.cooldownRounds,
       active: p.active,
-      allowDoubleLoad: p.allowDoubleLoad,
-      minRestSpacingHours: p.minRestSpacingHours,
-      maxDoubleLoadsPerPeriod: p.maxDoubleLoadsPerPeriod,
     })),
     ...team.toRotationPaths.map((p) => ({
       id: p.id,
@@ -304,9 +301,6 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       maximumCount: p.maximumCount,
       cooldownRounds: p.cooldownRounds,
       active: p.active,
-      allowDoubleLoad: p.allowDoubleLoad,
-      minRestSpacingHours: p.minRestSpacingHours,
-      maxDoubleLoadsPerPeriod: p.maxDoubleLoadsPerPeriod,
     })),
   ];
 

@@ -87,9 +87,6 @@ type RotationPathSummary = {
   maximumCount: number | null;
   cooldownRounds: number | null;
   active: boolean;
-  allowDoubleLoad: boolean;
-  minRestSpacingHours: number | null;
-  maxDoubleLoadsPerPeriod: number | null;
 };
 
 type TeamDetailData = {

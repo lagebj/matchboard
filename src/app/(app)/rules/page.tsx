@@ -52,9 +52,6 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
     maximumCount: p.maximumCount,
     cooldownRounds: p.cooldownRounds,
     active: p.active,
-    allowDoubleLoad: p.allowDoubleLoad,
-    minRestSpacingHours: p.minRestSpacingHours,
-    maxDoubleLoadsPerPeriod: p.maxDoubleLoadsPerPeriod,
   }));
 
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));

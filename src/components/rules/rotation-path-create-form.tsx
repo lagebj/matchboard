@@ -156,42 +156,6 @@ export function RotationPathCreateForm({
         </label>
       </div>
 
-      <details className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)]">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-100 hover:bg-[rgba(255,255,255,0.04)]">
-          Controlled double-load settings
-        </summary>
-        <div className="grid gap-4 p-4 sm:grid-cols-3">
-          <label className="flex items-center gap-2 text-sm text-zinc-100">
-            <input name="allowDoubleLoad" type="checkbox" className="h-4 w-4 rounded" disabled={isPending} />
-            Allow double-load
-          </label>
-
-          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-100">
-            Min rest spacing (hours)
-            <input
-              name="minRestSpacingHours"
-              type="number"
-              min={0}
-              placeholder="Optional"
-              className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 font-normal text-zinc-50"
-              disabled={isPending}
-            />
-          </label>
-
-          <label className="flex flex-col gap-2 text-sm font-medium text-zinc-100">
-            Max double-loads per period
-            <input
-              name="maxDoubleLoadsPerPeriod"
-              type="number"
-              min={0}
-              placeholder="Optional"
-              className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 font-normal text-zinc-50"
-              disabled={isPending}
-            />
-          </label>
-        </div>
-      </details>
-
       <div className="flex">
         <button
           className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
