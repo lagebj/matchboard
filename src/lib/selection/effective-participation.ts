@@ -130,6 +130,7 @@ export async function getEffectiveMatchParticipation(
             playerId: true,
             source: true,
             attendanceStatus: true,
+            unplannedAppearanceReason: true,
           },
         },
         absences: {
