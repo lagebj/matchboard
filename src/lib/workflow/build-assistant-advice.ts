@@ -92,7 +92,7 @@ export function buildAssistantAdvice(
         alternative: "Consider a shorter support rotation or reduced support count if source teams are thin.",
         consequence: `${targetTeam} must drop core match if support slots are not filled.`,
         severity: backfillSels.length > 0 ? "warning" : "info",
-        actionHref: `/matches`,
+        actionHref: `/fixtures`,
       });
     }
 
@@ -111,7 +111,7 @@ export function buildAssistantAdvice(
         alternative: "Check if reducing support count avoids the squad repair chain entirely.",
         consequence: "Source teams drop below minimum core depth if squad repair is not resolved.",
         severity: "warning",
-        actionHref: `/matches`,
+        actionHref: `/fixtures`,
       });
     }
 
@@ -125,7 +125,7 @@ export function buildAssistantAdvice(
         alternative: "Consider a confidence rebuild role if the player is returning from absence.",
         consequence: "Skipping development exposure hurts long-term fairness and player readiness.",
         severity: "info",
-        actionHref: `/matches`,
+        actionHref: `/fixtures`,
       });
     }
 
@@ -139,7 +139,7 @@ export function buildAssistantAdvice(
         alternative: "If the player is development-ready, consider a development role instead of a full drop.",
         consequence: "Dropped players fall behind teammates in match count and may need priority in the next round.",
         severity: "warning",
-        actionHref: `/matches`,
+        actionHref: `/fixtures`,
       });
     }
 
@@ -153,7 +153,7 @@ export function buildAssistantAdvice(
         alternative: "If squad depth is critical, override with documented reason.",
         consequence: "Overriding reduced match load may violate coach-configured safety rules.",
         severity: "warning",
-        actionHref: `/matches`,
+        actionHref: `/fixtures`,
       });
     }
   }
@@ -167,7 +167,7 @@ export function buildAssistantAdvice(
       alternative: "Regenerate drafts if availability has changed since the last generation.",
       consequence: "Drafts left in limbo delay match preparation and communication to families.",
       severity: draftMatches.length > 2 ? "warning" : "info",
-      actionHref: `/matches`,
+      actionHref: `/fixtures`,
     });
   }
 

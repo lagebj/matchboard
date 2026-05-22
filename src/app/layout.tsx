@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Matchboard",
-  description: "Local-first squad selection and rotation planning for youth football.",
+  description: "Squad planning and rotation planning for youth football.",
 };
 
 export default function RootLayout({

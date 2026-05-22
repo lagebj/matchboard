@@ -2,7 +2,7 @@
 
 Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
 
-It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
+It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
 `features/matchboard.feature` is the single behavioral source of truth for domain behavior, selection rules, and expected outcomes.
 
@@ -15,8 +15,9 @@ When workflow or UX semantics change, update `features/matchboard.feature`, `AGE
 When working on Matchboard, always apply these skills in order:
 
 1. **`git-branch-commit-pr`** — for all coding-agent work: branch creation, commits, and PRs
-2. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
-3. **`matchboard-product-engineering`** (local, `.agent-skills/matchboard-product-engineering/SKILL.md`) — for Matchboard-specific domain rules: selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages
+2. **`ux-webapp-design-craft`** (global) — for all UX, visual design, workflow, navigation, interaction, accessibility, and information architecture work
+3. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
+4. **`matchboard-product-engineering`** (local, `.agent-skills/matchboard-product-engineering/SKILL.md`) — for Matchboard-specific domain rules: selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages
 
 The global `app-product-engineering` skill contains generic UX and app engineering rules. The local `matchboard-product-engineering` skill contains only Matchboard domain rules. Do not duplicate the global skill inside this repo.
 
@@ -651,18 +652,30 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ### Canonical routes
 
-Primary navigation (4 items):
-- `/assistant` — assistant manager, next action, setup progress, blockers
-- `/fixtures` — period → round → match hierarchy with actions
-- `/teams` — team registry linking to team detail pages
-- `/players` — player assignment board and registry
+Primary navigation (4 items, in this order):
+
+1. **Assistant** (`/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work.
+2. **Fixtures** (`/fixtures`) — planning-period, round and match hierarchy with actions.
+3. **Teams** (`/teams`) — team registry and access to team detail.
+4. **Players** (`/players`) — player registry and assignment overview.
+
+The following must not be primary sidebar items:
+- `/rounds`
+- `/matches`
+- `/season`
+- `/history`
+- `/rules`
+
+These remain accessible through contextually appropriate links, buttons, tabs or secondary navigation.
 
 Other canonical routes:
 | Route | Purpose |
 |-------|---------|
 | `/rounds` | Rounds — generate, review, finalize per match round |
+| `/rounds/[matchRoundId]` | Round Board |
 | `/season` | Season — player-by-round matrix, movement paths, fairness overview |
 | `/history` | Historical audit of finalized selections and movement |
+| `/rules` | Selection rules, support priority, rotation paths |
 
 Setup registry create routes (no top-level nav):
 - `/teams/new` — create team form
@@ -670,19 +683,32 @@ Setup registry create routes (no top-level nav):
 - `/matches/new` — create match form
 
 Detail routes (no top-level nav):
-- `/rounds/[matchRoundId]` — round board
 - `/players/[playerId]` — player profile
 - `/teams/[teamId]` — team detail workspace
 - `/teams/[teamId]/configuration` — team configuration and rules
 - `/matches/[matchId]` — match detail
 
-Secondary routes (no top-level nav):
-- `/rules` — selection rules, support priority, rotation paths
-
-Redirects:
+Canonical redirects:
 - `/` → `/assistant`
 - `/today` → `/assistant`
 - `/matches` → `/fixtures`
+
+No navigation component, page header, CTA or breadcrumb may present `/matches` as a competing top-level destination. Match detail routes such as `/matches/[matchId]` remain valid.
+
+Active navigation state:
+- `/assistant` visibly activates Assistant.
+- `/fixtures` and fixture child/detail contexts visibly activate Fixtures.
+- `/teams` and `/teams/[teamId]` contexts visibly activate Teams.
+- `/players` and `/players/[playerId]` contexts visibly activate Players.
+- Redirected routes do not produce an unselected or misleading sidebar state.
+
+Operational workflow hierarchy:
+1. Assistant identifies the next required action.
+2. Fixtures provides the season/planning-period and round hierarchy.
+3. Round Board is the primary squad decision surface.
+4. Match detail handles match-specific preparation, finalisation and post-match reporting.
+5. Team and Player pages provide supporting context and configuration.
+6. Season, History and Rules are secondary analysis/configuration destinations.
 
 ### Setup registries are table-first
 
@@ -690,7 +716,7 @@ Teams, Players, and Matches are setup registries. They serve data-entry efficien
 
 - Teams (`/teams`): dense table of teams with core player count, squad limits, support priority. Links to `/teams/new` for creation. Links to `/teams/[teamId]` for detail. Empty state: "No teams yet. Create a team." with direct link to `/teams/new`.
 - Players (`/players`): dense table of players with name, core team, position, availability. Links to `/players/new` for creation. Links to `/players/[playerId]` for detail. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Create a player." with direct link to `/players/new`.
-- Matches (`/matches`): dense table of matches with date, team, opponent, home-or-away, type, format. Links to `/matches/new` for creation. Empty state: "No matches yet. Create a match." with direct link to `/matches/new`.
+- Fixtures provides match creation and match registry. The `/matches/new` route creates matches assigned to match rounds based on date. Fixtures must not expose a separate fixture-list mental model through a competing `/matches` navigation destination.
 
 Create routes must work reliably. `/teams/new` must save all team fields (not just name and a few fields). `/players/new` must not silently disappear when teams exist. `/matches/new` must assign matches to match rounds based on date.
 
@@ -706,7 +732,7 @@ It must not become a catch-all dashboard or show squad rosters inline.
 - Who is available
 - Who is selected this round
 - Who is moving out as support
-- Who is moving in as support/backfill/development
+- Who is moving in as support/squad repair/development
 - Whether the team is short
 - What warnings exist for this team
 - What the team's movement and fairness situation looks like
@@ -722,9 +748,15 @@ Team detail has these sections:
 
 ### Navigation model
 
-- **Sidebar**: 4 items (Assistant, Fixtures, Teams, Players)
-- **Top context bar**: season, planning period, active round status, primary action
-- **Mobile nav**: adapted from sidebar items
+- **Sidebar**: 4 items — Assistant, Fixtures, Teams, Players (in this order)
+- **Top context bar**: provides appropriate title/context for the current route. It must not describe `/assistant` as "Dashboard". It must not present `/matches` as an independent top-level workflow. It provides context appropriate to the current operational task. When a primary action exists in context, it is clearly prioritised.
+- **Mobile nav**: preserves the same four primary destinations, maintains active-state correctness, and ensures blockers and primary actions are not hidden behind inaccessible interactions.
+
+Status vocabulary: The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.
+
+Warning hierarchy: Blocking issues (HARD_BLOCK) must be visually dominant and placed beside the affected round or match. Review-required warnings (REQUIRES_OVERRIDE) must be visible without opening hidden technical detail. Informational or scoring-preference explanations may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
+
+User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
 
 ### Auth layout rules
 

@@ -32,7 +32,7 @@ export async function finalizeRoundFromListAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/rounds");
   revalidatePath(`/rounds/${matchRoundId}`);
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
 
   if (!result.success) {
     return { error: result.needsOverride ? "Override reason required" : "Finalization failed" };
@@ -180,7 +180,7 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
     revalidatePath("/");
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${matchRoundId}`);
-    revalidatePath("/matches");
+    revalidatePath("/fixtures");
 
     if (!result.success) {
       return { error: result.message };
@@ -200,7 +200,7 @@ export async function regroupRoundsAction(): Promise<{ error: string; result?: s
 
     revalidatePath("/");
     revalidatePath("/rounds");
-    revalidatePath("/matches");
+    revalidatePath("/fixtures");
 
     const summary = `Merged ${result.roundsMerged} week groups, moved ${result.matchesMoved} matches, removed ${result.roundsRemoved} duplicate rounds. All rounds now use ISO week grouping.`;
     return { error: "", result: summary };

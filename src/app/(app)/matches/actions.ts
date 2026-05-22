@@ -163,10 +163,10 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     return { error: getErrorMessage(error) };
   }
 
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   revalidatePath("/rounds");
   revalidatePath("/");
-  redirect("/matches?saved=created");
+  redirect("/fixtures?saved=created");
 }
 
 export async function deleteMatchAction(matchId: string) {
@@ -184,13 +184,13 @@ export async function deleteMatchAction(matchId: string) {
     await db.match.delete({ where: { id: match.id } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not delete the match.";
-    redirect(`/matches?error=${encodeURIComponent(message)}`);
+    redirect(`/fixtures?error=${encodeURIComponent(message)}`);
   }
 
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   revalidatePath("/rounds");
   revalidatePath("/");
-  redirect("/matches?saved=deleted");
+  redirect("/fixtures?saved=deleted");
 }
 
 export async function finalizeMatchAction(formData: FormData) {
@@ -226,7 +226,7 @@ export async function finalizeMatchAction(formData: FormData) {
   }
 
   revalidatePath("/");
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   revalidatePath("/rounds");
   revalidatePath(`/matches/${matchId}`);
 

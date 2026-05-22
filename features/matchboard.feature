@@ -3830,3 +3830,178 @@ Feature: Matchboard football operations workspace
       Then support burden must be tracked to prevent over-reliance on the same players
       And support must not define the player's permanent football ceiling
       And development opportunity must remain available alongside support duty
+
+
+  Rule: Canonical navigation and route model
+
+    Matchboard has exactly four primary navigation items. All other routes are secondary, accessible through contextual links rather than competing top-level navigation.
+
+    Scenario: Primary navigation contains exactly four items
+      Given the coach is using the app
+      When the primary sidebar or mobile navigation is visible
+      Then the navigation must contain exactly these items in order:
+        | item       | route        |
+        | Assistant  | /assistant   |
+        | Fixtures   | /fixtures    |
+        | Teams      | /teams       |
+        | Players    | /players     |
+      And the navigation must not include /rounds, /matches, /season, /history, or /rules as primary items
+
+    Scenario: Root redirects to Assistant
+      Given the coach navigates to the root URL
+      When the app loads
+      Then the app must redirect to /assistant
+
+    Scenario: Today redirects to Assistant
+      Given the coach navigates to /today
+      When the app loads
+      Then the app must redirect to /assistant
+
+    Scenario: Matches redirects to Fixtures
+      Given the coach navigates to /matches
+      When the app loads
+      Then the app must redirect to /fixtures
+
+    Scenario: No page links to /matches as primary fixture list
+      Given the coach is using the app
+      When any page, component, navigation item, CTA, or breadcrumb renders
+      Then no link may point to /matches as the main fixture-list destination
+      And match detail routes such as /matches/[matchId] may remain where required
+
+    Scenario: Assistant navigation is active on /assistant
+      Given the coach navigates to /assistant
+      When the sidebar renders
+      Then the Assistant item must show active state
+
+    Scenario: Fixtures navigation is active in fixture and round contexts
+      Given the coach navigates to /fixtures or /rounds/[matchRoundId]
+      When the sidebar renders
+      Then the Fixtures item must show active state
+
+    Scenario: Teams navigation is active in team contexts
+      Given the coach navigates to /teams or /teams/[teamId]
+      When the sidebar renders
+      Then the Teams item must show active state
+
+    Scenario: Players navigation is active in player contexts
+      Given the coach navigates to /players or /players/[playerId]
+      When the sidebar renders
+      Then the Players item must show active state
+
+    Scenario: Redirected routes do not show unselected sidebar
+      Given the coach is redirected from / or /today to /assistant
+      When the page loads
+      Then the Assistant sidebar item must be active
+      And no navigation state must appear unselected or misleading
+
+
+  Rule: Operational workflow hierarchy
+
+    The visible daily workflow follows a clear hierarchy.
+
+    Scenario: Assistant identifies the next required action
+      Given the coach opens the app
+      Then the Assistant page must show the next action based on setup progress and current workflow state
+
+    Scenario: Fixtures provides the season and round hierarchy
+      Given the coach opens Fixtures
+      Then the page must show the planning period and round hierarchy
+      And each round must show its status and the correct next action
+
+    Scenario: Round Board is the primary squad decision surface
+      Given the coach opens a match round
+      Then the Round Board must be the primary surface for squad review and changes
+      And actions must include Generate, Resolve blockers, Finalise, and View finalised plan
+
+    Scenario: Season, History and Rules are secondary destinations
+      Given the coach is using the app
+      Then /season, /history, and /rules must be accessible through contextual links
+      And they must not be primary sidebar items
+
+
+  Rule: Consistent status vocabulary
+
+    Matchboard uses one consistent visible status vocabulary across all surfaces.
+
+    Scenario: Status badges use documented vocabulary
+      Given the app displays a round or match status
+      Then the visible label must be one of:
+        | status        | label           |
+        | NOT_GENERATED | Not generated   |
+        | DRAFT         | Draft           |
+        | BLOCKED       | Blocked         |
+        | READY         | Ready           |
+        | FINALIZED     | Finalized       |
+      And the app must not introduce alternative visible status terms for the same state
+
+
+  Rule: Warning and action hierarchy
+
+    Blocking issues must dominate warnings. Warnings must dominate informational explanations. One primary action must be visually dominant per workflow context.
+
+    Scenario: Blocking issues are visually dominant
+      Given match round "R1" has HARD_BLOCK warnings
+      When the coach views the round
+      Then blocking warnings must be visually dominant over review-required and informational warnings
+
+    Scenario: Review-required warnings are visible without opening technical detail
+      Given match round "R1" has REQUIRES_OVERRIDE warnings
+      When the coach views the round
+      Then the warnings must be visible without opening a hidden drawer or toggle
+
+    Scenario: Informational warnings may be progressively disclosed
+      Given match round "R1" has SCORING_PREFERENCE warnings
+      When the coach views the round
+      Then the warnings may be shown behind a toggle or details inspector
+
+    Scenario: One primary action per workflow context
+      Given the coach is on a page with workflow actions
+      Then exactly one primary action must be visually dominant
+      And secondary actions must be clearly subordinate
+
+    Scenario: Draft and finalized states are visually distinct
+      Given match round "R1" is in DRAFT state
+      And match round "R2" is in FINALIZED state
+      When the coach views both rounds
+      Then DRAFT and FINALIZED must be visually distinct
+      And finalized rounds must not appear editable
+
+
+  Rule: User-facing terminology
+
+    Matchboard uses consistent neutral coaching language in all user-facing text.
+
+    Scenario: Assistant page uses correct terminology
+      Given the coach opens /assistant
+      Then the page title must be "Assistant"
+      And the page must not use "Dashboard" as its title or label
+
+    Scenario: Round Board uses correct terminology
+      Given the coach views a round board
+      Then the app must use "Round Board" not "Command center" or "Decision inbox"
+
+    Scenario: Warning section uses correct terminology
+      Given the coach views warnings
+      Then the app must use "Needs Action" or "Round Checks" not "Decision inbox" or "Decision debt"
+
+    Scenario: Squad repair uses correct terminology
+      Given the generation engine produces a BACKFILL selection for squad repair
+      When the coach views the selection in the UI
+      Then the role must be displayed as "Squad repair" not "Backfill"
+      And the BACKFILL enum value must remain internally for backward compatibility
+
+    Scenario: Movement language uses neutral coaching language
+      Given the app displays player movement
+      Then the app must use "Sent as support" not "Demoted"
+      And must use "Received support" not "Promoted"
+      And must use "Development movement" not "Upgraded"
+      And must use "Not selected this round" not "Benched"
+      And must use "Short" or "Below target" not "Weak team"
+      And must use "Donor team" not "Higher team"
+      And must use "Receiving team" not "Lower team"
+
+    Scenario: Product shell does not contain stale framing
+      Given the coach is using the app
+      Then no visible component may contain "Local-first" or "Local first"
+      And no page title may be "Dashboard" when referring to /assistant
+      And no navigation label may use "Command center", "Decision inbox", "Decision debt", "Structured review room", "Optimization output", "Workspace", "Entity", or "Resource"

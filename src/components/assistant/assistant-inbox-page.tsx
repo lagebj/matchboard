@@ -32,7 +32,7 @@ export function AssistantInboxPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Assistant Manager</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Assistant</p>
           <p className="text-xs text-zinc-500 mt-0.5">What needs coach attention now.</p>
         </div>
         {totalOpen > 0 && (

@@ -175,11 +175,11 @@ export function MatchDetail({ match }: { match: MatchData }) {
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2">
         <Link
-          href="/matches"
+          href="/fixtures"
           className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          All matches
+          Fixtures
         </Link>
          <Link
            href={`/matches/${match.id}/post-match`}

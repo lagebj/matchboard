@@ -2,7 +2,7 @@
 
 Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
 
-It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
+It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
 Selections are generated per match round. Fairness is evaluated across the season/planning period.
 
@@ -21,7 +21,17 @@ The primary workflow is:
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
-The Assistant page always shows the next action based on workflow state.
+The central operating flow is: `Assistant → Fixtures → Round Board → Match reporting → Season/History review`.
+
+The canonical primary navigation is: Assistant, Fixtures, Teams, Players.
+
+- Assistant (`/assistant`) shows the next action based on workflow state.
+- Fixtures (`/fixtures`) provides the planning-period and round hierarchy.
+- Round Board is the primary squad decision surface.
+- Teams and Players are supporting registries and detail views.
+- Season, History and Rules are secondary analysis/configuration destinations.
+
+The interface prioritises actionable football decisions over configuration exposure.
 
 ## Core rules
 
@@ -302,15 +312,13 @@ If code and the Gherkin feature file disagree, the feature file wins.
 
 When workflow or UX semantics change, update `features/matchboard.feature`, `AGENTS.md`, and `README.md` before implementing. Do not implement product-shape changes before aligning supporting docs.
 
-## Teams UX model
-
-### Setup registries are table-first
+## Setup registries
 
 Teams, Players, and Matches are setup registries — dense, table-first data views for efficient entry. Each registry has a dedicated create route, prominent Create actions, and actionable empty states. Create buttons must never be dead links.
 
 - **Teams** (`/teams`): dense table with core player count, squad limits, support priority. Create at `/teams/new`.
 - **Players** (`/players`): dense table with name, core team, position, availability. Create at `/players/new`. Requires at least one team.
-- **Matches** (`/matches`): dense table with date, team, opponent, home/away, type, format. Create at `/matches/new`. Requires at least one team.
+- **Fixtures** (`/fixtures`): match registry with round hierarchy, status, and actions. Match creation at `/matches/new`. Requires at least one team.
 
 Round selection (`/rounds`) remains workflow-first and uses cards, boards, and panels — not tables.
 
@@ -459,7 +467,7 @@ This repo is intended to stay safe for a public remote:
 
 ## Vercel deployment
 
-Matchboard is deployed to **Vercel** with **Neon PostgreSQL** as the production database. Matchboard is not local-first — it is a hosted private web app with Neon PostgreSQL backend persistence. SQLite is not used for production persistence — only PostgreSQL is supported.
+Matchboard is deployed to **Vercel** with **Neon PostgreSQL** as the production database. It is a hosted private web app with PostgreSQL backend persistence. SQLite is not used for production persistence — only PostgreSQL is supported.
 
 Do not deploy without auth enabled. All server actions and API routes must enforce `requireCoachAccess()`.
 
