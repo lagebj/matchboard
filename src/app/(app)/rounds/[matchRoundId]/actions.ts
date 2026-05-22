@@ -41,7 +41,7 @@ export async function finalizeRoundAction(formData: FormData) {
   }
 
   revalidatePath("/");
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   revalidatePath("/rounds");
   revalidatePath(`/rounds/${matchRoundId}`);
 
@@ -126,7 +126,7 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
     revalidatePath("/");
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${formData.get("matchRoundId") ?? ""}`);
-    revalidatePath("/matches");
+    revalidatePath("/fixtures");
     revalidatePath(`/matches/${matchId}`);
 
     if (!result.success) {
@@ -153,7 +153,7 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
     revalidatePath("/");
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${matchRoundId}`);
-    revalidatePath("/matches");
+    revalidatePath("/fixtures");
 
     if (!result.success) {
       return { error: result.message };
@@ -179,7 +179,7 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
     revalidatePath("/");
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${formData.get("matchRoundId") ?? ""}`);
-    revalidatePath("/matches");
+    revalidatePath("/fixtures");
     revalidatePath(`/matches/${matchId}`);
 
     if (!result.success) {

@@ -35,20 +35,31 @@ type SearchResult = {
 };
 
 const pageTitles: Record<string, { label: string; note: string }> = {
-  "/": { label: "Today", note: "Review the active round, blockers, and the next safe action." },
+  "/assistant": { label: "Assistant", note: "Next action, blockers, and upcoming work." },
+  "/fixtures": { label: "Fixtures", note: "Planning period, rounds, and match hierarchy." },
   "/rounds": { label: "Rounds", note: "Generate, review, and finalize squads per match round." },
   "/players": { label: "Players", note: "Availability, load, and movement history." },
   "/teams": { label: "Teams", note: "Core groups, support needs, and movement paths." },
-  "/rules": { label: "Rules", note: "Selection rules, support priority, and squad repair behavior." },
+  "/rules": { label: "Rules", note: "Selection rules, support priority, and rotation paths." },
   "/history": { label: "History", note: "Finalized rounds, movement, and fairness over time." },
+  "/season": { label: "Season", note: "Player-by-round matrix, movement, and fairness." },
 };
 
 function getPageInfo(pathname: string) {
+  if (pathname.startsWith("/assist") && pathname !== "/assistant") {
+    return { label: "Assistant", note: "Next action, blockers, and upcoming work." };
+  }
   if (pathname.startsWith("/rounds/") && pathname !== "/rounds") {
-    return { label: "Round", note: "Match round workbench" };
+    return { label: "Round Board", note: "Squad planning and match decisions." };
+  }
+  if (pathname.startsWith("/teams/") && pathname !== "/teams") {
+    return { label: "Team detail", note: "Core group, support, movement, and warnings." };
   }
   if (pathname.startsWith("/players/") && pathname !== "/players") {
     return { label: "Player profile", note: "Availability, load, and movement history." };
+  }
+  if (pathname.startsWith("/matches/") && pathname !== "/matches") {
+    return { label: "Match detail", note: "Match preparation and reporting." };
   }
   return pageTitles[pathname] ?? { label: "Matchboard", note: "Squad planning" };
 }

@@ -42,7 +42,7 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Match Review</p>
-        <Link href="/matches" className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to matches</Link>
+        <Link href="/fixtures" className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to fixtures</Link>
       </div>
 
       <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">

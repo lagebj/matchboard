@@ -107,7 +107,7 @@ export async function createTeamAction(formData: FormData) {
 
   revalidatePath("/teams");
   revalidatePath("/players");
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   redirect(
     buildPathWithSearch("/teams", {
       saved: "created",
@@ -212,7 +212,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 
   revalidatePath("/teams");
   revalidatePath("/players");
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   redirect(
     buildPathWithSearch("/teams", {
       saved: "support-updated",
@@ -290,7 +290,7 @@ export async function deleteTeamAction(teamId: string) {
 
   revalidatePath("/teams");
   revalidatePath("/players");
-  revalidatePath("/matches");
+  revalidatePath("/fixtures");
   revalidatePath("/");
   redirect(
     buildPathWithSearch("/teams", {

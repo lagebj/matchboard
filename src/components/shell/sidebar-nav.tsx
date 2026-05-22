@@ -81,7 +81,7 @@ export function SidebarNav({ warningCount }: { warningCount?: number }) {
 
       <div className="border-t border-[var(--border-soft)] px-4 py-3">
         <p className="text-[9px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-          v0.1 · Local-first
+          v0.1
         </p>
       </div>
     </nav>
