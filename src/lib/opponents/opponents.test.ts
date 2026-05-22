@@ -10,18 +10,18 @@ import {
   validateOpponentTeamInput,
 } from "./opponent-team";
 import { getMatchFitAdvisoryOrdinal } from "./match-fit-labels";
-import { MatchFit } from "@/generated/prisma/client";
+import { MatchFit, OpponentConcernCategory, OpponentObservationFollowUp, MatchEnvironmentObservation } from "@/generated/prisma/client";
 import { isParentExcludedField } from "@/lib/export/parent-safe-filter";
 
 describe("validateObservation", () => {
   const validBase = {
-    overallEnvironment: "ACCEPTABLE" as const,
-    opponentPlayersContext: "ACCEPTABLE" as const,
-    opponentStaffContext: "ACCEPTABLE" as const,
-    spectatorSidelineContext: "ACCEPTABLE" as const,
-    concernCategories: [] as string[],
-    factualSummary: null,
-    followUp: "NONE" as const,
+    overallEnvironment: "ACCEPTABLE" as MatchEnvironmentObservation,
+    opponentPlayersContext: "ACCEPTABLE" as MatchEnvironmentObservation,
+    opponentStaffContext: "ACCEPTABLE" as MatchEnvironmentObservation,
+    spectatorSidelineContext: "ACCEPTABLE" as MatchEnvironmentObservation,
+    concernCategories: [] as OpponentConcernCategory[],
+    factualSummary: null as string | null,
+    followUp: "NONE" as OpponentObservationFollowUp,
   };
 
   it("accepts a valid observation with no concerns", () => {
@@ -32,10 +32,10 @@ describe("validateObservation", () => {
   it("accepts a positive observation", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "POSITIVE",
-      opponentPlayersContext: "POSITIVE",
-      opponentStaffContext: "POSITIVE",
-      spectatorSidelineContext: "POSITIVE",
+      overallEnvironment: "POSITIVE" as MatchEnvironmentObservation,
+      opponentPlayersContext: "POSITIVE" as MatchEnvironmentObservation,
+      opponentStaffContext: "POSITIVE" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "POSITIVE" as MatchEnvironmentObservation,
     });
     expect(result.valid).toBe(true);
   });
@@ -43,13 +43,13 @@ describe("validateObservation", () => {
   it("accepts a concern observation with category and summary", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "CONCERN",
-      opponentStaffContext: "NOT_ASSESSED",
-      spectatorSidelineContext: "NOT_ASSESSED",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
       factualSummary: "Physical play after whistle",
-      followUp: "CLUB_FOLLOW_UP" as const,
+      followUp: "DISCUSSED_AFTER_MATCH" as OpponentObservationFollowUp,
     });
     expect(result.valid).toBe(true);
   });
@@ -57,13 +57,13 @@ describe("validateObservation", () => {
   it("accepts a serious concern with summary", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "SERIOUS_CONCERN",
-      opponentPlayersContext: "SERIOUS_CONCERN",
-      opponentStaffContext: "CONCERN",
-      spectatorSidelineContext: "NOT_ASSESSED",
-      concernCategories: ["FAIR_PLAY_CONCERN", "ENVIRONMENT_CONCERN"],
+      overallEnvironment: "SERIOUS_CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "SERIOUS_CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "CONCERN" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: ["PHYSICAL_PLAY_OR_SAFETY_CONCERN", "SIDELINE_ATMOSPHERE_CONCERN"] as OpponentConcernCategory[],
       factualSummary: "Repeated unsafe challenges and aggressive sideline behavior",
-      followUp: "CLUB_FOLLOW_UP" as const,
+      followUp: "INFORMED_OWN_CLUB_FAIR_PLAY_CONTACT" as OpponentObservationFollowUp,
     });
     expect(result.valid).toBe(true);
   });
@@ -71,11 +71,11 @@ describe("validateObservation", () => {
   it("rejects area serious concern without overall serious concern", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "SERIOUS_CONCERN",
-      opponentStaffContext: "NOT_ASSESSED",
-      spectatorSidelineContext: "NOT_ASSESSED",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "SERIOUS_CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: ["PHYSICAL_PLAY_OR_SAFETY_CONCERN"] as OpponentConcernCategory[],
       factualSummary: "Something",
     });
     expect(result.valid).toBe(false);
@@ -87,11 +87,11 @@ describe("validateObservation", () => {
   it("rejects area concern without overall concern or above", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "POSITIVE",
-      opponentPlayersContext: "CONCERN",
-      opponentStaffContext: "NOT_ASSESSED",
-      spectatorSidelineContext: "NOT_ASSESSED",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "POSITIVE" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
     });
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -102,11 +102,11 @@ describe("validateObservation", () => {
   it("rejects concern categories missing when concern recorded", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "CONCERN",
-      opponentStaffContext: "NOT_ASSESSED",
-      spectatorSidelineContext: "NOT_ASSESSED",
-      concernCategories: [],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: [] as OpponentConcernCategory[],
       factualSummary: null,
     });
     expect(result.valid).toBe(false);
@@ -118,13 +118,13 @@ describe("validateObservation", () => {
   it("rejects serious concern without factual summary", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "SERIOUS_CONCERN",
-      opponentPlayersContext: "SERIOUS_CONCERN",
-      opponentStaffContext: "NOT_ASSESSED",
-      spectatorSidelineContext: "NOT_ASSESSED",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "SERIOUS_CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "SERIOUS_CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: ["PHYSICAL_PLAY_OR_SAFETY_CONCERN"] as OpponentConcernCategory[],
       factualSummary: null,
-      followUp: "CLUB_FOLLOW_UP" as const,
+      followUp: "INFORMED_OWN_CLUB_FAIR_PLAY_CONTACT" as OpponentObservationFollowUp,
     });
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -135,9 +135,9 @@ describe("validateObservation", () => {
   it("rejects factual summary containing email", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "CONCERN",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
       factualSummary: "Contact coach@example.com for details",
     });
     expect(result.valid).toBe(false);
@@ -149,9 +149,9 @@ describe("validateObservation", () => {
   it("rejects factual summary containing URL", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "CONCERN",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
       factualSummary: "See https://example.com/report",
     });
     expect(result.valid).toBe(false);
@@ -163,9 +163,9 @@ describe("validateObservation", () => {
   it("rejects factual summary containing phone number", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "CONCERN",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
       factualSummary: "Call +47 123 45 678",
     });
     expect(result.valid).toBe(false);
@@ -177,11 +177,11 @@ describe("validateObservation", () => {
   it("rejects factual summary over 500 characters", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN" as const,
-      opponentPlayersContext: "CONCERN" as const,
-      opponentStaffContext: "NOT_ASSESSED" as const,
-      spectatorSidelineContext: "NOT_ASSESSED" as const,
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      opponentStaffContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      spectatorSidelineContext: "NOT_ASSESSED" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
       factualSummary: "a".repeat(501),
     });
     expect(result.valid).toBe(false);
@@ -193,9 +193,9 @@ describe("validateObservation", () => {
   it("accepts factual summary at exactly 500 characters", () => {
     const result = validateObservation({
       ...validBase,
-      overallEnvironment: "CONCERN",
-      opponentPlayersContext: "CONCERN",
-      concernCategories: ["FAIR_PLAY_CONCERN"],
+      overallEnvironment: "CONCERN" as MatchEnvironmentObservation,
+      opponentPlayersContext: "CONCERN" as MatchEnvironmentObservation,
+      concernCategories: ["UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[],
       factualSummary: "a".repeat(500),
     });
     expect(result.valid).toBe(true);
@@ -204,8 +204,8 @@ describe("validateObservation", () => {
 
 describe("deduplicateCategories", () => {
   it("removes duplicate categories", () => {
-    const result = deduplicateCategories(["FAIR_PLAY_CONCERN", "ENVIRONMENT_CONCERN", "FAIR_PLAY_CONCERN"]);
-    expect(result).toEqual(["FAIR_PLAY_CONCERN", "ENVIRONMENT_CONCERN"]);
+    const result = deduplicateCategories(["UNSPORTING_MATCH_CONDUCT", "SIDELINE_ATMOSPHERE_CONCERN", "UNSPORTING_MATCH_CONDUCT"] as OpponentConcernCategory[]);
+    expect(result).toEqual(["UNSPORTING_MATCH_CONDUCT", "SIDELINE_ATMOSPHERE_CONCERN"]);
   });
 
   it("returns empty array for empty input", () => {
@@ -213,8 +213,8 @@ describe("deduplicateCategories", () => {
   });
 
   it("preserves unique categories", () => {
-    const result = deduplicateCategories(["FAIR_PLAY_CONCERN", "ENVIRONMENT_CONCERN"]);
-    expect(result).toEqual(["FAIR_PLAY_CONCERN", "ENVIRONMENT_CONCERN"]);
+    const result = deduplicateCategories(["UNSPORTING_MATCH_CONDUCT", "SIDELINE_ATMOSPHERE_CONCERN"] as OpponentConcernCategory[]);
+    expect(result).toEqual(["UNSPORTING_MATCH_CONDUCT", "SIDELINE_ATMOSPHERE_CONCERN"]);
   });
 });
 
