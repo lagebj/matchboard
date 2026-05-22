@@ -15,7 +15,7 @@ import {
   GripVertical,
   XCircle,
   Lock,
-  Unlock,
+  RotateCcw,
 } from "lucide-react";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
@@ -304,7 +304,7 @@ function MatchColumnComponent({
               type="button"
               title="Un-finalize this match"
             >
-              <Unlock className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           )}
           {!match.isFinalized && (
@@ -699,7 +699,7 @@ export function RoundBoard({
             onClick={() => setShowUnfinalizeConfirm(true)}
             type="button"
           >
-            <Unlock className="mr-1 inline h-3.5 w-3.5" />
+            <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
             Un-finalize round
           </button>
         </div>

@@ -32,7 +32,9 @@ export type AssistantIssueType =
   | "BLOCKED_CONDITION_PREVENTS_FINALIZE"
   | "POST_MATCH_REPORT_MISSING";
 
-export type SignalCategory = "BLOCKED" | "DECISION_REQUIRED" | "PLANNING_NOTE";
+import type { SignalCategory } from "@/lib/selection/signal-category";
+
+export type { SignalCategory };
 
 export type BlockerType = "NONE" | "SOFT" | "HARD";
 

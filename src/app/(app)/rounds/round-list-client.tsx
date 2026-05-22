@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Unlock } from "lucide-react";
+import { ShieldCheck, RotateCcw } from "lucide-react";
 import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 
@@ -254,7 +254,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                       }}
                       type="button"
                     >
-                      <Unlock className="mr-1 inline h-3.5 w-3.5" />
+                      <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
                       {isPending ? "Un-finalizing..." : "Un-finalize"}
                     </button>
                   </div>

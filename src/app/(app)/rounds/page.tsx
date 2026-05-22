@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "./round-list-client";
-import { signalCategoryFromSeverity } from "@/lib/selection/persist-warnings";
+import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
 import { type WarningSeverity } from "@/generated/prisma/client";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 

@@ -9,23 +9,18 @@ import type {
   PostMatchPlayerActual,
   ReadinessState,
   RoundReview,
-  SignalCategory,
   SelectionExplanation,
   TeamReadiness,
 } from "./types";
 import { db } from "@/lib/db";
 import { WarningSeverity, UnplannedAppearanceReason } from "@/generated/prisma/client";
-import { signalCategoryFromSeverity } from "@/lib/selection/persist-warnings";
+import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
 
 function mapSeverityToState(severity: string): ReadinessState {
   if (severity === "HARD_BLOCK") return "NOT_PLAYABLE";
   if (severity === "REQUIRES_OVERRIDE") return "AT_RISK";
   if (severity === "WARNING") return "WATCH";
   return "READY";
-}
-
-function mapSeverityToSignalCategory(severity: WarningSeverity): SignalCategory {
-  return signalCategoryFromSeverity(severity);
 }
 
 function mapSeverityToBlockerType(severity: WarningSeverity): "HARD" | "SOFT" | "NONE" {
@@ -160,7 +155,7 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
           ruleId: w.rule,
           ruleName: w.rule,
           effect: w.message,
-          signalCategory: mapSeverityToSignalCategory(w.severity as WarningSeverity),
+          signalCategory: signalCategoryFromSeverity(w.severity as WarningSeverity),
           affectedPlayerIds: w.playerId ? [w.playerId] : [],
           affectedTeamIds: w.teamId ? [w.teamId] : [],
           blockerType: mapSeverityToBlockerType(w.severity as WarningSeverity),
@@ -285,7 +280,7 @@ export async function getTeamReadiness(teamId: string, matchId?: string): Promis
       ruleId: w.rule,
       ruleName: w.rule,
       effect: w.message,
-      signalCategory: mapSeverityToSignalCategory(w.severity as WarningSeverity),
+      signalCategory: signalCategoryFromSeverity(w.severity as WarningSeverity),
       affectedPlayerIds: w.playerId ? [w.playerId] : [],
       affectedTeamIds: w.teamId ? [w.teamId] : [],
       blockerType: mapSeverityToBlockerType(w.severity as WarningSeverity),
@@ -341,7 +336,7 @@ export async function getMatchReview(matchId: string): Promise<MatchReview> {
       ruleId: w.rule,
       ruleName: w.rule,
       effect: w.message,
-      signalCategory: mapSeverityToSignalCategory(w.severity as WarningSeverity),
+      signalCategory: signalCategoryFromSeverity(w.severity as WarningSeverity),
       affectedPlayerIds: w.playerId ? [w.playerId] : [],
       affectedTeamIds: w.teamId ? [w.teamId] : [],
       blockerType: mapSeverityToBlockerType(w.severity as WarningSeverity),
