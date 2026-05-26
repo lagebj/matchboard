@@ -10,6 +10,23 @@ import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
+import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
+
+async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: string[] = []) {
+  try {
+    await reconcileRoundAfterDraftMutation(matchRoundId);
+  } catch {
+    // reconciliation failure must not block the mutation
+  }
+  revalidatePath("/");
+  revalidatePath("/fixtures");
+  revalidatePath("/rounds");
+  revalidatePath(`/rounds/${matchRoundId}`);
+  revalidatePath("/assistant");
+  for (const path of extraPaths) {
+    revalidatePath(path);
+  }
+}
 
 export async function finalizeRoundAction(formData: FormData) {
   await requireCoachAccess();
@@ -60,23 +77,25 @@ export async function clearRoundDraftAction(formData: FormData) {
   }
 
   await clearRoundDraftSelection(matchRoundId);
-
-  revalidatePath("/");
-  revalidatePath("/rounds");
-  revalidatePath(`/rounds/${matchRoundId}`);
+  await reconcileAndRevalidatePaths(matchRoundId);
 }
 
 export async function clearMatchDraftAction(formData: FormData) {
   await requireCoachAccess();
   const matchId = formData.get("matchId");
+  const matchRoundId = formData.get("matchRoundId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
   }
 
   await clearMatchDraftSelection(matchId);
-
-  revalidatePath("/");
-  revalidatePath("/rounds");
+  
+  if (typeof matchRoundId === "string" && matchRoundId) {
+    await reconcileAndRevalidatePaths(matchRoundId);
+  } else {
+    revalidatePath("/");
+    revalidatePath("/rounds");
+  }
 }
 
 export async function regenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
@@ -93,9 +112,7 @@ export async function regenerateRoundAction(prevState: { error: string }, formDa
       return { error: "Round has manual edits that were preserved. Clear manual edits first to fully regenerate." };
     }
 
-    revalidatePath("/");
-    revalidatePath("/rounds");
-    revalidatePath(`/rounds/${matchRoundId}`);
+    await reconcileAndRevalidatePaths(matchRoundId);
 
     return { error: "" };
   } catch (error) {
@@ -150,10 +167,7 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
     const result = await unfinalizeMatchRound(matchRoundId);
 
-    revalidatePath("/");
-    revalidatePath("/rounds");
-    revalidatePath(`/rounds/${matchRoundId}`);
-    revalidatePath("/fixtures");
+    await reconcileAndRevalidatePaths(matchRoundId);
 
     if (!result.success) {
       return { error: result.message };
@@ -176,11 +190,15 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
     const { unfinalizeSingleMatch } = await import("@/lib/selection/unfinalize-single-match");
     const result = await unfinalizeSingleMatch(matchId);
 
-    revalidatePath("/");
-    revalidatePath("/rounds");
-    revalidatePath(`/rounds/${formData.get("matchRoundId") ?? ""}`);
-    revalidatePath("/fixtures");
-    revalidatePath(`/matches/${matchId}`);
+    const roundId = typeof formData.get("matchRoundId") === "string" ? formData.get("matchRoundId") as string : "";
+    if (roundId) {
+      await reconcileAndRevalidatePaths(roundId, [`/matches/${matchId}`]);
+    } else {
+      revalidatePath("/");
+      revalidatePath("/rounds");
+      revalidatePath("/fixtures");
+      revalidatePath(`/matches/${matchId}`);
+    }
 
     if (!result.success) {
       return { error: result.message };
