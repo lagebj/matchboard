@@ -89,13 +89,13 @@ export function PlayersPageClient({
   }
 
   const selectClass =
-    "h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-zinc-300 outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]";
+    "h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-zinc-300 outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none";
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-lg font-semibold text-zinc-100">Players</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <p className="text-xs text-zinc-500 mt-0.5 max-w-prose">
           Participation, movement and current planning attention.
         </p>
       </div>
@@ -110,8 +110,8 @@ export function PlayersPageClient({
         <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Player removed.</div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-zinc-500">{players.length} player{players.length !== 1 ? "s" : ""}</span>
         </div>
         {teams.length > 0 && (
@@ -128,7 +128,7 @@ export function PlayersPageClient({
 
       {mode === "season" && (
         <>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
               <span className="text-xs text-zinc-500">Planning period:</span>
               <select
@@ -161,7 +161,7 @@ export function PlayersPageClient({
 
       {mode === "attention" && (
         <>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
               <span className="text-xs text-zinc-500">Planning period:</span>
               <select

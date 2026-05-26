@@ -9,28 +9,29 @@ type PlayersModeTabsProps = {
   onModeChange: (mode: PlayersMode) => void;
 };
 
-const tabs: { mode: PlayersMode; label: string }[] = [
-  { mode: "season", label: "Season overview" },
-  { mode: "attention", label: "Current round attention" },
-  { mode: "groups", label: "Manage base groups" },
+const tabs: { mode: PlayersMode; label: string; shortLabel: string }[] = [
+  { mode: "season", label: "Season overview", shortLabel: "Season" },
+  { mode: "attention", label: "Current round attention", shortLabel: "Attention" },
+  { mode: "groups", label: "Manage base groups", shortLabel: "Groups" },
 ];
 
 export function PlayersModeTabs({ mode, onModeChange }: PlayersModeTabsProps) {
   return (
-    <nav className="flex border-b border-[var(--border-soft)]" role="tablist" aria-label="Players view mode">
+    <nav className="flex overflow-x-auto border-b border-[var(--border-soft)]" role="tablist" aria-label="Players view mode">
       {tabs.map((tab) => (
         <button
           key={tab.mode}
           role="tab"
           aria-selected={mode === tab.mode}
           onClick={() => onModeChange(tab.mode)}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+          className={`shrink-0 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px sm:px-4 ${
             mode === tab.mode
               ? "border-[var(--accent-strong)] text-zinc-100"
               : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
           }`}
         >
-          {tab.label}
+          <span className="hidden sm:inline">{tab.label}</span>
+          <span className="sm:hidden">{tab.shortLabel}</span>
         </button>
       ))}
     </nav>
