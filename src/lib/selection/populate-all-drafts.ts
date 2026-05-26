@@ -3,7 +3,6 @@ import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
-import { generateRoundIssues } from "@/lib/selection/generate-round-issues";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
 
 export type PopulateAllResult = {
@@ -79,7 +78,6 @@ export async function populateAllDrafts(
       await persistRoundWarnings(warnings);
       await persistRoundExplanations(generatedRound);
       await enrichSelectionsWithIntent(generatedRound.matchResults.map((m) => m.matchId));
-      await generateRoundIssues(matchRound.id);
 
       results.push({
         matchRoundId: matchRound.id,

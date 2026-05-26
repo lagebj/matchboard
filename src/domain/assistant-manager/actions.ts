@@ -1,7 +1,6 @@
 "use server";
 
 import { requireCoachAccess } from "@/lib/auth";
-import { getAssistantIssues } from "@/domain/assistant-manager/service";
 import { getRoundReview } from "@/domain/assistant-manager/service";
 import { getTeamReadiness } from "@/domain/assistant-manager/service";
 import { getMatchReview } from "@/domain/assistant-manager/service";
@@ -9,15 +8,17 @@ import { getSelectionExplanation } from "@/domain/assistant-manager/service";
 import { recordDecision } from "@/domain/assistant-manager/service";
 import { getPostMatchReport } from "@/domain/assistant-manager/service";
 import { completePostMatchReport } from "@/domain/assistant-manager/service";
-
-export async function fetchAssistantIssues() {
-  await requireCoachAccess();
-  return getAssistantIssues();
-}
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
 export async function fetchRoundReview(roundId: string) {
   await requireCoachAccess();
   return getRoundReview(roundId);
+}
+
+export async function fetchRoundPlanIntegrity(roundId: string) {
+  await requireCoachAccess();
+  const integrity = await computeRoundPlanIntegrity(roundId);
+  return integrity.signals;
 }
 
 export async function fetchTeamReadiness(teamId: string, matchId?: string) {

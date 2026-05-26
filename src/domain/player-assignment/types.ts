@@ -16,7 +16,6 @@ export interface PlayerAssignmentBoardPlayer {
   rotatable?: boolean;
   teamId?: string | null;
   coreGroup?: string | null;
-  openIssueCount?: number;
 }
 
 export interface MovePlayerToTeamInput {

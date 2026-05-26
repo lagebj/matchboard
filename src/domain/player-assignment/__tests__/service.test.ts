@@ -43,30 +43,10 @@ describe("Player Assignment Service", () => {
       expect(typeof firstPlayer.rotatable).toBe("boolean");
     });
 
-    it("includes open issue count for each player", async () => {
-      const playerId = fixture.players[0].id;
-
-      await testDb.assistantIssue.create({
-        data: {
-          type: "TEAM_NEEDS_SUPPORT",
-          severity: "ACTION_REQUIRED",
-          status: "OPEN",
-          title: "Test issue",
-          summary: "Test",
-          entityType: "PLAYER",
-          entityId: playerId,
-          affectedTeamIds: [],
-          affectedPlayerIds: [],
-          ruleIds: [],
-          recommendedAction: "Review",
-          primaryActionLabel: "View",
-          primaryActionHref: "/players/test",
-        },
-      });
-
+    it("does not include openIssueCount on player objects", async () => {
       const board = await getPlayerAssignmentBoard();
-      const player = board.teams.flatMap((t) => t.players).find((p) => p.playerId === playerId);
-      expect(player?.openIssueCount).toBeGreaterThanOrEqual(1);
+      const firstPlayer = board.teams[0].players[0];
+      expect(firstPlayer).not.toHaveProperty("openIssueCount");
     });
 
     it("excludes archived teams", async () => {

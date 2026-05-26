@@ -53,7 +53,7 @@ The primary coach workflow is:
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
-The Today page must always show the next action based on this workflow state.
+The Assistant page must always show the next action based on this workflow state. The Assistant page derives work items from live database state using `getAssistantCommandCentre()`, not from persisted AssistantIssue rows.
 
 ## Stack
 
@@ -1195,7 +1195,7 @@ Key rules:
 - Update supporting docs before implementation.
 - Do not duplicate selection-engine logic in UI components.
 - Use player IDs in stored payloads and external/public payloads.
-- Do not store player names inside assistant issues, explanations, recommendations, decision records, or cross-team impact payloads.
+- Do not store player names inside assistant work items, explanations, recommendations, decision records, or cross-team impact payloads.
 - Do not introduce ability scores, best-XI language, permanent weak/strong labels, or public player ranking.
 - Overrides must require a reason.
 - Selection-affecting actions must create an auditable DecisionRecord.

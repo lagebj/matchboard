@@ -25,7 +25,7 @@ The central operating flow is: `Assistant → Fixtures → Round Board → Match
 
 The canonical primary navigation is: Assistant, Fixtures, Teams, Players.
 
-- Assistant (`/assistant`) shows the next action based on workflow state.
+- Assistant (`/assistant`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows.
 - Fixtures (`/fixtures`) provides the planning-period and round hierarchy.
 - Round Board is the primary squad decision surface.
 - Teams provides team registry and team detail workspaces.

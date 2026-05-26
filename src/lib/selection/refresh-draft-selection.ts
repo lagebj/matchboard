@@ -6,7 +6,6 @@ import { createGeneratedDraftRound, createGeneratedDraftSelection } from "@/lib/
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
-import { generateRoundIssues } from "@/lib/selection/generate-round-issues";
 
 type SelectionExplanationRow = { explanation: Prisma.JsonValue };
 
@@ -272,7 +271,6 @@ export async function refreshDraftRound(matchRoundId: string) {
   await persistRoundWarnings(warnings);
   await persistRoundExplanations(generatedRound);
   await enrichSelectionsWithIntent(generatedRound.matchResults.map((m) => m.matchId));
-  await generateRoundIssues(matchRoundId);
 
   return { preservedManualDraft: false };
 }

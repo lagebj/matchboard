@@ -2,11 +2,20 @@
 
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
-import type { RoundReview, AssistantIssue } from "@/domain/assistant-manager/types";
-import { fetchRoundReview, fetchAssistantIssues } from "@/domain/assistant-manager/actions";
-import { getReadinessClasses, getSeverityBadgeClasses } from "@/domain/assistant-manager/utils/issue-grouping";
+import type { RoundReview } from "@/domain/assistant-manager/types";
+import { fetchRoundReview, fetchRoundPlanIntegrity } from "@/domain/assistant-manager/actions";
+import { getReadinessClasses } from "@/domain/assistant-manager/utils/issue-grouping";
 import { TeamReadinessCard } from "./team-readiness-card";
 import { DecisionPanel } from "./decision-panel";
+
+type SignalKind = "BLOCKED" | "DECISION_REQUIRED" | "PLANNING_NOTE";
+
+interface Signal {
+  idempotencyKey: string;
+  kind: SignalKind;
+  title: string;
+  currentState: string;
+}
 
 function readinessLabel(state: string): string {
   switch (state) {
@@ -18,29 +27,34 @@ function readinessLabel(state: string): string {
   }
 }
 
+function signalKindBadgeClass(kind: SignalKind): string {
+  switch (kind) {
+    case "BLOCKED": return "border-red-700/40 bg-red-900/20 text-red-300";
+    case "DECISION_REQUIRED": return "border-amber-700/40 bg-amber-900/20 text-amber-300";
+    default: return "border-zinc-600/40 bg-zinc-800/30 text-zinc-400";
+  }
+}
+
 export function RoundReviewPage({ roundId }: { roundId: string }) {
   const [review, setReview] = useState<RoundReview | null>(null);
-  const [issues, setIssues] = useState<AssistantIssue[]>([]);
+  const [signals, setSignals] = useState<Signal[]>([]);
   const [overrideReason, setOverrideReason] = useState("");
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [_isPending, startTransition] = useTransition();
 
   useEffect(() => {
     startTransition(async () => {
-      const [r, i] = await Promise.all([
-        fetchRoundReview(roundId),
-        fetchAssistantIssues(),
-      ]);
+      const r = await fetchRoundReview(roundId);
       setReview(r);
-      setIssues(i.filter((issue) => issue.entityType === "ROUND" || issue.entityType === "TEAM"));
+
+      const integrity = await fetchRoundPlanIntegrity(roundId);
+      setSignals(integrity);
     });
   }, [roundId, startTransition]);
 
   if (!review) {
     return <div className="p-4 text-sm text-zinc-500">Loading round review...</div>;
   }
-
-  const relatedIssues = issues.filter((i) => i.status === "OPEN").sort((a, b) => a.title.localeCompare(b.title));
 
   return (
     <div className="flex flex-col gap-4">
@@ -78,18 +92,18 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
         ))}
       </div>
 
-      {relatedIssues.length > 0 && (
+      {signals.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Open issues</p>
-          {relatedIssues.map((issue) => (
-            <div key={issue.id} className="rounded-md border border-zinc-700/30 bg-zinc-800/15 px-3 py-2 text-xs">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Plan integrity</p>
+          {signals.map((signal) => (
+            <div key={signal.idempotencyKey} className="rounded-md border border-zinc-700/30 bg-zinc-800/15 px-3 py-2 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className={`rounded border px-1.5 py-0.5 text-[8px] font-semibold uppercase ${getSeverityBadgeClasses(issue.severity)}`}>
-                  {issue.severity}
+                <span className={`rounded border px-1.5 py-0.5 text-[8px] font-semibold uppercase ${signalKindBadgeClass(signal.kind)}`}>
+                  {signal.kind === "BLOCKED" ? "Blocked" : "Decision required"}
                 </span>
-                <span className="text-zinc-300">{issue.title}</span>
+                <span className="text-zinc-300">{signal.title}</span>
               </div>
-              <p className="text-[11px] text-zinc-400 mt-0.5">{issue.summary}</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">{signal.currentState}</p>
             </div>
           ))}
         </div>
