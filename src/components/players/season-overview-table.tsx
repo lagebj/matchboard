@@ -33,8 +33,8 @@ type SortField =
 
 type SortDirection = "asc" | "desc";
 
-type MovementFilter = "all" | "has_support" | "has_development" | "has_matchday_additions" | "has_squad_repair";
-type AttendanceFilter = "all" | "has_planned_absent" | "has_unavailable";
+type MovementFilter = "all" | "has_support" | "has_development" | "has_matchday_additions" | "has_squad_repair" | "high_support_load";
+type AttendanceFilter = "all" | "has_planned_absent" | "has_unavailable" | "dropped_recently";
 type LoadFilter = "all" | "low_load" | "high_load";
 
 export function SeasonOverviewTable({
@@ -86,12 +86,16 @@ export function SeasonOverviewTable({
       result = result.filter((r) => r.matchdayAdditions > 0);
     } else if (movementFilter === "has_squad_repair") {
       result = result.filter((r) => r.squadRepairAppearances > 0);
+    } else if (movementFilter === "high_support_load") {
+      result = result.filter((r) => r.supportAppearances > 0 && r.coreAppearances > 0 && r.supportAppearances > r.coreAppearances);
     }
 
     if (attendanceFilter === "has_planned_absent") {
       result = result.filter((r) => r.plannedButAbsent > 0);
     } else if (attendanceFilter === "has_unavailable") {
       result = result.filter((r) => r.unavailableRoundCount > 0);
+    } else if (attendanceFilter === "dropped_recently") {
+      result = result.filter((r) => r.plannedButAbsent > 0 || (r.actualAppearances === 0 && r.finalisedUpcomingAppearances === 0 && r.draftSelections === 0 && r.unavailableRoundCount === 0 && r.supportAppearances === 0 && r.developmentAppearances === 0));
     }
 
     if (loadFilter === "low_load") {
@@ -218,6 +222,7 @@ export function SeasonOverviewTable({
         >
           <option value="all">All movement</option>
           <option value="has_support">Has support appearances</option>
+          <option value="high_support_load">High support load</option>
           <option value="has_development">Has development appearances</option>
           <option value="has_squad_repair">Has squad repair</option>
           <option value="has_matchday_additions">Has matchday additions</option>
@@ -241,6 +246,7 @@ export function SeasonOverviewTable({
           <option value="all">All attendance</option>
           <option value="has_planned_absent">Has planned absences</option>
           <option value="has_unavailable">Has unavailable rounds</option>
+          <option value="dropped_recently">Dropped recently</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs text-zinc-400">
           <input
