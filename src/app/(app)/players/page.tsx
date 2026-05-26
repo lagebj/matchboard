@@ -68,6 +68,22 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
   const totalActualAppearances = seasonData.seasonRows.reduce((sum, r) => sum + r.actualAppearances, 0);
   const totalMatchdayAdditions = seasonData.seasonRows.reduce((sum, r) => sum + r.matchdayAdditions, 0);
 
+  const roundCounts = selectedPeriodId
+    ? await db.matchRound.groupBy({
+        by: ["status"],
+        where: { planningPeriodId: selectedPeriodId },
+        _count: { status: true },
+      }).then((groups) => {
+          const counts = { total: 0, finalised: 0, draft: 0 };
+          for (const g of groups) {
+            counts.total += g._count.status;
+            if (g.status === "FINALIZED") counts.finalised += g._count.status;
+            if (g.status === "DRAFT" || g.status === "BLOCKED" || g.status === "READY") counts.draft += g._count.status;
+          }
+          return counts;
+        })
+    : { total: 0, finalised: 0, draft: 0 };
+
   return (
     <PlayersPageClient
       players={players.map((p) => ({
@@ -92,6 +108,9 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       reportedMatchCount={reportedMatchCount}
       totalActualAppearances={totalActualAppearances}
       totalMatchdayAdditions={totalMatchdayAdditions}
+      totalRounds={roundCounts.total}
+      finalisedRounds={roundCounts.finalised}
+      draftRounds={roundCounts.draft}
       error={error}
       saved={saved}
     />

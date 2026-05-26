@@ -20,13 +20,16 @@ export type PlayerSeasonOverviewRow = {
   actualAdditionalAppearances: number;
   plannedButAbsent: number;
   finalisedUpcomingAppearances: number;
+  draftSelections: number;
+  squadRepairAppearances: number;
+  unavailableRoundCount: number;
 
   recentInvolvement: Array<{
     matchId: string;
     matchDate: Date;
     teamName: string;
     opponent: string;
-    state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION";
+    state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION" | "DRAFT";
     role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
   }>;
 };
@@ -254,6 +257,7 @@ export async function getPlayersSeasonOverview(
     let coreAppearances = 0;
     let supportAppearances = 0;
     let developmentAppearances = 0;
+    let squadRepairAppearances = 0;
     let matchdayAdditions = 0;
     let plannedButAbsent = 0;
     let finalisedUpcomingAppearances = 0;
@@ -268,7 +272,13 @@ export async function getPlayersSeasonOverview(
       if (role) {
         const category = classifyRole(role as Parameters<typeof classifyRole>[0]);
         if (category === "core") coreAppearances++;
-        else if (category === "support") supportAppearances++;
+        else if (category === "support") {
+          if (role === "BACKFILL") {
+            squadRepairAppearances++;
+          } else {
+            supportAppearances++;
+          }
+        }
         else developmentAppearances++;
       }
 
@@ -279,16 +289,22 @@ export async function getPlayersSeasonOverview(
     }
 
     // Planned absences: player was planned (finalised) but recorded as absent in reported/locked match
+    let draftSelections = 0;
     for (const sel of playerSelections) {
+      if (sel.status === "DRAFT") {
+        draftSelections++;
+      }
       if (sel.status === "FINALIZED") {
         const isReported = reportedMatchIds.has(sel.matchId);
         if (isReported) {
-          // Check if player was absent
           if (absentPlayerMatchIds.has(`${player.id}:${sel.matchId}`)) {
             plannedButAbsent++;
           }
+          const category = classifyRole(sel.role as Parameters<typeof classifyRole>[0]);
+          if (category === "support") {
+            squadRepairAppearances++;
+          }
         } else {
-          // Finalised but not yet reported = upcoming
           finalisedUpcomingAppearances++;
         }
       }
@@ -309,7 +325,7 @@ export async function getPlayersSeasonOverview(
       date: Date;
       teamName: string;
       opponent: string;
-      state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION";
+      state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION" | "DRAFT";
       role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
     }> = [];
 
@@ -361,6 +377,22 @@ export async function getPlayersSeasonOverview(
       }
     }
 
+    // Draft selections (not finalized)
+    for (const sel of playerSelections) {
+      if (sel.status === "DRAFT") {
+        const mi = matchById.get(sel.matchId);
+        if (!mi) continue;
+        involvementEntries.push({
+          matchId: sel.matchId,
+          date: mi.startsAt ?? new Date(0),
+          teamName: mi.team.name,
+          opponent: mi.opponent ?? "",
+          state: "DRAFT",
+          role: sel.role as "CORE" | "SUPPORT" | "DEVELOPMENT" | null,
+        });
+      }
+    }
+
     involvementEntries.sort((a, b) => b.date.getTime() - a.date.getTime());
     const recentInvolvement = involvementEntries.slice(0, 5).map(({ matchId, date, teamName, opponent, state, role }) => ({
       matchId,
@@ -385,6 +417,9 @@ export async function getPlayersSeasonOverview(
       actualAdditionalAppearances,
       plannedButAbsent,
       finalisedUpcomingAppearances,
+      draftSelections,
+      squadRepairAppearances,
+      unavailableRoundCount: 0,
       recentInvolvement,
     };
   });

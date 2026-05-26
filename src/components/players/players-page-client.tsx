@@ -31,6 +31,9 @@ type PlayersPageClientProps = {
   reportedMatchCount: number;
   totalActualAppearances: number;
   totalMatchdayAdditions: number;
+  totalRounds: number;
+  finalisedRounds: number;
+  draftRounds: number;
   error?: string;
   saved?: string;
 };
@@ -48,6 +51,9 @@ export function PlayersPageClient({
   reportedMatchCount,
   totalActualAppearances,
   totalMatchdayAdditions,
+  totalRounds,
+  finalisedRounds,
+  draftRounds,
   error,
   saved,
 }: PlayersPageClientProps) {
@@ -136,6 +142,9 @@ export function PlayersPageClient({
             reportedMatchCount={reportedMatchCount}
             totalActualAppearances={totalActualAppearances}
             totalMatchdayAdditions={totalMatchdayAdditions}
+            totalRounds={totalRounds}
+            finalisedRounds={finalisedRounds}
+            draftRounds={draftRounds}
             teams={teams}
           />
         </>
