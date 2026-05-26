@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { computeRoundPlanIntegrity, type RoundPlanIntegrity } from "./compute-plan-integrity";
+import { reconcileAssistantWorkItemsForRound } from "./reconcile-assistant-work";
 import { WarningSeverity } from "@/generated/prisma/client";
 import { mapWarningSeverity, type WarningSeverityValue } from "./signal-category";
 
@@ -74,6 +75,12 @@ export async function reconcileRoundAfterDraftMutation(
         data: { status: "DRAFT" },
       });
     }
+  }
+
+  try {
+    await reconcileAssistantWorkItemsForRound(integrity);
+  } catch {
+    // assistant reconciliation failure must not block the mutation
   }
 
   return integrity;
