@@ -109,7 +109,6 @@ export async function movePlannedSelectionWithinRound(input: {
 
   const isCoreRole = targetRole === SelectionRole.CORE;
   let requiresOverride = false;
-  const errors: string[] = [];
 
   if (!isCoreRole && player.nonRotatable && !overrideReasonCategory) {
     return { success: false, errors: ["Non-rotatable player cannot be moved outside core team without override reason."] };

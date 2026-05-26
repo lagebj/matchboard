@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Trash2,
   RefreshCw,
+  OctagonAlert,
   AlertTriangle,
   GripVertical,
   XCircle,
@@ -384,7 +385,7 @@ export function RoundBoard({
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason, _setOverrideReason] = useState("");
-  const [showAllWarnings, setShowAllWarnings] = useState(false);
+
   const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
   const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState(false);

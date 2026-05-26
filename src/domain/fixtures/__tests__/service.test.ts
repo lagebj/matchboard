@@ -40,7 +40,8 @@ describe("Fixtures Service", () => {
       const match = overview.periods[0].rounds[0].matches[0];
       expect(match.teamId).toBeDefined();
       expect(match.teamName).toBeDefined();
-      expect(match.unresolvedIssueCount).toBe(0);
+      expect(match.blockerCount).toBe(0);
+      expect(match.decisionRequiredCount).toBe(0);
       expect(match.selectedPlayerCount).toBe(0);
     });
 
@@ -70,11 +71,11 @@ describe("Fixtures Service", () => {
       const overview = await getFixturesOverview();
       const round = overview.periods[0].rounds.find((r) => r.id === roundId);
       expect(round).toBeDefined();
-      expect(round!.unresolvedIssueCount).toBeGreaterThanOrEqual(2);
+      expect(round!.blockerCount + round!.decisionRequiredCount).toBeGreaterThanOrEqual(2);
 
       const match = round!.matches.find((m) => m.id === matchId);
       expect(match).toBeDefined();
-      expect(match!.unresolvedIssueCount).toBeGreaterThanOrEqual(1);
+      expect(match!.blockerCount + match!.decisionRequiredCount).toBeGreaterThanOrEqual(1);
     });
 
     it("maps HARD_BLOCK severity to NOT_PLAYABLE readiness", async () => {

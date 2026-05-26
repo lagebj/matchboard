@@ -1,11 +1,4 @@
 import { db } from "@/lib/db";
-import {
-  type SignalCategory,
-  type WarningSeverityValue,
-  mapWarningSeverity,
-  signalCategoryFromSeverity,
-  signalCategoryLabel,
-} from "./signal-category";
 
 export type PlanIntegritySignalKind = "BLOCKED" | "DECISION_REQUIRED";
 
@@ -136,13 +129,13 @@ export async function computeRoundPlanIntegrity(
 
   const activePlayers = await db.player.findMany({
     where: { removedAt: null },
-    select: { id: true, firstName: true, lastName: true, coreTeamId: true, availability: true, removedAt: true },
+    select: { id: true, firstName: true, lastName: true, coreTeamId: true, availabilities: true, removedAt: true },
   });
 
   for (const p of activePlayers) {
-    const latestAvailability = await db.playerAvailability.findFirst({
+    const latestAvailability = await db.availability.findFirst({
       where: { playerId: p.id, matchRoundId },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       select: { status: true },
     });
     playerAvailabilityMap.set(p.id, latestAvailability?.status ?? "UNKNOWN");
@@ -158,7 +151,7 @@ export async function computeRoundPlanIntegrity(
   }
 
   // Per-team availability for this round
-  const roundAvailabilities = await db.playerAvailability.findMany({
+  const roundAvailabilities = await db.availability.findMany({
     where: { matchRoundId },
     select: { playerId: true, status: true },
   });
@@ -242,9 +235,6 @@ export async function computeRoundPlanIntegrity(
       const playerName = player
         ? `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`
         : playerId;
-      const affectedMatchIds = allSelections
-        .filter((s) => s.playerId === playerId)
-        .map((s) => s.matchId);
 
       signals.push({
         idempotencyKey: makeIdempotencyKey("DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE", matchRoundId, null, null, playerId),
@@ -301,7 +291,7 @@ export async function computeRoundPlanIntegrity(
           where: { playerId: player.id, matchRoundId: er.id, status: { in: ["DRAFT", "FINALIZED"] } },
           select: { id: true },
         });
-        const earlierAvail = await db.playerAvailability.findFirst({
+        const earlierAvail = await db.availability.findFirst({
           where: { playerId: player.id, matchRoundId: er.id },
           select: { status: true },
         });

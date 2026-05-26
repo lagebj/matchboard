@@ -2,14 +2,6 @@ import { db } from "@/lib/db";
 import { computeRoundPlanIntegrity, type RoundPlanIntegrity } from "./compute-plan-integrity";
 import { reconcileAssistantWorkItemsForRound } from "./reconcile-assistant-work";
 import { WarningSeverity } from "@/generated/prisma/client";
-import { mapWarningSeverity, type WarningSeverityValue } from "./signal-category";
-
-const severityToDBSeverity = new Map<WarningSeverityValue, WarningSeverity>([
-  ["HARD_BLOCK", WarningSeverity.HARD_BLOCK],
-  ["REQUIRES_OVERRIDE", WarningSeverity.REQUIRES_OVERRIDE],
-  ["WARNING", WarningSeverity.WARNING],
-  ["SCORING_PREFERENCE", WarningSeverity.SCORING_PREFERENCE],
-]);
 
 const SIGNAL_KIND_TO_DB_SEVERITY: Record<string, WarningSeverity> = {
   BLOCKED: WarningSeverity.HARD_BLOCK,

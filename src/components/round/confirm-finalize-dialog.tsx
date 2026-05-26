@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ShieldCheck, X } from "lucide-react";
+import { ShieldCheck, X } from "lucide-react";
 import { SignalBadge } from "@/components/ui/severity-badge";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";

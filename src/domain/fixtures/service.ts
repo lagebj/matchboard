@@ -87,7 +87,8 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
           blockedSignalCount: blockerCount,
         });
 
-        const matches: FixtureMatch[] = round.matches.map((match) => {
+        const matches: FixtureMatch[] = [];
+        for (const match of round.matches) {
           const matchDraftCount = matchDraftCounts.get(match.id) ?? 0;
           const matchFinalizedCount = matchFinalizedCounts.get(match.id) ?? 0;
           const matchSelectionState = deriveMatchSelectionState(
@@ -113,7 +114,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             }
           }
 
-          return {
+          matches.push({
             id: match.id,
             title: `${match.team.name} vs ${match.opponent}`,
             teamId: match.teamId,
@@ -127,8 +128,8 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             blockerCount: matchBlockerCount,
             decisionRequiredCount: matchDecisionCount,
             availableActions: getRoundActions(derivedRoundStatus, hasMatches),
-          };
-        });
+          });
+        }
 
         const roundActions = getRoundActions(derivedRoundStatus, hasMatches);
 
