@@ -23,6 +23,8 @@ export type PlayerSeasonOverviewRow = {
   draftSelections: number;
   squadRepairAppearances: number;
   unavailableRoundCount: number;
+  dropsCount: number;
+  lastMovement: string | null;
 
   recentInvolvement: Array<{
     matchId: string;
@@ -480,6 +482,24 @@ export async function getPlayersSeasonOverview(
       draftSelections,
       squadRepairAppearances,
       unavailableRoundCount: playerUnavailableRounds,
+      dropsCount: (() => {
+        const playerAssignments = roundAssignmentsByPlayer.get(player.id) ?? [];
+        const roundsWithSelection = new Set(playerAssignments.map((a) => a.roundId));
+        const unavailableRounds = new Set(
+          availabilities
+            .filter((a) => a.playerId === player.id && a.status !== "AVAILABLE" && a.status !== "TENTATIVE")
+            .map((a) => a.matchRoundId)
+        );
+        return Math.max(0, rounds.length - roundsWithSelection.size - unavailableRounds.size);
+      })(),
+      lastMovement: (() => {
+        const assignments = roundAssignmentsByPlayer.get(player.id) ?? [];
+        const nonCore = assignments.filter((a) => a.role !== null && a.role !== "CORE");
+        if (nonCore.length === 0) return null;
+        const roundOrder = rounds.map((r) => r.id);
+        nonCore.sort((a, b) => roundOrder.indexOf(a.roundId) - roundOrder.indexOf(b.roundId));
+        return nonCore[nonCore.length - 1].roundName || null;
+      })(),
       recentInvolvement,
       roundAssignments: roundAssignmentsByPlayer.get(player.id) ?? [],
     };

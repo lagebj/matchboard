@@ -30,12 +30,14 @@ type SortField =
   | "matchdayAdditions"
   | "plannedButAbsent"
   | "draftSelections"
-  | "unavailableRoundCount";
+  | "unavailableRoundCount"
+  | "dropsCount"
+  | "lastMovement";
 
 type SortDirection = "asc" | "desc";
 
 type MovementFilter = "all" | "has_support" | "has_development" | "has_matchday_additions" | "has_squad_repair" | "high_support_load";
-type AttendanceFilter = "all" | "has_planned_absent" | "has_unavailable" | "dropped_recently";
+type AttendanceFilter = "all" | "has_planned_absent" | "has_unavailable" | "dropped_recently" | "has_drops";
 type LoadFilter = "all" | "low_load" | "high_load";
 
 export function SeasonOverviewTable({
@@ -98,6 +100,8 @@ export function SeasonOverviewTable({
       result = result.filter((r) => r.unavailableRoundCount > 0);
     } else if (attendanceFilter === "dropped_recently") {
       result = result.filter((r) => r.plannedButAbsent > 0 || (r.actualAppearances === 0 && r.finalisedUpcomingAppearances === 0 && r.draftSelections === 0 && r.unavailableRoundCount === 0 && r.supportAppearances === 0 && r.developmentAppearances === 0));
+    } else if (attendanceFilter === "has_drops") {
+      result = result.filter((r) => r.dropsCount > 0);
     }
 
     if (loadFilter === "low_load") {
@@ -266,6 +270,7 @@ export function SeasonOverviewTable({
           <option value="has_planned_absent">Has planned absences</option>
           <option value="has_unavailable">Has unavailable rounds</option>
           <option value="dropped_recently">Dropped recently</option>
+          <option value="has_drops">Has drops</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs text-zinc-400">
           <input
@@ -295,6 +300,8 @@ export function SeasonOverviewTable({
                 {renderSortHeader("matchdayAdditions", "Matchday additions")}
                 {renderSortHeader("plannedButAbsent", "Planned absent")}
                 {renderSortHeader("unavailableRoundCount", "Unavailable")}
+                {renderSortHeader("dropsCount", "Drops")}
+                {renderSortHeader("lastMovement", "Last movement")}
                 {includeDrafts && renderSortHeader("draftSelections", "Draft")}
                 {hasRoundColumns && roundColumns.map((rc) => (
                   <th key={rc.id} className="px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] text-center whitespace-nowrap">
@@ -309,7 +316,7 @@ export function SeasonOverviewTable({
             <tbody className="divide-y divide-[var(--border-soft)]">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={13 + (includeDrafts ? 1 : 0) + roundColumns.length} className="px-4 py-8 text-center text-sm text-zinc-500">
+                  <td colSpan={15 + (includeDrafts ? 1 : 0) + roundColumns.length} className="px-4 py-8 text-center text-sm text-zinc-500">
                     No players match the current filters.
                   </td>
                 </tr>
@@ -340,6 +347,8 @@ export function SeasonOverviewTable({
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.matchdayAdditions)}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.plannedButAbsent)}</td>
                     <td className="px-3 py-2 text-zinc-400 tabular-nums">{numCell(row.unavailableRoundCount)}</td>
+                    <td className="px-3 py-2 text-zinc-400 tabular-nums">{numCell(row.dropsCount)}</td>
+                    <td className="px-3 py-2 text-zinc-400 text-sm">{row.lastMovement || "—"}</td>
                     {includeDrafts && (
                       <td className="px-3 py-2 text-zinc-400 tabular-nums italic">{numCell(row.draftSelections)}</td>
                     )}
