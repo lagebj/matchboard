@@ -1,16 +1,3 @@
-export type AssistantIssueSeverity =
-  | "INFO"
-  | "WATCH"
-  | "ACTION_REQUIRED"
-  | "BLOCKED"
-  | "CRITICAL";
-
-export type AssistantIssueStatus =
-  | "OPEN"
-  | "RESOLVED"
-  | "DISMISSED"
-  | "STALE";
-
 export type AssistantIssueEntityType =
   | "ROUND"
   | "TEAM"
@@ -19,18 +6,6 @@ export type AssistantIssueEntityType =
   | "AVAILABILITY"
   | "SELECTION"
   | "POST_MATCH";
-
-export type AssistantIssueType =
-  | "ROUND_READY_FOR_REVIEW"
-  | "TEAM_NEEDS_SUPPORT"
-  | "UNKNOWN_RSVP_INCLUDED"
-  | "PLAYER_BLOCKED_FLOATING_GAP"
-  | "PLAYER_LOW_MATCH_EXPOSURE"
-  | "PLAYER_HIGH_MATCH_LOAD"
-  | "POSITION_GAP"
-  | "SUPPORT_MOVE_WEAKENS_SOURCE_TEAM"
-  | "BLOCKED_CONDITION_PREVENTS_FINALIZE"
-  | "POST_MATCH_REPORT_MISSING";
 
 import type { SignalCategory } from "@/lib/selection/signal-category";
 
@@ -73,28 +48,6 @@ export type AttendanceStatus =
   | "LATE_CANCELLATION"
   | "ABSENT_CONFIRMED"
   | "UNKNOWN";
-
-export interface AssistantIssue {
-  id: string;
-  type: AssistantIssueType;
-  severity: AssistantIssueSeverity;
-  status: AssistantIssueStatus;
-  title: string;
-  summary: string;
-  entityType: AssistantIssueEntityType;
-  entityId: string;
-  affectedTeamIds: string[];
-  affectedPlayerIds: string[];
-  ruleIds: string[];
-  recommendedAction: string;
-  primaryActionLabel: string;
-  primaryActionHref: string;
-  secondaryActionLabel?: string;
-  secondaryActionHref?: string;
-  createdAt: string;
-  resolvedAt?: string;
-  resolutionDecisionId?: string;
-}
 
 export interface RuleImpact {
   ruleId: string;
