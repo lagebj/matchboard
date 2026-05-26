@@ -87,6 +87,7 @@ export type MovementPathSummary = {
   count: number;
   uniquePlayerCount: number;
   lastRoundName: string | null;
+  playerNames: string[];
 };
 
 export type SeasonFairnessWarning = {
@@ -550,6 +551,7 @@ export async function getPlayersSeasonOverview(
     uniquePlayerCount: number;
     lastRoundId: string;
     lastRoundName: string | null;
+    playerNames: string[];
   };
   const movementPathMap = new Map<string, IntermediatePath>();
   for (const [playerId, assignments] of roundAssignmentsByPlayer) {
@@ -575,6 +577,8 @@ export async function getPlayersSeasonOverview(
         if (!existing.uniquePlayerIds.has(playerId)) {
           existing.uniquePlayerIds.add(playerId);
           existing.uniquePlayerCount++;
+          const pName = player ? `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}` : "Unknown";
+          existing.playerNames.push(pName);
         }
         const roundIdx = rounds.findIndex((r) => r.id === assignment.roundId);
         const lastIdx = rounds.findIndex((r) => r.id === existing.lastRoundId);
@@ -594,6 +598,7 @@ export async function getPlayersSeasonOverview(
           uniquePlayerIds: new Set([playerId]),
           lastRoundId: assignment.roundId,
           lastRoundName: assignment.roundName || null,
+          playerNames: [player ? `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}` : "Unknown"],
         });
       }
     }
@@ -608,6 +613,7 @@ export async function getPlayersSeasonOverview(
     count: mp.count,
     uniquePlayerCount: mp.uniquePlayerCount,
     lastRoundName: mp.lastRoundName,
+    playerNames: mp.playerNames,
   }));
 
   // Compute season fairness warnings from season rows

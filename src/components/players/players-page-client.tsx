@@ -25,7 +25,7 @@ type PlayersPageClientProps = {
   matchRounds: Array<{ id: string; name: string; planningPeriodId?: string | null }>;
   seasonRows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
-  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null }>;
+  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null; playerNames: string[] }>;
   fairnessWarnings: Array<{ type: string; playerId: string; playerName: string; teamId: string | null; teamName: string | null; reason: string; data: Record<string, number | string | null> }>;
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;

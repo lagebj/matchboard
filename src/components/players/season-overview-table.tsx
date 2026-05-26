@@ -7,7 +7,7 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
-  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null }>;
+  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null; playerNames: string[] }>;
   fairnessWarnings: Array<{ type: string; playerId: string; playerName: string; teamId: string | null; teamName: string | null; reason: string; data: Record<string, number | string | null> }>;
   planningPeriodLabel: string;
   reportedMatchCount: number;
@@ -66,6 +66,7 @@ export function SeasonOverviewTable({
   const [includeDrafts, setIncludeDrafts] = useState(false);
   const [viewMode, setViewMode] = useState<"matrix" | "paths">("matrix");
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
+  const [expandedPath, setExpandedPath] = useState<string | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -361,27 +362,45 @@ export function SeasonOverviewTable({
                     </td>
                   </tr>
                 ) : (
-                  movementPaths.map((mp, i) => (
-                    <tr key={`${mp.sourceTeamId}-${mp.targetTeamId}-${mp.role}-${i}`} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                      <td className="px-4 py-2">
-                        <Link href={`/teams/${mp.sourceTeamId}`} className="text-zinc-300 hover:text-zinc-100">
-                          {mp.sourceTeamName}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2">
-                        <Link href={`/teams/${mp.targetTeamId}`} className="text-zinc-300 hover:text-zinc-100">
-                          {mp.targetTeamName}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2">
-                        {mp.role === "SUPPORT" && <span className="inline-block rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">Support</span>}
-                        {mp.role === "DEVELOPMENT" && <span className="inline-block rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">Dev</span>}
-                      </td>
-                      <td className="px-3 py-2 text-right text-zinc-200 tabular-nums">{mp.count}</td>
-                      <td className="px-3 py-2 text-right text-zinc-300 tabular-nums">{mp.uniquePlayerCount}</td>
-                      <td className="px-3 py-2 text-zinc-400">{mp.lastRoundName || "—"}</td>
-                    </tr>
-                  ))
+                  movementPaths.map((mp, i) => {
+                    const pathKey = `${mp.sourceTeamId}-${mp.targetTeamId}-${mp.role}-${i}`;
+                    return (
+                      <Fragment key={pathKey}>
+                        <tr
+                          className="hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
+                          onClick={() => setExpandedPath(expandedPath === pathKey ? null : pathKey)}
+                        >
+                          <td className="px-4 py-2">
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-[10px] text-zinc-600">{expandedPath === pathKey ? "▾" : "▸"}</span>
+                              <Link href={`/teams/${mp.sourceTeamId}`} className="text-zinc-300 hover:text-zinc-100" onClick={(e) => e.stopPropagation()}>
+                                {mp.sourceTeamName}
+                              </Link>
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Link href={`/teams/${mp.targetTeamId}`} className="text-zinc-300 hover:text-zinc-100" onClick={(e) => e.stopPropagation()}>
+                              {mp.targetTeamName}
+                            </Link>
+                          </td>
+                          <td className="px-3 py-2">
+                            {mp.role === "SUPPORT" && <span className="inline-block rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">Support</span>}
+                            {mp.role === "DEVELOPMENT" && <span className="inline-block rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">Dev</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right text-zinc-200 tabular-nums">{mp.count}</td>
+                          <td className="px-3 py-2 text-right text-zinc-300 tabular-nums">{mp.uniquePlayerCount}</td>
+                          <td className="px-3 py-2 text-zinc-400">{mp.lastRoundName || "—"}</td>
+                        </tr>
+                        {expandedPath === pathKey && (
+                          <tr className="bg-zinc-900/40">
+                            <td colSpan={6} className="px-4 py-2 text-xs text-zinc-400">
+                              Players: {mp.playerNames.join(", ")}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
