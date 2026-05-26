@@ -34,7 +34,7 @@ type SortField =
 type SortDirection = "asc" | "desc";
 
 type MovementFilter = "all" | "has_support" | "has_development" | "has_matchday_additions" | "has_squad_repair";
-type AttendanceFilter = "all" | "has_planned_absent";
+type AttendanceFilter = "all" | "has_planned_absent" | "has_unavailable";
 type LoadFilter = "all" | "low_load" | "high_load";
 
 export function SeasonOverviewTable({
@@ -90,6 +90,8 @@ export function SeasonOverviewTable({
 
     if (attendanceFilter === "has_planned_absent") {
       result = result.filter((r) => r.plannedButAbsent > 0);
+    } else if (attendanceFilter === "has_unavailable") {
+      result = result.filter((r) => r.unavailableRoundCount > 0);
     }
 
     if (loadFilter === "low_load") {
@@ -238,6 +240,7 @@ export function SeasonOverviewTable({
         >
           <option value="all">All attendance</option>
           <option value="has_planned_absent">Has planned absences</option>
+          <option value="has_unavailable">Has unavailable rounds</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs text-zinc-400">
           <input
@@ -266,6 +269,7 @@ export function SeasonOverviewTable({
                 {renderSortHeader("squadRepairAppearances", "Squad repair")}
                 {renderSortHeader("matchdayAdditions", "Matchday additions")}
                 {renderSortHeader("plannedButAbsent", "Planned absent")}
+                {renderSortHeader("unavailableRoundCount", "Unavailable")}
                 {includeDrafts && renderSortHeader("draftSelections", "Draft")}
                 <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                   Review
@@ -275,7 +279,7 @@ export function SeasonOverviewTable({
             <tbody className="divide-y divide-[var(--border-soft)]">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={includeDrafts ? 13 : 12} className="px-4 py-8 text-center text-sm text-zinc-500">
+                  <td colSpan={includeDrafts ? 14 : 13} className="px-4 py-8 text-center text-sm text-zinc-500">
                     No players match the current filters.
                   </td>
                 </tr>
@@ -305,6 +309,7 @@ export function SeasonOverviewTable({
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.squadRepairAppearances)}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.matchdayAdditions)}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.plannedButAbsent)}</td>
+                    <td className="px-3 py-2 text-zinc-400 tabular-nums">{numCell(row.unavailableRoundCount)}</td>
                     {includeDrafts && (
                       <td className="px-3 py-2 text-zinc-400 tabular-nums italic">{numCell(row.draftSelections)}</td>
                     )}

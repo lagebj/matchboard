@@ -235,6 +235,25 @@ export async function getPlayersSeasonOverview(
     selectionsByPlayer.set(sel.playerId, arr);
   }
 
+  // --- Availability per player per round (for unavailable round count) ---
+
+  const availabilities = roundIds.length > 0
+    ? await db.availability.findMany({
+        where: {
+          matchRoundId: { in: roundIds },
+          playerId: { in: playerIds },
+        },
+        select: { playerId: true, matchRoundId: true, status: true },
+      })
+    : [];
+
+  const unavailableRoundCountByPlayer = new Map<string, number>();
+  for (const a of availabilities) {
+    if (a.status !== "AVAILABLE" && a.status !== "TENTATIVE") {
+      unavailableRoundCountByPlayer.set(a.playerId, (unavailableRoundCountByPlayer.get(a.playerId) ?? 0) + 1);
+    }
+  }
+
   // --- Count rounds where a player had multiple actual appearances (double-load) ---
 
   const roundPlayerActualCounts = new Map<string, Map<string, number>>();
@@ -252,6 +271,7 @@ export async function getPlayersSeasonOverview(
     const playerActuals = actualsByPlayer.get(player.id) ?? [];
     const playerStats = statsByPlayer.get(player.id) ?? { goals: 0, assists: 0 };
     const playerSelections = selectionsByPlayer.get(player.id) ?? [];
+    const playerUnavailableRounds = unavailableRoundCountByPlayer.get(player.id) ?? 0;
 
     let actualAppearances = 0;
     let coreAppearances = 0;
@@ -419,7 +439,7 @@ export async function getPlayersSeasonOverview(
       finalisedUpcomingAppearances,
       draftSelections,
       squadRepairAppearances,
-      unavailableRoundCount: 0,
+      unavailableRoundCount: playerUnavailableRounds,
       recentInvolvement,
     };
   });
