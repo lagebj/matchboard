@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import Link from "next/link";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 
@@ -65,6 +65,7 @@ export function SeasonOverviewTable({
   const [search, setSearch] = useState("");
   const [includeDrafts, setIncludeDrafts] = useState(false);
   const [viewMode, setViewMode] = useState<"matrix" | "paths">("matrix");
+  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -423,13 +424,20 @@ export function SeasonOverviewTable({
                     No players match the current filters.
                   </td>
                 </tr>
-              ) : (
+               ) : (
                 filteredRows.map((row) => (
-                  <tr key={row.playerId} className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors${row.draftSelections > 0 && includeDrafts ? " bg-zinc-900/30" : ""}`}>
+                  <Fragment key={row.playerId}>
+                    <tr
+                      className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer${row.draftSelections > 0 && includeDrafts ? " bg-zinc-900/30" : ""}`}
+                      onClick={() => setExpandedPlayer(expandedPlayer === row.playerId ? null : row.playerId)}
+                    >
                     <td className="px-4 py-2">
-                      <Link href={`/players/${row.playerId}`} className="font-medium text-zinc-200 hover:text-zinc-50">
-                        {row.displayName}
-                      </Link>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-[10px] text-zinc-600">{expandedPlayer === row.playerId ? "▾" : "▸"}</span>
+                        <Link href={`/players/${row.playerId}`} className="font-medium text-zinc-200 hover:text-zinc-50" onClick={(e) => e.stopPropagation()}>
+                          {row.displayName}
+                        </Link>
+                      </span>
                     </td>
                     <td className="px-3 py-2 text-zinc-400">
                       {row.coreTeam ? (
@@ -485,6 +493,30 @@ export function SeasonOverviewTable({
                       </div>
                     </td>
                   </tr>
+                  {expandedPlayer === row.playerId && (
+                    <tr className="bg-zinc-900/40">
+                      <td colSpan={15 + (includeDrafts ? 1 : 0) + roundColumns.length} className="px-4 py-3">
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-300">
+                          <span className="text-zinc-500 font-medium">Movement:</span>
+                          {row.roundAssignments.length === 0 ? (
+                            <span className="text-zinc-500">No assignments in this period</span>
+                          ) : (
+                            row.roundAssignments.map((ra) => (
+                              <span key={ra.roundId} className="flex items-center gap-1">
+                                <span className="text-zinc-500">{ra.roundName || ra.roundId}</span>
+                                {ra.role === "CORE" && <span className="text-emerald-400">Core</span>}
+                                {ra.role === "SUPPORT" && <span className="text-amber-400">Support</span>}
+                                {ra.role === "DEVELOPMENT" && <span className="text-sky-400">Dev</span>}
+                                {ra.teamName && <span className="text-zinc-500">→ {ra.teamName}</span>}
+                                {ra.isDraft && <span className="text-zinc-600 italic">(draft)</span>}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))
               )}
             </tbody>
