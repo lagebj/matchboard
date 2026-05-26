@@ -41,12 +41,6 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
     ),
   );
 
-  const allRoundIds = seasons.flatMap((s) =>
-    s.planningPeriods.flatMap((p) =>
-      p.matchRounds.map((r) => r.id),
-    ),
-  );
-
   const [allSelections, postMatchReports] = await Promise.all([
     allMatchIds.length > 0
       ? db.selection.findMany({

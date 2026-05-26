@@ -35,6 +35,10 @@ function readOptionalInt(formData: FormData, fieldName: string): number | null {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
+function readOptionalBool(formData: FormData, fieldName: string): boolean {
+  return formData.get(fieldName) === "on";
+}
+
 type ActionState = { error: string };
 
 const VALID_ROLES = ["SUPPORT", "DEVELOPMENT", "BACKFILL"] as const;
@@ -87,6 +91,9 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     const targetCount = readOptionalInt(formData, "targetCount");
     const maximumCount = readOptionalInt(formData, "maximumCount");
     const cooldownRounds = readOptionalInt(formData, "cooldownRounds");
+    const allowDoubleLoad = readOptionalBool(formData, "allowDoubleLoad");
+    const minRestSpacingHours = readOptionalInt(formData, "minRestSpacingHours");
+    const maxDoubleLoadsPerPeriod = readOptionalInt(formData, "maxDoubleLoadsPerPeriod");
 
     if (!fromTeamId) throw new Error("Source team is required.");
     if (!toTeamId) throw new Error("Target team is required.");
@@ -125,6 +132,9 @@ export async function createRotationPathAction(prevState: ActionState, formData:
         maximumCount,
         cooldownRounds,
         priority,
+        allowDoubleLoad,
+        minRestSpacingHours,
+        maxDoubleLoadsPerPeriod,
       },
     });
   } catch (error) {
@@ -157,6 +167,9 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
     const targetCount = readOptionalInt(formData, "targetCount");
     const maximumCount = readOptionalInt(formData, "maximumCount");
     const cooldownRounds = readOptionalInt(formData, "cooldownRounds");
+    const allowDoubleLoad = readOptionalBool(formData, "allowDoubleLoad");
+    const minRestSpacingHours = readOptionalInt(formData, "minRestSpacingHours");
+    const maxDoubleLoadsPerPeriod = readOptionalInt(formData, "maxDoubleLoadsPerPeriod");
     const active = formData.get("active") === "on";
 
     await db.rotationPath.update({
@@ -168,6 +181,9 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
         targetCount,
         maximumCount,
         cooldownRounds,
+        allowDoubleLoad,
+        minRestSpacingHours,
+        maxDoubleLoadsPerPeriod,
         active,
       },
     });
