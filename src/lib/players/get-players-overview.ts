@@ -78,10 +78,22 @@ export type PlayersOverviewResult = {
 
 // --- Season overview aggregation ---
 
+export type MovementPathSummary = {
+  sourceTeamId: string;
+  sourceTeamName: string;
+  targetTeamId: string;
+  targetTeamName: string;
+  role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
+  count: number;
+  uniquePlayerCount: number;
+  lastRoundName: string | null;
+};
+
 export type SeasonOverviewResult = {
   planningPeriod: { id: string; label: string };
   roundColumns: Array<{ id: string; name: string }>;
   seasonRows: PlayerSeasonOverviewRow[];
+  movementPaths: MovementPathSummary[];
 };
 
 export async function getPlayersSeasonOverview(
@@ -98,6 +110,7 @@ export async function getPlayersSeasonOverview(
       planningPeriod: { id: planningPeriodId, label: "Unknown" },
       roundColumns: [],
       seasonRows: [],
+      movementPaths: [],
     };
   }
 
@@ -122,6 +135,7 @@ export async function getPlayersSeasonOverview(
       planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
       roundColumns: [],
       seasonRows: [],
+      movementPaths: [],
     };
   }
 
@@ -510,10 +524,84 @@ export async function getPlayersSeasonOverview(
     name: r.name || `Round ${i + 1}`,
   }));
 
+  // Build movement path summary from round assignments
+  const playerById = new Map(players.map((p) => [p.id, p]));
+  type IntermediatePath = {
+    sourceTeamId: string;
+    sourceTeamName: string;
+    targetTeamId: string;
+    targetTeamName: string;
+    role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
+    count: number;
+    uniquePlayerIds: Set<string>;
+    uniquePlayerCount: number;
+    lastRoundId: string;
+    lastRoundName: string | null;
+  };
+  const movementPathMap = new Map<string, IntermediatePath>();
+  for (const [playerId, assignments] of roundAssignmentsByPlayer) {
+    for (const assignment of assignments) {
+      if (assignment.role === "CORE" || assignment.role === null) continue;
+      const player = playerById.get(playerId);
+      const sourceTeamId = player?.coreTeamId ?? "";
+      const sourceTeamName = player?.coreTeam?.name ?? "Unassigned";
+      const targetTeamName = assignment.teamName ?? "Unknown";
+      const targetTeamId = (() => {
+        for (const sel of selections) {
+          if (sel.playerId === playerId && sel.matchRoundId === assignment.roundId) {
+            const m = matchById.get(sel.matchId);
+            if (m) return m.teamId;
+          }
+        }
+        return "";
+      })();
+      const key = `${sourceTeamId}:${targetTeamId}:${assignment.role}`;
+      const existing = movementPathMap.get(key);
+      if (existing) {
+        existing.count++;
+        if (!existing.uniquePlayerIds.has(playerId)) {
+          existing.uniquePlayerIds.add(playerId);
+          existing.uniquePlayerCount++;
+        }
+        const roundIdx = rounds.findIndex((r) => r.id === assignment.roundId);
+        const lastIdx = rounds.findIndex((r) => r.id === existing.lastRoundId);
+        if (roundIdx > lastIdx) {
+          existing.lastRoundId = assignment.roundId;
+          existing.lastRoundName = assignment.roundName || null;
+        }
+      } else {
+        movementPathMap.set(key, {
+          sourceTeamId,
+          sourceTeamName,
+          targetTeamId,
+          targetTeamName,
+          role: assignment.role,
+          count: 1,
+          uniquePlayerCount: 1,
+          uniquePlayerIds: new Set([playerId]),
+          lastRoundId: assignment.roundId,
+          lastRoundName: assignment.roundName || null,
+        });
+      }
+    }
+  }
+
+  const movementPaths: MovementPathSummary[] = [...movementPathMap.values()].map((mp) => ({
+    sourceTeamId: mp.sourceTeamId,
+    sourceTeamName: mp.sourceTeamName,
+    targetTeamId: mp.targetTeamId,
+    targetTeamName: mp.targetTeamName,
+    role: mp.role,
+    count: mp.count,
+    uniquePlayerCount: mp.uniquePlayerCount,
+    lastRoundName: mp.lastRoundName,
+  }));
+
   return {
     planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
     roundColumns: roundColumns,
     seasonRows,
+    movementPaths,
   };
 }
 

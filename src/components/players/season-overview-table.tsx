@@ -7,6 +7,7 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
+  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null }>;
   planningPeriodLabel: string;
   reportedMatchCount: number;
   totalActualAppearances: number;
@@ -43,6 +44,7 @@ type LoadFilter = "all" | "low_load" | "high_load";
 export function SeasonOverviewTable({
   rows,
   roundColumns,
+  movementPaths,
   planningPeriodLabel,
   reportedMatchCount,
   totalActualAppearances,
@@ -60,6 +62,7 @@ export function SeasonOverviewTable({
   const [loadFilter, setLoadFilter] = useState<LoadFilter>("all");
   const [search, setSearch] = useState("");
   const [includeDrafts, setIncludeDrafts] = useState(false);
+  const [viewMode, setViewMode] = useState<"matrix" | "paths">("matrix");
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -283,7 +286,70 @@ export function SeasonOverviewTable({
         </label>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
+      <div className="flex gap-1">
+        <button
+          onClick={() => setViewMode("matrix")}
+          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${viewMode === "matrix" ? "bg-[var(--accent-strong)] text-white" : "bg-[var(--surface-muted)] text-zinc-400 hover:text-zinc-200"}`}
+        >
+          Player matrix
+        </button>
+        <button
+          onClick={() => setViewMode("paths")}
+          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${viewMode === "paths" ? "bg-[var(--accent-strong)] text-white" : "bg-[var(--surface-muted)] text-zinc-400 hover:text-zinc-200"}`}
+        >
+          Movement paths
+        </button>
+      </div>
+
+      {viewMode === "paths" ? (
+        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">From</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">To</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Role</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Movements</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Unique players</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Last used</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-soft)]">
+                {movementPaths.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-zinc-500">
+                      No movement recorded in this planning period.
+                    </td>
+                  </tr>
+                ) : (
+                  movementPaths.map((mp, i) => (
+                    <tr key={`${mp.sourceTeamId}-${mp.targetTeamId}-${mp.role}-${i}`} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                      <td className="px-4 py-2">
+                        <Link href={`/teams/${mp.sourceTeamId}`} className="text-zinc-300 hover:text-zinc-100">
+                          {mp.sourceTeamName}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Link href={`/teams/${mp.targetTeamId}`} className="text-zinc-300 hover:text-zinc-100">
+                          {mp.targetTeamName}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2">
+                        {mp.role === "SUPPORT" && <span className="inline-block rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">Support</span>}
+                        {mp.role === "DEVELOPMENT" && <span className="inline-block rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">Dev</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right text-zinc-200 tabular-nums">{mp.count}</td>
+                      <td className="px-3 py-2 text-right text-zinc-300 tabular-nums">{mp.uniquePlayerCount}</td>
+                      <td className="px-3 py-2 text-zinc-400">{mp.lastRoundName || "—"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -361,12 +427,25 @@ export function SeasonOverviewTable({
                       );
                     })}
                     <td className="px-3 py-2 text-right">
-                      <Link
-                        href={`/players/${row.playerId}`}
-                        className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
-                      >
-                        Profile
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        {row.draftSelections > 0 && (
+                          <Link
+                            href={`/players?mode=attention`}
+                            className="text-[10px] font-medium text-amber-400 hover:underline"
+                          >
+                            Review draft
+                          </Link>
+                        )}
+                        {row.dropsCount > 0 && (
+                          <span className="text-[10px] text-zinc-500">Dropped {row.dropsCount}×</span>
+                        )}
+                        <Link
+                          href={`/players/${row.playerId}`}
+                          className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
+                        >
+                          Profile
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -374,7 +453,7 @@ export function SeasonOverviewTable({
             </tbody>
           </table>
         </div>
-      </div>
+      )}
     </div>
   );
 }
