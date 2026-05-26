@@ -1,6 +1,8 @@
 "use client";
 
+import { useTransition, useState } from "react";
 import Link from "next/link";
+import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 
 type ManageBaseGroupsViewProps = {
   players: Array<{
@@ -17,6 +19,16 @@ type ManageBaseGroupsViewProps = {
 };
 
 export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewProps) {
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [isPending, startTransition] = useTransition();
+
+  const handleSave = (playerId: string, coreTeamId: string | null) => {
+    startTransition(async () => {
+      await updatePlayerCoreTeamAction(playerId, coreTeamId);
+      setEditingPlayerId(null);
+    });
+  };
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-zinc-500">
@@ -74,12 +86,49 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                       </Link>
                     </td>
                     <td className="px-3 py-2">
-                      {player.coreTeam ? (
-                        <Link href={`/teams/${player.coreTeam.id}`} className="text-zinc-400 hover:text-zinc-200">
-                          {player.coreTeam.name}
-                        </Link>
+                      {editingPlayerId === player.id ? (
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={selectedTeamId}
+                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                            className="h-7 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+                            disabled={isPending}
+                          >
+                            <option value="">Unassigned</option>
+                            {teams.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleSave(player.id, selectedTeamId || null)}
+                            disabled={isPending}
+                            className="text-[10px] font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingPlayerId(null)}
+                            disabled={isPending}
+                            className="text-[10px] font-medium text-zinc-500 hover:text-zinc-300"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       ) : (
-                        <span className="text-zinc-500">Unassigned</span>
+                        <button
+                          onClick={() => {
+                            setEditingPlayerId(player.id);
+                            setSelectedTeamId(player.coreTeam?.id ?? "");
+                          }}
+                          className="text-left text-zinc-400 hover:text-zinc-200 group"
+                          title="Click to change core team"
+                        >
+                          {player.coreTeam ? (
+                            <span className="group-hover:underline">{player.coreTeam.name}</span>
+                          ) : (
+                            <span className="text-zinc-500 group-hover:text-zinc-400">Unassigned</span>
+                          )}
+                        </button>
                       )}
                     </td>
                     <td className="px-3 py-2 text-zinc-300">
