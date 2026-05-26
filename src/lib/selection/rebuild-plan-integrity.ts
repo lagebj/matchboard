@@ -1,0 +1,75 @@
+import { db } from "@/lib/db";
+import { computeRoundPlanIntegrity } from "./compute-plan-integrity";
+import { replaceRoundActiveSignals } from "./reconcile-integrity";
+import { reconcileAssistantWorkItemsForRound } from "./reconcile-assistant-work";
+
+export type RebuildResult = {
+  dryRun: boolean;
+  roundsProcessed: number;
+  activeWarningRowsRemovedOrResolved: number;
+  assistantItemsClosedOrResolved: number;
+  currentBlockersCreatedOrRetained: number;
+  currentDecisionsCreatedOrRetained: number;
+  planningNotesDerived: number;
+  skippedFinalizedRounds: number;
+};
+
+export async function rebuildPlanIntegrityForEditableRounds(options?: {
+  dryRun?: boolean;
+  matchRoundIds?: string[];
+}): Promise<RebuildResult> {
+  const dryRun = options?.dryRun ?? false;
+  const targetIds = options?.matchRoundIds;
+
+  const editableRounds = await db.matchRound.findMany({
+    where: {
+      status: "DRAFT",
+      ...(targetIds ? { id: { in: targetIds } } : {}),
+    },
+    select: { id: true, name: true },
+  });
+
+  let activeWarningRowsRemovedOrResolved = 0;
+  let assistantItemsClosedOrResolved = 0;
+  let currentBlockersCreatedOrRetained = 0;
+  let currentDecisionsCreatedOrRetained = 0;
+  let planningNotesDerived = 0;
+
+  for (const round of editableRounds) {
+    const existingWarningCount = await db.warning.count({
+      where: { matchRoundId: round.id },
+    });
+
+    const existingOpenItems = await db.assistantIssue.count({
+      where: {
+        status: "OPEN",
+        primaryActionHref: { contains: `/rounds/${round.id}` },
+      },
+    });
+
+    const integrity = await computeRoundPlanIntegrity(round.id);
+
+    currentBlockersCreatedOrRetained += integrity.summary.blockerCount;
+    currentDecisionsCreatedOrRetained += integrity.summary.decisionRequiredCount;
+    planningNotesDerived += integrity.planningNotes.length;
+
+    if (!dryRun) {
+      await replaceRoundActiveSignals(round.id, integrity);
+      await reconcileAssistantWorkItemsForRound(integrity);
+    }
+
+    activeWarningRowsRemovedOrResolved += existingWarningCount;
+    assistantItemsClosedOrResolved += existingOpenItems;
+  }
+
+  return {
+    dryRun,
+    roundsProcessed: editableRounds.length,
+    activeWarningRowsRemovedOrResolved,
+    assistantItemsClosedOrResolved,
+    currentBlockersCreatedOrRetained,
+    currentDecisionsCreatedOrRetained,
+    planningNotesDerived,
+    skippedFinalizedRounds: 0,
+  };
+}
