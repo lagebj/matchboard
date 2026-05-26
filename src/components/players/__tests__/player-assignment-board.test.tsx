@@ -19,20 +19,20 @@ const mockBoard: BoardType = {
       teamId: "team-1",
       name: "Bla",
       players: [
-        { playerId: "p1", displayName: "Ada Berg", primaryPosition: "GK", rotatable: true, teamId: "team-1", coreGroup: "Bla", openIssueCount: 0 },
-        { playerId: "p2", displayName: "Erik Dal", primaryPosition: "CB", rotatable: false, teamId: "team-1", coreGroup: "Bla", openIssueCount: 1 },
+        { playerId: "p1", displayName: "Ada Berg", primaryPosition: "GK", rotatable: true, teamId: "team-1", coreGroup: "Bla" },
+        { playerId: "p2", displayName: "Erik Dal", primaryPosition: "CB", rotatable: false, teamId: "team-1", coreGroup: "Bla" },
       ],
     },
     {
       teamId: "team-2",
       name: "Hvit",
       players: [
-        { playerId: "p3", displayName: "Ola Fin", primaryPosition: "CM", rotatable: true, teamId: "team-2", coreGroup: "Hvit", openIssueCount: 0 },
+        { playerId: "p3", displayName: "Ola Fin", primaryPosition: "CM", rotatable: true, teamId: "team-2", coreGroup: "Hvit" },
       ],
     },
   ],
   unassigned: [
-    { playerId: "p4", displayName: "Unassigned Player", primaryPosition: "W", rotatable: true, openIssueCount: 0 },
+    { playerId: "p4", displayName: "Unassigned Player", primaryPosition: "W", rotatable: true },
   ],
 };
 
@@ -68,18 +68,6 @@ describe("PlayerAssignmentBoard", () => {
 
     await waitFor(() => {
       expect(screen.getByText("non-rotatable")).toBeInTheDocument();
-    });
-  });
-
-  it("shows issue count badges", async () => {
-    fetchPlayerAssignmentBoard.mockResolvedValue(mockBoard);
-
-    await act(() => {
-      render(<PlayerAssignmentBoard />);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("1")).toBeInTheDocument();
     });
   });
 

@@ -68,22 +68,6 @@ export async function getPlayerAssignmentBoard(): Promise<PlayerAssignmentBoard>
     unassigned: activePlayersWithoutTeam,
   };
 
-  const allOpenIssues = await db.assistantIssue.findMany({
-    where: { status: "OPEN", entityType: "PLAYER" },
-    select: { entityId: true },
-  });
-
-  const issueCounts = new Map<string, number>();
-  for (const issue of allOpenIssues) {
-    issueCounts.set(issue.entityId, (issueCounts.get(issue.entityId) ?? 0) + 1);
-  }
-
-  const addIssues = (players: PlayerAssignmentBoardPlayer[]) =>
-    players.map((p) => ({ ...p, openIssueCount: issueCounts.get(p.playerId) ?? 0 }));
-
-  result.teams = result.teams.map((t) => ({ ...t, players: addIssues(t.players) }));
-  result.unassigned = addIssues(result.unassigned);
-
   return result;
 }
 

@@ -366,7 +366,6 @@ async function cleanExceptRules(db: PrismaClient) {
   await db.matchExecutionFeedback.deleteMany();
   await db.teamReflection.deleteMany();
   await db.decisionRecord.deleteMany();
-  await db.assistantIssue.deleteMany();
   await db.matchReportPlayerStat.deleteMany();
   await db.matchReportAbsence.deleteMany();
   await db.goal.deleteMany();

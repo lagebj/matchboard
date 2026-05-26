@@ -5,8 +5,7 @@ import { replaceRoundActiveSignals } from "./reconcile-integrity";
 export type RebuildResult = {
   dryRun: boolean;
   roundsProcessed: number;
-  activeWarningRowsRemovedOrResolved: number;
-  assistantItemsClosedOrResolved: number;
+  activeWarningRowsReplaced: number;
   currentBlockersCreatedOrRetained: number;
   currentDecisionsCreatedOrRetained: number;
   planningNotesDerived: number;
@@ -28,8 +27,7 @@ export async function rebuildPlanIntegrityForEditableRounds(options?: {
     select: { id: true, name: true },
   });
 
-  let activeWarningRowsRemovedOrResolved = 0;
-  let assistantItemsClosedOrResolved = 0;
+  let activeWarningRowsReplaced = 0;
   let currentBlockersCreatedOrRetained = 0;
   let currentDecisionsCreatedOrRetained = 0;
   let planningNotesDerived = 0;
@@ -37,13 +35,6 @@ export async function rebuildPlanIntegrityForEditableRounds(options?: {
   for (const round of editableRounds) {
     const existingWarningCount = await db.warning.count({
       where: { matchRoundId: round.id },
-    });
-
-    const existingOpenItems = await db.assistantIssue.count({
-      where: {
-        status: "OPEN",
-        primaryActionHref: { contains: `/rounds/${round.id}` },
-      },
     });
 
     const integrity = await computeRoundPlanIntegrity(round.id);
@@ -56,15 +47,13 @@ export async function rebuildPlanIntegrityForEditableRounds(options?: {
       await replaceRoundActiveSignals(round.id, integrity);
     }
 
-    activeWarningRowsRemovedOrResolved += existingWarningCount;
-    assistantItemsClosedOrResolved += existingOpenItems;
+    activeWarningRowsReplaced += existingWarningCount;
   }
 
   return {
     dryRun,
     roundsProcessed: editableRounds.length,
-    activeWarningRowsRemovedOrResolved,
-    assistantItemsClosedOrResolved,
+    activeWarningRowsReplaced,
     currentBlockersCreatedOrRetained,
     currentDecisionsCreatedOrRetained,
     planningNotesDerived,

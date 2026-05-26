@@ -45,9 +45,6 @@ function DraggablePlayerCard({ player }: { player: PlayerAssignmentBoardPlayer }
     >
       <div className="flex items-center justify-between gap-1">
         <span className="text-zinc-200 truncate">{player.displayName || player.playerId}</span>
-        {player.openIssueCount != null && player.openIssueCount > 0 && (
-          <span className="shrink-0 rounded bg-amber-900/40 px-1 py-0.5 text-[9px] font-medium text-amber-300">{player.openIssueCount}</span>
-        )}
       </div>
       <div className="flex items-center gap-2 mt-0.5">
         {player.primaryPosition && <span className="text-[10px] text-zinc-500">{player.primaryPosition}</span>}

@@ -536,33 +536,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model AssistantIssue {
-  id                    String   @id @default(cuid())
-  type                  String
-  severity              String
-  status                String
-  title                 String
-  summary               String
-  entityType            String
-  entityId              String
-  affectedTeamIds       Json
-  affectedPlayerIds     Json
-  ruleIds               Json
-  recommendedAction     String
-  primaryActionLabel    String
-  primaryActionHref     String
-  secondaryActionLabel  String?
-  secondaryActionHref   String?
-  createdAt             DateTime @default(now())
-  resolvedAt            DateTime?
-  resolutionDecisionId  String?
-
-  @@index([status])
-  @@index([severity])
-  @@index([entityType, entityId])
-  @@index([createdAt])
-}
-
 model DecisionRecord {
   id               String   @id @default(cuid())
   decisionType     String

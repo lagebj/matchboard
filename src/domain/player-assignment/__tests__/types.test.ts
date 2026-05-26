@@ -16,7 +16,6 @@ describe("Player Assignment types", () => {
       playerId: "p1",
       displayName: "Test Player",
       rotatable: true,
-      openIssueCount: 0,
     };
     expect(player.primaryPosition).toBeUndefined();
     expect(player.teamId).toBeUndefined();
