@@ -396,9 +396,15 @@ export async function getEffectiveSeasonStats(
     if (count > 1) actualDoubleLoads += count - 1;
   }
 
+  // Flags are factual context, not negative labels.
+  // high_support_burden: player has more support than core appearances (requires at least some core context)
+  // low_development_exposure: renamed to match semantics — player has more development than core appearances
+  //   but this does not indicate "low exposure"; it is factual role distribution context only.
+  // A player with zero core appearances and some support/development appearances is not automatically
+  // a problem. These flags should not be surfaced as automatic badges in the overview.
   const flags: SeasonFlag[] = [];
-  if (supportCount > coreCount) flags.push("high_support_burden");
-  if (developmentCount > coreCount) flags.push("low_development_exposure");
+  if (supportCount > coreCount && coreCount > 0) flags.push("high_support_burden");
+  if (developmentCount > coreCount && coreCount > 0) flags.push("low_development_exposure");
   if (actualDoubleLoads > 0) flags.push("actual_double_load");
   if (plannedButAbsent > 0) flags.push("planned_but_absent_recent");
   if (emergencyBackfill > 0) flags.push("high_emergency_backfill");

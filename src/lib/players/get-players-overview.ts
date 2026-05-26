@@ -1,0 +1,547 @@
+import { db } from "@/lib/db";
+import { classifyRole } from "../selection/effective-participation";
+
+// --- Types ---
+
+export type PlayerSeasonOverviewRow = {
+  playerId: string;
+  displayName: string;
+  coreTeam: { id: string; name: string } | null;
+
+  actualAppearances: number;
+  goals: number;
+  assists: number;
+
+  coreAppearances: number;
+  supportAppearances: number;
+  developmentAppearances: number;
+
+  matchdayAdditions: number;
+  actualAdditionalAppearances: number;
+  plannedButAbsent: number;
+  finalisedUpcomingAppearances: number;
+
+  recentInvolvement: Array<{
+    matchId: string;
+    matchDate: Date;
+    teamName: string;
+    opponent: string;
+    state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION";
+    role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
+  }>;
+};
+
+export type IntegrityAttentionState =
+  | "COVERED"
+  | "DECISION_REQUIRED_NO_PLANNED_MATCH"
+  | "BLOCKED_UNAVAILABLE_SELECTION"
+  | "BLOCKED_INVALID_PLAN"
+  | "NOT_AVAILABLE"
+  | "UNCONFIRMED";
+
+export type PlayerCurrentRoundAttentionRow = {
+  playerId: string;
+  displayName: string;
+  coreTeam: { id: string; name: string } | null;
+
+  availability: "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
+
+  currentAssignment: {
+    matchId: string;
+    teamName: string;
+    opponent: string;
+    role: "CORE" | "SUPPORT" | "DEVELOPMENT";
+  } | null;
+
+  integrityState: IntegrityAttentionState;
+};
+
+export type PlayersOverviewResult = {
+  planningPeriod: { id: string; label: string };
+  selectedRound?: { id: string; label: string };
+  seasonRows: PlayerSeasonOverviewRow[];
+  currentRoundRows?: PlayerCurrentRoundAttentionRow[];
+};
+
+// --- Season overview aggregation ---
+
+export async function getPlayersSeasonOverview(
+  planningPeriodId: string,
+  options?: { teamId?: string },
+): Promise<Pick<PlayersOverviewResult, "planningPeriod" | "seasonRows">> {
+  const planningPeriod = await db.planningPeriod.findUnique({
+    where: { id: planningPeriodId },
+    select: { id: true, name: true },
+  });
+
+  if (!planningPeriod) {
+    return {
+      planningPeriod: { id: planningPeriodId, label: "Unknown" },
+      seasonRows: [],
+    };
+  }
+
+  const players = await db.player.findMany({
+    where: {
+      active: true,
+      removedAt: null,
+      ...(options?.teamId ? { coreTeamId: options.teamId } : {}),
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      coreTeamId: true,
+      coreTeam: { select: { id: true, name: true } },
+    },
+    orderBy: [{ coreTeam: { name: "asc" } }, { firstName: "asc" }],
+  });
+
+  if (players.length === 0) {
+    return {
+      planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
+      seasonRows: [],
+    };
+  }
+
+  const playerIds = players.map((p) => p.id);
+
+  const rounds = await db.matchRound.findMany({
+    where: { planningPeriodId },
+    select: { id: true },
+  });
+  const roundIds = rounds.map((r) => r.id);
+
+  const matches = roundIds.length > 0
+    ? await db.match.findMany({
+        where: { matchRoundId: { in: roundIds } },
+        select: {
+          id: true,
+          matchRoundId: true,
+          teamId: true,
+          opponent: true,
+          startsAt: true,
+          team: { select: { name: true } },
+        },
+        orderBy: { startsAt: "asc" },
+      })
+    : [];
+
+  const matchIds = matches.map((m) => m.id);
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+
+  // --- Actual participation from reported/locked post-match reports ---
+
+  const reportedReports = matchIds.length > 0
+    ? await db.postMatchReport.findMany({
+        where: {
+          matchId: { in: matchIds },
+          status: { in: ["REPORTED", "LOCKED"] },
+        },
+        select: {
+          matchId: true,
+          status: true,
+          playerActuals: {
+            where: { playerId: { in: playerIds } },
+            select: { playerId: true, source: true, attendanceStatus: true },
+          },
+          absences: {
+            where: { playerId: { in: playerIds } },
+            select: { playerId: true },
+          },
+          playerStats: {
+            where: { playerId: { in: playerIds } },
+            select: { playerId: true, goals: true, assists: true },
+          },
+        },
+      })
+    : [];
+
+  const reportedMatchIds = new Set(reportedReports.map((r) => r.matchId));
+
+  const actualsByPlayer = new Map<string, Array<{
+    matchId: string;
+    matchRoundId: string;
+    source: string;
+    played: boolean;
+  }>>();
+
+  const statsByPlayer = new Map<string, { goals: number; assists: number }>();
+  const absentPlayerMatchIds = new Set<string>();
+
+  for (const report of reportedReports) {
+    for (const actual of report.playerActuals) {
+      if (actual.attendanceStatus === "NO_SHOW") {
+        // NO_SHOW is planned-but-did-not-participate, handled via absences
+        continue;
+      }
+
+      const mi = matchById.get(report.matchId);
+      const entry = {
+        matchId: report.matchId,
+        matchRoundId: mi?.matchRoundId ?? "",
+        source: actual.source,
+        played: true,
+      };
+      const arr = actualsByPlayer.get(actual.playerId) ?? [];
+      arr.push(entry);
+      actualsByPlayer.set(actual.playerId, arr);
+    }
+
+    for (const absence of report.absences) {
+      absentPlayerMatchIds.add(`${absence.playerId}:${report.matchId}`);
+    }
+
+    for (const stat of report.playerStats) {
+      const existing = statsByPlayer.get(stat.playerId) ?? { goals: 0, assists: 0 };
+      existing.goals += stat.goals;
+      existing.assists += stat.assists;
+      statsByPlayer.set(stat.playerId, existing);
+    }
+  }
+
+  // --- Planned selections ---
+
+  const selections = matchIds.length > 0
+    ? await db.selection.findMany({
+        where: {
+          matchId: { in: matchIds },
+          playerId: { in: playerIds },
+          status: { in: ["DRAFT", "FINALIZED"] },
+        },
+        select: {
+          playerId: true,
+          matchId: true,
+          role: true,
+          status: true,
+        },
+      })
+    : [];
+
+  const selectionByPlayerMatch = new Map<string, { role: string; status: string }>();
+  const selectionsByPlayer = new Map<string, Array<{
+    matchId: string;
+    role: string;
+    status: string;
+  }>>();
+
+  for (const sel of selections) {
+    selectionByPlayerMatch.set(`${sel.playerId}:${sel.matchId}`, { role: sel.role, status: sel.status });
+    const arr = selectionsByPlayer.get(sel.playerId) ?? [];
+    arr.push({ matchId: sel.matchId, role: sel.role, status: sel.status });
+    selectionsByPlayer.set(sel.playerId, arr);
+  }
+
+  // --- Count rounds where a player had multiple actual appearances (double-load) ---
+
+  const roundPlayerActualCounts = new Map<string, Map<string, number>>();
+  for (const [playerId, actuals] of actualsByPlayer) {
+    for (const actual of actuals) {
+      const roundMap = roundPlayerActualCounts.get(actual.matchRoundId) ?? new Map();
+      roundMap.set(playerId, (roundMap.get(playerId) ?? 0) + 1);
+      roundPlayerActualCounts.set(actual.matchRoundId, roundMap);
+    }
+  }
+
+  // --- Build player rows ---
+
+  const seasonRows: PlayerSeasonOverviewRow[] = players.map((player) => {
+    const playerActuals = actualsByPlayer.get(player.id) ?? [];
+    const playerStats = statsByPlayer.get(player.id) ?? { goals: 0, assists: 0 };
+    const playerSelections = selectionsByPlayer.get(player.id) ?? [];
+
+    let actualAppearances = 0;
+    let coreAppearances = 0;
+    let supportAppearances = 0;
+    let developmentAppearances = 0;
+    let matchdayAdditions = 0;
+    let plannedButAbsent = 0;
+    let finalisedUpcomingAppearances = 0;
+
+    // Actual appearances
+    for (const actual of playerActuals) {
+      actualAppearances++;
+
+      const selInfo = selectionByPlayerMatch.get(`${player.id}:${actual.matchId}`);
+      const role = selInfo?.role ?? null;
+
+      if (role) {
+        const category = classifyRole(role as Parameters<typeof classifyRole>[0]);
+        if (category === "core") coreAppearances++;
+        else if (category === "support") supportAppearances++;
+        else developmentAppearances++;
+      }
+
+      // Matchday additions: actual appearances outside the finalised planned squad
+      if (actual.source === "ADDED_POST_MATCH" || actual.source === "EMERGENCY_BACKFILL") {
+        matchdayAdditions++;
+      }
+    }
+
+    // Planned absences: player was planned (finalised) but recorded as absent in reported/locked match
+    for (const sel of playerSelections) {
+      if (sel.status === "FINALIZED") {
+        const isReported = reportedMatchIds.has(sel.matchId);
+        if (isReported) {
+          // Check if player was absent
+          if (absentPlayerMatchIds.has(`${player.id}:${sel.matchId}`)) {
+            plannedButAbsent++;
+          }
+        } else {
+          // Finalised but not yet reported = upcoming
+          finalisedUpcomingAppearances++;
+        }
+      }
+    }
+
+    // Additional actual appearances (double-load in same round)
+    let actualAdditionalAppearances = 0;
+    for (const [_roundId, playerCounts] of roundPlayerActualCounts) {
+      const count = playerCounts.get(player.id) ?? 0;
+      if (count > 1) {
+        actualAdditionalAppearances += count - 1;
+      }
+    }
+
+    // Recent involvement (up to 5, newest first)
+    const involvementEntries: Array<{
+      matchId: string;
+      date: Date;
+      teamName: string;
+      opponent: string;
+      state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION";
+      role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
+    }> = [];
+
+    for (const actual of playerActuals) {
+      const mi = matchById.get(actual.matchId);
+      if (!mi) continue;
+      const selInfo = selectionByPlayerMatch.get(`${player.id}:${actual.matchId}`);
+      const role = selInfo?.role ?? null;
+      const isMatchdayAddition = actual.source === "ADDED_POST_MATCH" || actual.source === "EMERGENCY_BACKFILL";
+
+      involvementEntries.push({
+        matchId: actual.matchId,
+        date: mi.startsAt ?? new Date(0),
+        teamName: mi.team.name,
+        opponent: mi.opponent ?? "",
+        state: isMatchdayAddition ? "MATCHDAY_ADDITION" : "PLAYED",
+        role: role as "CORE" | "SUPPORT" | "DEVELOPMENT" | null,
+      });
+    }
+
+    for (const absentMatchId of [...absentPlayerMatchIds]) {
+      const [absentPid, mid] = absentMatchId.split(":") as [string, string];
+      if (absentPid !== player.id) continue;
+      const mi = matchById.get(mid);
+      if (!mi) continue;
+      involvementEntries.push({
+        matchId: mid,
+        date: mi.startsAt ?? new Date(0),
+        teamName: mi.team.name,
+        opponent: mi.opponent ?? "",
+        state: "PLANNED_ABSENT",
+        role: null,
+      });
+    }
+
+    // Finalised upcoming (not yet reported)
+    for (const sel of playerSelections) {
+      if (sel.status === "FINALIZED" && !reportedMatchIds.has(sel.matchId)) {
+        const mi = matchById.get(sel.matchId);
+        if (!mi) continue;
+        involvementEntries.push({
+          matchId: sel.matchId,
+          date: mi.startsAt ?? new Date(0),
+          teamName: mi.team.name,
+          opponent: mi.opponent ?? "",
+          state: "FINALIZED_UPCOMING",
+          role: sel.role as "CORE" | "SUPPORT" | "DEVELOPMENT" | null,
+        });
+      }
+    }
+
+    involvementEntries.sort((a, b) => b.date.getTime() - a.date.getTime());
+    const recentInvolvement = involvementEntries.slice(0, 5).map(({ matchId, date, teamName, opponent, state, role }) => ({
+      matchId,
+      matchDate: date,
+      teamName,
+      opponent,
+      state,
+      role,
+    }));
+
+    return {
+      playerId: player.id,
+      displayName: `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`,
+      coreTeam: player.coreTeam ? { id: player.coreTeam.id, name: player.coreTeam.name } : null,
+      actualAppearances,
+      goals: playerStats.goals,
+      assists: playerStats.assists,
+      coreAppearances,
+      supportAppearances,
+      developmentAppearances,
+      matchdayAdditions,
+      actualAdditionalAppearances,
+      plannedButAbsent,
+      finalisedUpcomingAppearances,
+      recentInvolvement,
+    };
+  });
+
+  return {
+    planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
+    seasonRows,
+  };
+}
+
+// --- Current round attention ---
+
+export async function getPlayersCurrentRoundAttention(
+  matchRoundId: string,
+): Promise<Array<PlayerCurrentRoundAttentionRow>> {
+  const round = await db.matchRound.findUnique({
+    where: { id: matchRoundId },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+    },
+  });
+
+  if (!round) return [];
+
+  const players = await db.player.findMany({
+    where: { active: true, removedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      currentAvailability: true,
+      coreTeamId: true,
+      coreTeam: { select: { id: true, name: true } },
+    },
+    orderBy: [{ coreTeam: { name: "asc" } }, { firstName: "asc" }],
+  });
+
+  const matches = await db.match.findMany({
+    where: { matchRoundId },
+    select: {
+      id: true,
+      opponent: true,
+      teamId: true,
+      team: { select: { name: true } },
+    },
+  });
+
+  const selections = await db.selection.findMany({
+    where: {
+      matchRoundId,
+      status: { in: ["DRAFT", "FINALIZED"] },
+    },
+    select: {
+      playerId: true,
+      matchId: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  const selectionByPlayerId = new Map<string, { matchId: string; role: string; status: string }>();
+  for (const sel of selections) {
+    if (!selectionByPlayerId.has(sel.playerId)) {
+      selectionByPlayerId.set(sel.playerId, {
+        matchId: sel.matchId,
+        role: sel.role,
+        status: sel.status,
+      });
+    }
+  }
+
+  // Get integrity signals for the round from canonical computation
+  const { computeRoundPlanIntegrity } = await import("../selection/compute-plan-integrity");
+  const blockedPlayerIds = new Set<string>();
+  const decisionRequiredPlayerIds = new Set<string>();
+
+  try {
+    const integrity = await computeRoundPlanIntegrity(matchRoundId);
+    for (const signal of integrity.signals) {
+      if (signal.playerId) {
+        if (signal.kind === "BLOCKED") blockedPlayerIds.add(signal.playerId);
+        if (signal.kind === "DECISION_REQUIRED") decisionRequiredPlayerIds.add(signal.playerId);
+      }
+    }
+  } catch {
+    // fallback: no integrity data available
+  }
+
+  // Availability for this round
+  const availabilities = await db.availability.findMany({
+    where: {
+      matchRoundId,
+      playerId: { in: players.map((p) => p.id) },
+    },
+    select: { playerId: true, status: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const availabilityByPlayer = new Map<string, string>();
+  for (const a of availabilities) {
+    if (!availabilityByPlayer.has(a.playerId)) {
+      availabilityByPlayer.set(a.playerId, a.status);
+    }
+  }
+
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+
+  const rows: PlayerCurrentRoundAttentionRow[] = players.map((player) => {
+    const playerAvailability = availabilityByPlayer.get(player.id) ?? player.currentAvailability;
+    const availability = (playerAvailability ?? "AVAILABLE") as PlayerCurrentRoundAttentionRow["availability"];
+
+    const assignment = selectionByPlayerId.get(player.id);
+    const isUnavailable = availability !== "AVAILABLE" && availability !== "TENTATIVE" && availability !== "UNKNOWN";
+    const isBlocked = blockedPlayerIds.has(player.id);
+    const isDecisionRequired = decisionRequiredPlayerIds.has(player.id);
+
+    let integrityState: IntegrityAttentionState;
+    let currentAssignment: PlayerCurrentRoundAttentionRow["currentAssignment"] = null;
+
+    if (isBlocked) {
+      if (isUnavailable && assignment) {
+        integrityState = "BLOCKED_UNAVAILABLE_SELECTION";
+      } else {
+        integrityState = "BLOCKED_INVALID_PLAN";
+      }
+    } else if (isDecisionRequired) {
+      integrityState = "DECISION_REQUIRED_NO_PLANNED_MATCH";
+    } else if (assignment) {
+      integrityState = "COVERED";
+      const match = matchById.get(assignment.matchId);
+      if (match) {
+        currentAssignment = {
+          matchId: match.id,
+          teamName: match.team.name,
+          opponent: match.opponent ?? "",
+          role: assignment.role as "CORE" | "SUPPORT" | "DEVELOPMENT",
+        };
+      }
+    } else if (isUnavailable) {
+      integrityState = "NOT_AVAILABLE";
+    } else if (availability === "TENTATIVE" || availability === "UNKNOWN") {
+      integrityState = "UNCONFIRMED";
+    } else {
+      integrityState = "DECISION_REQUIRED_NO_PLANNED_MATCH";
+    }
+
+    return {
+      playerId: player.id,
+      displayName: `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`,
+      coreTeam: player.coreTeam ? { id: player.coreTeam.id, name: player.coreTeam.name } : null,
+      availability,
+      currentAssignment,
+      integrityState,
+    };
+  });
+
+  return rows;
+}
