@@ -4560,3 +4560,160 @@ Feature: Matchboard football operations workspace
       And no combined environment and sporting score must exist
       And no opponent-level permanent classification must exist
       And no opponent-level colour-coded status badge must exist
+
+  Rule: Players overview separates seasonal facts from current planning attention
+
+  The Players area provides three modes:
+  - Season overview
+  - Current round attention
+  - Manage base groups
+
+  Season overview is the default mode.
+
+  Season overview displays factual participation and recorded match statistics for a selected planning period.
+
+  Current round attention displays current plan-integrity context for a selected match round.
+
+  Manage base groups provides stable core-team assignment maintenance separately from match planning and seasonal review.
+
+  Scenario: Players opens in season overview mode
+    Given an authenticated coach opens "/players"
+    And an active planning period exists
+    When active players exist
+    Then "Season overview" must be selected by default
+    And the selected planning period must be visible
+    And the page must show participation statistics scoped to that planning period
+
+  Scenario: Coach switches Players modes
+    Given the coach is viewing "/players"
+    When the coach selects "Current round attention"
+    Then the page must display current-round planned opportunity and integrity context only
+    When the coach selects "Manage base groups"
+    Then the page must display stable team-assignment administration
+    And it must explain that base groups are separate from weekly match selection
+
+  Scenario: Actual reported participation counts as played
+    Given a reported or locked post-match report records player "p1" as having played
+    When the coach views Season overview for the containing planning period
+    Then "Played" for "p1" must increase by one
+    And recorded goals and assists for "p1" must be included
+
+  Scenario: Draft selection is not counted as played
+    Given player "p1" is selected in a draft match
+    And no reported or locked actual participation exists for that match
+    When the coach views Season overview
+    Then the draft selection must not increase "Played"
+
+  Scenario: Finalised unreported assignment is upcoming rather than played
+    Given player "p1" is selected in a finalised future match
+    And no reported or locked actual participation exists
+    When the coach views Season overview
+    Then "Played" must not increase
+
+  Scenario: Planned absence is separate from played
+    Given player "p1" was planned for a match
+    And a reported or locked post-match report records that "p1" did not participate
+    When the coach views Season overview
+    Then "Played" must not increase for that match
+    And "Planned absent" must increase
+
+  Scenario: Matchday addition counts as actual participation
+    Given player "p1" participated outside the finalised planned squad
+    And the participation is stored in a reported or locked post-match report
+    When the coach views Season overview
+    Then "Played" must increase
+    And "Matchday additions" must increase
+    And this fact must not create a warning or fairness fault against "p1"
+
+  Scenario: Additional actual appearance remains factual load context
+    Given player "p1" actually participated in more than one match in a round
+    When the coach views Season overview
+    Then each actual participation must count in "Played"
+    And the additional appearance may be shown as factual context
+    And it must not be displayed as a planning issue
+
+  Scenario: Desktop Season overview shows factual selected-period columns
+    Given the coach views Season overview on desktop
+    Then the default table must show these columns in order:
+      | Player |
+      | Core team |
+      | Played |
+      | Goals |
+      | Assists |
+      | Core |
+      | Support |
+      | Development |
+      | Matchday additions |
+      | Planned absent |
+      | Review |
+    And numerical values must be scoped to the visible selected planning period
+
+  Scenario: Role counts represent actual played involvement
+    Given player "p1" actually participated in a reported or locked match
+    And that match has a recorded planned role for "p1"
+    When Season overview calculates role involvement
+    Then an actual core-role appearance must increase "Core"
+    And an actual support-role appearance must increase "Support"
+    And an actual development-role appearance must increase "Development"
+    And a planned selection where the player did not play must not increase these actual role counts
+
+  Scenario: Matchday addition without planned role does not invent a role
+    Given player "p1" is an unplanned actual participant without a planned selection role
+    When Season overview calculates role involvement
+    Then "Played" and "Matchday additions" must increase
+    And the app must not invent a Core, Support or Development role
+
+  Scenario: Recorded goals and assists are factual statistics only
+    Given goals or assists are recorded for player "p1"
+    When the coach views Season overview
+    Then those totals must appear as factual statistics
+    And they must not create an attention state
+    And they must not affect selection generation or fairness decisions
+
+  Scenario: Sorting by Played supports manual fairness review
+    Given Season overview has players with different actual appearance counts
+    When the coach sorts by "Played" ascending
+    Then lower actual appearance counts must appear first
+    And the app must not automatically label those players as unfairly treated
+
+  Scenario: Current round attention uses canonical live integrity
+    Given a selected match round exists
+    When the coach views "Current round attention"
+    Then each active in-scope player must show current availability
+    And each eligible available player must show their planned opportunity or absence of one
+    And state must be derived from canonical live plan integrity
+
+  Scenario: Available player without planned opportunity needs attention
+    Given player "p1" is available and eligible for the selected round
+    And "p1" has no planned match assignment
+    When the coach views "Current round attention"
+    Then "p1" must show "Needs match this round"
+    And the state must be "Decision required"
+    And the coach must be able to open the affected Round Board
+
+  Scenario: Selected unavailable player is blocked
+    Given player "p1" is selected in the selected round
+    And "p1" is unavailable
+    When the coach views "Current round attention"
+    Then "p1" must show "Unavailable selection"
+    And the state must be "Blocked"
+    And the coach must be able to open the affected Round Board
+
+  Scenario: Season statistics do not create current-round attention
+    Given player "p1" has any pattern of goals, assists or historic movement
+    And no current plan-integrity state applies
+    When the coach views "Current round attention"
+    Then "p1" must not display an active decision or blocked state due to season statistics
+
+  Scenario: Base group management is separated from season review
+    Given the coach selects "Manage base groups"
+    Then the page must display:
+      "Base groups define stable team belonging. Match selections and movement are planned in rounds."
+    And the coach may manage player core-team assignment
+    And this interaction must not be represented as weekly match participation or seasonal statistics
+
+  Scenario: Players overview is coach-facing only
+    Given player participation statistics and current attention context exist
+    Then the Players overview modes must be visible only to authorised coaches
+    And the overview must not be included in parent-facing exports
+    And coach-only review context must not be included in external AI or service payloads

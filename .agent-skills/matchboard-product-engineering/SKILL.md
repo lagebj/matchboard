@@ -53,16 +53,46 @@ Fixtures (`/fixtures`) is the one-stop shop for the period → round → match h
 - Rule list: shows how rules affect this team; global rules are read-only; team-scoped rules have an Edit button that scrolls to the relevant setting
 - Configuration edits must persist via server actions, not only client state
 
-## Player assignment board
+## Players area
 
-`/players` is a drag-and-drop board for assigning players to teams.
+`/players` provides three modes using accessible tabs or segmented navigation:
 
-- Column layout: team columns + unassigned column
-- Drag-and-drop persists to backend via `movePlayerToTeamAction`
-- Double-click reveals MoveTo dropdown as accessibility fallback
-- Role is determined automatically on drop (CORE for core team, SUPPORT/DEVELOPMENT per rotation path, override required if no path)
-- BACKFILL is never a user-facing role choice
-- Player IDs in stored payloads, names for display only
+1. **Season overview** (default) — actual participation and recorded match statistics for a selected planning period.
+2. **Current round attention** — canonical live plan-integrity state for a selected round.
+3. **Manage base groups** — stable core-team assignment and player registry administration.
+
+### Season overview rules
+
+- Reported or locked actual participation is the source of truth for Played, Goals, and Assists.
+- Draft selections and finalised unreported assignments do not count as played appearances.
+- Core, Support, and Development counts represent actual played participation associated with planned roles.
+- Matchday additions are factual load context, not warnings or fairness faults.
+- Planned absences are context preventing false interpretation of lower participation totals.
+- Goals and assists never drive fairness, plan integrity, or selection generation.
+- The overview must not calculate or show an overall fairness score, player ranking, or automatic judgement from seasonal statistics.
+- Seasonal review uses transparent facts (sorting and explicit filters), not hidden automatic player ratings.
+- Any filter must identify the factual criterion being filtered.
+- Default sort: Played ascending, then Core team ascending, then Player ascending.
+
+### Current round attention rules
+
+- Must reuse canonical live plan-integrity state only (`computeRoundPlanIntegrity`).
+- Must not reconstruct plan-integrity rules inside Players UI components.
+- Must not derive attention from season statistics, goals, assists, or historical movement counts.
+- State mapping: Covered, Decision required, Blocked, Not available, Unconfirmed.
+- Default sort: Blocked first, then Decision required, then Covered, then Unconfirmed, then Not available, then Player name.
+
+### Manage base groups rules
+
+- Stable team belonging and player registry administration only.
+- Not weekly match selection, not seasonal fairness review, not reported participation analysis.
+- Display: "Base groups define stable team belonging. Match selections and movement are planned in rounds."
+
+### Contradictory SeasonFlag logic
+
+- `low_development_exposure` triggered by `developmentCount > coreCount` with zero core appearances does not indicate low development exposure. This flag logic must not be surfaced as an automatic badge. A player having more development than core appearances is factual context, not a negative label.
+- `high_support_burden` triggered by `supportCount > coreCount` with zero core appearances does not necessarily indicate problematic support burden. This flag logic must not be surfaced as an automatic negative badge.
+- Prefer factual columns, sorting, and explicit filters over automatic seasonal judgement badges.
 
 ## Selection engine ownership boundary
 

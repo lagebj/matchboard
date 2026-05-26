@@ -28,8 +28,36 @@ The canonical primary navigation is: Assistant, Fixtures, Teams, Players.
 - Assistant (`/assistant`) shows the next action based on workflow state.
 - Fixtures (`/fixtures`) provides the planning-period and round hierarchy.
 - Round Board is the primary squad decision surface.
-- Teams and Players are supporting registries and detail views.
+- Teams provides team registry and team detail workspaces.
+- Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
 - Season, History and Rules are secondary analysis/configuration destinations.
+
+## Players area
+
+The Players page is the coach-facing overview for participation statistics, current planning attention, and base-group administration.
+
+### Three modes
+
+- **Season overview** (default): actual participation and recorded match statistics for a selected planning period. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
+- **Current round attention**: canonical live plan-integrity state for a selected round. Uses `computeRoundPlanIntegrity` only. Does not derive attention from goals, assists, or historical movement.
+- **Manage base groups**: stable core-team assignment and player registry administration. Separate from weekly match selection and seasonal review.
+
+### Season overview metrics
+
+Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent. All scoped to the selected planning period. Goals and assists are factual statistics only — they do not affect selection generation or fairness.
+
+### Current round attention states
+
+Covered, Decision required (available eligible without planned match opportunity), Blocked (selected unavailable, invalid plan), Not available, Unconfirmed. Derived from canonical live plan integrity only.
+
+### Product boundaries
+
+- No overall fairness score, player ranking, or hidden automatic player judgement.
+- No stat-driven squad selection.
+- Matchday additions are factual context, not warnings.
+- Actual additional appearances are factual load context, not current attention states.
+- Base-group management is separate from match planning and seasonal review.
+- Coach-facing only. Not included in parent-facing exports.
 
 The interface prioritises actionable football decisions over configuration exposure.
 
