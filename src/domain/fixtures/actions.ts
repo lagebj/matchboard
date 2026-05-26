@@ -101,7 +101,6 @@ export async function fixtureGenerateRoundAction(prevState: { error: string }, f
   const { createGeneratedDraftRound } = await import("@/lib/selection/save-generated-draft");
   const { buildPersistableWarnings, persistRoundWarnings } = await import("@/lib/selection/persist-warnings");
   const { persistRoundExplanations } = await import("@/lib/selection/persist-explanations");
-  const { generateRoundIssues } = await import("@/lib/selection/generate-round-issues");
   const db = (await import("@/lib/db")).db;
 
   const generatedRound = await generateMatchRound(roundId);
@@ -130,7 +129,6 @@ export async function fixtureGenerateRoundAction(prevState: { error: string }, f
 
   const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
   await persistRoundWarnings(warnings);
-  await generateRoundIssues(roundId);
 
   revalidatePath("/");
   revalidatePath("/fixtures");

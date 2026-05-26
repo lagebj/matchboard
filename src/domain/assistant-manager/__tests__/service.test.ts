@@ -1,16 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb } from "@/test/test-db";
-import {
-  getAssistantIssues,
-  getRoundReview,
-  getTeamReadiness,
-  getMatchReview,
-  getPostMatchReport,
-  completePostMatchReport,
-  recordDecision,
-  getSelectionExplanation,
-} from "../service";
+import { getRoundReview, getTeamReadiness, getMatchReview, getPostMatchReport, completePostMatchReport, recordDecision, getSelectionExplanation } from "../service";
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -25,38 +16,6 @@ describe("Assistant Manager Service (DB)", () => {
 
   afterAll(async () => {
     await teardownTestDb();
-  });
-
-  describe("getAssistantIssues", () => {
-    it("returns empty array when no issues exist", async () => {
-      const issues = await getAssistantIssues();
-      expect(Array.isArray(issues)).toBe(true);
-    });
-
-    it("returns issues from database after creation", async () => {
-      await testDb.assistantIssue.create({
-        data: {
-          type: "TEAM_NEEDS_SUPPORT",
-          severity: "ACTION_REQUIRED",
-          status: "OPEN",
-          title: "Team needs support",
-          summary: "Short squad detected",
-          entityType: "TEAM",
-          entityId: "team-1",
-          affectedTeamIds: ["team-1"],
-          affectedPlayerIds: [],
-          ruleIds: ["support_priority"],
-          recommendedAction: "Assign support players",
-          primaryActionLabel: "Review",
-          primaryActionHref: "/teams/team-1/review",
-        },
-      });
-
-      const issues = await getAssistantIssues();
-      expect(issues.length).toBeGreaterThanOrEqual(1);
-      expect(issues[0].type).toBe("TEAM_NEEDS_SUPPORT");
-      expect(issues[0].severity).toBe("ACTION_REQUIRED");
-    });
   });
 
   describe("getRoundReview", () => {

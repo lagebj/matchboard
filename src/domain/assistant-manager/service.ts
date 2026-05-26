@@ -1,5 +1,4 @@
 import type {
-  AssistantIssue,
   AssistantIssueEntityType,
   DecisionAction,
   DecisionRecord,
@@ -78,33 +77,6 @@ async function getAvailabilityForTeamInRound(teamId: string, matchRoundId: strin
   }
 
   return { unavailablePlayerIds: unavailable, unknownRsvpPlayerIds: unknown, tentativePlayerIds: tentative };
-}
-
-export async function getAssistantIssues(): Promise<AssistantIssue[]> {
-  const issues = await db.assistantIssue.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-
-  return issues.map((issue) => ({
-    id: issue.id,
-    type: issue.type as AssistantIssue["type"],
-    severity: issue.severity as AssistantIssue["severity"],
-    status: issue.status as AssistantIssue["status"],
-    title: issue.title,
-    summary: issue.summary,
-    entityType: issue.entityType as AssistantIssue["entityType"],
-    entityId: issue.entityId,
-    affectedTeamIds: issue.affectedTeamIds as string[],
-    affectedPlayerIds: issue.affectedPlayerIds as string[],
-    ruleIds: issue.ruleIds as string[],
-    recommendedAction: issue.recommendedAction,
-    primaryActionLabel: issue.primaryActionLabel,
-    primaryActionHref: issue.primaryActionHref,
-    secondaryActionLabel: issue.secondaryActionLabel ?? undefined,
-    secondaryActionHref: issue.secondaryActionHref ?? undefined,
-    createdAt: issue.createdAt.toISOString(),
-    resolvedAt: issue.resolvedAt?.toISOString() ?? undefined,
-  }));
 }
 
 export async function getRoundReview(roundId: string): Promise<RoundReview> {
