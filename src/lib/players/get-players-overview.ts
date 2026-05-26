@@ -89,11 +89,22 @@ export type MovementPathSummary = {
   lastRoundName: string | null;
 };
 
+export type SeasonFairnessWarning = {
+  type: "high_support_burden" | "low_development_exposure" | "repeated_additional_appearances" | "dropped_before_playing_again" | "consecutive_movement" | "disproportionate_support_source" | "expected_support_path_unused";
+  playerId: string;
+  playerName: string;
+  teamId: string | null;
+  teamName: string | null;
+  reason: string;
+  data: Record<string, number | string | null>;
+};
+
 export type SeasonOverviewResult = {
   planningPeriod: { id: string; label: string };
   roundColumns: Array<{ id: string; name: string }>;
   seasonRows: PlayerSeasonOverviewRow[];
   movementPaths: MovementPathSummary[];
+  fairnessWarnings: SeasonFairnessWarning[];
 };
 
 export async function getPlayersSeasonOverview(
@@ -111,6 +122,7 @@ export async function getPlayersSeasonOverview(
       roundColumns: [],
       seasonRows: [],
       movementPaths: [],
+      fairnessWarnings: [],
     };
   }
 
@@ -136,6 +148,7 @@ export async function getPlayersSeasonOverview(
       roundColumns: [],
       seasonRows: [],
       movementPaths: [],
+      fairnessWarnings: [],
     };
   }
 
@@ -597,11 +610,136 @@ export async function getPlayersSeasonOverview(
     lastRoundName: mp.lastRoundName,
   }));
 
+  // Compute season fairness warnings from season rows
+  const fairnessWarnings: SeasonFairnessWarning[] = [];
+
+  // Team-level support source averages for disproportionate support detection
+  const teamSupportTotals = new Map<string, { supportCount: number; playerCount: number }>();
+  for (const row of seasonRows) {
+    const teamId = row.coreTeam?.id ?? "unassigned";
+    const existing = teamSupportTotals.get(teamId) ?? { supportCount: 0, playerCount: 0 };
+    existing.supportCount += row.supportAppearances;
+    existing.playerCount++;
+    teamSupportTotals.set(teamId, existing);
+  }
+
+  for (const row of seasonRows) {
+    // high_support_burden: player has more support than core appearances, with at least some core context
+    if (row.supportAppearances > row.coreAppearances && row.coreAppearances > 0) {
+      fairnessWarnings.push({
+        type: "high_support_burden",
+        playerId: row.playerId,
+        playerName: row.displayName,
+        teamId: row.coreTeam?.id ?? null,
+        teamName: row.coreTeam?.name ?? null,
+        reason: `${row.supportAppearances} support vs ${row.coreAppearances} core appearances`,
+        data: { supportCount: row.supportAppearances, coreCount: row.coreAppearances },
+      });
+    }
+
+    // low_development_exposure: player has more development than core, with some core context
+    if (row.developmentAppearances > row.coreAppearances && row.coreAppearances > 0) {
+      fairnessWarnings.push({
+        type: "low_development_exposure",
+        playerId: row.playerId,
+        playerName: row.displayName,
+        teamId: row.coreTeam?.id ?? null,
+        teamName: row.coreTeam?.name ?? null,
+        reason: `${row.developmentAppearances} development vs ${row.coreAppearances} core appearances`,
+        data: { developmentCount: row.developmentAppearances, coreCount: row.coreAppearances },
+      });
+    }
+
+    // repeated_additional_appearances: player has additional actual appearances
+    if (row.actualAdditionalAppearances > 1) {
+      fairnessWarnings.push({
+        type: "repeated_additional_appearances",
+        playerId: row.playerId,
+        playerName: row.displayName,
+        teamId: row.coreTeam?.id ?? null,
+        teamName: row.coreTeam?.name ?? null,
+        reason: `${row.actualAdditionalAppearances} additional actual appearances`,
+        data: { additionalAppearances: row.actualAdditionalAppearances },
+      });
+    }
+
+    // dropped_before_playing_again: player dropped multiple rounds without playing
+    if (row.dropsCount >= 2 && row.actualAppearances === 0) {
+      fairnessWarnings.push({
+        type: "dropped_before_playing_again",
+        playerId: row.playerId,
+        playerName: row.displayName,
+        teamId: row.coreTeam?.id ?? null,
+        teamName: row.coreTeam?.name ?? null,
+        reason: `Dropped ${row.dropsCount} rounds with no appearances`,
+        data: { dropsCount: row.dropsCount, appearances: row.actualAppearances },
+      });
+    }
+
+    // consecutive_movement: last movement is non-null (player moved multiple rounds)
+    if (row.lastMovement) {
+      const movementCount = row.roundAssignments.filter((a) => a.role !== "CORE" && a.role !== null).length;
+      if (movementCount >= 3) {
+        fairnessWarnings.push({
+          type: "consecutive_movement",
+          playerId: row.playerId,
+          playerName: row.displayName,
+          teamId: row.coreTeam?.id ?? null,
+          teamName: row.coreTeam?.name ?? null,
+          reason: `${movementCount} non-core rounds, last in ${row.lastMovement}`,
+          data: { movementCount, lastMovement: row.lastMovement },
+        });
+      }
+    }
+  }
+
+  // disproportionate_support_source: team supplies significantly more support than average
+  for (const [teamId, totals] of teamSupportTotals) {
+    if (totals.playerCount === 0) continue;
+    const avg = [...teamSupportTotals.values()].reduce((s, t) => s + t.supportCount / t.playerCount, 0) / teamSupportTotals.size;
+    const teamAvg = totals.supportCount / totals.playerCount;
+    if (teamAvg > avg * 2 && totals.supportCount >= 2) {
+      const teamName = seasonRows.find((r) => r.coreTeam?.id === teamId)?.coreTeam?.name ?? "Unknown";
+      fairnessWarnings.push({
+        type: "disproportionate_support_source",
+        playerId: "",
+        playerName: "",
+        teamId: teamId === "unassigned" ? null : teamId,
+        teamName: teamId === "unassigned" ? null : teamName,
+        reason: `Team supplies ${totals.supportCount} support across ${totals.playerCount} players (avg: ${avg.toFixed(1)})`,
+        data: { teamSupportCount: totals.supportCount, teamPlayerCount: totals.playerCount, periodAvg: Math.round(avg * 10) / 10 },
+      });
+    }
+  }
+
+  // expected_support_path_unused: rotation paths not used in movementPaths
+  const configuredPaths = await db.rotationPath.findMany({
+    where: { active: true },
+    select: { id: true, fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { name: true } }, toTeam: { select: { name: true } } },
+  });
+  for (const path of configuredPaths) {
+    const usedInMovement = movementPaths.some(
+      (mp) => mp.sourceTeamId === path.fromTeamId && mp.targetTeamId === path.toTeamId && mp.role === path.role,
+    );
+    if (!usedInMovement) {
+      fairnessWarnings.push({
+        type: "expected_support_path_unused",
+        playerId: "",
+        playerName: "",
+        teamId: path.fromTeamId,
+        teamName: path.fromTeam?.name ?? null,
+        reason: `Active path ${path.fromTeam?.name ?? "Unknown"} → ${path.toTeam?.name ?? "Unknown"} (${path.role.toLowerCase()}) not used this period`,
+        data: { fromTeamId: path.fromTeamId, toTeamId: path.toTeamId, pathRole: path.role },
+      });
+    }
+  }
+
   return {
     planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
     roundColumns: roundColumns,
     seasonRows,
     movementPaths,
+    fairnessWarnings,
   };
 }
 

@@ -26,6 +26,7 @@ type PlayersPageClientProps = {
   seasonRows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
   movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null }>;
+  fairnessWarnings: Array<{ type: string; playerId: string; playerName: string; teamId: string | null; teamName: string | null; reason: string; data: Record<string, number | string | null> }>;
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;
   selectedRoundId?: string;
@@ -48,6 +49,7 @@ export function PlayersPageClient({
   seasonRows,
   roundColumns,
   movementPaths,
+  fairnessWarnings,
   currentRoundRows,
   selectedPeriodId,
   selectedRoundId,
@@ -144,6 +146,7 @@ export function PlayersPageClient({
             rows={seasonRows}
             roundColumns={roundColumns}
             movementPaths={movementPaths}
+            fairnessWarnings={fairnessWarnings}
             planningPeriodLabel={periodLabel}
             reportedMatchCount={reportedMatchCount}
             totalActualAppearances={totalActualAppearances}

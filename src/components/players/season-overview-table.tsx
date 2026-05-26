@@ -8,6 +8,7 @@ type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
   movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null }>;
+  fairnessWarnings: Array<{ type: string; playerId: string; playerName: string; teamId: string | null; teamName: string | null; reason: string; data: Record<string, number | string | null> }>;
   planningPeriodLabel: string;
   reportedMatchCount: number;
   totalActualAppearances: number;
@@ -45,6 +46,7 @@ export function SeasonOverviewTable({
   rows,
   roundColumns,
   movementPaths,
+  fairnessWarnings,
   planningPeriodLabel,
   reportedMatchCount,
   totalActualAppearances,
@@ -218,7 +220,42 @@ export function SeasonOverviewTable({
             <span>highest support: {highestSupportBurden}</span>
           </>
         )}
+        {fairnessWarnings.length > 0 && (
+          <>
+            <span className="text-zinc-600">·</span>
+            <span>{fairnessWarnings.length} fairness signal{fairnessWarnings.length !== 1 ? "s" : ""}</span>
+          </>
+        )}
       </div>
+
+      {fairnessWarnings.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-1">
+          {fairnessWarnings.map((w, i) => (
+            <div key={`${w.type}-${w.playerId || w.teamId}-${i}`} className="flex items-start gap-2 text-xs">
+              <span className={`shrink-0 mt-0.5 inline-block rounded px-1.5 py-0.5 text-[9px] font-medium uppercase ${
+                w.type === "disproportionate_support_source" || w.type === "expected_support_path_unused"
+                  ? "bg-amber-900/50 text-amber-300"
+                  : w.type === "dropped_before_playing_again"
+                    ? "bg-red-900/50 text-red-300"
+                    : "bg-zinc-800 text-zinc-400"
+              }`}>
+                {w.type === "high_support_burden" ? "Support" :
+                 w.type === "low_development_exposure" ? "Dev exposure" :
+                 w.type === "repeated_additional_appearances" ? "Additional load" :
+                 w.type === "dropped_before_playing_again" ? "Dropped" :
+                 w.type === "consecutive_movement" ? "Movement" :
+                 w.type === "disproportionate_support_source" ? "Support source" :
+                 w.type === "expected_support_path_unused" ? "Unused path" : w.type}
+              </span>
+              <span className="text-zinc-300">
+                {w.playerName ? <>{w.playerName}{w.teamName ? ` (${w.teamName})` : ""}</> : w.teamName ?? ""}
+                {" — "}
+                {w.reason}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <input

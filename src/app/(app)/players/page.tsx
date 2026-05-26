@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
-import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
+import type { PlayerSeasonOverviewRow, SeasonFairnessWarning, SeasonOverviewResult } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
 
 type PlayersPageProps = {
@@ -41,7 +41,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
   const seasonData = selectedPeriodId
     ? await getPlayersSeasonOverview(selectedPeriodId)
-    : { planningPeriod: { id: "", label: "No planning period" }, roundColumns: [] as Array<{ id: string; name: string }>, seasonRows: [] as PlayerSeasonOverviewRow[], movementPaths: [] as Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null }> };
+    : { planningPeriod: { id: "", label: "No planning period" }, roundColumns: [], seasonRows: [] as PlayerSeasonOverviewRow[], movementPaths: [] as SeasonOverviewResult["movementPaths"], fairnessWarnings: [] as SeasonFairnessWarning[] };
 
   const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
 
@@ -103,6 +103,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       seasonRows={seasonData.seasonRows}
       roundColumns={seasonData.roundColumns}
       movementPaths={seasonData.movementPaths}
+      fairnessWarnings={seasonData.fairnessWarnings}
       currentRoundRows={currentRoundRows}
       selectedPeriodId={selectedPeriodId}
       selectedRoundId={selectedRoundId}
