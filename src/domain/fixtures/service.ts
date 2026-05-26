@@ -35,6 +35,48 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
     return { periods: [] };
   }
 
+  const allMatchIds = seasons.flatMap((s) =>
+    s.planningPeriods.flatMap((p) =>
+      p.matchRounds.flatMap((r) => r.matches.map((m) => m.id)),
+    ),
+  );
+
+  const allRoundIds = seasons.flatMap((s) =>
+    s.planningPeriods.flatMap((p) =>
+      p.matchRounds.map((r) => r.id),
+    ),
+  );
+
+  const [allSelections, postMatchReports] = await Promise.all([
+    allMatchIds.length > 0
+      ? db.selection.findMany({
+          where: { matchId: { in: allMatchIds } },
+          select: { matchId: true, status: true },
+        })
+      : Promise.resolve([]),
+    db.postMatchReport.findMany({
+      where: { matchId: { in: allMatchIds } },
+      select: { matchId: true, status: true },
+    }),
+  ]);
+
+  const matchDraftCounts = new Map<string, number>();
+  const matchFinalizedCounts = new Map<string, number>();
+  for (const s of allSelections) {
+    if (s.status === "DRAFT") {
+      matchDraftCounts.set(s.matchId, (matchDraftCounts.get(s.matchId) ?? 0) + 1);
+    } else if (s.status === "FINALIZED") {
+      matchFinalizedCounts.set(s.matchId, (matchFinalizedCounts.get(s.matchId) ?? 0) + 1);
+    }
+  }
+
+  const postMatchStatusMap = new Map<string, string>();
+  for (const r of postMatchReports) {
+    postMatchStatusMap.set(r.matchId, r.status);
+  }
+
+  const integrityCache = new Map<string, Awaited<ReturnType<typeof computeRoundPlanIntegrity>>>();
+
   const periods: FixturePeriod[] = [];
 
   for (const season of seasons) {
@@ -44,33 +86,20 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
       for (const round of period.matchRounds) {
         let blockerCount = 0;
         let decisionRequiredCount = 0;
+        let matchSignals: Array<{ matchId: string | undefined; kind: string }> = [];
 
         if (round.status !== "FINALIZED") {
           try {
-            const integrity = await computeRoundPlanIntegrity(round.id);
+            let integrity = integrityCache.get(round.id);
+            if (!integrity) {
+              integrity = await computeRoundPlanIntegrity(round.id);
+              integrityCache.set(round.id, integrity);
+            }
             blockerCount = integrity.summary.blockerCount;
             decisionRequiredCount = integrity.summary.decisionRequiredCount;
+            matchSignals = integrity.signals.map((s) => ({ matchId: s.matchId, kind: s.kind }));
           } catch {
             // fallback to zero if computation fails
-          }
-        }
-
-        const allMatchIds = round.matches.map((m) => m.id);
-
-        const allSelections = allMatchIds.length > 0
-          ? await db.selection.findMany({
-              where: { matchId: { in: allMatchIds } },
-              select: { matchId: true, status: true },
-            })
-          : [];
-
-        const matchDraftCounts = new Map<string, number>();
-        const matchFinalizedCounts = new Map<string, number>();
-        for (const s of allSelections) {
-          if (s.status === "DRAFT") {
-            matchDraftCounts.set(s.matchId, (matchDraftCounts.get(s.matchId) ?? 0) + 1);
-          } else if (s.status === "FINALIZED") {
-            matchFinalizedCounts.set(s.matchId, (matchFinalizedCounts.get(s.matchId) ?? 0) + 1);
           }
         }
 
@@ -87,8 +116,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
           blockedSignalCount: blockerCount,
         });
 
-        const matches: FixtureMatch[] = [];
-        for (const match of round.matches) {
+        const matches: FixtureMatch[] = round.matches.map((match) => {
           const matchDraftCount = matchDraftCounts.get(match.id) ?? 0;
           const matchFinalizedCount = matchFinalizedCounts.get(match.id) ?? 0;
           const matchSelectionState = deriveMatchSelectionState(
@@ -97,24 +125,14 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             matchFinalizedCount > 0,
           );
 
-          let matchBlockerCount = 0;
-          let matchDecisionCount = 0;
+          const matchBlockerCount = matchSignals.filter(
+            (s) => s.matchId === match.id && s.kind === "BLOCKED",
+          ).length;
+          const matchDecisionCount = matchSignals.filter(
+            (s) => s.matchId === match.id && s.kind === "DECISION_REQUIRED",
+          ).length;
 
-          if (round.status !== "FINALIZED") {
-            try {
-              const matchIntegrity = await computeRoundPlanIntegrity(round.id);
-              for (const signal of matchIntegrity.signals) {
-                if (signal.matchId === match.id) {
-                  if (signal.kind === "BLOCKED") matchBlockerCount++;
-                  if (signal.kind === "DECISION_REQUIRED") matchDecisionCount++;
-                }
-              }
-            } catch {
-              // fallback to zero
-            }
-          }
-
-          matches.push({
+          return {
             id: match.id,
             title: `${match.team.name} vs ${match.opponent}`,
             teamId: match.teamId,
@@ -127,9 +145,10 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             selectedPlayerCount: matchDraftCount + matchFinalizedCount,
             blockerCount: matchBlockerCount,
             decisionRequiredCount: matchDecisionCount,
+            postMatchStatus: (postMatchStatusMap.get(match.id) as FixtureMatch["postMatchStatus"]) ?? undefined,
             availableActions: getRoundActions(derivedRoundStatus, hasMatches),
-          });
-        }
+          };
+        });
 
         const roundActions = getRoundActions(derivedRoundStatus, hasMatches);
 
