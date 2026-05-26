@@ -167,8 +167,14 @@ function PlayerChip({
           {player.matchdayResponsibility === "CONFIDENCE_REBUILD_PLAYER" ? "CR" : player.matchdayResponsibility === "CHALLENGE_PLAYER" ? "CH" : player.matchdayResponsibility === "RECOVERY_LEADER" ? "RL" : player.matchdayResponsibility === "WIDTH_HOLDER" ? "WH" : player.matchdayResponsibility === "CONNECTOR" ? "CN" : "ST"}
         </span>
       )}
-      {player.warningCount && player.warningCount > 0 && (
-        <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />
+      {player.availability === "INJURED" && (
+        <span className="shrink-0 text-[8px] text-red-400 uppercase">unavail</span>
+      )}
+      {player.availability === "SICK" && (
+        <span className="shrink-0 text-[8px] text-amber-400 uppercase">sick</span>
+      )}
+      {player.availability === "AWAY" && (
+        <span className="shrink-0 text-[8px] text-zinc-400 uppercase">away</span>
       )}
       {player.negativeReadinessSignals && player.negativeReadinessSignals.length > 0 && (
         <span
@@ -705,35 +711,53 @@ export function RoundBoard({
         </div>
       )}
 
-      {prominentSignals.length > 0 && (
-        <div className="flex items-center gap-1.5 text-xs text-amber-300">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          <span>{prominentSignals.length} {prominentSignals.length === 1 ? "issue needs attention" : "issues need attention"} — see player markers below</span>
+      {blockedCount > 0 && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <OctagonAlert className="h-4 w-4 text-red-400" aria-hidden="true" />
+            <span className="text-sm font-medium text-red-300">
+              Plan integrity: {blockedCount} Blocked {blockedCount === 1 ? "condition" : "conditions"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {decisionRequiredCount > 0 && (
+        <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden="true" />
+            <span className="text-sm font-medium text-amber-300">
+              Plan integrity: {decisionRequiredCount} Decision {decisionRequiredCount === 1 ? "requires" : "require"} review
+            </span>
+          </div>
+        </div>
+      )}
+
+      {blockedCount === 0 && decisionRequiredCount === 0 && hasDraftSelections && (
+        <div className="rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-3 py-2">
+          <span className="text-sm text-emerald-300">
+            Plan integrity: all available eligible players have one planned match opportunity. All squads meet minimum size.
+          </span>
         </div>
       )}
 
       {planningNotes.length > 0 && (
-        <button
-          className="text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors text-left"
-          onClick={() => setShowAllWarnings(!showAllWarnings)}
-          type="button"
-        >
-          {showAllWarnings ? "Hide" : `Show ${planningNotes.length} planning ${planningNotes.length === 1 ? "note" : "notes"}`}
-        </button>
-      )}
-
-      {showAllWarnings && planningNotes.length > 0 && (
-        <div className="flex flex-col gap-1">
-          {planningNotes.map((w, i) => (
-            <div
-              key={`info-${w.code}-${i}`}
-              className="rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-1.5 text-[11px] text-zinc-400"
-            >
-              {w.playerName && <span className="font-medium text-zinc-300">{w.playerName}: </span>}
-              {w.message}
-            </div>
-          ))}
-        </div>
+        <details className="text-xs">
+          <summary className="cursor-pointer text-[var(--text-muted)] hover:text-zinc-50 transition-colors">
+            Planning notes ({planningNotes.length})
+          </summary>
+          <div className="mt-1 flex flex-col gap-1">
+            {planningNotes.map((w, i) => (
+              <div
+                key={`note-${w.code}-${i}`}
+                className="rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-1.5 text-[11px] text-zinc-400"
+              >
+                {w.playerName && <span className="font-medium text-zinc-300">{w.playerName}: </span>}
+                {w.message}
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
       <div
@@ -842,7 +866,6 @@ export function RoundBoard({
         onConfirm={handleFinalize}
         blockedCount={blockedCount}
         decisionRequiredCount={decisionRequiredCount}
-        totalSignalCount={prominentSignals.length + planningNotes.length}
         selectedCount={totalSelected}
         targetSquadSize={totalTarget}
         matchCount={matches.length}

@@ -18,7 +18,6 @@ type ConfirmFinalizeDialogProps = {
   onConfirm: (overrideReasonCategory: string, overrideReasonDetail: string) => void;
   blockedCount: number;
   decisionRequiredCount: number;
-  totalSignalCount: number;
   selectedCount: number;
   targetSquadSize: number;
   matchCount: number;
@@ -31,7 +30,6 @@ export function ConfirmFinalizeDialog({
   onConfirm,
   blockedCount,
   decisionRequiredCount,
-  totalSignalCount,
   selectedCount,
   targetSquadSize,
   matchCount,
@@ -83,15 +81,16 @@ export function ConfirmFinalizeDialog({
             </p>
           </div>
 
-          {totalSignalCount > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden="true" />
-                <span className="text-sm font-medium text-zinc-200">
-                  {totalSignalCount} {totalSignalCount === 1 ? "issue" : "issues"} need attention
-                </span>
-              </div>
+          {blockedCount === 0 && decisionRequiredCount === 0 && (
+            <div className="rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-3 py-2">
+              <p className="text-sm text-emerald-300">
+                Plan integrity: all available eligible players have one planned match opportunity. All squads meet minimum size.
+              </p>
+            </div>
+          )}
 
+          {(blockedCount > 0 || decisionRequiredCount > 0) && (
+            <div className="flex flex-col gap-2">
               {blockedCount > 0 && (
                 <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
                   <div className="flex items-center gap-2">
