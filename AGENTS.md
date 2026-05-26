@@ -476,7 +476,17 @@ An additional actual appearance in the same round is allowed as recorded reality
 
 ## Warnings and plan integrity signals
 
+Current active plan integrity is computed from the current editable draft. Draft-derived signals are reconciled, never accumulated indefinitely. Recalculation yielding zero signals clears/resolves obsolete active projection. Assistant work is derived from current Blocked and Decision required only. Planning notes never create Assistant tasks, Fixtures totals or finalisation requirements.
+
 The application reserves prominent unresolved issue signals for conditions that directly affect planned match opportunity, selection validity, or minimum match viability.
+
+Active prominent signals are restricted to:
+1. Squad below minimum accepted size (Blocked)
+2. Selected unavailable player (Blocked)
+3. Invalid duplicate planned assignment (Blocked)
+4. Available eligible player without planned match opportunity (Decision required)
+
+Opponent history is informational only and never becomes a selection warning.
 
 Visible signal categories:
 - **Blocked** — the planned round or match is invalid or not viable. Requires action before normal finalisation.
@@ -484,6 +494,12 @@ Visible signal categories:
 - **Planning note** — useful context; the current plan remains valid and finalisable. Not shown as prominent unresolved issue.
 
 Selection ranking and engine rationale are shown as "Why this selection" explanations and must never be counted or displayed as unresolved issues.
+
+Fixtures must not display generic issue totals. Fixtures displays structured Blocked and Decision required summaries only. Planning notes must not be counted.
+
+Round Board uses Plan integrity, Planning notes and Why this selection. It must not show actionable warnings, informational warnings or generic warning totals. Player chips must not show generic warning count badges.
+
+Planned same-round double load is prohibited. Additional actual participation is post-match reality only and does not become an active plan-integrity signal.
 
 ### Blocked conditions
 

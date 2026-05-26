@@ -195,6 +195,24 @@ Round and match readiness has five states:
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
+Current active plan integrity is computed from the current editable draft. Draft-derived signals are reconciled, never accumulated indefinitely. Recalculation yielding zero signals clears/resolves obsolete active projection. Resolving a condition removes it from all active surfaces.
+
+Active prominent signals are restricted to:
+1. Squad below minimum accepted size (Blocked)
+2. Selected unavailable player (Blocked)
+3. Invalid duplicate planned assignment (Blocked)
+4. Available eligible player without planned match opportunity (Decision required)
+
+Planning notes never create Assistant tasks, Fixtures totals, or finalisation requirements. Selection scoring preference is explanation only, never an active issue. Opponent history never becomes a selection warning.
+
+Fixtures must not display generic issue totals. Fixtures displays structured Blocked and Decision required summaries only.
+
+Round Board uses Plan integrity, Planning notes and Why this selection. It must not show actionable warnings, informational warnings, or generic warning totals. Player chips must not show generic warning count badges.
+
+Planned same-round double load is prohibited. Additional actual participation is post-match reality only and does not become an active plan-integrity signal.
+
+Finalisation recomputes live integrity from current state server-side. Stale rows cannot affect finalisation after their condition resolves.
+
 Blocked conditions and Decision required conditions appear as count summaries and per-player icons. Planning notes are hidden behind a toggle. Surface actionable issues, not every observation.
 
 The coach can always finalize by providing an override reason. No condition can absolutely prevent finalization, but Blocked conditions require conscious acceptance and recorded reason. Decision required conditions also require an override reason. Planning notes must not require acknowledgement in the finalization dialog.
