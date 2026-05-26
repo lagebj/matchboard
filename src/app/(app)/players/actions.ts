@@ -441,3 +441,31 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
   revalidatePath(`/players/${playerId}`);
   revalidatePath("/rounds");
 }
+
+export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: string | null) {
+  await requireCoachAccess();
+
+  const player = await db.player.findFirst({
+    where: { id: playerId, removedAt: null },
+    select: { id: true },
+  });
+
+  if (!player) throw new Error("Player not found.");
+
+  if (coreTeamId !== null) {
+    const team = await db.team.findFirst({
+      where: { id: coreTeamId, archivedAt: null },
+      select: { id: true },
+    });
+    if (!team) throw new Error("Team not found or archived.");
+  }
+
+  await db.player.update({
+    where: { id: player.id },
+    data: { coreTeamId },
+  });
+
+  revalidatePath("/players");
+  revalidatePath(`/players/${playerId}`);
+  revalidatePath("/teams");
+}

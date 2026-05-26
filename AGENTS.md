@@ -752,7 +752,7 @@ Primary navigation (4 items, in this order):
 1. **Assistant** (`/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work.
 2. **Fixtures** (`/fixtures`) — planning-period, round and match hierarchy with actions.
 3. **Teams** (`/teams`) — team registry and access to team detail.
-4. **Players** (`/players`) — player registry and assignment overview.
+4. **Players** (`/players`) — season participation, current planning attention, and base-group administration.
 
 The following must not be primary sidebar items:
 - `/rounds`
@@ -810,12 +810,54 @@ Operational workflow hierarchy:
 Teams, Players, and Matches are setup registries. They serve data-entry efficiency, not football operations workflow. Each registry page is a dense table with prominent Create actions and actionable empty states. Create buttons must never be dead links. Empty states must link directly to creation.
 
 - Teams (`/teams`): dense table of teams with core player count, squad limits, support priority. Links to `/teams/new` for creation. Links to `/teams/[teamId]` for detail. Empty state: "No teams yet. Create a team." with direct link to `/teams/new`.
-- Players (`/players`): dense table of players with name, core team, position, availability. Links to `/players/new` for creation. Links to `/players/[playerId]` for detail. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Create a player." with direct link to `/players/new`.
+- Players (`/players`): three-mode surface — Season overview (actual participation and recorded match statistics for a selected planning period), Current round attention (canonical live plan-integrity state for a selected round), Manage base groups (stable core-team assignment and player registry administration). Links to `/players/new` for creation. Links to `/players/[playerId]` for full profile. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Add a player." with direct link to `/players/new`.
 - Fixtures provides match creation and match registry. The `/matches/new` route creates matches assigned to match rounds based on date. Fixtures must not expose a separate fixture-list mental model through a competing `/matches` navigation destination.
 
 Create routes must work reliably. `/teams/new` must save all team fields (not just name and a few fields). `/players/new` must not silently disappear when teams exist. `/matches/new` must assign matches to match rounds based on date.
 
 Round selection (`/rounds`) remains workflow-first. It uses cards, boards, panels, and role buckets — not tables as the primary interaction model.
+
+### Players page modes
+
+`/players` has three internal modes using accessible tabs or segmented navigation:
+
+1. **Season overview** (default) — actual participation, recorded match statistics, and movement distribution for a selected planning period. Scoped to a visible `Planning period: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances.
+
+2. **Current round attention** — canonical live plan-integrity state for a selected round. Scoped to a visible `Round: {label}`. Uses `computeRoundPlanIntegrity` output only. Does not derive attention from season statistics, goals, assists, or historical movement counts.
+
+3. **Manage base groups** — stable core-team assignment and player registry administration. This mode is for team belonging, not weekly match selection, seasonal fairness review, or reported participation analysis. Display: "Base groups define stable team belonging. Match selections and movement are planned in rounds."
+
+Season overview required columns (desktop): Player, Core team, Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent, Review.
+
+Current round attention required columns (desktop): Player, Core team, Availability, Planned opportunity, Role, State, Action.
+
+Season overview default sort: Played ascending, then Core team ascending, then Player ascending.
+
+Current round attention default sort: Blocked first, then Decision required, then Covered, then Unconfirmed, then Not available, then Player name.
+
+Players overview rules:
+
+- Reported or locked actual participation is the source of truth for Played, Goals, and Assists.
+- Draft selections do not count as played appearances.
+- Finalised unreported assignments are upcoming, not played.
+- Core, Support, and Development counts represent actual played participation associated with planned roles.
+- Matchday additions are factual load context, not warnings or fairness faults.
+- Planned absences are context preventing false interpretation of lower participation totals.
+- Actual additional appearances remain factual load context and must not create current attention states.
+- Goals and assists never drive fairness, plan integrity, or selection generation.
+- The overview must not calculate or show an overall fairness score, player ranking, or automatic judgement from seasonal statistics.
+- Seasonal review uses transparent facts (sorting and explicit filters), not hidden automatic player ratings.
+- Any filter must identify the factual criterion being filtered.
+- Current round attention must reuse canonical live plan-integrity state only. It must not reconstruct plan-integrity rules inside Players UI components.
+- Base-group management remains separate from weekly planning and seasonal review.
+- Use the `ux-webapp-design-craft` skill for all UX, visual design, and interaction decisions in this workflow.
+- Preserve privacy, parent-export, and external-payload boundaries. Coach-only review context must not be included in parent-facing exports or external AI payloads.
+
+Contradictory SeasonFlag logic:
+
+- `low_development_exposure` triggered by `developmentCount > coreCount` with zero core appearances does not indicate low development exposure. This flag logic must not be surfaced as an automatic badge. A player having more development than core appearances is factual context, not a negative label.
+- `high_support_burden` triggered by `supportCount > coreCount` with zero core appearances does not necessarily indicate problematic support burden. This flag logic must not be surfaced as an automatic negative badge.
+- For this branch, prefer factual columns, sorting, and explicit filters over automatic seasonal judgement badges.
 
 ### Teams page and team detail
 
