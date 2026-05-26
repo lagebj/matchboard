@@ -28,7 +28,8 @@ describe("Fixtures Service unit tests", () => {
         title: "Test Period",
         dateRange: "Jan – Jun",
         readinessState: "READY",
-        unresolvedIssueCount: 0,
+        blockerCount: 0,
+        decisionRequiredCount: 0,
         rounds: [],
       };
       expect(period.id).toBe("p1");
@@ -43,7 +44,8 @@ describe("Fixtures Service unit tests", () => {
         selectionState: "DRAFT",
         hasDraftSelections: true,
         hasMatches: true,
-        unresolvedIssueCount: 0,
+        blockerCount: 0,
+        decisionRequiredCount: 0,
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
         matches: [],
       };
@@ -62,7 +64,8 @@ describe("Fixtures Service unit tests", () => {
         readinessState: "READY",
         selectionState: "DRAFT",
         selectedPlayerCount: 0,
-        unresolvedIssueCount: 0,
+        blockerCount: 0,
+        decisionRequiredCount: 0,
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
       };
       expect(match.teamId).toBe("team-1");

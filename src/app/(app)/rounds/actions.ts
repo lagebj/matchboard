@@ -6,6 +6,7 @@ import { clearAllDraftSelections } from "@/lib/selection/clear-draft-selection";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
+import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
@@ -50,8 +51,22 @@ export async function clearAllDraftsAction(formData: FormData) {
 
   await clearAllDraftSelections(planningPeriodId);
 
+  const draftRounds = await db.matchRound.findMany({
+    where: { planningPeriodId, status: "DRAFT" },
+    select: { id: true },
+  });
+  for (const round of draftRounds) {
+    try {
+      await reconcileRoundAfterDraftMutation(round.id);
+    } catch {
+      // reconciliation failure must not block clear
+    }
+  }
+
   revalidatePath("/");
   revalidatePath("/rounds");
+  revalidatePath("/fixtures");
+  revalidatePath("/assistant");
 }
 
 export async function generateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
@@ -90,10 +105,13 @@ export async function generateRoundAction(prevState: { error: string }, formData
     const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
     await persistRoundWarnings(warnings);
     await generateRoundIssues(roundId);
+    await reconcileRoundAfterDraftMutation(roundId);
 
     revalidatePath("/");
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${roundId}`);
+    revalidatePath("/fixtures");
+    revalidatePath("/assistant");
 
     redirect(buildPathWithSearch(`/rounds/${roundId}`, { saved: "generated" }));
   } catch (error) {
@@ -151,6 +169,11 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
         } else {
           regenerated++;
         }
+        try {
+          await reconcileRoundAfterDraftMutation(round.id);
+        } catch {
+          // reconciliation failure must not block regeneration
+        }
       } catch (err) {
         errors.push(`${round.name}: ${err instanceof Error ? err.message : "Failed"}`);
       }
@@ -177,10 +200,16 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
     const result = await unfinalizeMatchRound(matchRoundId);
 
+    try {
+      await reconcileRoundAfterDraftMutation(matchRoundId);
+    } catch {
+      // reconciliation failure must not block unfinalize
+    }
     revalidatePath("/");
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${matchRoundId}`);
     revalidatePath("/fixtures");
+    revalidatePath("/assistant");
 
     if (!result.success) {
       return { error: result.message };

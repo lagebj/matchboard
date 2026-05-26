@@ -77,30 +77,14 @@ export function buildPersistableWarnings(
 }
 
 export async function persistRoundWarnings(warnings: PersistableWarning[]): Promise<void> {
-  if (warnings.length === 0) return;
-
-  const matchRoundId = warnings[0]!.matchRoundId;
-
-  const existingResolved = await db.warning.findMany({
-    where: { matchRoundId, resolved: true },
-    select: { id: true, rule: true, playerId: true, matchId: true, teamId: true, severity: true, message: true, resolved: true },
-  });
-
-  const resolvedByKey = new Map<string, typeof existingResolved[number]>();
-  for (const r of existingResolved) {
-    const key = `${r.rule}|${r.playerId ?? ""}|${r.matchId ?? ""}|${r.teamId ?? ""}`;
-    resolvedByKey.set(key, r);
-  }
+  const matchRoundId = warnings.length > 0 ? warnings[0]!.matchRoundId : "";
 
   await db.$transaction(async (tx) => {
     await tx.warning.deleteMany({
-      where: { matchRoundId },
+      where: { matchRoundId: matchRoundId || undefined },
     });
 
     for (const w of warnings) {
-      const key = `${w.rule}|${w.playerId ?? ""}|${w.matchId ?? ""}|${w.teamId ?? ""}`;
-      const matching = resolvedByKey.get(key);
-
       await tx.warning.create({
         data: {
           matchRoundId: w.matchRoundId,
@@ -110,7 +94,7 @@ export async function persistRoundWarnings(warnings: PersistableWarning[]): Prom
           severity: w.severity,
           rule: w.rule,
           message: w.message,
-          resolved: matching?.resolved ?? false,
+          resolved: false,
         },
       });
     }

@@ -1,13 +1,12 @@
 import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch } from "./types";
 import { db } from "@/lib/db";
-import { WarningSeverity } from "@/generated/prisma/client";
 import { deriveRoundStatus } from "@/lib/round-status";
-import { getRoundActions, getMatchActions, deriveMatchSelectionState } from "./selection-state-utils";
+import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
-function mapReadiness(worstSeverity: string | undefined): "READY" | "WATCH" | "AT_RISK" | "NOT_PLAYABLE" {
-  if (worstSeverity === "HARD_BLOCK") return "NOT_PLAYABLE";
-  if (worstSeverity === "REQUIRES_OVERRIDE") return "AT_RISK";
-  if (worstSeverity === "WARNING") return "WATCH";
+function mapReadiness(blockerCount: number, decisionRequiredCount: number): "READY" | "AT_RISK" | "NOT_PLAYABLE" {
+  if (blockerCount > 0) return "NOT_PLAYABLE";
+  if (decisionRequiredCount > 0) return "AT_RISK";
   return "READY";
 }
 
@@ -36,78 +35,24 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
     return { periods: [] };
   }
 
-  const allRoundIds = seasons.flatMap((s) =>
-    s.planningPeriods.flatMap((p) => p.matchRounds.map((r) => r.id)),
-  );
-
   const allMatchIds = seasons.flatMap((s) =>
     s.planningPeriods.flatMap((p) =>
       p.matchRounds.flatMap((r) => r.matches.map((m) => m.id)),
     ),
   );
 
-  const roundWarnings = await db.warning.findMany({
-    where: { matchRoundId: { in: allRoundIds.length > 0 ? allRoundIds : undefined } },
-  });
-
-  const roundBlockingWarningCounts = new Map<string, number>();
-  const roundIssueCounts = new Map<string, number>();
-  for (const w of roundWarnings) {
-    if (w.matchRoundId) {
-      roundIssueCounts.set(w.matchRoundId, (roundIssueCounts.get(w.matchRoundId) ?? 0) + 1);
-      if (w.severity === "HARD_BLOCK") {
-        roundBlockingWarningCounts.set(w.matchRoundId, (roundBlockingWarningCounts.get(w.matchRoundId) ?? 0) + 1);
-      }
-    }
-  }
-
-  const matchWarnings = await db.warning.findMany({
-    where: { matchId: { in: allMatchIds.length > 0 ? allMatchIds : undefined } },
-  });
-
-  const matchIssueCounts = new Map<string, number>();
-  for (const w of matchWarnings) {
-    if (w.matchId) {
-      matchIssueCounts.set(w.matchId, (matchIssueCounts.get(w.matchId) ?? 0) + 1);
-    }
-  }
-
-  const roundWarningSeverityMap = new Map<string, string>();
-  for (const w of roundWarnings) {
-    if (!w.matchRoundId) continue;
-    const current = roundWarningSeverityMap.get(w.matchRoundId);
-    if (!current || (w.severity === "HARD_BLOCK" && current !== "HARD_BLOCK")) {
-      if (w.severity === WarningSeverity.HARD_BLOCK) {
-        roundWarningSeverityMap.set(w.matchRoundId, "HARD_BLOCK");
-      } else if (w.severity === WarningSeverity.REQUIRES_OVERRIDE && current !== "HARD_BLOCK") {
-        roundWarningSeverityMap.set(w.matchRoundId, "REQUIRES_OVERRIDE");
-      } else if (w.severity === WarningSeverity.WARNING && !current) {
-        roundWarningSeverityMap.set(w.matchRoundId, "WARNING");
-      }
-    }
-  }
-
-  const matchWarningSeverityMap = new Map<string, string>();
-  for (const w of matchWarnings) {
-    if (!w.matchId) continue;
-    const current = matchWarningSeverityMap.get(w.matchId);
-    if (!current || (w.severity === "HARD_BLOCK" && current !== "HARD_BLOCK")) {
-      if (w.severity === WarningSeverity.HARD_BLOCK) {
-        matchWarningSeverityMap.set(w.matchId, "HARD_BLOCK");
-      } else if (w.severity === WarningSeverity.REQUIRES_OVERRIDE && current !== "HARD_BLOCK") {
-        matchWarningSeverityMap.set(w.matchId, "REQUIRES_OVERRIDE");
-      } else if (w.severity === WarningSeverity.WARNING && !current) {
-        matchWarningSeverityMap.set(w.matchId, "WARNING");
-      }
-    }
-  }
-
-  const allSelections = allMatchIds.length > 0
-    ? await db.selection.findMany({
-        where: { matchId: { in: allMatchIds } },
-        select: { matchId: true, status: true },
-      })
-    : [];
+  const [allSelections, postMatchReports] = await Promise.all([
+    allMatchIds.length > 0
+      ? db.selection.findMany({
+          where: { matchId: { in: allMatchIds } },
+          select: { matchId: true, status: true },
+        })
+      : Promise.resolve([]),
+    db.postMatchReport.findMany({
+      where: { matchId: { in: allMatchIds } },
+      select: { matchId: true, status: true },
+    }),
+  ]);
 
   const matchDraftCounts = new Map<string, number>();
   const matchFinalizedCounts = new Map<string, number>();
@@ -119,31 +64,50 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
     }
   }
 
-  const postMatchReports = await db.postMatchReport.findMany({
-    where: { matchId: { in: allMatchIds.length > 0 ? allMatchIds : undefined } },
-    select: { matchId: true, status: true },
-  });
-
   const postMatchStatusMap = new Map<string, string>();
   for (const r of postMatchReports) {
     postMatchStatusMap.set(r.matchId, r.status);
   }
 
-  const periods: FixturePeriod[] = seasons.flatMap((season) =>
-    season.planningPeriods.map((period) => {
-      const rounds: FixtureRound[] = period.matchRounds.map((round) => {
+  const integrityCache = new Map<string, Awaited<ReturnType<typeof computeRoundPlanIntegrity>>>();
+
+  const periods: FixturePeriod[] = [];
+
+  for (const season of seasons) {
+    for (const period of season.planningPeriods) {
+      const rounds: FixtureRound[] = [];
+
+      for (const round of period.matchRounds) {
+        let blockerCount = 0;
+        let decisionRequiredCount = 0;
+        let matchSignals: Array<{ matchId: string | undefined; kind: string }> = [];
+
+        if (round.status !== "FINALIZED") {
+          try {
+            let integrity = integrityCache.get(round.id);
+            if (!integrity) {
+              integrity = await computeRoundPlanIntegrity(round.id);
+              integrityCache.set(round.id, integrity);
+            }
+            blockerCount = integrity.summary.blockerCount;
+            decisionRequiredCount = integrity.summary.decisionRequiredCount;
+            matchSignals = integrity.signals.map((s) => ({ matchId: s.matchId, kind: s.kind }));
+          } catch {
+            // fallback to zero if computation fails
+          }
+        }
+
         const roundDraftSelectionCount = round.matches.reduce(
           (sum, m) => sum + (matchDraftCounts.get(m.id) ?? 0), 0,
         );
         const hasDraftSelections = roundDraftSelectionCount > 0;
         const hasMatches = round.matches.length > 0;
-        const blockedSignalCount = roundBlockingWarningCounts.get(round.id) ?? 0;
 
         const derivedRoundStatus = deriveRoundStatus({
           dbStatus: round.status,
           hasDraftSelections,
           hasMatches,
-          blockedSignalCount,
+          blockedSignalCount: blockerCount,
         });
 
         const matches: FixtureMatch[] = round.matches.map((match) => {
@@ -154,11 +118,13 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             matchDraftCount > 0,
             matchFinalizedCount > 0,
           );
-          const matchActions = getMatchActions(
-            derivedRoundStatus,
-            matchDraftCount > 0,
-            hasDraftSelections,
-          );
+
+          const matchBlockerCount = matchSignals.filter(
+            (s) => s.matchId === match.id && s.kind === "BLOCKED",
+          ).length;
+          const matchDecisionCount = matchSignals.filter(
+            (s) => s.matchId === match.id && s.kind === "DECISION_REQUIRED",
+          ).length;
 
           return {
             id: match.id,
@@ -168,48 +134,47 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             opponent: match.opponent,
             startsAt: match.startsAt?.toISOString(),
             venue: match.homeAway === "HOME" ? "Home" : match.homeAway === "AWAY" ? "Away" : undefined,
-            readinessState: mapReadiness(matchWarningSeverityMap.get(match.id)),
+            readinessState: mapReadiness(matchBlockerCount, matchDecisionCount),
             selectionState: matchSelectionState,
             selectedPlayerCount: matchDraftCount + matchFinalizedCount,
-            unresolvedIssueCount: matchIssueCounts.get(match.id) ?? 0,
+            blockerCount: matchBlockerCount,
+            decisionRequiredCount: matchDecisionCount,
             postMatchStatus: (postMatchStatusMap.get(match.id) as FixtureMatch["postMatchStatus"]) ?? undefined,
-            availableActions: matchActions,
+            availableActions: getRoundActions(derivedRoundStatus, hasMatches),
           };
         });
 
         const roundActions = getRoundActions(derivedRoundStatus, hasMatches);
 
-        return {
+        rounds.push({
           id: round.id,
           title: round.name,
           dateRange: undefined,
-          readinessState: mapReadiness(roundWarningSeverityMap.get(round.id)),
+          readinessState: mapReadiness(blockerCount, decisionRequiredCount),
           selectionState: derivedRoundStatus,
           hasDraftSelections,
           hasMatches,
-          unresolvedIssueCount: roundIssueCounts.get(round.id) ?? 0,
+          blockerCount,
+          decisionRequiredCount,
           availableActions: roundActions,
           matches,
-        };
-      });
+        });
+      }
 
-      const periodIssueCount = rounds.reduce((sum, r) => sum + r.unresolvedIssueCount, 0);
-      const periodReadinessStates = rounds.map((r) => r.readinessState ?? "READY");
-      const worstPeriodReadiness = periodReadinessStates.reduce((worst: string, cur: string) => {
-        const order: Record<string, number> = { NOT_PLAYABLE: 0, AT_RISK: 1, WATCH: 2, READY: 3 };
-        return order[cur] < order[worst] ? cur : worst;
-      }, "READY");
+      const periodBlockerCount = rounds.reduce((sum, r) => sum + r.blockerCount, 0);
+      const periodDecisionCount = rounds.reduce((sum, r) => sum + r.decisionRequiredCount, 0);
 
-      return {
+      periods.push({
         id: period.id,
         title: period.name,
         dateRange: `${period.startDate.toLocaleDateString()} – ${period.endDate.toLocaleDateString()}`,
-        readinessState: worstPeriodReadiness as FixturePeriod["readinessState"],
-        unresolvedIssueCount: periodIssueCount,
+        readinessState: mapReadiness(periodBlockerCount, periodDecisionCount),
+        blockerCount: periodBlockerCount,
+        decisionRequiredCount: periodDecisionCount,
         rounds,
-      };
-    }),
-  );
+      });
+    }
+  }
 
   return { periods };
 }

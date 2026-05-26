@@ -41,6 +41,26 @@ function roundPrimaryAction(round: FixtureRound): { label: string; href: string 
   }
 }
 
+function IntegritySummary({ blockerCount, decisionRequiredCount }: { blockerCount: number; decisionRequiredCount: number }) {
+  if (blockerCount === 0 && decisionRequiredCount === 0) {
+    return <span className="text-[10px] text-emerald-300">Ready</span>;
+  }
+
+  const parts: string[] = [];
+  if (blockerCount > 0) {
+    parts.push(`${blockerCount} Blocked`);
+  }
+  if (decisionRequiredCount > 0) {
+    parts.push(`${decisionRequiredCount} Decision required`);
+  }
+
+  return (
+    <span className={`text-[10px] ${blockerCount > 0 ? "text-red-300" : "text-amber-300"}`}>
+      {parts.join(" · ")}
+    </span>
+  );
+}
+
 function MatchRow({ match }: { match: FixtureMatch }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
@@ -58,11 +78,7 @@ function MatchRow({ match }: { match: FixtureMatch }) {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <SelectionStateBadge state={match.selectionState} />
-        {match.unresolvedIssueCount > 0 && (
-          <span className="rounded bg-amber-900/30 px-1.5 py-0.5 text-[10px] text-amber-300">
-            {match.unresolvedIssueCount} issue{match.unresolvedIssueCount !== 1 ? "s" : ""}
-          </span>
-        )}
+        <IntegritySummary blockerCount={match.blockerCount} decisionRequiredCount={match.decisionRequiredCount} />
         <Link
           href={`/matches/${match.id}`}
           className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
@@ -83,11 +99,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="text-sm font-medium text-zinc-100 truncate">{round.title}</span>
           <SelectionStateBadge state={round.selectionState} />
-          {round.unresolvedIssueCount > 0 && (
-            <span className="rounded bg-amber-900/30 px-1.5 py-0.5 text-[10px] text-amber-300">
-              {round.unresolvedIssueCount} issue{round.unresolvedIssueCount !== 1 ? "s" : ""}
-            </span>
-          )}
+          <IntegritySummary blockerCount={round.blockerCount} decisionRequiredCount={round.decisionRequiredCount} />
           {round.matches.length > 0 && (
             <span className="text-[10px] text-zinc-500">{round.matches.length} match{round.matches.length !== 1 ? "es" : ""}</span>
           )}

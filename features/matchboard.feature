@@ -720,8 +720,155 @@ Feature: Matchboard football operations workspace
        Given a match has previous opponent encounter context
        When the coach plans squads
        Then opponent history may appear in Opponent context
-       And it must not appear as Blocked, Decision required or Planning note in participation coverage
-       And it must not affect squad generation
+        And it must not appear as Blocked, Decision required or Planning note in participation coverage
+        And it must not affect squad generation
+
+  Rule: Live plan integrity is derived from current draft state
+
+    Current plan-integrity signals for an editable draft represent the current persisted draft state.
+
+    After any successful mutation that can affect selection validity, player opportunity coverage or minimum squad viability, Matchboard recalculates plan integrity for the affected round.
+
+    Signals that belonged to an earlier draft state no longer appear as unresolved after the causal condition is resolved.
+
+    When recalculation produces no active signals, Matchboard clears or resolves every obsolete current-draft active signal for that round.
+
+    Recalculating live draft integrity never deletes finalised decisions, finalised selections, post-match reports or actual participation history.
+
+    Scenario: Resolving the last signal removes it from all active surfaces
+      Given editable round "R1" contains one active integrity signal
+      And the coach changes the draft so its causal condition no longer exists
+      When plan integrity is recalculated for "R1"
+      Then Round Board must no longer display the resolved signal
+      And Fixtures must no longer count or display the resolved signal
+      And Assistant must no longer show open work for the resolved signal
+
+    Scenario: A zero-result recalculation clears previous active projection
+      Given editable round "R1" contains previously persisted active signal rows
+      When current computation returns zero active signals
+      Then all previous current-draft active signal rows for "R1" must be removed or resolved
+      And historical finalised and post-match records must remain unchanged
+
+    Scenario: All relevant draft mutations recalculate integrity
+      Given editable round "R1" exists
+      When the coach generates, regenerates, clears, adds, removes, moves or changes relevant role or availability data in "R1"
+      Then plan integrity must be recomputed from the resulting current state
+
+  Rule: Prominent plan-integrity signals are deliberately rare
+
+    Matchboard reserves prominent current-plan signals for direct player-opportunity, selection-validity or minimum-match-viability conditions.
+
+    Prominent signal categories are Blocked and Decision required.
+
+    Non-blocking context is shown as Planning note.
+
+    Selection rationale is shown as Why this selection and is never counted as unresolved work.
+
+    Scenario: Squad below minimum is blocked once
+      Given editable match "M1" has fewer planned players than its configured minimum accepted squad size
+      When current plan integrity is computed
+      Then one Blocked signal must be created for "M1"
+      And the signal must state selected count and minimum count
+      And support, repair or below-target symptoms caused by the same shortage must not create duplicate unresolved signals
+
+    Scenario: Selected unavailable player is blocked
+      Given player "p1" is selected in editable match "M1"
+      And "p1" is unavailable for the round
+      When current plan integrity is computed
+      Then one Blocked signal must describe that unavailable selected player
+
+    Scenario: Invalid duplicate planned assignment is an exceptional blocker
+      Given invalid persisted data assigns player "p1" to more than one planned match in round "R1"
+      When current plan integrity is computed
+      Then one Blocked integrity signal must identify "p1" and the affected matches
+      And Matchboard must not present planned double-load as a valid option
+
+    Scenario: Available eligible player without planned opportunity requires decision
+      Given player "p1" is active, eligible and confirmed available for editable round "R1"
+      And "p1" is assigned to no planned match in "R1"
+      When current plan integrity is computed
+      Then one Decision required signal must state that "p1" has no planned match opportunity
+      And finalisation must require assignment or a recorded permitted reason
+
+    Scenario: Repeated omission enriches one current decision
+      Given "p1" currently has no planned match opportunity in "R1"
+      And "p1" was confirmed available without planned opportunity in an earlier round in the same planning period
+      When current plan integrity is computed
+      Then only one current Decision required signal must exist for "p1" in "R1"
+      And the signal must contain repeated-omission context
+
+  Rule: Planning notes are not unresolved issues
+
+    Scenario: Playable below-target squad is a note only
+      Given match "M1" is below target squad size but at or above minimum accepted squad size
+      When current plan integrity is computed
+      Then the match may show "Playable · below target"
+      And a Planning note may be shown
+      And no Blocked or Decision required signal is created
+      And unresolved issue totals do not increase
+
+    Scenario: Preferred support shortfall without integrity consequence is a note only
+      Given preferred support is not fully met
+      And all affected matches remain viable
+      And every available eligible player retains a planned match opportunity
+      When current plan integrity is computed
+      Then the condition may appear as a Planning note
+      And it must not appear as active work
+
+    Scenario: Selection scoring preference is explanation only
+      Given generation ranked a candidate using a valid preference
+      When the coach inspects the selection
+      Then Matchboard must show the reason under "Why this selection"
+      And it must not persist or count this reason as an active issue
+
+  Rule: Active work item reconciliation prevents multiplication
+
+    Scenario: One causal match viability failure creates one Assistant item
+      Given match "M1" is below minimum accepted squad size
+      When Assistant work items are reconciled
+      Then one active work item must describe the match viability failure
+      And no duplicate round, team or player work items may represent the same shortage
+
+    Scenario: Missing opportunities aggregate in Assistant
+      Given three available eligible players have no planned match opportunity in round "R1"
+      When Assistant work items are reconciled
+      Then Assistant must show one participation-coverage work item for "R1"
+      And it must state that three players require review
+      And Round Board may list the three player decisions individually
+
+    Scenario: Resolved condition closes active work item
+      Given Assistant contains open work for a draft condition in "R1"
+      And the draft is changed so the condition no longer exists
+      When Assistant work is reconciled
+      Then that work item must not remain open
+
+  Rule: Visible issue summaries do not count context
+
+    Scenario: Fixtures never shows generic issue totals
+      Given a round has current plan-integrity results
+      When Fixtures is displayed
+      Then it must show structured Blocked and Decision required summary only
+      And it must not show a generic "{number} issues" total
+      And Planning notes must not be counted
+
+    Scenario: Round Board uses plan-integrity language
+      Given a round has current plan-integrity results
+      When Round Board is displayed
+      Then it must show "Plan integrity"
+      And it must not show "actionable warnings", "informational warnings" or generic warning totals
+
+    Scenario: Normal player chips do not show warning counts
+      Given no direct active integrity condition applies to a player
+      When that player appears on Round Board
+      Then the chip must not display a generic warning count or issue marker
+
+  Rule: Planned assignment and actual participation are separate
+
+    Planned squads permit at most one planned assignment per player per round.
+
+    A post-match report may record an unplanned or additional actual appearance caused by matchday circumstances.
+
+    Actual additional appearances are historical participation facts and do not become active plan-integrity signals.
 
 
   Rule: Rotation graph

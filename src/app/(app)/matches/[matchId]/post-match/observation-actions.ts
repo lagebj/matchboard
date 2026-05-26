@@ -94,7 +94,7 @@ export async function saveObservationAction(
         },
       });
     }
-  } catch (_error) {
+  } catch {
     return { success: false, error: "Could not save observation." };
   }
 
@@ -134,7 +134,7 @@ export async function updateMatchFitAction(
       where: { id: matchId },
       data: { matchFit: matchFit as MatchFit },
     });
-  } catch (_error) {
+  } catch {
     return { success: false, error: "Could not update match fit." };
   }
 

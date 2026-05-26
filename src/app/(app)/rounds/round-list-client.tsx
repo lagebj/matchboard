@@ -282,7 +282,6 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
           }}
           blockedCount={0}
           decisionRequiredCount={0}
-          totalSignalCount={0}
           selectedCount={0}
           targetSquadSize={0}
           matchCount={0}

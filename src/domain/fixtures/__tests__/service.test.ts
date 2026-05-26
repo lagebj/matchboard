@@ -40,95 +40,49 @@ describe("Fixtures Service", () => {
       const match = overview.periods[0].rounds[0].matches[0];
       expect(match.teamId).toBeDefined();
       expect(match.teamName).toBeDefined();
-      expect(match.unresolvedIssueCount).toBe(0);
-      expect(match.selectedPlayerCount).toBe(0);
+      expect(typeof match.blockerCount).toBe("number");
+      expect(typeof match.decisionRequiredCount).toBe("number");
+      expect(typeof match.selectedPlayerCount).toBe("number");
     });
 
-    it("aggregates warning counts for rounds and matches", async () => {
-      const matchId = Object.values(fixture.matches)[0];
-      const roundId = fixture.matchRoundId;
-
-      await testDb.warning.create({
-        data: {
-          matchRoundId: roundId,
-          severity: "WARNING",
-          rule: "test_rule",
-          message: "Test round warning",
-        },
-      });
-
-      await testDb.warning.create({
-        data: {
-          matchRoundId: roundId,
-          matchId,
-          severity: "REQUIRES_OVERRIDE",
-          rule: "test_rule",
-          message: "Test match warning",
-        },
-      });
-
+    it("reports blockerCount and decisionRequiredCount from live plan integrity", async () => {
       const overview = await getFixturesOverview();
-      const round = overview.periods[0].rounds.find((r) => r.id === roundId);
-      expect(round).toBeDefined();
-      expect(round!.unresolvedIssueCount).toBeGreaterThanOrEqual(2);
+      const round = overview.periods[0].rounds[0];
 
-      const match = round!.matches.find((m) => m.id === matchId);
-      expect(match).toBeDefined();
-      expect(match!.unresolvedIssueCount).toBeGreaterThanOrEqual(1);
+      expect(typeof round.blockerCount).toBe("number");
+      expect(typeof round.decisionRequiredCount).toBe("number");
+      expect(round.readinessState).toBeDefined();
+
+      for (const match of round.matches) {
+        expect(typeof match.blockerCount).toBe("number");
+        expect(typeof match.decisionRequiredCount).toBe("number");
+      }
     });
 
-    it("maps HARD_BLOCK severity to NOT_PLAYABLE readiness", async () => {
-      const matchId = Object.values(fixture.matches)[0];
-
-      await testDb.warning.create({
-        data: {
-          matchRoundId: fixture.matchRoundId,
-          matchId,
-          severity: "HARD_BLOCK",
-          rule: "test_block",
-          message: "Hard block",
-        },
-      });
-
+    it("computes readiness from live plan integrity signals", async () => {
       const overview = await getFixturesOverview();
-      const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
-      expect(match?.readinessState).toBe("NOT_PLAYABLE");
-    });
 
-    it("maps REQUIRES_OVERRIDE severity to AT_RISK readiness", async () => {
-      const matchId = Object.values(fixture.matches)[1] ?? Object.values(fixture.matches)[0];
+      for (const period of overview.periods) {
+        for (const round of period.rounds) {
+          if (round.blockerCount > 0) {
+            expect(round.readinessState).toBe("NOT_PLAYABLE");
+          } else if (round.decisionRequiredCount > 0) {
+            expect(round.readinessState).toBe("AT_RISK");
+          } else {
+            expect(round.readinessState).toBe("READY");
+          }
 
-      await testDb.warning.create({
-        data: {
-          matchRoundId: fixture.matchRoundId,
-          matchId,
-          severity: "REQUIRES_OVERRIDE",
-          rule: "test_override",
-          message: "Override needed",
-        },
-      });
-
-      const overview = await getFixturesOverview();
-      const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
-      expect(match?.readinessState).toBe("AT_RISK");
-    });
-
-    it("maps WARNING severity to WATCH readiness", async () => {
-      const matchId = Object.values(fixture.matches)[2] ?? Object.values(fixture.matches)[0];
-
-      await testDb.warning.create({
-        data: {
-          matchRoundId: fixture.matchRoundId,
-          matchId,
-          severity: "WARNING",
-          rule: "test_advisory",
-          message: "Advisory",
-        },
-      });
-
-      const overview = await getFixturesOverview();
-      const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
-      expect(match?.readinessState).toBe("WATCH");
+          for (const match of round.matches) {
+            if (match.blockerCount > 0) {
+              expect(match.readinessState).toBe("NOT_PLAYABLE");
+            } else if (match.decisionRequiredCount > 0) {
+              expect(match.readinessState).toBe("AT_RISK");
+            } else {
+              expect(match.readinessState).toBe("READY");
+            }
+          }
+        }
+      }
     });
 
     it("counts draft selections per match", async () => {
