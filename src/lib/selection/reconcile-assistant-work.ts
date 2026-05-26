@@ -1,3 +1,12 @@
+/**
+ * RETIRED: This module is no longer used by the live Assistant page.
+ * The Assistant page now derives work items from live database state
+ * via getAssistantCommandCentre(), not from persisted AssistantIssue rows.
+ *
+ * This module is kept for backward compatibility only.
+ * Do not add new calls to this function from the live path.
+ */
+
 import { db } from "@/lib/db";
 import type { RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 

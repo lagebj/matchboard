@@ -821,26 +821,30 @@ Feature: Matchboard football operations workspace
       Then Matchboard must show the reason under "Why this selection"
       And it must not persist or count this reason as an active issue
 
-  Rule: Active work item reconciliation prevents multiplication
+  Rule: Assistant work items are derived from live state
 
-    Scenario: One causal match viability failure creates one Assistant item
+    Assistant work items are computed from live database state each time the page loads.
+    No persistent AssistantIssue rows drive the live view.
+    Resolving a condition removes it from the Assistant immediately on next load.
+
+    Scenario: One causal match viability failure creates one Assistant work item
       Given match "M1" is below minimum accepted squad size
-      When Assistant work items are reconciled
-      Then one active work item must describe the match viability failure
+      When the coach opens the Assistant page
+      Then one work item must describe the match viability failure
       And no duplicate round, team or player work items may represent the same shortage
 
     Scenario: Missing opportunities aggregate in Assistant
       Given three available eligible players have no planned match opportunity in round "R1"
-      When Assistant work items are reconciled
-      Then Assistant must show one participation-coverage work item for "R1"
+      When the coach opens the Assistant page
+      Then Assistant must show one decision_required work item for "R1"
       And it must state that three players require review
       And Round Board may list the three player decisions individually
 
-    Scenario: Resolved condition closes active work item
-      Given Assistant contains open work for a draft condition in "R1"
+    Scenario: Resolved condition removes work item from live view
+      Given a Blocked condition exists in round "R1"
       And the draft is changed so the condition no longer exists
-      When Assistant work is reconciled
-      Then that work item must not remain open
+      When the coach opens the Assistant page
+      Then that work item must not appear
 
   Rule: Visible issue summaries do not count context
 
@@ -1892,10 +1896,11 @@ Feature: Matchboard football operations workspace
     Setup Registries (Teams, Players, Matches) are table-first dense data views.
     The coach can then populate all draft squads.
     Populate all groups matches by round and generates draft selections per round.
-    The coach reviews warnings by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time.
+    The coach reviews plan integrity signals by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time.
     Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
 
-    The Today page must always show the next action based on this workflow state.
+    The Assistant page must always show the next action based on this workflow state.
+    The Assistant page derives work items from live database state, not from persisted AssistantIssue rows.
 
     Scenario: Setup starts by adding teams
       Given no teams exist
@@ -1923,16 +1928,28 @@ Feature: Matchboard football operations workspace
 
     Scenario: After drafts exist with blockers, review blockers
       Given draft squads have been populated
-      And some rounds have HARD_BLOCK warnings
+      And some rounds have Blocked plan integrity conditions
       When the coach opens the app
       Then the next action must be to review blocked rounds
 
+    Scenario: After drafts exist with decision-required conditions, review decisions
+      Given draft squads have been populated
+      And some rounds have Decision required conditions
+      When the coach opens the app
+      Then the next action must be to review decision-required items
+
     Scenario: After drafts exist without blockers, finalize ready round
       Given draft squads have been populated
-      And no rounds have HARD_BLOCK warnings
+      And no rounds have Blocked conditions
       And at least one round is not finalized
       When the coach opens the app
       Then the next action must be to finalize a ready round
+
+    Scenario: Finalized match without post-match report shows report action
+      Given a match round is finalized
+      And a match in that round has no post-match report
+      When the coach opens the app
+      Then the Assistant must show a post-match report work item for that match
 
     Scenario: No active work when all rounds finalized
       Given all rounds in the active planning period are finalized
@@ -2335,9 +2352,9 @@ Feature: Matchboard football operations workspace
       When the coach views the round board
       Then the app must show a regeneration button in the round board action bar
 
-    Scenario: Regeneration shows button on rounds list and today page
+    Scenario: Regeneration shows button on rounds list and fixtures page
       Given an active planning period has draft rounds
-      When the coach views the rounds list or today page
+      When the coach views the rounds list or fixtures page
       Then the app must show a "Regenerate all drafts" button
 
 
@@ -2425,7 +2442,7 @@ Feature: Matchboard football operations workspace
 
     Scenario: Setup progress shows which rounds need action
       Given an active planning period contains match rounds
-      When the coach opens the Today page
+      When the coach opens the Assistant page
       Then the app must show which rounds have been generated
       And which rounds need generation
       And which rounds have unresolved blockers
@@ -2434,13 +2451,13 @@ Feature: Matchboard football operations workspace
 
     Scenario: Next action reflects current setup state
       Given an active planning period has no generated rounds
-      When the coach opens the Today page
+      When the coach opens the Assistant page
       Then the next action must be to populate rounds or generate the first round
       Given an active planning period has draft rounds with blockers
-      When the coach opens the Today page
+      When the coach opens the Assistant page
       Then the next action must be to review blockers
       Given an active planning period has draft rounds without blockers
-      When the coach opens the Today page
+      When the coach opens the Assistant page
       Then the next action must be to finalize the ready round
 
 
@@ -2555,70 +2572,75 @@ Feature: Matchboard football operations workspace
       But the main interaction must be through cards, panels, boards, drawers, pitch layout, or assistant review sections
 
 
-  Rule: Today page — next action, round status, warnings
+  Rule: Assistant live command centre
 
-    The Today page combines Football Manager-style needs action, round checks, warnings, and match round status.
-    Round checks are not a separate destination required before the coach understands what to do.
-    A separate round checks detail route may exist, but the Today page must include round checks directly.
+    The Assistant page (/assistant) is a live coaching command centre.
+    It derives all work items from current database state using canonical sources — not from persisted AssistantIssue rows.
+    One work item per round per category. No per-player or per-team multiplication of work items.
+    Planning notes, scoring preferences, opponent observations, and seasonal context never appear as Assistant work items.
 
-    Scenario: Today page is the default landing page
+    The Assistant page must not show the CoachingIntentSelector. Coaching intent belongs on Fixtures and Round Board where planning decisions are made.
+
+    Scenario: Assistant page is the default landing page
       Given the coach opens the app
       When a season and active planning period exist
-      Then the coach must land on the Today page
+      Then the coach must land on the Assistant page
       And the first visible screen must show current match round status
-      And needs action
-      And round checks
-      And warnings needing attention
+      And work items requiring action
       And primary actions
       And the first visible screen must not be a raw table of players, teams, matches, or selections
 
-    Scenario: Landing page shows Football Manager-style inbox
-      Given match round "R1" has unresolved decisions
-      When the coach opens the landing page
-      Then the app must show inbox cards grouped by:
-        | group                 |
-        | Availability          |
-        | Support needs         |
-        | Squad repair consequences |
-        | Development exposure  |
-        | Player load           |
-        | Team burden           |
-        | Rule blockers         |
-      And each card must show severity
-      And each card must show the affected team, player, match, or rule
-      And each card must provide a direct action
+    Scenario: Assistant shows work items by workflow priority
+      Given match round "R1" has Blocked conditions
+      And match round "R2" is Ready to finalize
+      When the coach opens the Assistant page
+      Then the blocked round item must appear before the ready-to-finalize item
 
-    Scenario: Landing page shows round checks panel
-      Given match round "R1" has generated selections
-      When the coach opens the landing page
-      Then the app must show a Round Checks panel
-      And the panel must summarize support plan
-      And squad repair chain
-      And development exposure
-      And player load warnings
-      And decisions needed
-      And finalization status
+    Scenario: Assistant aggregates one item per round per category
+      Given match round "R1" has two Blocked conditions
+      When the coach opens the Assistant page
+      Then the Assistant must show one blocked_round item for "R1"
+      And the item must state that there are two blocked conditions
 
-    Scenario: Round checks card shows recommendation, risk, alternative, and consequence
-      Given Team C target support cannot be reached cleanly
-      When the Round Checks panel shows the issue
-      Then the card must show recommended action
-      And risk
-      And alternative action
-      And consequence
+    Scenario: Assistant aggregates decision-required players per round
+      Given three available eligible players have no planned match opportunity in round "R1"
+      When the coach opens the Assistant page
+      Then the Assistant must show one decision_required item for "R1"
+      And it must state that three players require review
 
-    Scenario: Landing page provides direct path to next work
-      Given match round "R1" has unresolved support warnings
-      When the coach opens the landing page
-      Then the primary action must lead to the relevant Round Board section
-      And secondary action may lead to round checks detail
+    Scenario: Assistant never shows planning notes as work items
+      Given a round has planning notes but no Blocked or Decision required conditions
+      When the coach opens the Assistant page
+      Then planning notes must not appear as work items
+
+    Scenario: Assistant never shows scoring preferences as work items
+      Given a round has scoring preference explanations
+      When the coach opens the Assistant page
+      Then scoring preferences must not appear as work items
+
+    Scenario: Assistant shows post-match report items for finalized matches missing reports
+      Given a match round is finalized
+      And two matches in that round have no post-match report
+      When the coach opens the Assistant page
+      Then the Assistant must show two post_match_report items
+
+    Scenario: Resolved condition removes work item immediately
+      Given Assistant contains a blocked_round item for "R1"
+      And the draft is changed so the Blocked condition no longer exists
+      When the coach reloads the Assistant page
+      Then that work item must not appear
+
+    Scenario: Assistant provides direct path to next work
+      Given match round "R1" has Blocked conditions
+      When the coach opens the Assistant page
+      Then the primary action must lead to the Round Board for "R1"
       And the coach must not need to search through tables to find the problem
 
-    Scenario: Separate round checks detail route is optional but consistent
-      Given the app has a round checks detail route
-      When the coach opens round checks detail
-      Then it must use the same sections as the landing page round checks cards
-      And expand the details behind the landing page cards
+    Scenario: Empty state when no work exists
+      Given all rounds in the active planning period are finalized
+      And all finalized matches have post-match reports
+      When the coach opens the Assistant page
+      Then the app must show a no-work state with a link to Fixtures
 
 
   Rule: Availability overview
@@ -3148,39 +3170,18 @@ Feature: Matchboard football operations workspace
       And must ask the coach to choose a compatible 9-a-side formation
 
 
-  Rule: Round checks are part of Today page workflow
+  Rule: Round checks are part of Round Board workflow
 
-    Round checks are not hidden behind a separate page.
-    They are shown directly on the Today page and can be expanded into a detailed view.
+    Round checks summarize the generated round state. They are shown on the Round Board and can be expanded into a detailed view.
+    Round checks do not appear as separate Assistant work items — they are accessed through the Round Board.
 
-    Scenario: Today page round checks summarize generated round
+    Scenario: Round Board summarizes generated round
       Given match round "R1" has generated selections
-      When the coach opens the Today page
-      Then the Round Checks panel must summarize support selections
-      And development selections
-      And squad repair chains
-      And core match drops
-      And reduced match load drops
-      And warnings
-      And decisions needed before finalization
-
-    Scenario: Today page round checks explain support chain
-      Given Team B supplied players to Team C
-      And Team A supplied squad repair to Team B
-      When the coach opens the Today page
-      Then the Round Checks panel must explain the support chain
-      And show which movement caused each squad repair
-
-    Scenario: Round checks detail view opens from card
-      Given a Round Checks card exists on the Today page
-      When the coach opens the card detail
-      Then the app must show the full round checks section
-      And preserve recommendation, risk, alternative, and consequence
-
-    Scenario: Round checks do not act as chatbot
-      Given the coach opens the Today page
-      Then round checks must show structured rule-driven review
-      And must not require conversational input to be useful
+      When the coach opens the Round Board for "R1"
+      Then the plan integrity section must summarize Blocked conditions
+      And Decision required conditions
+      And planning notes behind a toggle
+      And finalization status
 
 
   Rule: Matchday mode
@@ -3278,7 +3279,7 @@ Feature: Matchboard football operations workspace
     Scenario: App fails UX acceptance if primary workflow is table-only
       Given the app has Landing Page, Round Board, Team Squad Overview, Player Profile, and Tactics Board routes
       When each route is inspected
-      Then the Today page must use decision cards, round checks, and status panels
+      Then the Assistant page must use work item cards with priority ordering
       And Round Board must use team columns and role buckets
       And Team Squad Overview must use team health cards and grouped player cards
       And Player Profile must use dossier sections
@@ -3291,9 +3292,11 @@ Feature: Matchboard football operations workspace
       And the screen must still provide contextual cards, panels, warnings, or action sections
       And the table must not be the only meaningful interaction model
 
-    Scenario: App fails UX acceptance if round checks are separated from Today page workflow
-      Given the coach opens the app Today page
-      Then the Today page must include both needs action and round checks
+    Scenario: Assistant must show actionable work items not informational context
+      Given the coach opens the Assistant page
+      Then the Assistant must show Blocked and Decision required work items
+      And must not show planning notes as work items
+      And must not show scoring preferences as work items
       And it must not require opening a separate page to understand current round warnings and recommended next actions
 
 
@@ -4167,6 +4170,8 @@ Feature: Matchboard football operations workspace
       Given the coach opens /assistant
       Then the page title must be "Assistant"
       And the page must not use "Dashboard" as its title or label
+      And the page must not show "Decision inbox" or "Decision debt"
+      And the page must not show the CoachingIntentSelector component
 
     Scenario: Round Board uses correct terminology
       Given the coach views a round board

@@ -28,14 +28,18 @@ This loop must be reflected in the UI workflow, not just the selection engine.
 
 ## Assistant Manager workflow
 
-The Today/Assistant page must always show the next action based on workflow state:
+The Assistant page must always show the next action based on workflow state:
+It derives work items from live database state using `getAssistantCommandCentre()`, not from persisted AssistantIssue rows.
 
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Populate all** — Generate draft selections for all rounds. No round is finalized.
 3. **Review** — Inspect drafts, plan integrity signals, fairness impact. Resolve blockers. Manually adjust if needed.
 4. **Finalize** — Lock one round at a time, or lock individual matches within a round.
+5. **Report** — Record post-match reports for finalized matches.
 
 The assistant must not skip steps or suggest finalization before draft review.
+Planning notes, scoring preferences, opponent observations, and seasonal context never appear as Assistant work items.
+The CoachingIntentSelector must not appear on the Assistant page. Intent belongs on Fixtures and Round Board.
 
 ## Fixtures workflow
 

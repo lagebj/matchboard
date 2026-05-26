@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { computeRoundPlanIntegrity } from "./compute-plan-integrity";
 import { replaceRoundActiveSignals } from "./reconcile-integrity";
-import { reconcileAssistantWorkItemsForRound } from "./reconcile-assistant-work";
 
 export type RebuildResult = {
   dryRun: boolean;
@@ -55,7 +54,6 @@ export async function rebuildPlanIntegrityForEditableRounds(options?: {
 
     if (!dryRun) {
       await replaceRoundActiveSignals(round.id, integrity);
-      await reconcileAssistantWorkItemsForRound(integrity);
     }
 
     activeWarningRowsRemovedOrResolved += existingWarningCount;
