@@ -145,6 +145,18 @@ export function PlayersPageClient({
         <>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Planning period:</span>
+              <select
+                value={selectedPeriodId}
+                onChange={(e) => navigate({ periodId: e.target.value, mode: "attention" })}
+                className={selectClass}
+              >
+                {planningPeriods.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
               <span className="text-xs text-zinc-500">Round:</span>
               <select
                 value={selectedRoundId ?? ""}

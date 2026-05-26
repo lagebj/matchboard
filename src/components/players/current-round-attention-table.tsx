@@ -21,9 +21,9 @@ const stateOrder: Record<string, number> = {
 };
 
 const stateLabels: Record<string, { label: string; variant: "blocked" | "decision" | "covered" | "unavailable" | "unconfirmed" }> = {
-  BLOCKED_UNAVAILABLE_SELECTION: { label: "Unavailable selection", variant: "blocked" },
-  BLOCKED_INVALID_PLAN: { label: "Invalid plan", variant: "blocked" },
-  DECISION_REQUIRED_NO_PLANNED_MATCH: { label: "Needs match this round", variant: "decision" },
+  BLOCKED_UNAVAILABLE_SELECTION: { label: "Blocked", variant: "blocked" },
+  BLOCKED_INVALID_PLAN: { label: "Blocked", variant: "blocked" },
+  DECISION_REQUIRED_NO_PLANNED_MATCH: { label: "Decision required", variant: "decision" },
   COVERED: { label: "Covered", variant: "covered" },
   UNCONFIRMED: { label: "Unconfirmed", variant: "unconfirmed" },
   NOT_AVAILABLE: { label: "Not available", variant: "unavailable" },
@@ -169,11 +169,11 @@ export function CurrentRoundAttentionTable({
                         {row.currentAssignment ? (
                           <span>{row.currentAssignment.teamName} vs {row.currentAssignment.opponent}</span>
                         ) : (
-                          <span className="text-zinc-500">—</span>
+                          <span className="text-zinc-500 italic">Not selected this round</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-zinc-300">
-                        {row.currentAssignment?.role ?? "—"}
+                        {row.currentAssignment?.role ?? <span className="text-zinc-500">—</span>}
                       </td>
                       <td className="px-3 py-2">
                         <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${stateStyles[stateInfo.variant]}`}>
@@ -181,7 +181,7 @@ export function CurrentRoundAttentionTable({
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {(row.integrityState.startsWith("BLOCKED") || row.integrityState === "DECISION_REQUIRED_NO_PLANNED_MATCH") && row.currentAssignment ? (
+                        {(row.integrityState.startsWith("BLOCKED") || row.integrityState === "DECISION_REQUIRED_NO_PLANNED_MATCH") ? (
                           <Link
                             href={`/rounds/${roundId}`}
                             className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"

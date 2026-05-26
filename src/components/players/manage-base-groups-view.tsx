@@ -26,12 +26,11 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
       {teams.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8">
           <p className="text-sm text-zinc-400">No teams yet.</p>
-          <p className="text-xs text-zinc-500">Create a team before adding players.</p>
           <Link
             href="/teams/new"
             className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
           >
-            Create team
+            Create a team first
           </Link>
         </div>
       ) : players.length === 0 ? (
