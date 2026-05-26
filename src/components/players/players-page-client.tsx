@@ -24,6 +24,7 @@ type PlayersPageClientProps = {
   planningPeriods: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
   matchRounds: Array<{ id: string; name: string; planningPeriodId?: string | null }>;
   seasonRows: PlayerSeasonOverviewRow[];
+  roundColumns: Array<{ id: string; name: string }>;
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;
   selectedRoundId?: string;
@@ -44,6 +45,7 @@ export function PlayersPageClient({
   planningPeriods,
   matchRounds,
   seasonRows,
+  roundColumns,
   currentRoundRows,
   selectedPeriodId,
   selectedRoundId,
@@ -138,6 +140,7 @@ export function PlayersPageClient({
           </div>
           <SeasonOverviewTable
             rows={seasonRows}
+            roundColumns={roundColumns}
             planningPeriodLabel={periodLabel}
             reportedMatchCount={reportedMatchCount}
             totalActualAppearances={totalActualAppearances}

@@ -6,6 +6,7 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 
 type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
+  roundColumns: Array<{ id: string; name: string }>;
   planningPeriodLabel: string;
   reportedMatchCount: number;
   totalActualAppearances: number;
@@ -39,6 +40,7 @@ type LoadFilter = "all" | "low_load" | "high_load";
 
 export function SeasonOverviewTable({
   rows,
+  roundColumns,
   planningPeriodLabel,
   reportedMatchCount,
   totalActualAppearances,
@@ -110,6 +112,7 @@ export function SeasonOverviewTable({
         ...r,
         draftSelections: 0,
         recentInvolvement: r.recentInvolvement.filter((i) => i.state !== "DRAFT"),
+        roundAssignments: r.roundAssignments.filter((a) => !a.isDraft),
       }));
     }
 
@@ -157,6 +160,22 @@ export function SeasonOverviewTable({
   );
 
   const numCell = (val: number) => val > 0 ? val : "—";
+
+  const roleBadge = (role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null, isDraft: boolean) => {
+    if (!role) return <span className="text-zinc-500">—</span>;
+    const base = "inline-block rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight";
+    const draftOpacity = isDraft ? " opacity-60" : "";
+    switch (role) {
+      case "CORE":
+        return <span className={`${base} bg-emerald-900/60 text-emerald-300${draftOpacity}`}>Core</span>;
+      case "SUPPORT":
+        return <span className={`${base} bg-amber-900/60 text-amber-300${draftOpacity}`}>Support</span>;
+      case "DEVELOPMENT":
+        return <span className={`${base} bg-sky-900/60 text-sky-300${draftOpacity}`}>Dev</span>;
+    }
+  };
+
+  const hasRoundColumns = roundColumns.length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -277,6 +296,11 @@ export function SeasonOverviewTable({
                 {renderSortHeader("plannedButAbsent", "Planned absent")}
                 {renderSortHeader("unavailableRoundCount", "Unavailable")}
                 {includeDrafts && renderSortHeader("draftSelections", "Draft")}
+                {hasRoundColumns && roundColumns.map((rc) => (
+                  <th key={rc.id} className="px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] text-center whitespace-nowrap">
+                    {rc.name}
+                  </th>
+                ))}
                 <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                   Review
                 </th>
@@ -285,7 +309,7 @@ export function SeasonOverviewTable({
             <tbody className="divide-y divide-[var(--border-soft)]">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={includeDrafts ? 14 : 13} className="px-4 py-8 text-center text-sm text-zinc-500">
+                  <td colSpan={13 + (includeDrafts ? 1 : 0) + roundColumns.length} className="px-4 py-8 text-center text-sm text-zinc-500">
                     No players match the current filters.
                   </td>
                 </tr>
@@ -319,6 +343,14 @@ export function SeasonOverviewTable({
                     {includeDrafts && (
                       <td className="px-3 py-2 text-zinc-400 tabular-nums italic">{numCell(row.draftSelections)}</td>
                     )}
+                    {hasRoundColumns && roundColumns.map((rc) => {
+                      const assignment = row.roundAssignments.find((a) => a.roundId === rc.id);
+                      return (
+                        <td key={rc.id} className="px-2 py-2 text-center">
+                          {assignment ? roleBadge(assignment.role, assignment.isDraft) : <span className="text-zinc-600">—</span>}
+                        </td>
+                      );
+                    })}
                     <td className="px-3 py-2 text-right">
                       <Link
                         href={`/players/${row.playerId}`}

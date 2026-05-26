@@ -32,6 +32,14 @@ export type PlayerSeasonOverviewRow = {
     state: "PLAYED" | "PLANNED_ABSENT" | "FINALIZED_UPCOMING" | "MATCHDAY_ADDITION" | "DRAFT";
     role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
   }>;
+
+  roundAssignments: Array<{
+    roundId: string;
+    roundName: string;
+    role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
+    teamName: string | null;
+    isDraft: boolean;
+  }>;
 };
 
 export type IntegrityAttentionState =
@@ -68,10 +76,16 @@ export type PlayersOverviewResult = {
 
 // --- Season overview aggregation ---
 
+export type SeasonOverviewResult = {
+  planningPeriod: { id: string; label: string };
+  roundColumns: Array<{ id: string; name: string }>;
+  seasonRows: PlayerSeasonOverviewRow[];
+};
+
 export async function getPlayersSeasonOverview(
   planningPeriodId: string,
   options?: { teamId?: string },
-): Promise<Pick<PlayersOverviewResult, "planningPeriod" | "seasonRows">> {
+): Promise<SeasonOverviewResult> {
   const planningPeriod = await db.planningPeriod.findUnique({
     where: { id: planningPeriodId },
     select: { id: true, name: true },
@@ -80,6 +94,7 @@ export async function getPlayersSeasonOverview(
   if (!planningPeriod) {
     return {
       planningPeriod: { id: planningPeriodId, label: "Unknown" },
+      roundColumns: [],
       seasonRows: [],
     };
   }
@@ -103,6 +118,7 @@ export async function getPlayersSeasonOverview(
   if (players.length === 0) {
     return {
       planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
+      roundColumns: [],
       seasonRows: [],
     };
   }
@@ -111,7 +127,8 @@ export async function getPlayersSeasonOverview(
 
   const rounds = await db.matchRound.findMany({
     where: { planningPeriodId },
-    select: { id: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
   });
   const roundIds = rounds.map((r) => r.id);
 
@@ -215,6 +232,7 @@ export async function getPlayersSeasonOverview(
         select: {
           playerId: true,
           matchId: true,
+          matchRoundId: true,
           role: true,
           status: true,
         },
@@ -233,6 +251,28 @@ export async function getPlayersSeasonOverview(
     const arr = selectionsByPlayer.get(sel.playerId) ?? [];
     arr.push({ matchId: sel.matchId, role: sel.role, status: sel.status });
     selectionsByPlayer.set(sel.playerId, arr);
+  }
+
+  // Build player-round assignment map for matrix view
+  type RoundAssignment = { roundId: string; roundName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; teamName: string | null; isDraft: boolean };
+  const roundAssignmentsByPlayer = new Map<string, RoundAssignment[]>();
+
+  for (const sel of selections) {
+    const match = matchById.get(sel.matchId);
+    if (!match) continue;
+    const roundId = sel.matchRoundId;
+    const round = rounds.find((r) => r.id === roundId);
+    const roundName = round?.name ?? "";
+    const entry: RoundAssignment = {
+      roundId,
+      roundName,
+      role: sel.role as "CORE" | "SUPPORT" | "DEVELOPMENT" | null,
+      teamName: match.team.name,
+      isDraft: sel.status === "DRAFT",
+    };
+    const playerAssignments = roundAssignmentsByPlayer.get(sel.playerId) ?? [];
+    playerAssignments.push(entry);
+    roundAssignmentsByPlayer.set(sel.playerId, playerAssignments);
   }
 
   // --- Availability per player per round (for unavailable round count) ---
@@ -441,11 +481,18 @@ export async function getPlayersSeasonOverview(
       squadRepairAppearances,
       unavailableRoundCount: playerUnavailableRounds,
       recentInvolvement,
+      roundAssignments: roundAssignmentsByPlayer.get(player.id) ?? [],
     };
   });
 
+  const roundColumns = rounds.map((r, i) => ({
+    id: r.id,
+    name: r.name || `Round ${i + 1}`,
+  }));
+
   return {
     planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
+    roundColumns: roundColumns,
     seasonRows,
   };
 }
