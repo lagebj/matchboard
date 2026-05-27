@@ -57,6 +57,7 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.decisionRecord.deleteMany();
   await db.matchReportPlayerStat.deleteMany();
   await db.matchReportAbsence.deleteMany();
+  await db.assist.deleteMany();
   await db.goal.deleteMany();
   await db.postMatchPlayerActual.deleteMany();
   await db.postMatchReport.deleteMany();

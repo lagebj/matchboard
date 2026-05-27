@@ -234,7 +234,7 @@ Rules:
 Every important fact must have one documented canonical source. Never add a second writable truth for an existing fact.
 
 1. Player goals derive from `Goal` events in reported/locked reports. `MatchReportPlayerStat.goals` is a compatibility field, not independent goal truth.
-2. Player assists currently use `MatchReportPlayerStat.assists`.
+2. Player assists derive from `Assist` events in reported/locked reports. `MatchReportPlayerStat.assists` is a compatibility field, not independent assist truth.
 3. Actual appearances count only `PRESENT` actual participation in completed reports. `UNKNOWN` does not count. `NO_SHOW` does not count. Draft/finalized planned selections do not count.
 4. `UNKNOWN` attendance blocks report completion.
 5. Planned players who did not play require structured `MatchReportAbsence`.
@@ -1197,6 +1197,11 @@ Avoid:
 | `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a match or round |
 | `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |
 | `src/lib/selection/persist-warnings.ts` | Persist plan integrity signals after generation |
+| `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
+| `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |
+| `src/lib/data-integrity/types.ts` | Audit and reconciliation types |
+| `src/app/api/admin/audit/route.ts` | GET `/api/admin/audit` — run integrity audit |
+| `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
 
 ## Stale references removed
 

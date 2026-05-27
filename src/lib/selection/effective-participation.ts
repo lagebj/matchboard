@@ -139,13 +139,12 @@ export async function getEffectiveMatchParticipation(
             reason: true,
           },
         },
-        playerStats: {
+        goals: {
           select: {
             playerId: true,
-            assists: true,
           },
         },
-        goals: {
+        assists: {
           select: {
             playerId: true,
           },
@@ -157,14 +156,15 @@ export async function getEffectiveMatchParticipation(
   const rows: EffectiveParticipationRow[] = [];
 
   if (report && (report.status === "REPORTED" || report.status === "LOCKED")) {
-    const playerStatsMap = new Map(
-      report.playerStats.map((s) => [s.playerId, s] as const),
-    );
     const goalCountMap = new Map<string, number>();
     for (const goal of report.goals) {
       if (goal.playerId) {
         goalCountMap.set(goal.playerId, (goalCountMap.get(goal.playerId) ?? 0) + 1);
       }
+    }
+    const assistCountMap = new Map<string, number>();
+    for (const assist of report.assists) {
+      assistCountMap.set(assist.playerId, (assistCountMap.get(assist.playerId) ?? 0) + 1);
     }
     const actualsSet = new Set(
       report.playerActuals.map((a) => a.playerId),
@@ -175,7 +175,6 @@ export async function getEffectiveMatchParticipation(
       if (actual.attendanceStatus === "NO_SHOW") continue;
 
       const plannedSel = selections.find((s) => s.playerId === actual.playerId);
-      const stats = playerStatsMap.get(actual.playerId);
 
       rows.push({
         playerId: actual.playerId,
@@ -193,7 +192,7 @@ export async function getEffectiveMatchParticipation(
         countsForSeasonStats: true,
         source: report.status === "LOCKED" ? "ACTUAL_LOCKED" : "ACTUAL_REPORTED",
         goals: goalCountMap.get(actual.playerId) ?? 0,
-        assists: stats?.assists ?? 0,
+        assists: assistCountMap.get(actual.playerId) ?? 0,
       });
     }
 
@@ -475,7 +474,7 @@ export async function getPlayerAllTimeStats(
 
   const reportIds = reports.map((r) => r.id);
 
-  const [actuals, goalEvents, assistStats, absences] = await Promise.all([
+  const [actuals, goalEvents, assistEvents, absences] = await Promise.all([
     db.postMatchPlayerActual.findMany({
       where: {
         reportId: { in: reportIds },
@@ -491,12 +490,12 @@ export async function getPlayerAllTimeStats(
       },
       select: { id: true },
     }),
-    db.matchReportPlayerStat.findMany({
+    db.assist.findMany({
       where: {
-        matchReportId: { in: reportIds },
+        reportId: { in: reportIds },
         playerId,
       },
-      select: { assists: true },
+      select: { id: true },
     }),
     db.matchReportAbsence.findMany({
       where: {
@@ -508,7 +507,7 @@ export async function getPlayerAllTimeStats(
   ]);
 
   const goals = goalEvents.length;
-  const assists = assistStats.reduce((sum, s) => sum + s.assists, 0);
+  const assists = assistEvents.length;
 
   return {
     actualAppearances: actuals.length,

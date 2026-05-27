@@ -116,7 +116,7 @@ export async function getPlayerActualSeasonStats(
 
   const reportIds = reports.map((r) => r.id);
 
-  const [actuals, goalEvents, absenceStats, absences] = await Promise.all([
+  const [actuals, goalEvents, assistEvents, absences] = await Promise.all([
     db.postMatchPlayerActual.findMany({
       where: {
         reportId: { in: reportIds },
@@ -132,12 +132,12 @@ export async function getPlayerActualSeasonStats(
       },
       select: { id: true },
     }),
-    db.matchReportPlayerStat.findMany({
+    db.assist.findMany({
       where: {
-        matchReportId: { in: reportIds },
+        reportId: { in: reportIds },
         playerId,
       },
-      select: { assists: true },
+      select: { id: true },
     }),
     db.matchReportAbsence.findMany({
       where: {
@@ -149,7 +149,7 @@ export async function getPlayerActualSeasonStats(
   ]);
 
   const goals = goalEvents.length;
-  const assists = absenceStats.reduce((sum, s) => sum + s.assists, 0);
+  const assists = assistEvents.length;
 
   return {
     actualAppearances: actuals.length,

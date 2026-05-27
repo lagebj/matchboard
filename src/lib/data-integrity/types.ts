@@ -2,6 +2,7 @@ export type IntegritySeverity = "ERROR" | "REVIEW" | "INFO";
 
 export type IntegrityDomain =
   | "PLAYER_GOALS"
+  | "PLAYER_ASSISTS"
   | "ACTUAL_APPEARANCES"
   | "PLANNED_ABSENCES"
   | "MATCH_SCORE_GOAL_EVENTS"
@@ -52,7 +53,7 @@ export type ReconcileInput = {
   dryRun: boolean;
   planningPeriodId?: string;
   matchId?: string;
-  domains: Array<"PLAYER_GOALS_DERIVED_PROJECTION" | "ACTIVE_PLAN_INTEGRITY_PROJECTION">;
+  domains: Array<"PLAYER_GOALS_DERIVED_PROJECTION" | "PLAYER_ASSISTS_DERIVED_PROJECTION" | "OPPONENT_SNAPSHOT_DERIVED_PROJECTION" | "ACTIVE_PLAN_INTEGRITY_PROJECTION">;
 };
 
 export type ReconcileResult = {

@@ -9,6 +9,8 @@ import {
   seedMatchReport,
   addGoalToReport,
   removeGoalFromReport,
+  addAssistToReport,
+  removeAssistFromReport,
   updateMatchResult,
   addActualPlayer,
   removeActualPlayer,
@@ -54,6 +56,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
   const [newPlayerReason, setNewPlayerReason] = useState<string>("");
   const [newGoalPlayerId, setNewGoalPlayerId] = useState("");
   const [newGoalMinute, setNewGoalMinute] = useState("");
+  const [newAssistPlayerId, setNewAssistPlayerId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const report = initialReport;
@@ -168,6 +171,28 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
       const result = await removeGoalFromReport(goalId);
       if (result.success) router.refresh();
       else setError(result.error ?? "Failed to remove goal.");
+    });
+  };
+
+  const handleAddAssist = () => {
+    if (!report) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await addAssistToReport(report.id, {
+        playerId: newAssistPlayerId,
+        type: "NORMAL",
+      });
+      if (result.success) { setNewAssistPlayerId(""); router.refresh(); }
+      else setError(result.error ?? "Failed to add assist.");
+    });
+  };
+
+  const handleRemoveAssist = (assistId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await removeAssistFromReport(assistId);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to remove assist.");
     });
   };
 
@@ -397,6 +422,52 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
                 type="button"
               >
                 Add goal
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Assists */}
+        <div className="mt-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Assists</h3>
+          {report.assists.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {report.assists.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 text-sm text-zinc-200">
+                  <span className="font-medium">{a.playerName}</span>
+                  {!isLocked && (
+                    <button
+                      className="text-red-400/60 hover:text-red-300 text-xs ml-auto"
+                      onClick={() => handleRemoveAssist(a.id)}
+                      disabled={isPending}
+                      type="button"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {!isLocked && (
+            <div className="flex items-center gap-2 mt-2">
+              <select
+                value={newAssistPlayerId}
+                onChange={(e) => setNewAssistPlayerId(e.target.value)}
+                className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-2 py-1 text-xs text-zinc-50"
+              >
+                <option value="">Select assist</option>
+                {report.playerActuals.filter((p) => p.attendanceStatus === "PRESENT").map((p) => (
+                  <option key={p.playerId} value={p.playerId}>{p.playerName}</option>
+                ))}
+              </select>
+              <button
+                className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+                disabled={isPending || !newAssistPlayerId}
+                onClick={handleAddAssist}
+                type="button"
+              >
+                Add assist
               </button>
             </div>
           )}

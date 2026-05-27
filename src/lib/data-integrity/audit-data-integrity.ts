@@ -70,6 +70,67 @@ async function checkGoalAggregateDiffersFromGoalEvents(
   }
 }
 
+async function checkAssistAggregateDiffersFromAssistEvents(
+  db: Dbc,
+  scope: { planningPeriodId?: string; matchId?: string },
+  findings: IntegrityFinding[],
+): Promise<void> {
+  const where = {
+    status: { in: COMPLETED_STATUSES },
+    ...(scope.matchId ? { matchId: scope.matchId } : {}),
+  };
+
+  const reports = await db.postMatchReport.findMany({
+    where,
+    select: {
+      id: true,
+      matchId: true,
+      playerStats: { select: { playerId: true, assists: true } },
+      assists: { select: { playerId: true } },
+    },
+  });
+
+  const filteredReports = scope.planningPeriodId
+    ? await filterByPlanningPeriod(db, reports, scope.planningPeriodId)
+    : reports;
+
+  for (const report of filteredReports) {
+    const statAssistCounts = new Map<string, number>();
+    for (const stat of report.playerStats) {
+      if (stat.assists > 0) {
+        statAssistCounts.set(stat.playerId, (statAssistCounts.get(stat.playerId) ?? 0) + stat.assists);
+      }
+    }
+
+    const eventAssistCounts = new Map<string, number>();
+    for (const assist of report.assists) {
+      eventAssistCounts.set(assist.playerId, (eventAssistCounts.get(assist.playerId) ?? 0) + 1);
+    }
+
+    const allPlayerIds = new Set([...statAssistCounts.keys(), ...eventAssistCounts.keys()]);
+    for (const playerId of allPlayerIds) {
+      const statAssists = statAssistCounts.get(playerId) ?? 0;
+      const eventAssists = eventAssistCounts.get(playerId) ?? 0;
+      if (statAssists !== eventAssists) {
+        findings.push({
+          code: "PLAYER_ASSIST_AGGREGATE_DIFFERS_FROM_ASSIST_EVENTS",
+          severity: "REVIEW",
+          domain: "PLAYER_ASSISTS" as IntegrityDomain,
+          entityType: "PostMatchPlayerStat",
+          entityId: playerId,
+          matchId: report.matchId,
+          playerId,
+          message: `Assist-event count (${eventAssists}) differs from aggregate player-stat assists (${statAssists})`,
+          canonicalValue: eventAssists,
+          conflictingValue: statAssists,
+          repairability: "REQUIRES_FACTUAL_REVIEW",
+          recommendedAction: "Review Assist events for this player in this report. Do not infer events from the aggregate.",
+        });
+      }
+    }
+  }
+}
+
 async function checkReportedUnknownAttendance(
   db: Dbc,
   scope: { planningPeriodId?: string; matchId?: string },
@@ -391,6 +452,7 @@ export async function auditDataIntegrity(input?: IntegrityAuditInput, dbClient?:
   const findings: IntegrityFinding[] = [];
 
   await checkGoalAggregateDiffersFromGoalEvents(db, scope, findings);
+  await checkAssistAggregateDiffersFromAssistEvents(db, scope, findings);
   await checkReportedUnknownAttendance(db, scope, findings);
   await checkPlannedPlayerNotPresentWithoutAbsenceReason(db, scope, findings);
   await checkGoalEventCountExceedsTeamScore(db, scope, findings);
