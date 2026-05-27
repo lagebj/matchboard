@@ -229,6 +229,22 @@ Rules:
 - Feedback must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
 - Feedback must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
 
+### Canonical data truth
+
+Every important fact must have one documented canonical source. Never add a second writable truth for an existing fact.
+
+1. Player goals derive from `Goal` events in reported/locked reports. `MatchReportPlayerStat.goals` is a compatibility field, not independent goal truth.
+2. Player assists currently use `MatchReportPlayerStat.assists`.
+3. Actual appearances count only `PRESENT` actual participation in completed reports. `UNKNOWN` does not count. `NO_SHOW` does not count. Draft/finalized planned selections do not count.
+4. `UNKNOWN` attendance blocks report completion.
+5. Planned players who did not play require structured `MatchReportAbsence`.
+6. Never infer scorer from score.
+7. Never infer historical attendance during reconciliation.
+8. Reconciliation supports dry-run and preserves factual history.
+9. Do not remove candidate duplicate fields without measured usage and safe migration plan.
+10. Keep planned selection separate from actual matchday participation.
+11. Preserve live-derived plan integrity. Do not make stale `Warning` or `AssistantIssue` rows authoritative again.
+
 ### Coach-facing vs parent-facing language
 
 Internal planning reasons must not leak into parent/player exports.

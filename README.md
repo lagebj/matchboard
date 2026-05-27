@@ -349,10 +349,31 @@ Runs on `http://localhost:3333`.
 
 - **`features/matchboard.feature`** — behavioral source of truth for all selection logic, rules, and domain behavior
 - **`AGENTS.md`** — coding agent instructions, workflow, style guide, and architecture constraints
+- **`docs/domain/source-of-truth-register.md`** — canonical data sources for every important fact
 
 If code and the Gherkin feature file disagree, the feature file wins.
 
 When workflow or UX semantics change, update `features/matchboard.feature`, `AGENTS.md`, and `README.md` before implementing. Do not implement product-shape changes before aligning supporting docs.
+
+### Canonical data sources
+
+| Fact | Canonical source |
+|---|---|
+| Played appearance | `PRESENT` actual participation in completed reports only |
+| Player goals | `Goal` events in reported/locked reports |
+| Player assists | `MatchReportPlayerStat.assists` in reported/locked reports |
+| Planned player did not play | `MatchReportAbsence` with structured reason |
+| Intended match opportunity | `Selection` (planned, not actual) |
+| Matchday participation reality | Post-match report records |
+| Current plan integrity | Derived live from `computeRoundPlanIntegrity` |
+
+Rules:
+- `UNKNOWN` attendance does not count as played and blocks report completion.
+- `MatchReportPlayerStat.goals` is a compatibility field, not independent goal truth.
+- Draft and finalized planned selections do not count as actual played statistics.
+- Never infer scorers from final score.
+- Never infer historical attendance during reconciliation.
+- Planned players who did not play require structured absence before report completion.
 
 ## Setup registries
 

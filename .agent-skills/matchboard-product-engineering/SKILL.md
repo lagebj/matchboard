@@ -250,3 +250,28 @@ Finalisation recomputes live integrity from current state server-side. Stale row
 Blocked conditions and Decision required conditions appear as count summaries and per-player icons. Planning notes are hidden behind a toggle. Surface actionable issues, not every observation.
 
 The coach can always finalize by providing an override reason. No condition can absolutely prevent finalization, but Blocked conditions require conscious acceptance and recorded reason. Decision required conditions also require an override reason. Planning notes must not require acknowledgement in the finalization dialog.
+
+## Canonical data truth
+
+Every important football fact must have one documented canonical source. Never add a second writable truth for an existing fact.
+
+Detailed source-of-truth register: `docs/domain/source-of-truth-register.md`
+
+Key rules:
+- Player goals derive from `Goal` events in reported/locked reports. `MatchReportPlayerStat.goals` is a compatibility field, not independent truth.
+- Player assists currently use `MatchReportPlayerStat.assists`.
+- Actual appearances count only `PRESENT` participation in completed reports. `UNKNOWN` does not count. `NO_SHOW` does not count. Draft/finalized selections do not count.
+- `UNKNOWN` attendance blocks report completion.
+- Planned players who did not play require structured `MatchReportAbsence`.
+- Never infer scorers from final score.
+- Never infer historical attendance during reconciliation.
+- Reconciliation supports dry-run and preserves factual history.
+- Do not remove candidate duplicate fields without measured usage and safe migration plan.
+- Keep planned selection separate from actual matchday participation.
+- Preserve live-derived plan integrity. Do not make stale Warning or AssistantIssue rows authoritative again.
+
+When consuming statistics:
+- Use `Goal` events for player goals, not `MatchReportPlayerStat.goals`.
+- Use `PRESENT` actual participation for played count, not planned selection status.
+- Use structured absence for planned non-participation, not attendance status alone.
+- Report mismatches through integrity audit, never silently choose one source over another.
