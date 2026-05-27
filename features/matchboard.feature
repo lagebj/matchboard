@@ -4778,6 +4778,12 @@ Feature: Matchboard football operations workspace
     Then submission must be rejected
     And the app must state "Confirm whether every planned player played before submitting the report."
 
+  Scenario: Report locking rejects unresolved attendance
+    Given a REPORTED report contains attendance status "UNKNOWN"
+    When the coach locks the report as "LOCKED"
+    Then locking must be rejected
+    And the app must state "Resolve all attendance before locking."
+
   Scenario: Planned player confirmed as played
     Given player "p1" was planned
     When the coach records "Played"
@@ -4809,6 +4815,17 @@ Feature: Matchboard football operations workspace
     Given Goal-event totals and aggregate player-stat goal totals differ
     When the audit runs
     Then it must report the report, player identifier and both totals
+
+  Scenario: Audit reports goal events exceeding own-team score
+    Given a completed report where known own-player Goal events exceed the recorded own-team score
+    When the audit runs
+    Then it must report the mismatch as an error
+    And it must not attribute unregistered goals to any player
+
+  Scenario: Audit reports contradictory present and absent
+    Given a completed report where a player is both PRESENT and has an absence record
+    When the audit runs
+    Then it must report the contradiction as an error
 
   Scenario: Audit reports reported unknown attendance
     Given a REPORTED or LOCKED report contains attendance status "UNKNOWN"
