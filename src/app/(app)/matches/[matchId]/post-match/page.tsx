@@ -59,6 +59,14 @@ export default async function PostMatchRoute({ params }: PageProps) {
         },
         orderBy: [{ minute: "asc" }],
       },
+      assists: {
+        include: {
+          player: {
+            select: { firstName: true, lastName: true },
+          },
+        },
+        orderBy: [{ createdAt: "asc" }],
+      },
       absences: {
         include: {
           player: {
@@ -107,6 +115,12 @@ export default async function PostMatchRoute({ params }: PageProps) {
       playerName: g.player ? `${g.player.firstName} ${g.player.lastName ?? ""}`.trim() : undefined,
       minute: g.minute,
       type: g.type,
+    })),
+    assists: report.assists.map((a) => ({
+      id: a.id,
+      playerId: a.playerId,
+      playerName: `${a.player.firstName} ${a.player.lastName ?? ""}`.trim(),
+      type: a.type,
     })),
     absences: report.absences.map((a) => ({
       id: a.id,

@@ -83,6 +83,7 @@ model Player {
   locks PlayerLock[]
   postMatchActuals PostMatchPlayerActual[]
   goals Goal[]
+  assists Assist[]
   matchReportAbsences MatchReportAbsence[]
   matchReportStats MatchReportPlayerStat[]
   readinessSignals PlayerReadinessSignal[]
@@ -604,6 +605,7 @@ model PostMatchReport {
   updatedAt   DateTime           @updatedAt
   playerActuals  PostMatchPlayerActual[]
   goals          Goal[]
+  assists        Assist[]
   absences       MatchReportAbsence[]
   playerStats    MatchReportPlayerStat[]
 
@@ -642,6 +644,21 @@ model Goal {
 
   report             PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   player             Player?         @relation(fields: [playerId], references: [id])
+
+  @@index([reportId])
+  @@index([playerId])
+}
+
+model Assist {
+  id                 String   @id @default(cuid())
+  reportId           String
+  playerId           String
+  type               String   @default("NORMAL")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  report             PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  player             Player          @relation(fields: [playerId], references: [id])
 
   @@index([reportId])
   @@index([playerId])

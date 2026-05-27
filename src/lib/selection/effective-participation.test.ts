@@ -422,6 +422,9 @@ describe("Effective participation database queries", () => {
       await testDb.goal.create({
         data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
       });
+      await testDb.assist.create({
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+      });
 
       const rows = await getEffectiveMatchParticipation(match.id);
 
@@ -996,6 +999,13 @@ describe("Effective participation database queries", () => {
       });
 
       await testDb.goal.create({
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+      });
+
+      await testDb.assist.create({
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+      });
+      await testDb.assist.create({
         data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
       });
 

@@ -199,11 +199,11 @@ export async function getPlayersSeasonOverview(
             where: { playerId: { in: playerIds } },
             select: { playerId: true },
           },
-          playerStats: {
-            where: { playerId: { in: playerIds } },
-            select: { playerId: true, assists: true },
-          },
           goals: {
+            where: { playerId: { in: playerIds } },
+            select: { playerId: true },
+          },
+          assists: {
             where: { playerId: { in: playerIds } },
             select: { playerId: true },
           },
@@ -246,17 +246,19 @@ export async function getPlayersSeasonOverview(
       absentPlayerMatchIds.add(`${absence.playerId}:${report.matchId}`);
     }
 
-    for (const stat of report.playerStats) {
-      const existing = statsByPlayer.get(stat.playerId) ?? { goals: 0, assists: 0 };
-      existing.assists += stat.assists;
-      statsByPlayer.set(stat.playerId, existing);
-    }
-
     for (const goal of report.goals) {
       if (goal.playerId && playerIds.includes(goal.playerId)) {
         const existing = statsByPlayer.get(goal.playerId) ?? { goals: 0, assists: 0 };
         existing.goals += 1;
         statsByPlayer.set(goal.playerId, existing);
+      }
+    }
+
+    for (const assist of report.assists) {
+      if (playerIds.includes(assist.playerId)) {
+        const existing = statsByPlayer.get(assist.playerId) ?? { goals: 0, assists: 0 };
+        existing.assists += 1;
+        statsByPlayer.set(assist.playerId, existing);
       }
     }
   }

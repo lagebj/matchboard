@@ -54,6 +54,12 @@ export type MatchReportDetail = {
     minute: number | null;
     type: string;
   }>;
+  assists: Array<{
+    id: string;
+    playerId: string;
+    playerName: string;
+    type: string;
+  }>;
 };
 
 export async function getMatchReport(matchId: string): Promise<MatchReportDetail> {
@@ -97,6 +103,12 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
         },
         orderBy: [{ minute: "asc" }],
       },
+      assists: {
+        include: {
+          player: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: [{ createdAt: "asc" }],
+      },
       absences: {
         include: {
           player: { select: { id: true, firstName: true, lastName: true, coreTeam: { select: { name: true } } } },
@@ -135,6 +147,7 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
       absences: [],
       playerStats: [],
       goals: [],
+      assists: [],
     };
   }
 
@@ -181,6 +194,12 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
       playerName: g.player ? `${g.player.firstName} ${g.player.lastName ?? ""}`.trim() : undefined,
       minute: g.minute,
       type: g.type,
+    })),
+    assists: report.assists.map((a) => ({
+      id: a.id,
+      playerId: a.playerId,
+      playerName: `${a.player.firstName} ${a.player.lastName ?? ""}`.trim(),
+      type: a.type,
     })),
   };
 }
@@ -614,5 +633,55 @@ export async function removeGoalFromReport(goalId: string): Promise<{ success: b
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to remove goal." };
+  }
+}
+
+export async function addAssistToReport(
+  reportId: string,
+  data: { playerId: string; type?: string },
+): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status === "LOCKED") return { success: false, error: "Cannot add assists to a locked report. Reopen it first." };
+
+    await db.assist.create({
+      data: {
+        reportId,
+        playerId: data.playerId,
+        type: data.type ?? "NORMAL",
+      },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to add assist." };
+  }
+}
+
+export async function removeAssistFromReport(assistId: string): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const assist = await db.assist.findUnique({
+      where: { id: assistId },
+      include: { report: { select: { matchId: true, status: true } } },
+    });
+    if (!assist) return { success: false, error: "Assist not found." };
+    if (assist.report.status === "LOCKED") return { success: false, error: "Cannot remove assists from a locked report. Reopen it first." };
+
+    await db.assist.delete({ where: { id: assistId } });
+
+    revalidatePath(`/matches/${assist.report.matchId}`);
+    revalidatePath(`/matches/${assist.report.matchId}/post-match`);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to remove assist." };
   }
 }
