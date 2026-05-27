@@ -416,6 +416,13 @@ describe("Effective participation database queries", () => {
         },
       });
 
+      await testDb.goal.create({
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+      });
+      await testDb.goal.create({
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+      });
+
       const rows = await getEffectiveMatchParticipation(match.id);
 
       const present = rows.find((r) => r.playerId === player1.id);
@@ -986,6 +993,10 @@ describe("Effective participation database queries", () => {
           goals: 1,
           assists: 2,
         },
+      });
+
+      await testDb.goal.create({
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
       });
 
       const stats = await getEffectiveSeasonStats(player1.id, period.id);

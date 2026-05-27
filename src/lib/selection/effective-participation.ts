@@ -142,8 +142,12 @@ export async function getEffectiveMatchParticipation(
         playerStats: {
           select: {
             playerId: true,
-            goals: true,
             assists: true,
+          },
+        },
+        goals: {
+          select: {
+            playerId: true,
           },
         },
       },
@@ -156,6 +160,12 @@ export async function getEffectiveMatchParticipation(
     const playerStatsMap = new Map(
       report.playerStats.map((s) => [s.playerId, s] as const),
     );
+    const goalCountMap = new Map<string, number>();
+    for (const goal of report.goals) {
+      if (goal.playerId) {
+        goalCountMap.set(goal.playerId, (goalCountMap.get(goal.playerId) ?? 0) + 1);
+      }
+    }
     const actualsSet = new Set(
       report.playerActuals.map((a) => a.playerId),
     );
@@ -182,7 +192,7 @@ export async function getEffectiveMatchParticipation(
         countsForFairness: true,
         countsForSeasonStats: true,
         source: report.status === "LOCKED" ? "ACTUAL_LOCKED" : "ACTUAL_REPORTED",
-        goals: stats?.goals ?? 0,
+        goals: goalCountMap.get(actual.playerId) ?? 0,
         assists: stats?.assists ?? 0,
       });
     }
@@ -465,7 +475,7 @@ export async function getPlayerAllTimeStats(
 
   const reportIds = reports.map((r) => r.id);
 
-  const [actuals, stats, absences] = await Promise.all([
+  const [actuals, goalEvents, assistStats, absences] = await Promise.all([
     db.postMatchPlayerActual.findMany({
       where: {
         reportId: { in: reportIds },
@@ -474,12 +484,19 @@ export async function getPlayerAllTimeStats(
       },
       select: { id: true },
     }),
+    db.goal.findMany({
+      where: {
+        reportId: { in: reportIds },
+        playerId,
+      },
+      select: { id: true },
+    }),
     db.matchReportPlayerStat.findMany({
       where: {
         matchReportId: { in: reportIds },
         playerId,
       },
-      select: { goals: true, assists: true },
+      select: { assists: true },
     }),
     db.matchReportAbsence.findMany({
       where: {
@@ -490,8 +507,8 @@ export async function getPlayerAllTimeStats(
     }),
   ]);
 
-  const goals = stats.reduce((sum, s) => sum + s.goals, 0);
-  const assists = stats.reduce((sum, s) => sum + s.assists, 0);
+  const goals = goalEvents.length;
+  const assists = assistStats.reduce((sum, s) => sum + s.assists, 0);
 
   return {
     actualAppearances: actuals.length,

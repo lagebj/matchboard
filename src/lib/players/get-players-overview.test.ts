@@ -143,6 +143,13 @@ describe("getPlayersSeasonOverview", () => {
       },
     });
 
+    await db.goal.create({
+      data: { reportId: report.id, playerId: player.id, type: "NORMAL" },
+    });
+    await db.goal.create({
+      data: { reportId: report.id, playerId: player.id, type: "NORMAL" },
+    });
+
     await db.selection.create({
       data: {
         playerId: player.id,
