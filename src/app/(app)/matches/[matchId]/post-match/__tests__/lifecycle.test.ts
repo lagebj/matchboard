@@ -106,6 +106,11 @@ describe("Post-match report lifecycle", () => {
       });
       expect(addResult.success).toBe(true);
 
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId, attendanceStatus: "UNKNOWN" },
+        data: { attendanceStatus: "PRESENT" },
+      });
+
       const submitResult = await submitMatchReport(reportId);
       expect(submitResult.success).toBe(true);
 
@@ -309,6 +314,11 @@ describe("Post-match report lifecycle", () => {
       const seedResult = await seedMatchReport(matchId);
       const reportId = seedResult.reportId!;
 
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId, attendanceStatus: "UNKNOWN" },
+        data: { attendanceStatus: "PRESENT" },
+      });
+
       await submitMatchReport(reportId);
       await lockMatchReport(reportId);
 
@@ -333,6 +343,57 @@ describe("Post-match report lifecycle", () => {
         type: "NORMAL",
       });
       expect(goalResult.success).toBe(false);
+
+      await cleanup();
+    });
+  });
+
+  describe("UNKNOWN attendance blocks submission and locking", () => {
+    it("rejects submit when player has UNKNOWN attendance", async () => {
+      const matchId = fixture.matches.Bla!;
+      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+
+      await testDb.selection.create({
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+      });
+
+      const seedResult = await seedMatchReport(matchId);
+      const reportId = seedResult.reportId!;
+
+      const submitResult = await submitMatchReport(reportId);
+      expect(submitResult.success).toBe(false);
+      expect(submitResult.error).toContain("UNKNOWN attendance");
+
+      await cleanup();
+    });
+
+    it("rejects lock when player has UNKNOWN attendance", async () => {
+      const matchId = fixture.matches.Bla!;
+      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+
+      await testDb.selection.create({
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+      });
+
+      const seedResult = await seedMatchReport(matchId);
+      const reportId = seedResult.reportId!;
+
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId, attendanceStatus: "UNKNOWN" },
+        data: { attendanceStatus: "PRESENT" },
+      });
+
+      const submitResult = await submitMatchReport(reportId);
+      expect(submitResult.success).toBe(true);
+
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId },
+        data: { attendanceStatus: "UNKNOWN" },
+      });
+
+      const lockResult = await lockMatchReport(reportId);
+      expect(lockResult.success).toBe(false);
+      expect(lockResult.error).toContain("UNKNOWN attendance");
 
       await cleanup();
     });

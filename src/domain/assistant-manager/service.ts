@@ -420,6 +420,15 @@ export async function completePostMatchReport(
     playerActuals: PostMatchPlayerActual[];
   },
 ): Promise<PostMatchReport> {
+  const unknownAttendance = input.playerActuals.filter(
+    (a) => a.attendanceStatus === "UNKNOWN",
+  );
+  if (unknownAttendance.length > 0) {
+    throw new Error(
+      `Cannot complete report: ${unknownAttendance.length} player(s) have UNKNOWN attendance. Resolve all attendance before completing.`,
+    );
+  }
+
   const existing = await db.postMatchReport.findUnique({ where: { matchId } });
 
   if (existing) {

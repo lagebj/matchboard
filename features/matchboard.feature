@@ -4722,3 +4722,126 @@ Feature: Matchboard football operations workspace
     Then the Players overview modes must be visible only to authorised coaches
     And the overview must not be included in parent-facing exports
     And coach-only review context must not be included in external AI or service payloads
+
+  Rule: Canonical statistical facts come from recorded match reality
+
+    Player appearance totals must be derived from confirmed actual participation.
+
+    Player goal totals must be derived from recorded Goal events linked to the player.
+
+    Player assists remain derived from recorded per-player assist totals until an assist-event model is explicitly introduced.
+
+    Draft and finalised planned selections must not be counted as actual played statistics.
+
+    Conflicting duplicated records must be surfaced by integrity audit rather than silently chosen as truth.
+
+  Scenario: Only confirmed present participation counts as played
+    Given report "PM1" is "REPORTED"
+    And player "p1" has attendance status "PRESENT"
+    And player "p2" has attendance status "UNKNOWN"
+    And player "p3" has attendance status "NO_SHOW"
+    When actual appearances are calculated
+    Then "p1" must receive one played appearance
+    And "p2" must receive zero played appearances
+    And "p3" must receive zero played appearances
+
+  Scenario: Player goals are derived from Goal events
+    Given reported report "PM1" has two Goal rows linked to player "p1"
+    And aggregate player-stat goals is zero or absent
+    When player goals are calculated
+    Then "p1" must show two goals
+    And aggregate player-stat goals must not override Goal-event truth
+    And contradictory aggregate values must be reported by integrity audit
+
+  Scenario: Assists remain aggregate recorded facts
+    Given reported report "PM1" has player-stat assists for player "p1"
+    When assists are calculated
+    Then the assist total must use the player-stat assist record
+    And Goal events must not imply assists
+
+  Scenario: Final score does not invent player scorers
+    Given a reported match has a final score
+    And Goal events do not account for every own-team goal
+    When player goal statistics are calculated
+    Then unregistered goals must not be attributed to any player
+    And the recorded final result remains valid
+
+  Rule: Planned player outcome must be resolved before reporting
+
+    Every player in a finalised planned squad must be confirmed as played or recorded as not having played with a structured reason before a report can become REPORTED or LOCKED.
+
+    UNKNOWN attendance is unresolved and must not become completed report truth.
+
+  Scenario: Report submission rejects unresolved planned attendance
+    Given a report contains a finalised planned player with attendance status "UNKNOWN"
+    When the coach submits the report as "REPORTED"
+    Then submission must be rejected
+    And the app must state "Confirm whether every planned player played before submitting the report."
+
+  Scenario: Report locking rejects unresolved attendance
+    Given a REPORTED report contains attendance status "UNKNOWN"
+    When the coach locks the report as "LOCKED"
+    Then locking must be rejected
+    And the app must state "Resolve all attendance before locking."
+
+  Scenario: Planned player confirmed as played
+    Given player "p1" was planned
+    When the coach records "Played"
+    Then actual attendance must be "PRESENT"
+    And no planned-absence record may remain for "p1"
+
+  Scenario: Planned player confirmed as not played
+    Given player "p1" was planned
+    When the coach records "Did not play" with reason "SICK"
+    Then "p1" must not count as Played
+    And exactly one absence record with reason "SICK" must exist
+    And "Planned absent" must include "p1"
+
+  Scenario: Correcting absence to played reconciles records transactionally
+    Given player "p1" has an absence record in draft report "PM1"
+    When the coach changes the outcome to "Played"
+    Then attendance must be "PRESENT"
+    And the absence record must be removed or resolved transactionally
+
+  Rule: Integrity audit detects divergence without inventing facts
+
+    Matchboard provides a read-only integrity audit for canonical statistics and participation facts.
+
+    Repair may only alter safely derived data.
+
+    Repair must never infer scorer, attendance or absence facts.
+
+  Scenario: Audit reports goal-source mismatch
+    Given Goal-event totals and aggregate player-stat goal totals differ
+    When the audit runs
+    Then it must report the report, player identifier and both totals
+
+  Scenario: Audit reports goal events exceeding own-team score
+    Given a completed report where known own-player Goal events exceed the recorded own-team score
+    When the audit runs
+    Then it must report the mismatch as an error
+    And it must not attribute unregistered goals to any player
+
+  Scenario: Audit reports contradictory present and absent
+    Given a completed report where a player is both PRESENT and has an absence record
+    When the audit runs
+    Then it must report the contradiction as an error
+
+  Scenario: Audit reports reported unknown attendance
+    Given a REPORTED or LOCKED report contains attendance status "UNKNOWN"
+    When the audit runs
+    Then it must report the unresolved attendance
+    And it must not convert it automatically
+
+  Scenario: Audit reports missing absence reason
+    Given a planned player is not confirmed "PRESENT" in a completed report
+    And no structured absence exists
+    When the audit runs
+    Then it must report missing absence reason
+    And it must not invent the reason
+
+  Scenario: Candidate duplication is reported without destructive repair
+    Given candidate duplicate-source fields exist outside confirmed fixes
+    When the audit runs
+    Then it may report measurable divergence
+    And it must not consolidate or delete those fields automatically
