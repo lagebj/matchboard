@@ -100,3 +100,27 @@ Fields and structures identified as potential duplicate or legacy sources. These
 7. Reconciliation is idempotent: running twice produces the same result
 8. Factual corrections require human review
 9. Derived projections may be rebuilt from canonical sources
+
+## Implementation status (2026-05-27)
+
+### Completed
+
+| Change | Files | Status |
+|---|---|---|
+| Integrity audit service | `src/lib/data-integrity/audit-data-integrity.ts`, `types.ts` | Committed: 4 mandatory checks + 6 candidate stubs |
+| Reconciliation module | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Committed: goals projection + plan integrity |
+| Goal truth: players overview | `src/lib/players/get-players-overview.ts` | Committed: reads from Goal events |
+| Goal truth: effective participation | `src/lib/selection/effective-participation.ts` | Committed: reads from Goal events |
+| Goal truth: effective appearances | `src/lib/selection/get-effective-appearances.ts` | Committed: reads from Goal events |
+| UNKNOWN attendance blocks submission | `actions.ts` (submit + lock) | Committed: server-side validation |
+| UNKNOWN attendance blocks locking | `actions.ts` (lock) | Committed: server-side validation |
+| UNKNOWN blocks completion (assistant) | `service.ts` (completePostMatchReport) | Committed: throws on UNKNOWN |
+
+### Not yet changed
+
+| Area | Current behavior | Needed change | Priority |
+|---|---|---|---|
+| Assist truth | Reads from `playerStats.assists` | No assist-event model yet; stays on aggregate until introduced | Low |
+| Warning/plan integrity reconciliation | `reconcile-canonical-derived-data.ts` exists | Production dry-run and full sweep not yet executed | Medium |
+| Opponent snapshot vs OpponentTeam | Audit detects divergence | No auto-migration yet | Low |
+| `Team.minSupportCount` / `minSupportPlayers` divergence | Audit detects | No unification yet | Low |
