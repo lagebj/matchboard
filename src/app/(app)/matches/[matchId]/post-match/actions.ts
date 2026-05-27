@@ -469,6 +469,16 @@ export async function submitMatchReport(reportId: string): Promise<{ success: bo
     if (!report) return { success: false, error: "Report not found." };
     if (report.status !== "DRAFT") return { success: false, error: "Only DRAFT reports can be submitted." };
 
+    const unknownAttendance = report.playerActuals.filter(
+      (a) => a.attendanceStatus === "UNKNOWN",
+    );
+    if (unknownAttendance.length > 0) {
+      return {
+        success: false,
+        error: `Cannot submit report: ${unknownAttendance.length} player(s) have UNKNOWN attendance. Resolve all attendance before submitting.`,
+      };
+    }
+
     await db.postMatchReport.update({
       where: { id: reportId },
       data: { status: "REPORTED" },
@@ -489,9 +499,22 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
   await requireCoachAccess();
 
   try {
-    const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+    const report = await db.postMatchReport.findUnique({
+      where: { id: reportId },
+      include: { playerActuals: true },
+    });
     if (!report) return { success: false, error: "Report not found." };
     if (report.status !== "REPORTED") return { success: false, error: "Only REPORTED reports can be locked." };
+
+    const unknownAttendance = report.playerActuals.filter(
+      (a) => a.attendanceStatus === "UNKNOWN",
+    );
+    if (unknownAttendance.length > 0) {
+      return {
+        success: false,
+        error: `Cannot lock report: ${unknownAttendance.length} player(s) have UNKNOWN attendance. Resolve all attendance before locking.`,
+      };
+    }
 
     await db.postMatchReport.update({
       where: { id: reportId },
