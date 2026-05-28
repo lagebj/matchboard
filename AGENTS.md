@@ -15,8 +15,9 @@ When workflow or UX semantics change, update `features/matchboard.feature`, `AGE
 When working on Matchboard, always apply these skills in order:
 
 1. **`git-branch-commit-pr`** — for all coding-agent work: branch creation, commits, and PRs
-2. **`ux-webapp-design-craft`** (global) — for all UX, visual design, workflow, navigation, interaction, accessibility, and information architecture work
-3. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
+2. **`adr-governance`** — for architecture-affecting changes: public API or interface changes, storage model changes, state-management model changes, auth or authz model changes, deployment or runtime changes, observability strategy changes, test-strategy changes, cross-module or cross-service boundary changes, event or message contract changes, or any change that introduces durable design rules future tasks must follow. Create or update repo-local ADRs under `docs/adr/` before making structural code changes.
+3. **`ux-webapp-design-craft`** (global) — for all UX, visual design, workflow, navigation, interaction, accessibility, and information architecture work
+4. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
 
 All Matchboard-specific domain rules (selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages) are documented in this AGENTS.md file directly, not in a separate skill file.
 
