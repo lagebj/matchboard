@@ -17,20 +17,18 @@ When working on Matchboard, always apply these skills in order:
 1. **`git-branch-commit-pr`** — for all coding-agent work: branch creation, commits, and PRs
 2. **`ux-webapp-design-craft`** (global) — for all UX, visual design, workflow, navigation, interaction, accessibility, and information architecture work
 3. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
-4. **`matchboard-product-engineering`** (local, `.agent-skills/matchboard-product-engineering/SKILL.md`) — for Matchboard-specific domain rules: selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages
 
-The global `app-product-engineering` skill contains generic UX and app engineering rules. The local `matchboard-product-engineering` skill contains only Matchboard domain rules. Do not duplicate the global skill inside this repo.
+All Matchboard-specific domain rules (selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages) are documented in this AGENTS.md file directly, not in a separate skill file.
 
 ## Mandatory coding-agent workflow
 
 Before coding, read:
 - `docs/development/coding-agent-working-session.md`
-- `.agent-skills/matchboard-product-engineering/SKILL.md`
 - the `git-branch-commit-pr` skill
 
 All coding-agent work must follow the working-session contract.
 
-For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the `matchboard-product-engineering` skill is mandatory.
+For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the domain rules in this AGENTS.md are mandatory.
 
 Supporting documentation must be updated before implementation whenever behavior, UX, routes, schema, domain contracts, or workflow changes.
 
@@ -54,6 +52,8 @@ The primary coach workflow is:
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
 The Assistant page must always show the next action based on this workflow state. The Assistant page derives work items from live database state using `getAssistantCommandCentre()`, not from persisted AssistantIssue rows.
+
+The assistant must not skip steps or suggest finalization before draft review. Planning notes, scoring preferences, opponent observations, and seasonal context never appear as Assistant work items. The CoachingIntentSelector must not appear on the Assistant page — intent belongs on Fixtures and Round Board.
 
 ## Stack
 
@@ -133,6 +133,8 @@ Do not design artificial equal-strength balancing. The app should create useful 
 Matchboard is not only a selection engine. Matchboard supports:
 
 intent → selection → responsibility → execution → reflection → learning
+
+This loop must be reflected in the UI workflow, not just the selection engine.
 
 Selection logic must not be changed without preserving explainability and child-safe language.
 
@@ -245,9 +247,19 @@ Every important fact must have one documented canonical source. Never add a seco
 10. Keep planned selection separate from actual matchday participation.
 11. Preserve live-derived plan integrity. Do not make stale `Warning` or `AssistantIssue` rows authoritative again.
 
+Detailed source-of-truth register: `docs/domain/source-of-truth-register.md`
+
+When consuming statistics:
+- Use `Goal` events for player goals, not `MatchReportPlayerStat.goals`.
+- Use `PRESENT` actual participation for played count, not planned selection status.
+- Use structured absence for planned non-participation, not attendance status alone.
+- Report mismatches through integrity audit, never silently choose one source over another.
+
 ### Coach-facing vs parent-facing language
 
 Internal planning reasons must not leak into parent/player exports.
+
+Do not store player names inside assistant issues, explanations, recommendations, decision records, or cross-team impact payloads. Use player IDs. Resolve names for display only.
 
 Coach-facing language may include:
 - movement direction and source/target team
@@ -295,6 +307,13 @@ Every non-obvious selection should be explainable through:
 - risk created or mitigated
 - distinction between hard rule and scoring preference
 - distinction between planned selection and actual participation
+
+Explanation patterns:
+- Why was a player sent as support? → rotation path + team need
+- Why was a player not selected? → conflict, availability, or fairness rotation
+- Why does a plan integrity signal exist? → category, affected entity, reason
+
+If the UI cannot explain a selection result, the engine must provide the explanation.
 
 Rules:
 - Coach can ask why a player was selected.
@@ -552,6 +571,8 @@ The coach can always finalize Blocked rounds by providing an explicit override r
 
 Planning notes must not require acknowledgement in the finalization dialog.
 
+Finalisation recomputes live integrity from current state server-side. Stale rows cannot affect finalisation after their condition resolves.
+
 ## Draft clearing
 
 Generated draft selections can be cleared at three levels:
@@ -721,6 +742,8 @@ Selection logic belongs in `src/lib/selection/*`.
 
 Rule loading and validation belong in `src/lib/rules/*`.
 
+Do not duplicate selection-engine logic in UI components. UI displays engine output and records coach decisions.
+
 Keep these concerns separate:
 - round orchestration (`generate-round.ts`)
 - per-match generation (`generate-selection.ts`)
@@ -766,7 +789,7 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 Primary navigation (4 items, in this order):
 
 1. **Assistant** (`/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work.
-2. **Fixtures** (`/fixtures`) — planning-period, round and match hierarchy with actions.
+2. **Fixtures** (`/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections.
 3. **Teams** (`/teams`) — team registry and access to team detail.
 4. **Players** (`/players`) — season participation, current planning attention, and base-group administration.
 
@@ -898,6 +921,11 @@ Team detail has these sections:
 - Movement tab (movement history across rounds)
 - History tab (finalized rounds for this team)
 - Rules/Links tab (rotation paths, config, link to Rules page)
+
+`/teams/[teamId]/configuration` is the team workspace for squad settings and rules:
+- Squad settings form: target, min, max squad size and support priority rank (editable)
+- Rule list: shows how rules affect this team; global rules are read-only; team-scoped rules have an Edit button that scrolls to the relevant setting
+- Configuration edits must persist via server actions, not only client state
 
 ### Navigation model
 
@@ -1210,7 +1238,7 @@ Avoid:
 
 ## Assistant Manager Workflow Rules
 
-When implementing workflow, selection, squad review, player profile, team review, or match review changes, follow the mandatory coding-agent workflow in `docs/development/coding-agent-working-session.md` and the `matchboard-product-engineering` skill.
+When implementing workflow, selection, squad review, player profile, team review, or match review changes, follow the mandatory coding-agent workflow in `docs/development/coding-agent-working-session.md`.
 
 Key rules:
 - Update supporting docs before implementation.
