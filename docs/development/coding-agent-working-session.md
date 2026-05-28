@@ -9,9 +9,8 @@ This document defines the mandatory workflow for coding-agent work in Matchboard
 Every coding-agent session must use:
 
 - **git-branch-commit-pr** — for branch creation, commits, and PRs
-- **matchboard-product-engineering** — for Matchboard-specific domain rules
 
-For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the matchboard-product-engineering skill is mandatory.
+For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the domain rules in AGENTS.md are mandatory.
 
 ## Start of session
 
@@ -20,7 +19,6 @@ For product, workflow, UX, navigation, selection, fixtures, teams, players, matc
 3. Create a feature or chore branch.
 4. Read AGENTS.md.
 5. Read relevant docs.
-6. Read required skill files.
 
 ## Before implementation
 
