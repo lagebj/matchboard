@@ -2,22 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { updateMatchAction } from "@/app/(app)/matches/actions";
-import { formatIsoWeekKey } from "@/lib/date-utils";
 import { Pencil, Check, X, Loader2 } from "lucide-react";
-
-type MatchRoundOption = {
-  id: string;
-  name: string;
-};
 
 type MatchEditFormProps = {
   matchId: string;
   startsAt: Date;
-  matchRoundId: string;
   matchRoundName: string;
   phaseStartDate: Date;
   phaseEndDate: Date;
-  availableRounds: MatchRoundOption[];
 };
 
 function toDateInputValue(date: Date): string {
@@ -31,20 +23,16 @@ function toTimeInputValue(date: Date): string {
 export function MatchEditForm({
   matchId,
   startsAt,
-  matchRoundId: _matchRoundId,
-  matchRoundName,
+  matchRoundName: _matchRoundName,
   phaseStartDate,
   phaseEndDate,
-  availableRounds,
 }: MatchEditFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dateValue, setDateValue] = useState(toDateInputValue(startsAt));
   const [timeValue, setTimeValue] = useState(toTimeInputValue(startsAt));
-  const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
-  const [showRoundPrompt, setShowRoundPrompt] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const phaseDateRange = `${phaseStartDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} – ${phaseEndDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
@@ -64,24 +52,12 @@ export function MatchEditForm({
   function handleDateChange(newDate: string) {
     setDateValue(newDate);
     setError(null);
-    setSuccess(false);
-    setShowRoundPrompt(false);
-    setSelectedRoundId(null);
-
-    if (!newDate) return;
-
-    const newDateObj = new Date(`${newDate}T12:00:00Z`);
-    const currentWeekKey = formatIsoWeekKey(startsAt);
-    const newWeekKey = formatIsoWeekKey(newDateObj);
-
-    if (newWeekKey !== currentWeekKey) {
-      setShowRoundPrompt(true);
-    }
+    setSuccessMsg(null);
   }
 
   function handleSave() {
     setError(null);
-    setSuccess(false);
+    setSuccessMsg(null);
 
     if (!dateValue) {
       setError("Date is required.");
@@ -95,16 +71,20 @@ export function MatchEditForm({
       return;
     }
 
-    const roundId = showRoundPrompt && selectedRoundId ? selectedRoundId : undefined;
-
     startTransition(async () => {
-      const result = await updateMatchAction(matchId, combined, roundId);
+      const result = await updateMatchAction(matchId, combined);
       if (result.success) {
-        setSuccess(true);
+        if (!result.movedRound) {
+          setSuccessMsg("Match date updated.");
+        } else if (result.createdRound) {
+          setSuccessMsg(`Match rescheduled. New round ${result.targetRoundName} was created automatically.`);
+        } else {
+          setSuccessMsg(`Match rescheduled and moved to ${result.targetRoundName}.`);
+        }
         setTimeout(() => {
           setIsOpen(false);
-          setSuccess(false);
-        }, 1500);
+          setSuccessMsg(null);
+        }, 3000);
       } else {
         setError(result.error);
       }
@@ -114,15 +94,13 @@ export function MatchEditForm({
   function handleCancel() {
     setDateValue(toDateInputValue(startsAt));
     setTimeValue(toTimeInputValue(startsAt));
-    setSelectedRoundId(null);
-    setShowRoundPrompt(false);
     setError(null);
-    setSuccess(false);
+    setSuccessMsg(null);
     setIsOpen(false);
   }
 
   return (
-    <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+    <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4" role="form" aria-label="Edit match details">
       <h3 className="text-sm font-semibold text-zinc-200 mb-3">Edit match details</h3>
 
       <div className="flex flex-col gap-3">
@@ -143,20 +121,15 @@ export function MatchEditForm({
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="edit-startsAt-time" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
-            Time
+            Kick-off time
           </label>
           <input
             id="edit-startsAt-time"
             type="time"
             value={timeValue}
-            onChange={(e) => { setTimeValue(e.target.value); setError(null); setSuccess(false); }}
+            onChange={(e) => { setTimeValue(e.target.value); setError(null); setSuccessMsg(null); }}
             className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
           />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">Round</span>
-          <span className="text-sm text-zinc-100">{matchRoundName}</span>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -164,45 +137,20 @@ export function MatchEditForm({
           <span className="text-sm text-[var(--text-soft)]">{phaseDateRange}</span>
         </div>
 
-        {showRoundPrompt && (
-          <div className="rounded-lg border border-amber-700/40 bg-amber-900/10 p-3">
-            <p className="text-xs text-amber-300 mb-2">
-              The new date is in a different week. Select which round to move the match to:
-            </p>
-            {availableRounds.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                {availableRounds.map((r) => (
-                  <label key={r.id} className="flex items-center gap-2 text-sm text-zinc-200">
-                    <input
-                      type="radio"
-                      name="targetRound"
-                      value={r.id}
-                      checked={selectedRoundId === r.id}
-                      onChange={() => setSelectedRoundId(r.id)}
-                      className="accent-[var(--accent-strong)]"
-                    />
-                    {r.name}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--text-muted)]">
-                No other rounds available in this phase. The match will stay in the current round.
-              </p>
-            )}
-          </div>
-        )}
+        <p className="text-xs text-[var(--text-muted)]">
+          The match is placed in the correct weekly round automatically when the date changes.
+        </p>
 
         {error && (
-          <div className="rounded-lg border border-red-800/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">
+          <div className="rounded-lg border border-red-800/40 bg-red-950/20 px-3 py-2 text-xs text-red-200" role="alert">
             {error}
           </div>
         )}
 
-        {success && (
-          <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">
-            <Check className="mr-1 inline h-3 w-3" />
-            Changes saved.
+        {successMsg && (
+          <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200" role="status">
+            <Check className="mr-1 inline h-3 w-3" aria-hidden="true" />
+            {successMsg}
           </div>
         )}
 
