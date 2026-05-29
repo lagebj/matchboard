@@ -20,6 +20,7 @@ import {
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
+import { MatchEditForm } from "@/components/matches/match-edit-form";
 import { formatWarningCode } from "@/lib/match-utils";
 
 type SelectionRow = {
@@ -66,6 +67,9 @@ type MatchData = {
   coachingIntentId?: string;
   inheritedIntentScope?: "round" | "planning period";
   opponentTeamId?: string | null;
+  phaseStartDate?: Date;
+  phaseEndDate?: Date;
+  availableRounds?: { id: string; name: string }[];
 };
 
 const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
@@ -272,6 +276,18 @@ export function MatchDetail({ match }: { match: MatchData }) {
         {match.notes && (
           <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
         )}
+
+        <div className="mt-3">
+          <MatchEditForm
+            matchId={match.id}
+            startsAt={match.startsAt}
+            matchRoundId={match.matchRoundId}
+            matchRoundName={match.matchRoundName}
+            phaseStartDate={match.phaseStartDate ?? match.startsAt}
+            phaseEndDate={match.phaseEndDate ?? match.startsAt}
+            availableRounds={match.availableRounds ?? []}
+          />
+        </div>
 
         <div className="mt-3">
           <CoachingIntentSelector

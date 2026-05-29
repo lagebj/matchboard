@@ -17,7 +17,7 @@ export default async function MatchDetailPage({
     where: { id: matchId },
     include: {
       team: { select: { id: true, name: true } },
-      matchRound: { select: { id: true, name: true, status: true } },
+      matchRound: { select: { id: true, name: true, status: true, planningPeriodId: true, planningPeriod: { select: { id: true, startDate: true, endDate: true } } } },
       selections: {
         where: { status: { in: ["DRAFT", "FINALIZED"] } },
         include: {
@@ -38,6 +38,15 @@ export default async function MatchDetailPage({
   if (!match) notFound();
 
   const activeIntent = await getActiveCoachingIntentForMatch(matchId);
+
+  const availableRounds = await db.matchRound.findMany({
+    where: {
+      planningPeriodId: match.matchRound.planningPeriodId,
+      id: { not: match.matchRoundId },
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   const postMatchReport = await db.postMatchReport.findUnique({
     where: { matchId },
@@ -115,6 +124,9 @@ export default async function MatchDetailPage({
           inheritedIntentScope: activeIntent && activeIntent.scopeType !== "MATCH"
             ? (activeIntent.scopeType === "MATCH_ROUND" ? "round" : "planning period")
             : undefined,
+          phaseStartDate: match.matchRound.planningPeriod.startDate,
+          phaseEndDate: match.matchRound.planningPeriod.endDate,
+          availableRounds,
         }}
       />
     </div>

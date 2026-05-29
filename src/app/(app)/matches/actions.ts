@@ -221,6 +221,92 @@ export async function deleteMatchAction(matchId: string) {
   redirect("/fixtures?saved=deleted");
 }
 
+export async function updateMatchAction(
+  matchId: string,
+  startsAt: string,
+  matchRoundId?: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  await requireCoachAccess();
+
+  try {
+    const match = await db.match.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true,
+        startsAt: true,
+        matchRoundId: true,
+        matchRound: {
+          select: {
+            id: true,
+            planningPeriodId: true,
+            planningPeriod: {
+              select: { id: true, startDate: true, endDate: true },
+            },
+            matches: { select: { id: true, startsAt: true } },
+          },
+        },
+      },
+    });
+
+    if (!match) {
+      return { success: false, error: "Match not found." };
+    }
+
+    const completedReport = await db.postMatchReport.findFirst({
+      where: { matchId, status: { in: ["REPORTED", "LOCKED"] } },
+      select: { id: true },
+    });
+    if (completedReport) {
+      return { success: false, error: "This match has a completed report. Date changes require a factual correction workflow." };
+    }
+
+    const parsedDate = new Date(startsAt);
+    if (isNaN(parsedDate.getTime())) {
+      return { success: false, error: "Invalid date." };
+    }
+
+    const pp = match.matchRound.planningPeriod;
+    if (parsedDate < pp.startDate || parsedDate > pp.endDate) {
+      return { success: false, error: "This date is outside the current phase. Move the match to a phase covering the new date or update the phase first." };
+    }
+
+    let newMatchRoundId = match.matchRoundId;
+
+    if (matchRoundId && matchRoundId !== match.matchRoundId) {
+      const targetRound = await db.matchRound.findUnique({
+        where: { id: matchRoundId },
+        select: { id: true, planningPeriodId: true },
+      });
+      if (!targetRound || targetRound.planningPeriodId !== match.matchRound.planningPeriodId) {
+        return { success: false, error: "Target round must belong to the same phase." };
+      }
+      newMatchRoundId = matchRoundId;
+    }
+
+    await db.match.update({
+      where: { id: matchId },
+      data: {
+        startsAt: parsedDate,
+        matchRoundId: newMatchRoundId,
+      },
+    });
+
+    revalidatePath("/fixtures");
+    revalidatePath(`/matches/${matchId}`);
+    revalidatePath(`/rounds/${match.matchRoundId}`);
+    if (newMatchRoundId !== match.matchRoundId) {
+      revalidatePath(`/rounds/${newMatchRoundId}`);
+    }
+    revalidatePath("/assistant");
+    revalidatePath("/teams");
+
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not update the match.";
+    return { success: false, error: message };
+  }
+}
+
 export async function finalizeMatchAction(formData: FormData) {
   await requireCoachAccess();
   const matchId = formData.get("matchId");
