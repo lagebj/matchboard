@@ -141,8 +141,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">{period.title}</h2>
-          {period.dateRange && <span className="text-xs text-zinc-500">{period.dateRange}</span>}
+          <h2 className="text-base font-semibold text-zinc-100">{period.dateRange || period.title}</h2>
           <div className="flex items-center gap-2 mt-1">
             {statusCounts.notGenerated > 0 && <span className="text-[10px] text-zinc-500">{statusCounts.notGenerated} not generated</span>}
             {statusCounts.draft > 0 && <span className="text-[10px] text-amber-300">{statusCounts.draft} draft</span>}

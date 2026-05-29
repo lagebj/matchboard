@@ -7,6 +7,7 @@ import { SeasonOverviewTable } from "./season-overview-table";
 import { CurrentRoundAttentionTable } from "./current-round-attention-table";
 import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
+import { formatPlanningPeriodRange } from "@/lib/date/format-planning-period-range";
 
 type PlayersPageClientProps = {
   players: Array<{
@@ -25,18 +26,10 @@ type PlayersPageClientProps = {
   matchRounds: Array<{ id: string; name: string; planningPeriodId?: string | null }>;
   seasonRows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
-  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null; playerNames: string[] }>;
-  fairnessWarnings: Array<{ type: string; playerId: string; playerName: string; teamId: string | null; teamName: string | null; reason: string; data: Record<string, number | string | null> }>;
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;
   selectedRoundId?: string;
   initialMode?: string;
-  reportedMatchCount: number;
-  totalActualAppearances: number;
-  totalMatchdayAdditions: number;
-  totalRounds: number;
-  finalisedRounds: number;
-  draftRounds: number;
   error?: string;
   saved?: string;
 };
@@ -48,18 +41,10 @@ export function PlayersPageClient({
   matchRounds,
   seasonRows,
   roundColumns,
-  movementPaths,
-  fairnessWarnings,
   currentRoundRows,
   selectedPeriodId,
   selectedRoundId,
   initialMode,
-  reportedMatchCount,
-  totalActualAppearances,
-  totalMatchdayAdditions,
-  totalRounds,
-  finalisedRounds,
-  draftRounds,
   error,
   saved,
 }: PlayersPageClientProps) {
@@ -71,7 +56,7 @@ export function PlayersPageClient({
 
   const selectedPeriod = planningPeriods.find((p) => p.id === selectedPeriodId);
   const selectedRound = matchRounds.find((r) => r.id === selectedRoundId);
-  const periodLabel = selectedPeriod?.name ?? "No planning period";
+  const periodLabel = selectedPeriod ? formatPlanningPeriodRange(new Date(selectedPeriod.startDate), new Date(selectedPeriod.endDate)) : "No planning period";
   const roundLabel = selectedRound?.name ?? "No round selected";
 
   const roundsForPeriod = matchRounds.filter((r) => r.planningPeriodId === selectedPeriodId);
@@ -137,7 +122,7 @@ export function PlayersPageClient({
                 className={selectClass}
               >
                 {planningPeriods.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>{formatPlanningPeriodRange(new Date(p.startDate), new Date(p.endDate))}</option>
                 ))}
               </select>
             </label>
@@ -145,15 +130,7 @@ export function PlayersPageClient({
           <SeasonOverviewTable
             rows={seasonRows}
             roundColumns={roundColumns}
-            movementPaths={movementPaths}
-            fairnessWarnings={fairnessWarnings}
             planningPeriodLabel={periodLabel}
-            reportedMatchCount={reportedMatchCount}
-            totalActualAppearances={totalActualAppearances}
-            totalMatchdayAdditions={totalMatchdayAdditions}
-            totalRounds={totalRounds}
-            finalisedRounds={finalisedRounds}
-            draftRounds={draftRounds}
             teams={teams}
           />
         </>
@@ -170,7 +147,7 @@ export function PlayersPageClient({
                 className={selectClass}
               >
                 {planningPeriods.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>{formatPlanningPeriodRange(new Date(p.startDate), new Date(p.endDate))}</option>
                 ))}
               </select>
             </label>

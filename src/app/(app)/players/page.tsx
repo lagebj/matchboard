@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
-import type { PlayerSeasonOverviewRow, SeasonFairnessWarning, SeasonOverviewResult } from "@/lib/players/get-players-overview";
+import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
 
 type PlayersPageProps = {
@@ -41,48 +41,13 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
   const seasonData = selectedPeriodId
     ? await getPlayersSeasonOverview(selectedPeriodId)
-    : { planningPeriod: { id: "", label: "No planning period" }, roundColumns: [], seasonRows: [] as PlayerSeasonOverviewRow[], movementPaths: [] as SeasonOverviewResult["movementPaths"], fairnessWarnings: [] as SeasonFairnessWarning[] };
+    : { planningPeriod: { id: "", label: "No planning period" }, roundColumns: [], seasonRows: [] as PlayerSeasonOverviewRow[] };
 
   const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
 
   const currentRoundRows = selectedRoundId
     ? await getPlayersCurrentRoundAttention(selectedRoundId)
     : [];
-
-  const matchIds = selectedPeriodId
-    ? await db.match.findMany({
-        where: { matchRound: { planningPeriodId: selectedPeriodId } },
-        select: { id: true },
-      }).then((m) => m.map((x) => x.id))
-    : [];
-
-  const reportedMatchCount = matchIds.length > 0
-    ? await db.postMatchReport.count({
-        where: {
-          status: { in: ["REPORTED", "LOCKED"] },
-          matchId: { in: matchIds },
-        },
-      })
-    : 0;
-
-  const totalActualAppearances = seasonData.seasonRows.reduce((sum, r) => sum + r.actualAppearances, 0);
-  const totalMatchdayAdditions = seasonData.seasonRows.reduce((sum, r) => sum + r.matchdayAdditions, 0);
-
-  const roundCounts = selectedPeriodId
-    ? await db.matchRound.groupBy({
-        by: ["status"],
-        where: { planningPeriodId: selectedPeriodId },
-        _count: { status: true },
-      }).then((groups) => {
-          const counts = { total: 0, finalised: 0, draft: 0 };
-          for (const g of groups) {
-            counts.total += g._count.status;
-            if (g.status === "FINALIZED") counts.finalised += g._count.status;
-            if (g.status === "DRAFT" || g.status === "BLOCKED" || g.status === "READY") counts.draft += g._count.status;
-          }
-          return counts;
-        })
-    : { total: 0, finalised: 0, draft: 0 };
 
   return (
     <PlayersPageClient
@@ -102,18 +67,10 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       matchRounds={matchRounds}
       seasonRows={seasonData.seasonRows}
       roundColumns={seasonData.roundColumns}
-      movementPaths={seasonData.movementPaths}
-      fairnessWarnings={seasonData.fairnessWarnings}
       currentRoundRows={currentRoundRows}
       selectedPeriodId={selectedPeriodId}
       selectedRoundId={selectedRoundId}
       initialMode={mode}
-      reportedMatchCount={reportedMatchCount}
-      totalActualAppearances={totalActualAppearances}
-      totalMatchdayAdditions={totalMatchdayAdditions}
-      totalRounds={roundCounts.total}
-      finalisedRounds={roundCounts.finalised}
-      draftRounds={roundCounts.draft}
       error={error}
       saved={saved}
     />

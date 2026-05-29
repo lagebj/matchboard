@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { deriveRoundStatus } from "@/lib/round-status";
 import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { formatPlanningPeriodRange } from "@/lib/date/format-planning-period-range";
 
 function mapReadiness(blockerCount: number, decisionRequiredCount: number): "READY" | "AT_RISK" | "NOT_PLAYABLE" {
   if (blockerCount > 0) return "NOT_PLAYABLE";
@@ -167,7 +168,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
       periods.push({
         id: period.id,
         title: period.name,
-        dateRange: `${period.startDate.toLocaleDateString()} – ${period.endDate.toLocaleDateString()}`,
+        dateRange: formatPlanningPeriodRange(new Date(period.startDate), new Date(period.endDate)),
         readinessState: mapReadiness(periodBlockerCount, periodDecisionCount),
         blockerCount: periodBlockerCount,
         decisionRequiredCount: periodDecisionCount,
