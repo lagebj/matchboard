@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import type { SelectionRole } from "@/generated/prisma/client";
@@ -20,6 +20,7 @@ import {
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
+import { MatchEditForm } from "@/components/matches/match-edit-form";
 import { formatWarningCode } from "@/lib/match-utils";
 
 type SelectionRow = {
@@ -66,6 +67,9 @@ type MatchData = {
   coachingIntentId?: string;
   inheritedIntentScope?: "round" | "planning period";
   opponentTeamId?: string | null;
+  phaseStartDate?: Date;
+  phaseEndDate?: Date;
+  availableRounds?: { id: string; name: string }[];
 };
 
 const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
@@ -150,6 +154,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const [isPending, startTransition] = useTransition();
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<MatchTab>("squad");
 
   const activeTabParam = searchParams.get("tab");
@@ -274,6 +279,18 @@ export function MatchDetail({ match }: { match: MatchData }) {
         )}
 
         <div className="mt-3">
+          <MatchEditForm
+            matchId={match.id}
+            startsAt={match.startsAt}
+            matchRoundId={match.matchRoundId}
+            matchRoundName={match.matchRoundName}
+            phaseStartDate={match.phaseStartDate ?? match.startsAt}
+            phaseEndDate={match.phaseEndDate ?? match.startsAt}
+            availableRounds={match.availableRounds ?? []}
+          />
+        </div>
+
+        <div className="mt-3">
           <CoachingIntentSelector
             scopeType="MATCH"
             scopeId={match.id}
@@ -293,7 +310,13 @@ export function MatchDetail({ match }: { match: MatchData }) {
           <button
             key={tab.key}
             type="button"
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              if (tab.key === "after-match") {
+                router.push(`/matches/${match.id}/post-match`);
+                return;
+              }
+              setActiveTab(tab.key);
+            }}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               selectedTab === tab.key
                 ? "bg-[rgba(255,255,255,0.08)] text-zinc-100"
@@ -489,18 +512,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
       )}
 
       {selectedTab === "after-match" && (
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-6">
-          <h2 className="text-base font-semibold text-zinc-100 mb-3">After match</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-4">
-            Record post-match results, player feedback, and team reflection.
-          </p>
-          <Link
-            href={`/matches/${match.id}/post-match`}
-            className="inline-flex items-center gap-2 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 py-2 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
-          >
-            <ClipboardList className="h-4 w-4" />
-            Open post-match report
-          </Link>
+        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-6 text-center">
+          <p className="text-sm text-[var(--text-muted)]">Redirecting to post-match report...</p>
         </div>
       )}
 

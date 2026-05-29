@@ -84,7 +84,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Jan – Jun")).toBeInTheDocument();
+      expect(screen.getByText("Spring 2025")).toBeInTheDocument();
       expect(screen.getByText("Round 1")).toBeInTheDocument();
       expect(screen.getByText("Bla vs Opponent")).toBeInTheDocument();
     });
@@ -98,7 +98,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("No planning periods found.")).toBeInTheDocument();
+      expect(screen.getByText("No phases found.")).toBeInTheDocument();
     });
   });
 

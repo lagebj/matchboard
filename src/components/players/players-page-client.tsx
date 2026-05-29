@@ -7,7 +7,7 @@ import { SeasonOverviewTable } from "./season-overview-table";
 import { CurrentRoundAttentionTable } from "./current-round-attention-table";
 import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
-import { formatPlanningPeriodRange } from "@/lib/date/format-planning-period-range";
+import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 
 type PlayersPageClientProps = {
   players: Array<{
@@ -25,7 +25,6 @@ type PlayersPageClientProps = {
   planningPeriods: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
   matchRounds: Array<{ id: string; name: string; planningPeriodId?: string | null }>;
   seasonRows: PlayerSeasonOverviewRow[];
-  roundColumns: Array<{ id: string; name: string }>;
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;
   selectedRoundId?: string;
@@ -40,7 +39,6 @@ export function PlayersPageClient({
   planningPeriods,
   matchRounds,
   seasonRows,
-  roundColumns,
   currentRoundRows,
   selectedPeriodId,
   selectedRoundId,
@@ -56,7 +54,7 @@ export function PlayersPageClient({
 
   const selectedPeriod = planningPeriods.find((p) => p.id === selectedPeriodId);
   const selectedRound = matchRounds.find((r) => r.id === selectedRoundId);
-  const periodLabel = selectedPeriod ? formatPlanningPeriodRange(new Date(selectedPeriod.startDate), new Date(selectedPeriod.endDate)) : "No planning period";
+  const periodLabel = selectedPeriod ? formatPhaseDisplay({ seasonName: selectedPeriod.name, phaseName: selectedPeriod.name, startDate: new Date(selectedPeriod.startDate), endDate: new Date(selectedPeriod.endDate) }).combinedLabel : "No phase";
   const roundLabel = selectedRound?.name ?? "No round selected";
 
   const roundsForPeriod = matchRounds.filter((r) => r.planningPeriodId === selectedPeriodId);
@@ -115,21 +113,20 @@ export function PlayersPageClient({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Planning period:</span>
+              <span className="text-xs text-zinc-500">Phase:</span>
               <select
                 value={selectedPeriodId}
                 onChange={(e) => navigate({ periodId: e.target.value, mode: "season" })}
                 className={selectClass}
               >
                 {planningPeriods.map((p) => (
-                  <option key={p.id} value={p.id}>{formatPlanningPeriodRange(new Date(p.startDate), new Date(p.endDate))}</option>
+                  <option key={p.id} value={p.id}>{formatPhaseDisplay({ seasonName: p.name, phaseName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
                 ))}
               </select>
             </label>
           </div>
           <SeasonOverviewTable
             rows={seasonRows}
-            roundColumns={roundColumns}
             planningPeriodLabel={periodLabel}
             teams={teams}
           />
@@ -140,14 +137,14 @@ export function PlayersPageClient({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Planning period:</span>
+              <span className="text-xs text-zinc-500">Phase:</span>
               <select
                 value={selectedPeriodId}
                 onChange={(e) => navigate({ periodId: e.target.value, mode: "attention" })}
                 className={selectClass}
               >
                 {planningPeriods.map((p) => (
-                  <option key={p.id} value={p.id}>{formatPlanningPeriodRange(new Date(p.startDate), new Date(p.endDate))}</option>
+                  <option key={p.id} value={p.id}>{formatPhaseDisplay({ seasonName: p.name, phaseName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
                 ))}
               </select>
             </label>

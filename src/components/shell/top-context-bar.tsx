@@ -10,10 +10,12 @@ type ContextData = {
   planningPeriod: {
     id: string;
     name: string;
+    phaseLabel: string;
+    seasonLabel: string;
+    combinedLabel: string;
+    dateRangeLabel: string;
     startDate: string;
     endDate: string;
-    startDateLabel: string;
-    endDateLabel: string;
   } | null;
   matchRound: { id: string; name: string; status: string } | null;
 };
@@ -25,7 +27,7 @@ type SearchResult = {
 
 const pageTitles: Record<string, { label: string; note: string }> = {
   "/assistant": { label: "Assistant", note: "Next action, blockers, and upcoming work." },
-  "/fixtures": { label: "Fixtures", note: "Planning period, rounds, and match hierarchy." },
+  "/fixtures": { label: "Fixtures", note: "Phases, rounds, and match hierarchy." },
   "/players": { label: "Players", note: "Availability, load, and movement history." },
   "/teams": { label: "Teams", note: "Core groups, support needs, and movement paths." },
   "/rules": { label: "Rules", note: "Selection rules, support priority, and rotation paths." },
@@ -95,14 +97,16 @@ export function TopContextBar() {
         )}
         {ctx && (
           <div className="ml-1 hidden items-center gap-2 lg:flex">
-            {ctx.season && (
-              <span className="text-xs text-[var(--text-muted)]">{ctx.season.name}</span>
+            {ctx.season && ctx.planningPeriod && (
+              <span className="text-xs text-[var(--text-muted)]">
+                {ctx.planningPeriod.seasonLabel}
+              </span>
             )}
             {ctx.planningPeriod && (
               <>
                 <span className="text-xs text-[var(--text-muted)]">·</span>
                 <span className="text-xs text-[var(--text-muted)]">
-                  {ctx.planningPeriod.name}
+                  {ctx.planningPeriod.combinedLabel}
                 </span>
               </>
             )}

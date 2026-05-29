@@ -66,9 +66,18 @@ function MatchRow({ match }: { match: FixtureMatch }) {
   const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
   const now = new Date();
   const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
+  const outcome = isCompleted && match.reportState.state === "COMPLETED" ? match.reportState.result.outcome : null;
+
+  const rowBgClass = outcome === "WON"
+    ? "bg-emerald-950/30 border-emerald-900/30"
+    : outcome === "DRAWN"
+    ? "bg-zinc-800/30 border-zinc-700/30"
+    : outcome === "LOST"
+    ? "bg-red-950/30 border-red-900/30"
+    : "bg-[var(--surface-base)] border-[var(--border-soft)]";
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+    <div className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors ${rowBgClass}`}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex flex-col min-w-0">
           <span className="text-sm text-zinc-200 truncate">{match.title}</span>
@@ -87,12 +96,12 @@ function MatchRow({ match }: { match: FixtureMatch }) {
             <span className="text-[10px] font-semibold text-zinc-500 uppercase">FT</span>
             <span className="text-sm font-semibold text-zinc-100 tabular-nums">{match.reportState.result.displayScore}</span>
             <span className={`text-xs font-semibold ${
-              match.reportState.result.outcome === "WON" ? "text-emerald-300" :
-              match.reportState.result.outcome === "DRAWN" ? "text-zinc-400" :
+              outcome === "WON" ? "text-emerald-300" :
+              outcome === "DRAWN" ? "text-zinc-400" :
               "text-red-300"
             }`}>
-              {match.reportState.result.outcome === "WON" ? "Won" :
-               match.reportState.result.outcome === "DRAWN" ? "Drawn" : "Lost"}
+              {outcome === "WON" ? "Won" :
+               outcome === "DRAWN" ? "Drawn" : "Lost"}
             </span>
           </div>
         )}
@@ -167,7 +176,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">{period.dateRange || period.title}</h2>
+          <h2 className="text-base font-semibold text-zinc-100">{period.title}</h2>
           <div className="flex items-center gap-2 mt-1">
             {statusCounts.notGenerated > 0 && <span className="text-[10px] text-zinc-500">{statusCounts.notGenerated} not generated</span>}
             {statusCounts.draft > 0 && <span className="text-[10px] text-amber-300">{statusCounts.draft} draft</span>}
@@ -221,7 +230,7 @@ export function FixturesPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-lg font-semibold text-zinc-100">Fixtures</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">Planning periods, rounds, and matches. Navigate to rounds for squad work.</p>
+        <p className="text-xs text-zinc-500 mt-0.5">Phases, rounds, and matches. Navigate to rounds for squad work.</p>
       </div>
 
       {isPending && !data ? (
@@ -230,8 +239,8 @@ export function FixturesPage() {
         </div>
       ) : !data || data.periods.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No planning periods found.</p>
-          <p className="text-xs text-zinc-500">Create a season and planning period to get started.</p>
+          <p className="text-sm text-zinc-400">No phases found.</p>
+          <p className="text-xs text-zinc-500">Create a season and phase to get started.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
