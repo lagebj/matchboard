@@ -24,6 +24,7 @@ describe("updateMatchAction validation", () => {
       matchRoundId: "r1",
       matchRound: {
         id: "r1",
+        name: "W16 2026",
         planningPeriodId: "p1",
         planningPeriod: {
           id: "p1",
@@ -55,6 +56,7 @@ describe("updateMatchAction validation", () => {
       matchRoundId: "r1",
       matchRound: {
         id: "r1",
+        name: "W16 2026",
         planningPeriodId: "p1",
         planningPeriod: {
           id: "p1",
@@ -75,7 +77,7 @@ describe("updateMatchAction validation", () => {
     }
   });
 
-  it("allows date change within phase range", async () => {
+  it("allows same-week date change within phase range", async () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
@@ -86,6 +88,7 @@ describe("updateMatchAction validation", () => {
       matchRoundId: "r1",
       matchRound: {
         id: "r1",
+        name: "W16 2026",
         planningPeriodId: "p1",
         planningPeriod: {
           id: "p1",
@@ -98,22 +101,27 @@ describe("updateMatchAction validation", () => {
     vi.spyOn(db.match, "update").mockResolvedValue({ id: "m1" } as unknown as Awaited<ReturnType<typeof db.match.update>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
-    const result = await updateMatchAction("m1", "2026-04-20T15:00:00.000Z");
+    const result = await updateMatchAction("m1", "2026-04-16T15:00:00.000Z");
 
+    if (!result.success) {
+      throw new Error(`Unexpected failure: ${result.error}`);
+    }
     expect(result.success).toBe(true);
+    expect(result.movedRound).toBe(false);
   });
 
-  it("rejects target round from different phase", async () => {
+  it("rejects finalised selection on cross-round move", async () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
     vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
-      startsAt: new Date("2026-04-15T15:00:00Z"),
+      startsAt: new Date("2026-04-27T15:00:00Z"),
       matchRoundId: "r1",
       matchRound: {
         id: "r1",
+        name: "W17 2026",
         planningPeriodId: "p1",
         planningPeriod: {
           id: "p1",
@@ -123,18 +131,15 @@ describe("updateMatchAction validation", () => {
       },
     } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
-    vi.spyOn(db.matchRound, "findUnique").mockResolvedValue({
-      id: "r2",
-      planningPeriodId: "p2",
-    } as unknown as Awaited<ReturnType<typeof db.matchRound.findUnique>>);
+    vi.spyOn(db.selection, "findFirst").mockResolvedValue({ id: "s1" } as unknown as Awaited<ReturnType<typeof db.selection.findFirst>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
-    const result = await updateMatchAction("m1", "2026-04-20T15:00:00.000Z", "r2");
+    const result = await updateMatchAction("m1", "2026-05-11T15:00:00.000Z");
 
     if (result.success) {
-      expect.unreachable("Should have rejected cross-phase round");
+      expect.unreachable("Should have rejected finalised cross-round move");
     } else {
-      expect(result.error).toContain("same phase");
+      expect(result.error).toContain("finalised squad plan");
     }
   });
 });
