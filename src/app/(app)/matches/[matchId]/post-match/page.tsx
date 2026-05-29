@@ -186,10 +186,17 @@ export default async function PostMatchRoute({ params }: PageProps) {
     note: f.note,
   }));
 
-  const playerOptions = match.selections.map((s) => ({
-    id: s.playerId,
-    name: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
-  }));
+  const playerOptions = report
+    ? report.playerActuals
+        .filter((p) => p.attendanceStatus === "PRESENT")
+        .map((p) => ({
+          id: p.playerId,
+          name: `${p.player.firstName} ${p.player.lastName ?? ""}`.trim(),
+        }))
+    : match.selections.map((s) => ({
+        id: s.playerId,
+        name: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
+      }));
 
   const allPlayers = await db.player.findMany({
     where: { removedAt: null, active: true },
@@ -215,7 +222,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} />
+      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} />
       <ObservationSection
         matchId={matchId}
         existingObservation={existingObservation}

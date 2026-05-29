@@ -27,6 +27,7 @@ import {
   updatePlayerStats,
   submitMatchReport,
   lockMatchReport,
+  completeMatchReport,
   reopenMatchReport,
   updateMatchResult,
   addGoalToReport,
@@ -394,6 +395,108 @@ describe("Post-match report lifecycle", () => {
       const lockResult = await lockMatchReport(reportId);
       expect(lockResult.success).toBe(false);
       expect(lockResult.error).toContain("UNKNOWN attendance");
+
+      await cleanup();
+    });
+  });
+
+  describe("completeMatchReport", () => {
+    it("transitions DRAFT → LOCKED directly", async () => {
+      const matchId = fixture.matches.Bla!;
+      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+
+      await testDb.selection.create({
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+      });
+
+      const seedResult = await seedMatchReport(matchId);
+      expect(seedResult.success).toBe(true);
+      const reportId = seedResult.reportId!;
+
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId, attendanceStatus: "UNKNOWN" },
+        data: { attendanceStatus: "PRESENT" },
+      });
+
+      const completeResult = await completeMatchReport(reportId);
+      expect(completeResult.success).toBe(true);
+
+      const locked = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
+      expect(locked!.status).toBe("LOCKED");
+      expect(locked!.completedAt).not.toBeNull();
+      expect(locked!.completedBy).not.toBeNull();
+
+      await cleanup();
+    });
+
+    it("rejects when UNKNOWN attendance exists", async () => {
+      const matchId = fixture.matches.Bla!;
+      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+
+      await testDb.selection.create({
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+      });
+
+      const seedResult = await seedMatchReport(matchId);
+      const reportId = seedResult.reportId!;
+
+      const completeResult = await completeMatchReport(reportId);
+      expect(completeResult.success).toBe(false);
+      expect(completeResult.error).toContain("UNKNOWN attendance");
+
+      await cleanup();
+    });
+
+    it("transitions REPORTED → LOCKED", async () => {
+      const matchId = fixture.matches.Bla!;
+      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+
+      await testDb.selection.create({
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+      });
+
+      const seedResult = await seedMatchReport(matchId);
+      const reportId = seedResult.reportId!;
+
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId, attendanceStatus: "UNKNOWN" },
+        data: { attendanceStatus: "PRESENT" },
+      });
+
+      const submitResult = await submitMatchReport(reportId);
+      expect(submitResult.success).toBe(true);
+
+      const completeResult = await completeMatchReport(reportId);
+      expect(completeResult.success).toBe(true);
+
+      const locked = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
+      expect(locked!.status).toBe("LOCKED");
+
+      await cleanup();
+    });
+
+    it("rejects LOCKED report", async () => {
+      const matchId = fixture.matches.Bla!;
+      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+
+      await testDb.selection.create({
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+      });
+
+      const seedResult = await seedMatchReport(matchId);
+      const reportId = seedResult.reportId!;
+
+      await testDb.postMatchPlayerActual.updateMany({
+        where: { reportId, attendanceStatus: "UNKNOWN" },
+        data: { attendanceStatus: "PRESENT" },
+      });
+
+      await submitMatchReport(reportId);
+      await lockMatchReport(reportId);
+
+      const completeResult = await completeMatchReport(reportId);
+      expect(completeResult.success).toBe(false);
+      expect(completeResult.error).toContain("DRAFT or REPORTED");
 
       await cleanup();
     });

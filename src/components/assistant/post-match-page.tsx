@@ -16,6 +16,7 @@ import {
   removeActualPlayer,
   submitMatchReport,
   lockMatchReport,
+  completeMatchReport,
   reopenMatchReport,
   markPlannedAbsence,
   removePlannedAbsence,
@@ -46,7 +47,7 @@ function sourceLabel(source: string): string {
   return source === "PLANNED" ? "From plan" : "Added manually";
 }
 
-export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId: string; initialReport: ReportData | null; allPlayers: Array<{ id: string; name: string; teamName: string }> }) {
+export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalizedSelections }: { matchId: string; initialReport: ReportData | null; allPlayers: Array<{ id: string; name: string; teamName: string }>; hasFinalizedSelections?: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [homeGoals, setHomeGoals] = useState(initialReport?.homeGoals?.toString() ?? "");
@@ -73,6 +74,26 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
       const result = await seedMatchReport(matchId);
       if (result.success) router.refresh();
       else setError(result.error ?? "Failed to create report.");
+    });
+  };
+
+  const handleCreateEmpty = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await seedMatchReport(matchId);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to create report.");
+    });
+  };
+
+  const handleComplete = () => {
+    if (!report || report.status === "NOT_STARTED") return;
+    if (!confirm("Complete this post-match report? It will be locked and cannot be further edited.")) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await completeMatchReport(report.id);
+      if (result.success) router.refresh();
+      else setError(result.error ?? "Failed to complete report.");
     });
   };
 
@@ -240,15 +261,31 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
         </div>
         <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-5 py-6 text-center">
           <p className="text-sm text-zinc-300">No post-match report yet.</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Seed from planned selections to begin recording actuals.</p>
-          <button
-            className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 py-2 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition disabled:opacity-50"
-            disabled={isPending}
-            onClick={handleSeed}
-            type="button"
-          >
-            {isPending ? "Seeding..." : "Seed from plan"}
-          </button>
+          {hasFinalizedSelections ? (
+            <>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Seed from planned selections to begin recording actuals.</p>
+              <button
+                className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 py-2 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition disabled:opacity-50"
+                disabled={isPending}
+                onClick={handleSeed}
+                type="button"
+              >
+                {isPending ? "Creating..." : "Start after-match report"}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-[var(--text-muted)] mt-1">No finalised squad was available. Add the players who actually played.</p>
+              <button
+                className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 py-2 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition disabled:opacity-50"
+                disabled={isPending}
+                onClick={handleCreateEmpty}
+                type="button"
+              >
+                {isPending ? "Creating..." : "Start after-match report"}
+              </button>
+            </>
+          )}
         </div>
         {error && (
           <div className="rounded-lg border border-red-700/40 bg-red-900/15 px-4 py-2 text-sm text-red-300">{error}</div>
@@ -286,43 +323,62 @@ export function PostMatchPage({ matchId, initialReport, allPlayers }: { matchId:
         <div className="flex items-center gap-2 mt-3">
           {isDraft && (
             <button
-              className="rounded-lg border border-blue-700/40 bg-blue-900/20 px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-900/30 transition-colors disabled:opacity-50"
-              disabled={isPending}
-              onClick={handleSubmit}
-              type="button"
-            >
-              Submit report
-            </button>
-          )}
-          {isReported && (
-            <button
               className="rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
               disabled={isPending}
-              onClick={handleLock}
+              onClick={handleComplete}
               type="button"
             >
-              Lock report
+              Complete report
             </button>
+          )}
+          {(isDraft || isReported) && !isLocked && (
+            <details className="group relative">
+              <summary className="cursor-pointer rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-700/30 transition-colors list-none [&::-webkit-details-marker]:hidden">
+                More actions
+              </summary>
+              <div className="absolute left-0 top-full mt-1 z-10 flex flex-col gap-1 rounded-lg border border-zinc-700/60 bg-zinc-900 p-2 shadow-lg">
+                {isDraft && (
+                  <button
+                    className="rounded px-3 py-1 text-xs text-blue-300 hover:bg-zinc-800 text-left whitespace-nowrap"
+                    disabled={isPending}
+                    onClick={handleSubmit}
+                    type="button"
+                  >
+                    Submit (DRAFT → REPORTED)
+                  </button>
+                )}
+                {isReported && (
+                  <button
+                    className="rounded px-3 py-1 text-xs text-blue-300 hover:bg-zinc-800 text-left whitespace-nowrap"
+                    disabled={isPending}
+                    onClick={handleLock}
+                    type="button"
+                  >
+                    Lock (REPORTED → LOCKED)
+                  </button>
+                )}
+              </div>
+            </details>
           )}
           {isLocked && (
-            <button
-              className="rounded-lg border border-amber-700/40 bg-amber-900/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
-              disabled={isPending}
-              onClick={() => handleReopen("REPORTED")}
-              type="button"
-            >
-              Reopen (reported)
-            </button>
-          )}
-          {(isReported || isLocked) && (
-            <button
-              className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
-              disabled={isPending}
-              onClick={() => handleReopen("DRAFT")}
-              type="button"
-            >
-              Reopen as draft
-            </button>
+            <>
+              <button
+                className="rounded-lg border border-amber-700/40 bg-amber-900/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => handleReopen("DRAFT")}
+                type="button"
+              >
+                Reopen as draft
+              </button>
+              <button
+                className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+                disabled={isPending}
+                onClick={() => handleReopen("REPORTED")}
+                type="button"
+              >
+                Reopen (reported)
+              </button>
+            </>
           )}
         </div>
       </div>

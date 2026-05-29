@@ -557,6 +557,55 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
   }
 }
 
+export async function completeMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
+  await requireCoachAccess();
+
+  try {
+    const coach = await requireCoachAccess();
+
+    const report = await db.postMatchReport.findUnique({
+      where: { id: reportId },
+      include: { playerActuals: true },
+    });
+    if (!report) return { success: false, error: "Report not found." };
+    if (report.status !== "DRAFT" && report.status !== "REPORTED") {
+      return { success: false, error: "Only DRAFT or REPORTED reports can be completed." };
+    }
+
+    const unknownAttendance = report.playerActuals.filter(
+      (a) => a.attendanceStatus === "UNKNOWN",
+    );
+    if (unknownAttendance.length > 0) {
+      return {
+        success: false,
+        error: `Cannot complete report: ${unknownAttendance.length} player(s) have UNKNOWN attendance. Resolve all attendance before completing.`,
+      };
+    }
+
+    await db.postMatchReport.update({
+      where: { id: reportId },
+      data: {
+        status: "LOCKED",
+        completedBy: coach.email,
+        completedAt: new Date(),
+      },
+    });
+
+    revalidatePath(`/matches/${report.matchId}`);
+    revalidatePath(`/matches/${report.matchId}/post-match`);
+    revalidatePath("/rounds");
+    revalidatePath("/fixtures");
+    revalidatePath("/teams");
+    revalidatePath("/players");
+    revalidatePath("/assistant");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to complete report." };
+  }
+}
+
 export async function reopenMatchReport(
   reportId: string,
   targetStatus?: "DRAFT" | "REPORTED",
