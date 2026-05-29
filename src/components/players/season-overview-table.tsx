@@ -6,7 +6,6 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 
 type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
-  roundColumns: Array<{ id: string; name: string }>;
   planningPeriodLabel: string;
   teams: Array<{ id: string; name: string }>;
 };
@@ -36,7 +35,6 @@ type LoadFilter = "all" | "low_load" | "high_load";
 
 export function SeasonOverviewTable({
   rows,
-  roundColumns,
   planningPeriodLabel,
   teams,
 }: SeasonOverviewTableProps) {
@@ -135,21 +133,6 @@ export function SeasonOverviewTable({
 
   const numCell = (val: number) => val > 0 ? val : "—";
 
-  const roleBadge = (role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null, isDraft: boolean) => {
-    if (!role) return <span className="text-zinc-500">—</span>;
-    const base = "inline-block rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight";
-    const draftOpacity = isDraft ? " opacity-60" : "";
-    switch (role) {
-      case "CORE":
-        return <span className={`${base} bg-emerald-900/60 text-emerald-300${draftOpacity}`}>Core</span>;
-      case "SUPPORT":
-        return <span className={`${base} bg-amber-900/60 text-amber-300${draftOpacity}`}>Support</span>;
-      case "DEVELOPMENT":
-        return <span className={`${base} bg-sky-900/60 text-sky-300${draftOpacity}`}>Dev</span>;
-    }
-  };
-
-  const hasRoundColumns = roundColumns.length > 0;
 
   const renderSortHeader = (field: SortField, label: string) => (
     <th
