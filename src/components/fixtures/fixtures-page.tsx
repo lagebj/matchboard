@@ -62,6 +62,11 @@ function IntegritySummary({ blockerCount, decisionRequiredCount }: { blockerCoun
 }
 
 function MatchRow({ match }: { match: FixtureMatch }) {
+  const isCompleted = match.reportState.state === "COMPLETED";
+  const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
+  const now = new Date();
+  const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
       <div className="flex items-center gap-3 min-w-0">
@@ -70,20 +75,41 @@ function MatchRow({ match }: { match: FixtureMatch }) {
           <div className="flex items-center gap-2 text-[10px] text-zinc-500 mt-0.5">
             {match.venue && <span>{match.venue}</span>}
             {match.startsAt && <span>{new Date(match.startsAt).toLocaleDateString()}</span>}
-            {typeof match.selectedPlayerCount === "number" && match.selectedPlayerCount > 0 && (
+            {typeof match.selectedPlayerCount === "number" && match.selectedPlayerCount > 0 && !isCompleted && (
               <span>{match.selectedPlayerCount} selected</span>
             )}
           </div>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <SelectionStateBadge state={match.selectionState} />
-        <IntegritySummary blockerCount={match.blockerCount} decisionRequiredCount={match.decisionRequiredCount} />
+        {isCompleted && match.reportState.state === "COMPLETED" && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase">FT</span>
+            <span className="text-sm font-semibold text-zinc-100 tabular-nums">{match.reportState.result.displayScore}</span>
+            <span className={`text-xs font-semibold ${
+              match.reportState.result.outcome === "WON" ? "text-emerald-300" :
+              match.reportState.result.outcome === "DRAWN" ? "text-zinc-400" :
+              "text-red-300"
+            }`}>
+              {match.reportState.result.outcome === "WON" ? "Won" :
+               match.reportState.result.outcome === "DRAWN" ? "Drawn" : "Lost"}
+            </span>
+          </div>
+        )}
+        {isDraftReport && isPast && (
+          <span className="text-[10px] text-amber-300">Report incomplete</span>
+        )}
+        {!isCompleted && !isDraftReport && (
+          <>
+            <SelectionStateBadge state={match.selectionState} />
+            <IntegritySummary blockerCount={match.blockerCount} decisionRequiredCount={match.decisionRequiredCount} />
+          </>
+        )}
         <Link
           href={`/matches/${match.id}`}
           className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
         >
-          Open
+          {isCompleted ? "View report" : isDraftReport && isPast ? "Complete report" : "Open"}
         </Link>
       </div>
     </div>
@@ -141,8 +167,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">{period.title}</h2>
-          {period.dateRange && <span className="text-xs text-zinc-500">{period.dateRange}</span>}
+          <h2 className="text-base font-semibold text-zinc-100">{period.dateRange || period.title}</h2>
           <div className="flex items-center gap-2 mt-1">
             {statusCounts.notGenerated > 0 && <span className="text-[10px] text-zinc-500">{statusCounts.notGenerated} not generated</span>}
             {statusCounts.draft > 0 && <span className="text-[10px] text-amber-300">{statusCounts.draft} draft</span>}

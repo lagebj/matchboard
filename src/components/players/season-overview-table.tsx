@@ -7,15 +7,7 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
   roundColumns: Array<{ id: string; name: string }>;
-  movementPaths: Array<{ sourceTeamId: string; sourceTeamName: string; targetTeamId: string; targetTeamName: string; role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null; count: number; uniquePlayerCount: number; lastRoundName: string | null; playerNames: string[] }>;
-  fairnessWarnings: Array<{ type: string; playerId: string; playerName: string; teamId: string | null; teamName: string | null; reason: string; data: Record<string, number | string | null> }>;
   planningPeriodLabel: string;
-  reportedMatchCount: number;
-  totalActualAppearances: number;
-  totalMatchdayAdditions: number;
-  totalRounds: number;
-  finalisedRounds: number;
-  draftRounds: number;
   teams: Array<{ id: string; name: string }>;
 };
 
@@ -45,15 +37,7 @@ type LoadFilter = "all" | "low_load" | "high_load";
 export function SeasonOverviewTable({
   rows,
   roundColumns,
-  movementPaths,
-  fairnessWarnings,
   planningPeriodLabel,
-  reportedMatchCount,
-  totalActualAppearances,
-  totalMatchdayAdditions,
-  totalRounds,
-  finalisedRounds,
-  draftRounds,
   teams,
 }: SeasonOverviewTableProps) {
   const [sortField, setSortField] = useState<SortField>("actualAppearances");
@@ -64,9 +48,7 @@ export function SeasonOverviewTable({
   const [loadFilter, setLoadFilter] = useState<LoadFilter>("all");
   const [search, setSearch] = useState("");
   const [includeDrafts, setIncludeDrafts] = useState(false);
-  const [viewMode, setViewMode] = useState<"matrix" | "paths">("matrix");
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
-  const [expandedPath, setExpandedPath] = useState<string | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -151,25 +133,6 @@ export function SeasonOverviewTable({
     });
   }, [rows, search, teamFilter, movementFilter, attendanceFilter, loadFilter, includeDrafts, sortField, sortDir]);
 
-  const playersWithSignals = rows.filter((r) => r.draftSelections > 0 || r.squadRepairAppearances > 0).length;
-  const highestSupportBurden = rows.reduce((max, r) => Math.max(max, r.supportAppearances), 0);
-
-  const renderSortHeader = (field: SortField, label: string) => (
-    <th
-      key={field}
-      className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] cursor-pointer hover:text-zinc-300 select-none"
-      onClick={() => handleSort(field)}
-      aria-sort={sortField === field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {sortField === field && (
-          <span className="text-[8px]">{sortDir === "asc" ? "↑" : "↓"}</span>
-        )}
-      </span>
-    </th>
-  );
-
   const numCell = (val: number) => val > 0 ? val : "—";
 
   const roleBadge = (role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null, isDraft: boolean) => {
@@ -188,6 +151,22 @@ export function SeasonOverviewTable({
 
   const hasRoundColumns = roundColumns.length > 0;
 
+  const renderSortHeader = (field: SortField, label: string) => (
+    <th
+      key={field}
+      className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] cursor-pointer hover:text-zinc-300 select-none"
+      onClick={() => handleSort(field)}
+      aria-sort={sortField === field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortField === field && (
+          <span className="text-[8px]">{sortDir === "asc" ? "↑" : "↓"}</span>
+        )}
+      </span>
+    </th>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-zinc-500">
@@ -195,69 +174,6 @@ export function SeasonOverviewTable({
         <span className="font-medium text-zinc-400">{planningPeriodLabel}</span>.
         Played, goals and assists use reported match participation. Finalised upcoming matches remain separate until match reporting is completed.
       </p>
-
-      <div className="flex items-center gap-2 text-xs text-zinc-400">
-        <span>{rows.length} player{rows.length !== 1 ? "s" : ""}</span>
-        <span className="text-zinc-600">·</span>
-        <span>{reportedMatchCount} match{reportedMatchCount !== 1 ? "es" : ""} reported</span>
-        <span className="text-zinc-600">·</span>
-        <span>{totalActualAppearances} appearance{totalActualAppearances !== 1 ? "s" : ""} recorded</span>
-        {totalMatchdayAdditions > 0 && (
-          <>
-            <span className="text-zinc-600">·</span>
-            <span>{totalMatchdayAdditions} matchday addition{totalMatchdayAdditions !== 1 ? "s" : ""}</span>
-          </>
-        )}
-        <span className="text-zinc-600">·</span>
-        <span>{finalisedRounds}/{totalRounds} rounds finalised{draftRounds > 0 ? ` (${draftRounds} draft)` : ""}</span>
-        {playersWithSignals > 0 && (
-          <>
-            <span className="text-zinc-600">·</span>
-            <span>{playersWithSignals} player{playersWithSignals !== 1 ? "s" : ""} with draft or squad repair</span>
-          </>
-        )}
-        {highestSupportBurden > 0 && (
-          <>
-            <span className="text-zinc-600">·</span>
-            <span>highest support: {highestSupportBurden}</span>
-          </>
-        )}
-        {fairnessWarnings.length > 0 && (
-          <>
-            <span className="text-zinc-600">·</span>
-            <span>{fairnessWarnings.length} fairness signal{fairnessWarnings.length !== 1 ? "s" : ""}</span>
-          </>
-        )}
-      </div>
-
-      {fairnessWarnings.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-1">
-          {fairnessWarnings.map((w, i) => (
-            <div key={`${w.type}-${w.playerId || w.teamId}-${i}`} className="flex items-start gap-2 text-xs">
-              <span className={`shrink-0 mt-0.5 inline-block rounded px-1.5 py-0.5 text-[9px] font-medium uppercase ${
-                w.type === "disproportionate_support_source" || w.type === "expected_support_path_unused"
-                  ? "bg-amber-900/50 text-amber-300"
-                  : w.type === "dropped_before_playing_again"
-                    ? "bg-red-900/50 text-red-300"
-                    : "bg-zinc-800 text-zinc-400"
-              }`}>
-                {w.type === "high_support_burden" ? "Support" :
-                 w.type === "low_development_exposure" ? "Dev exposure" :
-                 w.type === "repeated_additional_appearances" ? "Additional load" :
-                 w.type === "dropped_before_playing_again" ? "Dropped" :
-                 w.type === "consecutive_movement" ? "Movement" :
-                 w.type === "disproportionate_support_source" ? "Support source" :
-                 w.type === "expected_support_path_unused" ? "Unused path" : w.type}
-              </span>
-              <span className="text-zinc-300">
-                {w.playerName ? <>{w.playerName}{w.teamName ? ` (${w.teamName})` : ""}</> : w.teamName ?? ""}
-                {" — "}
-                {w.reason}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -325,89 +241,7 @@ export function SeasonOverviewTable({
         </label>
       </div>
 
-      <div className="flex gap-1">
-        <button
-          onClick={() => setViewMode("matrix")}
-          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${viewMode === "matrix" ? "bg-[var(--accent-strong)] text-white" : "bg-[var(--surface-muted)] text-zinc-400 hover:text-zinc-200"}`}
-        >
-          Player matrix
-        </button>
-        <button
-          onClick={() => setViewMode("paths")}
-          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${viewMode === "paths" ? "bg-[var(--accent-strong)] text-white" : "bg-[var(--surface-muted)] text-zinc-400 hover:text-zinc-200"}`}
-        >
-          Movement paths
-        </button>
-      </div>
-
-      {viewMode === "paths" ? (
-        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">From</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">To</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Role</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Movements</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Unique players</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Last used</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-soft)]">
-                {movementPaths.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-zinc-500">
-                      No movement recorded in this planning period.
-                    </td>
-                  </tr>
-                ) : (
-                  movementPaths.map((mp, i) => {
-                    const pathKey = `${mp.sourceTeamId}-${mp.targetTeamId}-${mp.role}-${i}`;
-                    return (
-                      <Fragment key={pathKey}>
-                        <tr
-                          className="hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
-                          onClick={() => setExpandedPath(expandedPath === pathKey ? null : pathKey)}
-                        >
-                          <td className="px-4 py-2">
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-[10px] text-zinc-600">{expandedPath === pathKey ? "▾" : "▸"}</span>
-                              <Link href={`/teams/${mp.sourceTeamId}`} className="text-zinc-300 hover:text-zinc-100" onClick={(e) => e.stopPropagation()}>
-                                {mp.sourceTeamName}
-                              </Link>
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <Link href={`/teams/${mp.targetTeamId}`} className="text-zinc-300 hover:text-zinc-100" onClick={(e) => e.stopPropagation()}>
-                              {mp.targetTeamName}
-                            </Link>
-                          </td>
-                          <td className="px-3 py-2">
-                            {mp.role === "SUPPORT" && <span className="inline-block rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">Support</span>}
-                            {mp.role === "DEVELOPMENT" && <span className="inline-block rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">Dev</span>}
-                          </td>
-                          <td className="px-3 py-2 text-right text-zinc-200 tabular-nums">{mp.count}</td>
-                          <td className="px-3 py-2 text-right text-zinc-300 tabular-nums">{mp.uniquePlayerCount}</td>
-                          <td className="px-3 py-2 text-zinc-400">{mp.lastRoundName || "—"}</td>
-                        </tr>
-                        {expandedPath === pathKey && (
-                          <tr className="bg-zinc-900/40">
-                            <td colSpan={6} className="px-4 py-2 text-xs text-zinc-400">
-                              Players: {mp.playerNames.join(", ")}
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
@@ -541,7 +375,6 @@ export function SeasonOverviewTable({
             </tbody>
           </table>
         </div>
-      )}
     </div>
   );
 }
