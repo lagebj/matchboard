@@ -19,8 +19,23 @@ For product, workflow, UX, navigation, selection, fixtures, teams, players, matc
 3. Create a feature or chore branch.
 4. Read AGENTS.md.
 5. Read relevant docs.
+6. Read active ADRs in `docs/adr/` that may govern the planned change.
 
 ## Before implementation
+
+### ADR gate (mandatory)
+
+Before any code change that is design-affecting or architecture-affecting (see AGENTS.md "Architecture-affecting includes" list), the agent must:
+
+1. Classify the work: implementation-only, design-affecting, or architecture-affecting.
+2. If design-affecting or architecture-affecting: check `docs/adr/` for existing active ADRs.
+3. If no active ADR governs the change: create a new ADR before writing code.
+4. If the change conflicts with an active ADR: create a superseding ADR before writing code.
+5. Cite the ADR id in commit bodies and PR description.
+
+Do not start implementation of architecture-affecting work without a governing ADR.
+
+### Documentation-first
 
 Update supporting documentation first when changing:
 
