@@ -861,7 +861,7 @@ Round selection (`/rounds`) remains workflow-first. It uses cards, boards, panel
 
 `/players` has three internal modes using accessible tabs or segmented navigation:
 
-1. **Season overview** (default) — actual participation, recorded match statistics, and movement distribution for a selected planning period. Scoped to a visible `Planning period: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances.
+1. **Season overview** (default) — factual player matrix with actual participation, recorded match statistics, and per-round assignments for a selected planning period. Scoped to a visible `Planning period: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances. The Season overview does not render a summary-statistics panel, summary strip, or Movement paths overview. Factual columns, sorting and explicit filters replace automatic fairness judgement panels or badges.
 
 2. **Current round attention** — canonical live plan-integrity state for a selected round. Scoped to a visible `Round: {label}`. Uses `computeRoundPlanIntegrity` output only. Does not derive attention from season statistics, goals, assists, or historical movement counts.
 
@@ -899,10 +899,32 @@ Contradictory SeasonFlag logic:
 - `high_support_burden` triggered by `supportCount > coreCount` with zero core appearances does not necessarily indicate problematic support burden. This flag logic must not be surfaced as an automatic negative badge.
 - For this branch, prefer factual columns, sorting, and explicit filters over automatic seasonal judgement badges.
 
+Players overview display rules:
+
+- /players Season overview is a factual player matrix and must not render a summary-statistics panel or Movement paths overview.
+- /players must not render automated fairness judgement badges. Factual metrics and explicit filters/sorts are allowed.
+- Visible planning-period labels are derived from startDate and endDate; stored names must not misstate visible time scope.
+
 ### Teams page and team detail
 
-The `/teams` page is a table-first registry. It links each team to its detail page.
-It must not become a catch-all dashboard or show squad rosters inline.
+The `/teams` page is a selected-planning-period completed-results overview. It must not present configuration-first columns.
+
+Required copy: `Teams` heading with subtitle `Results and match record for {planningPeriodRange}.`
+
+Required selector: `Planning period: {planningPeriodRange}`
+
+Teams overview required columns (desktop, in order): Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players.
+
+Team result statistics use completed post-match final scores only:
+- Final team result derives from `PostMatchReport.homeGoals` and `PostMatchReport.awayGoals` in REPORTED or LOCKED reports.
+- Team GF/GA must not be derived from player Goal events.
+- DRAFT post-match reports do not become completed result statistics.
+- Display-only team statistics must be derived rather than stored unless a later measured performance need justifies persistence.
+- Positive GD must show a plus sign.
+
+Team rules, squad limits, support priority and rotation paths belong in team detail/configuration workflows, not in the main overview table.
+
+Teams overview must not show these overview columns: Available, Squad limits, Support priority, Rotation paths.
 
 `/teams/[teamId]` is the primary team workspace. It answers:
 - Who belongs to this team
@@ -939,6 +961,15 @@ Status vocabulary: The app uses exactly these visible status labels: Not generat
 Warning and signal hierarchy: Blocked conditions must be visually dominant and placed beside the affected round or match. Decision required conditions must be visible without opening hidden technical detail. Planning notes may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
 
 User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
+
+Fixtures result display rules:
+- /fixtures shows completed final score and W/D/L outcome directly in fixture rows/cards.
+- A DRAFT post-match report is incomplete work and never a final displayed result.
+- Final score and outcome are shown for REPORTED and LOCKED post-match reports only.
+- Completed fixtures show FT marker, final score, and Won/Drawn/Lost outcome from the Matchboard team's perspective.
+- Past matches with DRAFT reports show "Report incomplete" with an action to complete the report rather than a draft score.
+- Future matches without completed reports retain planning-state presentation with no result placeholders.
+- Planning state (Not generated, Draft, Blocked, Ready, Finalized) and result state are not confused. "Finalized" does not mean the match has been played or reported.
 
 ### Auth layout rules
 

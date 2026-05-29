@@ -26,9 +26,9 @@ The central operating flow is: `Assistant → Fixtures → Round Board → Match
 The canonical primary navigation is: Assistant, Fixtures, Teams, Players.
 
 - Assistant (`/assistant`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows.
-- Fixtures (`/fixtures`) provides the planning-period and round hierarchy.
+- Fixtures (`/fixtures`) provides the planning-period and round hierarchy. Completed match results are shown directly in fixture rows.
 - Round Board is the primary squad decision surface.
-- Teams provides team registry and team detail workspaces.
+- Teams provides selected-planning-period team results and team detail workspaces. Team rules remain in team detail.
 - Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
 - Season, History and Rules are secondary analysis/configuration destinations.
 
@@ -38,7 +38,7 @@ The Players page is the coach-facing overview for participation statistics, curr
 
 ### Three modes
 
-- **Season overview** (default): actual participation and recorded match statistics for a selected planning period. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
+- **Season overview** (default): factual player matrix with actual participation and recorded match statistics for a selected planning period. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
 - **Current round attention**: canonical live plan-integrity state for a selected round. Uses `computeRoundPlanIntegrity` only. Does not derive attention from goals, assists, or historical movement.
 - **Manage base groups**: stable core-team assignment and player registry administration. Separate from weekly match selection and seasonal review.
 
@@ -53,11 +53,26 @@ Covered, Decision required (available eligible without planned match opportunity
 ### Product boundaries
 
 - No overall fairness score, player ranking, or hidden automatic player judgement.
+- Season overview does not render a summary panel, Movement paths section, or automatic fairness badges.
 - No stat-driven squad selection.
 - Matchday additions are factual context, not warnings.
 - Actual additional appearances are factual load context, not current attention states.
 - Base-group management is separate from match planning and seasonal review.
 - Coach-facing only. Not included in parent-facing exports.
+
+## Planning periods
+
+Planning-period display labels are derived from `startDate` and `endDate`, not from stored names. A period spanning April to June 2026 shows as "April–June 2026", not just "April 2026". Cross-year periods show both years (e.g. "December 2026–February 2027").
+
+## Teams overview
+
+The Teams page shows selected-planning-period completed match results. Required columns: Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players. Team rules, squad limits, support priority and rotation paths remain in team detail (`/teams/[teamId]`).
+
+Team result statistics derive from completed post-match reports only (REPORTED or LOCKED). DRAFT reports do not count as results. Team GF/GA derives from PostMatchReport score values, not from player Goal events.
+
+## Fixtures results
+
+Fixtures show completed final score and W/D/L outcome directly in fixture rows/cards. A DRAFT post-match report is incomplete work and never a final result. Past matches with DRAFT reports show "Report incomplete" rather than a draft score.
 
 The interface prioritises actionable football decisions over configuration exposure.
 

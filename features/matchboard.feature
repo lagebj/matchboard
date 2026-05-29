@@ -4766,6 +4766,131 @@ Feature: Matchboard football operations workspace
     Then unregistered goals must not be attributed to any player
     And the recorded final result remains valid
 
+  Rule: Players season overview is a factual player matrix
+
+    The default Players season overview is centred on the player matrix and factual per-player and per-round data.
+
+    Summary cards and movement-path aggregation are not part of the default Players season overview.
+
+    Player overview must not render automatic fairness judgement badges or warning panels.
+
+  Scenario: Season overview renders player matrix without summary panel
+    Given the coach opens "/players" in "Season overview" mode
+    And a selected planning period exists
+    Then the player matrix must be visible
+    And the page must not render a summary-statistics card or summary strip above the matrix
+    And the page must not render a "Movement paths" overview section
+
+  Scenario: Season overview retains factual player comparison
+    Given reported or locked match facts exist in the selected planning period
+    When the coach views Season overview
+    Then factual player data required by the matrix must remain visible
+    And factual filtering and sorting must remain usable
+    And no automatic fairness judgement must be shown
+
+  Rule: Planning periods are displayed using their actual date range
+
+    The visible planning-period label is derived from startDate and endDate.
+
+    Stored planning-period names must not misrepresent the visible time scope.
+
+  Scenario: Multi-month spring planning period displays its full range
+    Given a planning period starts in April 2026
+    And it ends in June 2026
+    When the planning period is shown in a selector or page heading
+    Then its visible label must be "April–June 2026"
+    And it must not be displayed solely as "April 2026"
+
+  Scenario: Multi-month autumn planning period displays its full range
+    Given a planning period starts in August 2026
+    And it ends in October 2026
+    When the planning period is shown
+    Then its visible label must be "August–October 2026"
+
+  Scenario: Cross-year planning period displays both years
+    Given a planning period starts in December 2026
+    And it ends in February 2027
+    When the planning period is shown
+    Then its visible label must be "December 2026–February 2027"
+
+  Scenario: Single-month planning period displays month and year
+    Given a planning period starts in April 2026
+    And it ends in April 2026
+    When the planning period is shown
+    Then its visible label must be "April 2026"
+
+  Rule: Teams overview presents selected-period team results
+
+    The default Teams page is a factual team-results overview for the selected planning period.
+
+    Team configuration and rules remain available in team detail instead of dominating the main overview.
+
+  Scenario: Teams overview is scoped to selected planning period
+    Given a planning period exists
+    When the coach opens "/teams"
+    Then the page must show a planning-period selector using the derived date-range label
+    And the page must state that results are scoped to the selected planning period
+
+  Scenario: Teams overview shows completed-result statistics
+    Given teams have REPORTED or LOCKED post-match reports in the selected planning period
+    When the coach views "/teams"
+    Then the default table must show these columns in order:
+      | Team |
+      | Played |
+      | W-D-L |
+      | GF |
+      | GA |
+      | GD |
+      | Clean sheets |
+      | Core players |
+    And each result statistic must use only completed post-match results
+
+  Scenario: Draft reports do not affect team result statistics
+    Given a match has a DRAFT post-match report
+    When team statistics are calculated
+    Then that report must not increase Played
+    And it must not affect W-D-L, GF, GA, GD or Clean sheets
+
+  Scenario: Teams overview does not present rules as primary statistics
+    Given the coach views "/teams"
+    Then the main overview table must not show:
+      | Available |
+      | Squad limits |
+      | Support priority |
+      | Rotation paths |
+    And team detail must remain available for rules and configuration
+
+  Rule: Fixtures show completed results in the match list
+
+    Fixtures display final results immediately when a completed post-match report exists.
+
+    An incomplete draft report is displayed as incomplete reporting work, not as a final result.
+
+  Scenario: Reported fixture displays final result
+    Given match "M1" has a REPORTED post-match report with final score
+    When the coach views "/fixtures"
+    Then the fixture row or card for "M1" must show the final score
+    And it must show the outcome from the Matchboard team's perspective as "Won", "Drawn" or "Lost"
+    And it must provide access to the match or report details
+
+  Scenario: Locked fixture displays final result
+    Given match "M1" has a LOCKED post-match report with final score
+    When the coach views "/fixtures"
+    Then the fixture row or card for "M1" must show the final score as completed history
+
+  Scenario: Draft report is not displayed as a final result
+    Given match "M1" has a DRAFT post-match report
+    When the coach views "/fixtures"
+    Then the fixture must not show the draft score as a final result
+    And when the match is in the past it may show "Report incomplete" with an action to complete the report
+
+  Scenario: Upcoming fixture remains planning-oriented
+    Given match "M1" has no completed post-match report
+    And the match is in the future
+    When the coach views "/fixtures"
+    Then its planning status must remain visible
+    And no final result must be shown
+
   Rule: Planned player outcome must be resolved before reporting
 
     Every player in a finalised planned squad must be confirmed as played or recorded as not having played with a structured reason before a report can become REPORTED or LOCKED.
