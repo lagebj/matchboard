@@ -31,7 +31,7 @@ function toTimeInputValue(date: Date): string {
 export function MatchEditForm({
   matchId,
   startsAt,
-  matchRoundId,
+  matchRoundId: _matchRoundId,
   matchRoundName,
   phaseStartDate,
   phaseEndDate,

@@ -66,9 +66,18 @@ function MatchRow({ match }: { match: FixtureMatch }) {
   const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
   const now = new Date();
   const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
+  const outcome = isCompleted && match.reportState.state === "COMPLETED" ? match.reportState.result.outcome : null;
+
+  const rowBgClass = outcome === "WON"
+    ? "bg-emerald-950/30 border-emerald-900/30"
+    : outcome === "DRAWN"
+    ? "bg-zinc-800/30 border-zinc-700/30"
+    : outcome === "LOST"
+    ? "bg-red-950/30 border-red-900/30"
+    : "bg-[var(--surface-base)] border-[var(--border-soft)]";
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+    <div className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors ${rowBgClass}`}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex flex-col min-w-0">
           <span className="text-sm text-zinc-200 truncate">{match.title}</span>
@@ -87,12 +96,12 @@ function MatchRow({ match }: { match: FixtureMatch }) {
             <span className="text-[10px] font-semibold text-zinc-500 uppercase">FT</span>
             <span className="text-sm font-semibold text-zinc-100 tabular-nums">{match.reportState.result.displayScore}</span>
             <span className={`text-xs font-semibold ${
-              match.reportState.result.outcome === "WON" ? "text-emerald-300" :
-              match.reportState.result.outcome === "DRAWN" ? "text-zinc-400" :
+              outcome === "WON" ? "text-emerald-300" :
+              outcome === "DRAWN" ? "text-zinc-400" :
               "text-red-300"
             }`}>
-              {match.reportState.result.outcome === "WON" ? "Won" :
-               match.reportState.result.outcome === "DRAWN" ? "Drawn" : "Lost"}
+              {outcome === "WON" ? "Won" :
+               outcome === "DRAWN" ? "Drawn" : "Lost"}
             </span>
           </div>
         )}

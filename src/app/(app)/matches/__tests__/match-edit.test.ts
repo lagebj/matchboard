@@ -17,7 +17,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as any);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -31,8 +31,8 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as any);
-    vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue({ id: "pm1", status: "LOCKED" } as any);
+    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue({ id: "pm1", status: "LOCKED" } as unknown as Awaited<ReturnType<typeof db.postMatchReport.findFirst>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
     const result = await updateMatchAction("m1", "2026-04-20T15:00:00.000Z");
@@ -48,7 +48,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as any);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -62,7 +62,7 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
@@ -79,7 +79,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as any);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -93,9 +93,9 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
-    vi.spyOn(db.match, "update").mockResolvedValue({ id: "m1" } as any);
+    vi.spyOn(db.match, "update").mockResolvedValue({ id: "m1" } as unknown as Awaited<ReturnType<typeof db.match.update>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
     const result = await updateMatchAction("m1", "2026-04-20T15:00:00.000Z");
@@ -107,7 +107,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as any);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -121,12 +121,12 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
     vi.spyOn(db.matchRound, "findUnique").mockResolvedValue({
       id: "r2",
       planningPeriodId: "p2",
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof db.matchRound.findUnique>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
     const result = await updateMatchAction("m1", "2026-04-20T15:00:00.000Z", "r2");
