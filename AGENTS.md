@@ -861,13 +861,13 @@ Round selection (`/rounds`) remains workflow-first. It uses cards, boards, panel
 
 `/players` has three internal modes using accessible tabs or segmented navigation:
 
-1. **Season overview** (default) — factual player matrix with actual participation, recorded match statistics, and per-round assignments for a selected planning period. Scoped to a visible `Planning period: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances. The Season overview does not render a summary-statistics panel, summary strip, or Movement paths overview. Factual columns, sorting and explicit filters replace automatic fairness judgement panels or badges.
+1. **Season overview** (default) — factual player matrix with actual participation, recorded match statistics, and per-round assignments for a selected phase. Scoped to a visible `Phase: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances. The Season overview does not render a summary-statistics panel, summary strip, or Movement paths overview. Factual columns, sorting and explicit filters replace automatic fairness judgement panels or badges.
 
 2. **Current round attention** — canonical live plan-integrity state for a selected round. Scoped to a visible `Round: {label}`. Uses `computeRoundPlanIntegrity` output only. Does not derive attention from season statistics, goals, assists, or historical movement counts.
 
 3. **Manage base groups** — stable core-team assignment and player registry administration. This mode is for team belonging, not weekly match selection, seasonal fairness review, or reported participation analysis. Display: "Base groups define stable team belonging. Match selections and movement are planned in rounds."
 
-Season overview required columns (desktop): Player, Core team, Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent, Review.
+Season overview required columns (desktop): Player, Core team, Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent.
 
 Current round attention required columns (desktop): Player, Core team, Availability, Planned opportunity, Role, State, Action.
 
@@ -903,7 +903,11 @@ Players overview display rules:
 
 - /players Season overview is a factual player matrix and must not render a summary-statistics panel or Movement paths overview.
 - /players must not render automated fairness judgement badges. Factual metrics and explicit filters/sorts are allowed.
-- Visible planning-period labels are derived from startDate and endDate; stored names must not misstate visible time scope.
+- Visible phase labels are derived from startDate and endDate; stored names must not misstate visible time scope.
+- The default Season overview table must not show round columns (W18 2026 etc.), Last movement, Review, dropped count/status, or a separate Profile button column.
+- Player name must be a focusable link to the full player profile.
+- User-facing vocabulary uses Phase (not Planning period) for the bounded spring/autumn operational window.
+- User-facing vocabulary uses Season for the broad football-year context.
 
 ### Teams page and team detail
 
@@ -911,7 +915,7 @@ The `/teams` page is a selected-planning-period completed-results overview. It m
 
 Required copy: `Teams` heading with subtitle `Results and match record for {planningPeriodRange}.`
 
-Required selector: `Planning period: {planningPeriodRange}`
+Required selector: `Phase: {phaseLabel}`
 
 Teams overview required columns (desktop, in order): Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players.
 
@@ -960,16 +964,66 @@ Status vocabulary: The app uses exactly these visible status labels: Not generat
 
 Warning and signal hierarchy: Blocked conditions must be visually dominant and placed beside the affected round or match. Decision required conditions must be visible without opening hidden technical detail. Planning notes may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
 
-User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
+User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team), Phase (not Planning period in user-facing text), Season (for the broad football-year context). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
+
+Season and Phase vocabulary:
+
+- Season is the full football-year context. Phase is the bounded spring/autumn operational window (internally a PlanningPeriod).
+- User-facing text must use "Phase" and "Season", never "Planning period".
+- A Phase display must include truthful date-range context (e.g. "Spring 2026 · Apr–Jun") and must not expose misleading single-month labels for multi-month ranges.
+- PlanningPeriod remains the internal model. The database model is not renamed.
+
+Match schedule editing:
+
+- Unplayed matches (no REPORTED or LOCKED post-match report) can have their date and time edited.
+- Date changes must remain within the current Phase's date range. Outside-phase changes require moving the match to a different phase first.
+- Cross-round date changes require explicit destination-round confirmation. The app must never silently change round membership.
+- Existing planned selections must be preserved. Live integrity signals must be recalculated.
+- A match with a completed post-match report cannot be casually rescheduled. Date correction requires an explicit authorised workflow.
+- After a schedule change, revalidate /fixtures, /matches/{matchId}, affected round board, /assistant, and /teams.
+
+Direct post-match workflow:
+
+- "After match" is a direct reporting workflow. Selecting it must open or create the working report directly.
+- When no report exists and a finalised squad exists, the first explicit entry creates a DRAFT report seeded from the planned squad automatically. No separate "Open post-match report" or "Seed from plan" step is required.
+- When no report exists and no finalised squad exists, the first entry opens an empty editable report with a contextual note.
+- Existing draft reports open directly. Existing completed reports open directly in read-only mode.
+- Normal post-match completion uses one visible "Complete report" action, not separate Submit plus Lock steps.
+- "Complete report" validates all required inputs and transitions the report to the final completed state (LOCKED).
+- The REPORTED status remains in the schema for backward compatibility but is not a routine user-facing workflow step.
+- Legacy completed records (REPORTED, LOCKED) remain included in statistics and results.
+
+Post-match feedback eligibility:
+
+- Post-match feedback player selection must be derived from actual participants with attendanceStatus = PRESENT, not from the planned squad.
+- Manually added matchday participants who are PRESENT must appear in the feedback selector.
+- Players recorded as "Did not play", removed from actual participation, or with UNKNOWN attendance must not appear.
+- When a coach removes a player from actual participation who has draft feedback, the app must either require confirmation or remove the feedback transactionally. Feedback must not remain attached to a non-participant.
+
+Fixture result styling:
+
+- Completed fixtures may use soft colour treatment to support rapid scanning: soft green for Won, soft neutral/slate for Drawn, soft red for Lost.
+- Outcome text ("Won", "Drawn", "Lost") must always be visible. Colour is secondary reinforcement only, never the sole signal.
+- No styling must be applied to upcoming matches, DRAFT reports, or report-incomplete tasks.
+- Use existing design tokens or conventional Tailwind semantic classes. Avoid saturated colours.
+
+Navigation shell branding:
+
+- The navigation shell shows a compact football-oriented Matchboard identity mark in the top-left.
+- Mark uses a local SVG or existing icon library, never remote assets or unlicensed imagery.
+- Decorative icons use aria-hidden="true" when accompanying visible text.
+- "Matchboard" and "Squad planning" text remain as the accessible product labels.
 
 Fixtures result display rules:
 - /fixtures shows completed final score and W/D/L outcome directly in fixture rows/cards.
 - A DRAFT post-match report is incomplete work and never a final displayed result.
 - Final score and outcome are shown for REPORTED and LOCKED post-match reports only.
 - Completed fixtures show FT marker, final score, and Won/Drawn/Lost outcome from the Matchboard team's perspective.
+- Completed Won fixtures may use soft green visual treatment. Completed Drawn fixtures may use soft neutral/slate treatment. Completed Lost fixtures may use soft red treatment. Outcome text must remain visible. Colour is secondary reinforcement only.
 - Past matches with DRAFT reports show "Report incomplete" with an action to complete the report rather than a draft score.
 - Future matches without completed reports retain planning-state presentation with no result placeholders.
 - Planning state (Not generated, Draft, Blocked, Ready, Finalized) and result state are not confused. "Finalized" does not mean the match has been played or reported.
+- No outcome styling must be applied to upcoming matches, DRAFT reports, or report-incomplete tasks.
 
 ### Auth layout rules
 

@@ -38,13 +38,13 @@ The Players page is the coach-facing overview for participation statistics, curr
 
 ### Three modes
 
-- **Season overview** (default): factual player matrix with actual participation and recorded match statistics for a selected planning period. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
+- **Season overview** (default): factual player matrix with actual participation and recorded match statistics for a selected phase. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
 - **Current round attention**: canonical live plan-integrity state for a selected round. Uses `computeRoundPlanIntegrity` only. Does not derive attention from goals, assists, or historical movement.
 - **Manage base groups**: stable core-team assignment and player registry administration. Separate from weekly match selection and seasonal review.
 
 ### Season overview metrics
 
-Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent. All scoped to the selected planning period. Goals and assists are factual statistics only — they do not affect selection generation or fairness.
+Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent. All scoped to the selected phase. Goals and assists are factual statistics only — they do not affect selection generation or fairness.
 
 ### Current round attention states
 
@@ -62,17 +62,33 @@ Covered, Decision required (available eligible without planned match opportunity
 
 ## Planning periods
 
-Planning-period display labels are derived from `startDate` and `endDate`, not from stored names. A period spanning April to June 2026 shows as "April–June 2026", not just "April 2026". Cross-year periods show both years (e.g. "December 2026–February 2027").
+Season is the full football-year context. Phase is the bounded spring/autumn operational window (internally a PlanningPeriod).
+
+User-facing text uses "Phase" and "Season", never "Planning period". Phase display labels are derived from `startDate` and `endDate`, not from stored names. A spring phase spanning April to June 2026 shows as "Spring 2026 · Apr–Jun". An autumn phase spanning August to October 2026 shows as "Autumn 2026 · Aug–Oct". A misleading stored name like "April 2026" for a multi-month scope is never shown alone — the visible label must communicate the actual date range.
 
 ## Teams overview
 
-The Teams page shows selected-planning-period completed match results. Required columns: Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players. Team rules, squad limits, support priority and rotation paths remain in team detail (`/teams/[teamId]`).
+The Teams page shows selected-phase completed match results. Required columns: Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players. Team rules, squad limits, support priority and rotation paths remain in team detail (`/teams/[teamId]`).
 
 Team result statistics derive from completed post-match reports only (REPORTED or LOCKED). DRAFT reports do not count as results. Team GF/GA derives from PostMatchReport score values, not from player Goal events.
 
 ## Fixtures results
 
 Fixtures show completed final score and W/D/L outcome directly in fixture rows/cards. A DRAFT post-match report is incomplete work and never a final result. Past matches with DRAFT reports show "Report incomplete" rather than a draft score.
+
+Completed fixtures use subtle outcome styling: soft green for Won, soft neutral/slate for Drawn, soft red for Lost. Outcome text is always visible — colour is secondary reinforcement only. No outcome styling is applied to upcoming matches, DRAFT reports, or report-incomplete tasks.
+
+## Match rescheduling
+
+Matches can be rescheduled before a completed post-match report exists. Date changes must remain within the current phase. Cross-round moves require explicit destination-round confirmation. A match with a completed report cannot be casually rescheduled. Existing selections are preserved and integrity signals are recalculated.
+
+## Post-match workflow
+
+"After match" opens the reporting workspace directly. When no report exists and a finalised squad exists, the first entry creates a DRAFT report seeded from the planned squad automatically — no separate "Open report" or "Seed from plan" step. Reports use a single "Complete report" action instead of separate Submit and Lock steps. Post-match feedback applies only to actual participants with confirmed PRESENT attendance, including manually added matchday participants.
+
+## Players overview
+
+The default Season overview is a compact factual matrix with columns: Player, Core team, Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent. It does not show round-by-round columns, Last movement, Review, dropped status, or a separate Profile button. Player names link to full profiles.
 
 The interface prioritises actionable football decisions over configuration exposure.
 

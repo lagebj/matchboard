@@ -26,7 +26,7 @@ async function main() {
 
   const period = await db.planningPeriod.create({
     data: {
-      name: "Spring Block 1",
+      name: "Spring 2026",
       seasonId: season.id,
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),

@@ -4650,8 +4650,19 @@ Feature: Matchboard football operations workspace
       | Development |
       | Matchday additions |
       | Planned absent |
+    And the default table must not show:
+      | Round columns such as W18 2026 |
+      | Last movement |
       | Review |
-    And numerical values must be scoped to the visible selected planning period
+      | Dropped count or status |
+      | Separate Profile action column |
+    And numerical values must be scoped to the visible selected phase
+
+  Scenario: Player name provides profile navigation
+    Given the coach views the player matrix
+    When the coach activates a player's name
+    Then the full player profile must open
+    And no separate Profile button is required
 
   Scenario: Role counts represent actual played involvement
     Given player "p1" actually participated in a reported or locked match
@@ -4788,13 +4799,36 @@ Feature: Matchboard football operations workspace
     And factual filtering and sorting must remain usable
     And no automatic fairness judgement must be shown
 
-  Rule: Planning periods are displayed using their actual date range
+  Rule: Season is the long-lived context and Phase is the planning window
 
-    The visible planning-period label is derived from startDate and endDate.
+    Season is the full football year context.
 
-    Stored planning-period names must not misrepresent the visible time scope.
+    Phase is the bounded operational fixture and planning window represented internally by PlanningPeriod.
 
-  Scenario: Multi-month spring planning period displays its full range
+    A phase must never be shown using a misleading single-month label when its date range spans several months.
+
+  Scenario: Spring phase is displayed truthfully
+    Given season "2026" contains a PlanningPeriod from April through June
+    And the phase is identified as Spring
+    When it is shown in the application shell or selectors
+    Then the app must show "Spring 2026"
+    And it must show a date-range cue equivalent to "Apr–Jun"
+
+  Scenario: Autumn phase is displayed truthfully
+    Given season "2026" contains a PlanningPeriod from August through October
+    And the phase is identified as Autumn
+    When it is shown in the application shell or selectors
+    Then the app must show "Autumn 2026"
+    And it must show a date-range cue equivalent to "Aug–Oct"
+
+  Scenario: Misleading existing period name does not dominate the UI
+    Given a PlanningPeriod is stored with name "April 2026"
+    And its dates span April through June 2026
+    When it is shown in the top bar or primary workflow selectors
+    Then it must not be presented solely as "April 2026"
+    And the visible scope must communicate the April through June range
+
+  Scenario: Multi-month planning period displays its full date range
     Given a planning period starts in April 2026
     And it ends in June 2026
     When the planning period is shown in a selector or page heading
@@ -4860,6 +4894,179 @@ Feature: Matchboard football operations workspace
       | Rotation paths |
     And team detail must remain available for rules and configuration
 
+  Rule: Coaches can reschedule an existing match safely
+
+    A coach may edit the scheduled date and time of a match after it has been created.
+
+    Rescheduling must preserve the distinction between fixture scheduling, round membership, phase scope, planned squad selection and completed match history.
+
+    A match with a completed post-match report must not be casually rescheduled through the normal pre-match edit flow.
+
+  Scenario: Coach edits date and time for an unplayed match
+    Given match "M1" exists in phase "P1"
+    And "M1" does not have a completed post-match report
+    When the coach edits the scheduled date and time
+    And the new scheduled date remains within phase "P1"
+    Then the new scheduled date and time must be saved
+    And Fixtures must show the updated date and time
+    And existing planned squad data must be preserved unless current integrity rules make it invalid
+    And live plan integrity must be recalculated after the schedule change
+
+  Scenario: Cross-round reschedule requires explicit round decision
+    Given match "M1" belongs to round "R1"
+    And the coach changes its scheduled date so it no longer belongs naturally with "R1"
+    When the coach saves the change
+    Then the app must require the coach to explicitly retain or change the round assignment according to existing round semantics
+    And it must not silently leave a misleading round relationship
+
+  Scenario: Normal reschedule cannot move match outside the phase
+    Given match "M1" belongs to phase "P1"
+    When the coach enters a new date outside the date range of "P1"
+    Then the app must block the normal save
+    And it must state that the match must be moved to a phase covering the new date or the phase definition must be updated
+
+  Scenario: Completed match date is protected from casual rescheduling
+    Given match "M1" has a REPORTED or LOCKED post-match report
+    When the coach opens normal match editing
+    Then changing its match date must not be allowed as a normal scheduling edit
+    And any factual correction must require an explicit authorised correction workflow
+
+  Rule: After match is a direct reporting workflow
+
+    A coach entering After match must reach an editable or completed report directly.
+
+    The normal workflow must not require separate Open report and Seed from plan steps.
+
+  Scenario: First entry to After match creates a seeded draft
+    Given match "M1" has no post-match report
+    And a finalised planned squad exists for "M1"
+    When the coach selects "After match"
+    Then one explicit workflow action must create a DRAFT report
+    And it must seed actual-participation rows from the finalised planned squad
+    And the coach must immediately see the editable post-match report workspace
+    And the coach must not need to separately click "Open post-match report" or "Seed from plan"
+
+  Scenario: First entry to After match without finalised plan still permits factual reporting
+    Given match "M1" has no post-match report
+    And no finalised planned squad exists for "M1"
+    When the coach selects "After match"
+    Then the app must create or open an editable empty report workflow
+    And it must state that no finalised planned squad was available
+    And it must allow the coach to add players who actually played
+    And it must not block recording factual match reality
+
+  Scenario: Existing draft report opens directly
+    Given match "M1" already has a DRAFT post-match report
+    When the coach selects "After match"
+    Then the existing editable draft report must open directly
+
+  Scenario: Existing completed report opens directly in completed state
+    Given match "M1" has a REPORTED or LOCKED post-match report
+    When the coach selects "After match"
+    Then the completed report must open directly
+    And editing must require the existing authorised correction or reopen flow
+
+  Rule: Post-match reporting has one visible completion action
+
+    A coach must not need to submit and then lock the same report as two routine actions.
+
+    Completion validates all required factual inputs and produces the final completed report state used by statistics and result views.
+
+  Scenario: Coach completes a draft report
+    Given report "PM1" is DRAFT
+    And all required participation, absence and result facts are valid
+    When the coach selects "Complete report"
+    Then the report must become completed through one visible action
+    And completed statistics and fixture results must become available
+    And no additional routine "Lock report" action must be required
+
+  Scenario: Invalid draft cannot be completed
+    Given report "PM1" is DRAFT
+    And it contains unresolved attendance or contradictory factual data
+    When the coach selects "Complete report"
+    Then completion must be rejected
+    And the existing canonical validation messages must explain what must be corrected
+
+  Scenario: Legacy completed state remains readable
+    Given an existing report has a legacy completed status recognised by current canonical read rules
+    When the coach views match history or statistics
+    Then the report must remain included as completed history
+    And the new workflow must not require destructive migration solely to remove the old status
+
+  Rule: Post-match player feedback is limited to players who actually participated
+
+    The feedback player selector must reflect confirmed actual participants in the editable or completed report.
+
+  Scenario: Planned player who played is available for feedback
+    Given player "p1" is recorded as PRESENT in report "PM1"
+    When the coach selects a player for post-match feedback
+    Then "p1" must be available in the selector
+
+  Scenario: Manually added participant is available for feedback
+    Given player "p2" was not in the planned squad
+    And the coach manually adds "p2" as a PRESENT actual participant
+    When the coach selects a player for post-match feedback
+    Then "p2" must be available in the selector
+
+  Scenario: Removed participant is no longer available for feedback
+    Given player "p3" was previously in the actual participant set
+    When the coach removes "p3" from actual participation or records that "p3" did not play
+    Then "p3" must no longer appear as an available new-feedback selection
+
+  Scenario: Removing a participant with draft feedback prevents orphan feedback
+    Given editable report "PM1" has feedback recorded for player "p3"
+    When the coach removes "p3" from actual participation
+    Then the app must require confirmation or remove the draft feedback transactionally
+    And no feedback must remain attached to a player who is not an actual participant in the report
+
+  Rule: Fixtures use factual, subtle result styling
+
+    Completed fixtures may use soft colour treatment to support rapid scanning.
+
+    Outcome text must remain visible because colour alone is not sufficient.
+
+  Scenario: Won fixture uses soft win styling
+    Given a fixture has a completed result that is a win from the Matchboard team's perspective
+    When the coach views Fixtures
+    Then the fixture must show the score
+    And it must show "Won"
+    And it must use a soft win visual treatment
+
+  Scenario: Drawn fixture uses soft draw styling
+    Given a fixture has a completed result that is a draw
+    When the coach views Fixtures
+    Then the fixture must show the score
+    And it must show "Drawn"
+    And it must use a soft neutral draw visual treatment
+
+  Scenario: Lost fixture uses soft loss styling
+    Given a fixture has a completed result that is a loss from the Matchboard team's perspective
+    When the coach views Fixtures
+    Then the fixture must show the score
+    And it must show "Lost"
+    And it must use a soft loss visual treatment
+
+  Scenario: Incomplete or future fixture is not styled as a result
+    Given a fixture has no completed report
+    When the coach views Fixtures
+    Then it must not receive won, drawn or lost styling
+
+  Rule: Navigation shell uses a compact football-oriented Matchboard identity
+
+    The primary navigation shell must show a compact Matchboard brand mark and product label.
+
+  Scenario: Desktop shell shows brand mark
+    Given an authenticated coach views the application on desktop
+    Then the top-left or navigation identity area must show a football-oriented icon or local mark
+    And it must show "Matchboard"
+    And it must show "Squad planning"
+    And the mark must not consume excessive navigation space
+
+  Scenario: Mobile shell retains recognisable identity
+    Given an authenticated coach views the application on mobile
+    Then the Matchboard mark and name must remain legible
+    And the navigation controls must remain usable
+
   Rule: Fixtures show completed results in the match list
 
     Fixtures display final results immediately when a completed post-match report exists.
@@ -4891,23 +5098,23 @@ Feature: Matchboard football operations workspace
     Then its planning status must remain visible
     And no final result must be shown
 
-  Rule: Planned player outcome must be resolved before reporting
+  Rule: Planned player outcome must be resolved before completion
 
-    Every player in a finalised planned squad must be confirmed as played or recorded as not having played with a structured reason before a report can become REPORTED or LOCKED.
+    Every player in a finalised planned squad must be confirmed as played or recorded as not having played with a structured reason before a report can become completed.
 
     UNKNOWN attendance is unresolved and must not become completed report truth.
 
-  Scenario: Report submission rejects unresolved planned attendance
+  Scenario: Report completion rejects unresolved planned attendance
     Given a report contains a finalised planned player with attendance status "UNKNOWN"
-    When the coach submits the report as "REPORTED"
-    Then submission must be rejected
-    And the app must state "Confirm whether every planned player played before submitting the report."
+    When the coach completes the report
+    Then completion must be rejected
+    And the app must state "Confirm whether every planned player played before completing the report."
 
-  Scenario: Report locking rejects unresolved attendance
-    Given a REPORTED report contains attendance status "UNKNOWN"
-    When the coach locks the report as "LOCKED"
-    Then locking must be rejected
-    And the app must state "Resolve all attendance before locking."
+  Scenario: Report completion rejects unresolved attendance in any state
+    Given a report contains attendance status "UNKNOWN"
+    When the coach completes the report
+    Then completion must be rejected
+    And the app must state "Resolve all attendance before completing the report."
 
   Scenario: Planned player confirmed as played
     Given player "p1" was planned
