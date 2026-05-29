@@ -39,6 +39,7 @@ const makeMatch = (overrides: Partial<FixtureMatch> = {}): FixtureMatch => ({
   selectedPlayerCount: 0,
   blockerCount: 0,
   decisionRequiredCount: 0,
+  reportState: { state: "NO_REPORT" },
   availableActions: ["createDraft"],
   ...overrides,
 });
@@ -83,7 +84,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Spring 2025")).toBeInTheDocument();
+      expect(screen.getByText("Jan – Jun")).toBeInTheDocument();
       expect(screen.getByText("Round 1")).toBeInTheDocument();
       expect(screen.getByText("Bla vs Opponent")).toBeInTheDocument();
     });

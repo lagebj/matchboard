@@ -1,4 +1,4 @@
-import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch } from "./types";
+import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch, FixtureReportState, CompletedFixtureResult } from "./types";
 import { db } from "@/lib/db";
 import { deriveRoundStatus } from "@/lib/round-status";
 import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
@@ -51,7 +51,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
       : Promise.resolve([]),
     db.postMatchReport.findMany({
       where: { matchId: { in: allMatchIds } },
-      select: { matchId: true, status: true },
+      select: { id: true, matchId: true, status: true, homeGoals: true, awayGoals: true },
     }),
   ]);
 
@@ -66,8 +66,12 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
   }
 
   const postMatchStatusMap = new Map<string, string>();
+  const postMatchResultMap = new Map<string, { reportId: string; homeGoals: number; awayGoals: number }>();
   for (const r of postMatchReports) {
     postMatchStatusMap.set(r.matchId, r.status);
+    if ((r.status === "REPORTED" || r.status === "LOCKED") && r.homeGoals !== null && r.awayGoals !== null) {
+      postMatchResultMap.set(r.matchId, { reportId: r.id, homeGoals: r.homeGoals, awayGoals: r.awayGoals });
+    }
   }
 
   const integrityCache = new Map<string, Awaited<ReturnType<typeof computeRoundPlanIntegrity>>>();
@@ -127,6 +131,27 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             (s) => s.matchId === match.id && s.kind === "DECISION_REQUIRED",
           ).length;
 
+          const postMatchStatus = postMatchStatusMap.get(match.id);
+          let reportState: FixtureReportState = { state: "NO_REPORT" };
+          if (postMatchStatus === "DRAFT") {
+            const result = postMatchResultMap.get(match.id);
+            reportState = { state: "DRAFT_REPORT_INCOMPLETE", reportId: result?.reportId ?? "" };
+          } else if (postMatchStatus === "REPORTED" || postMatchStatus === "LOCKED") {
+            const result = postMatchResultMap.get(match.id);
+            if (result) {
+              const isHome = match.homeAway === "HOME";
+              const goalsFor = isHome ? result.homeGoals : result.awayGoals;
+              const goalsAgainst = isHome ? result.awayGoals : result.homeGoals;
+              const completedResult: CompletedFixtureResult = {
+                goalsFor,
+                goalsAgainst,
+                outcome: goalsFor > goalsAgainst ? "WON" : goalsFor === goalsAgainst ? "DRAWN" : "LOST",
+                displayScore: `${goalsFor}–${goalsAgainst}`,
+              };
+              reportState = { state: "COMPLETED", result: completedResult };
+            }
+          }
+
           return {
             id: match.id,
             title: `${match.team.name} vs ${match.opponent}`,
@@ -140,7 +165,8 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             selectedPlayerCount: matchDraftCount + matchFinalizedCount,
             blockerCount: matchBlockerCount,
             decisionRequiredCount: matchDecisionCount,
-            postMatchStatus: (postMatchStatusMap.get(match.id) as FixtureMatch["postMatchStatus"]) ?? undefined,
+            postMatchStatus: (postMatchStatus as FixtureMatch["postMatchStatus"]) ?? undefined,
+            reportState,
             availableActions: getRoundActions(derivedRoundStatus, hasMatches),
           };
         });

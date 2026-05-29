@@ -11,6 +11,18 @@ export type FixtureRoundIntegritySummary = {
   integrityFailureCount: number;
 };
 
+export type CompletedFixtureResult = {
+  goalsFor: number;
+  goalsAgainst: number;
+  outcome: "WON" | "DRAWN" | "LOST";
+  displayScore: string;
+};
+
+export type FixtureReportState =
+  | { state: "NO_REPORT" }
+  | { state: "DRAFT_REPORT_INCOMPLETE"; reportId: string }
+  | { state: "COMPLETED"; result: CompletedFixtureResult };
+
 export interface FixturesOverview {
   periods: FixturePeriod[];
 }
@@ -53,5 +65,6 @@ export interface FixtureMatch {
   blockerCount: number;
   decisionRequiredCount: number;
   postMatchStatus?: "NOT_STARTED" | "DRAFT" | "REPORTED" | "LOCKED";
+  reportState: FixtureReportState;
   availableActions: SelectionAction[];
 }

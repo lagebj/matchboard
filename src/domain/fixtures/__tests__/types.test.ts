@@ -66,11 +66,13 @@ describe("Fixtures Service unit tests", () => {
         selectedPlayerCount: 0,
         blockerCount: 0,
         decisionRequiredCount: 0,
+        reportState: { state: "NO_REPORT" },
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
       };
       expect(match.teamId).toBe("team-1");
       expect(match.selectionState).toBe("DRAFT");
       expect(match.availableActions).toContain("finalize");
+      expect(match.reportState.state).toBe("NO_REPORT");
     });
   });
 });
