@@ -341,6 +341,12 @@ export async function removeActualPlayer(appearanceId: string): Promise<{ succes
     if (!appearance) return { success: false, error: "Appearance not found." };
     if (appearance.report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
 
+    if (appearance.report.status === "DRAFT") {
+      await db.matchExecutionFeedback.deleteMany({
+        where: { matchId: appearance.report.matchId, playerId: appearance.playerId },
+      });
+    }
+
     await db.postMatchPlayerActual.delete({ where: { id: appearanceId } });
 
     revalidatePath(`/matches/${appearance.report.matchId}`);
@@ -365,6 +371,12 @@ export async function updateAttendanceStatus(
     });
     if (!appearance) return { success: false, error: "Appearance not found." };
     if (appearance.report.status === "LOCKED") return { success: false, error: "Cannot edit a locked report. Reopen it first." };
+
+    if (attendanceStatus === "NO_SHOW" && appearance.report.status === "DRAFT") {
+      await db.matchExecutionFeedback.deleteMany({
+        where: { matchId: appearance.report.matchId, playerId: appearance.playerId },
+      });
+    }
 
     await db.postMatchPlayerActual.update({
       where: { id: appearanceId },
