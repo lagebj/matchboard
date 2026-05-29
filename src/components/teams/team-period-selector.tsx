@@ -13,7 +13,7 @@ export function TeamPeriodSelector({ planningPeriods, selectedPeriodId }: Period
 
   return (
     <label className="flex items-center gap-2">
-      <span className="text-xs text-zinc-500">Planning period:</span>
+      <span className="text-xs text-zinc-500">Phase:</span>
       <select
         value={selectedPeriodId}
         onChange={(e) => {

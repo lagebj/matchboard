@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { deriveRoundStatus } from "@/lib/round-status";
 import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
-import { formatPlanningPeriodRange } from "@/lib/date/format-planning-period-range";
+import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 
 function mapReadiness(blockerCount: number, decisionRequiredCount: number): "READY" | "AT_RISK" | "NOT_PLAYABLE" {
   if (blockerCount > 0) return "NOT_PLAYABLE";
@@ -191,10 +191,17 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
       const periodBlockerCount = rounds.reduce((sum, r) => sum + r.blockerCount, 0);
       const periodDecisionCount = rounds.reduce((sum, r) => sum + r.decisionRequiredCount, 0);
 
+      const phaseDisplay = formatPhaseDisplay({
+        seasonName: season.name,
+        phaseName: period.name,
+        startDate: new Date(period.startDate),
+        endDate: new Date(period.endDate),
+      });
+
       periods.push({
         id: period.id,
-        title: period.name,
-        dateRange: formatPlanningPeriodRange(new Date(period.startDate), new Date(period.endDate)),
+        title: phaseDisplay.combinedLabel,
+        dateRange: phaseDisplay.dateRangeLabel,
         readinessState: mapReadiness(periodBlockerCount, periodDecisionCount),
         blockerCount: periodBlockerCount,
         decisionRequiredCount: periodDecisionCount,

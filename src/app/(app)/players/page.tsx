@@ -41,7 +41,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
 
   const seasonData = selectedPeriodId
     ? await getPlayersSeasonOverview(selectedPeriodId)
-    : { planningPeriod: { id: "", label: "No planning period" }, roundColumns: [], seasonRows: [] as PlayerSeasonOverviewRow[] };
+    : { planningPeriod: { id: "", label: "No phase" }, roundColumns: [], seasonRows: [] as PlayerSeasonOverviewRow[] };
 
   const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
 

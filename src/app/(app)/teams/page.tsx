@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { getTeamsResultsOverview } from "@/lib/teams/get-teams-results-overview";
-import { formatPlanningPeriodRange } from "@/lib/date/format-planning-period-range";
+import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import type { TeamPeriodResultsRow } from "@/lib/teams/get-teams-results-overview";
 import { TeamPeriodSelector } from "@/components/teams/team-period-selector";
 
@@ -85,18 +85,27 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
     ? await getTeamsResultsOverview(selectedPeriodId)
     : null;
 
-  const periodLabel = selectedPeriodId && overview
-    ? overview.planningPeriod.displayLabel
-    : planningPeriods.length > 0
-      ? formatPlanningPeriodRange(
-          new Date(planningPeriods[0].startDate),
-          new Date(planningPeriods[0].endDate),
-        )
-      : "No planning period";
+  const selectedPeriod = selectedPeriodId
+    ? planningPeriods.find((p) => p.id === selectedPeriodId)
+    : planningPeriods[0];
+
+  const periodLabel = selectedPeriod
+    ? formatPhaseDisplay({
+        seasonName: selectedPeriod.name,
+        phaseName: selectedPeriod.name,
+        startDate: new Date(selectedPeriod.startDate),
+        endDate: new Date(selectedPeriod.endDate),
+      }).combinedLabel
+    : "No phase";
 
   const periodOptions = planningPeriods.map((p) => ({
     id: p.id,
-    label: formatPlanningPeriodRange(new Date(p.startDate), new Date(p.endDate)),
+    label: formatPhaseDisplay({
+      seasonName: p.name,
+      phaseName: p.name,
+      startDate: new Date(p.startDate),
+      endDate: new Date(p.endDate),
+    }).combinedLabel,
   }));
 
   return (
@@ -129,8 +138,8 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
 
       {!selectedPeriodId ? (
         <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No planning period available.</p>
-          <p className="text-xs text-zinc-500">Create matches and a planning period before team results can be shown.</p>
+          <p className="text-sm text-zinc-400">No phase available.</p>
+          <p className="text-xs text-zinc-500">Create matches and a phase before team results can be shown.</p>
         </div>
       ) : !overview || overview.rows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8">

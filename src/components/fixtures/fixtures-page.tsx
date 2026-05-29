@@ -167,7 +167,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">{period.dateRange || period.title}</h2>
+          <h2 className="text-base font-semibold text-zinc-100">{period.title}</h2>
           <div className="flex items-center gap-2 mt-1">
             {statusCounts.notGenerated > 0 && <span className="text-[10px] text-zinc-500">{statusCounts.notGenerated} not generated</span>}
             {statusCounts.draft > 0 && <span className="text-[10px] text-amber-300">{statusCounts.draft} draft</span>}
@@ -221,7 +221,7 @@ export function FixturesPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-lg font-semibold text-zinc-100">Fixtures</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">Planning periods, rounds, and matches. Navigate to rounds for squad work.</p>
+        <p className="text-xs text-zinc-500 mt-0.5">Phases, rounds, and matches. Navigate to rounds for squad work.</p>
       </div>
 
       {isPending && !data ? (
@@ -230,8 +230,8 @@ export function FixturesPage() {
         </div>
       ) : !data || data.periods.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No planning periods found.</p>
-          <p className="text-xs text-zinc-500">Create a season and planning period to get started.</p>
+          <p className="text-sm text-zinc-400">No phases found.</p>
+          <p className="text-xs text-zinc-500">Create a season and phase to get started.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
