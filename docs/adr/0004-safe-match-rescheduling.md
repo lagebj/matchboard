@@ -2,10 +2,10 @@
 type: ADR
 id: "0004"
 title: Match schedule editing preserves phase scope and round integrity
-status: active
+status: superseded
 date: 2026-05-29
 supersedes:
-superseded_by:
+superseded_by: "0005"
 tags: [match-editing, scheduling, integrity]
 ---
 
@@ -25,26 +25,10 @@ A match with a completed post-match report represents factual history that must 
 
 4. **Selection integrity**: Changing schedule must not regenerate or erase planned squads automatically. Existing selections are preserved, and live integrity signals are recalculated after the schedule change.
 
-5. **Completed-match protection**: A match with a REPORTED or LOCKED post-match report must not allow date/time changes through normal editing. Historical date correction requires an explicit authorised correction workflow. The app must clearly state that the match has a completed report and date changes require a factual correction workflow.
+5. **Completed-match protection**: A match with a REPORTED or LOCKED post-match report must not allow date/time changes through normal editing. Historical date correction requires an explicit authorised correction workflow.
 
 6. **Revalidation**: After a successful schedule change, revalidate /fixtures, /matches/{matchId}, affected round board routes, /assistant when active work changes, and /teams if result scope could change.
 
-## Alternatives considered
+## Superseded by
 
-- Option 1: Allow date editing without round/phase constraints — rejected because it silently breaks planning integrity
-- Option 2: Automatically reassign round based on date — rejected because round semantics are coach-defined, not purely date-based
-- Option 3: Block all date editing after creation — rejected because legitimate rescheduling needs exist before matches are played
-
-## Consequences
-
-- Positive: Coaches can handle legitimate rescheduling without deleting and recreating matches
-- Positive: Planning integrity is maintained through explicit round decisions
-- Positive: Completed match history is protected from casual modification
-- Negative: Cross-round moves require an extra confirmation step
-- Negative: Cross-phase moves are fully blocked in normal editing
-- Neutral trade-offs: Round boundaries are defined by ISO week proximity, not by formal round date ranges
-
-## Re-evaluation triggers
-
-- If MatchRound gains formal date boundaries
-- If completed-match date correction becomes a frequent need requiring a dedicated workflow
+ADR-0005: This ADR's point 3 (explicit destination-round choice) is superseded by ADR-0005, which replaces manual round selection with automatic Phase-scoped ISO-week round resolution. The remaining points stay active.

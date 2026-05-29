@@ -977,10 +977,17 @@ Match schedule editing:
 
 - Unplayed matches (no REPORTED or LOCKED post-match report) can have their date and time edited.
 - Date changes must remain within the current Phase's date range. Outside-phase changes require moving the match to a different phase first.
-- Cross-round date changes require explicit destination-round confirmation. The app must never silently change round membership.
-- Existing planned selections must be preserved. Live integrity signals must be recalculated.
+- Match Round is an ISO-week operational container inside a Phase. Match creation and match rescheduling use one shared Phase-scoped target-round resolver.
+- An in-Phase reschedule automatically reuses or creates the target-week round. Normal rescheduling does not require manual destination-round input.
+- A matching week round from another Phase must never be reused.
+- Ambiguous same-Phase target-round matches must fail safely rather than choose arbitrarily.
+- Same-week date/time edits retain the current round. No new round is created.
+- Cross-round movement must keep Match, DRAFT Selection and DRAFT MovementLedger references consistent in one transaction.
+- Any FINALIZED selection blocks automatic cross-round relocation until explicit unfinalisation.
 - A match with a completed post-match report cannot be casually rescheduled. Date correction requires an explicit authorised workflow.
-- After a schedule change, revalidate /fixtures, /matches/{matchId}, affected round board, /assistant, and /teams.
+- Successful cross-round moves trigger canonical integrity recalculation for both affected rounds.
+- Empty old rounds are not automatically deleted.
+- After a schedule change, revalidate /fixtures, /matches/{matchId}, affected round boards, /assistant.
 
 Direct post-match workflow:
 
