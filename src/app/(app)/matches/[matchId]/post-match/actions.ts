@@ -506,6 +506,9 @@ export async function submitMatchReport(reportId: string): Promise<{ success: bo
     revalidatePath(`/matches/${report.matchId}`);
     revalidatePath(`/matches/${report.matchId}/post-match`);
     revalidatePath("/rounds");
+    revalidatePath("/fixtures");
+    revalidatePath("/teams");
+    revalidatePath("/players");
     revalidatePath("/");
 
     return { success: true };
@@ -543,6 +546,9 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
     revalidatePath(`/matches/${report.matchId}`);
     revalidatePath(`/matches/${report.matchId}/post-match`);
     revalidatePath("/rounds");
+    revalidatePath("/fixtures");
+    revalidatePath("/teams");
+    revalidatePath("/players");
     revalidatePath("/");
 
     return { success: true };
@@ -577,6 +583,9 @@ export async function reopenMatchReport(
     revalidatePath(`/matches/${report.matchId}`);
     revalidatePath(`/matches/${report.matchId}/post-match`);
     revalidatePath("/rounds");
+    revalidatePath("/fixtures");
+    revalidatePath("/teams");
+    revalidatePath("/players");
     revalidatePath("/");
 
     return { success: true };
@@ -607,6 +616,7 @@ export async function addGoalToReport(
 
     revalidatePath(`/matches/${report.matchId}`);
     revalidatePath(`/matches/${report.matchId}/post-match`);
+    revalidatePath("/players");
 
     return { success: true };
   } catch (error) {
@@ -629,6 +639,7 @@ export async function removeGoalFromReport(goalId: string): Promise<{ success: b
 
     revalidatePath(`/matches/${goal.report.matchId}`);
     revalidatePath(`/matches/${goal.report.matchId}/post-match`);
+    revalidatePath("/players");
 
     return { success: true };
   } catch (error) {
@@ -657,6 +668,7 @@ export async function addAssistToReport(
 
     revalidatePath(`/matches/${report.matchId}`);
     revalidatePath(`/matches/${report.matchId}/post-match`);
+    revalidatePath("/players");
 
     return { success: true };
   } catch (error) {
@@ -679,6 +691,7 @@ export async function removeAssistFromReport(assistId: string): Promise<{ succes
 
     revalidatePath(`/matches/${assist.report.matchId}`);
     revalidatePath(`/matches/${assist.report.matchId}/post-match`);
+    revalidatePath("/players");
 
     return { success: true };
   } catch (error) {
