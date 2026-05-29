@@ -253,27 +253,14 @@ export function SeasonOverviewTable({
                 {renderSortHeader("coreAppearances", "Core")}
                 {renderSortHeader("supportAppearances", "Support")}
                 {renderSortHeader("developmentAppearances", "Development")}
-                {renderSortHeader("squadRepairAppearances", "Squad repair")}
                 {renderSortHeader("matchdayAdditions", "Matchday additions")}
                 {renderSortHeader("plannedButAbsent", "Planned absent")}
-                {renderSortHeader("unavailableRoundCount", "Unavailable")}
-                {renderSortHeader("dropsCount", "Drops")}
-                {renderSortHeader("lastMovement", "Last movement")}
-                {includeDrafts && renderSortHeader("draftSelections", "Draft")}
-                {hasRoundColumns && roundColumns.map((rc) => (
-                  <th key={rc.id} className="px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] text-center whitespace-nowrap">
-                    {rc.name}
-                  </th>
-                ))}
-                <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  Review
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-soft)]">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={15 + (includeDrafts ? 1 : 0) + roundColumns.length} className="px-4 py-8 text-center text-sm text-zinc-500">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-zinc-500">
                     No players match the current filters.
                   </td>
                 </tr>
@@ -307,48 +294,12 @@ export function SeasonOverviewTable({
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.coreAppearances}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.supportAppearances}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.developmentAppearances}</td>
-                    <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.squadRepairAppearances)}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.matchdayAdditions)}</td>
                     <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.plannedButAbsent)}</td>
-                    <td className="px-3 py-2 text-zinc-400 tabular-nums">{numCell(row.unavailableRoundCount)}</td>
-                    <td className="px-3 py-2 text-zinc-400 tabular-nums">{numCell(row.dropsCount)}</td>
-                    <td className="px-3 py-2 text-zinc-400 text-sm">{row.lastMovement || "—"}</td>
-                    {includeDrafts && (
-                      <td className="px-3 py-2 text-zinc-400 tabular-nums italic">{numCell(row.draftSelections)}</td>
-                    )}
-                    {hasRoundColumns && roundColumns.map((rc) => {
-                      const assignment = row.roundAssignments.find((a) => a.roundId === rc.id);
-                      return (
-                        <td key={rc.id} className="px-2 py-2 text-center">
-                          {assignment ? roleBadge(assignment.role, assignment.isDraft) : <span className="text-zinc-600">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="px-3 py-2 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {row.draftSelections > 0 && (
-                          <Link
-                            href={`/players?mode=attention`}
-                            className="text-[10px] font-medium text-amber-400 hover:underline"
-                          >
-                            Review draft
-                          </Link>
-                        )}
-                        {row.dropsCount > 0 && (
-                          <span className="text-[10px] text-zinc-500">Dropped {row.dropsCount}×</span>
-                        )}
-                        <Link
-                          href={`/players/${row.playerId}`}
-                          className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
-                        >
-                          Profile
-                        </Link>
-                      </div>
-                    </td>
                   </tr>
                   {expandedPlayer === row.playerId && (
                     <tr className="bg-zinc-900/40">
-                      <td colSpan={15 + (includeDrafts ? 1 : 0) + roundColumns.length} className="px-4 py-3">
+                      <td colSpan={10} className="px-4 py-3">
                         <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-300">
                           <span className="text-zinc-500 font-medium">Movement:</span>
                           {row.roundAssignments.length === 0 ? (

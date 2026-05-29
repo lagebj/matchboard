@@ -17,7 +17,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -48,7 +48,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -79,7 +79,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
@@ -107,7 +107,7 @@ describe("updateMatchAction validation", () => {
     const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
     
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as void);
+    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
     vi.spyOn(db.match, "findUnique").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
