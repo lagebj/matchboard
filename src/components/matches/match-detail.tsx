@@ -69,7 +69,6 @@ type MatchData = {
   opponentTeamId?: string | null;
   phaseStartDate?: Date;
   phaseEndDate?: Date;
-  availableRounds?: { id: string; name: string }[];
 };
 
 const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
@@ -282,11 +281,9 @@ export function MatchDetail({ match }: { match: MatchData }) {
           <MatchEditForm
             matchId={match.id}
             startsAt={match.startsAt}
-            matchRoundId={match.matchRoundId}
             matchRoundName={match.matchRoundName}
             phaseStartDate={match.phaseStartDate ?? match.startsAt}
             phaseEndDate={match.phaseEndDate ?? match.startsAt}
-            availableRounds={match.availableRounds ?? []}
           />
         </div>
 

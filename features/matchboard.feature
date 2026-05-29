@@ -4894,7 +4894,7 @@ Feature: Matchboard football operations workspace
       | Rotation paths |
     And team detail must remain available for rules and configuration
 
-  Rule: Coaches can reschedule an existing match safely
+   Rule: Coaches can reschedule an existing match safely
 
     A coach may edit the scheduled date and time of a match after it has been created.
 
@@ -4912,24 +4912,102 @@ Feature: Matchboard football operations workspace
     And existing planned squad data must be preserved unless current integrity rules make it invalid
     And live plan integrity must be recalculated after the schedule change
 
-  Scenario: Cross-round reschedule requires explicit round decision
-    Given match "M1" belongs to round "R1"
-    And the coach changes its scheduled date so it no longer belongs naturally with "R1"
-    When the coach saves the change
-    Then the app must require the coach to explicitly retain or change the round assignment according to existing round semantics
-    And it must not silently leave a misleading round relationship
+  Rule: Rescheduled matches are automatically placed in their date-derived weekly round
 
-  Scenario: Normal reschedule cannot move match outside the phase
-    Given match "M1" belongs to phase "P1"
-    When the coach enters a new date outside the date range of "P1"
-    Then the app must block the normal save
-    And it must state that the match must be moved to a phase covering the new date or the phase definition must be updated
+    A Match Round is the ISO-week planning container for matches inside a Phase.
 
-  Scenario: Completed match date is protected from casual rescheduling
+    When an unplayed match is rescheduled within its Phase, Matchboard must resolve the correct round from the new match date.
+
+    When one appropriate target-week round already exists in the Phase, Matchboard must reuse it.
+
+    When no appropriate target-week round exists in the Phase, Matchboard must create it automatically.
+
+    Normal rescheduling must not require the coach to select or create a round manually.
+
+  Scenario: Reschedule into an existing later round
+    Given phase "Spring 2026" contains round "W20 2026"
+    And match "M1" currently belongs to round "W18 2026"
+    And "M1" has no completed post-match report
+    And "M1" has no finalised selection
+    When the coach changes the match date to ISO week 20 of 2026
+    Then "M1" must automatically move to round "W20 2026"
+    And Fixtures must display "M1" under "W20 2026"
+    And the coach must not select a destination round
+
+  Scenario: Reschedule beyond existing rounds creates the missing round
+    Given phase "Spring 2026" contains rounds through "W22 2026"
+    And no round exists for ISO week 24 of 2026
+    And match "M1" currently belongs to round "W18 2026"
+    And "M1" has no completed post-match report
+    And "M1" has no finalised selection
+    When the coach changes the match date to ISO week 24 of 2026
+    Then Matchboard must create round "W24 2026" in phase "Spring 2026"
+    And the created round must have the initial not-generated status
+    And "M1" must automatically move to "W24 2026"
+    And Fixtures must display "M1" under "W24 2026"
+
+  Scenario: Same-week reschedule retains current round
+    Given match "M1" belongs to round "W18 2026"
+    When the coach changes the date or kick-off time to another time in ISO week 18
+    Then "M1" must remain in its existing round
+    And no new round must be created
+
+  Scenario: Outside-phase reschedule does not create a new phase or round
+    Given match "M1" belongs to phase "Spring 2026"
+    When the coach changes its date to a date outside the phase range
+    Then the save must be rejected
+    And no phase or round must be created
+
+  Rule: Moving a match preserves round-linked planning consistency
+
+    Match, draft Selection and draft MovementLedger records for the same match must not be attached to different rounds after a successful move.
+
+    Finalised planned selection history must not be silently relocated.
+
+  Scenario: Draft-planned match moves round-linked records transactionally
+    Given match "M1" has DRAFT selections and draft movement-ledger rows in "W18 2026"
+    And no FINALIZED selection exists for "M1"
+    When "M1" is rescheduled to "W24 2026" in the same phase
+    Then "M1" must reference "W24 2026"
+    And all DRAFT selections for "M1" must reference "W24 2026"
+    And all draft movement-ledger rows for "M1" must reference "W24 2026"
+    And those changes must occur in one transaction
+    And live integrity must be recalculated for the old and new rounds
+
+  Scenario: Finalised planned match cannot silently change round
+    Given match "M1" has FINALIZED selections in "W18 2026"
+    And no completed post-match report exists
+    When the coach reschedules "M1" to "W24 2026"
+    Then the save must be rejected
+    And no new target round must be created as a side effect
+    And the app must state "This match has a finalised squad plan. Unfinalise it before moving the match to another round."
+
+  Scenario: Completed match remains protected
     Given match "M1" has a REPORTED or LOCKED post-match report
-    When the coach opens normal match editing
-    Then changing its match date must not be allowed as a normal scheduling edit
-    And any factual correction must require an explicit authorised correction workflow
+    When the coach attempts to reschedule it
+    Then the save must be rejected through the existing factual-correction boundary
+    And no round must be created or changed
+
+  Rule: Target-round resolution is deterministic inside the current Phase
+
+  Scenario: A unique existing target-week round is reused
+    Given one round in the current Phase represents ISO week 24
+    When a match is rescheduled to ISO week 24
+    Then that round must be reused
+    And no duplicate target-week round must be created
+
+  Scenario: Legacy-named round containing a target-week match is reused
+    Given one round in the current Phase contains a match scheduled in ISO week 24
+    And its name is not the generated ISO-week label
+    When another match is rescheduled to ISO week 24
+    Then the existing round must be reused
+
+  Scenario: Ambiguous target-week rounds reject automatic placement
+    Given more than one round in the current Phase represents ISO week 24
+    When a match is rescheduled to ISO week 24
+    Then the save must be rejected
+    And no new round must be created
+    And the app must state that duplicate round setup must be resolved
 
   Rule: After match is a direct reporting workflow
 

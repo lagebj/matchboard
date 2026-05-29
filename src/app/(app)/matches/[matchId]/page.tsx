@@ -39,15 +39,6 @@ export default async function MatchDetailPage({
 
   const activeIntent = await getActiveCoachingIntentForMatch(matchId);
 
-  const availableRounds = await db.matchRound.findMany({
-    where: {
-      planningPeriodId: match.matchRound.planningPeriodId,
-      id: { not: match.matchRoundId },
-    },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-
   const postMatchReport = await db.postMatchReport.findUnique({
     where: { matchId },
     select: { status: true },
@@ -126,7 +117,6 @@ export default async function MatchDetailPage({
             : undefined,
           phaseStartDate: match.matchRound.planningPeriod.startDate,
           phaseEndDate: match.matchRound.planningPeriod.endDate,
-          availableRounds,
         }}
       />
     </div>

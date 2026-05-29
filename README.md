@@ -80,7 +80,7 @@ Completed fixtures use subtle outcome styling: soft green for Won, soft neutral/
 
 ## Match rescheduling
 
-Matches can be rescheduled before a completed post-match report exists. Date changes must remain within the current phase. Cross-round moves require explicit destination-round confirmation. A match with a completed report cannot be casually rescheduled. Existing selections are preserved and integrity signals are recalculated.
+Matches can be rescheduled before a completed post-match report exists. Edit date and kick-off time from Match details. Inside the current Phase, Matchboard automatically places the match in the correct weekly round. When the target week does not yet have a round, Matchboard creates it automatically. Draft planning follows the moved match and integrity is recalculated. A finalised squad plan must be unfinalised before moving the match to another round. Completed match history cannot be rescheduled through ordinary editing. Moving outside the current Phase requires separate Phase handling.
 
 ## Post-match workflow
 

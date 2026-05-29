@@ -6,9 +6,16 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
-import { formatIsoWeekKey, formatIsoWeekLabel, getWeekRange } from "@/lib/date-utils";
+import { getWeekRange } from "@/lib/date-utils";
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
+import {
+  resolveOrCreateMatchRoundForDate,
+  isSameIsoWeek,
+  AmbiguousRoundError,
+  DateOutsidePhaseError,
+} from "@/lib/matches/resolve-or-create-match-round-for-date";
+import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -100,79 +107,26 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       throw new Error("Opponent team is required.");
     }
 
-    const _weekKey = formatIsoWeekKey(startsAt);
-    const weekLabel = formatIsoWeekLabel(startsAt);
     const { startsAt: weekStart, endsAt: weekEnd } = getWeekRange(startsAt);
 
-    let matchRound = await db.matchRound.findFirst({
+    let matchRoundId: string;
+
+    const activePlanningPeriod = await db.planningPeriod.findFirst({
       where: {
-        name: { startsWith: weekLabel },
-        matches: {
-          some: {
-            startsAt: {
-              gte: weekStart,
-              lte: weekEnd,
-            },
-          },
-        },
+        startDate: { lte: weekEnd },
+        endDate: { gte: weekStart },
       },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!matchRound) {
-      const activePlanningPeriod = await db.planningPeriod.findFirst({
-        where: {
-          startDate: { lte: weekEnd },
-          endDate: { gte: weekStart },
-        },
-        orderBy: { createdAt: "desc" },
+    if (activePlanningPeriod) {
+      const resolved = await resolveOrCreateMatchRoundForDate({
+        planningPeriodId: activePlanningPeriod.id,
+        startsAt,
       });
-
-      if (!activePlanningPeriod) {
-        const season = await db.season.findFirst({
-          orderBy: { createdAt: "desc" },
-        });
-
-        const periodData = {
-          name: startsAt.toLocaleString("default", { month: "long", year: "numeric" }),
-          startDate: weekStart,
-          endDate: new Date(weekStart.getUTCFullYear(), weekStart.getUTCMonth() + 3, 0),
-        };
-
-        if (!season) {
-          const created = await db.season.create({
-            data: { name: `${startsAt.getUTCFullYear()} Season` },
-          });
-          const period = await db.planningPeriod.create({
-            data: { ...periodData, seasonId: created.id },
-          });
-          matchRound = await db.matchRound.create({
-            data: {
-              name: weekLabel,
-              planningPeriodId: period.id,
-              status: "NOT_GENERATED",
-            },
-          });
-        } else {
-          const period = await db.planningPeriod.create({
-            data: { ...periodData, seasonId: season.id },
-          });
-          matchRound = await db.matchRound.create({
-            data: {
-              name: weekLabel,
-              planningPeriodId: period.id,
-              status: "NOT_GENERATED",
-            },
-          });
-        }
-      } else {
-        matchRound = await db.matchRound.create({
-          data: {
-            name: weekLabel,
-            planningPeriodId: activePlanningPeriod.id,
-            status: "NOT_GENERATED",
-          },
-        });
-      }
+      matchRoundId = resolved.roundId;
+    } else {
+      matchRoundId = await createFullHierarchy(startsAt, weekStart, weekEnd);
     }
 
     await db.match.create({
@@ -184,7 +138,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
         homeAway,
         matchType,
         gameFormat,
-        matchRoundId: matchRound.id,
+        matchRoundId,
       },
     });
   } catch (error) {
@@ -195,6 +149,39 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   revalidatePath("/rounds");
   revalidatePath("/");
   redirect("/fixtures?saved=created");
+}
+
+async function createFullHierarchy(startsAt: Date, weekStart: Date, _weekEnd: Date): Promise<string> {
+  const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
+
+  const periodData = {
+    name: startsAt.toLocaleString("default", { month: "long", year: "numeric" }),
+    startDate: weekStart,
+    endDate: new Date(weekStart.getUTCFullYear(), weekStart.getUTCMonth() + 3, 0),
+  };
+
+  if (!season) {
+    const created = await db.season.create({
+      data: { name: `${startsAt.getUTCFullYear()} Season` },
+    });
+    const period = await db.planningPeriod.create({
+      data: { ...periodData, seasonId: created.id },
+    });
+    const resolved = await resolveOrCreateMatchRoundForDate({
+      planningPeriodId: period.id,
+      startsAt,
+    });
+    return resolved.roundId;
+  }
+
+  const period = await db.planningPeriod.create({
+    data: { ...periodData, seasonId: season.id },
+  });
+  const resolved = await resolveOrCreateMatchRoundForDate({
+    planningPeriodId: period.id,
+    startsAt,
+  });
+  return resolved.roundId;
 }
 
 export async function deleteMatchAction(matchId: string) {
@@ -224,8 +211,16 @@ export async function deleteMatchAction(matchId: string) {
 export async function updateMatchAction(
   matchId: string,
   startsAt: string,
-  matchRoundId?: string,
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<
+  | {
+      success: true;
+      movedRound: boolean;
+      createdRound: boolean;
+      targetRoundId: string;
+      targetRoundName: string;
+    }
+  | { success: false; error: string }
+> {
   await requireCoachAccess();
 
   try {
@@ -238,11 +233,11 @@ export async function updateMatchAction(
         matchRound: {
           select: {
             id: true,
+            name: true,
             planningPeriodId: true,
             planningPeriod: {
               select: { id: true, startDate: true, endDate: true },
             },
-            matches: { select: { id: true, startsAt: true } },
           },
         },
       },
@@ -270,38 +265,120 @@ export async function updateMatchAction(
       return { success: false, error: "This date is outside the current phase. Move the match to a phase covering the new date or update the phase first." };
     }
 
-    let newMatchRoundId = match.matchRoundId;
+    const currentRoundId = match.matchRoundId;
 
-    if (matchRoundId && matchRoundId !== match.matchRoundId) {
-      const targetRound = await db.matchRound.findUnique({
-        where: { id: matchRoundId },
-        select: { id: true, planningPeriodId: true },
+    if (isSameIsoWeek(parsedDate, match.startsAt)) {
+      await db.match.update({
+        where: { id: matchId },
+        data: { startsAt: parsedDate },
       });
-      if (!targetRound || targetRound.planningPeriodId !== match.matchRound.planningPeriodId) {
-        return { success: false, error: "Target round must belong to the same phase." };
-      }
-      newMatchRoundId = matchRoundId;
+
+      revalidatePath("/fixtures");
+      revalidatePath(`/matches/${matchId}`);
+      revalidatePath(`/rounds/${currentRoundId}`);
+      revalidatePath("/assistant");
+
+      return {
+        success: true,
+        movedRound: false,
+        createdRound: false,
+        targetRoundId: currentRoundId,
+        targetRoundName: match.matchRound.name,
+      };
     }
 
-    await db.match.update({
-      where: { id: matchId },
-      data: {
-        startsAt: parsedDate,
-        matchRoundId: newMatchRoundId,
-      },
+    const hasFinalizedSelection = await db.selection.findFirst({
+      where: { matchId, status: "FINALIZED" },
+      select: { id: true },
     });
+
+    if (hasFinalizedSelection) {
+      return {
+        success: false,
+        error: "This match has a finalised squad plan. Unfinalise it before moving the match to another round.",
+      };
+    }
+
+    const planningPeriodId = match.matchRound.planningPeriodId;
+
+    const resolved = await resolveOrCreateMatchRoundForDate({
+      planningPeriodId,
+      startsAt: parsedDate,
+    });
+
+    const targetRoundId = resolved.roundId;
+
+    await db.$transaction(async (tx) => {
+      await tx.match.update({
+        where: { id: matchId },
+        data: {
+          startsAt: parsedDate,
+          matchRoundId: targetRoundId,
+        },
+      });
+
+      const draftSelections = await tx.selection.findMany({
+        where: {
+          matchId,
+          matchRoundId: currentRoundId,
+          status: "DRAFT",
+        },
+        select: { id: true },
+      });
+
+      if (draftSelections.length > 0) {
+        await tx.selection.updateMany({
+          where: {
+            id: { in: draftSelections.map((s) => s.id) },
+          },
+          data: { matchRoundId: targetRoundId },
+        });
+      }
+
+      const draftLedger = await tx.movementLedger.findMany({
+        where: {
+          matchId,
+          matchRoundId: currentRoundId,
+          isDraft: true,
+        },
+        select: { id: true },
+      });
+
+      if (draftLedger.length > 0) {
+        await tx.movementLedger.updateMany({
+          where: {
+            id: { in: draftLedger.map((l) => l.id) },
+          },
+          data: { matchRoundId: targetRoundId },
+        });
+      }
+    });
+
+    if (currentRoundId !== targetRoundId) {
+      await reconcileRoundAfterDraftMutation(currentRoundId).catch(() => {});
+      await reconcileRoundAfterDraftMutation(targetRoundId).catch(() => {});
+    }
 
     revalidatePath("/fixtures");
     revalidatePath(`/matches/${matchId}`);
-    revalidatePath(`/rounds/${match.matchRoundId}`);
-    if (newMatchRoundId !== match.matchRoundId) {
-      revalidatePath(`/rounds/${newMatchRoundId}`);
-    }
+    revalidatePath(`/rounds/${currentRoundId}`);
+    revalidatePath(`/rounds/${targetRoundId}`);
     revalidatePath("/assistant");
-    revalidatePath("/teams");
 
-    return { success: true };
+    return {
+      success: true,
+      movedRound: true,
+      createdRound: resolved.created,
+      targetRoundId,
+      targetRoundName: resolved.roundName,
+    };
   } catch (error) {
+    if (error instanceof AmbiguousRoundError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof DateOutsidePhaseError) {
+      return { success: false, error: error.message };
+    }
     const message = error instanceof Error ? error.message : "Could not update the match.";
     return { success: false, error: message };
   }
