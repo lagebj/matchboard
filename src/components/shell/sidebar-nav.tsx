@@ -41,7 +41,11 @@ export function SidebarNav({ warningCount }: { warningCount?: number }) {
     <nav aria-label="Primary" className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-[var(--border-soft)] px-4 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-subtle)] border border-[var(--border-soft)]">
-          <span className="text-xs font-bold text-[var(--accent-strong)]">M</span>
+          <svg viewBox="0 0 24 24" fill="none" className="h-4.5 w-4.5 text-[var(--accent-strong)]" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+            <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.6" />
+          </svg>
         </div>
         <div>
           <p className="text-sm font-semibold text-zinc-50">Matchboard</p>
