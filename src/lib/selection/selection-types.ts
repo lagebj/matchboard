@@ -52,6 +52,7 @@ export type RotationCandidate = EvaluatedPlayer & {
   cooldownBlockReason: string | null;
   eligibilityExplanation: string;
   floatingHistory: Awaited<ReturnType<typeof getFloatingHistory>>;
+  isMovementCandidate: boolean;
   missedCoreMatchThisWeek: RegisteredSelectionSnapshot | null;
   positionMatchLevel: "primary" | "secondary" | "tertiary" | "none";
   priorityScore: number;

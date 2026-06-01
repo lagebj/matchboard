@@ -1035,6 +1035,97 @@ Feature: Matchboard football operations workspace
       And warn that non_rotatable restriction was overridden
 
 
+  Rule: Movement candidates
+
+    MovementCandidate marks individual players as suitable for temporary movement through a specific rotation path.
+    It is a soft preference that augments RotationPath eligibility and existing player attributes.
+    It does not bypass hard eligibility rules or replace supportSuitability/developmentReadiness.
+
+    Scenario: Active movement candidate receives scoring preference
+      Given player "p1" has Team A as core team
+      And Team A has an active SUPPORT path to Team B
+      And player "p1" is an active movement candidate for the Team A to Team B SUPPORT path
+      And player "p2" has Team A as core team
+      And player "p2" is eligible for Team B support but is not a movement candidate
+      When the selection engine ranks support candidates for Team B
+      Then player "p1" must score higher than player "p2" for the SUPPORT category
+
+    Scenario: Non-candidate eligible player can still be selected
+      Given player "p1" has Team A as core team
+      And Team A has an active SUPPORT path to Team B
+      And player "p1" is not a movement candidate for any path
+      When Team B needs support and no active candidates exist on the path
+      Then player "p1" may still be selected for Team B support
+
+    Scenario: Paused candidate is excluded from scoring preference
+      Given player "p1" is a paused movement candidate for a SUPPORT path
+      When the selection engine ranks support candidates
+      Then player "p1" must not receive the candidate scoring bonus
+
+    Scenario: Movement candidate does not bypass hard eligibility
+      Given player "p1" is an active movement candidate for a SUPPORT path from Team A to Team B
+      And player "p1" is marked non_rotatable
+      When the selection engine generates match round selections
+      Then player "p1" must not be selected for non-core movement
+
+    Scenario: Movement candidate does not change core team membership
+      Given player "p1" has Team A as core team
+      And player "p1" is an active movement candidate for a SUPPORT path from Team A to Team B
+      Then player "p1" core team must remain Team A
+
+    Scenario: SUPPORT candidate is compatible with BACKFILL rotation path
+      Given player "p1" has Team A as core team
+      And Team A has an active BACKFILL path to Team B
+      And player "p1" is an active movement candidate with role SUPPORT for the BACKFILL path
+      Then the candidate must be considered valid
+
+    Scenario: DEVELOPMENT candidate is compatible with CONFIDENCE_REBUILD rotation path
+      Given player "p1" has Team A as core team
+      And Team A has an active CONFIDENCE_REBUILD path to Team B
+      And player "p1" is an active movement candidate with role DEVELOPMENT for the CONFIDENCE_REBUILD path
+      Then the candidate must be considered valid
+
+    Scenario: Duplicate candidate for same player path and role is rejected
+      Given player "p1" is an active movement candidate for a SUPPORT path from Team A to Team B
+      When the coach tries to create another movement candidate for the same player path and role
+      Then the creation must be rejected
+
+    Scenario: Player must belong to rotation path source team
+      Given player "p1" has Team B as core team
+      And Team A has an active SUPPORT path to Team C
+      When the coach tries to create a movement candidate for player "p1" on the Team A to Team C path
+      Then the creation must be rejected with a source team error
+
+    Scenario: Reactivating a paused candidate requires active rotation path
+      Given player "p1" is a paused movement candidate for a SUPPORT path
+      And the rotation path has been deactivated
+      When the coach tries to reactivate the candidate
+      Then the reactivation must be rejected
+
+    Scenario: Movement candidate is never included in parent-facing exports
+      Given player "p1" is an active movement candidate
+      When a parent-facing export is generated
+      Then the export must not contain movement candidate data or rationale
+
+    Scenario: Manual selection of non-candidate player shows contextual note
+      Given player "p1" has Team A as core team
+      And Team A has an active SUPPORT path to Team B
+      And player "p1" is not a movement candidate for the SUPPORT path
+      When the coach manually selects player "p1" for Team B support
+      Then a contextual note must be shown indicating the player is not a marked candidate
+      And the manual selection must still be allowed with an override reason
+
+    Scenario: Drift detection identifies overdue review
+      Given player "p1" is an active movement candidate with a reviewBy date in the past
+      When drift detection runs
+      Then a Planning note must be generated for review overdue
+
+    Scenario: Drift detection identifies never-used candidate
+      Given player "p1" has been an active movement candidate for multiple rounds without being used
+      When drift detection runs
+      Then a Planning note must be generated for never-used candidate
+
+
   Rule: Availability and reliability
 
     Availability beats all football logic.

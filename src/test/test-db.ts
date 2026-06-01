@@ -50,6 +50,7 @@ export async function teardownTestDb(): Promise<void> {
 
 export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.selectionExplanation.deleteMany().catch(() => {});
+  await db.movementCandidate.deleteMany().catch(() => {});
   await db.coachingIntent.deleteMany().catch(() => {});
   await db.playerReadinessSignal.deleteMany().catch(() => {});
   await db.matchExecutionFeedback.deleteMany().catch(() => {});

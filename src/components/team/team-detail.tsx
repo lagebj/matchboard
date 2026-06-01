@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { formatSeverity, formatSelectionRole } from "@/lib/match-utils";
 import type { SelectionRole } from "@/generated/prisma/client";
+import type { MovementCandidateRationale, MovementCandidateRole, MovementCandidateStatus } from "@/generated/prisma/client";
 import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
 import { RotationPathCard } from "@/components/rules/rotation-path-card";
+import {
+  createMovementCandidateAction,
+  deleteMovementCandidateAction,
+  toggleMovementCandidateStatusAction,
+} from "@/app/(app)/teams/movement-candidate-actions";
 
 function formatAvailability(status: string): string {
   switch (status) {
@@ -89,6 +95,26 @@ type RotationPathSummary = {
   active: boolean;
 };
 
+type MovementCandidateEntry = {
+  id: string;
+  playerId: string;
+  playerFirstName: string;
+  playerLastName: string | null;
+  coreTeamId: string;
+  coreTeamName: string;
+  rotationPathId: string;
+  role: MovementCandidateRole;
+  status: MovementCandidateStatus;
+  activeFrom: Date;
+  reviewBy: Date | null;
+  rationaleCategory: MovementCandidateRationale;
+  rationaleNote: string | null;
+  lastUsed: Date | null;
+  movementCountInPeriod: number;
+  targetTeamId: string;
+  targetTeamName: string;
+};
+
 type TeamDetailData = {
   teamId: string;
   teamName: string;
@@ -142,17 +168,20 @@ type TeamDetailData = {
   movementHistory: MovementEntry[];
   finalizedRounds: HistoryRound[];
   rotationPaths: RotationPathSummary[];
+  incomingCandidates: MovementCandidateEntry[];
+  outgoingCandidates: MovementCandidateEntry[];
   teamOptions: Array<{ id: string; name: string }>;
   previousTeamId: string | null;
   nextTeamId: string | null;
 };
 
-type TabKey = "squad" | "current-round" | "movement" | "history" | "rules";
+type TabKey = "squad" | "current-round" | "movement" | "candidates" | "history" | "rules";
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
   { key: "current-round", label: "Current Round" },
   { key: "movement", label: "Movement" },
+  { key: "candidates", label: "Movement candidates" },
   { key: "history", label: "History" },
   { key: "rules", label: "Rules & Links" },
 ];
@@ -649,6 +678,284 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
   );
 }
 
+const RATIONALE_LABELS: Record<string, string> = {
+  CHALLENGE_EXPOSURE: "Challenge exposure",
+  CONFIDENCE_AND_INVOLVEMENT: "Confidence and involvement",
+  STABILISE_TEAM_FUNCTION: "Stabilise team function",
+  SUPPORT_TEAMMATES: "Support teammates",
+  POSITIONAL_LEARNING: "Positional learning",
+  RESET_AND_RESPONSIBILITY: "Reset and responsibility",
+  COACH_JUDGEMENT: "Coach judgement",
+};
+
+function formatRationaleCategory(category: string): string {
+  return RATIONALE_LABELS[category] ?? category;
+}
+
+function formatDateShort(date: Date | null): string {
+  if (!date) return "—";
+  const d = new Date(date);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function MovementCandidatesTab({
+  incomingCandidates,
+  outgoingCandidates,
+  rotationPaths,
+  teamId: _teamId,
+  teamOptions: _teamOptions,
+}: {
+  incomingCandidates: MovementCandidateEntry[];
+  outgoingCandidates: MovementCandidateEntry[];
+  rotationPaths: RotationPathSummary[];
+  teamId: string;
+  teamOptions: Array<{ id: string; name: string }>;
+}) {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const incomingSupport = incomingCandidates.filter((c) => c.role === "SUPPORT");
+  const incomingDevelopment = incomingCandidates.filter((c) => c.role === "DEVELOPMENT");
+
+  const activeOutgoingPaths = rotationPaths.filter((p) => p.direction === "outgoing" && p.active);
+
+  function handleToggleStatus(candidateId: string, currentStatus: MovementCandidateStatus) {
+    const targetStatus: "ACTIVE" | "PAUSED" = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
+    startTransition(async () => {
+      await toggleMovementCandidateStatusAction(candidateId, targetStatus);
+    });
+  }
+
+  function handleDelete(candidateId: string) {
+    if (!confirm("Remove this movement candidate?")) return;
+    startTransition(async () => {
+      await deleteMovementCandidateAction(candidateId);
+    });
+  }
+
+  function renderCandidateCard(candidate: MovementCandidateEntry, direction: "incoming" | "outgoing") {
+    const isOverdue = candidate.reviewBy && new Date(candidate.reviewBy) < new Date();
+    const statusColor = candidate.status === "PAUSED"
+      ? "border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.04)]"
+      : isOverdue
+        ? "border-[rgba(185,128,119,0.2)] bg-[rgba(185,128,119,0.04)]"
+        : "border app-hairline bg-[rgba(0,0,0,0.08)]";
+
+    return (
+      <div key={candidate.id} className={`rounded-xl border ${statusColor} px-3 py-2.5`}>
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)] truncate"
+            href={`/players/${candidate.playerId}`}
+          >
+            {candidate.playerLastName
+              ? `${candidate.playerFirstName} ${candidate.playerLastName}`
+              : candidate.playerFirstName}
+          </Link>
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-full border app-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+              {candidate.role === "SUPPORT" ? "Support" : "Development"}
+            </span>
+            {candidate.status === "PAUSED" && (
+              <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">
+                Paused
+              </span>
+            )}
+            {isOverdue && (
+              <span className="rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[#f0cbc5]">
+                Review overdue
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] app-copy-muted">
+          <span>{direction === "incoming" ? `From ${candidate.coreTeamName}` : `To ${candidate.targetTeamName}`}</span>
+          <span>·</span>
+          <span>{formatRationaleCategory(candidate.rationaleCategory)}</span>
+          {candidate.reviewBy && <span>· Review by {formatDateShort(candidate.reviewBy)}</span>}
+          {candidate.movementCountInPeriod > 0 && <span>· {candidate.movementCountInPeriod} movements</span>}
+        </div>
+        {candidate.rationaleNote && (
+          <p className="mt-1 text-xs app-copy-soft">{candidate.rationaleNote}</p>
+        )}
+        <div className="mt-2 flex gap-2">
+          <button
+            className="text-[10px] app-copy-muted hover:text-zinc-50 underline"
+            onClick={() => handleToggleStatus(candidate.id, candidate.status)}
+            type="button"
+            disabled={isPending}
+          >
+            {candidate.status === "ACTIVE" ? "Pause" : "Reactivate"}
+          </button>
+          <button
+            className="text-[10px] text-[#f0cbc5] hover:text-zinc-50 underline"
+            onClick={() => handleDelete(candidate.id)}
+            type="button"
+            disabled={isPending}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+          Movement candidates
+        </p>
+        <button
+          className="h-8 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          type="button"
+        >
+          {showCreateForm ? "Cancel" : "Add candidate"}
+        </button>
+      </div>
+
+      <p className="text-xs app-copy-soft">
+        Candidate status means this player may be considered for this movement path. It does not change core team, guarantee selection, rank the player, or remove normal match opportunities.
+      </p>
+
+      {showCreateForm && (
+        <section className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+          <h3 className="text-sm font-semibold text-zinc-100">Create movement candidate</h3>
+          <form
+            action={createMovementCandidateAction}
+            className="mt-4 flex flex-col gap-4"
+          >
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-rotationPathId">Rotation path</label>
+              <select
+                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                id="mc-rotationPathId"
+                name="rotationPathId"
+                required
+              >
+                <option value="">Select path</option>
+                {activeOutgoingPaths.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.toTeamName} ({p.role})
+                  </option>
+                ))}
+                {rotationPaths.filter((p) => p.direction === "incoming" && p.active).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fromTeamName} → {p.toTeamName} ({p.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-playerId">Player</label>
+              <input
+                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                id="mc-playerId"
+                name="playerId"
+                placeholder="Player ID"
+                required
+                type="text"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-role">Role</label>
+              <select
+                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                id="mc-role"
+                name="role"
+                required
+              >
+                <option value="SUPPORT">Support</option>
+                <option value="DEVELOPMENT">Development</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-rationaleCategory">Rationale</label>
+              <select
+                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                id="mc-rationaleCategory"
+                name="rationaleCategory"
+                required
+              >
+                {Object.entries(RATIONALE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-rationaleNote">Note (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                id="mc-rationaleNote"
+                name="rationaleNote"
+                type="text"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-reviewBy">Review by (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                id="mc-reviewBy"
+                name="reviewBy"
+                type="date"
+              />
+            </div>
+            <button
+              className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+              type="submit"
+            >
+              Create candidate
+            </button>
+          </form>
+        </section>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Incoming candidates
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {incomingSupport.length > 0 && (
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Support candidates ({incomingSupport.length})</p>
+                {incomingSupport.map((c) => renderCandidateCard(c, "incoming"))}
+              </div>
+            )}
+            {incomingDevelopment.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Development candidates ({incomingDevelopment.length})</p>
+                {incomingDevelopment.map((c) => renderCandidateCard(c, "incoming"))}
+              </div>
+            )}
+            {incomingCandidates.length === 0 && (
+              <div className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.08)] px-3 py-2.5 text-sm app-copy-soft">
+                No incoming movement candidates for this team.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
+            Outgoing candidates
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {outgoingCandidates.length > 0 ? (
+              outgoingCandidates.map((c) => renderCandidateCard(c, "outgoing"))
+            ) : (
+              <div className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.08)] px-3 py-2.5 text-sm app-copy-soft">
+                No outgoing movement candidates from this team.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TeamDetail({ data }: { data: TeamDetailData }) {
   const [activeTab, setActiveTab] = useState<TabKey>("squad");
 
@@ -774,6 +1081,15 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
           />
         )}
         {activeTab === "movement" && <MovementTab movementHistory={data.movementHistory} />}
+        {activeTab === "candidates" && (
+          <MovementCandidatesTab
+            incomingCandidates={data.incomingCandidates}
+            outgoingCandidates={data.outgoingCandidates}
+            rotationPaths={data.rotationPaths}
+            teamId={data.teamId}
+            teamOptions={data.teamOptions}
+          />
+        )}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}
         {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} teamOptions={data.teamOptions} />}
       </section>

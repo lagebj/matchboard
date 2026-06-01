@@ -243,6 +243,46 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     }),
   ]);
 
+  const activeMovementCandidates = await db.movementCandidate.findMany({
+    where: { status: "ACTIVE" },
+    select: { playerId: true, rotationPathId: true, role: true },
+  });
+
+  const candidateRotationPathIds = new Set(activeMovementCandidates.map((mc) => mc.rotationPathId));
+
+  const allRotationPathsWithIds = await db.rotationPath.findMany({
+    where: { active: true },
+    select: { id: true, fromTeamId: true, toTeamId: true, role: true },
+  });
+
+  const rotationPathIdLookup = new Map<string, string[]>();
+  for (const rp of allRotationPathsWithIds) {
+    const key = `${rp.fromTeamId}|${rp.toTeamId}|${rp.role.toUpperCase()}`;
+    const existing = rotationPathIdLookup.get(key);
+    if (existing) {
+      existing.push(rp.id);
+    } else {
+      rotationPathIdLookup.set(key, [rp.id]);
+    }
+  }
+
+  function isMovementCandidateForRole(playerCoreTeamId: string, targetTeamId: string, candidateCategory: RotationCandidateCategory): boolean {
+    const directMatch = rotationPathIdLookup.get(`${playerCoreTeamId}|${targetTeamId}|${candidateCategory}`);
+    if (directMatch && directMatch.some((pid) => candidateRotationPathIds.has(pid))) return true;
+
+    if (candidateCategory === "SUPPORT") {
+      const backfillMatch = rotationPathIdLookup.get(`${playerCoreTeamId}|${targetTeamId}|BACKFILL`);
+      if (backfillMatch && backfillMatch.some((pid) => candidateRotationPathIds.has(pid))) return true;
+    }
+
+    if (candidateCategory === "DEVELOPMENT") {
+      const confidenceMatch = rotationPathIdLookup.get(`${playerCoreTeamId}|${targetTeamId}|CONFIDENCE_REBUILD`);
+      if (confidenceMatch && confidenceMatch.some((pid) => candidateRotationPathIds.has(pid))) return true;
+    }
+
+    return false;
+  }
+
   if (!match) {
     throw new Error("Match not found.");
   }
@@ -842,6 +882,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       cooldownBlockReason: null,
       eligibilityExplanation,
       floatingHistory,
+      isMovementCandidate: isMovementCandidateForRole(player.coreTeamId ?? "", currentMatchRecord.teamId, candidateCategory),
       missedCoreMatchThisWeek: findMissedCoreMatchThisWeek(
         player,
         currentMatchRecord,

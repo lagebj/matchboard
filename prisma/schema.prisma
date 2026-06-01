@@ -88,6 +88,7 @@ model Player {
   matchReportStats MatchReportPlayerStat[]
   readinessSignals PlayerReadinessSignal[]
   executionFeedback MatchExecutionFeedback[]
+  movementCandidates MovementCandidate[]
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
 }
@@ -239,6 +240,8 @@ model RotationPath {
 
   fromTeam Team @relation("FromTeam", fields: [fromTeamId], references: [id])
   toTeam   Team @relation("ToTeam", fields: [toTeamId], references: [id])
+
+  movementCandidates MovementCandidate[]
 }
 
 model MovementLedger {
@@ -796,4 +799,46 @@ model SelectionExplanation {
   @@index([teamId])
   @@index([playerId])
   @@index([createdAt])
+}
+
+enum MovementCandidateRole {
+  SUPPORT
+  DEVELOPMENT
+}
+
+enum MovementCandidateStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum MovementCandidateRationale {
+  CHALLENGE_EXPOSURE
+  CONFIDENCE_AND_INVOLVEMENT
+  STABILISE_TEAM_FUNCTION
+  SUPPORT_TEAMMATES
+  POSITIONAL_LEARNING
+  RESET_AND_RESPONSIBILITY
+  COACH_JUDGEMENT
+}
+
+model MovementCandidate {
+  id                String                    @id @default(cuid())
+  playerId          String
+  rotationPathId    String
+  role              MovementCandidateRole
+  status            MovementCandidateStatus   @default(ACTIVE)
+  activeFrom        DateTime                  @default(now())
+  reviewBy          DateTime?
+  rationaleCategory MovementCandidateRationale
+  rationaleNote     String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  player          Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  rotationPath    RotationPath @relation(fields: [rotationPathId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, rotationPathId, role])
+  @@index([playerId])
+  @@index([rotationPathId])
+  @@index([status])
 }
