@@ -92,6 +92,8 @@ export function getRotationCandidatePriorityScore(
     ? (consecutiveSupportRounds - 1) * 6
     : 0;
 
+  const movementCandidateBonus = candidate.isMovementCandidate ? 12 : 0;
+
   return (
     50 +
     (candidate.candidateCategory === "SUPPORT" ? 40 : 0) +
@@ -99,7 +101,8 @@ export function getRotationCandidatePriorityScore(
     (candidate.missedCoreMatchThisWeek ? 30 : 0) +
     getPositionMatchScore(candidate.positionMatchLevel) +
     candidate.suitabilityScore +
-    getPlanningPeriodFairnessBonus(candidate.player.id, planningPeriodCounts, candidate.candidateCategory) -
+    getPlanningPeriodFairnessBonus(candidate.player.id, planningPeriodCounts, candidate.candidateCategory) +
+    movementCandidateBonus -
     candidate.registeredAppearanceCount * 4 -
     candidate.floatingHistory.totalFloatingMatches * 3 -
     candidate.recentLoadScore * 2 -

@@ -1,5 +1,6 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isPlayerActiveCandidate } from "@/lib/selection/movement-candidate";
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { AutomaticSelectionCategory, OverrideReasonCategory } from "@/lib/selection/types";
@@ -114,6 +115,28 @@ export async function addPlayerToDraftMatch(
     if (!pathResult.valid && overrideReasonCategory) {
       requiresOverride = true;
       warnings.push(`Movement override: ${pathResult.explanation}`);
+    }
+
+    if (pathResult.valid && pathResult.path) {
+      const matchingRotationPath = await db.rotationPath.findFirst({
+        where: {
+          fromTeamId: pathResult.path.fromTeamId,
+          toTeamId: pathResult.path.toTeamId,
+          role: pathResult.path.role as SelectionRole,
+          active: true,
+        },
+        select: { id: true },
+      });
+
+      if (matchingRotationPath) {
+        const candidateRole = role === SelectionRole.SUPPORT ? "SUPPORT" as const : role === SelectionRole.DEVELOPMENT ? "DEVELOPMENT" as const : null;
+        if (candidateRole) {
+          const isActiveCandidate = await isPlayerActiveCandidate(player.id, matchingRotationPath.id, candidateRole);
+          if (!isActiveCandidate) {
+            warnings.push("Player is not an active movement candidate for this path. Consider adding them as a movement candidate for better tracking.");
+          }
+        }
+      }
     }
   }
 

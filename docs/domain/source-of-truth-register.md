@@ -32,6 +32,7 @@ Matchboard distinguishes canonical facts, derived projections, historical snapsh
 | `MatchReportPlayerStat.goals` | Compatibility field — derived projection from `Goal` events | No display reads must use this as truth | No independent UI writes; may be rebuilt from Goal events as a cache if needed | Must equal sum of Goal events for the same report/player; mismatches reported by integrity audit | Compatibility |
 | `MatchReportPlayerStat.assists` | Compatibility field — derived projection from `Assist` events | No display reads must use this as truth | No independent UI writes; may be rebuilt from Assist events as a cache if needed | Must equal sum of Assist events for the same report/player; mismatches reported by integrity audit | Compatibility |
 | Availability status | `Availability` table for current round planning | Round board player availability | Coach via availability form | Applies to draft planning; does not count as actual participation | Active |
+| Movement candidate preference | `MovementCandidate` rows with ACTIVE status | Team detail movement candidates tab, selection engine scoring | Coach via team detail movement candidate tab | Candidate is a soft preference; does not bypass hard eligibility rules (RotationPath, nonRotatable, same-round conflict) | Active |
 
 ## Confirmed decisions
 
@@ -75,6 +76,18 @@ Matchboard distinguishes canonical facts, derived projections, historical snapsh
 - Derived from `computeRoundPlanIntegrity`
 - Do not make stale `Warning` or `AssistantIssue` rows authoritative again
 - Only audit or safely reconcile stale projections through canonical plan-integrity boundary
+
+### Movement candidate preference
+- Canonical source: `MovementCandidate` rows with ACTIVE status
+- Does not bypass hard eligibility rules (RotationPath authority, nonRotatable, same-round conflict)
+- Does not replace `supportSuitability` or `developmentReadiness` player attributes
+- Does not change core team membership
+- Active candidates receive a +12 scoring bonus in selection engine — a preference, not a guarantee
+- PAUSED candidates are excluded from scoring but record is preserved
+- SUPPORT candidates are compatible with BACKFILL rotation paths
+- DEVELOPMENT candidates are compatible with CONFIDENCE_REBUILD rotation paths
+- Unique constraint on `[playerId, rotationPathId, role]` — no duplicates
+- Coach-facing only — must never appear in parent-facing exports or external AI payloads
 
 ## Audit candidates
 

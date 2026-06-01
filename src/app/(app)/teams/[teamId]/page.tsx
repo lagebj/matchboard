@@ -5,6 +5,7 @@ import { TeamDetail } from "@/components/team/team-detail";
 import { db } from "@/lib/db";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
+import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/lib/selection/movement-candidate";
 
 type TeamPageProps = {
   params: Promise<{
@@ -304,6 +305,11 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     })),
   ];
 
+  const [incomingCandidates, outgoingCandidates] = await Promise.all([
+    getIncomingCandidatesForTeam(team.id),
+    getOutgoingCandidatesForTeam(team.id),
+  ]);
+
   const data = {
     teamId: team.id,
     teamName: team.name,
@@ -335,6 +341,8 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     movementHistory: movementEntries,
     finalizedRounds: finalizedRoundsWithCounts,
     rotationPaths: allRotationPaths,
+    incomingCandidates,
+    outgoingCandidates,
     teamOptions: orderedTeamIds.map((t) => ({ id: t.id, name: t.name })),
     previousTeamId,
     nextTeamId,

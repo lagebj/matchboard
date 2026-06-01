@@ -445,6 +445,58 @@ Rules:
 
 The `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility or movement decisions. They exist for backward-compatible UI configuration display only and are scheduled for removal. The selection engine must use RotationPath exclusively.
 
+### Movement candidates
+
+MovementCandidate is a coach-facing domain concept for marking individual players as suitable for temporary movement through a specific rotation path. It is a soft preference that augments — but does not replace — RotationPath eligibility and existing player attributes.
+
+Core rules:
+- A MovementCandidate links a player to a rotation path and a role (SUPPORT or DEVELOPMENT)
+- A player can have multiple MovementCandidate records (one per rotation path)
+- Unique constraint on `[playerId, rotationPathId, role]` — no duplicates
+- MovementCandidate is coach-facing only — must never appear in parent-facing exports or external AI payloads
+- MovementCandidate does not change core team membership
+- MovementCandidate does not replace `supportSuitability` or `developmentReadiness` player attributes
+- MovementCandidate does not bypass hard eligibility rules (RotationPath, nonRotatable, same-round conflict)
+- The selection engine PREFERS active candidates (+12 scoring bonus) but falls back to any eligible player on the rotation path
+- Candidate filtering is always active when generating selections — no toggle
+- Non-candidate players can still be selected for non-core movement when eligible
+
+Candidate role compatibility:
+- SUPPORT candidates are allowed on BACKFILL rotation paths
+- DEVELOPMENT candidates are allowed on CONFIDENCE_REBUILD rotation paths
+- This mirrors the selection engine's role compatibility for squad repair and development routing
+
+Candidate status:
+- ACTIVE — candidate is considered in selection scoring
+- PAUSED — candidate is temporarily excluded from scoring but record is preserved
+- Reactivating a PAUSED candidate requires the rotation path to still be active
+
+Rationale categories (structured, not free text):
+- CHALLENGE_EXPOSURE — player receives harder match context because effort and readiness support it
+- CONFIDENCE_AND_INVOLVEMENT — player benefits from involvement and connection
+- STABILISE_TEAM_FUNCTION — player helps stabilise a team that needs support
+- SUPPORT_TEAMMATES — player helps teammates through coordinated movement
+- POSITIONAL_LEARNING — player develops through positional exposure
+- RESET_AND_RESPONSIBILITY — player receives reset and responsibility context
+- COACH_JUDGEMENT — coach judgement with specific context in the note
+
+Drift and review detection (all are Planning notes, not Blocked or Decision required):
+- Review overdue — `reviewBy` date has passed
+- Long-running candidate — active for many rounds without being used
+- Repeated non-core without candidate — player moves without candidate record
+- One-way movement pattern — player only moves one direction
+- Core replacement concern — player rarely selected for core team
+- Never-used candidate — candidate never resulted in actual movement
+
+Data layer:
+- `src/lib/selection/movement-candidate.ts` — validation, CRUD, queries, enrichment
+- `src/lib/selection/movement-candidate-drift.ts` — drift and review detection
+- `src/app/(app)/teams/movement-candidate-actions.ts` — server actions
+
+Manual draft edits:
+- Selecting a non-candidate player for non-core movement shows a contextual note (not a hard block)
+- Manual override always remains possible with reason
+
 ### Support priority convention
 
 Support priority is a **rank**, not a weight. Lower number = higher priority. Priority 1 is resolved before priority 2. The `supportPriority` field on the Team model uses ascending sort order (`ORDER BY supportPriority ASC`). The UI label must say "support priority rank: 1 is highest". Do not use ambiguous labels like "support priority" without the rank clarification.
@@ -946,6 +998,7 @@ Team detail has these sections:
 - Squad tab (core roster, planning status groups)
 - Current Round tab (who is selected, sent, received, dropped — with selection reason)
 - Movement tab (movement history across rounds)
+- Movement candidates tab (incoming and outgoing candidates, create/pause/reactivate/delete, drift indicators)
 - History tab (finalized rounds for this team)
 - Rules/Links tab (rotation paths, config, link to Rules page)
 
@@ -1318,11 +1371,14 @@ Avoid:
 | `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a match or round |
 | `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |
 | `src/lib/selection/persist-warnings.ts` | Persist plan integrity signals after generation |
+| `src/lib/selection/movement-candidate.ts` | Movement candidate CRUD, validation, queries |
+| `src/lib/selection/movement-candidate-drift.ts` | Movement candidate drift and review detection |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |
 | `src/lib/data-integrity/types.ts` | Audit and reconciliation types |
 | `src/app/api/admin/audit/route.ts` | GET `/api/admin/audit` — run integrity audit |
 | `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
+| `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
 
 ## Stale references removed
 
