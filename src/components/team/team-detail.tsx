@@ -170,6 +170,7 @@ type TeamDetailData = {
   rotationPaths: RotationPathSummary[];
   incomingCandidates: MovementCandidateEntry[];
   outgoingCandidates: MovementCandidateEntry[];
+  eligibleCandidates: Array<{ id: string; firstName: string; lastName: string | null; coreTeamId: string | null; nonRotatable: boolean }>;
   teamOptions: Array<{ id: string; name: string }>;
   previousTeamId: string | null;
   nextTeamId: string | null;
@@ -702,22 +703,31 @@ function MovementCandidatesTab({
   incomingCandidates,
   outgoingCandidates,
   rotationPaths,
+  eligibleCandidates,
   teamId: _teamId,
   teamOptions: _teamOptions,
 }: {
   incomingCandidates: MovementCandidateEntry[];
   outgoingCandidates: MovementCandidateEntry[];
   rotationPaths: RotationPathSummary[];
+  eligibleCandidates: Array<{ id: string; firstName: string; lastName: string | null; coreTeamId: string | null; nonRotatable: boolean }>;
   teamId: string;
   teamOptions: Array<{ id: string; name: string }>;
 }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedPathId, setSelectedPathId] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const activeOutgoingPaths = rotationPaths.filter((p) => p.direction === "outgoing" && p.active);
+  const activeIncomingPaths = rotationPaths.filter((p) => p.direction === "incoming" && p.active);
+
+  const selectedPath = rotationPaths.find((p) => p.id === selectedPathId);
+  const filteredPlayers = selectedPath
+    ? eligibleCandidates.filter((p) => p.coreTeamId === selectedPath.fromTeamId && !p.nonRotatable)
+    : [];
 
   const incomingSupport = incomingCandidates.filter((c) => c.role === "SUPPORT");
   const incomingDevelopment = incomingCandidates.filter((c) => c.role === "DEVELOPMENT");
-
-  const activeOutgoingPaths = rotationPaths.filter((p) => p.direction === "outgoing" && p.active);
 
   function handleToggleStatus(candidateId: string, currentStatus: MovementCandidateStatus) {
     const targetStatus: "ACTIVE" | "PAUSED" = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
@@ -833,30 +843,45 @@ function MovementCandidatesTab({
                 id="mc-rotationPathId"
                 name="rotationPathId"
                 required
+                value={selectedPathId}
+                onChange={(e) => setSelectedPathId(e.target.value)}
               >
                 <option value="">Select path</option>
-                {activeOutgoingPaths.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.toTeamName} ({p.role})
-                  </option>
-                ))}
-                {rotationPaths.filter((p) => p.direction === "incoming" && p.active).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fromTeamName} → {p.toTeamName} ({p.role})
-                  </option>
-                ))}
+                <optgroup label="Outgoing">
+                  {activeOutgoingPaths.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.toTeamName} ({p.role})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Incoming">
+                  {activeIncomingPaths.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.fromTeamName} → {p.toTeamName} ({p.role})
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-playerId">Player</label>
-              <input
+              <select
                 className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
                 id="mc-playerId"
                 name="playerId"
-                placeholder="Player ID"
                 required
-                type="text"
-              />
+                disabled={!selectedPathId}
+              >
+                <option value="">{selectedPathId ? "Select player" : "Select a rotation path first"}</option>
+                {filteredPlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName}
+                  </option>
+                ))}
+              </select>
+              {selectedPathId && filteredPlayers.length === 0 && (
+                <p className="mt-1 text-[10px] app-copy-soft">No eligible players found for this path&apos;s source team.</p>
+              )}
             </div>
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-role">Role</label>
@@ -1086,6 +1111,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
             incomingCandidates={data.incomingCandidates}
             outgoingCandidates={data.outgoingCandidates}
             rotationPaths={data.rotationPaths}
+            eligibleCandidates={data.eligibleCandidates}
             teamId={data.teamId}
             teamOptions={data.teamOptions}
           />

@@ -305,9 +305,18 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     })),
   ];
 
-  const [incomingCandidates, outgoingCandidates] = await Promise.all([
+  const [incomingCandidates, outgoingCandidates, eligibleCandidates] = await Promise.all([
     getIncomingCandidatesForTeam(team.id),
     getOutgoingCandidatesForTeam(team.id),
+    db.player.findMany({
+      where: {
+        removedAt: null,
+        active: true,
+        coreTeamId: { in: [team.id, ...team.toRotationPaths.filter((p) => p.active).map((p) => p.fromTeam.id)] },
+      },
+      select: { id: true, firstName: true, lastName: true, coreTeamId: true, nonRotatable: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    }),
   ]);
 
   const data = {
@@ -343,6 +352,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     rotationPaths: allRotationPaths,
     incomingCandidates,
     outgoingCandidates,
+    eligibleCandidates,
     teamOptions: orderedTeamIds.map((t) => ({ id: t.id, name: t.name })),
     previousTeamId,
     nextTeamId,
