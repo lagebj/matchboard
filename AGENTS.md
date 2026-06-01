@@ -1270,6 +1270,12 @@ Never prefix secrets with NEXT_PUBLIC_ (they would be exposed to the browser).
 
 Demo data must be fake.
 
+TEST_DATABASE_URL is required for all test runs. Tests must never fall back to DATABASE_URL — it may point to a production database. The vitest config and `setupTestDb()` both enforce this: if `TEST_DATABASE_URL` is not set, tests fail immediately rather than risk wiping production data. Never reintroduce a DATABASE_URL fallback in test infrastructure.
+
+Never run `prisma migrate dev` against production.
+
+Never run `cleanTestDb()` or any test setup/teardown against a production database.
+
 ## Auth rules
 
 Matchboard is a private coaching app. Auth is mandatory, not optional.
