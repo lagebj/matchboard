@@ -46,15 +46,15 @@ export function MobileNav() {
             <Link
               key={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 rounded-xl px-3 py-2 transition-colors ${
+              className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-2 transition-colors ${
                 active
-                  ? "text-[var(--accent-strong)]"
-                  : "text-[var(--text-muted)] hover:text-zinc-50"
+                  ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/40 hover:text-zinc-100"
               }`}
               href={item.href}
             >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              <span className="text-[10px] font-medium uppercase tracking-[0.1em]">{item.label}</span>
+              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+              <span className="text-[9px] font-semibold uppercase tracking-[0.12em]">{item.label}</span>
             </Link>
           );
         })}

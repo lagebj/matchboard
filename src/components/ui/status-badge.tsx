@@ -27,7 +27,7 @@ type StatusConfig = {
  */
 const statusConfig: Record<RoundStatus, StatusConfig> = {
   NOT_GENERATED: {
-    label: "Not generated",
+    label: "No squad draft",
     icon: CircleDashed,
     variant: "neutral",
   },

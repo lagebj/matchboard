@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { PageHeader } from "@/components/ui/page-header";
+import { TeamShield } from "@/components/ui/team-shield";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -36,7 +37,8 @@ function TeamResultsRow({ row }: { row: TeamPeriodResultsRow }) {
   return (
     <tr className="hover:bg-[var(--surface-hover)] transition-colors">
       <td className="px-4 py-2.5">
-        <Link href={`/teams/${row.teamId}`} className="font-medium text-zinc-200 hover:text-zinc-50">
+        <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 font-medium text-zinc-200 hover:text-zinc-50">
+          <TeamShield teamName={row.teamName} size="sm" />
           {row.teamName}
         </Link>
       </td>
@@ -57,7 +59,8 @@ function MobileTeamCard({ row }: { row: TeamPeriodResultsRow }) {
   return (
     <Surface variant="default" padding="sm">
       <div className="flex items-center justify-between">
-        <Link href={`/teams/${row.teamId}`} className="font-medium text-zinc-200 hover:text-zinc-50">
+        <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 font-medium text-zinc-200 hover:text-zinc-50">
+          <TeamShield teamName={row.teamName} size="sm" />
           {row.teamName}
         </Link>
         <span className="text-xs text-[var(--text-muted)] tabular-nums">{row.matchesPlayed} played</span>

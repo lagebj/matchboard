@@ -12,6 +12,7 @@ type PageHeaderProps = {
   description?: string;
   context?: ReactNode;
   actions?: ReactNode;
+  icon?: ReactNode;
 };
 
 export function PageHeader({
@@ -20,10 +21,13 @@ export function PageHeader({
   description,
   context,
   actions,
+  icon,
 }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-      <div className="min-w-0 flex flex-col gap-1">
+      <div className="min-w-0 flex items-center gap-3">
+        {icon && <div className="shrink-0">{icon}</div>}
+        <div className="min-w-0 flex flex-col gap-1">
         {eyebrow && (
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
             {eyebrow}
@@ -40,6 +44,7 @@ export function PageHeader({
         {context && (
           <div className="text-xs text-[var(--text-muted)] mt-0.5">{context}</div>
         )}
+        </div>
       </div>
       {actions && (
         <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>

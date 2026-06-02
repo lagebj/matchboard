@@ -10,6 +10,8 @@ import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DecisionBanner } from "@/components/ui/decision-banner";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { Users } from "lucide-react";
 
 type PlayersPageClientProps = {
   players: Array<{
@@ -94,10 +96,12 @@ export function PlayersPageClient({
       {saved === "created" && <DecisionBanner variant="success" title="Player created." />}
       {saved === "removed" && <DecisionBanner variant="success" title="Player removed." />}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-[var(--text-muted)]">{players.length} player{players.length !== 1 ? "s" : ""}</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <MetricTile
+          icon={<Users className="h-4 w-4" />}
+          label="Players"
+          value={players.length}
+        />
       </div>
 
       <PlayersModeTabs mode={mode} onModeChange={setMode} />

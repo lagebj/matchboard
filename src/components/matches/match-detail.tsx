@@ -22,11 +22,15 @@ import { formatWarningCode } from "@/lib/match-utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
+import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
 import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
+import { TeamShield } from "@/components/ui/team-shield";
+import { IntentCard } from "@/components/ui/intent-card";
+import { MetricTile } from "@/components/ui/metric-tile";
 import { COACHING_INTENT_LABELS, type CoachingIntentCategory } from "@/lib/coaching/types";
 
 type SelectionRow = {
@@ -238,6 +242,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
         description={`${dateStr} at ${timeStr}`}
         actions={
           <div className="flex items-center gap-2">
+            <TeamShield teamName={match.teamName} size="sm" />
             {statusPill && (
               <StatusPill variant={statusPill.variant}>{statusPill.label}</StatusPill>
             )}
@@ -259,7 +264,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
         }
       />
 
-      <Surface padding="md">
+      <TacticalSurface variant="hero" padding="lg">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <MetaTile icon={<MapPin className="h-3.5 w-3.5" />} label="Venue" value={formatVenue(match.homeAway)} />
           <MetaTile icon={<Trophy className="h-3.5 w-3.5" />} label="Type" value={formatMatchType(match.matchType)} />
@@ -272,18 +277,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
         </div>
 
         {(intentLabel || match.matchFit !== "UNKNOWN" || match.notes) && (
-          <div className="mt-3 flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
+          <div className="mt-3 flex flex-col gap-2">
             {intentLabel && (
-              <p>
-                <span className="text-[var(--text-soft)]">Intent:</span>{" "}
-                <span className="text-zinc-100">{intentLabel}</span>
-                {match.inheritedIntentScope && (
-                  <span className="text-[var(--text-muted)]">
-                    {" "}
-                    (from {match.inheritedIntentScope})
-                  </span>
-                )}
-              </p>
+              <IntentCard
+                title={intentLabel}
+                compact
+              />
             )}
             {match.matchFit !== "UNKNOWN" && <p>Match fit: {formatMatchFit(match.matchFit)}</p>}
             {match.notes && <p>{match.notes}</p>}
@@ -308,7 +307,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
             currentIntentId={match.coachingIntentId}
           />
         </div>
-      </Surface>
+      </TacticalSurface>
 
       <TabRail
         items={tabs}
@@ -590,20 +589,20 @@ function MetaTile({
   icon,
   label,
   value,
+  tone = "neutral",
 }: {
   icon?: React.ReactNode;
   label: string;
   value: React.ReactNode;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
 }) {
+  const displayValue = typeof value === "string" || typeof value === "number" ? String(value) : String(value);
   return (
-    <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-        {label}
-      </p>
-      <p className="text-sm text-zinc-100 flex items-center gap-1.5 mt-0.5">
-        {icon && <span className="text-[var(--text-muted)]">{icon}</span>}
-        {value}
-      </p>
-    </div>
+    <MetricTile
+      icon={icon}
+      label={label}
+      value={displayValue}
+      tone={tone}
+    />
   );
 }

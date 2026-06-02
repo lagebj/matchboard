@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { CheckCircle2 } from "lucide-react";
 import { StatusPill } from "../status-pill";
 
 describe("StatusPill", () => {
@@ -50,8 +51,8 @@ describe("StatusPill", () => {
   });
 
   it("renders icon when provided", () => {
-    const Icon = () => <svg data-testid="test-icon" />;
-    render(<StatusPill icon={Icon}>With Icon</StatusPill>);
-    expect(screen.getByTestId("test-icon")).toBeTruthy();
+    render(<StatusPill icon={CheckCircle2}>With Icon</StatusPill>);
+    expect(screen.getByText("With Icon")).toBeTruthy();
+    expect(document.querySelector("svg")).toBeTruthy();
   });
 });

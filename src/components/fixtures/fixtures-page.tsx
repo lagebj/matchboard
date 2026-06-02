@@ -8,7 +8,6 @@ import type {
   FixturePeriod,
   FixtureRound,
   FixtureMatch,
-  SelectionState,
 } from "@/domain/fixtures/types";
 import {
   fetchFixturesOverview,
@@ -16,9 +15,14 @@ import {
 } from "@/domain/fixtures/actions";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
+import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
-import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { StatusRail } from "@/components/ui/status-rail";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { MatchTicket } from "@/components/ui/match-ticket";
+import type { ScoreCapsuleResult } from "@/components/ui/score-capsule";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarRange, OctagonAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 /**
  * FixturesPage — per ADR 0007 the fixtures view reads as a timeline: past
@@ -26,23 +30,8 @@ import { EmptyState } from "@/components/ui/empty-state";
  * open. Match rows are scannable, not wrapped in heavy cards.
  */
 
-type SelectionStateConfig = {
-  label: string;
-  variant: StatusPillVariant;
-};
 
-const selectionStateConfig: Record<SelectionState, SelectionStateConfig> = {
-  NOT_GENERATED: { label: "Not generated", variant: "neutral" },
-  DRAFT: { label: "Draft", variant: "warning" },
-  BLOCKED: { label: "Blocked", variant: "danger" },
-  READY: { label: "Ready", variant: "success" },
-  FINALIZED: { label: "Finalized", variant: "finalized" },
-};
 
-function SelectionStateBadge({ state }: { state: SelectionState }) {
-  const config = selectionStateConfig[state];
-  return <StatusPill variant={config.variant}>{config.label}</StatusPill>;
-}
 
 function roundPrimaryAction(
   round: FixtureRound,
@@ -83,117 +72,44 @@ function IntegritySummary({
   return <span className={`text-[11px] ${tone}`}>{parts.join(" · ")}</span>;
 }
 
-function OutcomeCell({ match }: { match: FixtureMatch }) {
-  const isCompleted = match.reportState.state === "COMPLETED";
-  const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
-  const now = new Date();
-  const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
-
-  if (isCompleted && match.reportState.state === "COMPLETED") {
-    const outcome = match.reportState.result.outcome;
-    const outcomeColor =
-      outcome === "WON"
-        ? "text-[var(--accent-strong)]"
-        : outcome === "DRAWN"
-          ? "text-[var(--text-soft)]"
-          : "text-[var(--danger)]";
-    const outcomeLabel =
-      outcome === "WON" ? "Won" : outcome === "DRAWN" ? "Drawn" : "Lost";
-    return (
-      <div className="flex items-center gap-1.5 text-xs">
-        <span className="font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          FT
-        </span>
-        <span className="font-semibold tabular-nums text-zinc-50">
-          {match.reportState.result.displayScore}
-        </span>
-        <span className={`font-semibold ${outcomeColor}`}>{outcomeLabel}</span>
-      </div>
-    );
-  }
-
-  if (isDraftReport && isPast) {
-    return (
-      <span className="text-[11px] text-[var(--warning)]">Report incomplete</span>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <SelectionStateBadge state={match.selectionState} />
-      <IntegritySummary
-        blockerCount={match.blockerCount}
-        decisionRequiredCount={match.decisionRequiredCount}
-      />
-    </div>
-  );
-}
-
 function MatchRow({ match }: { match: FixtureMatch }) {
   const isCompleted = match.reportState.state === "COMPLETED";
-  const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
-  const now = new Date();
-  const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
 
-  // Outcome-aware row tint — soft and used only for completed matches.
-  const outcome =
-    isCompleted && match.reportState.state === "COMPLETED"
-      ? match.reportState.result.outcome
-      : null;
-  const outcomeAccent =
-    outcome === "WON"
-      ? "before:bg-[var(--accent)]/55"
-      : outcome === "LOST"
-        ? "before:bg-[var(--danger)]/55"
-        : outcome === "DRAWN"
-          ? "before:bg-[var(--text-muted)]/45"
-          : "";
+  const completedResult = isCompleted && match.reportState.state === "COMPLETED"
+    ? match.reportState.result
+    : undefined;
+
+  const result: ScoreCapsuleResult | undefined = completedResult
+    ? completedResult.outcome === "WON"
+      ? "win"
+      : completedResult.outcome === "LOST"
+        ? "loss"
+        : completedResult.outcome === "DRAWN"
+          ? "draw"
+          : "unknown"
+    : undefined;
 
   return (
-    <div
-      className={[
-        "group relative flex items-center justify-between gap-3 px-3 py-2 hover:bg-[var(--surface-muted)]/30 transition-colors",
-        outcomeAccent
-          ? `before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-r ${outcomeAccent} pl-3.5`
-          : "",
-      ].join(" ")}
-    >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm text-zinc-100 truncate">{match.title}</span>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
-          {match.venue && <span>{match.venue}</span>}
-          {match.startsAt && (
-            <span>{new Date(match.startsAt).toLocaleDateString()}</span>
-          )}
-          {typeof match.selectedPlayerCount === "number" &&
-            match.selectedPlayerCount > 0 &&
-            !isCompleted && <span>{match.selectedPlayerCount} selected</span>}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <OutcomeCell match={match} />
-        <Link
-          href={`/matches/${match.id}`}
-          className="text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
-        >
-          {isCompleted
-            ? "View report"
-            : isDraftReport && isPast
-              ? "Complete report"
-              : "Open"}
-        </Link>
-      </div>
-    </div>
+    <MatchTicket
+      teamName={match.teamName}
+      opponentName={match.opponent}
+      dateLabel={match.startsAt ? new Date(match.startsAt).toLocaleDateString() : undefined}
+      status={match.selectionState}
+      reportStatus={match.postMatchStatus}
+      homeScore={completedResult?.goalsFor}
+      awayScore={completedResult?.goalsAgainst}
+      result={result ?? "unknown"}
+      href={`/matches/${match.id}`}
+    />
   );
 }
 
 function RoundSection({ round }: { round: FixtureRound }) {
   const primaryAction = roundPrimaryAction(round);
   const isFinalized = round.selectionState === "FINALIZED";
-  const padding = isFinalized ? "sm" : "md";
 
   return (
-    <Surface padding="none" className="overflow-hidden">
+    <TacticalSurface variant={isFinalized ? "default" : "board"} padding="none" className="overflow-hidden">
       <div
         className={[
           "flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3.5",
@@ -204,7 +120,15 @@ function RoundSection({ round }: { round: FixtureRound }) {
           <span className="text-sm font-semibold text-zinc-50 truncate">
             {round.title}
           </span>
-          <SelectionStateBadge state={round.selectionState} />
+          <StatusRail
+            status={
+              round.selectionState === "NOT_GENERATED" ? "neutral" :
+              round.selectionState === "FINALIZED" ? "finalized" :
+              round.selectionState === "BLOCKED" ? "blocked" :
+              round.selectionState === "DRAFT" ? "draft" :
+              "neutral"
+            }
+          />
           <IntegritySummary
             blockerCount={round.blockerCount}
             decisionRequiredCount={round.decisionRequiredCount}
@@ -226,7 +150,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
           </Button>
         )}
       </div>
-      <div className={padding === "sm" ? "py-1" : "py-1.5"}>
+      <div className={isFinalized ? "py-1" : "py-1.5"}>
         {round.matches.length === 0 ? (
           <p className="text-xs text-[var(--text-muted)] px-3.5 py-3">
             No matches in this round.
@@ -239,7 +163,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
           </div>
         )}
       </div>
-    </Surface>
+    </TacticalSurface>
   );
 }
 
@@ -271,7 +195,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
   );
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold text-zinc-50">{period.title}</h2>
@@ -336,6 +260,41 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
           </span>
         )}
       </div>
+
+      {/* Metric strip */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <MetricTile
+          label="Rounds"
+          value={period.rounds.length}
+          tone="neutral"
+          icon={<CalendarRange className="h-4 w-4" />}
+        />
+        {totalBlockers > 0 && (
+          <MetricTile
+            label="Blocked"
+            value={totalBlockers}
+            tone="danger"
+            icon={<OctagonAlert className="h-4 w-4" />}
+          />
+        )}
+        {totalDecisions > 0 && (
+          <MetricTile
+            label="Decisions"
+            value={totalDecisions}
+            tone="warning"
+            icon={<AlertTriangle className="h-4 w-4" />}
+          />
+        )}
+        {counts.finalized > 0 && (
+          <MetricTile
+            label="Finalized"
+            value={counts.finalized}
+            tone="success"
+            icon={<CheckCircle2 className="h-4 w-4" />}
+          />
+        )}
+      </div>
+
       <div className="flex flex-col gap-3">
         {period.rounds.length === 0 ? (
           <Surface padding="md">
