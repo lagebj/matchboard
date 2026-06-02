@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { PlayersModeTabs, usePlayersMode } from "./players-mode-tabs";
 import { SeasonOverviewTable } from "./season-overview-table";
 import { CurrentRoundAttentionTable } from "./current-round-attention-table";
 import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { DecisionBanner } from "@/components/ui/decision-banner";
 
 type PlayersPageClientProps = {
   players: Array<{
@@ -76,35 +78,26 @@ export function PlayersPageClient({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-100">Players</h1>
-        <p className="text-xs text-zinc-500 mt-0.5 max-w-prose">
-          Participation, movement and current planning attention.
-        </p>
-      </div>
+      <PageHeader
+        title="Players"
+        description="Participation, movement and current planning attention."
+        actions={
+          teams.length > 0 ? (
+            <Button variant="primary" size="sm" as="a" href="/players/new">
+              Add player
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {error && (
-        <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>
-      )}
-      {saved === "created" && (
-        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Player created.</div>
-      )}
-      {saved === "removed" && (
-        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Player removed.</div>
-      )}
+      {error && <DecisionBanner variant="blocked" title={error} />}
+      {saved === "created" && <DecisionBanner variant="success" title="Player created." />}
+      {saved === "removed" && <DecisionBanner variant="success" title="Player removed." />}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-zinc-500">{players.length} player{players.length !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-[var(--text-muted)]">{players.length} player{players.length !== 1 ? "s" : ""}</span>
         </div>
-        {teams.length > 0 && (
-          <Link
-            href="/players/new"
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))] shrink-0"
-          >
-            Add player
-          </Link>
-        )}
       </div>
 
       <PlayersModeTabs mode={mode} onModeChange={setMode} />
@@ -113,7 +106,7 @@ export function PlayersPageClient({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Phase:</span>
+              <span className="text-xs text-[var(--text-muted)]">Phase:</span>
               <select
                 value={selectedPeriodId}
                 onChange={(e) => navigate({ periodId: e.target.value, mode: "season" })}
@@ -137,7 +130,7 @@ export function PlayersPageClient({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Phase:</span>
+              <span className="text-xs text-[var(--text-muted)]">Phase:</span>
               <select
                 value={selectedPeriodId}
                 onChange={(e) => navigate({ periodId: e.target.value, mode: "attention" })}
@@ -149,7 +142,7 @@ export function PlayersPageClient({
               </select>
             </label>
             <label className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Round:</span>
+              <span className="text-xs text-[var(--text-muted)]">Round:</span>
               <select
                 value={selectedRoundId ?? ""}
                 onChange={(e) => navigate({ roundId: e.target.value, mode: "attention" })}

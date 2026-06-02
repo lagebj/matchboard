@@ -6,6 +6,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { Surface } from "@/components/ui/surface";
 
 type RoundStatusStripProps = {
   totalTeams: number;
@@ -18,13 +19,28 @@ type RoundStatusStripProps = {
   totalTarget: number;
 };
 
+type StatusVariant = "default" | "success" | "warning" | "danger" | "muted";
+
 type StatusItem = {
   icon: LucideIcon;
   label: string;
   value: string | number;
-  variant: "default" | "success" | "warning" | "danger" | "muted";
+  variant: StatusVariant;
 };
 
+const variantToneClass: Record<StatusVariant, string> = {
+  default: "text-zinc-100",
+  success: "text-[var(--accent-strong)]",
+  warning: "text-[var(--warning)]",
+  danger: "text-[var(--danger)]",
+  muted: "text-[var(--text-muted)]",
+};
+
+/**
+ * RoundStatusStrip — quiet decision strip showing only conditions worth
+ * surfacing. Per ADR 0007 this is a compact summary, not a banner — it
+ * complements (and does not duplicate) DecisionBanner.
+ */
 export function RoundStatusStrip({
   totalTeams,
   completeTeams,
@@ -52,16 +68,14 @@ export function RoundStatusStrip({
       variant: "warning",
     });
   }
-
   if (squadRepairNeeded > 0) {
     items.push({
       icon: ArrowLeftRight,
-      label: "Squad repair required",
+      label: "Squad repair",
       value: squadRepairNeeded,
       variant: "warning",
     });
   }
-
   if (blockedCount > 0) {
     items.push({
       icon: OctagonAlert,
@@ -70,43 +84,45 @@ export function RoundStatusStrip({
       variant: "danger",
     });
   }
-
   if (decisionRequiredCount > 0) {
     items.push({
       icon: AlertTriangle,
-      label: "Decision required",
+      label: "Decision",
       value: decisionRequiredCount,
       variant: "warning",
     });
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
+    <Surface
+      padding="none"
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5"
+    >
       {items.map((item) => {
         const Icon = item.icon;
-        const variantClasses = {
-          default: "text-zinc-300",
-          success: "text-emerald-400",
-          warning: "text-amber-400",
-          danger: "text-red-400",
-          muted: "text-zinc-500",
-        }[item.variant];
+        const tone = variantToneClass[item.variant];
         return (
           <div key={item.label} className="flex items-center gap-1.5">
-            <Icon className={`h-3.5 w-3.5 ${variantClasses}`} aria-hidden="true" />
-            <span className={`text-xs font-medium tabular-nums ${variantClasses}`}>
+            <Icon className={`h-3.5 w-3.5 ${tone}`} aria-hidden="true" />
+            <span className={`text-xs font-semibold tabular-nums ${tone}`}>
               {item.value}
             </span>
-            <span className="text-[10px] text-[var(--text-muted)]">{item.label}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              {item.label}
+            </span>
           </div>
         );
       })}
       <div className="ml-auto flex items-center gap-1.5">
-        <span className="text-xs font-medium tabular-nums text-zinc-300">{totalSelected}</span>
-        <span className="text-[10px] text-[var(--text-muted)]">of</span>
-        <span className="text-xs font-medium tabular-nums text-zinc-300">{totalTarget}</span>
-        <span className="text-[10px] text-[var(--text-muted)]">squad places</span>
+        <span className="text-xs font-semibold tabular-nums text-zinc-100">
+          {totalSelected}
+        </span>
+        <span className="text-[11px] text-[var(--text-muted)]">of</span>
+        <span className="text-xs font-semibold tabular-nums text-zinc-100">
+          {totalTarget}
+        </span>
+        <span className="text-[11px] text-[var(--text-muted)]">squad places</span>
       </div>
-    </div>
+    </Surface>
   );
 }

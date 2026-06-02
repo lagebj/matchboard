@@ -3,28 +3,50 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch, SelectionState } from "@/domain/fixtures/types";
-import { fetchFixturesOverview, fixturePopulateAllAction } from "@/domain/fixtures/actions";
+import type {
+  FixturesOverview,
+  FixturePeriod,
+  FixtureRound,
+  FixtureMatch,
+  SelectionState,
+} from "@/domain/fixtures/types";
+import {
+  fetchFixturesOverview,
+  fixturePopulateAllAction,
+} from "@/domain/fixtures/actions";
+import { PageHeader } from "@/components/ui/page-header";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { EmptyState } from "@/components/ui/empty-state";
 
-const selectionStateConfig: Record<SelectionState, { label: string; dotClass: string; textClass: string; borderClass: string }> = {
-  NOT_GENERATED: { label: "Not generated", dotClass: "bg-zinc-500", textClass: "text-zinc-400", borderClass: "border-zinc-700/40" },
-  DRAFT: { label: "Draft", dotClass: "bg-amber-400", textClass: "text-amber-300", borderClass: "border-amber-700/40" },
-  BLOCKED: { label: "Blocked", dotClass: "bg-red-400", textClass: "text-red-300", borderClass: "border-red-700/40" },
-  READY: { label: "Ready", dotClass: "bg-emerald-400", textClass: "text-emerald-300", borderClass: "border-emerald-700/40" },
-  FINALIZED: { label: "Finalized", dotClass: "bg-[var(--accent)]", textClass: "text-[var(--accent-strong)]", borderClass: "border-[rgba(140,167,146,0.28)]" },
+/**
+ * FixturesPage — per ADR 0007 the fixtures view reads as a timeline: past
+ * finalized rounds are compact, current/upcoming rounds are slightly more
+ * open. Match rows are scannable, not wrapped in heavy cards.
+ */
+
+type SelectionStateConfig = {
+  label: string;
+  variant: StatusPillVariant;
+};
+
+const selectionStateConfig: Record<SelectionState, SelectionStateConfig> = {
+  NOT_GENERATED: { label: "Not generated", variant: "neutral" },
+  DRAFT: { label: "Draft", variant: "warning" },
+  BLOCKED: { label: "Blocked", variant: "danger" },
+  READY: { label: "Ready", variant: "success" },
+  FINALIZED: { label: "Finalized", variant: "finalized" },
 };
 
 function SelectionStateBadge({ state }: { state: SelectionState }) {
   const config = selectionStateConfig[state];
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.borderClass} ${config.textClass}`}>
-      <span className={`inline-block h-1.5 w-1.5 rounded-full ${config.dotClass}`} />
-      {config.label}
-    </span>
-  );
+  return <StatusPill variant={config.variant}>{config.label}</StatusPill>;
 }
 
-function roundPrimaryAction(round: FixtureRound): { label: string; href: string } | null {
+function roundPrimaryAction(
+  round: FixtureRound,
+): { label: string; href: string } | null {
   switch (round.selectionState) {
     case "NOT_GENERATED":
       return { label: "Generate and review", href: `/rounds/${round.id}` };
@@ -41,23 +63,69 @@ function roundPrimaryAction(round: FixtureRound): { label: string; href: string 
   }
 }
 
-function IntegritySummary({ blockerCount, decisionRequiredCount }: { blockerCount: number; decisionRequiredCount: number }) {
+function IntegritySummary({
+  blockerCount,
+  decisionRequiredCount,
+}: {
+  blockerCount: number;
+  decisionRequiredCount: number;
+}) {
   if (blockerCount === 0 && decisionRequiredCount === 0) {
-    return <span className="text-[10px] text-emerald-300">Ready</span>;
+    return (
+      <span className="text-[11px] text-[var(--accent-strong)]">Ready</span>
+    );
+  }
+  const parts: string[] = [];
+  if (blockerCount > 0) parts.push(`${blockerCount} blocked`);
+  if (decisionRequiredCount > 0) parts.push(`${decisionRequiredCount} decision`);
+  const tone =
+    blockerCount > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]";
+  return <span className={`text-[11px] ${tone}`}>{parts.join(" · ")}</span>;
+}
+
+function OutcomeCell({ match }: { match: FixtureMatch }) {
+  const isCompleted = match.reportState.state === "COMPLETED";
+  const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
+  const now = new Date();
+  const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
+
+  if (isCompleted && match.reportState.state === "COMPLETED") {
+    const outcome = match.reportState.result.outcome;
+    const outcomeColor =
+      outcome === "WON"
+        ? "text-[var(--accent-strong)]"
+        : outcome === "DRAWN"
+          ? "text-[var(--text-soft)]"
+          : "text-[var(--danger)]";
+    const outcomeLabel =
+      outcome === "WON" ? "Won" : outcome === "DRAWN" ? "Drawn" : "Lost";
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          FT
+        </span>
+        <span className="font-semibold tabular-nums text-zinc-50">
+          {match.reportState.result.displayScore}
+        </span>
+        <span className={`font-semibold ${outcomeColor}`}>{outcomeLabel}</span>
+      </div>
+    );
   }
 
-  const parts: string[] = [];
-  if (blockerCount > 0) {
-    parts.push(`${blockerCount} Blocked`);
-  }
-  if (decisionRequiredCount > 0) {
-    parts.push(`${decisionRequiredCount} Decision required`);
+  if (isDraftReport && isPast) {
+    return (
+      <span className="text-[11px] text-[var(--warning)]">Report incomplete</span>
+    );
   }
 
   return (
-    <span className={`text-[10px] ${blockerCount > 0 ? "text-red-300" : "text-amber-300"}`}>
-      {parts.join(" · ")}
-    </span>
+    <div className="flex items-center gap-2">
+      <SelectionStateBadge state={match.selectionState} />
+      <IntegritySummary
+        blockerCount={match.blockerCount}
+        decisionRequiredCount={match.decisionRequiredCount}
+      />
+    </div>
   );
 }
 
@@ -66,59 +134,53 @@ function MatchRow({ match }: { match: FixtureMatch }) {
   const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
   const now = new Date();
   const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
-  const outcome = isCompleted && match.reportState.state === "COMPLETED" ? match.reportState.result.outcome : null;
 
-  const rowBgClass = outcome === "WON"
-    ? "bg-emerald-950/30 border-emerald-900/30"
-    : outcome === "DRAWN"
-    ? "bg-zinc-800/30 border-zinc-700/30"
-    : outcome === "LOST"
-    ? "bg-red-950/30 border-red-900/30"
-    : "bg-[var(--surface-base)] border-[var(--border-soft)]";
+  // Outcome-aware row tint — soft and used only for completed matches.
+  const outcome =
+    isCompleted && match.reportState.state === "COMPLETED"
+      ? match.reportState.result.outcome
+      : null;
+  const outcomeAccent =
+    outcome === "WON"
+      ? "before:bg-[var(--accent)]/55"
+      : outcome === "LOST"
+        ? "before:bg-[var(--danger)]/55"
+        : outcome === "DRAWN"
+          ? "before:bg-[var(--text-muted)]/45"
+          : "";
 
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors ${rowBgClass}`}>
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm text-zinc-200 truncate">{match.title}</span>
-          <div className="flex items-center gap-2 text-[10px] text-zinc-500 mt-0.5">
-            {match.venue && <span>{match.venue}</span>}
-            {match.startsAt && <span>{new Date(match.startsAt).toLocaleDateString()}</span>}
-            {typeof match.selectedPlayerCount === "number" && match.selectedPlayerCount > 0 && !isCompleted && (
-              <span>{match.selectedPlayerCount} selected</span>
-            )}
-          </div>
+    <div
+      className={[
+        "group relative flex items-center justify-between gap-3 px-3 py-2 hover:bg-[var(--surface-muted)]/30 transition-colors",
+        outcomeAccent
+          ? `before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-r ${outcomeAccent} pl-3.5`
+          : "",
+      ].join(" ")}
+    >
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm text-zinc-100 truncate">{match.title}</span>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+          {match.venue && <span>{match.venue}</span>}
+          {match.startsAt && (
+            <span>{new Date(match.startsAt).toLocaleDateString()}</span>
+          )}
+          {typeof match.selectedPlayerCount === "number" &&
+            match.selectedPlayerCount > 0 &&
+            !isCompleted && <span>{match.selectedPlayerCount} selected</span>}
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {isCompleted && match.reportState.state === "COMPLETED" && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase">FT</span>
-            <span className="text-sm font-semibold text-zinc-100 tabular-nums">{match.reportState.result.displayScore}</span>
-            <span className={`text-xs font-semibold ${
-              outcome === "WON" ? "text-emerald-300" :
-              outcome === "DRAWN" ? "text-zinc-400" :
-              "text-red-300"
-            }`}>
-              {outcome === "WON" ? "Won" :
-               outcome === "DRAWN" ? "Drawn" : "Lost"}
-            </span>
-          </div>
-        )}
-        {isDraftReport && isPast && (
-          <span className="text-[10px] text-amber-300">Report incomplete</span>
-        )}
-        {!isCompleted && !isDraftReport && (
-          <>
-            <SelectionStateBadge state={match.selectionState} />
-            <IntegritySummary blockerCount={match.blockerCount} decisionRequiredCount={match.decisionRequiredCount} />
-          </>
-        )}
+      <div className="flex items-center gap-3 shrink-0">
+        <OutcomeCell match={match} />
         <Link
           href={`/matches/${match.id}`}
-          className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
+          className="text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
         >
-          {isCompleted ? "View report" : isDraftReport && isPast ? "Complete report" : "Open"}
+          {isCompleted
+            ? "View report"
+            : isDraftReport && isPast
+              ? "Complete report"
+              : "Open"}
         </Link>
       </div>
     </div>
@@ -127,91 +189,167 @@ function MatchRow({ match }: { match: FixtureMatch }) {
 
 function RoundSection({ round }: { round: FixtureRound }) {
   const primaryAction = roundPrimaryAction(round);
+  const isFinalized = round.selectionState === "FINALIZED";
+  const padding = isFinalized ? "sm" : "md";
 
   return (
-    <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)]">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--border-soft)] px-4 py-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="text-sm font-medium text-zinc-100 truncate">{round.title}</span>
+    <Surface padding="none" className="overflow-hidden">
+      <div
+        className={[
+          "flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3.5",
+          isFinalized ? "py-2" : "py-2.5",
+        ].join(" ")}
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+          <span className="text-sm font-semibold text-zinc-50 truncate">
+            {round.title}
+          </span>
           <SelectionStateBadge state={round.selectionState} />
-          <IntegritySummary blockerCount={round.blockerCount} decisionRequiredCount={round.decisionRequiredCount} />
+          <IntegritySummary
+            blockerCount={round.blockerCount}
+            decisionRequiredCount={round.decisionRequiredCount}
+          />
           {round.matches.length > 0 && (
-            <span className="text-[10px] text-zinc-500">{round.matches.length} match{round.matches.length !== 1 ? "es" : ""}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              {round.matches.length} match{round.matches.length !== 1 ? "es" : ""}
+            </span>
           )}
         </div>
         {primaryAction && (
-          <Link
+          <Button
+            as={Link}
             href={primaryAction.href}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))] shrink-0"
+            variant={isFinalized ? "ghost" : "primary"}
+            size="sm"
           >
             {primaryAction.label}
-          </Link>
+          </Button>
         )}
       </div>
-      <div className="flex flex-col gap-2 p-3">
+      <div className={padding === "sm" ? "py-1" : "py-1.5"}>
         {round.matches.length === 0 ? (
-          <p className="text-xs text-zinc-500 py-2">No matches in this round.</p>
+          <p className="text-xs text-[var(--text-muted)] px-3.5 py-3">
+            No matches in this round.
+          </p>
         ) : (
-          round.matches.map((match) => <MatchRow key={match.id} match={match} />)
+          <div className="divide-y divide-[var(--border-soft)]">
+            {round.matches.map((match) => (
+              <MatchRow key={match.id} match={match} />
+            ))}
+          </div>
         )}
       </div>
-    </div>
+    </Surface>
   );
 }
 
 function PeriodSection({ period }: { period: FixturePeriod }) {
-  const hasNotGenerated = period.rounds.some((r) => r.selectionState === "NOT_GENERATED");
+  const hasNotGenerated = period.rounds.some(
+    (r) => r.selectionState === "NOT_GENERATED",
+  );
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const statusCounts = {
-    notGenerated: period.rounds.filter((r) => r.selectionState === "NOT_GENERATED").length,
-    draft: period.rounds.filter((r) => r.selectionState === "DRAFT" || r.selectionState === "BLOCKED").length,
+  const counts = {
+    notGenerated: period.rounds.filter((r) => r.selectionState === "NOT_GENERATED")
+      .length,
+    draft: period.rounds.filter(
+      (r) => r.selectionState === "DRAFT" || r.selectionState === "BLOCKED",
+    ).length,
     ready: period.rounds.filter((r) => r.selectionState === "READY").length,
-    finalized: period.rounds.filter((r) => r.selectionState === "FINALIZED").length,
+    finalized: period.rounds.filter((r) => r.selectionState === "FINALIZED")
+      .length,
   };
+  const totalBlockers = period.rounds.reduce(
+    (sum, r) => sum + r.blockerCount,
+    0,
+  );
+  const totalDecisions = period.rounds.reduce(
+    (sum, r) => sum + r.decisionRequiredCount,
+    0,
+  );
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-zinc-100">{period.title}</h2>
-          <div className="flex items-center gap-2 mt-1">
-            {statusCounts.notGenerated > 0 && <span className="text-[10px] text-zinc-500">{statusCounts.notGenerated} not generated</span>}
-            {statusCounts.draft > 0 && <span className="text-[10px] text-amber-300">{statusCounts.draft} draft</span>}
-            {statusCounts.ready > 0 && <span className="text-[10px] text-emerald-300">{statusCounts.ready} ready</span>}
-            {statusCounts.finalized > 0 && <span className="text-[10px] text-[var(--accent-strong)]">{statusCounts.finalized} finalized</span>}
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-base font-semibold text-zinc-50">{period.title}</h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
+            {counts.notGenerated > 0 && (
+              <span>{counts.notGenerated} not generated</span>
+            )}
+            {counts.draft > 0 && (
+              <span className="text-[var(--warning)]">{counts.draft} draft</span>
+            )}
+            {counts.ready > 0 && (
+              <span className="text-[var(--accent-strong)]">
+                {counts.ready} ready
+              </span>
+            )}
+            {counts.finalized > 0 && (
+              <span>{counts.finalized} finalized</span>
+            )}
+            {totalBlockers > 0 && (
+              <span className="text-[var(--danger)]">
+                {totalBlockers} blocked
+              </span>
+            )}
+            {totalDecisions > 0 && (
+              <span className="text-[var(--warning)]">
+                {totalDecisions} decision{totalDecisions === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
         </div>
         {hasNotGenerated && (
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="md"
             disabled={isPending}
             onClick={() => {
               startTransition(async () => {
                 const fd = new FormData();
                 fd.set("planningPeriodId", period.id);
-                const result = await fixturePopulateAllAction({ error: "" }, fd);
+                const result = await fixturePopulateAllAction(
+                  { error: "" },
+                  fd,
+                );
                 if (result.error) setStatusMessage(result.error);
-                else router.push(`/rounds/${period.rounds.find((r) => r.selectionState === "NOT_GENERATED")?.id ?? period.rounds[0]?.id ?? "/"}`);
+                else
+                  router.push(
+                    `/rounds/${
+                      period.rounds.find((r) => r.selectionState === "NOT_GENERATED")
+                        ?.id ?? period.rounds[0]?.id ?? "/"
+                    }`,
+                  );
               });
             }}
-            className="inline-flex h-9 items-center justify-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
-            {isPending ? "Generating..." : "Generate all draft squads"}
-          </button>
+            {isPending ? "Generating…" : "Generate all draft squads"}
+          </Button>
         )}
-        {statusMessage && <span className="text-[10px] text-zinc-400">{statusMessage}</span>}
+        {statusMessage && (
+          <span className="text-[11px] text-[var(--text-muted)]">
+            {statusMessage}
+          </span>
+        )}
       </div>
       <div className="flex flex-col gap-3">
         {period.rounds.length === 0 ? (
-          <p className="text-sm text-zinc-500 py-4 text-center">No rounds in this period.</p>
+          <Surface padding="md">
+            <p className="text-sm text-[var(--text-muted)] text-center">
+              No rounds in this period.
+            </p>
+          </Surface>
         ) : (
-          period.rounds.map((round) => <RoundSection key={round.id} round={round} />)
+          period.rounds.map((round) => (
+            <RoundSection key={round.id} round={round} />
+          ))
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -227,24 +365,26 @@ export function FixturesPage() {
   }, [startTransition]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-100">Fixtures</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">Phases, rounds, and matches. Navigate to rounds for squad work.</p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Fixtures"
+        description="Phases, rounds, and matches. Open a round for squad work."
+      />
 
       {isPending && !data ? (
-        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-6 text-sm text-zinc-500">
-          Loading fixtures...
-        </div>
+        <Surface padding="md">
+          <p className="text-sm text-[var(--text-muted)]">Loading fixtures…</p>
+        </Surface>
       ) : !data || data.periods.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No phases found.</p>
-          <p className="text-xs text-zinc-500">Create a season and phase to get started.</p>
-        </div>
+        <EmptyState
+          title="No phases found."
+          description="Create a season and phase to start planning rounds."
+        />
       ) : (
-        <div className="flex flex-col gap-6">
-          {data.periods.map((period) => <PeriodSection key={period.id} period={period} />)}
+        <div className="flex flex-col gap-8">
+          {data.periods.map((period) => (
+            <PeriodSection key={period.id} period={period} />
+          ))}
         </div>
       )}
     </div>

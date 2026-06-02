@@ -10,9 +10,6 @@ import {
   MapPin,
   Trophy,
   Users,
-  AlertTriangle,
-  Lock,
-  CheckCircle2,
   ClipboardList,
   ShieldCheck,
   Eye,
@@ -22,6 +19,15 @@ import { CoachingIntentSelector } from "@/components/matches/coaching-intent-sel
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
 import { formatWarningCode } from "@/lib/match-utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionHeader } from "@/components/ui/section-header";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { DecisionBanner } from "@/components/ui/decision-banner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TabRail, type TabItem } from "@/components/ui/tab-rail";
+import { COACHING_INTENT_LABELS, type CoachingIntentCategory } from "@/lib/coaching/types";
 
 type SelectionRow = {
   id: string;
@@ -71,17 +77,34 @@ type MatchData = {
   phaseEndDate?: Date;
 };
 
-const roleOrder = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "REDUCED_MATCH_LOAD_DROP", "CORE_MATCH_DROP", "UNAVAILABLE"];
+const roleOrder = [
+  "CORE",
+  "SUPPORT",
+  "BACKFILL",
+  "DEVELOPMENT",
+  "REDUCED_MATCH_LOAD_DROP",
+  "CORE_MATCH_DROP",
+  "UNAVAILABLE",
+];
 
 type MatchTab = "squad" | "after-match" | "opponent";
 
 function formatMatchType(type: string): string {
-  const map: Record<string, string> = { LEAGUE: "League", FRIENDLY: "Friendly", CUP: "Cup", DEVELOPMENT: "Development" };
+  const map: Record<string, string> = {
+    LEAGUE: "League",
+    FRIENDLY: "Friendly",
+    CUP: "Cup",
+    DEVELOPMENT: "Development",
+  };
   return map[type] ?? type;
 }
 
 function formatGameFormat(format: string): string {
-  const map: Record<string, string> = { SEVEN_A_SIDE: "7-a-side", NINE_A_SIDE: "9-a-side", ELEVEN_A_SIDE: "11-a-side" };
+  const map: Record<string, string> = {
+    SEVEN_A_SIDE: "7-a-side",
+    NINE_A_SIDE: "9-a-side",
+    ELEVEN_A_SIDE: "11-a-side",
+  };
   return map[format] ?? format;
 }
 
@@ -102,48 +125,42 @@ function formatMatchFit(fit: string): string {
   return map[fit] ?? fit;
 }
 
-function formatStatus(status: string): string {
-  const map: Record<string, string> = {
-    NOT_GENERATED: "Not generated",
-    DRAFT: "Draft",
-    BLOCKED: "Blocked",
-    READY: "Ready",
-    FINALIZED: "Finalized",
-  };
-  return map[status] ?? status;
-}
+const STATUS_PILL_CONFIG: Record<string, { label: string; variant: StatusPillVariant }> = {
+  NOT_GENERATED: { label: "Not generated", variant: "neutral" },
+  DRAFT: { label: "Draft", variant: "warning" },
+  BLOCKED: { label: "Blocked", variant: "danger" },
+  READY: { label: "Ready", variant: "success" },
+  FINALIZED: { label: "Finalized", variant: "finalized" },
+};
 
-function statusColor(status: string): string {
-  const map: Record<string, string> = {
-    NOT_GENERATED: "text-[var(--text-muted)]",
-    DRAFT: "text-amber-300",
-    BLOCKED: "text-red-400",
-    READY: "text-emerald-400",
-    FINALIZED: "text-zinc-100",
-  };
-  return map[status] ?? "text-zinc-100";
-}
-
-function severityColor(severity: string): string {
-  const map: Record<string, string> = {
-    HARD_BLOCK: "text-red-400 bg-red-900/20 border-red-800/40",
-    REQUIRES_OVERRIDE: "text-amber-300 bg-amber-900/20 border-amber-800/40",
-    WARNING: "text-yellow-200 bg-yellow-900/20 border-yellow-800/40",
-    SCORING_PREFERENCE: "text-zinc-300 bg-zinc-800/30 border-zinc-700/40",
-  };
-  return map[severity] ?? "text-zinc-300";
-}
+const POST_MATCH_PILL: Record<string, { label: string; variant: StatusPillVariant }> = {
+  DRAFT: { label: "Draft report", variant: "warning" },
+  REPORTED: { label: "Reported", variant: "info" },
+  LOCKED: { label: "Report complete", variant: "finalized" },
+};
 
 function isMatchFinalized(selections: SelectionRow[]): boolean {
   if (selections.length === 0) return false;
   return selections.every((s) => s.status === "FINALIZED");
 }
 
-const tabs: { key: MatchTab; label: string; icon: React.ReactNode }[] = [
-  { key: "squad", label: "Squad", icon: <Users className="h-3.5 w-3.5" /> },
-  { key: "after-match", label: "After match", icon: <ClipboardList className="h-3.5 w-3.5" /> },
-  { key: "opponent", label: "Opponent context", icon: <Eye className="h-3.5 w-3.5" /> },
+const tabs: TabItem<MatchTab>[] = [
+  { key: "squad", label: "Squad", icon: <Users className="h-3.5 w-3.5" aria-hidden="true" /> },
+  {
+    key: "after-match",
+    label: "After match",
+    icon: <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />,
+  },
+  { key: "opponent", label: "Opponent context", icon: <Eye className="h-3.5 w-3.5" aria-hidden="true" /> },
 ];
+
+function severityToBannerVariant(
+  severity: string,
+): "blocked" | "decision" | "note" {
+  if (severity === "HARD_BLOCK") return "blocked";
+  if (severity === "REQUIRES_OVERRIDE") return "decision";
+  return "note";
+}
 
 export function MatchDetail({ match }: { match: MatchData }) {
   const searchParams = useSearchParams();
@@ -157,7 +174,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const [activeTab, setActiveTab] = useState<MatchTab>("squad");
 
   const activeTabParam = searchParams.get("tab");
-  const currentTab: MatchTab = activeTabParam === "after-match" ? "after-match" : activeTabParam === "opponent" ? "opponent" : "squad";
+  const currentTab: MatchTab =
+    activeTabParam === "after-match"
+      ? "after-match"
+      : activeTabParam === "opponent"
+        ? "opponent"
+        : "squad";
   const selectedTab = activeTab ?? currentTab;
 
   const dateStr = match.startsAt.toLocaleDateString("en-GB", {
@@ -166,115 +188,106 @@ export function MatchDetail({ match }: { match: MatchData }) {
     month: "long",
     year: "numeric",
   });
-
   const timeStr = match.startsAt.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
   const grouped = roleOrder
-    .map((role) => ({
-      role,
-      players: match.selections.filter((s) => s.role === role),
-    }))
+    .map((role) => ({ role, players: match.selections.filter((s) => s.role === role) }))
     .filter((g) => g.players.length > 0);
 
   const blockingWarnings = match.warnings.filter((w) => w.severity === "HARD_BLOCK");
-  const requiresOverrideWarnings = match.warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
-  const otherWarnings = match.warnings.filter((w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE");
-  const hasOverrideWarnings = blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0;
+  const requiresOverrideWarnings = match.warnings.filter(
+    (w) => w.severity === "REQUIRES_OVERRIDE",
+  );
+  const otherWarnings = match.warnings.filter(
+    (w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE",
+  );
+  const hasOverrideWarnings =
+    blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0;
 
   const matchFinalized = isMatchFinalized(match.selections);
   const roundFinalizedFlag = match.matchRoundStatus === "FINALIZED";
   const canFinalize = !matchFinalized && !roundFinalizedFlag && match.selections.length > 0;
 
-  const hasSidebarContent = match.warnings.length > 0 || canFinalize || matchFinalized || roundFinalizedFlag || !!error || !!finalized;
+  const intentLabel = match.coachingIntent
+    ? COACHING_INTENT_LABELS[match.coachingIntent as CoachingIntentCategory] ??
+      match.coachingIntent
+    : null;
+
+  const statusPill = STATUS_PILL_CONFIG[match.matchRoundStatus];
+  const postMatchPill = match.postMatchStatus && match.postMatchStatus !== "NOT_STARTED"
+    ? POST_MATCH_PILL[match.postMatchStatus]
+    : null;
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-2">
+      <div>
         <Link
           href="/fixtures"
-          className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-100 transition-colors"
         >
           <Calendar className="h-3.5 w-3.5" />
           Fixtures
         </Link>
       </div>
 
-      <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-semibold text-zinc-50">
-              {match.teamName} vs {match.opponent}
-            </h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              <Calendar className="mr-1 inline h-3.5 w-3.5" />
-              {dateStr} at {timeStr}
-            </p>
-          </div>
+      <PageHeader
+        title={`${match.teamName} vs ${match.opponent}`}
+        description={`${dateStr} at ${timeStr}`}
+        actions={
           <div className="flex items-center gap-2">
-            <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${statusColor(match.matchRoundStatus)}`}>
-              {formatStatus(match.matchRoundStatus)}
-            </span>
-            {match.postMatchStatus && match.postMatchStatus !== "NOT_STARTED" && (
-              <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${
-                match.postMatchStatus === "LOCKED" ? "bg-emerald-900/15 text-emerald-300 border border-emerald-700/40" :
-                match.postMatchStatus === "REPORTED" ? "bg-blue-900/15 text-blue-300 border border-blue-700/40" :
-                "bg-amber-900/15 text-amber-300 border border-amber-700/40"
-              }`}>
-              {match.postMatchStatus === "DRAFT" ? "Draft report" : match.postMatchStatus === "REPORTED" ? "Reported" : match.postMatchStatus === "LOCKED" ? "Report locked" : match.postMatchStatus}
-            </span>
+            {statusPill && (
+              <StatusPill variant={statusPill.variant}>{statusPill.label}</StatusPill>
+            )}
+            {postMatchPill && (
+              <StatusPill variant={postMatchPill.variant}>{postMatchPill.label}</StatusPill>
             )}
           </div>
+        }
+        context={
+          <span>
+            Round:{" "}
+            <Link
+              href={`/rounds/${match.matchRoundId}`}
+              className="text-[var(--accent-strong)] hover:underline"
+            >
+              {match.matchRoundName}
+            </Link>
+          </span>
+        }
+      />
+
+      <Surface padding="md">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetaTile icon={<MapPin className="h-3.5 w-3.5" />} label="Venue" value={formatVenue(match.homeAway)} />
+          <MetaTile icon={<Trophy className="h-3.5 w-3.5" />} label="Type" value={formatMatchType(match.matchType)} />
+          <MetaTile label="Format" value={formatGameFormat(match.gameFormat)} />
+          <MetaTile
+            icon={<Users className="h-3.5 w-3.5" />}
+            label="Target squad"
+            value={`${match.selections.length} / ${match.squadSize}`}
+          />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Venue</p>
-            <p className="text-sm text-zinc-100">
-              <MapPin className="mr-1 inline h-3.5 w-3.5" />
-              {formatVenue(match.homeAway)}
-            </p>
+        {(intentLabel || match.matchFit !== "UNKNOWN" || match.notes) && (
+          <div className="mt-3 flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
+            {intentLabel && (
+              <p>
+                <span className="text-[var(--text-soft)]">Intent:</span>{" "}
+                <span className="text-zinc-100">{intentLabel}</span>
+                {match.inheritedIntentScope && (
+                  <span className="text-[var(--text-muted)]">
+                    {" "}
+                    (from {match.inheritedIntentScope})
+                  </span>
+                )}
+              </p>
+            )}
+            {match.matchFit !== "UNKNOWN" && <p>Match fit: {formatMatchFit(match.matchFit)}</p>}
+            {match.notes && <p>{match.notes}</p>}
           </div>
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Type</p>
-            <p className="text-sm text-zinc-100">
-              <Trophy className="mr-1 inline h-3.5 w-3.5" />
-              {formatMatchType(match.matchType)}
-            </p>
-          </div>
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Format</p>
-            <p className="text-sm text-zinc-100">{formatGameFormat(match.gameFormat)}</p>
-          </div>
-          <div className="rounded-lg border app-hairline bg-[rgba(255,255,255,0.03)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Target squad</p>
-            <p className="text-sm text-zinc-100">
-              <Users className="mr-1 inline h-3.5 w-3.5" />
-              {match.selections.length} / {match.squadSize}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <span>Round:</span>
-          <Link
-            href={`/rounds/${match.matchRoundId}`}
-            className="text-[var(--accent-strong)] hover:underline"
-          >
-            {match.matchRoundName}
-          </Link>
-        </div>
-
-        {match.matchFit !== "UNKNOWN" && (
-          <p className="mt-2 text-xs text-[var(--text-muted)]">
-            Match fit: {formatMatchFit(match.matchFit)}
-          </p>
-        )}
-
-        {match.notes && (
-          <p className="mt-2 text-xs text-[var(--text-muted)]">{match.notes}</p>
         )}
 
         <div className="mt-3">
@@ -294,70 +307,68 @@ export function MatchDetail({ match }: { match: MatchData }) {
             currentIntent={match.coachingIntent}
             currentIntentId={match.coachingIntentId}
           />
-          {match.inheritedIntentScope && match.coachingIntent && (
-            <p className="mt-1 text-[10px] text-zinc-500">
-              Inherited from {match.inheritedIntentScope}
-            </p>
-          )}
         </div>
-      </div>
+      </Surface>
 
-      <nav className="flex gap-1 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => {
-              if (tab.key === "after-match") {
-                router.push(`/matches/${match.id}/post-match`);
-                return;
-              }
-              setActiveTab(tab.key);
-            }}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              selectedTab === tab.key
-                ? "bg-[rgba(255,255,255,0.08)] text-zinc-100"
-                : "text-[var(--text-muted)] hover:text-zinc-200 hover:bg-[rgba(255,255,255,0.04)]"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      <TabRail
+        items={tabs}
+        activeKey={selectedTab}
+        variant="pill"
+        ariaLabel="Match sections"
+        onSelect={(key) => {
+          if (key === "after-match") {
+            router.push(`/matches/${match.id}/post-match`);
+            return;
+          }
+          setActiveTab(key);
+        }}
+      />
 
       {selectedTab === "squad" && (
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             {grouped.length > 0 ? (
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-                <h2 className="text-sm font-semibold text-zinc-200 mb-3">
-                  Squad ({match.selections.length} players)
-                </h2>
-                <div className="flex flex-col gap-3">
+              <Surface padding="md">
+                <SectionHeader
+                  title={`Squad`}
+                  eyebrow={`${match.selections.length} player${match.selections.length === 1 ? "" : "s"}`}
+                />
+                <div className="mt-3 flex flex-col gap-3">
                   {grouped.map((group) => (
                     <div key={group.role}>
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5 mb-1.5">
                         <RoleBadge role={group.role as SelectionRole} />
-                        <span className="text-[10px] text-[var(--text-muted)]">{group.players.length}</span>
+                        <span className="text-[11px] text-[var(--text-muted)]">
+                          {group.players.length}
+                        </span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {group.players.map((p) => (
                           <span
                             key={p.id}
                             title={p.playerName}
-                            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
+                            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs ${
                               p.status === "FINALIZED"
-                                ? "border-emerald-700/40 bg-emerald-900/10 text-emerald-200"
-                                : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]"
+                                ? "border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
+                                : "border-[var(--border-soft)] bg-[var(--surface-muted)]/50 text-[var(--text-soft)]"
                             }`}
                           >
-                            <Link href={`/players/${p.playerId}`} className="hover:text-zinc-50 transition-colors">
+                            <Link
+                              href={`/players/${p.playerId}`}
+                              className="hover:text-zinc-50 transition-colors"
+                            >
                               {p.playerName}
                             </Link>
-                            <span className="text-[10px] text-[var(--text-muted)]">{p.coreTeamName}</span>
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              {p.coreTeamName}
+                            </span>
                             {p.manualOverride && (
-                              <span className="text-[8px] text-amber-400 uppercase">ovr</span>
+                              <span
+                                className="text-[9px] font-semibold uppercase tracking-wider text-[var(--warning)]"
+                                title="Manual override"
+                              >
+                                OVR
+                              </span>
                             )}
                             <MatchdayResponsibilitySelector
                               selectionId={p.id}
@@ -370,73 +381,90 @@ export function MatchDetail({ match }: { match: MatchData }) {
                     </div>
                   ))}
                 </div>
-              </div>
+              </Surface>
             ) : (
-              <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm text-[var(--text-muted)]">
-                No squad selections yet.{" "}
-                <Link href={`/rounds/${match.matchRoundId}`} className="text-[var(--accent-strong)] hover:underline">
-                  Go to round
-                </Link>{" "}
-                to generate or edit the squad.
-              </div>
+              <EmptyState
+                title="No squad selections yet."
+                description="Generate or edit the squad in the round board to plan this match."
+                action={
+                  <Button
+                    as={Link}
+                    href={`/rounds/${match.matchRoundId}`}
+                    variant="primary"
+                    size="sm"
+                  >
+                    Go to round
+                  </Button>
+                }
+              />
             )}
           </div>
 
-          {hasSidebarContent && (
-            <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
-              {error && (
-                <div className="rounded-2xl border border-red-800/40 bg-red-950/20 px-4 py-3 text-sm text-red-200">
-                  {error}
-                </div>
-              )}
+          <aside className="flex flex-col gap-3 lg:sticky lg:top-6 lg:self-start">
+            {error && (
+              <DecisionBanner variant="blocked" title="Error" description={error} />
+            )}
 
-              {finalized && (
-                <div className="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
-                  <CheckCircle2 className="mr-1.5 inline h-4 w-4" />
-                  Match finalized.
-                  {roundFinalized && " Entire round finalized."}
-                </div>
-              )}
+            {finalized && (
+              <DecisionBanner
+                variant="finalized"
+                title="Match finalized"
+                description={roundFinalized ? "Entire round finalized." : undefined}
+              />
+            )}
 
-              {matchFinalized && !finalized && (
-                <div className="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
-                  <Lock className="mr-1.5 inline h-4 w-4" />
-                  This match is finalized.
-                </div>
-              )}
+            {matchFinalized && !finalized && (
+              <DecisionBanner
+                variant="finalized"
+                title="This match is finalized."
+              />
+            )}
 
-              {roundFinalizedFlag && !finalized && !matchFinalized && (
-                <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-3 text-sm text-zinc-300">
-                  <Lock className="mr-1.5 inline h-4 w-4" />
-                  This round is finalized.
-                  <Link href={`/rounds/${match.matchRoundId}`} className="ml-1.5 text-[var(--accent-strong)] hover:underline">
+            {roundFinalizedFlag && !finalized && !matchFinalized && (
+              <DecisionBanner
+                variant="finalized"
+                title="This round is finalized."
+                action={
+                  <Button as={Link} href={`/rounds/${match.matchRoundId}`} variant="ghost" size="sm">
                     View round
-                  </Link>
-                </div>
-              )}
+                  </Button>
+                }
+              />
+            )}
 
-              {canFinalize && (
-                <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-                  <h3 className="text-sm font-semibold text-zinc-200 mb-2">Finalize match</h3>
-                  <p className="text-xs text-[var(--text-muted)] mb-3">
-                    Lock selections for this match. {match.selections.length} of {match.squadSize} players selected.
+            {canFinalize && (
+              <Surface padding="md">
+                <SectionHeader
+                  title="Finalize match"
+                  description={`Lock selections. ${match.selections.length} of ${match.squadSize} players selected.`}
+                />
+                {hasOverrideWarnings && (
+                  <p className="mt-2 text-xs text-[var(--danger)] inline-flex items-center gap-1.5">
+                    <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                    {blockingWarnings.length} blocked, {requiresOverrideWarnings.length} decision
+                    {requiresOverrideWarnings.length === 1 ? "" : "s"} — override reason required.
                   </p>
-                  {blockingWarnings.length > 0 && (
-                    <p className="text-xs text-red-300 mb-2">
-                      <AlertTriangle className="mr-1 inline h-3 w-3" />
-                      {blockingWarnings.length} Blocked {blockingWarnings.length === 1 ? "condition" : "conditions"} — override reason required.
-                    </p>
-                  )}
-                  {hasOverrideWarnings && (
+                )}
+                {hasOverrideWarnings && (
+                  <div className="mt-3">
                     <OverrideReasonInput
                       hasBlockingWarnings={true}
                       value={matchOverrideReason}
                       onChange={setMatchOverrideReason}
                     />
-                  )}
-                  <button
-                    className="w-full rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
-                    disabled={isPending || (hasOverrideWarnings && (!matchOverrideReason.category || matchOverrideReason.detail.trim().length < 10))}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-col gap-2">
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    leadingIcon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+                    disabled={
+                      isPending ||
+                      (hasOverrideWarnings &&
+                        (!matchOverrideReason.category ||
+                          matchOverrideReason.detail.trim().length < 10))
+                    }
                     onClick={() => {
                       startTransition(async () => {
                         const fd = new FormData();
@@ -447,96 +475,135 @@ export function MatchDetail({ match }: { match: MatchData }) {
                         if (hasOverrideWarnings && matchOverrideReason.detail.trim()) {
                           fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
                         }
-                        const { finalizeMatchAction } = await import("@/app/(app)/matches/actions");
+                        const { finalizeMatchAction } = await import(
+                          "@/app/(app)/matches/actions"
+                        );
                         await finalizeMatchAction(fd);
                       });
                     }}
-                    type="button"
                   >
-                    <ShieldCheck className="mr-1.5 inline h-4 w-4" />
-                    {isPending ? "Finalizing..." : "Finalize this match"}
-                  </button>
+                    {isPending ? "Finalizing…" : "Finalize this match"}
+                  </Button>
                   <Link
                     href={`/rounds/${match.matchRoundId}`}
-                    className="mt-2 block text-center text-xs text-[var(--accent-strong)] hover:underline"
+                    className="text-center text-xs text-[var(--accent-strong)] hover:underline"
                   >
                     Finalize entire round instead
                   </Link>
                 </div>
-              )}
+              </Surface>
+            )}
 
-              {(blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0) && (
-                <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-                  <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-200 mb-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    Warnings ({blockingWarnings.length + requiresOverrideWarnings.length} need attention{otherWarnings.length > 0 ? `, ${otherWarnings.length} planning notes` : ""})
-                  </h3>
-                  <ul className="flex flex-col gap-1.5">
-                    {blockingWarnings.map((w) => (
-                      <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                        <strong>{formatWarningCode(w.code)}</strong>: {w.message}
-                      </li>
-                    ))}
-                    {requiresOverrideWarnings.map((w) => (
-                      <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                        <strong>{formatWarningCode(w.code)}</strong>: {w.message}
-                      </li>
+            {(blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0) && (
+              <Surface padding="md">
+                <SectionHeader
+                  title="Plan checks"
+                  description={`${blockingWarnings.length + requiresOverrideWarnings.length} need attention${otherWarnings.length > 0 ? `, ${otherWarnings.length} planning note${otherWarnings.length === 1 ? "" : "s"}` : ""}`}
+                />
+                <ul className="mt-3 flex flex-col gap-2">
+                  {blockingWarnings.map((w) => (
+                    <DecisionBanner
+                      key={w.id}
+                      variant={severityToBannerVariant(w.severity)}
+                      title={formatWarningCode(w.code)}
+                      description={w.message}
+                    />
+                  ))}
+                  {requiresOverrideWarnings.map((w) => (
+                    <DecisionBanner
+                      key={w.id}
+                      variant={severityToBannerVariant(w.severity)}
+                      title={formatWarningCode(w.code)}
+                      description={w.message}
+                    />
+                  ))}
+                </ul>
+                {otherWarnings.length > 0 && (
+                  <button
+                    className="mt-3 text-xs text-[var(--accent-strong)] hover:underline"
+                    onClick={() => setShowAllWarnings(!showAllWarnings)}
+                    type="button"
+                  >
+                    {showAllWarnings
+                      ? "Hide planning notes"
+                      : `Show ${otherWarnings.length} planning ${otherWarnings.length === 1 ? "note" : "notes"}`}
+                  </button>
+                )}
+                {showAllWarnings && otherWarnings.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {otherWarnings.map((w) => (
+                      <DecisionBanner
+                        key={w.id}
+                        variant="note"
+                        title={formatWarningCode(w.code)}
+                        description={w.message}
+                      />
                     ))}
                   </ul>
-                  {otherWarnings.length > 0 && (
-                    <button
-                      className="mt-2 text-xs text-[var(--accent-strong)] hover:underline"
-                      onClick={() => setShowAllWarnings(!showAllWarnings)}
-                      type="button"
-                    >
-                      {showAllWarnings ? "Hide" : `Show ${otherWarnings.length} planning ${otherWarnings.length === 1 ? "note" : "notes"}`}
-                    </button>
-                  )}
-                  {showAllWarnings && otherWarnings.length > 0 && (
-                    <ul className="mt-2 flex flex-col gap-1.5">
-                      {otherWarnings.map((w) => (
-                        <li key={w.id} className={`rounded-lg border px-3 py-2 text-xs ${severityColor(w.severity)}`}>
-                          <strong>{formatWarningCode(w.code)}</strong>: {w.message}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </aside>
-          )}
+                )}
+              </Surface>
+            )}
+          </aside>
         </div>
       )}
 
       {selectedTab === "after-match" && (
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-6 text-center">
-          <p className="text-sm text-[var(--text-muted)]">Redirecting to post-match report...</p>
-        </div>
+        <Surface padding="md">
+          <p className="text-sm text-[var(--text-muted)]">
+            Opening post-match report…
+          </p>
+        </Surface>
       )}
 
       {selectedTab === "opponent" && (
         <div className="flex flex-col gap-4">
           {match.opponentTeamId ? (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-6">
-              <h2 className="text-base font-semibold text-zinc-100 mb-3">Opponent context</h2>
-              <p className="text-sm text-[var(--text-muted)] mb-4">
-                View previous encounters, match fit, and post-match observations for this opponent.
-              </p>
-              <Link
+            <Surface padding="md" className="flex flex-col gap-3">
+              <SectionHeader
+                title="Opponent context"
+                description="Previous encounters, sporting fit, and post-match observations."
+              />
+              <Button
+                as={Link}
                 href={`/opponents/${match.opponentTeamId}`}
-                className="inline-flex items-center gap-2 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 py-2 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
+                variant="primary"
+                size="md"
+                leadingIcon={<Eye className="h-4 w-4" aria-hidden="true" />}
+                className="self-start"
               >
-                <Eye className="h-4 w-4" />
                 View opponent detail
-              </Link>
-            </div>
+              </Button>
+            </Surface>
           ) : (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm text-[var(--text-muted)]">
-              No opponent team linked to this match. Observations and encounter history require an opponent team.
-            </div>
+            <EmptyState
+              title="No opponent profile linked."
+              description="Observations and encounter history need an opponent profile attached to this match."
+            />
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function MetaTile({
+  icon,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        {label}
+      </p>
+      <p className="text-sm text-zinc-100 flex items-center gap-1.5 mt-0.5">
+        {icon && <span className="text-[var(--text-muted)]">{icon}</span>}
+        {value}
+      </p>
     </div>
   );
 }

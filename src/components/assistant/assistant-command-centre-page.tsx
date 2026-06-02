@@ -1,42 +1,244 @@
-"use client";
-
 import Link from "next/link";
-import type { AssistantCommandCentre } from "@/lib/assistant/types";
-import { AssistantWorkItemCard } from "./assistant-work-item-card";
+import type { AssistantCommandCentre, AssistantWorkItem } from "@/lib/assistant/types";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionHeader } from "@/components/ui/section-header";
+import { Surface } from "@/components/ui/surface";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/ui/status-pill";
+import {
+  OctagonAlert,
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  CalendarRange,
+  ArrowRight,
+} from "lucide-react";
 
-type SectionConfig = {
-  key: string;
+/**
+ * AssistantCommandCentrePage — per ADR 0007 the assistant is a calm
+ * mission-control surface. One dominant "Next action" panel, then grouped
+ * work below by intent (Blockers / Decisions / Reports / Upcoming). Repeated
+ * items are collapsed into a single grouped surface to avoid the previous
+ * "six identical huge cards" pattern.
+ */
+
+type WorkCategory = AssistantWorkItem["category"];
+
+type GroupKey = "blockers" | "decisions" | "ready" | "reports" | "setup";
+
+type GroupConfig = {
+  key: GroupKey;
   label: string;
-  categories: AssistantCommandCentre["items"][number]["category"][];
-  emptyText: string;
+  description: string;
+  categories: WorkCategory[];
+  icon: typeof OctagonAlert;
+  variant: "danger" | "warning" | "success" | "info" | "neutral";
 };
 
-const sections: SectionConfig[] = [
+const groups: GroupConfig[] = [
+  {
+    key: "blockers",
+    label: "Blockers",
+    description: "Hard problems preventing finalize.",
+    categories: ["blocked_round"],
+    icon: OctagonAlert,
+    variant: "danger",
+  },
+  {
+    key: "decisions",
+    label: "Decisions",
+    description: "Coach judgement required before finalize.",
+    categories: ["decision_required"],
+    icon: AlertTriangle,
+    variant: "warning",
+  },
   {
     key: "setup",
     label: "Setup",
+    description: "Foundations needed before squad work starts.",
     categories: ["setup_missing", "availability_missing", "populate_needed"],
-    emptyText: "",
+    icon: ClipboardList,
+    variant: "neutral",
   },
   {
-    key: "action",
-    label: "Needs Action",
-    categories: ["blocked_round", "decision_required"],
-    emptyText: "No blockers requiring coach review.",
-  },
-  {
-    key: "finalize",
-    label: "Ready to Finalize",
+    key: "ready",
+    label: "Ready to finalize",
+    description: "Drafts that meet plan integrity.",
     categories: ["ready_to_finalize"],
-    emptyText: "No rounds ready to finalize.",
+    icon: CheckCircle2,
+    variant: "success",
   },
   {
-    key: "report",
-    label: "Post-Match Reports",
+    key: "reports",
+    label: "Post-match reports",
+    description: "Matches still missing a completed report.",
     categories: ["post_match_report"],
-    emptyText: "No post-match reports missing.",
+    icon: CalendarRange,
+    variant: "info",
   },
 ];
+
+function isActionable(item: AssistantWorkItem): boolean {
+  return item.category !== "upcoming_round";
+}
+
+function NextActionCard({ item }: { item: AssistantWorkItem }) {
+  const config = groupForCategory(item.category);
+  return (
+    <Surface
+      variant={config?.variant === "danger" ? "danger" : config?.variant === "warning" ? "warning" : config?.variant === "success" ? "success" : config?.variant === "info" ? "info" : "raised"}
+      padding="lg"
+      className="flex flex-col gap-3"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <StatusPill
+          variant={config?.variant ?? "neutral"}
+          icon={config?.icon}
+          size="md"
+        >
+          Next action
+        </StatusPill>
+        <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          {config?.label ?? "Action"}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <h2 className="text-lg font-semibold text-zinc-50">{item.title}</h2>
+        {item.summary && (
+          <p className="text-sm text-[var(--text-soft)] leading-snug">{item.summary}</p>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <ItemCounts item={item} />
+        <Button
+          as={Link}
+          href={item.primaryActionHref}
+          variant="primary"
+          trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
+        >
+          {item.primaryActionLabel}
+        </Button>
+      </div>
+    </Surface>
+  );
+}
+
+function ItemCounts({ item }: { item: AssistantWorkItem }) {
+  const counts = [
+    item.blockedCount && item.blockedCount > 0
+      ? { value: item.blockedCount, label: "blocked", variant: "danger" as const }
+      : null,
+    item.decisionRequiredCount && item.decisionRequiredCount > 0
+      ? {
+          value: item.decisionRequiredCount,
+          label: "decisions",
+          variant: "warning" as const,
+        }
+      : null,
+  ].filter((x): x is { value: number; label: string; variant: "danger" | "warning" } => x !== null);
+
+  if (counts.length === 0) return <div />;
+
+  return (
+    <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+      {counts.map((c, i) => (
+        <span key={i} className="inline-flex items-center gap-1">
+          <span
+            className={`tabular-nums font-semibold ${c.variant === "danger" ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}
+          >
+            {c.value}
+          </span>
+          <span>{c.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function groupForCategory(category: WorkCategory): GroupConfig | undefined {
+  return groups.find((g) => g.categories.includes(category));
+}
+
+function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean }) {
+  return (
+    <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-md hover:bg-[var(--surface-muted)]/30 transition-colors">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span
+          className={`text-sm font-medium ${dim ? "text-[var(--text-soft)]" : "text-zinc-100"} truncate`}
+        >
+          {item.title}
+        </span>
+        {item.summary && (
+          <span className="text-xs text-[var(--text-muted)] line-clamp-1">
+            {item.summary}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <ItemCounts item={item} />
+        <Button
+          as={Link}
+          href={item.primaryActionHref}
+          variant="ghost"
+          size="sm"
+          trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
+        >
+          {item.primaryActionLabel}
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function GroupedReports({ items }: { items: AssistantWorkItem[] }) {
+  // Group reports by matchRoundId to compress the list.
+  const byRound = new Map<string, AssistantWorkItem[]>();
+  for (const item of items) {
+    const key = item.matchRoundId ?? "_";
+    const list = byRound.get(key) ?? [];
+    list.push(item);
+    byRound.set(key, list);
+  }
+
+  return (
+    <Surface padding="md" className="flex flex-col gap-3">
+      <SectionHeader
+        title="Post-match reports"
+        description={`${items.length} report${items.length === 1 ? "" : "s"} still need completing.`}
+        eyebrow={`${byRound.size} round${byRound.size === 1 ? "" : "s"}`}
+      />
+      <ul className="flex flex-col">
+        {items.map((item) => (
+          <WorkRow key={item.id} item={item} />
+        ))}
+      </ul>
+    </Surface>
+  );
+}
+
+function StandardGroup({
+  group,
+  items,
+}: {
+  group: GroupConfig;
+  items: AssistantWorkItem[];
+}) {
+  return (
+    <Surface padding="md" className="flex flex-col gap-3">
+      <SectionHeader
+        title={group.label}
+        description={group.description}
+        eyebrow={`${items.length} item${items.length === 1 ? "" : "s"}`}
+      />
+      <ul className="flex flex-col">
+        {items.map((item) => (
+          <WorkRow key={item.id} item={item} />
+        ))}
+      </ul>
+    </Surface>
+  );
+}
 
 export function AssistantCommandCentrePage({
   commandCentre,
@@ -44,73 +246,64 @@ export function AssistantCommandCentrePage({
   commandCentre: AssistantCommandCentre;
 }) {
   const { items, planningPeriodName } = commandCentre;
-
-  const actionableItems = items.filter(
-    (i) => i.category !== "upcoming_round",
-  );
+  const actionable = items.filter(isActionable);
+  const upcoming = items.filter((i) => i.category === "upcoming_round");
+  const nextAction = actionable[0];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-            Assistant
-          </p>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            What needs attention before the next matches.
-          </p>
-        </div>
-        {planningPeriodName && (
-          <span className="rounded border border-zinc-600/40 bg-zinc-800/30 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
-            {planningPeriodName}
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Assistant"
+        description="What needs attention before the next matches."
+        context={planningPeriodName ? <span>{planningPeriodName}</span> : null}
+      />
 
-      {actionableItems.length === 0 ? (
-        <div className="flex flex-col gap-4">
-          <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-6 text-center">
-            <p className="text-sm text-zinc-400">
-              No coaching decisions require action right now.
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">
-              Upcoming rounds are under control.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 justify-center">
-            <Link
-              href="/fixtures"
-              className="inline-flex h-9 items-center justify-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
-            >
-              View Fixtures
-            </Link>
-          </div>
-        </div>
+      {nextAction ? (
+        <NextActionCard item={nextAction} />
       ) : (
-        sections.map((section) => {
-          const sectionItems = actionableItems.filter((i) =>
-            section.categories.includes(i.category),
-          );
-          if (sectionItems.length === 0 && section.key !== "action") return null;
-          return (
-            <div key={section.key} className="flex flex-col gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                {section.label}
-              </p>
-              {sectionItems.length === 0 ? (
-                <p className="text-xs text-zinc-500 px-1">
-                  {section.emptyText}
-                </p>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {sectionItems.map((item) => (
-                    <AssistantWorkItemCard key={item.id} item={item} />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })
+        <EmptyState
+          tone="info"
+          title="Nothing urgent right now."
+          description="Upcoming rounds are under control. Open Fixtures to plan ahead."
+          action={
+            <Button
+              as={Link}
+              href="/fixtures"
+              variant="primary"
+              trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
+            >
+              Open Fixtures
+            </Button>
+          }
+        />
+      )}
+
+      {groups.map((group) => {
+        const groupItems = actionable.filter((i) =>
+          group.categories.includes(i.category),
+        );
+        // Skip the next-action item from its own group to avoid duplication.
+        const filtered = groupItems.filter((i) => i.id !== nextAction?.id);
+        if (filtered.length === 0) return null;
+        if (group.key === "reports") {
+          return <GroupedReports key={group.key} items={filtered} />;
+        }
+        return <StandardGroup key={group.key} group={group} items={filtered} />;
+      })}
+
+      {upcoming.length > 0 && (
+        <Surface padding="md" className="flex flex-col gap-3">
+          <SectionHeader
+            title="Upcoming"
+            description="Rounds in the planning horizon — no action needed yet."
+            eyebrow={`${upcoming.length} round${upcoming.length === 1 ? "" : "s"}`}
+          />
+          <ul className="flex flex-col">
+            {upcoming.map((item) => (
+              <WorkRow key={item.id} item={item} dim />
+            ))}
+          </ul>
+        </Surface>
       )}
     </div>
   );

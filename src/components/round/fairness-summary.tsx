@@ -1,4 +1,6 @@
 import { TrendingUp, TrendingDown, ArrowRightLeft, BarChart3 } from "lucide-react";
+import { Surface } from "@/components/ui/surface";
+import { SectionHeader } from "@/components/ui/section-header";
 
 type FairnessMetric = {
   label: string;
@@ -21,9 +23,9 @@ type FairnessSummaryProps = {
 
 function MetricRow({ metric }: { metric: FairnessMetric }) {
   const trendIcon = {
-    up: { icon: TrendingUp, className: "text-emerald-400" },
-    down: { icon: TrendingDown, className: "text-amber-400" },
-    neutral: { icon: BarChart3, className: "text-zinc-400" },
+    up: { icon: TrendingUp, className: "text-[var(--accent-strong)]" },
+    down: { icon: TrendingDown, className: "text-[var(--warning)]" },
+    neutral: { icon: BarChart3, className: "text-[var(--text-muted)]" },
   }[metric.trend ?? "neutral"];
   const Icon = trendIcon.icon;
 
@@ -40,27 +42,33 @@ function MetricRow({ metric }: { metric: FairnessMetric }) {
   );
 }
 
+function MovementStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
+      <span className="text-xs font-medium tabular-nums text-zinc-100">{value}</span>
+    </div>
+  );
+}
+
 export function FairnessSummary({ metrics, movementSummary }: FairnessSummaryProps) {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-        <h3 className="text-sm font-semibold text-zinc-100">Fairness checks</h3>
-      </div>
+    <div className="flex flex-col gap-2">
+      <SectionHeader title="Fairness checks" description="How load and rotation balance across the round." />
 
       {metrics.length > 0 && (
-        <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2">
+        <Surface padding="sm">
           {metrics.map((m, i) => (
             <MetricRow key={i} metric={m} />
           ))}
-        </div>
+        </Surface>
       )}
 
       {movementSummary && (
-        <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2">
+        <Surface padding="sm">
           <div className="flex items-center gap-1.5 mb-1.5">
             <ArrowRightLeft className="h-3.5 w-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-            <span className="text-xs font-medium text-zinc-300">Movement this round</span>
+            <span className="text-xs font-medium text-[var(--text-soft)]">Movement this round</span>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <MovementStat label="Support sent" value={movementSummary.supportSent} />
@@ -70,17 +78,8 @@ export function FairnessSummary({ metrics, movementSummary }: FairnessSummaryPro
             <MovementStat label="Squad repair received" value={movementSummary.squadRepairReceived} />
             <MovementStat label="Dropped" value={movementSummary.drops} />
           </div>
-        </div>
+        </Surface>
       )}
-    </div>
-  );
-}
-
-function MovementStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
-      <span className="text-xs font-medium tabular-nums text-zinc-200">{value}</span>
     </div>
   );
 }

@@ -17,10 +17,14 @@ export async function UserNav() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white" title={name}>
+      <div
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)]/60 text-[10px] font-semibold text-[var(--accent-strong)]"
+        title={name}
+        aria-label={name}
+      >
         {initials}
       </div>
-      <span className="hidden text-xs text-gray-400 sm:inline">{name}</span>
+      <span className="hidden text-xs text-[var(--text-muted)] sm:inline">{name}</span>
       <form
         action={async () => {
           "use server";
@@ -29,7 +33,7 @@ export async function UserNav() {
       >
         <button
           type="submit"
-          className="ml-0.5 rounded p-1 text-gray-400 hover:text-white"
+          className="ml-0.5 rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-zinc-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
           title="Sign out"
           aria-label="Sign out"
         >

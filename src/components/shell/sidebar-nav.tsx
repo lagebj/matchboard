@@ -14,7 +14,6 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  badge?: number;
 };
 
 const navItems: NavItem[] = [
@@ -29,31 +28,48 @@ function isActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
   if (href === "/fixtures") {
-    return ["/rounds", "/matches", "/opponents"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    return ["/rounds", "/matches", "/opponents"].some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`),
+    );
   }
   return true;
 }
 
-export function SidebarNav({ warningCount }: { warningCount?: number }) {
+/**
+ * SidebarNav — per ADR 0007 the sidebar is calm and matte: the active item is
+ * marked with a left rail (not a heavy background block), the brand mark is
+ * quiet, and the version label is barely-visible footer text.
+ */
+export function SidebarNav() {
   const pathname = usePathname();
 
   return (
     <nav aria-label="Primary" className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-[var(--border-soft)] px-4 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-subtle)] border border-[var(--border-soft)]">
-          <svg viewBox="0 0 24 24" fill="none" className="h-4.5 w-4.5 text-[var(--accent-strong)]" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07" stroke="currentColor" strokeWidth="1" opacity="0.4" />
-            <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.6" />
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/40">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-4 w-4 text-[var(--accent-strong)]"
+            aria-hidden="true"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <circle cx="12" cy="12" r="2.2" fill="currentColor" />
           </svg>
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-zinc-50">Matchboard</p>
           <p className="text-[10px] text-[var(--text-muted)]">Squad planning</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-3">
+      <div className="flex-1 overflow-y-auto px-2 pt-2">
         <ul className="flex flex-col gap-0.5" role="list">
           {navItems.map((item) => {
             const active = isActive(pathname, item.href);
@@ -62,25 +78,19 @@ export function SidebarNav({ warningCount }: { warningCount?: number }) {
               <li key={item.href}>
                 <Link
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  className={[
+                    "relative flex items-center gap-2.5 rounded-md pl-3 pr-3 py-1.5 text-sm transition-colors",
                     active
-                      ? "bg-[var(--accent-subtle)] font-semibold text-zinc-50"
-                      : "text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50"
-                  }`}
+                      ? "text-zinc-50 font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-r before:bg-[var(--accent-strong)]"
+                      : "text-[var(--text-soft)] hover:bg-[var(--surface-muted)]/40 hover:text-zinc-50",
+                  ].join(" ")}
                   href={item.href}
                 >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <Icon
+                    className={`h-4 w-4 shrink-0 ${active ? "text-[var(--accent-strong)]" : ""}`}
+                    aria-hidden="true"
+                  />
                   <span className="flex-1">{item.label}</span>
-                  {item.badge != null && item.badge > 0 && (
-                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-900/50 px-1 text-[9px] font-bold text-red-300">
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.href === "/fixtures" && warningCount != null && warningCount > 0 && (
-                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-900/50 px-1 text-[9px] font-bold text-amber-300">
-                      {warningCount}
-                    </span>
-                  )}
                 </Link>
               </li>
             );
@@ -88,11 +98,7 @@ export function SidebarNav({ warningCount }: { warningCount?: number }) {
         </ul>
       </div>
 
-      <div className="border-t border-[var(--border-soft)] px-4 py-3">
-        <p className="text-[9px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-          v0.1
-        </p>
-      </div>
+      <div className="px-4 py-3 text-[10px] text-[var(--text-muted)]">v0.1</div>
     </nav>
   );
 }

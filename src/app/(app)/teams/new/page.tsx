@@ -1,5 +1,8 @@
-import Link from "next/link";
 import { createTeamAction } from "@/app/(app)/teams/actions";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { DecisionBanner } from "@/components/ui/decision-banner";
+import { PageHeader } from "@/components/ui/page-header";
 
 type NewTeamPageProps = {
   searchParams: Promise<{
@@ -12,37 +15,17 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
 
   return (
     <main className="flex min-h-full flex-col gap-8 text-foreground">
-      <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-              New team
-            </span>
-          </div>
+      <PageHeader
+        title="Create team"
+        description="Add a team to the registry. Squad limits and support config can be adjusted later from the team detail page."
+      />
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                Create team
-              </h1>
-              <p className="mt-4 text-sm app-copy-soft sm:text-base">
-                Add a team to the registry. Squad limits and support config can be adjusted later from the team detail page.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="app-panel rounded-[1.75rem] p-6">
+      <Surface variant="default" padding="lg">
         <form action={createTeamAction} className="flex flex-col gap-5">
-          {error && (
-            <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
-              {error}
-            </div>
-          )}
+          {error && <DecisionBanner variant="blocked" title={error} />}
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="name" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+            <label htmlFor="name" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
               Team name
             </label>
             <input
@@ -50,14 +33,14 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
               name="name"
               type="text"
               required
-              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               placeholder="Team name"
             />
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="targetSquadSize" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="targetSquadSize" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Target squad size
               </label>
               <input
@@ -67,12 +50,12 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={11}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="minAcceptedSquadSize" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="minAcceptedSquadSize" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Min accepted squad size
               </label>
               <input
@@ -82,12 +65,12 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={9}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="maxSquadSize" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="maxSquadSize" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Max squad size
               </label>
               <input
@@ -97,12 +80,12 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={14}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="minCorePlayers" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="minCorePlayers" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Min core players
               </label>
               <input
@@ -112,12 +95,12 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={8}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="supportPriority" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="supportPriority" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Support priority rank (1 is highest)
               </label>
               <input
@@ -127,12 +110,12 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={0}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="minSupportPlayers" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="minSupportPlayers" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Min support players
               </label>
               <input
@@ -142,12 +125,12 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={0}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="developmentSlots" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              <label htmlFor="developmentSlots" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                 Development slots
               </label>
               <input
@@ -157,27 +140,21 @@ export default async function NewTeamPage({ searchParams }: NewTeamPageProps) {
                 required
                 min={0}
                 defaultValue={0}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
-            >
+            <Button variant="primary" size="md" type="submit">
               Create team
-            </button>
-            <Link
-              href="/teams"
-              className="inline-flex h-11 items-center rounded-full border app-hairline px-5 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-            >
+            </Button>
+            <Button variant="ghost" size="md" as="a" href="/teams">
               Cancel
-            </Link>
+            </Button>
           </div>
         </form>
-      </section>
+      </Surface>
     </main>
   );
 }
