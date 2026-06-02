@@ -24,17 +24,17 @@ export function OverrideReasonInput({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-zinc-200" htmlFor="override-reason-category">
-          Override reason <span className="text-red-400">*</span>
+        <label className="text-sm font-medium text-zinc-100" htmlFor="override-reason-category">
+          Override reason <span className="text-[var(--danger)]">*</span>
         </label>
         {!showCategorySelector ? (
           <button
             type="button"
             onClick={() => setShowCategorySelector(true)}
-            className={`rounded-lg border px-3 py-2 text-sm text-left transition-colors ${
+            className={`rounded-md border px-3 py-2 text-sm text-left transition-colors ${
               value.category
-                ? "border-[var(--border-soft)] bg-[var(--surface-muted)] text-zinc-100"
-                : "border-dashed border-zinc-600 bg-zinc-800/30 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
+                ? "border-[var(--border-soft)] bg-[var(--surface-muted)]/50 text-zinc-100"
+                : "border-dashed border-[var(--border-strong)] bg-[var(--surface-muted)]/30 text-[var(--text-muted)] hover:border-[var(--accent)]/40 hover:text-[var(--text-soft)]"
             }`}
           >
             {value.category
@@ -42,7 +42,7 @@ export function OverrideReasonInput({
               : "Select override reason category…"}
           </button>
         ) : (
-          <div className="flex flex-col gap-1 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] p-1">
+          <div className="flex flex-col gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-1">
             {OVERRIDE_REASON_CATEGORIES.map((cat) => (
               <button
                 key={cat}
@@ -53,8 +53,8 @@ export function OverrideReasonInput({
                 }}
                 className={`rounded px-3 py-1.5 text-left text-sm transition-colors ${
                   value.category === cat
-                    ? "bg-[var(--accent-subtle)] text-zinc-100"
-                    : "text-zinc-300 hover:bg-[var(--surface-hover)] hover:text-zinc-100"
+                    ? "bg-[var(--accent-subtle)] text-zinc-50"
+                    : "text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50"
                 }`}
               >
                 {OVERRIDE_REASON_CATEGORY_LABELS[cat]}
@@ -65,19 +65,19 @@ export function OverrideReasonInput({
       </div>
       {value.category && (
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-zinc-200" htmlFor="override-reason-detail">
+          <label className="text-sm font-medium text-zinc-100" htmlFor="override-reason-detail">
             Details <span className="text-[var(--text-muted)]">(min {minDetailLength} characters)</span>
           </label>
           <textarea
             id="override-reason-detail"
-            className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]/45 resize-none"
             rows={2}
-            placeholder="Explain why you are overriding this condition..."
+            placeholder="Explain why you are overriding this condition…"
             value={value.detail}
             onChange={(e) => onChange({ ...value, detail: e.target.value })}
           />
           {value.detail.length > 0 && value.detail.trim().length < minDetailLength && (
-            <p className="text-xs text-amber-300">
+            <p className="text-xs text-[var(--warning)]">
               Override detail must be at least {minDetailLength} characters.
             </p>
           )}

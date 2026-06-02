@@ -5,47 +5,32 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { type WarningSeverity } from "@/generated/prisma/client";
+import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
 
 export type SignalLevel = "blocked" | "decisionRequired" | "planningNote";
 
+/**
+ * Per ADR 0007 signal badges now use the calm semantic palette and reuse the
+ * shared StatusPill primitive.
+ */
 type SignalConfig = {
   label: string;
   icon: LucideIcon;
-  className: string;
+  variant: StatusPillVariant;
 };
 
 const signalConfig: Record<SignalLevel, SignalConfig> = {
-  blocked: {
-    label: "Blocked",
-    icon: OctagonAlert,
-    className:
-      "bg-red-900/30 text-red-300 border-red-700/40",
-  },
-  decisionRequired: {
-    label: "Decision required",
-    icon: AlertTriangle,
-    className:
-      "bg-amber-900/30 text-amber-300 border-amber-700/40",
-  },
-  planningNote: {
-    label: "Planning note",
-    icon: FileText,
-    className:
-      "bg-zinc-800/30 text-zinc-400 border-zinc-700/40",
-  },
+  blocked: { label: "Blocked", icon: OctagonAlert, variant: "danger" },
+  decisionRequired: { label: "Decision required", icon: AlertTriangle, variant: "warning" },
+  planningNote: { label: "Planning note", icon: FileText, variant: "neutral" },
 };
 
 export function SignalBadge({ level }: { level: SignalLevel }) {
   const config = signalConfig[level] ?? signalConfig.planningNote;
-  const Icon = config.icon;
-
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border ${config.className}`}
-    >
-      <Icon className="h-3 w-3" aria-hidden="true" />
-      <span>{config.label}</span>
-    </span>
+    <StatusPill variant={config.variant} icon={config.icon}>
+      {config.label}
+    </StatusPill>
   );
 }
 
@@ -92,4 +77,3 @@ export function signalLevelFromCode(code: string): SignalLevel {
   if (REQUIRES_OVERRIDE_CODES.has(code)) return "decisionRequired";
   return "planningNote";
 }
-

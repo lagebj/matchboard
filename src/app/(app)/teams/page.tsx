@@ -6,6 +6,11 @@ import { getTeamsResultsOverview } from "@/lib/teams/get-teams-results-overview"
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import type { TeamPeriodResultsRow } from "@/lib/teams/get-teams-results-overview";
 import { TeamPeriodSelector } from "@/components/teams/team-period-selector";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DecisionBanner } from "@/components/ui/decision-banner";
+import { PageHeader } from "@/components/ui/page-header";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -29,45 +34,45 @@ function formatGd(gd: number): string {
 
 function TeamResultsRow({ row }: { row: TeamPeriodResultsRow }) {
   return (
-    <tr className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+    <tr className="hover:bg-[var(--surface-hover)] transition-colors">
       <td className="px-4 py-2.5">
         <Link href={`/teams/${row.teamId}`} className="font-medium text-zinc-200 hover:text-zinc-50">
           {row.teamName}
         </Link>
       </td>
-      <td className="px-3 py-2.5 text-right text-zinc-300 tabular-nums">{row.matchesPlayed}</td>
-      <td className="px-3 py-2.5 text-right text-zinc-300 tabular-nums">{row.wins}-{row.draws}-{row.losses}</td>
-      <td className="px-3 py-2.5 text-right text-zinc-300 tabular-nums">{row.goalsFor}</td>
-      <td className="px-3 py-2.5 text-right text-zinc-300 tabular-nums">{row.goalsAgainst}</td>
-      <td className={`px-3 py-2.5 text-right tabular-nums ${row.goalDifference > 0 ? "text-emerald-300" : row.goalDifference < 0 ? "text-red-300" : "text-zinc-400"}`}>
+      <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.matchesPlayed}</td>
+      <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.wins}-{row.draws}-{row.losses}</td>
+      <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.goalsFor}</td>
+      <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.goalsAgainst}</td>
+      <td className={`px-3 py-2.5 text-right tabular-nums ${row.goalDifference > 0 ? "text-[var(--accent-strong)]" : row.goalDifference < 0 ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}>
         {formatGd(row.goalDifference)}
       </td>
-      <td className="px-3 py-2.5 text-right text-zinc-300 tabular-nums">{row.cleanSheets}</td>
-      <td className="px-3 py-2.5 text-right text-zinc-400 tabular-nums">{row.corePlayerCount}</td>
+      <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.cleanSheets}</td>
+      <td className="px-3 py-2.5 text-right text-[var(--text-muted)] tabular-nums">{row.corePlayerCount}</td>
     </tr>
   );
 }
 
 function MobileTeamCard({ row }: { row: TeamPeriodResultsRow }) {
   return (
-    <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5">
+    <Surface variant="default" padding="sm">
       <div className="flex items-center justify-between">
         <Link href={`/teams/${row.teamId}`} className="font-medium text-zinc-200 hover:text-zinc-50">
           {row.teamName}
         </Link>
-        <span className="text-xs text-zinc-400 tabular-nums">{row.matchesPlayed} played</span>
+        <span className="text-xs text-[var(--text-muted)] tabular-nums">{row.matchesPlayed} played</span>
       </div>
       <div className="flex items-center justify-between mt-1">
-        <span className="text-xs text-zinc-300 tabular-nums">{row.wins}-{row.draws}-{row.losses}</span>
-        <span className="text-xs text-zinc-400 tabular-nums">
+        <span className="text-xs text-[var(--text-soft)] tabular-nums">{row.wins}-{row.draws}-{row.losses}</span>
+        <span className="text-xs text-[var(--text-muted)] tabular-nums">
           GF {row.goalsFor} · GA {row.goalsAgainst} · GD {formatGd(row.goalDifference)}
         </span>
       </div>
       <div className="flex items-center justify-between mt-1">
-        <span className="text-[10px] text-zinc-500">Clean sheets {row.cleanSheets}</span>
-        <span className="text-[10px] text-zinc-500">Core players {row.corePlayerCount}</span>
+        <span className="text-[10px] text-[var(--text-muted)]">Clean sheets {row.cleanSheets}</span>
+        <span className="text-[10px] text-[var(--text-muted)]">Core players {row.corePlayerCount}</span>
       </div>
-    </div>
+    </Surface>
   );
 }
 
@@ -110,50 +115,43 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-100">Teams</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          Results and match record for {periodLabel}.
-        </p>
-      </div>
+      <PageHeader
+        title="Teams"
+        description={`Results and match record for ${periodLabel}.`}
+        actions={
+          <Button variant="primary" size="sm" as="a" href="/teams/new">
+            Add team
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>
-      )}
-      {formatSavedMessage(saved) && (
-        <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">{formatSavedMessage(saved)}</div>
-      )}
+      {error && <DecisionBanner variant="blocked" title={error} />}
+      {formatSavedMessage(saved) && <DecisionBanner variant="success" title={formatSavedMessage(saved)!} />}
 
       <div className="flex items-center justify-between gap-2">
         {selectedPeriodId && (
           <TeamPeriodSelector planningPeriods={periodOptions} selectedPeriodId={selectedPeriodId} />
         )}
-        <Link
-          href="/teams/new"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))] shrink-0"
-        >
-          Add team
-        </Link>
       </div>
 
       {!selectedPeriodId ? (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No phase available.</p>
-          <p className="text-xs text-zinc-500">Create matches and a phase before team results can be shown.</p>
-        </div>
+        <EmptyState
+          title="No phase available"
+          description="Create matches and a phase before team results can be shown."
+        />
       ) : !overview || overview.rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No teams yet.</p>
-          <Link
-            href="/teams/new"
-            className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
-          >
-            Create a team
-          </Link>
-        </div>
+        <EmptyState
+          title="No teams yet"
+          description="Create a team to start planning squads."
+          action={
+            <Button variant="primary" size="sm" as="a" href="/teams/new">
+              Create a team
+            </Button>
+          }
+        />
       ) : (
         <>
-          <div className="hidden sm:block rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
+          <div className="hidden sm:block overflow-hidden rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, X } from "lucide-react";
-import { SignalBadge } from "@/components/ui/severity-badge";
+import { ShieldCheck } from "lucide-react";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
+import { Dialog } from "@/components/ui/dialog";
+import { DecisionBanner } from "@/components/ui/decision-banner";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
 
 type SignalSummary = {
   severity: string;
@@ -38,13 +41,23 @@ export function ConfirmFinalizeDialog({
   const [overrideReason, setOverrideReason] = useState({ category: "", detail: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) return null;
-
   const hasIssues = blockedCount > 0 || decisionRequiredCount > 0;
-  const needsOverride = hasIssues;
-  const categoryValid = !needsOverride || overrideReason.category !== "";
-  const detailValid = !needsOverride || overrideReason.detail.trim().length >= 10;
-  const overrideValid = !needsOverride || (categoryValid && detailValid);
+  const categoryValid = !hasIssues || overrideReason.category !== "";
+  const detailValid = !hasIssues || overrideReason.detail.trim().length >= 10;
+  const overrideValid = !hasIssues || (categoryValid && detailValid);
+
+  const blockedConditions = signals.filter(
+    (s) =>
+      signalCategoryFromSeverity(
+        s.severity as Parameters<typeof signalCategoryFromSeverity>[0],
+      ) === "BLOCKED",
+  );
+  const decisionRequiredConditions = signals.filter(
+    (s) =>
+      signalCategoryFromSeverity(
+        s.severity as Parameters<typeof signalCategoryFromSeverity>[0],
+      ) === "DECISION_REQUIRED",
+  );
 
   const handleConfirm = () => {
     if (!overrideValid) return;
@@ -52,107 +65,95 @@ export function ConfirmFinalizeDialog({
     onConfirm(overrideReason.category, overrideReason.detail.trim());
   };
 
-  const blockedConditions = signals.filter((s) => signalCategoryFromSeverity(s.severity as Parameters<typeof signalCategoryFromSeverity>[0]) === "BLOCKED");
-  const decisionRequiredConditions = signals.filter((s) => signalCategoryFromSeverity(s.severity as Parameters<typeof signalCategoryFromSeverity>[0]) === "DECISION_REQUIRED");
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4 shrink-0">
-          <h3 className="text-base font-semibold text-zinc-100">
-            Finalize round
-          </h3>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-            aria-label="Close dialog"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-4 px-5 py-4 overflow-y-auto">
-          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">
-            <p className="text-sm text-zinc-200">
-              <span className="font-semibold">{selectedCount}</span> players selected across{" "}
-              <span className="font-semibold">{matchCount}</span> match{matchCount !== 1 ? "es" : ""},
-              targeting <span className="font-semibold">{targetSquadSize}</span> squad size.
-            </p>
-          </div>
-
-          {blockedCount === 0 && decisionRequiredCount === 0 && (
-            <div className="rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-3 py-2">
-              <p className="text-sm text-emerald-300">
-                Plan integrity: all available eligible players have one planned match opportunity. All squads meet minimum size.
-              </p>
-            </div>
-          )}
-
-          {(blockedCount > 0 || decisionRequiredCount > 0) && (
-            <div className="flex flex-col gap-2">
-              {blockedCount > 0 && (
-                <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <SignalBadge level="blocked" />
-                    <span className="text-sm text-red-300">
-                      {blockedCount} Blocked {blockedCount === 1 ? "condition" : "conditions"} — override reason required to finalize
-                    </span>
-                  </div>
-                  {blockedConditions.length > 0 && (
-                    <ul className="mt-1.5 ml-5 list-disc text-xs text-red-400/80 space-y-0.5">
-                      {blockedConditions.map((s, i) => (
-                        <li key={i}>{s.message}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-
-              {decisionRequiredCount > 0 && (
-                <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <SignalBadge level="decisionRequired" />
-                    <span className="text-sm text-amber-300">
-                      {decisionRequiredCount} {decisionRequiredCount === 1 ? "decision requires" : "decisions require"} override reason
-                    </span>
-                  </div>
-                  {decisionRequiredConditions.length > 0 && (
-                    <ul className="mt-1.5 ml-5 list-disc text-xs text-amber-400/80 space-y-0.5">
-                      {decisionRequiredConditions.map((s, i) => (
-                        <li key={i}>{s.message}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          <OverrideReasonInput
-            hasBlockingWarnings={needsOverride}
-            value={overrideReason}
-            onChange={setOverrideReason}
-          />
-        </div>
-
-        <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3 shrink-0">
-          <button
-            className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-            onClick={onClose}
-          >
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Finalize round"
+      size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          </Button>
+          <Button
+            variant="primary"
+            leadingIcon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
             onClick={handleConfirm}
             disabled={!overrideValid || isSubmitting}
           >
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            {isSubmitting ? "Finalizing..." : "Finalize round"}
-          </button>
-        </div>
-      </div>
-    </div>
+            {isSubmitting ? "Finalizing…" : "Finalize round"}
+          </Button>
+        </>
+      }
+    >
+      <Surface variant="subtle" padding="md">
+        <p className="text-sm text-[var(--text-soft)]">
+          <span className="font-semibold text-zinc-100">{selectedCount}</span> players selected
+          across <span className="font-semibold text-zinc-100">{matchCount}</span>{" "}
+          match{matchCount !== 1 ? "es" : ""}, targeting{" "}
+          <span className="font-semibold text-zinc-100">{targetSquadSize}</span>{" "}
+          squad size.
+        </p>
+      </Surface>
+
+      {!hasIssues && (
+        <DecisionBanner
+          variant="success"
+          title="Plan checks pass"
+          description="All available eligible players have one planned match opportunity. All squads meet minimum size."
+        />
+      )}
+
+      {blockedCount > 0 && (
+        <DecisionBanner
+          variant="blocked"
+          title={
+            <>
+              {blockedCount} blocked{" "}
+              {blockedCount === 1 ? "condition" : "conditions"}
+            </>
+          }
+          description="An override reason is required to finalize."
+        />
+      )}
+
+      {blockedConditions.length > 0 && (
+        <ul className="ml-6 -mt-2 list-disc text-xs text-[var(--danger)]/85 space-y-0.5">
+          {blockedConditions.map((s, i) => (
+            <li key={i}>{s.message}</li>
+          ))}
+        </ul>
+      )}
+
+      {decisionRequiredCount > 0 && (
+        <DecisionBanner
+          variant="decision"
+          title={
+            <>
+              {decisionRequiredCount}{" "}
+              {decisionRequiredCount === 1
+                ? "decision needs review"
+                : "decisions need review"}
+            </>
+          }
+          description="An override reason is required to finalize."
+        />
+      )}
+
+      {decisionRequiredConditions.length > 0 && (
+        <ul className="ml-6 -mt-2 list-disc text-xs text-[var(--warning)]/85 space-y-0.5">
+          {decisionRequiredConditions.map((s, i) => (
+            <li key={i}>{s.message}</li>
+          ))}
+        </ul>
+      )}
+
+      <OverrideReasonInput
+        hasBlockingWarnings={hasIssues}
+        value={overrideReason}
+        onChange={setOverrideReason}
+      />
+    </Dialog>
   );
 }

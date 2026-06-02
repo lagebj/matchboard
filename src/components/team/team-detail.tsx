@@ -8,6 +8,13 @@ import type { SelectionRole } from "@/generated/prisma/client";
 import type { MovementCandidateRationale, MovementCandidateRole, MovementCandidateStatus } from "@/generated/prisma/client";
 import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
 import { RotationPathCard } from "@/components/rules/rotation-path-card";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/ui/status-pill";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionHeader } from "@/components/ui/section-header";
+import { DecisionBanner } from "@/components/ui/decision-banner";
+import { TabRail } from "@/components/ui/tab-rail";
 import {
   createMovementCandidateAction,
   deleteMovementCandidateAction,
@@ -210,33 +217,31 @@ function formatRoleLabel(role: string): string {
   }
 }
 
-function severityColor(severity: string): string {
+type SeverityVariant = "blocked" | "decision" | "note";
+
+function severityToBannerVariant(severity: string): SeverityVariant {
   switch (severity) {
     case "HARD_BLOCK":
-      return "border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.12)] text-[#f0cbc5]";
+      return "blocked";
     case "REQUIRES_OVERRIDE":
-      return "border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.10)] text-[#d4b07a]";
-    case "WARNING":
-      return "border-app-hairline bg-[rgba(255,255,255,0.04)] text-zinc-100";
-    case "SCORING_PREFERENCE":
-      return "border-app-hairline bg-[rgba(255,255,255,0.025)] app-copy-soft";
+      return "decision";
     default:
-      return "border-app-hairline bg-[rgba(255,255,255,0.025)] app-copy-soft";
+      return "note";
   }
 }
 
-function availabilityColor(availability: string): string {
+function availabilityPillVariant(availability: string): "neutral" | "warning" | "danger" {
   switch (availability) {
     case "AVAILABLE":
-      return "text-zinc-100";
+      return "neutral";
     case "TENTATIVE":
-      return "text-[#d4b07a]";
+      return "warning";
     case "INJURED":
     case "SICK":
     case "AWAY":
-      return "text-[#f0cbc5]";
+      return "danger";
     default:
-      return "app-copy-soft";
+      return "neutral";
   }
 }
 
@@ -261,51 +266,43 @@ function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
     ),
   };
 
-  const renderGroup = (label: string, players: PlayerSummary[], tone: string) => {
+  const renderGroup = (label: string, players: PlayerSummary[]) => {
     if (players.length === 0) return null;
     return (
       <div className="mt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
           {label} ({players.length})
         </p>
         <div className="mt-2 flex flex-col gap-1.5">
           {players.map((p) => (
             <Link
               key={p.id}
-              className={`group/item rounded-xl border px-2.5 py-2 text-sm transition-colors hover:bg-[rgba(255,255,255,0.05)] ${tone}`}
+              className="group/item rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-2.5 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)]"
               href={`/players/${p.id}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
                   {formatPlayerName(p)}
                 </span>
-                <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] app-copy-muted">
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">
                   {p.primaryPosition}
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap gap-1.5">
-                <span className={`rounded-full border app-hairline bg-[rgba(0,0,0,0.18)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] ${availabilityColor(p.currentAvailability)}`}>
+                <StatusPill variant={availabilityPillVariant(p.currentAvailability)} size="sm">
                   {formatAvailability(p.currentAvailability)}
-                </span>
+                </StatusPill>
                 {p.nonRotatable && (
-                  <span className="rounded-full border border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.06)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">
-                    Non-rot
-                  </span>
+                  <StatusPill variant="warning" size="sm">Non-rot</StatusPill>
                 )}
                 {p.reducedMatchLoadAllowed && (
-                  <span className="rounded-full border border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.06)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">
-                    RML
-                  </span>
+                  <StatusPill variant="warning" size="sm">RML</StatusPill>
                 )}
                 {p.supportSuitability && p.supportSuitability !== "neutral" && (
-                  <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] app-copy-muted">
-                    Sup
-                  </span>
+                  <StatusPill variant="neutral" size="sm">Sup</StatusPill>
                 )}
                 {p.developmentReadiness && p.developmentReadiness !== "neutral" && (
-                  <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] app-copy-muted">
-                    Dev
-                  </span>
+                  <StatusPill variant="neutral" size="sm">Dev</StatusPill>
                 )}
               </div>
             </Link>
@@ -318,33 +315,29 @@ function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-          Availability
-        </p>
-        <div className="mt-2 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-          {renderGroup("Available", groups.available, "border app-hairline bg-[rgba(0,0,0,0.08)]")}
-          {renderGroup("Tentative", groups.tentative, "border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.04)] border")}
-          {renderGroup("Unknown", groups.unknown, "border app-hairline bg-[rgba(0,0,0,0.08)]")}
-          {renderGroup("Unavailable", groups.unavailable, "border-[rgba(185,128,119,0.2)] bg-[rgba(185,128,119,0.04)] border")}
+        <SectionHeader title="Availability" />
+        <Surface variant="default" padding="md" className="mt-2">
+          {renderGroup("Available", groups.available)}
+          {renderGroup("Tentative", groups.tentative)}
+          {renderGroup("Unknown", groups.unknown)}
+          {renderGroup("Unavailable", groups.unavailable)}
           {groups.available.length === 0 && groups.tentative.length === 0 && groups.unknown.length === 0 && groups.unavailable.length === 0 && (
-            <p className="text-sm app-copy-soft">No core players assigned.</p>
+            <p className="text-sm text-[var(--text-soft)]">No core players assigned.</p>
           )}
-        </div>
+        </Surface>
       </div>
 
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-          Planning groups
-        </p>
-        <div className="mt-2 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-          {renderGroup("Non-rotatable", groups.nonRotatable, "border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.04)] border")}
-          {renderGroup("Reduced match load", groups.reducedLoad, "border-[rgba(178,140,219,0.2)] bg-[rgba(178,140,219,0.04)] border")}
-          {renderGroup("Support candidates", groups.supportCandidates, "border app-hairline bg-[rgba(0,0,0,0.08)]")}
-          {renderGroup("Development candidates", groups.devCandidates, "border app-hairline bg-[rgba(0,0,0,0.08)]")}
+        <SectionHeader title="Planning groups" />
+        <Surface variant="default" padding="md" className="mt-2">
+          {renderGroup("Non-rotatable", groups.nonRotatable)}
+          {renderGroup("Reduced match load", groups.reducedLoad)}
+          {renderGroup("Support candidates", groups.supportCandidates)}
+          {renderGroup("Development candidates", groups.devCandidates)}
           {groups.nonRotatable.length === 0 && groups.reducedLoad.length === 0 && groups.supportCandidates.length === 0 && groups.devCandidates.length === 0 && (
-            <p className="text-sm app-copy-soft">No special planning groups.</p>
+            <p className="text-sm text-[var(--text-soft)]">No special planning groups.</p>
           )}
-        </div>
+        </Surface>
       </div>
     </div>
   );
@@ -369,9 +362,9 @@ function CurrentRoundTab({
 }) {
   if (!roundLabel || !roundId) {
     return (
-      <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-        <p className="text-sm app-copy-soft">No active round. Generate or select a round first.</p>
-      </div>
+      <Surface variant="default" padding="md">
+        <p className="text-sm text-[var(--text-soft)]">No active round. Generate or select a round first.</p>
+      </Surface>
     );
   }
 
@@ -379,77 +372,71 @@ function CurrentRoundTab({
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="flex flex-col gap-6">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Selected as core
-          </p>
+          <SectionHeader title="Selected as core" />
           <div className="mt-2 flex flex-col gap-1.5">
             {selectedPlayers.length > 0 ? selectedPlayers.map((p) => (
               <Link
                 key={p.playerId}
-                className="group/item rounded-xl border app-hairline bg-[rgba(0,0,0,0.08)] px-3 py-2 text-sm hover:bg-[rgba(255,255,255,0.05)]"
+                className="group/item rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 href={`/players/${p.playerId}`}
               >
                 <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
                   {p.playerName}
                 </span>
                 {p.explanation && (
-                  <p className="mt-1 text-xs app-copy-muted">{p.explanation}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
                 )}
               </Link>
             )) : (
-              <p className="text-sm app-copy-soft">No core players selected in this round.</p>
+              <p className="text-sm text-[var(--text-soft)]">No core players selected in this round.</p>
             )}
           </div>
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Sent as support
-          </p>
+          <SectionHeader title="Sent as support" />
           <div className="mt-2 flex flex-col gap-1.5">
             {sentPlayers.length > 0 ? sentPlayers.map((p) => (
               <Link
                 key={p.playerId}
-                className="group/item rounded-xl border border-[rgba(178,140,219,0.2)] bg-[rgba(178,140,219,0.04)] px-3 py-2 text-sm hover:bg-[rgba(255,255,255,0.05)]"
+                className="group/item rounded-xl border border-[var(--info)]/20 bg-[var(--info-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 href={`/players/${p.playerId}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
                     {p.playerName}
                   </span>
-                  <span className="shrink-0 text-[10px] app-copy-muted">→ {p.destinationTeamName}</span>
+                  <span className="shrink-0 text-[10px] text-[var(--text-muted)]">→ {p.destinationTeamName}</span>
                 </div>
                 {p.explanation && (
-                  <p className="mt-1 text-xs app-copy-muted">{p.explanation}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
                 )}
               </Link>
             )) : (
-              <p className="text-sm app-copy-soft">No players sent as support this round.</p>
+              <p className="text-sm text-[var(--text-soft)]">No players sent as support this round.</p>
             )}
           </div>
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Dropped / Not selected
-          </p>
+          <SectionHeader title="Dropped / Not selected" />
           <div className="mt-2 flex flex-col gap-1.5">
             {droppedPlayers.length > 0 ? droppedPlayers.map((p) => (
               <Link
                 key={p.playerId}
-                className="group/item rounded-xl border border-[rgba(185,128,119,0.2)] bg-[rgba(185,128,119,0.04)] px-3 py-2 text-sm hover:bg-[rgba(255,255,255,0.05)]"
+                className="group/item rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 href={`/players/${p.playerId}`}
               >
-                <span className="font-medium text-[#f0cbc5] group-hover/item:text-[var(--accent-strong)]">
+                <span className="font-medium text-[var(--danger)] group-hover/item:text-[var(--accent-strong)]">
                   {p.playerName}
                 </span>
-                <span className="ml-2 text-[10px] app-copy-muted">{formatRoleLabel(p.role)}</span>
+                <span className="ml-2 text-[10px] text-[var(--text-muted)]">{formatRoleLabel(p.role)}</span>
                 {p.explanation && (
-                  <p className="mt-1 text-xs app-copy-muted">{p.explanation}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
                 )}
               </Link>
             )) : (
-              <p className="text-sm app-copy-soft">No players dropped this round.</p>
+              <p className="text-sm text-[var(--text-soft)]">No players dropped this round.</p>
             )}
           </div>
         </div>
@@ -457,58 +444,51 @@ function CurrentRoundTab({
 
       <div className="flex flex-col gap-6">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Received support / squad repair / development
-          </p>
+          <SectionHeader title="Received support / squad repair / development" />
           <div className="mt-2 flex flex-col gap-1.5">
             {receivedPlayers.length > 0 ? receivedPlayers.map((p) => (
               <Link
                 key={p.playerId}
-                className="group/item rounded-xl border border-[rgba(140,167,146,0.2)] bg-[rgba(140,167,146,0.06)] px-3 py-2 text-sm hover:bg-[rgba(255,255,255,0.05)]"
+                className="group/item rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 href={`/players/${p.playerId}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
                     {p.playerName}
                   </span>
-                  <span className="shrink-0 text-[10px] app-copy-muted">
+                  <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
                     {formatSelectionRole(p.role as SelectionRole)} · from {p.sourceTeamName}
                   </span>
                 </div>
                 {p.explanation && (
-                  <p className="mt-1 text-xs app-copy-muted">{p.explanation}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
                 )}
               </Link>
             )) : (
-              <p className="text-sm app-copy-soft">No players received this round.</p>
+              <p className="text-sm text-[var(--text-soft)]">No players received this round.</p>
             )}
           </div>
         </div>
 
         {roundWarnings.length > 0 && (
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Plan integrity signals
-            </p>
+            <SectionHeader title="Plan integrity signals" />
             <div className="mt-2 flex flex-col gap-1.5">
               {roundWarnings.map((w) => (
-                <div
+                <DecisionBanner
                   key={w.id}
-                  className={`rounded-xl border px-3 py-2 ${severityColor(w.severity)}`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">
-                      {formatSeverity(w.severity)}
-                    </span>
+                  variant={severityToBannerVariant(w.severity)}
+                  title={formatSeverity(w.severity)}
+                  description={w.message}
+                  action={
                     <Link
-                      className="text-[10px] app-copy-muted hover:text-zinc-50"
+                      className="text-[10px] text-[var(--text-muted)] hover:text-zinc-50"
                       href={`/rounds/${w.matchRoundId}`}
                     >
                       {w.roundLabel}
                     </Link>
-                  </div>
-                  <p className="mt-1 text-xs">{w.message}</p>
-                </div>
+                  }
+                />
               ))}
             </div>
           </div>
@@ -521,9 +501,9 @@ function CurrentRoundTab({
 function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) {
   if (movementHistory.length === 0) {
     return (
-      <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-        <p className="text-sm app-copy-soft">No cross-team movement recorded for this team yet.</p>
-      </div>
+      <Surface variant="default" padding="md">
+        <p className="text-sm text-[var(--text-soft)]">No cross-team movement recorded for this team yet.</p>
+      </Surface>
     );
   }
 
@@ -532,7 +512,7 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
       {movementHistory.map((entry) => (
         <div
           key={entry.id}
-          className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3"
+          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
@@ -542,23 +522,21 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
               {entry.playerName}
             </Link>
             <div className="flex items-center gap-2">
-              <span className="rounded-full border app-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+              <StatusPill variant="neutral" size="sm">
                 {formatRoleLabel(entry.role)}
-              </span>
+              </StatusPill>
               {entry.isDraft && (
-                <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">
-                  Draft
-                </span>
+                <StatusPill variant="warning" size="sm">Draft</StatusPill>
               )}
             </div>
           </div>
-          <p className="mt-1 text-sm app-copy-soft">
+          <p className="mt-1 text-sm text-[var(--text-soft)]">
             {entry.fromTeamName} → {entry.toTeamName}
           </p>
           {entry.reason && (
-            <p className="mt-1 text-xs app-copy-muted">{entry.reason}</p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">{entry.reason}</p>
           )}
-          <p className="mt-1 text-[10px] app-copy-muted">
+          <p className="mt-1 text-[10px] text-[var(--text-muted)]">
             <Link
               className="hover:text-zinc-50"
               href={`/rounds/${entry.matchRoundId}`}
@@ -575,9 +553,9 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
 function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
   if (finalizedRounds.length === 0) {
     return (
-      <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-        <p className="text-sm app-copy-soft">No finalized rounds for this team yet.</p>
-      </div>
+      <Surface variant="default" padding="md">
+        <p className="text-sm text-[var(--text-soft)]">No finalized rounds for this team yet.</p>
+      </Surface>
     );
   }
 
@@ -586,18 +564,16 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
       {finalizedRounds.map((round) => (
         <Link
           key={round.matchRoundId}
-          className="group rounded-xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-3 hover:bg-[rgba(255,255,255,0.04)]"
+          className="group rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3 hover:bg-[var(--surface-hover)]"
           href={`/rounds/${round.matchRoundId}`}
         >
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-medium text-zinc-100 group-hover:text-[var(--accent-strong)]">
               {round.roundLabel}
             </span>
-            <span className="rounded-full border border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-              Finalized
-            </span>
+            <StatusPill variant="finalized" size="sm">Finalized</StatusPill>
           </div>
-          <div className="mt-2 flex flex-wrap gap-3 text-xs app-copy-soft">
+          <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--text-soft)]">
             <span>{round.coreCount} core</span>
             {round.supportSentCount > 0 && <span>{round.supportSentCount} sent as support</span>}
             {round.supportReceivedCount > 0 && <span>{round.supportReceivedCount} received support</span>}
@@ -619,29 +595,23 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-          Rotation paths
-        </p>
-        <button
-          className="h-8 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          type="button"
-        >
+        <SectionHeader title="Rotation paths" />
+        <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
           {showCreateForm ? "Cancel" : "Add path"}
-        </button>
+        </Button>
       </div>
 
       {showCreateForm && (
-        <section className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+        <Surface variant="default" padding="lg">
           <h3 className="text-sm font-semibold text-zinc-100">Create rotation path</h3>
-          <p className="mt-1 mb-4 text-xs app-copy-soft">Define which teams can send or receive players and in which role.</p>
+          <p className="mt-1 mb-4 text-xs text-[var(--text-soft)]">Define which teams can send or receive players and in which role.</p>
           <RotationPathCreateForm teams={teamOptions} defaultToTeamId={teamId} />
-        </section>
+        </Surface>
       )}
 
       {outgoingPaths.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] app-copy-muted">Outgoing</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Outgoing</p>
           <div className="flex flex-col gap-1.5">
             {outgoingPaths.map((path) => (
               <RotationPathCard key={path.id} path={path} teamId={teamId} direction="outgoing" />
@@ -652,7 +622,7 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
 
       {incomingPaths.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] app-copy-muted">Incoming</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Incoming</p>
           <div className="flex flex-col gap-1.5">
             {incomingPaths.map((path) => (
               <RotationPathCard key={path.id} path={path} teamId={teamId} direction="incoming" />
@@ -662,18 +632,15 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
       )}
 
       {rotationPaths.length === 0 && !showCreateForm && (
-        <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-          <p className="text-sm app-copy-soft">No rotation paths configured for this team. Add a path to enable support, development, or squad repair movement.</p>
-        </div>
+        <Surface variant="default" padding="md">
+          <p className="text-sm text-[var(--text-soft)]">No rotation paths configured for this team. Add a path to enable support, development, or squad repair movement.</p>
+        </Surface>
       )}
 
       <div>
-        <Link
-          className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-          href="/rules"
-        >
+        <Button variant="ghost" size="sm" as="a" href="/rules">
           View global rules
-        </Link>
+        </Button>
       </div>
     </div>
   );
@@ -743,16 +710,11 @@ function MovementCandidatesTab({
     });
   }
 
-  function renderCandidateCard(candidate: MovementCandidateEntry, direction: "incoming" | "outgoing") {
+  const renderCandidateCard = (candidate: MovementCandidateEntry, direction: "incoming" | "outgoing") => {
     const isOverdue = candidate.reviewBy && new Date(candidate.reviewBy) < new Date();
-    const statusColor = candidate.status === "PAUSED"
-      ? "border-[rgba(208,176,127,0.2)] bg-[rgba(208,176,127,0.04)]"
-      : isOverdue
-        ? "border-[rgba(185,128,119,0.2)] bg-[rgba(185,128,119,0.04)]"
-        : "border app-hairline bg-[rgba(0,0,0,0.08)]";
 
     return (
-      <div key={candidate.id} className={`rounded-xl border ${statusColor} px-3 py-2.5`}>
+      <div key={candidate.id} className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <Link
             className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)] truncate"
@@ -763,22 +725,18 @@ function MovementCandidatesTab({
               : candidate.playerFirstName}
           </Link>
           <div className="flex items-center gap-1.5">
-            <span className="rounded-full border app-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+            <StatusPill variant={candidate.role === "SUPPORT" ? "support" : "development"} size="sm">
               {candidate.role === "SUPPORT" ? "Support" : "Development"}
-            </span>
+            </StatusPill>
             {candidate.status === "PAUSED" && (
-              <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--warning)]">
-                Paused
-              </span>
+              <StatusPill variant="warning" size="sm">Paused</StatusPill>
             )}
             {isOverdue && (
-              <span className="rounded-full border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-[#f0cbc5]">
-                Review overdue
-              </span>
+              <StatusPill variant="danger" size="sm">Review overdue</StatusPill>
             )}
           </div>
         </div>
-        <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] app-copy-muted">
+        <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] text-[var(--text-muted)]">
           <span>{direction === "incoming" ? `From ${candidate.coreTeamName}` : `To ${candidate.targetTeamName}`}</span>
           <span>·</span>
           <span>{formatRationaleCategory(candidate.rationaleCategory)}</span>
@@ -786,11 +744,11 @@ function MovementCandidatesTab({
           {candidate.movementCountInPeriod > 0 && <span>· {candidate.movementCountInPeriod} movements</span>}
         </div>
         {candidate.rationaleNote && (
-          <p className="mt-1 text-xs app-copy-soft">{candidate.rationaleNote}</p>
+          <p className="mt-1 text-xs text-[var(--text-soft)]">{candidate.rationaleNote}</p>
         )}
         <div className="mt-2 flex gap-2">
           <button
-            className="text-[10px] app-copy-muted hover:text-zinc-50 underline"
+            className="text-[10px] text-[var(--text-muted)] hover:text-zinc-50 underline"
             onClick={() => handleToggleStatus(candidate.id, candidate.status)}
             type="button"
             disabled={isPending}
@@ -798,7 +756,7 @@ function MovementCandidatesTab({
             {candidate.status === "ACTIVE" ? "Pause" : "Reactivate"}
           </button>
           <button
-            className="text-[10px] text-[#f0cbc5] hover:text-zinc-50 underline"
+            className="text-[10px] text-[var(--danger)]/70 hover:text-[var(--danger)] underline"
             onClick={() => handleDelete(candidate.id)}
             type="button"
             disabled={isPending}
@@ -808,38 +766,32 @@ function MovementCandidatesTab({
         </div>
       </div>
     );
-  }
+  };
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-          Movement candidates
-        </p>
-        <button
-          className="h-8 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          type="button"
-        >
+        <SectionHeader title="Movement candidates" />
+        <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
           {showCreateForm ? "Cancel" : "Add candidate"}
-        </button>
+        </Button>
       </div>
 
-      <p className="text-xs app-copy-soft">
+      <p className="text-xs text-[var(--text-soft)]">
         Candidate status means this player may be considered for this movement path. It does not change core team, guarantee selection, rank the player, or remove normal match opportunities.
       </p>
 
       {showCreateForm && (
-        <section className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+        <Surface variant="default" padding="lg">
           <h3 className="text-sm font-semibold text-zinc-100">Create movement candidate</h3>
           <form
             action={createMovementCandidateAction}
             className="mt-4 flex flex-col gap-4"
           >
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-rotationPathId">Rotation path</label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-rotationPathId">Rotation path</label>
               <select
-                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
                 id="mc-rotationPathId"
                 name="rotationPathId"
                 required
@@ -864,9 +816,9 @@ function MovementCandidatesTab({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-playerId">Player</label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-playerId">Player</label>
               <select
-                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
                 id="mc-playerId"
                 name="playerId"
                 required
@@ -880,13 +832,13 @@ function MovementCandidatesTab({
                 ))}
               </select>
               {selectedPathId && filteredPlayers.length === 0 && (
-                <p className="mt-1 text-[10px] app-copy-soft">No eligible players found for this path&apos;s source team.</p>
+                <p className="mt-1 text-[10px] text-[var(--text-soft)]">No eligible players found for this path&apos;s source team.</p>
               )}
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-role">Role</label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-role">Role</label>
               <select
-                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
                 id="mc-role"
                 name="role"
                 required
@@ -896,9 +848,9 @@ function MovementCandidatesTab({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-rationaleCategory">Rationale</label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-rationaleCategory">Rationale</label>
               <select
-                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
                 id="mc-rationaleCategory"
                 name="rationaleCategory"
                 required
@@ -909,70 +861,63 @@ function MovementCandidatesTab({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-rationaleNote">Note (optional)</label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-rationaleNote">Note (optional)</label>
               <input
-                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
                 id="mc-rationaleNote"
                 name="rationaleNote"
                 type="text"
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted" htmlFor="mc-reviewBy">Review by (optional)</label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-reviewBy">Review by (optional)</label>
               <input
-                className="mt-1 w-full rounded-xl border app-hairline bg-[rgba(0,0,0,0.18)] px-3 py-2 text-sm text-zinc-100"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
                 id="mc-reviewBy"
                 name="reviewBy"
                 type="date"
               />
             </div>
-            <button
-              className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-              type="submit"
-            >
+            <Button variant="primary" size="md" type="submit">
               Create candidate
-            </button>
+            </Button>
           </form>
-        </section>
+        </Surface>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Incoming candidates
-          </p>
+          <SectionHeader title="Incoming candidates" />
           <div className="mt-2 flex flex-col gap-1.5">
             {incomingSupport.length > 0 && (
               <div>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Support candidates ({incomingSupport.length})</p>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Support candidates ({incomingSupport.length})</p>
                 {incomingSupport.map((c) => renderCandidateCard(c, "incoming"))}
               </div>
             )}
             {incomingDevelopment.length > 0 && (
               <div className="mt-4">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Development candidates ({incomingDevelopment.length})</p>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Development candidates ({incomingDevelopment.length})</p>
                 {incomingDevelopment.map((c) => renderCandidateCard(c, "incoming"))}
               </div>
             )}
             {incomingCandidates.length === 0 && (
-              <div className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.08)] px-3 py-2.5 text-sm app-copy-soft">
-                No incoming movement candidates for this team.
-              </div>
+              <Surface variant="default" padding="sm">
+                <p className="text-sm text-[var(--text-soft)]">No incoming movement candidates for this team.</p>
+              </Surface>
             )}
           </div>
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Outgoing candidates
-          </p>
+          <SectionHeader title="Outgoing candidates" />
           <div className="mt-2 flex flex-col gap-1.5">
             {outgoingCandidates.length > 0 ? (
               outgoingCandidates.map((c) => renderCandidateCard(c, "outgoing"))
             ) : (
-              <div className="rounded-xl border app-hairline bg-[rgba(0,0,0,0.08)] px-3 py-2.5 text-sm app-copy-soft">
-                No outgoing movement candidates from this team.
-              </div>
+              <Surface variant="default" padding="sm">
+                <p className="text-sm text-[var(--text-soft)]">No outgoing movement candidates from this team.</p>
+              </Surface>
             )}
           </div>
         </div>
@@ -986,113 +931,71 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="app-panel-raised rounded-[1.9rem] p-6 sm:p-8">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-              Team Detail
-            </span>
+      <PageHeader
+        title={data.teamName}
+        description={`Target ${data.targetSquadSize} · Min ${data.minAcceptedSquadSize} · Max ${data.maxSquadSize} · Min core ${data.minCorePlayers} · Support priority rank (1 is highest): ${data.supportPriority}`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {data.previousTeamId && (
+              <Button variant="ghost" size="sm" as="a" href={`/teams/${data.previousTeamId}`}>
+                Previous team
+              </Button>
+            )}
+            {data.nextTeamId && (
+              <Button variant="ghost" size="sm" as="a" href={`/teams/${data.nextTeamId}`}>
+                Next team
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" as="a" href="/teams">
+              Back to teams
+            </Button>
           </div>
+        }
+      />
 
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <h1 className="text-3xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-4xl">
-                {data.teamName}
-              </h1>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                  Target {data.targetSquadSize} · Min {data.minAcceptedSquadSize} · Max {data.maxSquadSize}
-                </span>
-                <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                  Min core {data.minCorePlayers}
-                </span>
-                <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                  Support priority rank (1 is highest) {data.supportPriority}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              {data.previousTeamId && (
-                <Link
-                  className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-                  href={`/teams/${data.previousTeamId}`}
-                >
-                  Previous team
-                </Link>
-              )}
-              {data.nextTeamId && (
-                <Link
-                  className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-                  href={`/teams/${data.nextTeamId}`}
-                >
-                  Next team
-                </Link>
-              )}
-              <Link
-                className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-                href="/teams"
-              >
-                Back to teams
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="app-panel rounded-[1.6rem] p-5">
+      <Surface variant="default" padding="md">
         <div className="flex flex-wrap gap-3">
-          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Round</p>
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Round</p>
             <p className="mt-1 text-sm font-medium text-zinc-100">
               {data.currentRoundLabel ?? "No active round"}
             </p>
           </div>
-          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Status</p>
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Status</p>
             <p className="mt-1 text-sm font-medium text-zinc-100">{data.currentRoundStatus}</p>
           </div>
-          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Core</p>
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Core</p>
             <p className="mt-1 text-2xl font-semibold text-zinc-50">{data.coreCountThisRound}</p>
           </div>
-          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Sent</p>
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Sent</p>
             <p className="mt-1 text-2xl font-semibold text-zinc-50">{data.sentAsSupportCount}</p>
           </div>
-          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] app-copy-muted">Received</p>
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Received</p>
             <p className="mt-1 text-2xl font-semibold text-zinc-50">
               {data.receivedSupportCount + data.receivedSquadRepairCount + data.receivedDevelopmentCount}
             </p>
           </div>
           {data.warningCount > 0 && (
-            <div className="rounded-2xl border border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.08)] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f0cbc5]">Signals</p>
-              <p className="mt-1 text-2xl font-semibold text-[#f0cbc5]">{data.warningCount}</p>
+            <div className="rounded-xl border border-[var(--danger)]/35 bg-[var(--danger-subtle)] px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--danger)]">Signals</p>
+              <p className="mt-1 text-2xl font-semibold text-[var(--danger)]">{data.warningCount}</p>
             </div>
           )}
         </div>
-      </section>
+      </Surface>
 
-      <nav className="flex gap-1 overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.03)] p-1.5">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? "bg-[rgba(255,255,255,0.08)] text-zinc-50"
-                : "app-copy-soft hover:bg-[rgba(255,255,255,0.04)] hover:text-zinc-50"
-            }`}
-            onClick={() => setActiveTab(tab.key)}
-            type="button"
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      <TabRail
+        items={TABS.map((t) => ({ key: t.key, label: t.label }))}
+        activeKey={activeTab}
+        onSelect={(key) => setActiveTab(key as TabKey)}
+        variant="pill"
+      />
 
-      <section className="app-panel rounded-[1.6rem] p-5">
+      <Surface variant="default" padding="lg">
         {activeTab === "squad" && <SquadTab corePlayers={data.corePlayers} />}
         {activeTab === "current-round" && (
           <CurrentRoundTab
@@ -1118,7 +1021,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
         )}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}
         {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} teamOptions={data.teamOptions} />}
-      </section>
+      </Surface>
     </div>
   );
 }

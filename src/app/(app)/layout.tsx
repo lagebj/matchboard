@@ -15,15 +15,15 @@ export default function AppLayout({
       </aside>
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[rgba(10,13,19,0.82)] backdrop-blur-2xl">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <TopContextBar />
           </div>
-          <div className="shrink-0 px-4">
+          <div className="shrink-0 px-3">
             <UserNav />
           </div>
         </header>
         <main className="flex-1 pb-20 lg:pb-0">
-          <div className="mx-auto w-full max-w-[96rem] px-3 py-3 sm:px-5">
+          <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
             {children}
           </div>
         </main>

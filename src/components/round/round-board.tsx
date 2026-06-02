@@ -5,16 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   addPlayerToMatchAction,
   removePlayerFromMatchAction,
-  changePlayerRoleAction,
 } from "@/app/(app)/rounds/[matchRoundId]/draft-selection-actions";
 import {
   ShieldCheck,
   Trash2,
   RefreshCw,
-  OctagonAlert,
-  AlertTriangle,
   GripVertical,
-  XCircle,
   Lock,
   RotateCcw,
 } from "lucide-react";
@@ -23,11 +19,33 @@ import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
-import { clearRoundDraftAction, regenerateRoundAction, finalizeSingleMatchFromBoardAction, unfinalizeRoundAction, unfinalizeSingleMatchFromBoardAction } from "@/app/(app)/rounds/[matchRoundId]/actions";
+import {
+  clearRoundDraftAction,
+  regenerateRoundAction,
+  finalizeSingleMatchFromBoardAction,
+  unfinalizeRoundAction,
+  unfinalizeSingleMatchFromBoardAction,
+} from "@/app/(app)/rounds/[matchRoundId]/actions";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
-import { MATCHDAY_RESPONSIBILITY_DESCRIPTIONS, COACHING_INTENT_LABELS, type MatchdayResponsibilityType, type ReadinessSignalType, READINESS_SIGNAL_LABELS } from "@/lib/coaching/types";
+import {
+  MATCHDAY_RESPONSIBILITY_DESCRIPTIONS,
+  COACHING_INTENT_LABELS,
+  type MatchdayResponsibilityType,
+  type ReadinessSignalType,
+  READINESS_SIGNAL_LABELS,
+} from "@/lib/coaching/types";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { WarningSeverity } from "@/generated/prisma/client";
+import {
+  PlayerChip,
+  type PlayerChipAvailability,
+  type PlayerChipRoleHint,
+} from "@/components/ui/player-chip";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/ui/status-pill";
+import { DecisionBanner } from "@/components/ui/decision-banner";
+import { Dialog } from "@/components/ui/dialog";
 
 type SelectionRole = UISelectionRole;
 
@@ -106,97 +124,98 @@ type RoundBoardProps = {
 
 const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
 
-function PlayerChip({
+const RESPONSIBILITY_LABEL: Record<MatchdayResponsibilityType, string> = {
+  STABILIZER: "ST",
+  CONNECTOR: "CN",
+  RECOVERY_LEADER: "RL",
+  WIDTH_HOLDER: "WH",
+  CHALLENGE_PLAYER: "CH",
+  CONFIDENCE_REBUILD_PLAYER: "CR",
+};
+
+function availabilityFor(player: PlayerInColumn): PlayerChipAvailability {
+  switch (player.availability) {
+    case "INJURED":
+      return "INJURED";
+    case "SICK":
+      return "SICK";
+    case "AWAY":
+      return "AWAY";
+    default:
+      return "OK";
+  }
+}
+
+function markersFor(player: PlayerInColumn): {
+  label: string;
+  title: string;
+  tone: "neutral" | "warning" | "info" | "danger" | "subtle";
+}[] {
+  const markers: ReturnType<typeof markersFor> = [];
+
+  if (player.manualOverride) {
+    markers.push({ label: "OVR", title: "Manual override", tone: "warning" });
+  }
+  if (player.matchdayResponsibility) {
+    markers.push({
+      label:
+        RESPONSIBILITY_LABEL[player.matchdayResponsibility as MatchdayResponsibilityType] ??
+        "ST",
+      title:
+        MATCHDAY_RESPONSIBILITY_DESCRIPTIONS[
+          player.matchdayResponsibility as MatchdayResponsibilityType
+        ] ?? "Matchday responsibility",
+      tone: "info",
+    });
+  }
+  if (player.negativeReadinessSignals && player.negativeReadinessSignals.length > 0) {
+    markers.push({
+      label: `R${player.negativeReadinessSignals.length}`,
+      title: `Readiness: ${player.negativeReadinessSignals
+        .map((s) => READINESS_SIGNAL_LABELS[s as ReadinessSignalType] ?? s)
+        .join(", ")}`,
+      tone: "warning",
+    });
+  }
+
+  return markers;
+}
+
+function BoardPlayerChip({
   player,
   isDraggable,
+  isFinalized,
+  isPending,
   onDragStart,
   onRemove,
-  onRoleChange: _onRoleChangeProp,
-  isPending,
-  isFinalized,
   onTouchStart,
   isTouchDragging,
 }: {
   player: PlayerInColumn;
   isDraggable: boolean;
-  onDragStart?: (e: React.DragEvent, playerId: string, fromMatchId: string | null, currentRole?: SelectionRole) => void;
-  onRemove?: () => void;
-  onRoleChange?: (newRole: SelectionRole) => void;
-  isPending: boolean;
   isFinalized: boolean;
-  onTouchStart?: (playerId: string, fromMatchId: string | null, currentRole?: SelectionRole) => void;
+  isPending: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onRemove?: () => void;
+  onTouchStart?: () => void;
   isTouchDragging?: boolean;
-  warningCount?: number;
 }) {
-  const availabilityClass =
-    player.availability === "INJURED"
-      ? "border-red-700/40 bg-red-900/20 text-red-300"
-      : player.availability === "SICK"
-        ? "border-amber-700/40 bg-amber-900/15 text-amber-300"
-        : player.availability === "AWAY"
-          ? "border-zinc-600/40 bg-zinc-800/30 text-zinc-400"
-          : "";
-
   return (
-    <div
+    <PlayerChip
+      name={player.name}
+      position={player.primaryPosition}
+      role={(player.role ?? null) as PlayerChipRoleHint | null}
+      availability={availabilityFor(player)}
+      markers={markersFor(player)}
       draggable={isDraggable && !isFinalized}
-      onDragStart={isDraggable && onDragStart ? (e) => onDragStart(e, player.id, null, player.role) : undefined}
-      onTouchStart={isDraggable && !isFinalized && onTouchStart ? () => onTouchStart(player.id, null, player.role) : undefined}
-      title={player.name}
-      className={`group flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
-        isDraggable && !isFinalized
-          ? "cursor-grab border-[var(--border-soft)] bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)] active:cursor-grabbing"
-          : "border-[var(--border-soft)] bg-[var(--surface-muted)]"
-      } ${availabilityClass} ${isTouchDragging ? "opacity-30" : ""}`}
-    >
-      {isDraggable && !isFinalized && (
-        <GripVertical className="h-3 w-3 shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
-      )}
-      <span className="truncate">{player.name}</span>
-      {player.primaryPosition && (
-        <span className="shrink-0 text-[9px] text-[var(--text-muted)] uppercase">{player.primaryPosition}</span>
-      )}
-      <span className="shrink-0 text-[9px] text-[var(--text-muted)]">{player.coreTeamName}</span>
-      {player.manualOverride && (
-        <span className="shrink-0 text-[8px] text-amber-400 uppercase">ovr</span>
-      )}
-      {player.matchdayResponsibility && (
-        <span
-          className="shrink-0 text-[8px] text-blue-400"
-          title={MATCHDAY_RESPONSIBILITY_DESCRIPTIONS[player.matchdayResponsibility as MatchdayResponsibilityType]}
-        >
-          {player.matchdayResponsibility === "CONFIDENCE_REBUILD_PLAYER" ? "CR" : player.matchdayResponsibility === "CHALLENGE_PLAYER" ? "CH" : player.matchdayResponsibility === "RECOVERY_LEADER" ? "RL" : player.matchdayResponsibility === "WIDTH_HOLDER" ? "WH" : player.matchdayResponsibility === "CONNECTOR" ? "CN" : "ST"}
-        </span>
-      )}
-      {player.availability === "INJURED" && (
-        <span className="shrink-0 text-[8px] text-red-400 uppercase">unavail</span>
-      )}
-      {player.availability === "SICK" && (
-        <span className="shrink-0 text-[8px] text-amber-400 uppercase">sick</span>
-      )}
-      {player.availability === "AWAY" && (
-        <span className="shrink-0 text-[8px] text-zinc-400 uppercase">away</span>
-      )}
-      {player.negativeReadinessSignals && player.negativeReadinessSignals.length > 0 && (
-        <span
-          className="shrink-0 text-[8px] text-orange-400/80"
-          title={`Readiness: ${player.negativeReadinessSignals.map((s) => READINESS_SIGNAL_LABELS[s as ReadinessSignalType] ?? s).join(", ")}`}
-        >
-          ⚡{player.negativeReadinessSignals.length}
-        </span>
-      )}
-      {!isFinalized && onRemove && (
-        <button
-          className="shrink-0 ml-auto text-red-400/60 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          disabled={isPending}
-          aria-label={`Remove ${player.name}`}
-          type="button"
-        >
-          <XCircle className="h-3 w-3" />
-        </button>
-      )}
-    </div>
+      disabled={isFinalized}
+      pending={isPending}
+      onDragStart={onDragStart}
+      onTouchStart={onTouchStart}
+      isTouchDragging={isTouchDragging}
+      onRemove={onRemove}
+      title={`${player.name} · ${player.coreTeamName}`}
+    />
   );
 }
 
@@ -207,7 +226,6 @@ function MatchColumnComponent({
   onDrop,
   onDragStart,
   onRemovePlayer,
-  onRoleChange,
   showFinalizeMatch,
   onTouchStartPlayer,
   isTouchHighlight,
@@ -218,9 +236,13 @@ function MatchColumnComponent({
   isPending: boolean;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
-  onDragStart: (e: React.DragEvent, playerId: string, fromMatchId: string | null, currentRole?: SelectionRole) => void;
+  onDragStart: (
+    e: React.DragEvent,
+    playerId: string,
+    fromMatchId: string | null,
+    currentRole?: SelectionRole,
+  ) => void;
   onRemovePlayer: (matchId: string, playerId: string) => void;
-  onRoleChange: (matchId: string, playerId: string, newRole: SelectionRole) => void;
   showFinalizeMatch: (matchId: string) => void;
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
@@ -230,12 +252,14 @@ function MatchColumnComponent({
   const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFinalizing, startFinalizing] = useTransition();
-  const dateStr = match.matchDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const dateStr = match.matchDate.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 
   const playersByRole = new Map<string, PlayerInColumn[]>();
-  for (const role of DISPLAY_ROLE_ORDER) {
-    playersByRole.set(role, []);
-  }
+  for (const role of DISPLAY_ROLE_ORDER) playersByRole.set(role, []);
   for (const p of match.players) {
     const role = (p.role ?? "CORE") as string;
     const list = playersByRole.get(role) ?? [];
@@ -243,37 +267,56 @@ function MatchColumnComponent({
     playersByRole.set(role, list);
   }
 
-  const selectedCount = match.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+  const selectedCount = match.players.filter((p) =>
+    DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+  ).length;
 
-  const squadFilling = selectedCount >= match.targetSquadSize
-    ? "full"
-    : selectedCount >= match.minSquadSize
-      ? "adequate"
-      : "below-minimum";
+  const squadFilling =
+    selectedCount >= match.targetSquadSize
+      ? "full"
+      : selectedCount >= match.minSquadSize
+        ? "adequate"
+        : "below";
 
-  const squadFillingConfig = {
-    full: { label: "Full", className: "text-emerald-400 bg-emerald-900/30 border-emerald-700/40" },
-    adequate: { label: "Adequate", className: "text-amber-300 bg-amber-900/30 border-amber-700/40" },
-    "below-minimum": { label: "Below min", className: "text-red-400 bg-red-900/30 border-red-700/40" },
-  }[squadFilling];
+  const fillVariant =
+    squadFilling === "full"
+      ? ("success" as const)
+      : squadFilling === "adequate"
+        ? ("warning" as const)
+        : ("danger" as const);
+
+  const highlightActive = isDragOver || isTouchHighlight;
 
   return (
     <div
       data-drop-match={match.matchId}
-      className={`flex flex-col rounded-xl border transition-colors ${
-        isDragOver || isTouchHighlight
-          ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
-          : "border-[var(--border-soft)] bg-[var(--surface-base)]"
-      }`}
-      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); onDragOver(e); }}
-      onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+      className={[
+        "flex flex-col rounded-xl border transition-colors",
+        highlightActive
+          ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
+          : "border-[var(--border-soft)] bg-[var(--surface-base)]",
+      ].join(" ")}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+        onDragOver(e);
+      }}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+      }}
       onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => { setIsDragOver(false); onDrop(e); }}
+      onDrop={(e) => {
+        setIsDragOver(false);
+        onDrop(e);
+      }}
     >
       <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
         <div className="flex flex-col gap-0.5 min-w-0">
           <p className="text-sm font-semibold text-zinc-50 truncate">{match.teamName}</p>
-          <p className="text-[11px] text-[var(--text-muted)]">vs {match.opponent} · {dateStr}</p>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            vs {match.opponent} · {dateStr}
+          </p>
           {!match.isFinalized && (
             <CoachingIntentSelector
               scopeType="MATCH"
@@ -283,47 +326,49 @@ function MatchColumnComponent({
             />
           )}
           {match.isFinalized && match.coachingIntentCategory && (
-            <span className="text-[9px] text-zinc-500">
-              {COACHING_INTENT_LABELS[match.coachingIntentCategory as keyof typeof COACHING_INTENT_LABELS] ?? match.coachingIntentCategory}
+            <span className="text-[10px] text-[var(--text-muted)]">
+              {COACHING_INTENT_LABELS[
+                match.coachingIntentCategory as keyof typeof COACHING_INTENT_LABELS
+              ] ?? match.coachingIntentCategory}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider border ${squadFillingConfig.className}`}>
+          <StatusPill variant={fillVariant}>
             {selectedCount}/{match.targetSquadSize}
-          </span>
-          {match.isFinalized && (
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
-          )}
-          {match.isFinalized && (
-            <button
-              className="inline-flex items-center gap-0.5 rounded p-1 text-[10px] text-zinc-400 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+          </StatusPill>
+          {match.isFinalized ? (
+            <Button
+              variant="quiet"
+              size="sm"
               disabled={isFinalizing || isPending}
               onClick={() => {
-                  startFinalizing(async () => {
-                    const fd = new FormData();
-                    fd.set("matchId", match.matchId);
-                    fd.set("matchRoundId", matchRoundId);
-                    await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
-                    router.refresh();
-                  });
-                }}
-              type="button"
+                startFinalizing(async () => {
+                  const fd = new FormData();
+                  fd.set("matchId", match.matchId);
+                  fd.set("matchRoundId", matchRoundId);
+                  await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
+                  router.refresh();
+                });
+              }}
               title="Un-finalize this match"
+              aria-label="Un-finalize this match"
+              className="!px-1.5"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {!match.isFinalized && (
-            <button
-              className="inline-flex items-center gap-0.5 rounded p-1 text-[10px] text-emerald-400 hover:bg-emerald-900/20 transition-colors disabled:opacity-50"
+            </Button>
+          ) : (
+            <Button
+              variant="quiet"
+              size="sm"
               disabled={isFinalizing || isPending}
               onClick={() => showFinalizeMatch(match.matchId)}
-              type="button"
               title="Finalize this match"
+              aria-label="Finalize this match"
+              className="!px-1.5 hover:!text-[var(--accent-strong)]"
             >
               <Lock className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -333,25 +378,27 @@ function MatchColumnComponent({
           const players = playersByRole.get(role) ?? [];
           if (players.length === 0) return null;
           return (
-            <div key={role} className="mb-2 last:mb-0">
+            <div key={role} className="mb-2.5 last:mb-0">
               <div className="flex items-center gap-1.5 mb-1">
                 <RoleBadge role={role as UISelectionRole} />
-                <span className="text-[10px] text-[var(--text-muted)]">{players.length}</span>
+                <span className="text-[11px] text-[var(--text-muted)]">{players.length}</span>
               </div>
               <div className="flex flex-col gap-1">
                 {players.map((p) => (
-                  <PlayerChip
+                  <BoardPlayerChip
                     key={p.id}
                     player={p}
                     isDraggable
-                    onDragStart={onDragStart}
-                    onRemove={() => onRemovePlayer(match.matchId, p.id)}
-                    onRoleChange={(newRole) => onRoleChange(match.matchId, p.id, newRole)}
-                    isPending={isPending}
                     isFinalized={match.isFinalized}
-                    onTouchStart={onTouchStartPlayer ? (playerId, _fromMatchId, currentRole) => onTouchStartPlayer(playerId, match.matchId, currentRole) : undefined}
+                    isPending={isPending}
+                    onDragStart={(e) => onDragStart(e, p.id, match.matchId, p.role)}
+                    onRemove={() => onRemovePlayer(match.matchId, p.id)}
+                    onTouchStart={
+                      onTouchStartPlayer
+                        ? () => onTouchStartPlayer(p.id, match.matchId, p.role)
+                        : undefined
+                    }
                     isTouchDragging={touchDragPlayerId === p.id}
-                    warningCount={p.warningCount}
                   />
                 ))}
               </div>
@@ -359,7 +406,9 @@ function MatchColumnComponent({
           );
         })}
         {selectedCount === 0 && (
-          <p className="text-[11px] text-[var(--text-muted)] text-center py-4">Drop players here</p>
+          <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
+            Drop players here
+          </p>
         )}
       </div>
     </div>
@@ -384,13 +433,17 @@ export function RoundBoard({
   const [isPending, startTransition] = useTransition();
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
-  const [overrideReason, _setOverrideReason] = useState("");
+  const [overrideReason] = useState("");
 
   const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
   const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState(false);
 
-  const touchDragRef = useRef<{ playerId: string; fromMatchId: string | null; currentRole: SelectionRole } | null>(null);
+  const touchDragRef = useRef<{
+    playerId: string;
+    fromMatchId: string | null;
+    currentRole: SelectionRole;
+  } | null>(null);
   const [touchDragPlayerId, setTouchDragPlayerId] = useState<string | null>(null);
   const [touchDropTarget, setTouchDropTarget] = useState<string | null>(null);
 
@@ -399,7 +452,9 @@ export function RoundBoard({
       const match = matches.find((m) => m.matchId === targetMatchId);
       if (!match) return "CORE";
       const player = initialAvailable.find((p) => p.id === playerId);
-      const playerCoreTeamId = player?.coreTeamId ?? matches.flatMap((m) => m.players).find((p) => p.id === playerId)?.playerCoreTeamId;
+      const playerCoreTeamId =
+        player?.coreTeamId ??
+        matches.flatMap((m) => m.players).find((p) => p.id === playerId)?.playerCoreTeamId;
 
       if (playerCoreTeamId === match.teamId) return "CORE";
 
@@ -412,23 +467,32 @@ export function RoundBoard({
     [matches, initialAvailable, rotationPathMap],
   );
 
-  const totalSelected = matches.reduce((sum, m) => {
-    return sum + m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
-  }, 0);
+  const totalSelected = matches.reduce(
+    (sum, m) =>
+      sum +
+      m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole))
+        .length,
+    0,
+  );
   const totalTarget = matches.reduce((sum, m) => sum + m.targetSquadSize, 0);
   const completeTeams = matches.filter((m) => {
-    const count = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+    const count = m.players.filter((p) =>
+      DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+    ).length;
     return count >= m.targetSquadSize;
   }).length;
-  const _supportMovementIn = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "SUPPORT" && p.playerCoreTeamId && p.playerCoreTeamId !== m.teamId).length, 0);
   const teamsNeedingSupport = matches.filter((m) => {
-    const assigned = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
+    const assigned = m.players.filter((p) =>
+      DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+    ).length;
     return assigned < m.minSquadSize;
   }).length;
-  const squadRepairNeeded = matches.reduce((sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length, 0);
+  const squadRepairNeeded = matches.reduce(
+    (sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length,
+    0,
+  );
   const blockedCount = signalSummary?.blocked ?? 0;
   const decisionRequiredCount = signalSummary?.decisionRequired ?? 0;
-  const _planningNoteCount = signalSummary?.planningNote ?? 0;
 
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
@@ -439,15 +503,21 @@ export function RoundBoard({
 
   const assignedPlayerIds = new Set<string>();
   for (const match of matches) {
-    for (const p of match.players) {
-      assignedPlayerIds.add(p.id);
-    }
+    for (const p of match.players) assignedPlayerIds.add(p.id);
   }
   const unassignedPlayers = initialAvailable.filter((p) => !assignedPlayerIds.has(p.id));
 
   const handleDragStart = useCallback(
-    (e: React.DragEvent, playerId: string, fromMatchId: string | null, currentRole?: SelectionRole) => {
-      e.dataTransfer.setData("text/plain", JSON.stringify({ playerId, fromMatchId, currentRole: currentRole ?? "CORE" }));
+    (
+      e: React.DragEvent,
+      playerId: string,
+      fromMatchId: string | null,
+      currentRole?: SelectionRole,
+    ) => {
+      e.dataTransfer.setData(
+        "text/plain",
+        JSON.stringify({ playerId, fromMatchId, currentRole: currentRole ?? "CORE" }),
+      );
       e.dataTransfer.effectAllowed = "move";
     },
     [],
@@ -463,7 +533,9 @@ export function RoundBoard({
         if (fromMatchId === matchId) return;
 
         const role = determineRole(playerId, matchId);
-        const isCoreMove = initialAvailable.find((p) => p.id === playerId)?.coreTeamId === matches.find((m) => m.matchId === matchId)?.teamId;
+        const isCoreMove =
+          initialAvailable.find((p) => p.id === playerId)?.coreTeamId ===
+          matches.find((m) => m.matchId === matchId)?.teamId;
 
         startTransition(async () => {
           const addFd = new FormData();
@@ -471,7 +543,13 @@ export function RoundBoard({
           addFd.set("playerId", playerId);
           addFd.set("role", role);
           addFd.set("matchRoundId", matchRoundId);
-          const reason = overrideReason.trim() || (fromMatchId ? `Moving player from another match` : (isCoreMove ? undefined : `Manual placement on non-core team`));
+          const reason =
+            overrideReason.trim() ||
+            (fromMatchId
+              ? `Moving player from another match`
+              : isCoreMove
+                ? undefined
+                : `Manual placement on non-core team`);
           if (reason) addFd.set("overrideReason", reason);
 
           const addResult = await addPlayerToMatchAction(addFd);
@@ -487,7 +565,7 @@ export function RoundBoard({
         });
       } catch {}
     },
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
     [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 
@@ -501,13 +579,13 @@ export function RoundBoard({
         if (!fromMatchId) return;
 
         startTransition(async () => {
-           const fd = new FormData();
-           fd.set("matchId", fromMatchId);
-           fd.set("playerId", playerId);
-           fd.set("matchRoundId", matchRoundId);
-           await removePlayerFromMatchAction(fd);
-           router.refresh();
-         });
+          const fd = new FormData();
+          fd.set("matchId", fromMatchId);
+          fd.set("playerId", playerId);
+          fd.set("matchRoundId", matchRoundId);
+          await removePlayerFromMatchAction(fd);
+          router.refresh();
+        });
       } catch {}
     },
     [matchRoundId, startTransition, router],
@@ -527,29 +605,16 @@ export function RoundBoard({
     [matchRoundId, startTransition, router],
   );
 
-  const handleRoleChange = useCallback(
-    (matchId: string, playerId: string, newRole: SelectionRole) => {
-      startTransition(async () => {
-        const fd = new FormData();
-        fd.set("matchId", matchId);
-        fd.set("playerId", playerId);
-        fd.set("role", newRole);
-        fd.set("matchRoundId", matchRoundId);
-        if (overrideReason.trim()) {
-          fd.set("overrideReason", overrideReason.trim());
-        }
-        await changePlayerRoleAction(fd);
-        router.refresh();
-      });
-    },
-    [matchRoundId, overrideReason, startTransition, router],
-  );
-
-  const findDropTargetAt = (x: number, y: number): { type: "match"; matchId: string } | { type: "available" } | null => {
+  // Touch drag helpers — preserved verbatim from previous implementation.
+  const findDropTargetAt = (
+    x: number,
+    y: number,
+  ): { type: "match"; matchId: string } | { type: "available" } | null => {
     const el = document.elementFromPoint(x, y);
     if (!el) return null;
     const closest = el.closest("[data-drop-match]");
-    if (closest) return { type: "match", matchId: (closest as HTMLElement).dataset.dropMatch! };
+    if (closest)
+      return { type: "match", matchId: (closest as HTMLElement).dataset.dropMatch! };
     if (el.closest("[data-drop-available]")) return { type: "available" };
     return null;
   };
@@ -561,34 +626,47 @@ export function RoundBoard({
 
       if (target.type === "match") {
         const matchId = target.matchId;
-        if (dragData.fromMatchId === matchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
-
+        if (dragData.fromMatchId === matchId) {
+          touchDragRef.current = null;
+          setTouchDragPlayerId(null);
+          setTouchDropTarget(null);
+          return;
+        }
         const role = determineRole(dragData.playerId, matchId);
-        const isCoreMove = initialAvailable.find((p) => p.id === dragData.playerId)?.coreTeamId === matches.find((m) => m.matchId === matchId)?.teamId;
-
+        const isCoreMove =
+          initialAvailable.find((p) => p.id === dragData.playerId)?.coreTeamId ===
+          matches.find((m) => m.matchId === matchId)?.teamId;
         startTransition(async () => {
-           const addFd = new FormData();
-           addFd.set("matchId", matchId);
-           addFd.set("playerId", dragData.playerId);
-           addFd.set("role", role);
-           addFd.set("matchRoundId", matchRoundId);
-           const reason = overrideReason.trim() || (dragData.fromMatchId ? `Moving player from another match` : (isCoreMove ? undefined : `Manual placement on non-core team`));
-           if (reason) addFd.set("overrideReason", reason);
-
-           const addResult = await addPlayerToMatchAction(addFd);
-
-           if (addResult?.success !== false && dragData.fromMatchId) {
-             const rmFd = new FormData();
-             rmFd.set("matchId", dragData.fromMatchId);
-             rmFd.set("playerId", dragData.playerId);
-             rmFd.set("matchRoundId", matchRoundId);
-             await removePlayerFromMatchAction(rmFd);
-           }
-           router.refresh();
-         });
+          const addFd = new FormData();
+          addFd.set("matchId", matchId);
+          addFd.set("playerId", dragData.playerId);
+          addFd.set("role", role);
+          addFd.set("matchRoundId", matchRoundId);
+          const reason =
+            overrideReason.trim() ||
+            (dragData.fromMatchId
+              ? `Moving player from another match`
+              : isCoreMove
+                ? undefined
+                : `Manual placement on non-core team`);
+          if (reason) addFd.set("overrideReason", reason);
+          const addResult = await addPlayerToMatchAction(addFd);
+          if (addResult?.success !== false && dragData.fromMatchId) {
+            const rmFd = new FormData();
+            rmFd.set("matchId", dragData.fromMatchId);
+            rmFd.set("playerId", dragData.playerId);
+            rmFd.set("matchRoundId", matchRoundId);
+            await removePlayerFromMatchAction(rmFd);
+          }
+          router.refresh();
+        });
       } else {
-        if (!dragData.fromMatchId) { touchDragRef.current = null; setTouchDragPlayerId(null); setTouchDropTarget(null); return; }
-
+        if (!dragData.fromMatchId) {
+          touchDragRef.current = null;
+          setTouchDragPlayerId(null);
+          setTouchDropTarget(null);
+          return;
+        }
         const fromId = dragData.fromMatchId;
         startTransition(async () => {
           const fd = new FormData();
@@ -607,7 +685,10 @@ export function RoundBoard({
     [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 
-  const handleFinalize = (overrideReasonCategory: string, overrideReasonDetail: string) => {
+  const handleFinalize = (
+    overrideReasonCategory: string,
+    overrideReasonDetail: string,
+  ) => {
     const form = document.createElement("form");
     form.method = "POST";
     form.action = `/rounds/${matchRoundId}`;
@@ -638,11 +719,29 @@ export function RoundBoard({
   const prominentSignals = warnings.filter(
     (w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE",
   );
-  const planningNotes = warnings.filter(
-    (w) => w.severity === "WARNING",
-  );
+  const planningNotes = warnings.filter((w) => w.severity === "WARNING");
 
   const [availableDragOver, setAvailableDragOver] = useState(false);
+
+  const finalizingMatch = finalizingMatchId
+    ? matches.find((m) => m.matchId === finalizingMatchId)
+    : null;
+  const finalizingMatchWarnings = finalizingMatch
+    ? warnings.filter((w) => w.teamName === finalizingMatch.teamName)
+    : [];
+  const finalizingHardBlocks = finalizingMatchWarnings.filter(
+    (w) => w.severity === "HARD_BLOCK",
+  ).length;
+  const finalizingRequiresOverride = finalizingMatchWarnings.filter(
+    (w) => w.severity === "REQUIRES_OVERRIDE",
+  ).length;
+  const finalizingHasBlocking =
+    finalizingHardBlocks > 0 || finalizingRequiresOverride > 0;
+  const finalizingSelected = finalizingMatch
+    ? finalizingMatch.players.filter((p) =>
+        DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+      ).length
+    : 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -658,19 +757,19 @@ export function RoundBoard({
       />
 
       {roundStatus === "DRAFT" && (
-        <div className="flex items-center gap-2">
-          <button
-            className="rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
             disabled={isPending}
             onClick={() => setShowFinalizeDialog(true)}
-            type="button"
+            leadingIcon={<ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />}
           >
-            <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
             Finalize round
-          </button>
-          <button
-            className="rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
+          </Button>
+          <Button
+            variant="secondary"
             disabled={isPending}
+            leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
             onClick={() => {
               startTransition(async () => {
                 const fd = new FormData();
@@ -679,83 +778,91 @@ export function RoundBoard({
                 router.refresh();
               });
             }}
-            type="button"
           >
-            <RefreshCw className="mr-1 inline h-3.5 w-3.5" />
             Regenerate
-          </button>
-          <button
-            className="rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+          </Button>
+          <Button
+            variant="danger"
             disabled={isPending}
+            leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
             onClick={() => setShowClearRoundDialog(true)}
-            type="button"
           >
-            <Trash2 className="mr-1 inline h-3.5 w-3.5" />
             Clear
-          </button>
+          </Button>
         </div>
       )}
 
       {computedRoundStatus === "FINALIZED" && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-4 py-3">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Finalized</span>
-          <span className="text-sm text-emerald-200">{roundLabel} — selections are locked.</span>
-          <button
-            className="ml-auto rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
-            disabled={isPending}
-            onClick={() => setShowUnfinalizeConfirm(true)}
-            type="button"
-          >
-            <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
-            Un-finalize round
-          </button>
-        </div>
+        <DecisionBanner
+          variant="finalized"
+          title={
+            <>
+              Finalized · <span className="font-normal">{roundLabel}</span>
+            </>
+          }
+          description="Selections are locked. Reopen to make changes."
+          action={
+            <Button
+              variant="warning"
+              size="sm"
+              disabled={isPending}
+              leadingIcon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
+              onClick={() => setShowUnfinalizeConfirm(true)}
+            >
+              Un-finalize round
+            </Button>
+          }
+        />
       )}
 
       {blockedCount > 0 && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <OctagonAlert className="h-4 w-4 text-red-400" aria-hidden="true" />
-            <span className="text-sm font-medium text-red-300">
-              Plan integrity: {blockedCount} Blocked {blockedCount === 1 ? "condition" : "conditions"}
-            </span>
-          </div>
-        </div>
+        <DecisionBanner
+          variant="blocked"
+          title={
+            <>
+              Plan checks · {blockedCount} blocked{" "}
+              {blockedCount === 1 ? "condition" : "conditions"}
+            </>
+          }
+          description="Resolve or record an override reason before finalize."
+        />
       )}
 
       {decisionRequiredCount > 0 && (
-        <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden="true" />
-            <span className="text-sm font-medium text-amber-300">
-              Plan integrity: {decisionRequiredCount} Decision {decisionRequiredCount === 1 ? "requires" : "require"} review
-            </span>
-          </div>
-        </div>
-      )}
-
-      {blockedCount === 0 && decisionRequiredCount === 0 && hasDraftSelections && (
-        <div className="rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-3 py-2">
-          <span className="text-sm text-emerald-300">
-            Plan integrity: all available eligible players have one planned match opportunity. All squads meet minimum size.
-          </span>
-        </div>
+        <DecisionBanner
+          variant="decision"
+          title={
+            <>
+              Plan checks ·{" "}
+              {decisionRequiredCount === 1
+                ? "1 decision needs review"
+                : `${decisionRequiredCount} decisions need review`}
+            </>
+          }
+          description="Coach judgement required before finalize."
+        />
       )}
 
       {planningNotes.length > 0 && (
         <details className="text-xs">
-          <summary className="cursor-pointer text-[var(--text-muted)] hover:text-zinc-50 transition-colors">
+          <summary className="cursor-pointer text-[var(--text-muted)] hover:text-zinc-100 transition-colors">
             Planning notes ({planningNotes.length})
           </summary>
-          <div className="mt-1 flex flex-col gap-1">
+          <div className="mt-2 flex flex-col gap-1.5">
             {planningNotes.map((w, i) => (
-              <div
+              <Surface
                 key={`note-${w.code}-${i}`}
-                className="rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-1.5 text-[11px] text-zinc-400"
+                variant="subtle"
+                padding="none"
+                className="px-3 py-1.5 text-[11px] text-[var(--text-soft)]"
               >
-                {w.playerName && <span className="font-medium text-zinc-300">{w.playerName}: </span>}
+                {w.playerName && (
+                  <span className="font-medium text-zinc-100">
+                    {w.playerName}:{" "}
+                  </span>
+                )}
                 {w.message}
-              </div>
+              </Surface>
             ))}
           </div>
         </details>
@@ -763,13 +870,17 @@ export function RoundBoard({
 
       <div
         className="grid gap-4"
-        style={{ gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))` }}
+        style={{
+          gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))`,
+        }}
         onTouchMove={(e) => {
           if (!touchDragRef.current) return;
           e.preventDefault();
           const touch = e.touches[0];
           const target = findDropTargetAt(touch.clientX, touch.clientY);
-          setTouchDropTarget(target ? (target.type === "available" ? "available" : target.matchId) : null);
+          setTouchDropTarget(
+            target ? (target.type === "available" ? "available" : target.matchId) : null,
+          );
         }}
         onTouchEnd={(e) => {
           if (!touchDragRef.current) return;
@@ -792,36 +903,57 @@ export function RoundBoard({
       >
         <div
           data-drop-available
-          className={`flex flex-col rounded-xl border transition-colors ${
+          className={[
+            "flex flex-col rounded-xl border transition-colors",
             availableDragOver || touchDropTarget === "available"
-              ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
-              : "border-[var(--border-soft)] bg-[var(--surface-base)]"
-          }`}
-          onDragOver={(e) => { e.preventDefault(); setAvailableDragOver(true); }}
-          onDragEnter={(e) => { e.preventDefault(); setAvailableDragOver(true); }}
+              ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
+              : "border-[var(--border-soft)] bg-[var(--surface-base)]",
+          ].join(" ")}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setAvailableDragOver(true);
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setAvailableDragOver(true);
+          }}
           onDragLeave={() => setAvailableDragOver(false)}
-          onDrop={(e) => { setAvailableDragOver(false); handleDropOnAvailable(e); }}
+          onDrop={(e) => {
+            setAvailableDragOver(false);
+            handleDropOnAvailable(e);
+          }}
         >
-          <div className="border-b border-[var(--border-soft)] px-3 py-2">
-            <p className="text-sm font-semibold text-zinc-100">Available</p>
-            <p className="text-[11px] text-[var(--text-muted)]">{unassignedPlayers.length} player{unassignedPlayers.length !== 1 ? "s" : ""} unassigned</p>
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
+            <div>
+              <p className="text-sm font-semibold text-zinc-50">Available</p>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                {unassignedPlayers.length} unassigned
+              </p>
+            </div>
+            <GripVertical className="h-3.5 w-3.5 text-[var(--text-muted)]" aria-hidden="true" />
           </div>
           <div className="flex-1 px-3 py-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
             {unassignedPlayers.length === 0 ? (
-              <p className="text-[11px] text-[var(--text-muted)] text-center py-4">All players assigned</p>
+              <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
+                All players assigned
+              </p>
             ) : (
               <div className="flex flex-col gap-1">
                 {unassignedPlayers.map((p) => (
-                  <PlayerChip
+                  <BoardPlayerChip
                     key={p.id}
                     player={p}
                     isDraggable
-                    onDragStart={handleDragStart}
-                    isPending={isPending}
                     isFinalized={false}
-                    onTouchStart={(playerId, _fromMatchId, currentRole) => {
-                      touchDragRef.current = { playerId, fromMatchId: null, currentRole: currentRole ?? "CORE" };
-                      setTouchDragPlayerId(playerId);
+                    isPending={isPending}
+                    onDragStart={(e) => handleDragStart(e, p.id, null, p.role)}
+                    onTouchStart={() => {
+                      touchDragRef.current = {
+                        playerId: p.id,
+                        fromMatchId: null,
+                        currentRole: p.role ?? "CORE",
+                      };
+                      setTouchDragPlayerId(p.id);
                     }}
                     isTouchDragging={touchDragPlayerId === p.id}
                   />
@@ -838,15 +970,20 @@ export function RoundBoard({
             isPending={isPending}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDropOnMatch(match.matchId, e)}
-            onDragStart={(e, playerId, _fromMatchId, currentRole) => handleDragStart(e, playerId, match.matchId, currentRole)}
+            onDragStart={(e, playerId, _fromMatchId, currentRole) =>
+              handleDragStart(e, playerId, match.matchId, currentRole)
+            }
             onRemovePlayer={handleRemovePlayer}
-            onRoleChange={handleRoleChange}
             showFinalizeMatch={(matchId: string) => {
               setFinalizingMatchId(matchId);
               setMatchOverrideReason({ category: "", detail: "" });
             }}
             onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
-              touchDragRef.current = { playerId, fromMatchId, currentRole: currentRole ?? "CORE" };
+              touchDragRef.current = {
+                playerId,
+                fromMatchId,
+                currentRole: currentRole ?? "CORE",
+              };
               setTouchDragPlayerId(playerId);
             }}
             isTouchHighlight={touchDropTarget === match.matchId}
@@ -856,10 +993,7 @@ export function RoundBoard({
         ))}
       </div>
 
-      <FairnessSummary
-        metrics={fairnessMetrics}
-        movementSummary={movementSummary}
-      />
+      <FairnessSummary metrics={fairnessMetrics} movementSummary={movementSummary} />
 
       <ConfirmFinalizeDialog
         isOpen={showFinalizeDialog}
@@ -870,183 +1004,170 @@ export function RoundBoard({
         selectedCount={totalSelected}
         targetSquadSize={totalTarget}
         matchCount={matches.length}
-        signals={prominentSignals.map((w) => ({ severity: w.severity ?? "WARNING", message: w.message, rule: w.code }))}
+        signals={prominentSignals.map((w) => ({
+          severity: w.severity ?? "WARNING",
+          message: w.message,
+          rule: w.code,
+        }))}
       />
 
-      {showClearRoundDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowClearRoundDialog(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
-            <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Clear round draft</h3>
-              <p className="text-sm text-zinc-300">
-                Remove all draft selections and plan integrity signals for this round. Finalized data will not be affected.
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
-              <button
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-                onClick={() => setShowClearRoundDialog(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                disabled={isPending}
-                onClick={() => {
-                  startTransition(async () => {
-                    const formData = new FormData();
-                    formData.set("matchRoundId", matchRoundId);
-                    await clearRoundDraftAction(formData);
-                    setShowClearRoundDialog(false);
-                    router.refresh();
-                  });
-                }}
-              >
-                {isPending ? "Clearing..." : "Clear round"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        isOpen={showClearRoundDialog}
+        onClose={() => setShowClearRoundDialog(false)}
+        title="Clear round draft"
+        description="Remove all draft selections and plan check signals for this round. Finalized data will not be affected."
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setShowClearRoundDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={isPending}
+              onClick={() => {
+                startTransition(async () => {
+                  const formData = new FormData();
+                  formData.set("matchRoundId", matchRoundId);
+                  await clearRoundDraftAction(formData);
+                  setShowClearRoundDialog(false);
+                  router.refresh();
+                });
+              }}
+            >
+              {isPending ? "Clearing…" : "Clear round"}
+            </Button>
+          </>
+        }
+      />
 
-      {finalizingMatchId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setFinalizingMatchId(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Finalize match</h3>
-              <button
-                onClick={() => setFinalizingMatchId(null)}
-                className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-                aria-label="Close dialog"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-3 px-5 py-4">
-              {(() => {
-                const m = matches.find((x) => x.matchId === finalizingMatchId);
-                if (!m) return null;
-                const mWarnings = warnings.filter((w) => w.teamName === m.teamName);
-                const hardBlocks = mWarnings.filter((w) => w.severity === "HARD_BLOCK").length;
-                const requiresOverride = mWarnings.filter((w) => w.severity === "REQUIRES_OVERRIDE").length;
-                const selected = m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole)).length;
-                return (
+      <Dialog
+        isOpen={!!finalizingMatchId}
+        onClose={() => setFinalizingMatchId(null)}
+        title="Finalize match"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setFinalizingMatchId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              leadingIcon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+              disabled={
+                isPending ||
+                (finalizingHasBlocking &&
+                  (!matchOverrideReason.category ||
+                    matchOverrideReason.detail.trim().length < 10))
+              }
+              onClick={() => {
+                if (!finalizingMatchId) return;
+                const id = finalizingMatchId;
+                startTransition(async () => {
+                  const fd = new FormData();
+                  fd.set("matchId", id);
+                  fd.set("matchRoundId", matchRoundId);
+                  if (matchOverrideReason.category) {
+                    fd.set("overrideReasonCategory", matchOverrideReason.category);
+                  }
+                  if (matchOverrideReason.detail.trim()) {
+                    fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
+                  }
+                  await finalizeSingleMatchFromBoardAction({ error: "" }, fd);
+                  setFinalizingMatchId(null);
+                  router.refresh();
+                });
+              }}
+            >
+              {isPending ? "Finalizing…" : "Finalize match"}
+            </Button>
+          </>
+        }
+      >
+        {finalizingMatch && (
+          <>
+            <Surface variant="subtle" padding="md">
+              <p className="text-sm text-[var(--text-soft)]">
+                <span className="font-semibold text-zinc-100">{finalizingMatch.teamName}</span> vs{" "}
+                {finalizingMatch.opponent}:{" "}
+                <span className="font-semibold text-zinc-100">{finalizingSelected}</span>/
+                {finalizingMatch.targetSquadSize} players selected.
+              </p>
+            </Surface>
+
+            {finalizingHardBlocks > 0 && (
+              <DecisionBanner
+                variant="blocked"
+                title={
                   <>
-                    <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">
-                      <p className="text-sm text-zinc-200">
-                        <span className="font-semibold">{m.teamName}</span> vs {m.opponent}:{" "}
-                        <span className="font-semibold">{selected}</span>/{m.targetSquadSize} players selected.
-                      </p>
-                    </div>
-                    {(hardBlocks > 0 || requiresOverride > 0) && (
-                      <div className="flex flex-col gap-2">
-                        {hardBlocks > 0 && (
-                          <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2">
-                            <span className="text-sm text-red-300">
-                              {hardBlocks} Blocked {hardBlocks === 1 ? "condition" : "conditions"} — override reason required
-                            </span>
-                          </div>
-                        )}
-                        {requiresOverride > 0 && (
-                          <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
-                            <span className="text-sm text-amber-300">
-                              {requiresOverride} {requiresOverride === 1 ? "decision requires" : "decisions require"} override reason
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                     {(hardBlocks > 0 || requiresOverride > 0) && (
-                       <OverrideReasonInput
-                         hasBlockingWarnings={true}
-                         value={matchOverrideReason}
-                         onChange={setMatchOverrideReason}
-                       />
-                     )}
+                    {finalizingHardBlocks} blocked{" "}
+                    {finalizingHardBlocks === 1 ? "condition" : "conditions"}
                   </>
-                );
-              })()}
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
-              <button
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-                onClick={() => setFinalizingMatchId(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isPending || (() => {
-                  const m = matches.find((x) => x.matchId === finalizingMatchId);
-                  if (!m) return true;
-                  const mWarnings = warnings.filter((w) => w.teamName === m.teamName);
-                  const hasBlocking = mWarnings.some((w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE");
-                  if (!hasBlocking) return false;
-                  return !matchOverrideReason.category || matchOverrideReason.detail.trim().length < 10;
-                })()}
-                onClick={() => {
-                  startTransition(async () => {
-                    const fd = new FormData();
-                    fd.set("matchId", finalizingMatchId);
-                    fd.set("matchRoundId", matchRoundId);
-                    if (matchOverrideReason.category) {
-                      fd.set("overrideReasonCategory", matchOverrideReason.category);
-                    }
-                    if (matchOverrideReason.detail.trim()) {
-                      fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
-                    }
-                    await finalizeSingleMatchFromBoardAction({ error: "" }, fd);
-                    setFinalizingMatchId(null);
-                    router.refresh();
-                  });
-                }}
-              >
-                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                {isPending ? "Finalizing..." : "Finalize match"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                }
+                description="Override reason required."
+              />
+            )}
+            {finalizingRequiresOverride > 0 && (
+              <DecisionBanner
+                variant="decision"
+                title={
+                  <>
+                    {finalizingRequiresOverride}{" "}
+                    {finalizingRequiresOverride === 1
+                      ? "decision needs review"
+                      : "decisions need review"}
+                  </>
+                }
+                description="Override reason required."
+              />
+            )}
 
-      {showUnfinalizeConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowUnfinalizeConfirm(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
-            <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Un-finalize round</h3>
-              <p className="text-sm text-zinc-300">
-                All selections will revert to draft and can be recalculated. Finalized history will be affected.
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
-              <button
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-                onClick={() => setShowUnfinalizeConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded-lg border border-amber-700/40 bg-amber-900/20 px-4 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
-                disabled={isPending}
-                onClick={() => {
-                  setShowUnfinalizeConfirm(false);
-                  startTransition(async () => {
-                    const fd = new FormData();
-                    fd.set("matchRoundId", matchRoundId);
-                    await unfinalizeRoundAction({ error: "" }, fd);
-                    router.refresh();
-                  });
-                }}
-              >
-                {isPending ? "Un-finalizing..." : "Un-finalize round"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            {finalizingHasBlocking && (
+              <OverrideReasonInput
+                hasBlockingWarnings={true}
+                value={matchOverrideReason}
+                onChange={setMatchOverrideReason}
+              />
+            )}
+          </>
+        )}
+      </Dialog>
+
+      <Dialog
+        isOpen={showUnfinalizeConfirm}
+        onClose={() => setShowUnfinalizeConfirm(false)}
+        title="Un-finalize round"
+        description="All selections will revert to draft and can be recalculated. Finalized history will be affected."
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setShowUnfinalizeConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="warning"
+              disabled={isPending}
+              onClick={() => {
+                setShowUnfinalizeConfirm(false);
+                startTransition(async () => {
+                  const fd = new FormData();
+                  fd.set("matchRoundId", matchRoundId);
+                  await unfinalizeRoundAction({ error: "" }, fd);
+                  router.refresh();
+                });
+              }}
+            >
+              {isPending ? "Un-finalizing…" : "Un-finalize round"}
+            </Button>
+          </>
+        }
+      />
     </div>
   );
 }
