@@ -8,7 +8,6 @@ import type {
   FixturePeriod,
   FixtureRound,
   FixtureMatch,
-  SelectionState,
 } from "@/domain/fixtures/types";
 import {
   fetchFixturesOverview,
@@ -16,9 +15,13 @@ import {
 } from "@/domain/fixtures/actions";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
+import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
-import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { StatusRail } from "@/components/ui/status-rail";
+import { ScoreCapsule, type ScoreCapsuleResult } from "@/components/ui/score-capsule";
+import { MetricTile } from "@/components/ui/metric-tile";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarRange, OctagonAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 /**
  * FixturesPage — per ADR 0007 the fixtures view reads as a timeline: past
@@ -26,23 +29,8 @@ import { EmptyState } from "@/components/ui/empty-state";
  * open. Match rows are scannable, not wrapped in heavy cards.
  */
 
-type SelectionStateConfig = {
-  label: string;
-  variant: StatusPillVariant;
-};
 
-const selectionStateConfig: Record<SelectionState, SelectionStateConfig> = {
-  NOT_GENERATED: { label: "Not generated", variant: "neutral" },
-  DRAFT: { label: "Draft", variant: "warning" },
-  BLOCKED: { label: "Blocked", variant: "danger" },
-  READY: { label: "Ready", variant: "success" },
-  FINALIZED: { label: "Finalized", variant: "finalized" },
-};
 
-function SelectionStateBadge({ state }: { state: SelectionState }) {
-  const config = selectionStateConfig[state];
-  return <StatusPill variant={config.variant}>{config.label}</StatusPill>;
-}
 
 function roundPrimaryAction(
   round: FixtureRound,
@@ -91,36 +79,35 @@ function OutcomeCell({ match }: { match: FixtureMatch }) {
 
   if (isCompleted && match.reportState.state === "COMPLETED") {
     const outcome = match.reportState.result.outcome;
-    const outcomeColor =
-      outcome === "WON"
-        ? "text-[var(--accent-strong)]"
-        : outcome === "DRAWN"
-          ? "text-[var(--text-soft)]"
-          : "text-[var(--danger)]";
-    const outcomeLabel =
-      outcome === "WON" ? "Won" : outcome === "DRAWN" ? "Drawn" : "Lost";
+    const capsuleResult: ScoreCapsuleResult =
+      outcome === "WON" ? "win" : outcome === "DRAWN" ? "draw" : outcome === "LOST" ? "loss" : "unknown";
     return (
-      <div className="flex items-center gap-1.5 text-xs">
-        <span className="font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          FT
-        </span>
-        <span className="font-semibold tabular-nums text-zinc-50">
-          {match.reportState.result.displayScore}
-        </span>
-        <span className={`font-semibold ${outcomeColor}`}>{outcomeLabel}</span>
-      </div>
+      <ScoreCapsule
+        homeScore={match.reportState.result.goalsFor}
+        awayScore={match.reportState.result.goalsAgainst}
+        result={capsuleResult}
+        size="sm"
+      />
     );
   }
 
   if (isDraftReport && isPast) {
     return (
-      <span className="text-[11px] text-[var(--warning)]">Report incomplete</span>
+      <StatusRail status="missingReport" />
     );
   }
 
   return (
     <div className="flex items-center gap-2">
-      <SelectionStateBadge state={match.selectionState} />
+      <StatusRail
+        status={
+          match.selectionState === "NOT_GENERATED" ? "neutral" :
+          match.selectionState === "FINALIZED" ? "finalized" :
+          match.selectionState === "BLOCKED" ? "blocked" :
+          match.selectionState === "DRAFT" ? "draft" :
+          "neutral"
+        }
+      />
       <IntegritySummary
         blockerCount={match.blockerCount}
         decisionRequiredCount={match.decisionRequiredCount}
@@ -190,10 +177,9 @@ function MatchRow({ match }: { match: FixtureMatch }) {
 function RoundSection({ round }: { round: FixtureRound }) {
   const primaryAction = roundPrimaryAction(round);
   const isFinalized = round.selectionState === "FINALIZED";
-  const padding = isFinalized ? "sm" : "md";
 
   return (
-    <Surface padding="none" className="overflow-hidden">
+    <TacticalSurface variant={isFinalized ? "default" : "board"} padding="none" className="overflow-hidden">
       <div
         className={[
           "flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3.5",
@@ -204,7 +190,15 @@ function RoundSection({ round }: { round: FixtureRound }) {
           <span className="text-sm font-semibold text-zinc-50 truncate">
             {round.title}
           </span>
-          <SelectionStateBadge state={round.selectionState} />
+          <StatusRail
+            status={
+              round.selectionState === "NOT_GENERATED" ? "neutral" :
+              round.selectionState === "FINALIZED" ? "finalized" :
+              round.selectionState === "BLOCKED" ? "blocked" :
+              round.selectionState === "DRAFT" ? "draft" :
+              "neutral"
+            }
+          />
           <IntegritySummary
             blockerCount={round.blockerCount}
             decisionRequiredCount={round.decisionRequiredCount}
@@ -226,7 +220,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
           </Button>
         )}
       </div>
-      <div className={padding === "sm" ? "py-1" : "py-1.5"}>
+      <div className={isFinalized ? "py-1" : "py-1.5"}>
         {round.matches.length === 0 ? (
           <p className="text-xs text-[var(--text-muted)] px-3.5 py-3">
             No matches in this round.
@@ -239,7 +233,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
           </div>
         )}
       </div>
-    </Surface>
+    </TacticalSurface>
   );
 }
 
@@ -271,7 +265,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
   );
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold text-zinc-50">{period.title}</h2>
@@ -336,6 +330,41 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
           </span>
         )}
       </div>
+
+      {/* Metric strip */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <MetricTile
+          label="Rounds"
+          value={period.rounds.length}
+          tone="neutral"
+          icon={<CalendarRange className="h-4 w-4" />}
+        />
+        {totalBlockers > 0 && (
+          <MetricTile
+            label="Blocked"
+            value={totalBlockers}
+            tone="danger"
+            icon={<OctagonAlert className="h-4 w-4" />}
+          />
+        )}
+        {totalDecisions > 0 && (
+          <MetricTile
+            label="Decisions"
+            value={totalDecisions}
+            tone="warning"
+            icon={<AlertTriangle className="h-4 w-4" />}
+          />
+        )}
+        {counts.finalized > 0 && (
+          <MetricTile
+            label="Finalized"
+            value={counts.finalized}
+            tone="success"
+            icon={<CheckCircle2 className="h-4 w-4" />}
+          />
+        )}
+      </div>
+
       <div className="flex flex-col gap-3">
         {period.rounds.length === 0 ? (
           <Surface padding="md">
