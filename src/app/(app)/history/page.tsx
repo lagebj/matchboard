@@ -4,14 +4,17 @@ import { HistoryTable, type PlayerHistoryRow } from "@/components/history/histor
 import { ExportPanel } from "@/components/history/export-panel";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
-
-export const dynamic = "force-dynamic";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
 import {
   compareSelectionSnapshotRecency,
   getLatestSelectionSnapshots,
 } from "@/lib/selection/get-latest-selection-snapshots";
 import { isSelectionMovementRow } from "@/lib/selection/get-selection-movement";
+import { Surface } from "@/components/ui/surface";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionHeader } from "@/components/ui/section-header";
+
+export const dynamic = "force-dynamic";
 
 function formatPatternRole(roleType: SelectionRole): string {
   return formatSelectionRole(roleType);
@@ -233,192 +236,142 @@ export default async function HistoryPage() {
     });
 
   return (
-    <main className="flex min-h-full flex-col gap-8 text-foreground">
+    <main className="flex min-h-full flex-col gap-6 text-foreground">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-        <section className="app-panel-raised rounded-[2rem] p-6 sm:p-8">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-[var(--border-strong)] bg-[rgba(140,167,146,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-                History
-              </span>
-              <span className="rounded-full border app-hairline px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] app-copy-soft">
-                Finalized rounds, movement, and fairness over time.
-              </span>
-            </div>
+        <Surface variant="raised" padding="lg">
+          <PageHeader
+            title="History"
+            description="Finalized rounds, movement, and fairness over time."
+            eyebrow="History"
+          />
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
-              <div>
-                <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-50 sm:text-5xl">
-                  History
-                </h1>
-                <p className="mt-4 max-w-2xl text-sm app-copy-soft sm:text-base">
-                  Finalized rounds, movement, and fairness over time.
-                </p>
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
+            <div />
+            <Surface variant="subtle" padding="md" className="mt-6 lg:mt-0">
+              <SectionHeader title="Summary" />
+              <div className="mt-4 grid gap-3">
+                <Surface variant="default" padding="md">
+                  <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalized appearance(s)</p>
+                  <p className="text-sm text-[var(--text-soft)]">Latest saved snapshot per match.</p>
+                </Surface>
+                <Surface variant="default" padding="md">
+                  <p className="text-sm font-medium text-zinc-100">{totalFloatAppearances} floating appearance(s)</p>
+                  <p className="mt-1 text-sm text-[var(--text-soft)]">Support, development, and floating usage in saved history.</p>
+                </Surface>
+                <Surface variant="default" padding="md">
+                  <p className="text-sm font-medium text-zinc-100">{recentMovers} player(s) with visible movement history</p>
+                  <p className="mt-1 text-sm text-[var(--text-soft)]">Players with recorded movement in saved history.</p>
+                </Surface>
+                <Surface variant="default" padding="md">
+                  <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalized match(es)</p>
+                  <p className="mt-1 text-sm text-[var(--text-soft)]">Current match state: draft vs. finalized.</p>
+                </Surface>
               </div>
-
-              <div className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.035)] p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
-                  Summary
-                </p>
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
-                    <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalized appearance(s)</p>
-                    <p className="text-sm app-copy-soft">
-                      Latest saved snapshot per match.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
-                    <p className="text-sm font-medium text-zinc-100">{totalFloatAppearances} floating appearance(s)</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Support, development, and floating usage in saved history.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
-                    <p className="text-sm font-medium text-zinc-100">{recentMovers} player(s) with visible movement history</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Players with recorded movement in saved history.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border app-hairline bg-[rgba(0,0,0,0.14)] px-4 py-4">
-                    <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalized match(es)</p>
-                    <p className="mt-1 text-sm app-copy-soft">
-                      Current match state: draft vs. finalized.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </Surface>
           </div>
-        </section>
+        </Surface>
 
         <aside className="grid gap-4">
-          <section className="app-panel rounded-[1.75rem] p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Load check
-            </p>
+          <Surface variant="default" padding="md">
+            <SectionHeader title="Load check" />
             {mostUsedPlayer ? (
-              <div className="mt-4 rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+              <Surface variant="default" padding="md" className="mt-4">
                 <p className="text-sm font-semibold text-zinc-100">
                   {mostUsedPlayer.lastName
                     ? `${mostUsedPlayer.firstName} ${mostUsedPlayer.lastName}`
                     : mostUsedPlayer.firstName}
                 </p>
-                <p className="mt-1 text-sm app-copy-soft">
+                <p className="mt-1 text-sm text-[var(--text-soft)]">
                   {mostUsedPlayer.totalFinalizedAppearances} finalized appearance(s) · {mostUsedPlayer.floatCount} floating appearance(s)
                 </p>
-                <p className="mt-3 text-sm app-copy-soft">Use the table below for the deeper load check.</p>
-              </div>
+                <p className="mt-3 text-sm text-[var(--text-soft)]">Use the table below for the deeper load check.</p>
+              </Surface>
             ) : (
-              <div className="mt-4 rounded-[1.45rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft">
-                No finalized history yet.
-              </div>
+              <Surface variant="subtle" padding="md" className="mt-4">
+                <p className="text-sm text-[var(--text-soft)]">No finalized history yet.</p>
+              </Surface>
             )}
-          </section>
+          </Surface>
         </aside>
       </section>
 
       <ExportPanel />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-              Review steps
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-50">How to review finalized rounds</h2>
-            <p className="mt-2 text-sm app-copy-soft">
-              Check the summary, review recent player movement, then open the table for detail.
-            </p>
-          </div>
-
+        <Surface variant="default" padding="lg">
+          <SectionHeader title="Review steps" description="Check the summary, review recent player movement, then open the table for detail." />
           <div className="mt-6 grid gap-3">
-            <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+            <Surface variant="subtle" padding="md">
               <p className="text-sm font-semibold text-zinc-100">1. Check the summary</p>
-              <p className="mt-2 text-sm app-copy-soft">
+              <p className="mt-2 text-sm text-[var(--text-soft)]">
                 {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalized.
               </p>
-            </div>
-            <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+            </Surface>
+            <Surface variant="subtle" padding="md">
               <p className="text-sm font-semibold text-zinc-100">2. Review recent player movement</p>
-              <p className="mt-2 text-sm app-copy-soft">
+              <p className="mt-2 text-sm text-[var(--text-soft)]">
                 The movement feed below shows one latest visible move per player.
               </p>
-            </div>
-            <div className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
+            </Surface>
+            <Surface variant="subtle" padding="md">
               <p className="text-sm font-semibold text-zinc-100">3. Open the table for detail</p>
-              <p className="mt-2 text-sm app-copy-soft">
+              <p className="mt-2 text-sm text-[var(--text-soft)]">
                 Use the movement overview for per-player timelines and the table for workload or fairness checks.
               </p>
-            </div>
+            </Surface>
           </div>
-        </section>
+        </Surface>
 
-        <section className="app-panel rounded-[1.75rem] p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Reading tips
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">How to read this page</h2>
+        <Surface variant="default" padding="lg">
+          <SectionHeader title="How to read this page" />
           <div className="mt-6 grid gap-3">
             {[
               "This page shows the latest saved snapshot per match. Superseded snapshots are collapsed away.",
               "Use recent pattern strings to see whether a player has a run of core or floating assignments.",
               "Use the full table for fairness, workload, or movement detail.",
             ].map((note) => (
-              <div
-                key={note}
-                className="rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4 text-sm leading-6 app-copy-soft"
-              >
-                {note}
-              </div>
+              <Surface key={note} variant="subtle" padding="md">
+                <p className="text-sm text-[var(--text-soft)]">{note}</p>
+              </Surface>
             ))}
           </div>
-        </section>
+        </Surface>
       </section>
 
-      <section className="app-panel rounded-[1.75rem] p-6">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Movement Feed
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-zinc-50">Latest visible move per player</h2>
-        </div>
-
+      <Surface variant="default" padding="lg">
+        <SectionHeader title="Movement Feed" description="Latest visible move per player" />
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {latestMovementRows.length > 0 ? (
             latestMovementRows.map((row) => (
-              <div
-                key={row.playerId}
-                className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4"
-              >
+              <Surface key={row.playerId} variant="default" padding="md">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-zinc-100">
                       {row.lastName ? `${row.firstName} ${row.lastName}` : row.firstName}
                     </p>
-                    <p className="mt-1 text-sm app-copy-soft">{row.coreTeamName}</p>
+                    <p className="mt-1 text-sm text-[var(--text-soft)]">{row.coreTeamName}</p>
                   </div>
-                  <span className="rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--warning)]">
+                  <span className="rounded-full border border-[var(--warning)]/30 bg-[var(--warning-subtle)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--warning)]">
                     {row.latestMovementDate ? formatDate(row.latestMovementDate) : "No move"}
                   </span>
                 </div>
                 <p className="mt-4 text-sm font-medium text-zinc-100">{row.latestMovementSummary}</p>
-                <p className="mt-2 text-sm leading-6 app-copy-soft">{row.latestMovementReason}</p>
-              </div>
+                <p className="mt-2 text-sm text-[var(--text-muted)]">{row.latestMovementReason}</p>
+              </Surface>
             ))
           ) : (
-            <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft lg:col-span-2">
-              No visible movement feed yet. Once support, development, or floating appearances are
-              saved in the latest match state, they surface here as reviewable cards.
-            </div>
+            <Surface variant="subtle" padding="md" className="lg:col-span-2">
+              <p className="text-sm text-[var(--text-soft)]">No visible movement feed yet. Once support, development, or floating appearances are saved in the latest match state, they surface here as reviewable cards.</p>
+            </Surface>
           )}
         </div>
-      </section>
+      </Surface>
 
       <MovementOverview rows={sortedMovementOverviewRows} />
 
-      <section className="app-panel rounded-[1.75rem] p-6">
+      <Surface variant="default" padding="lg">
         <HistoryTable rows={rows} />
-      </section>
+      </Surface>
     </main>
   );
 }
