@@ -1,61 +1,82 @@
 @import "tailwindcss";
 
 /* -----------------------------------------------------------------------------
- * Matchboard tokens
+ * Matchboard tokens — tactical cockpit design system
  *
- * Per ADR 0007 — calm coach-cockpit design system:
- * - One quiet surface family (base/raised/muted/hover)
- * - Hairline borders by default; semantic accents only when meaning needs it
- * - Calm semantic colour palette (accent / warning / danger / info / dev)
- * - Single typography rhythm: display / title / section / body / metadata
- * - Strong, accessible focus state on every interactive surface
+ * A premium, professional football operations cockpit.
+ * Deep navy/graphite base with subtle tactical texture.
+ * Hairline borders; background/surface layers do the heavy lifting.
+ * Strong, accessible focus rings. Calm semantic colour palette.
  *
- * Do not introduce new raised gradient surfaces, glow effects, or saturated
- * fill colours without amending ADR 0007.
+ * Visual levels:
+ *   background → base surface → raised surface → tactical surface → hero surface
+ *
+ * Do not introduce new gradient surfaces, neon, or saturated fills
+ * without amending this token set.
  * -------------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces */
-  --background: #0d1118;
-  --foreground: #ece6db;
-  --surface-base: rgba(19, 24, 33, 0.78);
-  --surface-raised: rgba(27, 33, 45, 0.92);
-  --surface-muted: rgba(35, 43, 57, 0.55);
-  --surface-hover: rgba(45, 55, 72, 0.55);
+  /* Deep navy/graphite base — not flat black */
+  --background: #0c1019;
+  --foreground: #e8e2d4;
 
-  /* Borders — hairlines first, strong only when emphasis is meaningful */
-  --border-soft: rgba(211, 203, 188, 0.07);
-  --border-strong: rgba(211, 203, 188, 0.14);
+  /* Surface hierarchy — background contrast, not border dominance */
+  --surface-base: rgba(18, 24, 36, 0.82);
+  --surface-raised: rgba(26, 34, 50, 0.94);
+  --surface-muted: rgba(32, 42, 58, 0.50);
+  --surface-hover: rgba(42, 54, 74, 0.50);
+  /* Tactical surface — slightly warmer, for board/column backgrounds */
+  --surface-tactical: rgba(22, 30, 44, 0.88);
+  /* Hero surface — for primary hero panels, subtly elevated */
+  --surface-hero: rgba(28, 36, 52, 0.96);
+
+  /* Borders — tactical hairlines */
+  --border-soft: rgba(188, 180, 168, 0.07);
+  --border-strong: rgba(188, 180, 168, 0.15);
+  /* Pitch line — subtle grid/pitch accent, very low opacity */
+  --border-pitch: rgba(140, 167, 146, 0.06);
 
   /* Text */
-  --text-muted: #98a2b1;
-  --text-soft: #c8d0db;
-  --text-disabled: #5c6575;
+  --text-muted: #8a93a4;
+  --text-soft: #bcc5d1;
+  --text-disabled: #4d5565;
 
-  /* Semantic palette (calm, slightly desaturated) */
+  /* Semantic palette — calm, slightly desaturated, professional */
   --accent: #8ca792;
   --accent-strong: #c7dbc6;
-  --accent-subtle: rgba(140, 167, 146, 0.13);
+  --accent-subtle: rgba(140, 167, 146, 0.14);
   --warning: #d0b07f;
-  --warning-subtle: rgba(208, 176, 127, 0.12);
-  --danger: #b98077;
-  --danger-subtle: rgba(185, 128, 119, 0.12);
+  --warning-subtle: rgba(208, 176, 127, 0.13);
+  --danger: #c0776e;
+  --danger-subtle: rgba(192, 119, 110, 0.13);
   --info: #6a99db;
-  --info-subtle: rgba(106, 153, 219, 0.11);
+  --info-subtle: rgba(106, 153, 219, 0.12);
   --blocking: #c76a5b;
-  --blocking-subtle: rgba(199, 106, 91, 0.14);
+  --blocking-subtle: rgba(199, 106, 91, 0.15);
   --dev: #b28cdb;
-  --dev-subtle: rgba(178, 140, 219, 0.11);
+  --dev-subtle: rgba(178, 140, 219, 0.12);
+  /* Success — calm green, same hue family as accent but distinct */
+  --success: #7dba86;
+  --success-subtle: rgba(125, 186, 134, 0.12);
+  /* Locked/finalized — cool slate */
+  --locked: #7b8a9e;
+  --locked-subtle: rgba(123, 138, 158, 0.14);
 
   /* Layout */
   --sidebar-width: 14rem;
   --topbar-height: 3.25rem;
   --inspector-width: 22rem;
 
-  /* Radius scale (use these via rounded-[var(...)]) */
+  /* Radius scale */
+  --radius-xs: 0.375rem;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
+
+  /* Compact metric transition */
+  --transition-fast: 140ms ease;
+  --transition-smooth: 200ms ease-out;
+  --transition-lift: 180ms ease-out;
 }
 
 @theme inline {
@@ -68,12 +89,17 @@
   --color-info: var(--info);
   --color-blocking: var(--blocking);
   --color-dev: var(--dev);
+  --color-success: var(--success);
+  --color-locked: var(--locked);
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
   --color-surface-muted: var(--surface-muted);
   --color-surface-hover: var(--surface-hover);
+  --color-surface-tactical: var(--surface-tactical);
+  --color-surface-hero: var(--surface-hero);
   --color-border-soft: var(--border-soft);
   --color-border-strong: var(--border-strong);
+  --color-border-pitch: var(--border-pitch);
   --color-text-muted: var(--text-muted);
   --color-text-soft: var(--text-soft);
   --font-sans: var(--font-geist-sans);
@@ -88,11 +114,23 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
-  /* Calmer background: dimmer radials, no warm bronze. */
+  /* Deep navy base with subtle tactical texture — pitch lines suggest the pitch,
+     radial accents suggest floodlight, both at near-zero opacity for atmosphere
+     without reducing readability. */
   background-image:
-    radial-gradient(circle at 8% 0%, rgba(140, 167, 146, 0.07), transparent 32%),
-    radial-gradient(circle at 92% 4%, rgba(64, 84, 113, 0.07), transparent 30%),
-    linear-gradient(180deg, #0f131b 0%, #0d1118 100%);
+    /* Subtle floodlight radial accents — warm glow top-left, cool glow bottom-right */
+    radial-gradient(ellipse 60% 40% at 6% 2%, rgba(140, 167, 146, 0.05), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 94% 98%, rgba(60, 90, 140, 0.05), transparent 45%),
+    /* Vertical pitch-line texture — very faint, horizontal hints */
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 59px,
+      rgba(140, 167, 146, 0.018) 59px,
+      rgba(140, 167, 146, 0.018) 60px
+    ),
+    /* Base gradient */
+    linear-gradient(180deg, #0f1420 0%, #0c1019 100%);
   font-feature-settings:
     "ss01",
     "cv01",
@@ -101,12 +139,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Reduced motion users: pitch lines and backgrounds remain (they don't animate),
+   but any motion transitions are disabled. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 ::selection {
   background: rgba(140, 167, 146, 0.3);
   color: #f5f1e8;
 }
 
-/* Global focus style — every interactive element gets a calm, visible ring. */
+/* Focus — visible, accessible, calm */
 :where(a, button, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"]):focus-visible {
   outline: none;
   box-shadow:
@@ -121,15 +169,15 @@ input,
 select,
 textarea {
   transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease,
-    box-shadow 140ms ease,
-    opacity 140ms ease,
-    transform 140ms ease;
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
-/* Form-control base — less heavy, still clear. */
+/* Form controls */
 input,
 select,
 textarea {
@@ -142,7 +190,7 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
-/* Typography rhythm (utility classes for places where Tailwind composition is heavy) */
+/* Typography rhythm utilities */
 .app-eyebrow {
   font-size: 0.625rem;
   font-weight: 600;
@@ -155,9 +203,7 @@ textarea:disabled {
   color: var(--text-muted);
 }
 
-/* Legacy helper classes — retained for one cycle so any third-party or
- * non-refactored surface still renders calmly. Avoid using them in new code;
- * prefer the <Surface /> primitive. */
+/* Legacy helpers — prefer <Surface /> in new code */
 .app-hairline {
   border-color: var(--border-soft);
 }
@@ -168,13 +214,9 @@ textarea:disabled {
   color: var(--text-soft);
 }
 
-
-
 .app-shell {
   position: relative;
 }
-
-/* The decorative grid background is removed — it added visual noise per ADR 0007. */
 
 @media (max-width: 1023px) {
   .app-shell {
