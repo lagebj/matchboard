@@ -18,6 +18,8 @@ import { TabRail } from "@/components/ui/tab-rail";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
 import { TeamShield } from "@/components/ui/team-shield";
+import { PlayerMagnet } from "@/components/ui/player-magnet";
+import { MovementArrow } from "@/components/ui/movement-arrow";
 import {
   Users,
   ArrowUpRight,
@@ -28,25 +30,6 @@ import {
   deleteMovementCandidateAction,
   toggleMovementCandidateStatusAction,
 } from "@/app/(app)/teams/movement-candidate-actions";
-
-function formatAvailability(status: string): string {
-  switch (status) {
-    case "AVAILABLE":
-      return "Available";
-    case "TENTATIVE":
-      return "Tentative";
-    case "INJURED":
-      return "Injured";
-    case "SICK":
-      return "Sick";
-    case "AWAY":
-      return "Away";
-    case "UNKNOWN":
-      return "Unknown";
-    default:
-      return status;
-  }
-}
 
 type PlayerSummary = {
   id: string;
@@ -238,20 +221,6 @@ function severityToBannerVariant(severity: string): SeverityVariant {
   }
 }
 
-function availabilityPillVariant(availability: string): "neutral" | "warning" | "danger" {
-  switch (availability) {
-    case "AVAILABLE":
-      return "neutral";
-    case "TENTATIVE":
-      return "warning";
-    case "INJURED":
-    case "SICK":
-    case "AWAY":
-      return "danger";
-    default:
-      return "neutral";
-  }
-}
 
 function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
   const groups = {
@@ -282,37 +251,23 @@ function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
           {label} ({players.length})
         </p>
         <div className="mt-2 flex flex-col gap-1.5">
-          {players.map((p) => (
-            <Link
-              key={p.id}
-              className="group/item rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-2.5 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)]"
-              href={`/players/${p.id}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
-                  {formatPlayerName(p)}
-                </span>
-                <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">
-                  {p.primaryPosition}
-                </span>
-              </div>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                <StatusPill variant={availabilityPillVariant(p.currentAvailability)} size="sm">
-                  {formatAvailability(p.currentAvailability)}
-                </StatusPill>
-                {p.nonRotatable && (
-                  <StatusPill variant="warning" size="sm">Non-rot</StatusPill>
-                )}
-                {p.reducedMatchLoadAllowed && (
-                  <StatusPill variant="warning" size="sm">RML</StatusPill>
-                )}
-                {p.supportSuitability && p.supportSuitability !== "neutral" && (
-                  <StatusPill variant="neutral" size="sm">Sup</StatusPill>
-                )}
-                {p.developmentReadiness && p.developmentReadiness !== "neutral" && (
-                  <StatusPill variant="neutral" size="sm">Dev</StatusPill>
-                )}
-              </div>
+           {players.map((p) => (
+            <Link key={p.id} href={`/players/${p.id}`}>
+              <PlayerMagnet
+                name={formatPlayerName(p)}
+                position={p.primaryPosition}
+                status={
+                  p.currentAvailability === "AVAILABLE" ? "available"
+                    : p.currentAvailability === "INJURED" ? "injured"
+                    : p.currentAvailability === "SICK" ? "sick"
+                    : p.currentAvailability === "AWAY" ? "away"
+                    : p.currentAvailability === "TENTATIVE" ? "available"
+                    : "unknown"
+                }
+                warning={p.nonRotatable || !!p.reducedMatchLoadAllowed}
+                movement={!!(p.supportSuitability && p.supportSuitability !== "neutral")}
+                compact
+              />
             </Link>
           ))}
         </div>
@@ -538,9 +493,19 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
               )}
             </div>
           </div>
-          <p className="mt-1 text-sm text-[var(--text-soft)]">
-            {entry.fromTeamName} → {entry.toTeamName}
-          </p>
+          <div className="mt-2">
+            <MovementArrow
+              fromTeam={entry.fromTeamName}
+              toTeam={entry.toTeamName}
+              role={
+                entry.role === "SUPPORT" ? "support"
+                  : entry.role === "DEVELOPMENT" ? "development"
+                  : entry.role === "BACKFILL" ? "support"
+                  : "core"
+              }
+              compact
+            />
+          </div>
           {entry.reason && (
             <p className="mt-1 text-xs text-[var(--text-muted)]">{entry.reason}</p>
           )}

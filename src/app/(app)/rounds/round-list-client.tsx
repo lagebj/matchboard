@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck, RotateCcw } from "lucide-react";
 import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { TacticalSurface } from "@/components/ui/tactical-surface";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { CalendarRange } from "lucide-react";
 
 type RoundListItem = {
   id: string;
@@ -48,14 +52,6 @@ function filterRounds(rounds: RoundListItem[], filter: FilterState): RoundListIt
       return rounds;
   }
 }
-
-const statusConfig: Record<RoundListItem["derivedStatus"], { label: string; border: string; bg: string; text: string }> = {
-  NOT_GENERATED: { label: "Not generated", border: "border-zinc-600/40", bg: "bg-zinc-800/30", text: "text-zinc-400" },
-  DRAFT: { label: "Draft", border: "border-amber-700/40", bg: "bg-amber-900/20", text: "text-amber-300" },
-  BLOCKED: { label: "Blocked", border: "border-red-700/40", bg: "bg-red-900/20", text: "text-red-300" },
-  READY: { label: "Ready", border: "border-emerald-700/40", bg: "bg-emerald-900/20", text: "text-emerald-300" },
-  FINALIZED: { label: "Finalized", border: "border-[rgba(140,167,146,0.28)]", bg: "bg-[rgba(140,167,146,0.12)]", text: "text-[var(--accent-strong)]" },
-};
 
 export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
   const router = useRouter();
@@ -178,32 +174,27 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
       ) : (
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
           {filtered.map((round) => {
-            const config = statusConfig[round.derivedStatus];
             return (
-              <div
-                key={round.id}
-                className={`rounded-[1.5rem] border p-4 transition-colors ${config.border}`}
-                style={round.derivedStatus === "FINALIZED"
-                  ? { borderColor: "rgba(140,167,146,0.26)", background: "linear-gradient(180deg,rgba(140,167,146,0.08),rgba(17,22,31,0.82))" }
-                  : undefined}
-              >
+              <TacticalSurface key={round.id} variant="default" padding="none">
                 <Link
                   href={`/rounds/${round.id}`}
-                  className="block hover:bg-[rgba(255,255,255,0.03)] -m-4 p-4 rounded-[1.5rem]"
+                  className="block hover:bg-[rgba(255,255,255,0.03)] p-4 rounded-[1.5rem]"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-base font-semibold text-zinc-50">{round.weekLabel}</p>
-                      <p className="mt-1 text-sm app-copy-soft">
-                        {round.matchCount} match{round.matchCount !== 1 ? "es" : ""}
-                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        <MetricTile
+                          icon={<CalendarRange className="h-3.5 w-3.5" />}
+                          label="Matches"
+                          value={round.matchCount}
+                        />
+                      </div>
                       <p className="mt-2 text-xs app-copy-muted">
                         {round.teamNames.join(" · ")}
                       </p>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${config.border} ${config.bg} ${config.text}`}>
-                      {config.label}
-                    </span>
+                    <StatusBadge status={round.derivedStatus} />
                   </div>
                 </Link>
                 {round.derivedStatus === "NOT_GENERATED" && (
@@ -259,7 +250,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                     </button>
                   </div>
                 )}
-              </div>
+              </TacticalSurface>
             );
           })}
         </div>
