@@ -189,7 +189,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
   { key: "current-round", label: "Current Round" },
   { key: "movement", label: "Movement" },
-  { key: "candidates", label: "Movement candidates" },
+  { key: "candidates", label: "Possible movement" },
   { key: "history", label: "History" },
   { key: "rules", label: "Rules & Links" },
 ];
@@ -472,7 +472,7 @@ function CurrentRoundTab({
 
         {roundWarnings.length > 0 && (
           <div>
-            <SectionHeader title="Plan integrity signals" />
+            <SectionHeader title="Plan checks" />
             <div className="mt-2 flex flex-col gap-1.5">
               {roundWarnings.map((w) => (
                 <DecisionBanner
@@ -771,7 +771,7 @@ function MovementCandidatesTab({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <SectionHeader title="Movement candidates" />
+        <SectionHeader title="Possible movement" />
         <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
           {showCreateForm ? "Cancel" : "Add candidate"}
         </Button>

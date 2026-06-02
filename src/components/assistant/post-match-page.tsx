@@ -721,7 +721,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
       {isLocked && report.completedAt && (
         <DecisionBanner
           variant="success"
-          title={`Report locked${report.completedBy ? ` by ${report.completedBy}` : ""} on ${new Date(report.completedAt).toLocaleDateString()}.`}
+          title={`Report complete${report.completedBy ? ` by ${report.completedBy}` : ""} on ${new Date(report.completedAt).toLocaleDateString()}.`}
         />
       )}
     </div>
