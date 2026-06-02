@@ -11,6 +11,9 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TacticalSurface } from "@/components/ui/tactical-surface";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { TeamShield } from "@/components/ui/team-shield";
 import {
   seedMatchReport,
   addGoalToReport,
@@ -297,11 +300,14 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
       </div>
 
       {/* Header */}
-      <Surface variant="default" padding="lg">
+      <TacticalSurface variant="hero" pitch padding="lg">
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-base font-semibold text-zinc-50">{report.teamName} vs {report.opponent}</p>
-            <p className="text-sm text-[var(--text-muted)]">{report.homeAway === "HOME" ? "Home" : "Away"} match</p>
+          <div className="min-w-0 flex items-center gap-3">
+            <TeamShield teamName={report.teamName} size="lg" />
+            <div>
+              <p className="text-base font-semibold text-zinc-50">{report.teamName} vs {report.opponent}</p>
+              <p className="text-sm text-[var(--text-muted)]">{report.homeAway === "HOME" ? "Home" : "Away"} match</p>
+            </div>
           </div>
           <StatusPill variant={STATUS_VARIANT_MAP[status] ?? "neutral"} size="md">
             {STATUS_LABEL[status] ?? status}
@@ -354,9 +360,30 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
             </>
           )}
         </div>
-      </Surface>
+      </TacticalSurface>
 
       {error && <DecisionBanner variant="blocked" title={error} />}
+
+      <div className="flex flex-wrap gap-2">
+        <MetricTile
+          label="Present"
+          value={report.playerActuals.filter((p) => p.attendanceStatus === "PRESENT").length}
+          tone="success"
+        />
+        <MetricTile
+          label="Absent"
+          value={report.absences.length}
+          tone={report.absences.length > 0 ? "warning" : "neutral"}
+        />
+        <MetricTile
+          label="Goals"
+          value={report.goals.length}
+        />
+        <MetricTile
+          label="Assists"
+          value={report.assists.length}
+        />
+      </div>
 
       {/* Result */}
       <Surface variant="default" padding="lg">
