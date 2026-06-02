@@ -15,6 +15,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { TabRail } from "@/components/ui/tab-rail";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { IssueMarker } from "@/components/ui/issue-marker";
+import { TeamShield } from "@/components/ui/team-shield";
+import {
+  Users,
+  ArrowUpRight,
+  ArrowDownLeft,
+} from "lucide-react";
 import {
   createMovementCandidateAction,
   deleteMovementCandidateAction,
@@ -934,6 +942,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
       <PageHeader
         title={data.teamName}
         description={`Target ${data.targetSquadSize} · Min ${data.minAcceptedSquadSize} · Max ${data.maxSquadSize} · Min core ${data.minCorePlayers} · Support priority rank (1 is highest): ${data.supportPriority}`}
+        icon={<TeamShield teamName={data.teamName} size="lg" />}
         actions={
           <div className="flex flex-wrap gap-2">
             {data.previousTeamId && (
@@ -953,40 +962,40 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
         }
       />
 
-      <Surface variant="default" padding="md">
-        <div className="flex flex-wrap gap-3">
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Round</p>
-            <p className="mt-1 text-sm font-medium text-zinc-100">
-              {data.currentRoundLabel ?? "No active round"}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Status</p>
-            <p className="mt-1 text-sm font-medium text-zinc-100">{data.currentRoundStatus}</p>
-          </div>
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Core</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-50">{data.coreCountThisRound}</p>
-          </div>
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Sent</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-50">{data.sentAsSupportCount}</p>
-          </div>
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Received</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-50">
-              {data.receivedSupportCount + data.receivedSquadRepairCount + data.receivedDevelopmentCount}
-            </p>
-          </div>
-          {data.warningCount > 0 && (
-            <div className="rounded-xl border border-[var(--danger)]/35 bg-[var(--danger-subtle)] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--danger)]">Signals</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--danger)]">{data.warningCount}</p>
-            </div>
-          )}
-        </div>
-      </Surface>
+      <div className="flex flex-wrap gap-2">
+        <MetricTile
+          icon={<span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Round</span>}
+          label="Round"
+          value={data.currentRoundLabel ?? "No active round"}
+        />
+        <MetricTile
+          label="Status"
+          value={data.currentRoundStatus}
+          tone={data.currentRoundStatus === "FINALIZED" ? "success" : data.currentRoundStatus === "BLOCKED" ? "danger" : "neutral"}
+        />
+        <MetricTile
+          icon={<Users className="h-4 w-4" />}
+          label="Core"
+          value={data.coreCountThisRound}
+        />
+        <MetricTile
+          icon={<ArrowUpRight className="h-4 w-4" />}
+          label="Sent"
+          value={data.sentAsSupportCount}
+        />
+        <MetricTile
+          icon={<ArrowDownLeft className="h-4 w-4" />}
+          label="Received"
+          value={data.receivedSupportCount + data.receivedSquadRepairCount + data.receivedDevelopmentCount}
+        />
+        {data.warningCount > 0 && (
+          <IssueMarker
+            type="blocked"
+            label="Signals"
+            count={data.warningCount}
+          />
+        )}
+      </div>
 
       <TabRail
         items={TABS.map((t) => ({ key: t.key, label: t.label }))}
