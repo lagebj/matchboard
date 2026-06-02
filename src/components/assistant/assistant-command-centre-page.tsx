@@ -3,9 +3,12 @@ import type { AssistantCommandCentre, AssistantWorkItem } from "@/lib/assistant/
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
+import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { IssueMarker } from "@/components/ui/issue-marker";
 import {
   OctagonAlert,
   AlertTriangle,
@@ -13,14 +16,21 @@ import {
   ClipboardList,
   CalendarRange,
   ArrowRight,
+  ShieldAlert,
 } from "lucide-react";
 
 /**
- * AssistantCommandCentrePage — per ADR 0007 the assistant is a calm
- * mission-control surface. One dominant "Next action" panel, then grouped
- * work below by intent (Blockers / Decisions / Reports / Upcoming). Repeated
- * items are collapsed into a single grouped surface to avoid the previous
- * "six identical huge cards" pattern.
+ * AssistantCommandCentrePage — mission board for coach operations.
+ *
+ * Layout:
+ * 1. Page header
+ * 2. Hero TacticalSurface with next action
+ * 3. MetricTile row (blocked, decisions, reports, upcoming)
+ * 4. Grouped work sections
+ * 5. Repeated reports are grouped, not duplicated.
+ *
+ * No red/amber unless actual blocker/decision exists.
+ * Next action is obvious within 3 seconds.
  */
 
 type WorkCategory = AssistantWorkItem["category"];
@@ -64,7 +74,7 @@ const groups: GroupConfig[] = [
   {
     key: "ready",
     label: "Ready to finalize",
-    description: "Drafts that meet plan integrity.",
+    description: "Drafts that meet plan checks.",
     categories: ["ready_to_finalize"],
     icon: CheckCircle2,
     variant: "success",
@@ -83,14 +93,11 @@ function isActionable(item: AssistantWorkItem): boolean {
   return item.category !== "upcoming_round";
 }
 
+
 function NextActionCard({ item }: { item: AssistantWorkItem }) {
   const config = groupForCategory(item.category);
   return (
-    <Surface
-      variant={config?.variant === "danger" ? "danger" : config?.variant === "warning" ? "warning" : config?.variant === "success" ? "success" : config?.variant === "info" ? "info" : "raised"}
-      padding="lg"
-      className="flex flex-col gap-3"
-    >
+    <TacticalSurface variant="hero" padding="lg" pitch className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <StatusPill
           variant={config?.variant ?? "neutral"}
@@ -120,7 +127,7 @@ function NextActionCard({ item }: { item: AssistantWorkItem }) {
           {item.primaryActionLabel}
         </Button>
       </div>
-    </Surface>
+    </TacticalSurface>
   );
 }
 
@@ -130,11 +137,7 @@ function ItemCounts({ item }: { item: AssistantWorkItem }) {
       ? { value: item.blockedCount, label: "blocked", variant: "danger" as const }
       : null,
     item.decisionRequiredCount && item.decisionRequiredCount > 0
-      ? {
-          value: item.decisionRequiredCount,
-          label: "decisions",
-          variant: "warning" as const,
-        }
+      ? { value: item.decisionRequiredCount, label: "decisions", variant: "warning" as const }
       : null,
   ].filter((x): x is { value: number; label: string; variant: "danger" | "warning" } => x !== null);
 
@@ -162,10 +165,10 @@ function groupForCategory(category: WorkCategory): GroupConfig | undefined {
 
 function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean }) {
   return (
-    <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-md hover:bg-[var(--surface-muted)]/30 transition-colors">
+    <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span
-          className={`text-sm font-medium ${dim ? "text-[var(--text-soft)]" : "text-zinc-100"} truncate`}
+          className={`text-sm font-medium ${dim ? "text-[var(--text-muted)]" : "text-zinc-100"} truncate`}
         >
           {item.title}
         </span>
@@ -192,7 +195,6 @@ function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean
 }
 
 function GroupedReports({ items }: { items: AssistantWorkItem[] }) {
-  // Group reports by matchRoundId to compress the list.
   const byRound = new Map<string, AssistantWorkItem[]>();
   for (const item of items) {
     const key = item.matchRoundId ?? "_";
@@ -224,13 +226,32 @@ function StandardGroup({
   group: GroupConfig;
   items: AssistantWorkItem[];
 }) {
+  const Icon = group.icon;
   return (
     <Surface padding="md" className="flex flex-col gap-3">
       <SectionHeader
         title={group.label}
         description={group.description}
         eyebrow={`${items.length} item${items.length === 1 ? "" : "s"}`}
+        actions={
+          <StatusPill variant={group.variant} size="sm" icon={Icon}>
+            {items.length}
+          </StatusPill>
+        }
       />
+      {/* Issue markers for blocked/decision groups */}
+      {(group.key === "blockers" || group.key === "decisions") && (
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
+            <IssueMarker
+              key={item.id}
+              type={group.key === "blockers" ? "blocked" : "decision"}
+              label={item.title}
+              count={group.key === "blockers" ? item.blockedCount : item.decisionRequiredCount}
+            />
+          ))}
+        </div>
+      )}
       <ul className="flex flex-col">
         {items.map((item) => (
           <WorkRow key={item.id} item={item} />
@@ -250,6 +271,12 @@ export function AssistantCommandCentrePage({
   const upcoming = items.filter((i) => i.category === "upcoming_round");
   const nextAction = actionable[0];
 
+  // Metric aggregates
+  const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);
+  const decisionCount = actionable.reduce((sum, i) => sum + (i.decisionRequiredCount ?? 0), 0);
+  const reportCount = actionable.filter((i) => i.category === "post_match_report").length;
+  const upcomingCount = upcoming.length;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -258,6 +285,35 @@ export function AssistantCommandCentrePage({
         context={planningPeriodName ? <span>{planningPeriodName}</span> : null}
       />
 
+      {/* Metric strip */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricTile
+          label="Blocked"
+          value={blockedCount}
+          tone={blockedCount > 0 ? "danger" : "neutral"}
+          icon={<OctagonAlert className="h-4 w-4" />}
+        />
+        <MetricTile
+          label="Decisions"
+          value={decisionCount}
+          tone={decisionCount > 0 ? "warning" : "neutral"}
+          icon={<AlertTriangle className="h-4 w-4" />}
+        />
+        <MetricTile
+          label="Reports"
+          value={reportCount}
+          tone={reportCount > 0 ? "info" : "neutral"}
+          icon={<CalendarRange className="h-4 w-4" />}
+        />
+        <MetricTile
+          label="Upcoming"
+          value={upcomingCount}
+          tone="neutral"
+          icon={<ShieldAlert className="h-4 w-4" />}
+        />
+      </div>
+
+      {/* Next action hero */}
       {nextAction ? (
         <NextActionCard item={nextAction} />
       ) : (
@@ -278,11 +334,11 @@ export function AssistantCommandCentrePage({
         />
       )}
 
+      {/* Grouped work sections */}
       {groups.map((group) => {
         const groupItems = actionable.filter((i) =>
           group.categories.includes(i.category),
         );
-        // Skip the next-action item from its own group to avoid duplication.
         const filtered = groupItems.filter((i) => i.id !== nextAction?.id);
         if (filtered.length === 0) return null;
         if (group.key === "reports") {
