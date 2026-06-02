@@ -18,8 +18,9 @@ import { Surface } from "@/components/ui/surface";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
 import { StatusRail } from "@/components/ui/status-rail";
-import { ScoreCapsule, type ScoreCapsuleResult } from "@/components/ui/score-capsule";
 import { MetricTile } from "@/components/ui/metric-tile";
+import { MatchTicket } from "@/components/ui/match-ticket";
+import type { ScoreCapsuleResult } from "@/components/ui/score-capsule";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarRange, OctagonAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 
@@ -71,106 +72,35 @@ function IntegritySummary({
   return <span className={`text-[11px] ${tone}`}>{parts.join(" · ")}</span>;
 }
 
-function OutcomeCell({ match }: { match: FixtureMatch }) {
-  const isCompleted = match.reportState.state === "COMPLETED";
-  const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
-  const now = new Date();
-  const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
-
-  if (isCompleted && match.reportState.state === "COMPLETED") {
-    const outcome = match.reportState.result.outcome;
-    const capsuleResult: ScoreCapsuleResult =
-      outcome === "WON" ? "win" : outcome === "DRAWN" ? "draw" : outcome === "LOST" ? "loss" : "unknown";
-    return (
-      <ScoreCapsule
-        homeScore={match.reportState.result.goalsFor}
-        awayScore={match.reportState.result.goalsAgainst}
-        result={capsuleResult}
-        size="sm"
-      />
-    );
-  }
-
-  if (isDraftReport && isPast) {
-    return (
-      <StatusRail status="missingReport" />
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <StatusRail
-        status={
-          match.selectionState === "NOT_GENERATED" ? "neutral" :
-          match.selectionState === "FINALIZED" ? "finalized" :
-          match.selectionState === "BLOCKED" ? "blocked" :
-          match.selectionState === "DRAFT" ? "draft" :
-          "neutral"
-        }
-      />
-      <IntegritySummary
-        blockerCount={match.blockerCount}
-        decisionRequiredCount={match.decisionRequiredCount}
-      />
-    </div>
-  );
-}
-
 function MatchRow({ match }: { match: FixtureMatch }) {
   const isCompleted = match.reportState.state === "COMPLETED";
-  const isDraftReport = match.reportState.state === "DRAFT_REPORT_INCOMPLETE";
-  const now = new Date();
-  const isPast = match.startsAt ? new Date(match.startsAt) < now : false;
 
-  // Outcome-aware row tint — soft and used only for completed matches.
-  const outcome =
-    isCompleted && match.reportState.state === "COMPLETED"
-      ? match.reportState.result.outcome
-      : null;
-  const outcomeAccent =
-    outcome === "WON"
-      ? "before:bg-[var(--accent)]/55"
-      : outcome === "LOST"
-        ? "before:bg-[var(--danger)]/55"
-        : outcome === "DRAWN"
-          ? "before:bg-[var(--text-muted)]/45"
-          : "";
+  const completedResult = isCompleted && match.reportState.state === "COMPLETED"
+    ? match.reportState.result
+    : undefined;
+
+  const result: ScoreCapsuleResult | undefined = completedResult
+    ? completedResult.outcome === "WON"
+      ? "win"
+      : completedResult.outcome === "LOST"
+        ? "loss"
+        : completedResult.outcome === "DRAWN"
+          ? "draw"
+          : "unknown"
+    : undefined;
 
   return (
-    <div
-      className={[
-        "group relative flex items-center justify-between gap-3 px-3 py-2 hover:bg-[var(--surface-muted)]/30 transition-colors",
-        outcomeAccent
-          ? `before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-r ${outcomeAccent} pl-3.5`
-          : "",
-      ].join(" ")}
-    >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm text-zinc-100 truncate">{match.title}</span>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
-          {match.venue && <span>{match.venue}</span>}
-          {match.startsAt && (
-            <span>{new Date(match.startsAt).toLocaleDateString()}</span>
-          )}
-          {typeof match.selectedPlayerCount === "number" &&
-            match.selectedPlayerCount > 0 &&
-            !isCompleted && <span>{match.selectedPlayerCount} selected</span>}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <OutcomeCell match={match} />
-        <Link
-          href={`/matches/${match.id}`}
-          className="text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
-        >
-          {isCompleted
-            ? "View report"
-            : isDraftReport && isPast
-              ? "Complete report"
-              : "Open"}
-        </Link>
-      </div>
-    </div>
+    <MatchTicket
+      teamName={match.teamName}
+      opponentName={match.opponent}
+      dateLabel={match.startsAt ? new Date(match.startsAt).toLocaleDateString() : undefined}
+      status={match.selectionState}
+      reportStatus={match.postMatchStatus}
+      homeScore={completedResult?.goalsFor}
+      awayScore={completedResult?.goalsAgainst}
+      result={result ?? "unknown"}
+      href={`/matches/${match.id}`}
+    />
   );
 }
 
