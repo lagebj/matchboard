@@ -36,40 +36,42 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /**
- * SidebarNav — per ADR 0007 the sidebar is calm and matte: the active item is
- * marked with a left rail (not a heavy background block), the brand mark is
- * quiet, and the version label is barely-visible footer text.
+ * SidebarNav — professional ops cockpit sidebar.
+ *
+ * Active item: calm left rail accent + muted surface highlight.
+ * Inactive: quiet, muted, hover reveals surface.
+ * Brand mark: subtle identity, not heavy.
+ * Version: barely visible footer text.
  */
 export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Primary" className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/40">
+    <nav
+      aria-label="Primary"
+      className="flex h-full flex-col bg-[rgba(8,11,18,0.98)]"
+    >
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--accent)]/20 bg-[var(--accent-subtle)]">
           <svg
             viewBox="0 0 24 24"
             fill="none"
             className="h-4 w-4 text-[var(--accent-strong)]"
             aria-hidden="true"
           >
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
             <circle cx="12" cy="12" r="2.2" fill="currentColor" />
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-zinc-50">Matchboard</p>
-          <p className="text-[10px] text-[var(--text-muted)]">Squad planning</p>
+          <p className="text-sm font-semibold tracking-tight text-zinc-50">Matchboard</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--text-muted)]">Squad planning</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pt-2">
+      {/* Nav items */}
+      <div className="flex-1 overflow-y-auto px-2 pt-1">
         <ul className="flex flex-col gap-0.5" role="list">
           {navItems.map((item) => {
             const active = isActive(pathname, item.href);
@@ -79,15 +81,15 @@ export function SidebarNav() {
                 <Link
                   aria-current={active ? "page" : undefined}
                   className={[
-                    "relative flex items-center gap-2.5 rounded-md pl-3 pr-3 py-1.5 text-sm transition-colors",
+                    "relative flex items-center gap-2.5 rounded-lg pl-3 pr-3 py-2 text-sm transition-colors",
                     active
-                      ? "text-zinc-50 font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-r before:bg-[var(--accent-strong)]"
-                      : "text-[var(--text-soft)] hover:bg-[var(--surface-muted)]/40 hover:text-zinc-50",
+                      ? "bg-[var(--accent-subtle)] text-zinc-50 font-medium before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[2.5px] before:rounded-r before:bg-[var(--accent-strong)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/40 hover:text-zinc-100",
                   ].join(" ")}
                   href={item.href}
                 >
                   <Icon
-                    className={`h-4 w-4 shrink-0 ${active ? "text-[var(--accent-strong)]" : ""}`}
+                    className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}`}
                     aria-hidden="true"
                   />
                   <span className="flex-1">{item.label}</span>
@@ -98,7 +100,10 @@ export function SidebarNav() {
         </ul>
       </div>
 
-      <div className="px-4 py-3 text-[10px] text-[var(--text-muted)]">v0.1</div>
+      {/* Pitch-line subtle texture hint at bottom */}
+      <div className="border-t border-[var(--border-soft)] px-4 py-3">
+        <p className="text-[9px] uppercase tracking-[0.18em] text-[var(--text-disabled)]">v0.1</p>
+      </div>
     </nav>
   );
 }

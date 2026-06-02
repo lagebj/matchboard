@@ -10,11 +10,13 @@ export default function AppLayout({
 }>) {
   return (
     <div className="app-shell flex min-h-full">
-      <aside className="sticky top-0 z-30 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(10,13,19,0.96)] backdrop-blur-2xl lg:flex">
+      {/* Sidebar — deep navy, pitch-line texture hint */}
+      <aside className="sticky top-0 z-30 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl lg:flex">
         <SidebarNav />
       </aside>
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[rgba(10,13,19,0.82)] backdrop-blur-2xl">
+        {/* Top bar — command/context strip */}
+        <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[rgba(10,13,19,0.85)] backdrop-blur-2xl">
           <div className="flex-1 min-w-0">
             <TopContextBar />
           </div>
@@ -22,6 +24,7 @@ export default function AppLayout({
             <UserNav />
           </div>
         </header>
+        {/* Main content — padded, max-width constrained */}
         <main className="flex-1 pb-20 lg:pb-0">
           <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
             {children}
