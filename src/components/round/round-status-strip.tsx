@@ -4,9 +4,10 @@ import {
   ShieldCheck,
   ArrowLeftRight,
   Users,
+  Target,
   type LucideIcon,
 } from "lucide-react";
-import { Surface } from "@/components/ui/surface";
+import { MetricTile } from "@/components/ui/metric-tile";
 
 type RoundStatusStripProps = {
   totalTeams: number;
@@ -19,27 +20,16 @@ type RoundStatusStripProps = {
   totalTarget: number;
 };
 
-type StatusVariant = "default" | "success" | "warning" | "danger" | "muted";
-
-type StatusItem = {
+type MetricDef = {
   icon: LucideIcon;
   label: string;
   value: string | number;
-  variant: StatusVariant;
-};
-
-const variantToneClass: Record<StatusVariant, string> = {
-  default: "text-zinc-100",
-  success: "text-[var(--accent-strong)]",
-  warning: "text-[var(--warning)]",
-  danger: "text-[var(--danger)]",
-  muted: "text-[var(--text-muted)]",
+  tone: "neutral" | "success" | "warning" | "danger" | "info";
 };
 
 /**
- * RoundStatusStrip — quiet decision strip showing only conditions worth
- * surfacing. Per ADR 0007 this is a compact summary, not a banner — it
- * complements (and does not duplicate) DecisionBanner.
+ * RoundStatusStrip — command strip using MetricTile for squad status.
+ * Shows only conditions worth surfacing. Complements DecisionBanner.
  */
 export function RoundStatusStrip({
   totalTeams,
@@ -51,78 +41,66 @@ export function RoundStatusStrip({
   totalSelected,
   totalTarget,
 }: RoundStatusStripProps) {
-  const items: StatusItem[] = [
+  const metrics: MetricDef[] = [
     {
       icon: Users,
       label: "Squads filled",
       value: `${completeTeams}/${totalTeams}`,
-      variant: completeTeams === totalTeams ? "success" : "default",
+      tone: completeTeams === totalTeams ? "success" : "neutral",
     },
   ];
 
   if (teamsNeedingSupport > 0) {
-    items.push({
+    metrics.push({
       icon: ShieldCheck,
       label: "Support needed",
       value: teamsNeedingSupport,
-      variant: "warning",
+      tone: "warning",
     });
   }
   if (squadRepairNeeded > 0) {
-    items.push({
+    metrics.push({
       icon: ArrowLeftRight,
       label: "Squad repair",
       value: squadRepairNeeded,
-      variant: "warning",
+      tone: "warning",
     });
   }
   if (blockedCount > 0) {
-    items.push({
+    metrics.push({
       icon: OctagonAlert,
       label: "Blocked",
       value: blockedCount,
-      variant: "danger",
+      tone: "danger",
     });
   }
   if (decisionRequiredCount > 0) {
-    items.push({
+    metrics.push({
       icon: AlertTriangle,
-      label: "Decision",
+      label: "Decisions",
       value: decisionRequiredCount,
-      variant: "warning",
+      tone: "warning",
     });
   }
 
+  metrics.push({
+    icon: Target,
+    label: "Squad places",
+    value: `${totalSelected}/${totalTarget}`,
+    tone: totalSelected >= totalTarget ? "success" : "neutral",
+  });
+
   return (
-    <Surface
-      padding="none"
-      className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5"
-    >
-      {items.map((item) => {
-        const Icon = item.icon;
-        const tone = variantToneClass[item.variant];
-        return (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <Icon className={`h-3.5 w-3.5 ${tone}`} aria-hidden="true" />
-            <span className={`text-xs font-semibold tabular-nums ${tone}`}>
-              {item.value}
-            </span>
-            <span className="text-[11px] text-[var(--text-muted)]">
-              {item.label}
-            </span>
-          </div>
-        );
-      })}
-      <div className="ml-auto flex items-center gap-1.5">
-        <span className="text-xs font-semibold tabular-nums text-zinc-100">
-          {totalSelected}
-        </span>
-        <span className="text-[11px] text-[var(--text-muted)]">of</span>
-        <span className="text-xs font-semibold tabular-nums text-zinc-100">
-          {totalTarget}
-        </span>
-        <span className="text-[11px] text-[var(--text-muted)]">squad places</span>
-      </div>
-    </Surface>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      {metrics.map((m) => (
+        <MetricTile
+          key={m.label}
+          icon={<m.icon className="h-4 w-4" />}
+          label={m.label}
+          value={m.value}
+          tone={m.tone}
+        />
+      ))}
+    </div>
   );
 }
