@@ -15,20 +15,20 @@ export const GRID_WIDTH = 5;
 export const GRID_HEIGHT = 6;
 
 export const GRID_X_PERCENT: Record<number, number> = {
-  0: 10,
-  1: 30,
+  0: 12,
+  1: 31,
   2: 50,
-  3: 70,
-  4: 90,
+  3: 69,
+  4: 88,
 };
 
 export const GRID_Y_PERCENT: Record<number, number> = {
-  0: 10,
-  1: 26,
+  0: 12,
+  1: 27,
   2: 42,
   3: 58,
-  4: 74,
-  5: 90,
+  4: 73,
+  5: 88,
 };
 
 export const WIDTH_LANE_LABELS: Record<number, string> = {
