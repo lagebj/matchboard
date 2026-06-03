@@ -53,3 +53,17 @@ export {
 export type { PlayerPositionInfo, CompatibilityResult } from "./lineup-compatibility";
 
 export { createFormationSnapshot } from "./snapshot";
+
+export {
+  suggestFormationForMatch,
+  suggestLineupForFormation,
+  preserveAssignmentsOnChange,
+} from "./suggest";
+
+export type {
+  FormationSuggestion,
+  SuggestFormationInput,
+  LineupSuggestion,
+  SuggestLineupInput,
+  AssignmentMigration,
+} from "./suggest";

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
+import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
 import type { SelectionRole } from "@/generated/prisma/client";
 import {
   Calendar,
@@ -13,6 +14,7 @@ import {
   ClipboardList,
   ShieldCheck,
   Eye,
+  LayoutGrid,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
@@ -91,7 +93,7 @@ const roleOrder = [
   "UNAVAILABLE",
 ];
 
-type MatchTab = "squad" | "after-match" | "opponent";
+type MatchTab = "squad" | "tactics" | "after-match" | "opponent";
 
 function formatMatchType(type: string): string {
   const map: Record<string, string> = {
@@ -153,6 +155,11 @@ function isMatchFinalized(selections: SelectionRow[]): boolean {
 const tabs: TabItem<MatchTab>[] = [
   { key: "squad", label: "Squad", icon: <Users className="h-3.5 w-3.5" aria-hidden="true" /> },
   {
+    key: "tactics",
+    label: "Tactics",
+    icon: <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />,
+  },
+  {
     key: "after-match",
     label: "After match",
     icon: <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />,
@@ -181,11 +188,13 @@ export function MatchDetail({ match }: { match: MatchData }) {
 
   const activeTabParam = searchParams.get("tab");
   const currentTab: MatchTab =
-    activeTabParam === "after-match"
-      ? "after-match"
-      : activeTabParam === "opponent"
-        ? "opponent"
-        : "squad";
+    activeTabParam === "tactics"
+      ? "tactics"
+      : activeTabParam === "after-match"
+        ? "after-match"
+        : activeTabParam === "opponent"
+          ? "opponent"
+          : "squad";
   const selectedTab = activeTab ?? currentTab;
 
   const dateStr = match.startsAt.toLocaleDateString("en-GB", {
@@ -546,6 +555,21 @@ export function MatchDetail({ match }: { match: MatchData }) {
             )}
           </aside>
         </div>
+      )}
+
+      {selectedTab === "tactics" && (
+        <MatchTacticsPanel
+          matchId={match.id}
+          teamId={match.teamId}
+          teamName={match.teamName}
+          gameFormat={match.gameFormat}
+          selections={match.selections.map((s) => ({
+            playerId: s.playerId,
+            playerName: s.playerName,
+            role: s.role,
+            coreTeamName: s.coreTeamName,
+          }))}
+        />
       )}
 
       {selectedTab === "after-match" && (

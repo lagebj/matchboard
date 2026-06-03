@@ -1,7 +1,7 @@
 "use client";
 
-import { GRID_X_PERCENT, GRID_Y_PERCENT, WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, GRID_WIDTH, GRID_HEIGHT, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations";
-import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations";
+import { GRID_X_PERCENT, GRID_Y_PERCENT, WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, GRID_WIDTH, GRID_HEIGHT, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
+import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
