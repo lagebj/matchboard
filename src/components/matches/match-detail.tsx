@@ -48,6 +48,8 @@ type SelectionRow = {
   priorityScore: number | null;
   overrideReason: string | null;
   matchdayResponsibility?: string | null;
+  primaryPosition: string;
+  secondaryPosition: string | null;
 };
 
 type WarningRow = {
@@ -568,6 +570,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
             playerName: s.playerName,
             role: s.role,
             coreTeamName: s.coreTeamName,
+            primaryPosition: s.primaryPosition,
+            secondaryPosition: s.secondaryPosition,
           }))}
         />
       )}

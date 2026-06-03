@@ -248,7 +248,7 @@ type PitchLineupViewProps = {
   slots: FormationSlotDisplay[];
   assignments: { id: string; slotId: string; playerId: string | null; locked: boolean; source: string }[];
   players: { id: string; firstName: string; lastName: string | null; primaryPosition: string }[];
-  onSlotClick?: (assignmentId: string, slotId: string) => void;
+  onSlotClick?: (assignmentId: string | null, slotId: string, playerId: string | null) => void;
   readOnly?: boolean;
 };
 
@@ -284,21 +284,20 @@ export function PitchLineupView({
             key={slot.id}
             type="button"
             onClick={() => {
-              if (!readOnly && assignment && onSlotClick) {
-                onSlotClick(assignment.id, slot.id);
+              if (!readOnly && onSlotClick) {
+                onSlotClick(assignment?.id ?? null, slot.id, assignment?.playerId ?? null);
               }
             }}
             className={cn(
               "absolute z-10 flex flex-col items-center justify-center rounded-lg border-2 px-1 py-0.5 text-xs font-semibold transition-transform min-w-[3.5rem]",
               player
-                ? "bg-[var(--accent)]/20 border-[var(--accent)] text-zinc-100 hover:scale-105"
-                : cn("border-2", ROLE_COLORS[slot.roleType], "opacity-60"),
+                ? "bg-[var(--accent)]/20 border-[var(--accent)] text-zinc-100 hover:scale-105 cursor-pointer"
+                : cn("border-2 cursor-pointer hover:scale-105", ROLE_COLORS[slot.roleType], "opacity-60 hover:opacity-80"),
               assignment?.locked && "ring-1 ring-[var(--accent)]",
               readOnly && "cursor-default hover:scale-100",
-              !readOnly && !player && "opacity-80",
             )}
             style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
-            aria-label={player ? `${player.firstName} ${player.lastName ?? ""} - ${slot.shortLabel}` : `${slot.shortLabel}: ${slot.label} (empty)`}
+            aria-label={player ? `${player.firstName} ${player.lastName ?? ""} - ${slot.shortLabel}` : `${slot.shortLabel}: ${slot.label} (tap to assign)`}
           >
             {player ? (
               <>
