@@ -7,6 +7,7 @@ import {
   CalendarRange,
   Users,
   Shield,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ const navItems: NavItem[] = [
   { href: "/fixtures", label: "Fixtures", icon: CalendarRange },
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/players", label: "Players", icon: Users },
+  { href: "/formations", label: "Formations", icon: LayoutGrid },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -31,6 +33,9 @@ function isActive(pathname: string, href: string): boolean {
     return ["/rounds", "/matches", "/opponents"].some(
       (p) => pathname === p || pathname.startsWith(`${p}/`),
     );
+  }
+  if (href === "/formations") {
+    return pathname.startsWith("/formations/");
   }
   return true;
 }

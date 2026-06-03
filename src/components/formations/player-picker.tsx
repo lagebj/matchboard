@@ -21,6 +21,7 @@ type PlayerPickerProps = {
   players: PlayerPickInfo[];
   slot: FormationSlotData;
   assignedPlayerIds: Set<string>;
+  currentAssignedPlayer?: PlayerPickInfo | null;
   onSelect: (playerId: string) => void;
   onClear: () => void;
 };
@@ -31,6 +32,7 @@ export function PlayerPicker({
   players,
   slot,
   assignedPlayerIds,
+  currentAssignedPlayer,
   onSelect,
   onClear,
 }: PlayerPickerProps) {
@@ -60,12 +62,16 @@ export function PlayerPicker({
       });
   }, [players, assignedPlayerIds, search, slot]);
 
+  const currentName = currentAssignedPlayer
+    ? `${currentAssignedPlayer.firstName} ${currentAssignedPlayer.lastName ?? ""}`.trim()
+    : null;
+
   return (
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={`Assign player`}
-      description={`${slot.label} (${slot.shortLabel})`}
+      title={currentName ? `Change assignment` : "Assign player"}
+      description={`${slot.label} (${slot.shortLabel})${currentName ? ` — currently ${currentName}` : ""}`}
       size="lg"
     >
       <div className="flex flex-col gap-3 max-h-[60vh]">
@@ -116,8 +122,8 @@ export function PlayerPicker({
       </div>
 
       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border-soft)]">
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          Clear slot
+        <Button variant="ghost" size="sm" onClick={onClear} disabled={!currentAssignedPlayer}>
+          {currentAssignedPlayer ? `Remove ${currentAssignedPlayer.firstName}` : "Clear slot"}
         </Button>
         <div className="flex-1" />
         <Button variant="secondary" size="sm" onClick={onClose}>

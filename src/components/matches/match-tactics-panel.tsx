@@ -454,6 +454,9 @@ export function MatchTacticsPanel({
   const currentAssignedPlayerId = pickerState?.assignmentId
     ? lineup.assignments.find((a) => a.id === pickerState.assignmentId)?.playerId ?? null
     : null;
+  const currentAssignedPlayerInfo = currentAssignedPlayerId && !isConfirmed
+    ? (() => { const p = playerPool.find((p) => p.id === currentAssignedPlayerId); return p ? { id: p.id, firstName: p.firstName, lastName: p.lastName, primaryPosition: p.primaryPosition } : null; })()
+    : null;
   const _isPickerLocked = pickerState?.assignmentId
     ? lineup.assignments.find((a) => a.id === pickerState.assignmentId)?.locked ?? false
     : false;
@@ -529,7 +532,7 @@ export function MatchTacticsPanel({
                 Create formation
               </Button>
               {lineup.formationId && (
-                <Button variant="ghost" size="sm" as="a" href={`/formations/${lineup.formationId}/edit?returnTo=/matches/${matchId}?tab=tactics`}>
+                <Button variant="ghost" size="sm" as="a" href={`/formations/new?duplicateFrom=${lineup.formationId}&returnTo=/matches/${matchId}?tab=tactics`}>
                   Duplicate current formation
                 </Button>
               )}
@@ -673,6 +676,7 @@ export function MatchTacticsPanel({
             sortOrder: 0,
           }}
           assignedPlayerIds={assignedPlayerIds}
+          currentAssignedPlayer={currentAssignedPlayerInfo}
           onSelect={handlePlayerSelect}
           onClear={currentAssignedPlayerId && !isConfirmed ? handleRemovePlayer : () => {}}
         />
