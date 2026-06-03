@@ -29,6 +29,7 @@ export {
   formatGameFormatShort,
   isValidGridX,
   isValidGridY,
+  getGridPositionPercent,
 } from "./types";
 
 export { suggestSlotDefaults } from "./slot-defaults";

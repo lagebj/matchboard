@@ -9,7 +9,7 @@ import {
   GAME_FORMAT_PLAYERS,
   SYSTEM_FORMATIONS,
   getSystemFormationsForFormat,
-} from "@/lib/formations";
+} from "@/lib/formations/index";
 import {
   mapExistingPositionToBroad,
   getPlayerSlotCompatibility,

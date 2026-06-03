@@ -186,7 +186,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<MatchTab>("squad");
+  const [activeTab, setActiveTab] = useState<MatchTab | null>(null);
 
   const activeTabParam = searchParams.get("tab");
   const currentTab: MatchTab =

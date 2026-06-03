@@ -863,6 +863,9 @@ Other canonical routes:
 | `/season` | Season — player-by-round matrix, movement paths, fairness overview |
 | `/history` | Historical audit of finalized selections and movement |
 | `/rules` | Selection rules, support priority, rotation paths |
+| `/formations` | Formation management — list, filter by game format, create, duplicate, edit, archive |
+| `/formations/new` | Create new custom formation (supports `?gameFormat=X&returnTo=Y`) |
+| `/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
 
 Setup registry create routes (no top-level nav):
 - `/teams/new` — create team form
@@ -1386,10 +1389,32 @@ Avoid:
 | `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
 | `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
 
+### Formation/tactics files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/formations/types.ts` | Grid coordinates, role types, broad positions, constants, `getGridPositionPercent()` |
+| `src/lib/formations/system-formations.ts` | System formation definitions (3v3–11v11) |
+| `src/lib/formations/validate.ts` | Formation validation for match use |
+| `src/lib/formations/slot-defaults.ts` | `suggestSlotDefaults()` for auto-fill on grid cell click |
+| `src/lib/formations/snapshot.ts` | `createFormationSnapshot()` for lineup creation |
+| `src/lib/formations/suggest.ts` | `suggestFormationForMatch()`, `suggestLineupForFormation()`, `preserveAssignmentsOnChange()` |
+| `src/lib/formations/lineup-compatibility.ts` | `getPlayerSlotCompatibility()`, `sortPlayersBySlotCompatibility()`, `getPlayersForLineup()` |
+| `src/lib/formations/normalize.ts` | `findFormationDataIssues()` — formation data validation/normalization |
+| `src/lib/formations/seed.ts` | `seedSystemFormations()` — DB seeding from system-formations data |
+| `src/components/formations/pitch-formation.tsx` | `PitchFormationBuilder` (editor), `PitchLineupView` (lineup), `SlotEditDialog` |
+| `src/components/formations/player-picker.tsx` | `PlayerPicker` dialog for slot assignment |
+| `src/components/formations/formations-builder.tsx` | `FormationsBuilderClient` — create/edit formation page component |
+| `src/components/matches/match-tactics-panel.tsx` | `MatchTacticsPanel` — tactics tab in match detail |
+| `src/app/(app)/rules/formation-actions.ts` | Server actions: CRUD for formations and slots, duplicate, archive |
+| `src/app/(app)/matches/lineup-actions.ts` | Server actions: create lineup, assign/remove player, toggle lock, confirm, archive, revert, bench |
+| `src/app/(app)/matches/suggest-actions.ts` | Server actions: suggest formation, suggest lineup, apply, clear, fill |
+
 ## Stale references removed
 
 - `docs/domain.md` — deleted, do not reference
 - `docs/spec-ux-overhaul.md` — superseded by `docs/specs/ux-overhaul.md`
+- `src/lib/formations.ts` — deleted, legacy row/col model; use `src/lib/formations/index.ts` barrel or direct `@/lib/formations/types` imports
 
 ## Assistant Manager Workflow Rules
 

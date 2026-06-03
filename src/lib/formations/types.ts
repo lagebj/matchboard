@@ -157,3 +157,10 @@ export function isValidGridX(x: number): boolean {
 export function isValidGridY(y: number): boolean {
   return Number.isInteger(y) && y >= 0 && y <= 5;
 }
+
+export function getGridPositionPercent(gridX: number, gridY: number): { x: number; y: number } {
+  return {
+    x: GRID_X_PERCENT[gridX] ?? 50,
+    y: GRID_Y_PERCENT[gridY] ?? 50,
+  };
+}
