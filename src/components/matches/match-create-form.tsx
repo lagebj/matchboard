@@ -140,6 +140,8 @@ export function MatchCreateForm({
           defaultValue="ELEVEN_A_SIDE"
           className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
         >
+          <option value="THREE_A_SIDE">3-a-side</option>
+          <option value="FIVE_A_SIDE">5-a-side</option>
           <option value="SEVEN_A_SIDE">7-a-side</option>
           <option value="NINE_A_SIDE">9-a-side</option>
           <option value="ELEVEN_A_SIDE">11-a-side</option>

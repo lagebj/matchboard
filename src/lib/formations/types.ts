@@ -1,0 +1,159 @@
+import type { GameFormat } from "@/generated/prisma/client";
+
+export type GridCoordinate = {
+  x: 0 | 1 | 2 | 3 | 4;
+  y: 0 | 1 | 2 | 3 | 4 | 5;
+};
+
+export const WIDTH_LANES = ["left_wide", "left_half", "centre", "right_half", "right_wide"] as const;
+export const DEPTH_LANES = ["attack", "attacking_midfield", "midfield", "defensive_midfield", "defence", "goalkeeper_or_deep"] as const;
+
+export type WidthLane = (typeof WIDTH_LANES)[number];
+export type DepthLane = (typeof DEPTH_LANES)[number];
+
+export const GRID_WIDTH = 5;
+export const GRID_HEIGHT = 6;
+
+export const GRID_X_PERCENT: Record<number, number> = {
+  0: 10,
+  1: 30,
+  2: 50,
+  3: 70,
+  4: 90,
+};
+
+export const GRID_Y_PERCENT: Record<number, number> = {
+  0: 10,
+  1: 26,
+  2: 42,
+  3: 58,
+  4: 74,
+  5: 90,
+};
+
+export const WIDTH_LANE_LABELS: Record<number, string> = {
+  0: "Left wide",
+  1: "Left half",
+  2: "Centre",
+  3: "Right half",
+  4: "Right wide",
+};
+
+export const DEPTH_LANE_LABELS: Record<number, string> = {
+  0: "Attack",
+  1: "Attacking midfield",
+  2: "Midfield",
+  3: "Defensive midfield",
+  4: "Defence",
+  5: "Goalkeeper / Deep",
+};
+
+export type FormationSlotRoleType =
+  | "GOALKEEPER"
+  | "DEFENDER"
+  | "DEFENSIVE_MIDFIELDER"
+  | "MIDFIELDER"
+  | "ATTACKING_MIDFIELDER"
+  | "FORWARD"
+  | "FREE";
+
+export type FormationSource = "SYSTEM" | "CUSTOM";
+
+export type FormationSlotData = {
+  id?: string;
+  gridX: number;
+  gridY: number;
+  label: string;
+  shortLabel: string;
+  roleType: FormationSlotRoleType;
+  acceptedPositionIds: string[];
+  sortOrder: number;
+};
+
+export type FormationData = {
+  id?: string;
+  name: string;
+  gameFormat: GameFormat;
+  source: FormationSource;
+  teamId?: string | null;
+  createdByUserId?: string | null;
+  description?: string | null;
+  isArchived: boolean;
+  slots: FormationSlotData[];
+};
+
+export type FormationSnapshot = {
+  formationId: string;
+  formationName: string;
+  gameFormat: GameFormat;
+  slots: {
+    slotId: string;
+    gridX: number;
+    gridY: number;
+    label: string;
+    shortLabel: string;
+    roleType: FormationSlotRoleType;
+    acceptedPositionIds: string[];
+    sortOrder: number;
+  }[];
+};
+
+export type BroadPosition = "goalkeeper" | "defender" | "midfielder" | "forward" | "flexible";
+
+export const BROAD_POSITIONS: BroadPosition[] = ["goalkeeper", "defender", "midfielder", "forward", "flexible"];
+
+export const BROAD_POSITION_LABELS: Record<BroadPosition, string> = {
+  goalkeeper: "Goalkeeper",
+  defender: "Defender",
+  midfielder: "Midfielder",
+  forward: "Forward",
+  flexible: "Flexible",
+};
+
+export const ROLE_TYPE_LABELS: Record<FormationSlotRoleType, string> = {
+  GOALKEEPER: "Goalkeeper",
+  DEFENDER: "Defender",
+  DEFENSIVE_MIDFIELDER: "Defensive midfielder",
+  MIDFIELDER: "Midfielder",
+  ATTACKING_MIDFIELDER: "Attacking midfielder",
+  FORWARD: "Forward",
+  FREE: "Free",
+};
+
+export const GAME_FORMAT_PLAYERS: Record<GameFormat, number> = {
+  THREE_A_SIDE: 3,
+  FIVE_A_SIDE: 5,
+  SEVEN_A_SIDE: 7,
+  NINE_A_SIDE: 9,
+  ELEVEN_A_SIDE: 11,
+};
+
+export function formatGameFormatLabel(gameFormat: GameFormat | string): string {
+  switch (gameFormat) {
+    case "THREE_A_SIDE": return "3-a-side";
+    case "FIVE_A_SIDE": return "5-a-side";
+    case "SEVEN_A_SIDE": return "7-a-side";
+    case "NINE_A_SIDE": return "9-a-side";
+    case "ELEVEN_A_SIDE": return "11-a-side";
+    default: return String(gameFormat);
+  }
+}
+
+export function formatGameFormatShort(gameFormat: GameFormat | string): string {
+  switch (gameFormat) {
+    case "THREE_A_SIDE": return "3v3";
+    case "FIVE_A_SIDE": return "5v5";
+    case "SEVEN_A_SIDE": return "7v7";
+    case "NINE_A_SIDE": return "9v9";
+    case "ELEVEN_A_SIDE": return "11v11";
+    default: return String(gameFormat);
+  }
+}
+
+export function isValidGridX(x: number): boolean {
+  return Number.isInteger(x) && x >= 0 && x <= 4;
+}
+
+export function isValidGridY(y: number): boolean {
+  return Number.isInteger(y) && y >= 0 && y <= 5;
+}

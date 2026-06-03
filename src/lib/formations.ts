@@ -1,18 +1,21 @@
-export type FormationSlot = {
+import { GAME_FORMAT_PLAYERS } from "./formations/types";
+import { formatGameFormatShort } from "./formations/types";
+
+export type LegacyFormationSlot = {
   slot: string;
   row: number;
   col: number;
 };
 
-export type Formation = {
+export type LegacyFormation = {
   id: string;
   label: string;
   gameFormat: string;
-  slots: FormationSlot[];
+  slots: LegacyFormationSlot[];
   cols: number;
 };
 
-const FORMATIONS: Formation[] = [
+const FORMATIONS: LegacyFormation[] = [
   {
     id: "7v7-1-2-3-1",
     label: "7v7 · 1-2-3-1",
@@ -117,28 +120,62 @@ const FORMATIONS: Formation[] = [
   },
 ];
 
-export function getFormationsForFormat(gameFormat: string): Formation[] {
+export function getFormationsForFormat(gameFormat: string): LegacyFormation[] {
   return FORMATIONS.filter((f) => f.gameFormat === gameFormat);
 }
 
-export function getDefaultFormation(gameFormat: string): Formation {
+export function getDefaultFormation(gameFormat: string): LegacyFormation {
   const formations = getFormationsForFormat(gameFormat);
   return formations[0] ?? FORMATIONS[0];
 }
 
-export function getFormationById(id: string): Formation | undefined {
+export function getFormationById(id: string): LegacyFormation | undefined {
   return FORMATIONS.find((f) => f.id === id);
 }
 
-export function formatGameFormat(gameFormat: string): string {
-  switch (gameFormat) {
-    case "SEVEN_A_SIDE":
-      return "7-a-side";
-    case "NINE_A_SIDE":
-      return "9-a-side";
-    case "ELEVEN_A_SIDE":
-      return "11-a-side";
-    default:
-      return gameFormat;
-  }
-}
+export { GAME_FORMAT_PLAYERS, formatGameFormatShort };
+
+export {
+  WIDTH_LANES,
+  DEPTH_LANES,
+  GRID_WIDTH,
+  GRID_HEIGHT,
+  GRID_X_PERCENT,
+  GRID_Y_PERCENT,
+  WIDTH_LANE_LABELS,
+  DEPTH_LANE_LABELS,
+  BROAD_POSITIONS,
+  BROAD_POSITION_LABELS,
+  ROLE_TYPE_LABELS,
+  formatGameFormatLabel,
+  isValidGridX,
+  isValidGridY,
+  suggestSlotDefaults,
+  SYSTEM_FORMATIONS,
+  getSystemFormationsForFormat,
+  seedSystemFormations,
+  validateFormationForMatchUse,
+  isValidSlotInFormat,
+  isValidRoleType,
+  mapExistingPositionToBroad,
+  getPlayerSlotCompatibility,
+  sortPlayersBySlotCompatibility,
+  getPlayersForLineup,
+  createFormationSnapshot,
+} from "./formations/index";
+
+export type {
+  GridCoordinate,
+  WidthLane,
+  DepthLane,
+  FormationSlotRoleType,
+  FormationSource,
+  FormationSlotData,
+  FormationData,
+  FormationSnapshot,
+  BroadPosition,
+  FormationValidationIssue,
+  FormationValidationResult,
+  PlayerPositionInfo,
+  CompatibilityResult,
+} from "./formations/index";

@@ -27,6 +27,8 @@ model Team {
 
   corePlayers                Player[]                 @relation("CoreTeam")
   matches                    Match[]
+  formations                 Formation[]
+  lineups                    MatchLineup[]
 
   fromRotationPaths RotationPath[] @relation("FromTeam")
   toRotationPaths   RotationPath[] @relation("ToTeam")
@@ -89,6 +91,7 @@ model Player {
   readinessSignals PlayerReadinessSignal[]
   executionFeedback MatchExecutionFeedback[]
   movementCandidates MovementCandidate[]
+  positions           PlayerPosition[]
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
 }
@@ -119,6 +122,7 @@ model Match {
   teamReflection  TeamReflection?
   executionFeedback MatchExecutionFeedback[]
   opponentObservation OpponentEncounterObservation?
+  lineups     MatchLineup[]
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
 }
@@ -368,9 +372,140 @@ enum OpponentObservationFollowUp {
 }
 
 enum GameFormat {
+  THREE_A_SIDE
+  FIVE_A_SIDE
   SEVEN_A_SIDE
   NINE_A_SIDE
   ELEVEN_A_SIDE
+}
+
+enum FormationSource {
+  SYSTEM
+  CUSTOM
+}
+
+enum FormationSlotRoleType {
+  GOALKEEPER
+  DEFENDER
+  DEFENSIVE_MIDFIELDER
+  MIDFIELDER
+  ATTACKING_MIDFIELDER
+  FORWARD
+  FREE
+}
+
+enum MatchLineupStatus {
+  DRAFT
+  CONFIRMED
+  ARCHIVED
+}
+
+enum MatchLineupAssignmentSource {
+  MANUAL
+  SUGGESTED
+}
+
+enum PlayerPositionPriority {
+  PRIMARY
+  SECONDARY
+  CAN_PLAY
+}
+
+model Formation {
+  id              String           @id @default(cuid())
+  name            String
+  gameFormat      GameFormat
+  source          FormationSource  @default(SYSTEM)
+  teamId          String?
+  createdByUserId String?
+  description     String?
+  isArchived      Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  slots           FormationSlot[]
+  lineups         MatchLineup[]
+
+  team            Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([gameFormat])
+  @@index([teamId])
+  @@index([source, isArchived])
+}
+
+model FormationSlot {
+  id                    String                  @id @default(cuid())
+  formationId           String
+  gridX                 Int
+  gridY                 Int
+  label                 String
+  shortLabel            String
+  roleType              FormationSlotRoleType
+  acceptedPositionIds   Json                    @default("[]")
+  sortOrder             Int                     @default(0)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  formation             Formation               @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@unique([formationId, gridX, gridY])
+  @@index([formationId])
+  @@index([formationId, sortOrder])
+}
+
+model MatchLineup {
+  id                 String              @id @default(cuid())
+  matchId            String
+  teamId             String
+  formationId        String?
+  status             MatchLineupStatus   @default(DRAFT)
+  formationSnapshot  Json?
+  benchPlayerIds     Json                @default("[]")
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  match              Match               @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team               Team                @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  formation          Formation?          @relation(fields: [formationId], references: [id], onDelete: SetNull)
+  assignments        MatchLineupAssignment[]
+
+  @@index([matchId])
+  @@index([teamId])
+  @@index([status])
+}
+
+model MatchLineupAssignment {
+  id            String                      @id @default(cuid())
+  matchLineupId String
+  slotId        String
+  playerId      String?
+  locked        Boolean                     @default(false)
+  source        MatchLineupAssignmentSource  @default(MANUAL)
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+
+  matchLineup   MatchLineup                 @relation(fields: [matchLineupId], references: [id], onDelete: Cascade)
+
+  @@unique([matchLineupId, slotId])
+  @@unique([matchLineupId, playerId])
+  @@index([matchLineupId])
+  @@index([playerId])
+}
+
+model PlayerPosition {
+  id          String                   @id @default(cuid())
+  playerId    String
+  positionId  String
+  priority    PlayerPositionPriority   @default(PRIMARY)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  player      Player                    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, positionId])
+  @@index([playerId])
+  @@index([positionId])
 }
 
 enum MatchType {
