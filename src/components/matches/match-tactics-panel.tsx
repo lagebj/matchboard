@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PitchLineupView } from "@/components/formations/pitch-formation";
 import { PlayerPicker } from "@/components/formations/player-picker";
@@ -129,6 +129,12 @@ export function MatchTacticsPanel({
       }
     });
   }, [matchId, teamId]);
+
+  useEffect(() => {
+    if (!loaded) {
+      handleLoad();
+    }
+  }, [loaded, handleLoad]);
 
   const handleCreateLineup = useCallback(() => {
     if (!selectedFormationId) return;
@@ -361,9 +367,7 @@ export function MatchTacticsPanel({
       <Surface padding="lg">
         <SectionHeader title="Tactics" description={`Formation and lineup planning for ${teamName}.`} />
         <div className="mt-4">
-          <Button variant="primary" size="sm" disabled={isPending} onClick={handleLoad}>
-            {isPending ? "Loading…" : "Get started"}
-          </Button>
+          <p className="text-xs text-[var(--text-muted)]">{isPending ? "Loading…" : "Loading formation data…"}</p>
         </div>
       </Surface>
     );
@@ -431,6 +435,14 @@ export function MatchTacticsPanel({
             </Button>
           </div>
         )}
+        <div className="mt-4 flex items-center gap-2 border-t border-[var(--border-soft)] pt-3">
+          <Button variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
+            Create formation
+          </Button>
+          <Button variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
+            Manage formations
+          </Button>
+        </div>
       </Surface>
     );
   }
@@ -486,33 +498,45 @@ export function MatchTacticsPanel({
           )}
         </div>
 
-        {!isConfirmed && formations.length > 0 && (
-          <div className="mt-3">
-            <details className="group">
-              <summary className="text-xs text-[var(--accent-strong)] cursor-pointer hover:underline list-none flex items-center gap-1">
-                <span className="group-open:rotate-90 transition-transform">&#9654;</span>
-                Change formation
-              </summary>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {formations.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    disabled={f.id === lineup.formationId}
-                    onClick={() => handleChangeFormation(f.id)}
-                    className={cn(
-                      "rounded-md border px-3 py-2 text-left text-xs transition-colors",
-                      f.id === lineup.formationId
-                        ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-zinc-100 cursor-default"
-                        : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--border-strong)] text-[var(--text-soft)]"
-                    )}
-                  >
-                    <span className="font-medium">{f.name}</span>
-                    <span className="ml-1 text-[var(--text-muted)]">{f.source === "CUSTOM" ? "Custom" : "System"}</span>
-                  </button>
-                ))}
+        {!isConfirmed && (
+          <div className="mt-3 flex flex-col gap-3">
+            {formations.length > 0 && (
+              <div>
+                <p className="text-xs text-[var(--text-muted)] mb-1.5">Change formation</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {formations.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      disabled={f.id === lineup.formationId}
+                      onClick={() => handleChangeFormation(f.id)}
+                      className={cn(
+                        "rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                        f.id === lineup.formationId
+                          ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-zinc-100 cursor-default"
+                          : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--border-strong)] text-[var(--text-soft)]"
+                      )}
+                    >
+                      <span className="font-medium">{f.name}</span>
+                      <span className="ml-1 text-[var(--text-muted)]">{f.source === "CUSTOM" ? "Custom" : "System"}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </details>
+            )}
+            <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-soft)]">
+              <Button variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
+                Create formation
+              </Button>
+              {lineup.formationId && (
+                <Button variant="ghost" size="sm" as="a" href={`/formations/${lineup.formationId}/edit?returnTo=/matches/${matchId}?tab=tactics`}>
+                  Duplicate current formation
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
+                Manage formations
+              </Button>
+            </div>
           </div>
         )}
 

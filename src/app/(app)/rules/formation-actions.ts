@@ -10,9 +10,14 @@ import {
   isValidGridY,
   GAME_FORMAT_PLAYERS,
   suggestSlotDefaults,
-} from "@/lib/formations";
+} from "@/lib/formations/index";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
+
+function revalidateFormationPaths() {
+  revalidatePath("/rules");
+  revalidatePath("/formations");
+}
 
 export async function getFormationsForFormat(gameFormat: GameFormat) {
   await requireCoachAccess();
@@ -90,7 +95,7 @@ export async function createCustomFormation(data: {
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
   return formation;
 }
 
@@ -128,7 +133,7 @@ export async function duplicateFormation(formationId: string, newName?: string) 
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
   return formation;
 }
 
@@ -217,7 +222,7 @@ export async function updateCustomFormation(
     });
   }
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
   return db.formation.findUnique({
     where: { id: formationId },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
@@ -239,7 +244,7 @@ export async function archiveFormation(formationId: string) {
     data: { isArchived: true },
   });
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
 }
 
 export async function deleteCustomFormation(formationId: string) {
@@ -264,7 +269,7 @@ export async function deleteCustomFormation(formationId: string) {
   await db.formationSlot.deleteMany({ where: { formationId } });
   await db.formation.delete({ where: { id: formationId } });
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
 }
 
 export async function addFormationSlot(
@@ -306,7 +311,7 @@ export async function addFormationSlot(
     },
   });
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
   return slot;
 }
 
@@ -336,7 +341,7 @@ export async function updateFormationSlot(
     data: updateData,
   });
 
-  revalidatePath("/rules");
+  revalidateFormationPaths();
   return slot;
 }
 
@@ -344,5 +349,5 @@ export async function removeFormationSlot(slotId: string) {
   await requireCoachAccess();
 
   await db.formationSlot.delete({ where: { id: slotId } });
-  revalidatePath("/rules");
+  revalidateFormationPaths();
 }

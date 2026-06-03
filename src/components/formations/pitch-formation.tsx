@@ -1,6 +1,6 @@
 "use client";
 
-import { GRID_X_PERCENT, GRID_Y_PERCENT, WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, GRID_WIDTH, GRID_HEIGHT, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
+import { WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, GRID_WIDTH, GRID_HEIGHT, ROLE_TYPE_LABELS, formatGameFormatShort, getGridPositionPercent } from "@/lib/formations/types";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
@@ -65,64 +65,65 @@ export function PitchFormationBuilder({
         </span>
       </div>
 
-      <div className="relative w-full aspect-[5/7] bg-[var(--surface-tactical)] border border-[var(--border-pitch)] rounded-xl overflow-hidden">
-        {/* Pitch markings */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
-          <rect x="2" y="2" width="96" height="96" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-          <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-          <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-          <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-          <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
-        </svg>
+      <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
+        <div className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
+          {/* Pitch markings */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
+            <rect x="2" y="2" width="96" height="96" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
+            <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
+            <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+            <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
+            <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+          </svg>
 
-        {/* Grid points and slots */}
-        {Array.from({ length: GRID_HEIGHT }, (_, y) =>
-          Array.from({ length: GRID_WIDTH }, (_, x) => {
-            const key = `${x},${y}`;
-            const slot = slotMap.get(key);
-            const xPct = GRID_X_PERCENT[x];
-            const yPct = GRID_Y_PERCENT[y];
+          {/* Grid points and slots */}
+          {Array.from({ length: GRID_HEIGHT }, (_, y) =>
+            Array.from({ length: GRID_WIDTH }, (_, x) => {
+              const key = `${x},${y}`;
+              const slot = slotMap.get(key);
+              const { x: xPct, y: yPct } = getGridPositionPercent(x, y);
 
-            if (slot) {
+              if (slot) {
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => !readOnly && onEditSlot(slot.id)}
+                    className={cn(
+                      "absolute z-10 flex flex-col items-center justify-center rounded-lg border-2 px-1 py-0.5 text-xs font-semibold transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 min-w-[3rem]",
+                      ROLE_COLORS[slot.roleType],
+                      readOnly && "cursor-default hover:scale-100",
+                    )}
+                    style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
+                    aria-label={`${slot.shortLabel}: ${slot.label} (${ROLE_TYPE_LABELS[slot.roleType]})`}
+                  >
+                    <span className="text-[10px] leading-tight font-bold">{slot.shortLabel}</span>
+                    <span className="text-[8px] leading-none opacity-70">{ROLE_TYPE_LABELS[slot.roleType].split(" ")[0]}</span>
+                  </button>
+                );
+              }
+
+              if (readOnly) return null;
+
               return (
                 <button
                   key={key}
                   type="button"
-                  onClick={() => !readOnly && onEditSlot(slot.id)}
+                  onClick={() => canAddMore ? onAddSlot(x, y) : undefined}
+                  disabled={!canAddMore}
                   className={cn(
-                    "absolute z-10 flex flex-col items-center justify-center rounded-lg border-2 px-1 py-0.5 text-xs font-semibold transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 min-w-[3rem]",
-                    ROLE_COLORS[slot.roleType],
-                    readOnly && "cursor-default hover:scale-100",
+                    "absolute z-5 flex items-center justify-center rounded-full border-2 border-dashed border-[var(--border-soft)] bg-[var(--surface-base)]/50 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:border-[var(--accent)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 w-8 h-8",
+                    !canAddMore && "opacity-30 cursor-not-allowed",
                   )}
                   style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
-                  aria-label={`${slot.shortLabel}: ${slot.label} (${ROLE_TYPE_LABELS[slot.roleType]})`}
+                  aria-label={`Add slot at ${WIDTH_LANE_LABELS[x]}, ${DEPTH_LANE_LABELS[y]}`}
                 >
-                  <span className="text-[10px] leading-tight font-bold">{slot.shortLabel}</span>
-                  <span className="text-[8px] leading-none opacity-70">{ROLE_TYPE_LABELS[slot.roleType].split(" ")[0]}</span>
+                  <span className="text-lg leading-none">+</span>
                 </button>
               );
-            }
-
-            if (readOnly) return null;
-
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => canAddMore ? onAddSlot(x, y) : undefined}
-                disabled={!canAddMore}
-                className={cn(
-                  "absolute z-5 flex items-center justify-center rounded-full border-2 border-dashed border-[var(--border-soft)] bg-[var(--surface-base)]/50 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:border-[var(--accent)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 w-8 h-8",
-                  !canAddMore && "opacity-30 cursor-not-allowed",
-                )}
-                style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
-                aria-label={`Add slot at ${WIDTH_LANE_LABELS[x]}, ${DEPTH_LANE_LABELS[y]}`}
-              >
-                <span className="text-lg leading-none">+</span>
-              </button>
-            );
-          })
-        )}
+            })
+          )}
+        </div>
       </div>
     </div>
   );
@@ -264,20 +265,20 @@ export function PitchLineupView({
   const assignmentMap = new Map(assignments.map((a) => [a.slotId, a]));
 
   return (
-    <div className="relative w-full aspect-[5/7] bg-[var(--surface-tactical)] border border-[var(--border-pitch)] rounded-xl overflow-hidden">
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
-        <rect x="2" y="2" width="96" height="96" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-        <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-        <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-        <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-        <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
-      </svg>
+    <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
+      <div className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
+          <rect x="2" y="2" width="96" height="96" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
+          <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
+          <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+          <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
+          <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+        </svg>
 
       {slots.map((slot) => {
         const assignment = assignmentMap.get(slot.id);
         const player = assignment?.playerId ? playerMap.get(assignment.playerId) : null;
-        const xPct = GRID_X_PERCENT[slot.gridX];
-        const yPct = GRID_Y_PERCENT[slot.gridY];
+        const { x: xPct, y: yPct } = getGridPositionPercent(slot.gridX, slot.gridY);
 
         return (
           <button
@@ -315,6 +316,7 @@ export function PitchLineupView({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }
