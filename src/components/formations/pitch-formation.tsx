@@ -66,14 +66,14 @@ export function PitchFormationBuilder({
       </div>
 
       <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
-        <div className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
-          {/* Pitch markings */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
-            <rect x="8" y="8" width="84" height="84" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-            <line x1="8" y1="50" x2="92" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-            <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-            <rect x="25" y="76" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-            <rect x="35" y="85" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+        <div data-testid="pitch-surface" className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
+          {/* Pitch markings — stretched to fill pitchSurface with preserveAspectRatio="none" */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <rect x="0.5" y="0.5" width="99" height="99" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.5" />
+            <line x1="0.5" y1="50" x2="99.5" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
+            <circle cx="50" cy="50" r="12" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+            <rect x="25" y="76" width="50" height="23.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
+            <rect x="35" y="88" width="30" height="11.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
           </svg>
 
           {/* Grid points and slots */}
@@ -266,14 +266,15 @@ export function PitchLineupView({
 
   return (
     <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
-      <div className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
-         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
-           <rect x="8" y="8" width="84" height="84" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-           <line x1="8" y1="50" x2="92" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-           <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-           <rect x="25" y="76" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-           <rect x="35" y="85" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
-         </svg>
+      <div data-testid="pitch-surface" className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
+        {/* Pitch markings — stretched to fill pitchSurface with preserveAspectRatio="none" */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <rect x="0.5" y="0.5" width="99" height="99" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.5" />
+          <line x1="0.5" y1="50" x2="99.5" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
+          <circle cx="50" cy="50" r="12" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+          <rect x="25" y="76" width="50" height="23.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
+          <rect x="35" y="88" width="30" height="11.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+        </svg>
 
       {slots.map((slot) => {
         const assignment = assignmentMap.get(slot.id);
