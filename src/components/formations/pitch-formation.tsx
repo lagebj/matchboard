@@ -69,11 +69,11 @@ export function PitchFormationBuilder({
         <div className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
           {/* Pitch markings */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
-            <rect x="2" y="2" width="96" height="96" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-            <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
+            <rect x="8" y="8" width="84" height="84" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
+            <line x1="8" y1="50" x2="92" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
             <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-            <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-            <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+            <rect x="25" y="76" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
+            <rect x="35" y="85" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
           </svg>
 
           {/* Grid points and slots */}
@@ -267,13 +267,13 @@ export function PitchLineupView({
   return (
     <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
       <div className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
-          <rect x="2" y="2" width="96" height="96" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-          <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-          <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-          <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-          <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
-        </svg>
+         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" aria-hidden="true">
+           <rect x="8" y="8" width="84" height="84" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
+           <line x1="8" y1="50" x2="92" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
+           <circle cx="50" cy="50" r="10" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+           <rect x="25" y="76" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
+           <rect x="35" y="85" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+         </svg>
 
       {slots.map((slot) => {
         const assignment = assignmentMap.get(slot.id);
