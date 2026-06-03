@@ -103,14 +103,16 @@ function formatMatchType(type: string): string {
   return map[type] ?? type;
 }
 
-function formatGameFormat(format: string): string {
-  const map: Record<string, string> = {
-    SEVEN_A_SIDE: "7-a-side",
-    NINE_A_SIDE: "9-a-side",
-    ELEVEN_A_SIDE: "11-a-side",
-  };
-  return map[format] ?? format;
-}
+ function formatGameFormat(format: string): string {
+   const map: Record<string, string> = {
+     THREE_A_SIDE: "3-a-side",
+     FIVE_A_SIDE: "5-a-side",
+     SEVEN_A_SIDE: "7-a-side",
+     NINE_A_SIDE: "9-a-side",
+     ELEVEN_A_SIDE: "11-a-side",
+   };
+   return map[format] ?? format;
+ }
 
 function formatVenue(venue: string): string {
   return venue === "HOME" ? "Home" : "Away";

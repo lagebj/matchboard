@@ -51,6 +51,16 @@ export const optionalPlayerPositionOptions = [
 
 export const matchTypeValues = [MatchType.LEAGUE, MatchType.FRIENDLY, MatchType.CUP, MatchType.DEVELOPMENT] as const;
 
+import type { GameFormat } from "@/generated/prisma/client";
+
+export const gameFormatOptions = [
+  { label: "3-a-side", value: "THREE_A_SIDE" as GameFormat },
+  { label: "5-a-side", value: "FIVE_A_SIDE" as GameFormat },
+  { label: "7-a-side", value: "SEVEN_A_SIDE" as GameFormat },
+  { label: "9-a-side", value: "NINE_A_SIDE" as GameFormat },
+  { label: "11-a-side", value: "ELEVEN_A_SIDE" as GameFormat },
+] as const;
+
 export const matchTypeOptions = [
   { label: "League", value: MatchType.LEAGUE },
   { label: "Friendly", value: MatchType.FRIENDLY },
