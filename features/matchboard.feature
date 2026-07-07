@@ -5346,3 +5346,225 @@ Feature: Matchboard football operations workspace
     When the audit runs
     Then it may report measurable divergence
     And it must not consolidate or delete those fields automatically
+
+
+  Rule: Event squad planning
+
+    Matchboard supports temporary event squad planning for cups, tournaments, friendly days, and similar events.
+    Event squads are separate from league match-round planning. They do not create Selection rows, do not create MovementLedger entries, and do not affect league fairness metrics.
+
+    An Event is a temporary planning context with its own availability pool, formations, and generation modes.
+
+    Event squads are not normal Team rows. They are temporary planning artifacts with their own lifecycle.
+
+    The product language uses "Event" for cup/tournament/friendly-day context, "Event squad" for temporary squads, "Competitive squad" (not "topped team" or "A team"), "Balanced remainder" (not "leftover players" or "B team"), and "Not rated" (not default max rating).
+
+    Event squad generation must never expose player ratings in parent-facing exports.
+
+    Scenario: Coach creates an event
+      Given the coach is on the events page
+      When the coach creates an event
+      Then the event must have a name
+      And the event must have a type chosen from CUP, TOURNAMENT, FRIENDLY_DAY, or OTHER
+      And the event must have a start date
+      And the event must have a game format
+      And the event must have a source planning period
+      And the event must store these properties
+
+    Scenario: Event is separate from league planning
+      Given an event exists with generated event squads
+      When the coach views league match rounds
+      Then event squads must not appear as league teams
+      And event squad assignments must not appear as league Selection rows
+      And event squad assignments must not appear as league MovementLedger entries
+      And event squad assignments must not affect league fairness metrics
+
+    Scenario: Coach selects player pool for event
+      Given an event exists
+      When the coach selects the player pool
+      Then the coach may choose all active players
+      Or players from selected core teams
+      Or manually selected players
+      And the player pool defines who is eligible for event squad generation
+
+    Scenario: Coach marks event availability
+      Given an event exists with a player pool
+      When the coach marks player availability
+      Then each player may be marked as AVAILABLE, UNAVAILABLE, UNKNOWN, RESERVE, LATE_ADDITION, or WITHDRAWN
+      And only AVAILABLE players are included in generation by default
+      And RESERVE players are included only when the coach explicitly enables reserves
+      And LATE_ADDITION players are included only when the coach explicitly enables them
+      And UNAVAILABLE, UNKNOWN, and WITHDRAWN players are excluded from generation
+
+    Scenario: Coach selects formation and tactic for event
+      Given an event exists
+      When the coach selects a formation or tactic
+      Then the event may have a default formation
+      And each event squad may override the default formation
+      And the generation engine must use the selected formation's slots as role and coverage targets
+      And the generation engine must fall back to a role template based on game format when no formation is selected
+
+    Scenario: Coach selects generation mode
+      Given an event exists with a player pool and formation
+      When the coach selects a generation mode
+      Then the coach may choose ALL_BALANCED, ONE_COMPETITIVE_BALANCED_REMAINDER, or MANUAL_SEED_AUTO_BALANCE
+      And the coach must specify the number of squads and target sizes
+      And the generation mode determines how players are distributed across squads
+
+    Scenario: All balanced generation distributes evenly
+      Given an event has 18 available players
+      And the coach requests 3 balanced squads of 6
+      When the coach generates squads with ALL_BALANCED mode
+      Then the generation engine must distribute players to balance total and average skill across squads
+      And goalkeeper coverage must be balanced across squads
+      And tactical coverage must be balanced across squads
+      And no squad should have all high-rated or all low-rated players
+      And no squad should have all unrated players concentrated on one squad
+
+    Scenario: Competitive squad fills tactical needs first
+      Given an event has 18 available players
+      And the coach requests one competitive squad and two balanced remainder squads
+      When the coach generates squads with ONE_COMPETITIVE_BALANCED_REMAINDER mode
+      Then the competitive squad must be built by filling formation and role needs first
+      And the competitive squad must not be a simple top-N-by-overall ranking
+      And after the competitive squad is built, remaining players must be distributed through the balanced algorithm
+      And balanced remainder squads must be balanced against each other, not against the competitive squad
+      And the UI must identify the competitive squad as "Competitive squad"
+      And the UI must identify remaining squads as "Balanced remainder"
+
+    Scenario: Competitive scoring weights formation fit highly
+      Given the competitive squad generation evaluates a player
+      Then position and formation fit must be weighted high
+      And overall level must be weighted medium or high
+      And defending or attacking depending on formation slot must be weighted high
+      And game understanding and decision making must be weighted medium or high
+      And effort and intensity must be weighted medium
+      And teamplay must be weighted medium
+      And missing ratings must be treated as uncertainty with an uncertainty penalty, not as zero ability
+
+    Scenario: Manual seed preserves locked players
+      Given an event has 18 available players
+      And the coach has locked 5 players to specific squads
+      When the coach generates squads with MANUAL_SEED_AUTO_BALANCE mode
+      Then the locked players must remain in their assigned squads
+      And the generation engine must distribute all unlocked players around the locked anchors
+      And balance summaries must be recalculated after generation
+
+    Scenario: No player appears in two event squads
+      Given an event has generated event squads
+      When the coach reviews the generated squads
+      Then no player may appear in more than one event squad for the same event
+      And each player must have at most one assignment per event
+
+    Scenario: Generation validates pool before proceeding
+      Given an event has a player pool
+      When the coach initiates squad generation
+      Then the app must show the number of available players
+      And the target squad count and target size
+      And the count of players with missing ratings
+      And goalkeeper coverage assessment
+      And defensive, central, and attacking coverage assessment
+      And warnings when the plan is structurally weak
+
+    Scenario: Unrated players are shown as Not rated
+      Given a player has null attribute ratings
+      When the coach views the player profile
+      Then the app must display "Not rated" for each null attribute
+      And the app must not display null ratings as 0
+      And the app must not display null ratings as max skill
+
+    Scenario: Player attribute editing uses 1-5 scale with explicit unrated
+      Given a player exists
+      When the coach edits player attributes
+      Then each attribute must accept null (Not rated) or an integer from 1 to 5
+      And a rating of 1 means the player needs support in this area
+      And a rating of 3 means steady
+      And a rating of 5 means standout in this group
+      And the app must not convert null to any numeric value
+      And the app must not treat null as low ability
+
+    Scenario: Player attributes do not override explicit planning flags
+      Given a player has high attribute ratings
+      And the player has support suitability "avoid"
+      When the event generation engine ranks candidates
+      Then the explicit support suitability must take precedence over raw attribute average
+
+    Scenario: Goals assists and post-match stats must not become skill ratings
+      Given a player has scored many goals
+      When the coach views the player profile
+      Then goals must not be used as a skill rating input
+      And assists must not be used as a skill rating input
+      And post-match statistics must not be automatically converted to attribute ratings
+
+    Scenario: Event squad generation uses composite attributes
+      Given the event generation engine evaluates a player
+      Then overallLevel must be the average of all non-null attributes or null if all are null
+      And defending must be the average of oneVOneDefending and positioning or null if both are null
+      And attacking must be the average of oneVOneAttacking and ballControl or null if both are null
+      And gameUnderstanding must be the average of decisionMaking and positioning or null if both are null
+      And intensity must be the average of effort and concentration or null if both are null
+      And teamplay must use the direct teamplay value or null
+      And goalkeeperAbility must use the dedicated enum field (no, emergency, yes)
+
+    Scenario: Event squad player has a selection reason
+      Given an event has generated event squads
+      When the coach reviews a player assignment
+      Then each player assignment must include a selection reason
+      And the reason must use neutral coaching language
+      And the reason must not use language like "weak player", "bad player", "low quality", "leftover", "not good enough", "punishment", or "B team player"
+
+    Scenario: Missing goalkeeper coverage produces planning note
+      Given an event squad has no goalkeeper-capable player assigned
+      When the coach reviews the event squad
+      Then the app must show a planning note that no goalkeeper coverage exists
+      And the planning note must not be a Blocked condition preventing generation
+
+    Scenario: Missing ratings produce uncertainty note
+      Given an event squad has players with null attribute ratings
+      When the coach reviews the event squad
+      Then the app must show a planning note that balance certainty is reduced
+      And the planning note must not label players as "bad" or "weak"
+
+    Scenario: Coach can manually move players between event squads
+      Given an event has generated event squads
+      When the coach manually moves a player from one squad to another
+      Then the player must be removed from the original squad
+      And the player must be added to the target squad
+      And balance summaries must be recalculated
+      And no player may exist in two squads for the same event
+
+    Scenario: Coach can lock players in event squads
+      Given an event has generated event squads
+      When the coach locks a player assignment
+      Then the locked player must not be moved by regeneration
+      And the locked player must remain in the assigned squad until the coach explicitly unlocks or moves them
+
+    Scenario: Coach can regenerate unlocked assignments
+      Given an event has generated event squads with some locked players
+      When the coach regenerates the event squads
+      Then locked players must remain in their assigned squads
+      And unlocked players must be redistributed by the generation engine
+      And balance summaries must be recalculated
+
+    Scenario: Coach can clear generated event squads
+      Given an event has generated event squads
+      When the coach clears the event squads
+      Then all generated squad assignments must be removed
+      And locked and unlocked assignments must both be removed
+      And the event must return to a not-generated state
+      And the event itself must not be deleted
+
+    Scenario: Event squad generation is separate from league selection
+      Given an event has generated event squads
+      When the coach views league match-round planning
+      Then event squad assignments must not appear as league Selection rows
+      And event squad assignments must not appear as league Availability rows
+      And event squad assignments must not create MovementLedger entries
+      And event squad assignments must not affect league fairness calculations
+
+    Scenario: Event squads do not count as league appearances
+      Given a player is assigned to an event squad
+      When the coach views season overview or player history
+      Then event squad assignments must not count as league appearances
+      And event squad assignments must not count as core, support, or development matches
+      And event squad assignments must not count as planned match opportunities

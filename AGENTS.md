@@ -1217,6 +1217,152 @@ Note: BACKFILL remains the internal code role and rotation path role. Use "squad
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
+## Event squad planning
+
+Matchboard supports temporary event squad planning for cups, tournaments, friendly days, and similar events. Event squads are separate from league match-round planning.
+
+### Product language
+
+| Concept | Use | Never use |
+|---------|-----|-----------|
+| Cup/tournament/friendly-day context | Event | Tournament mode, Cup mode |
+| Temporary squad | Event squad | Temporary team, Scratch team |
+| Strongest squad built from formation needs | Competitive squad | Topped team, A team, Best team |
+| Remaining players distributed deliberately | Balanced remainder | Leftover players, B team, Second string |
+| Player with null ratings | Not rated | Unrated, Default max, Zero skill |
+| Event-specific availability | Event availability | (reuses existing availability statuses with event-specific context) |
+
+### Integration boundaries
+
+Event squad generation is separate from league round generation:
+- Does not create `Selection` rows
+- Does not create `MatchRound` rows
+- Does not write to normal `Availability`
+- Does not affect league fairness metrics unless explicitly added later
+- Does not mutate finalized match history
+- May READ existing players, player attributes, positions, formations, and readiness for context
+- Event squad assignments do not count as league appearances
+
+### Event models
+
+Events use separate Prisma models:
+- `Event`: top-level container with name, type (CUP/TOURNAMENT/FRIENDLY_DAY/OTHER), date range, game format, source planning period, default formation, selection pattern
+- `EventPlayerAvailability`: per-player availability for this event (AVAILABLE/UNAVAILABLE/UNKNOWN/RESERVE/LATE_ADDITION/WITHDRAWN)
+- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary
+- `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason
+
+Event squads are NOT normal `Team` rows. They are temporary event artifacts with no league identity.
+
+### Player attribute ratings
+
+Player attributes are coach-facing internal planning context.
+
+Rules:
+- Null means "Not rated" — never display as 0 or max skill
+- Ratings use a 1–5 scale: 1 = needs support, 2 = developing, 3 = steady, 4 = strong, 5 = standout in this group
+- Ratings are relative to the cohort, not absolute scouting scores
+- Goals, assists, and post-match stats must never directly become skill ratings
+- Ratings must not appear in parent-facing exports
+- Missing ratings are treated as uncertainty, not low ability or high ability
+
+Composite attributes for event generation:
+- `overallLevel`: average of all non-null attributes, or null
+- `defending`: average of `oneVOneDefending` + `positioning`, or null
+- `attacking`: average of `oneVOneAttacking` + `ballControl`, or null
+- `gameUnderstanding`: average of `decisionMaking` + `positioning`, or null
+- `intensity`: average of `effort` + `concentration`, or null
+- `teamplay`: direct value, or null
+- `goalkeeperAbility`: enum field (NO/EMERGENCY/YES), not a numeric rating
+
+Schema: Migrate Player numeric attribute fields from `Int @default(0)` to `Int?` (nullable). Add `goalkeeperAbility` enum field and `lastRatedAt DateTime?`. Server-side validation: null or integer 1–5 only. Existing 0 values are migrated to null (Not rated).
+
+### Event availability
+
+Only AVAILABLE players are included by default. RESERVE and LATE_ADDITION are included only when the coach explicitly enables them. UNAVAILABLE, UNKNOWN, and WITHDRAWN are excluded.
+
+Before generation, show event pool validation:
+- Number of available players
+- Target squad count and target size
+- Missing ratings count
+- Goalkeeper coverage
+- Defensive/central/attacking coverage based on selected tactic/formation
+- Warnings/notes when the plan is structurally weak
+
+### Formation/tactic selection
+
+Events reuse existing formation infrastructure (Formation, FormationSlot, FormationSlotRoleType, acceptedPositionIds, PlayerPosition).
+
+- Event has optional default formation
+- Each EventSquad may override the default formation
+- Generation fills formation slot requirements first (goalkeeper, defender, midfielder, forward), then optimizes for balance or competitiveness
+- If no formation is selected, fall back to a role template based on GameFormat
+- UI must make the formation/tactic clear for each squad
+
+Role fallback by game format:
+- 3v3: no goalkeeper requirement unless formation says otherwise; balance defensive/central/attacking/flexible
+- 5v5: goalkeeper if formation requires it; otherwise at least one defensive and one attacking player
+- 7v7: goalkeeper, defensive, central, attacking, flexible
+- 9v9/11v11: goalkeeper, defensive line, central/midfield, attacking line, flexible/bench
+
+### Squad generation modes
+
+Generation logic lives in `src/lib/events/event-squad-generation.ts`. Keep pure selection logic testable and separate from server actions.
+
+Mode A — ALL_BALANCED: Distribute all players evenly across squads. Balance by total/average skill, skill band spread, goalkeeper coverage, tactic/formation slot coverage, position fit. Avoid one squad getting all high-rated or all unrated players.
+
+Mode B — ONE_COMPETITIVE_BALANCED_REMAINDER: Build one competitive squad first by filling formation/role needs, then distributing remaining players through the balanced algorithm. The competitive squad must NOT be a simple top-N-by-overall ranking. It must be built from formation/role needs first. Remaining squads are balanced against each other, not against the competitive squad.
+
+Competitive scoring weights: position/formation fit (high), overall level (medium/high), defending/attacking depending on slot (high), game understanding/decision making (medium/high), effort/intensity (medium), teamplay (medium). Missing ratings: neutral with uncertainty penalty, not zero ability.
+
+Mode C — MANUAL_SEED_AUTO_BALANCE: Coach locks players to squads. Generator distributes unlocked players around anchors. Locked assignments are preserved on regeneration. Regenerate unlocks only unlocked assignments.
+
+### Manual override and regeneration
+
+- Coach can manually move players between event squads
+- Coach can lock assignments
+- Coach can clear generated event squads
+- Coach can regenerate all unlocked assignments
+- Coach can regenerate one squad or the balanced remainder
+- Manual changes recalculate balance summaries and notes
+- Structural issues produce planning notes (not Blocked conditions):
+  - Squad has no goalkeeper-capable player
+  - Squad lacks defensive coverage
+  - Selected formation has uncovered slot types
+  - Large skill imbalance between balanced remainder squads
+  - Many unrated players make balance uncertain
+
+### Explainability
+
+Every EventSquadPlayer has a selection reason. Examples:
+- "Selected for goalkeeper coverage"
+- "Selected as defensive fit for selected formation"
+- "Selected to balance remaining squads"
+- "Selected as flexible player after core tactical roles were covered"
+- "Kept because assignment was locked by coach"
+- "Rating uncertainty: player has missing attributes"
+
+Disallowed language: weak player, bad player, low quality, leftover, not good enough, punishment, B team player.
+
+### Event routes and navigation
+
+- `/events` — event list page (secondary destination, accessible from Fixtures or navigation)
+- `/events/new` — create event
+- `/events/[eventId]` — event detail/planning page
+- Events do not appear as primary sidebar items (the sidebar remains: Assistant, Fixtures, Teams, Players)
+- Events are accessible through Fixtures context or direct navigation
+
+### Key engine files (to be created)
+
+| File | Purpose |
+|------|---------|
+| `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
+| `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
+| `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
+| `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/app/(app)/events/page.tsx` | Event list page |
+| `src/app/(app)/events/new/page.tsx` | Create event |
+| `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
+
 ## Testing requirements
 
 Any change to selection behavior must include tests.
@@ -1237,6 +1383,46 @@ Required test coverage should include:
 - unavailable rounds excluded from fairness debt
 - explanation output for important decisions
 - populate all generates all rounds without finalizing
+- populate all skips finalized rounds
+- populate all reports partial failures without rollback
+- clear all removes only non-finalized draft data
+- clear round removes only selected round draft data
+- clear match removes only selected match draft data
+- clear actions preserve finalized history and setup data
+- manual add player with and without valid path
+- manual same-round conflict override with reason
+- manual duplicate selection override with reason
+- manual remove player recalculates plan integrity signals
+- manual role change validates role-specific path
+- manual override requires reason
+- finalized match cannot be edited by draft action
+- regenerate match preserves manual edits
+- regenerate round preserves manual edits
+- regenerate all drafts skips finalized rounds
+- regeneration never touches finalized selections
+- invariant validation catches invalid non-core movement
+- rotation path policy enforces exact role matching
+- un-finalize round reverts selections and movement ledger to DRAFT
+- un-finalize single match reverts selections and re-derives round status
+- un-finalize preserves other finalized matches in the round
+- consecutive support rotation penalizes repeated support assignments
+- consecutive support penalty increases with more consecutive rounds
+- consecutive support does not prevent selection when no other candidate exists
+- event squad: all balanced with full ratings and positions
+- event squad: all balanced with unrated players
+- event squad: one competitive + two balanced remainder
+- event squad: competitive squad fills formation needs before raw skill
+- event squad: remaining players are balanced after competitive squad is removed
+- event squad: unavailable/unknown/withdrawn players are excluded
+- event squad: reserves are excluded unless included
+- event squad: locked players are preserved on regeneration
+- event squad: manual seed + auto-balance does not overwrite locked assignments
+- event squad: missing goalkeeper coverage produces planning note
+- event squad: missing ratings produce uncertainty note
+- event squad: no player appears in two event squads for the same event
+- player attribute: null displays as Not rated, not 0 or max
+- player attribute: 1-5 validation rejects out-of-range values
+- player attribute: composite ratings derive correctly from null-aware averages
 - populate all skips finalized rounds
 - populate all reports partial failures without rollback
 - clear all removes only non-finalized draft data
@@ -1388,6 +1574,10 @@ Avoid:
 | `src/app/api/admin/audit/route.ts` | GET `/api/admin/audit` — run integrity audit |
 | `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
 | `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
+| `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
+| `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
+| `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
+| `src/lib/events/event-balance.ts` | Balance summary calculation |
 
 ### Formation/tactics files
 
