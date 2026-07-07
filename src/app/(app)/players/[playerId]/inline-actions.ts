@@ -139,6 +139,7 @@ export async function updatePlayerFieldAction(
     }
 
     revalidatePath(`/players/${playerId}`);
+    revalidatePath("/players");
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Update failed." };

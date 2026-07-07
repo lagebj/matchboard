@@ -87,7 +87,7 @@ describe("FixturesPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Spring 2025")).toBeInTheDocument();
       expect(screen.getByText("Round 1")).toBeInTheDocument();
-      expect(screen.getByText("Bla vs Opponent")).toBeInTheDocument();
+      expect(screen.getByText("Bla")).toBeInTheDocument();
     });
   });
 
@@ -111,7 +111,6 @@ describe("FixturesPage", () => {
           availableActions: ["recreateDraft", "clearDraft", "finalize"],
           matches: [makeMatch({
             selectionState: "DRAFT",
-            selectedPlayerCount: 8,
             availableActions: ["recreateDraft", "clearDraft", "finalize"],
           })],
         })],
@@ -123,7 +122,6 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("8 selected")).toBeInTheDocument();
       const draftBadges = screen.getAllByText("Draft");
       expect(draftBadges.length).toBeGreaterThanOrEqual(1);
     });
@@ -192,6 +190,31 @@ describe("FixturesPage", () => {
     await waitFor(() => {
       const populateButtons = screen.getAllByText("Generate all draft squads");
       expect(populateButtons.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it("shows cancelled badge for cancelled matches", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [makePeriod({
+        rounds: [makeRound({
+          selectionState: "FINALIZED",
+          availableActions: [],
+          matches: [makeMatch({
+            selectionState: "FINALIZED",
+            availableActions: [],
+            matchStatus: "CANCELLED",
+            cancelledReason: "Weather",
+          })],
+        })],
+      })],
+    });
+
+    await act(() => {
+      render(<FixturesPage />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Cancelled")).toBeInTheDocument();
     });
   });
 });

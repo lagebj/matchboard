@@ -17,30 +17,30 @@ import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
 
 type PlayerInput = {
   active: boolean;
-  ballControl: number;
+  ballControl: number | null;
   bestSide: BestSide;
-  concentration: number;
+  concentration: number | null;
   coreTeamId: string | null;
   currentAvailability: AvailabilityStatus;
-  decisionMaking: number;
-  effort: number;
+  decisionMaking: number | null;
+  effort: number | null;
   firstName: string;
-  firstTouch: number;
+  firstTouch: number | null;
   lastName: string | null;
   nonRotatable: boolean;
   notes: string | null;
-  oneVOneAttacking: number;
-  oneVOneDefending: number;
-  passing: number;
-  positioning: number;
+  oneVOneAttacking: number | null;
+  oneVOneDefending: number | null;
+  passing: number | null;
+  positioning: number | null;
   preferredFoot: FootPreference;
   primaryPosition: string;
   reducedMatchLoadAllowed: boolean;
   secondaryFoot: SecondaryFoot;
   secondaryPosition: string | null;
-  speed: number;
-  strength: number;
-  teamplay: number;
+  speed: number | null;
+  strength: number | null;
+  teamplay: number | null;
   tertiaryPosition: string | null;
 };
 
@@ -63,12 +63,17 @@ function readCheckbox(formData: FormData, fieldName: string): boolean {
   return formData.get(fieldName) === "on";
 }
 
-function readRequiredInteger(formData: FormData, fieldName: string): number {
+function readOptionalRating(formData: FormData, fieldName: string): number | null {
   const value = readText(formData, fieldName);
+
+  if (value === "" || value === "null") {
+    return null;
+  }
+
   const parsedValue = Number.parseInt(value, 10);
 
   if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > 5) {
-    throw new Error(`${fieldName} must be a whole number between 1 and 5.`);
+    return null;
   }
 
   return parsedValue;
@@ -184,30 +189,30 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
 
   return {
     active: readCheckbox(formData, "active"),
-    ballControl: readRequiredInteger(formData, "ballControl"),
+    ballControl: readOptionalRating(formData, "ballControl"),
     bestSide: readBestSide(formData),
-    concentration: readRequiredInteger(formData, "concentration"),
+    concentration: readOptionalRating(formData, "concentration"),
     coreTeamId,
     currentAvailability: readAvailabilityStatus(formData),
-    decisionMaking: readRequiredInteger(formData, "decisionMaking"),
-    effort: readRequiredInteger(formData, "effort"),
+    decisionMaking: readOptionalRating(formData, "decisionMaking"),
+    effort: readOptionalRating(formData, "effort"),
     firstName,
-    firstTouch: readRequiredInteger(formData, "firstTouch"),
+    firstTouch: readOptionalRating(formData, "firstTouch"),
     lastName: readOptionalText(formData, "lastName"),
     nonRotatable: readCheckbox(formData, "nonRotatable"),
     notes: readOptionalText(formData, "notes"),
-    oneVOneAttacking: readRequiredInteger(formData, "oneVOneAttacking"),
-    oneVOneDefending: readRequiredInteger(formData, "oneVOneDefending"),
-    passing: readRequiredInteger(formData, "passing"),
-    positioning: readRequiredInteger(formData, "positioning"),
+    oneVOneAttacking: readOptionalRating(formData, "oneVOneAttacking"),
+    oneVOneDefending: readOptionalRating(formData, "oneVOneDefending"),
+    passing: readOptionalRating(formData, "passing"),
+    positioning: readOptionalRating(formData, "positioning"),
     preferredFoot: readPreferredFoot(formData),
     primaryPosition,
     reducedMatchLoadAllowed: readCheckbox(formData, "reducedMatchLoadAllowed"),
     secondaryFoot: readSecondaryFoot(formData),
     secondaryPosition: readOptionalPosition(formData, "secondaryPosition"),
-    speed: readRequiredInteger(formData, "speed"),
-    strength: readRequiredInteger(formData, "strength"),
-    teamplay: readRequiredInteger(formData, "teamplay"),
+    speed: readOptionalRating(formData, "speed"),
+    strength: readOptionalRating(formData, "strength"),
+    teamplay: readOptionalRating(formData, "teamplay"),
     tertiaryPosition: readOptionalPosition(formData, "tertiaryPosition"),
   };
 }
