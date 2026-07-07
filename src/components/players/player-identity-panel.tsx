@@ -26,18 +26,18 @@ type PlayerWithTeam = {
   nonRotatable: boolean;
   reducedMatchLoadAllowed: boolean;
   notes: string | null;
-  ballControl: number;
-  passing: number;
-  firstTouch: number;
-  oneVOneAttacking: number;
-  positioning: number;
-  oneVOneDefending: number;
-  decisionMaking: number;
-  effort: number;
-  teamplay: number;
-  concentration: number;
-  speed: number;
-  strength: number;
+  ballControl: number | null;
+  passing: number | null;
+  firstTouch: number | null;
+  oneVOneAttacking: number | null;
+  positioning: number | null;
+  oneVOneDefending: number | null;
+  decisionMaking: number | null;
+  effort: number | null;
+  teamplay: number | null;
+  concentration: number | null;
+  speed: number | null;
+  strength: number | null;
   coreTeam: { id: string; name: string } | null;
 };
 
@@ -62,7 +62,7 @@ export function PlayerIdentityPanel({ player, teams, availabilityOptions, positi
   };
 
   const averages = getPlayerAttributeAverages(player);
-  const overallStars = getOverallStarRating(averages.overall);
+  const overallStars = averages.overall != null ? getOverallStarRating(averages.overall) : 0;
 
   const attributeCategories = [
     { label: "Technical", fields: [
@@ -177,31 +177,33 @@ export function PlayerIdentityPanel({ player, teams, availabilityOptions, positi
 
       {/* Attributes */}
       <TacticalSurface variant="default" padding="md">
-        <div className="flex items-center justify-between gap-2">
-          <SectionHeader title="Attributes" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-lg font-semibold text-zinc-100">{averages.overall}</span>
-            <span className="text-sm text-[#d0b07f]" aria-label={`${overallStars} star overall rating`}>
-              {"★".repeat(overallStars)}<span className="text-zinc-600">{"★".repeat(5 - overallStars)}</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-2 flex flex-col gap-3">
-          {attributeCategories.map((cat) => (
-            <div key={cat.label}>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-1">{cat.label}</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                {cat.fields.map((f) => (
-                  <div key={f.label} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[var(--text-soft)]">{f.label}</span>
-                    <span className="text-sm font-medium text-zinc-100 tabular-nums">{f.value}</span>
-                  </div>
-                ))}
-              </div>
+          <div className="flex items-center justify-between gap-2">
+            <SectionHeader title="Attributes" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg font-semibold text-zinc-100">{averages.overall ?? "—"}</span>
+              {averages.overall != null && (
+                <span className="text-sm text-[#d0b07f]" aria-label={`${overallStars} star overall rating`}>
+                  {"★".repeat(overallStars)}<span className="text-zinc-600">{"★".repeat(5 - overallStars)}</span>
+                </span>
+              )}
             </div>
-          ))}
-        </div>
+          </div>
+
+          <div className="mt-2 flex flex-col gap-3">
+            {attributeCategories.map((cat) => (
+              <div key={cat.label}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-1">{cat.label}</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {cat.fields.map((f) => (
+                    <div key={f.label} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-[var(--text-soft)]">{f.label}</span>
+                      <span className="text-sm font-medium text-zinc-100 tabular-nums">{f.value ?? "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
       </TacticalSurface>
     </div>
   );

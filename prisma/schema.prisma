@@ -59,18 +59,20 @@ model Player {
   bestSide              BestSide
   currentAvailability   AvailabilityStatus @default(AVAILABLE)
   supportNoShowCount    Int                @default(0)
-  ballControl           Int                @default(0)
-  passing               Int                @default(0)
-  firstTouch            Int                @default(0)
-  oneVOneAttacking      Int                @default(0)
-  positioning           Int                @default(0)
-  oneVOneDefending      Int                @default(0)
-  decisionMaking        Int                @default(0)
-  effort                Int                @default(0)
-  teamplay              Int                @default(0)
-  concentration         Int                @default(0)
-  speed                 Int                @default(0)
-  strength              Int                @default(0)
+  ballControl           Int?
+  passing               Int?
+  firstTouch            Int?
+  oneVOneAttacking      Int?
+  positioning           Int?
+  oneVOneDefending      Int?
+  decisionMaking        Int?
+  effort                Int?
+  teamplay              Int?
+  concentration         Int?
+  speed                 Int?
+  strength              Int?
+  goalkeeperAbility     GoalkeeperAbility  @default(NO)
+  lastRatedAt           DateTime?
   notes                 String?
   supportInstruction    String?
   developmentInstruction String?
@@ -92,6 +94,8 @@ model Player {
   executionFeedback MatchExecutionFeedback[]
   movementCandidates MovementCandidate[]
   positions           PlayerPosition[]
+  eventAvailability   EventPlayerAvailability[]
+  eventSquadPlayers   EventSquadPlayer[]
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
 }
@@ -425,6 +429,7 @@ model Formation {
 
   slots           FormationSlot[]
   lineups         MatchLineup[]
+  eventSquads     EventSquad[]
 
   team            Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
@@ -956,6 +961,46 @@ enum MovementCandidateRationale {
   COACH_JUDGEMENT
 }
 
+enum GoalkeeperAbility {
+  NO
+  EMERGENCY
+  YES
+}
+
+enum EventType {
+  CUP
+  TOURNAMENT
+  FRIENDLY_DAY
+  OTHER
+}
+
+enum EventPlayerStatus {
+  AVAILABLE
+  UNAVAILABLE
+  UNKNOWN
+  RESERVE
+  LATE_ADDITION
+  WITHDRAWN
+}
+
+enum EventSquadIntent {
+  COMPETITIVE
+  BALANCED
+  MANUAL
+}
+
+enum EventSelectionPattern {
+  ALL_BALANCED
+  ONE_COMPETITIVE_BALANCED_REMAINDER
+  MANUAL_SEED_AUTO_BALANCE
+}
+
+enum EventSquadPlayerSource {
+  AUTO
+  MANUAL
+  LOCKED
+}
+
 model MovementCandidate {
   id                String                    @id @default(cuid())
   playerId          String
@@ -976,4 +1021,84 @@ model MovementCandidate {
   @@index([playerId])
   @@index([rotationPathId])
   @@index([status])
+}
+
+model Event {
+  id                    String              @id @default(cuid())
+  name                  String
+  eventType             EventType           @default(CUP)
+  startsAt              DateTime
+  endsAt                DateTime?
+  gameFormat            GameFormat
+  sourcePlanningPeriodId String?
+  defaultFormationId    String?
+  selectionPattern      EventSelectionPattern?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  players               EventPlayerAvailability[]
+  squads                EventSquad[]
+
+  @@index([startsAt])
+  @@index([eventType])
+}
+
+model EventPlayerAvailability {
+  id        String           @id @default(cuid())
+  eventId   String
+  playerId  String
+  status    EventPlayerStatus @default(UNKNOWN)
+  note      String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  player    Player            @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([eventId, playerId])
+  @@index([eventId, status])
+  @@index([playerId])
+}
+
+model EventSquad {
+  id                String          @id @default(cuid())
+  eventId           String
+  name              String
+  intent            EventSquadIntent
+  targetSize        Int
+  minSize           Int?
+  maxSize           Int?
+  formationId       String?
+  generationOrder   Int             @default(0)
+  generationSnapshot Json?
+  balanceSummary    Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  event             Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  formation         Formation?       @relation(fields: [formationId], references: [id], onDelete: SetNull)
+  players           EventSquadPlayer[]
+
+  @@index([eventId])
+  @@index([intent])
+}
+
+model EventSquadPlayer {
+  id                  String                    @id @default(cuid())
+  eventSquadId         String
+  playerId            String
+  assignedRoleType    FormationSlotRoleType?
+  assignedPositionId  String?
+  source              EventSquadPlayerSource     @default(AUTO)
+  locked              Boolean                    @default(false)
+  selectionReason     Json?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  eventSquad          EventSquad                 @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  player              Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([eventSquadId, playerId])
+  @@index([playerId])
 }

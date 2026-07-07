@@ -12,7 +12,7 @@ type AttributeKey =
   | "speed"
   | "strength";
 
-type PlayerAttributeRecord = Record<AttributeKey, number>;
+type PlayerAttributeRecord = Partial<Record<AttributeKey, number | null>>;
 
 type PlayerNameRecord = {
   firstName: string;
@@ -51,13 +51,17 @@ const mentalAttributeKeys = [
 
 const physicalAttributeKeys = ["speed", "strength"] as const satisfies readonly AttributeKey[];
 
-function averageForKeys(player: PlayerAttributeRecord, keys: readonly AttributeKey[]): number {
-  if (keys.length === 0) {
-    return 0;
+function averageForKeys(player: PlayerAttributeRecord, keys: readonly AttributeKey[]): number | null {
+  const values = keys
+    .map((key) => player[key])
+    .filter((v): v is number => v != null);
+
+  if (values.length === 0) {
+    return null;
   }
 
-  const total = keys.reduce((sum, key) => sum + player[key], 0);
-  return Math.round((total / keys.length) * 10) / 10;
+  const total = values.reduce((sum, v) => sum + v, 0);
+  return Math.round((total / values.length) * 10) / 10;
 }
 
 export function getPlayerAttributeAverages(player: PlayerAttributeRecord) {
@@ -75,8 +79,8 @@ export function getPlayerAttributeAverages(player: PlayerAttributeRecord) {
   };
 }
 
-export function getOverallStarRating(overallRating: number): number {
-  if (!Number.isFinite(overallRating)) {
+export function getOverallStarRating(overallRating: number | null): number {
+  if (overallRating == null || !Number.isFinite(overallRating)) {
     return 0;
   }
 

@@ -53,26 +53,40 @@ export async function updatePlayerFieldAction(
       return { success: false, error: "Player not found." };
     }
 
-    const parsedValue = field === "nonRotatable" || field === "reducedMatchLoadAllowed"
-      ? value === "true"
-      : field === "coreTeamId" && value === ""
-        ? null
-        : [
-            "ballControl",
-            "passing",
-            "firstTouch",
-            "oneVOneAttacking",
-            "positioning",
-            "oneVOneDefending",
-            "decisionMaking",
-            "effort",
-            "teamplay",
-            "concentration",
-            "speed",
-            "strength",
-          ].includes(field)
-          ? parseInt(value, 10) || 0
-          : value;
+    const numericFields = [
+      "ballControl",
+      "passing",
+      "firstTouch",
+      "oneVOneAttacking",
+      "positioning",
+      "oneVOneDefending",
+      "decisionMaking",
+      "effort",
+      "teamplay",
+      "concentration",
+      "speed",
+      "strength",
+    ];
+
+    let parsedValue: string | number | boolean | null;
+    if (field === "nonRotatable" || field === "reducedMatchLoadAllowed") {
+      parsedValue = value === "true";
+    } else if (field === "coreTeamId" && value === "") {
+      parsedValue = null;
+    } else if (numericFields.includes(field)) {
+      if (value === "" || value === "null" || value === "—") {
+        parsedValue = null;
+      } else {
+        const num = parseInt(value, 10);
+        if (isNaN(num) || num < 1 || num > 5) {
+          parsedValue = null;
+        } else {
+          parsedValue = num;
+        }
+      }
+    } else {
+      parsedValue = value;
+    }
 
     await db.player.update({
       where: { id: player.id },

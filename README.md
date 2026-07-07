@@ -668,6 +668,59 @@ If a deployment has issues:
 - `.env` is for local development only and must never be committed.
 - `.vercel/` is local build metadata and must never be committed.
 
+## Event squad planning
+
+Matchboard supports temporary event squad planning for cups, tournaments, friendly days, and similar events. Event squads are separate from league match-round planning.
+
+### Key concepts
+
+- **Event**: A temporary planning context (cup, tournament, friendly day) with its own player pool, availability, and squad generation
+- **Event squad**: A temporary squad within an event — NOT a league Team row
+- **Competitive squad**: Built from formation/role needs first, NOT a simple top-N-by-overall ranking
+- **Balanced remainder**: Remaining players deliberately distributed, NOT "leftover" or "B team"
+- **Not rated**: Null player attributes are uncertainty, NOT zero ability or max skill
+
+### Product language
+
+| Concept | Use | Never use |
+|---------|-----|-----------|
+| Cup/tournament/friendly-day context | Event | Tournament mode, Cup mode |
+| Temporary squad | Event squad | Temporary team, Scratch team |
+| Strongest squad | Competitive squad | Topped team, A team, Best team |
+| Remaining players | Balanced remainder | Leftover players, B team |
+| Player with null ratings | Not rated | Unrated, Default max |
+
+### Integration boundaries
+
+Event squad generation is entirely separate from league planning:
+- Does NOT create Selection, MatchRound, or normal Availability rows
+- Does NOT affect league fairness metrics
+- Does NOT mutate finalized match history
+- Event squad assignments do NOT count as league appearances
+- May READ existing players, attributes, positions, formations, and readiness for context
+
+### Player attribute ratings
+
+- Null = "Not rated" — never displayed as 0 or max skill
+- Scale 1–5: 1 = needs support, 2 = developing, 3 = steady, 4 = strong, 5 = standout in this group
+- Composite attributes for event generation: overallLevel, defending, attacking, gameUnderstanding, intensity, teamplay, goalkeeperAbility
+- Goals, assists, and post-match stats must NEVER directly become skill ratings
+- Ratings are internal coach-facing planning context, not parent-facing or public
+
+### Generation modes
+
+1. **All balanced**: Distribute all players evenly across squads
+2. **One competitive + balanced remainder**: Build one tactic-aware competitive squad, then balance the rest
+3. **Manual seed + auto-balance**: Coach locks players, generator distributes the rest
+
+### Routes
+
+- `/events` — event list page (secondary destination)
+- `/events/new` — create event
+- `/events/[eventId]` — event detail/planning
+
+Events do not appear as primary sidebar items.
+
 ## Coding style
 
 - Prefer small files and clear names over short names
