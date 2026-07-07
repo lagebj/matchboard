@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { playerPositionValues } from "@/lib/player-form-options";
+import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
 
 const VALID_POSITIONS: ReadonlySet<string> = new Set(playerPositionValues);
 
@@ -122,6 +123,20 @@ export async function updatePlayerFieldAction(
       where: { id: player.id },
       data: { [field]: parsedValue },
     });
+
+    const isPositionField = field === "primaryPosition" || field === "secondaryPosition" || field === "tertiaryPosition";
+    if (isPositionField) {
+      const updated = await db.player.findUniqueOrThrow({
+        where: { id: player.id },
+        select: { primaryPosition: true, secondaryPosition: true, tertiaryPosition: true },
+      });
+      await syncPlayerPositions({
+        playerId: player.id,
+        primaryPosition: updated.primaryPosition,
+        secondaryPosition: updated.secondaryPosition,
+        tertiaryPosition: updated.tertiaryPosition,
+      });
+    }
 
     revalidatePath(`/players/${playerId}`);
     return { success: true };

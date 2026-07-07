@@ -13,6 +13,7 @@ import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { playerPositionValues } from "@/lib/player-form-options";
+import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
 
 type PlayerInput = {
   active: boolean;
@@ -228,22 +229,23 @@ export async function createPlayerAction(formData: FormData) {
   try {
     const playerInput = await readPlayerInput(formData);
 
-    let created = false;
+    let createdPlayerId: string | null = null;
     let attempts = 0;
 
-    while (!created && attempts < 5) {
+    while (!createdPlayerId && attempts < 5) {
       attempts++;
       const maxPlayerCode = (await db.player.aggregate({ _max: { playerCode: true } }))._max.playerCode ?? 0;
       const playerCode = maxPlayerCode + 1;
 
       try {
-        await db.player.create({
+        const player = await db.player.create({
           data: {
             ...playerInput,
             playerCode,
           },
+          select: { id: true },
         });
-        created = true;
+        createdPlayerId = player.id;
       } catch (retryError) {
         if (
           retryError instanceof Prisma.PrismaClientKnownRequestError
@@ -255,9 +257,16 @@ export async function createPlayerAction(formData: FormData) {
       }
     }
 
-    if (!created) {
+    if (!createdPlayerId) {
       throw new Error("Could not generate a unique player code after multiple attempts.");
     }
+
+    await syncPlayerPositions({
+      playerId: createdPlayerId,
+      primaryPosition: playerInput.primaryPosition,
+      secondaryPosition: playerInput.secondaryPosition,
+      tertiaryPosition: playerInput.tertiaryPosition,
+    });
   } catch (error) {
     redirect(
       buildPathWithSearch("/players/new", {
@@ -298,6 +307,13 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
       data: {
         ...playerInput,
       },
+    });
+
+    await syncPlayerPositions({
+      playerId: player.id,
+      primaryPosition: playerInput.primaryPosition,
+      secondaryPosition: playerInput.secondaryPosition,
+      tertiaryPosition: playerInput.tertiaryPosition,
     });
   } catch (error) {
     redirect(

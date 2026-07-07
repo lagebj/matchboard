@@ -48,6 +48,8 @@ type EventSquad = {
     lastName: string | null;
     coreTeamId: string | null;
     primaryPosition: string | null;
+    secondaryPosition: string | null;
+    tertiaryPosition: string | null;
     goalkeeperAbility: string | null;
     isGK: boolean;
   }[];
@@ -61,10 +63,38 @@ type EventPlayer = {
   coreTeamId: string | null;
   coreTeamName: string | null;
   primaryPosition: string | null;
+  secondaryPosition: string | null;
+  tertiaryPosition: string | null;
   goalkeeperAbility: string;
   overallLevel: number | null;
   isGK: boolean;
   assignedSquadId: string | null;
+};
+
+type SquadBalanceSummary = {
+  squadId: string;
+  squadName: string;
+  intent: string;
+  playerCount: number;
+  averageOverall: number | null;
+  goalkeeperCount: number;
+  defenderCount: number;
+  midfielderCount: number;
+  forwardCount: number;
+  flexibleCount: number;
+  missingRatingsCount: number;
+  coverageNotes: string[];
+};
+
+type EventPoolValidation = {
+  availablePlayerCount: number;
+  targetSquadCount: number;
+  targetSize: number;
+  missingRatingsCount: number;
+  goalkeeperCoverage: { total: number; perSquad: number; sufficient: boolean };
+  positionCoverage: Record<string, { count: number; perSquad: number; sufficient: boolean }>;
+  warnings: string[];
+  notes: string[];
 };
 
 type EventDetailData = {
@@ -81,6 +111,8 @@ type EventDetailData = {
   players: EventPlayer[];
   availablePlayers: EventPlayer[];
   unassignedPlayers: EventPlayer[];
+  squadBalances: SquadBalanceSummary[];
+  validation: EventPoolValidation;
 };
 
 type TabKey = 'overview' | 'squads' | 'availability';
@@ -209,6 +241,17 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         <MetricTile label="Unassigned" value={totalUnassigned} />
       </div>
 
+      {(data.validation.warnings.length > 0 || data.validation.notes.length > 0) && (
+        <div className="space-y-2">
+          {data.validation.warnings.map((w, i) => (
+            <DecisionBanner key={`w-${i}`} variant="decision" title="Warning" description={w} />
+          ))}
+          {data.validation.notes.map((n, i) => (
+            <DecisionBanner key={`n-${i}`} variant="note" title="Note" description={n} />
+          ))}
+        </div>
+      )}
+
       {data.selectionPattern && (
         <DecisionBanner
           variant="note"
@@ -263,32 +306,54 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           <Surface variant="default" padding="md">
             <SectionHeader title="Squad summary" />
             <div className="mt-3 space-y-3">
-              {data.squads.map((squad) => (
-                <div key={squad.id} className="rounded-lg border border-[var(--border-soft)] p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-medium text-zinc-100">{squad.name}</span>
-                      <StatusPill variant="neutral" className="ml-2">{INTENT_LABELS[squad.intent] ?? squad.intent}</StatusPill>
+              {data.squads.map((squad) => {
+                const balance = data.squadBalances.find((b) => b.squadId === squad.id);
+                return (
+                  <div key={squad.id} className="rounded-lg border border-[var(--border-soft)] p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm font-medium text-zinc-100">{squad.name}</span>
+                        <StatusPill variant="neutral" className="ml-2">{INTENT_LABELS[squad.intent] ?? squad.intent}</StatusPill>
+                      </div>
+                      <span className="text-sm text-[var(--text-muted)]">
+                        {squad.players.length}/{squad.targetSize}
+                      </span>
                     </div>
-                    <span className="text-sm text-[var(--text-muted)]">
-                      {squad.players.length}/{squad.targetSize}
-                    </span>
+                    {balance && (
+                      <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
+                        {balance.averageOverall !== null && <span>Avg: {balance.averageOverall}</span>}
+                        <span>GK: {balance.goalkeeperCount}</span>
+                        <span>DEF: {balance.defenderCount}</span>
+                        <span>MID: {balance.midfielderCount}</span>
+                        <span>FWD: {balance.forwardCount}</span>
+                        {balance.flexibleCount > 0 && <span>Flex: {balance.flexibleCount}</span>}
+                        {balance.missingRatingsCount > 0 && <span className="text-[var(--warning)]">{balance.missingRatingsCount} unrated</span>}
+                      </div>
+                    )}
+                    {balance && balance.coverageNotes.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {balance.coverageNotes.map((note, i) => (
+                          <p key={i} className="text-[10px] text-[var(--warning)]">{note}</p>
+                        ))}
+                      </div>
+                    )}
+                    {squad.players.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {squad.players.map((p) => (
+                          <span
+                            key={p.id}
+                            className="inline-flex items-center rounded-md bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-zinc-200"
+                            title={p.selectionReason || undefined}
+                          >
+                            {formatName(p)}
+                            {p.locked && <span className="ml-1 text-[var(--accent)]">🔒</span>}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {squad.players.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {squad.players.map((p) => (
-                        <span
-                          key={p.id}
-                          className="inline-flex items-center rounded-md bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-zinc-200"
-                        >
-                          {formatName(p)}
-                          {p.locked && <span className="ml-1 text-[var(--accent)]">🔒</span>}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Surface>
         </div>
@@ -316,7 +381,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-zinc-100 truncate">{formatName(p)}</p>
                           <p className="text-[10px] text-[var(--text-muted)]">
-                            {p.primaryPosition ?? 'flexible'} · {p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}
+                            {[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || 'flexible'} · {p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}
                             {p.isGK && ' · GK'}
                           </p>
                         </div>
@@ -338,6 +403,32 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         {squad.players.length}/{squad.targetSize}
                       </span>
                     </div>
+                    {(() => {
+                      const balance = data.squadBalances.find((b) => b.squadId === squad.id);
+                      if (!balance) return null;
+                      return (
+                        <div className="mb-2 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
+                          {balance.averageOverall !== null && <span>Avg: {balance.averageOverall}</span>}
+                          <span>GK: {balance.goalkeeperCount}</span>
+                          <span>DEF: {balance.defenderCount}</span>
+                          <span>MID: {balance.midfielderCount}</span>
+                          <span>FWD: {balance.forwardCount}</span>
+                          {balance.flexibleCount > 0 && <span>Flex: {balance.flexibleCount}</span>}
+                          {balance.missingRatingsCount > 0 && <span className="text-[var(--warning)]">{balance.missingRatingsCount} unrated</span>}
+                        </div>
+                      );
+                    })()}
+                    {(() => {
+                      const balance = data.squadBalances.find((b) => b.squadId === squad.id);
+                      if (!balance || balance.coverageNotes.length === 0) return null;
+                      return (
+                        <div className="mb-2 space-y-0.5">
+                          {balance.coverageNotes.map((note, i) => (
+                            <p key={i} className="text-[10px] text-[var(--warning)]">{note}</p>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {squad.players.length === 0 ? (
                       <p className="text-xs text-[var(--text-muted)]">No players assigned yet</p>
                     ) : (
@@ -346,6 +437,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                           <div
                             key={p.id}
                             className="group relative inline-flex items-center gap-1.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-sm text-zinc-200 hover:border-[var(--accent)]/50 transition-colors"
+                            title={p.selectionReason || undefined}
                           >
                             <span>{formatName(p)}</span>
                             {p.locked && <span className="text-[var(--accent)] text-[10px]">🔒</span>}
@@ -442,7 +534,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         </Link>
                       </td>
                       <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
-                      <td className="py-2 px-2 text-[var(--text-soft)]">{p.primaryPosition ?? '—'}</td>
+                      <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
                       <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}</td>
                       <td className="py-2 px-2">
                         <StatusPill variant={STATUS_VARIANTS[p.status] ?? 'neutral'}>

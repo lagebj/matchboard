@@ -1,10 +1,19 @@
 import { notFound } from 'next/navigation';
 import { getEventById } from '../actions';
 import { EventDetail } from './event-detail';
+import { computeSquadBalance } from '@/lib/events/event-balance';
+import { validateEventPool } from '@/lib/events/event-validation';
+import type { GameFormat } from '@/lib/events/event-types';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Event detail' };
+
+const VALID_GAME_FORMATS: GameFormat[] = ['THREE_A_SIDE', 'FIVE_A_SIDE', 'SEVEN_A_SIDE', 'NINE_A_SIDE', 'ELEVEN_A_SIDE'];
+
+function toGameFormat(gf: string): GameFormat {
+  return VALID_GAME_FORMATS.includes(gf as GameFormat) ? (gf as GameFormat) : 'SEVEN_A_SIDE';
+}
 
 export default async function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
@@ -32,6 +41,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
       lastName: p.player.lastName,
       coreTeamId: p.player.coreTeamId,
       primaryPosition: p.player.primaryPosition,
+      secondaryPosition: p.player.secondaryPosition,
+      tertiaryPosition: p.player.tertiaryPosition,
       goalkeeperAbility: p.player.goalkeeperAbility ?? 'NO',
       isGK: p.player.goalkeeperAbility === 'YES' || p.player.goalkeeperAbility === 'EMERGENCY',
     })),
@@ -55,6 +66,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
       coreTeamId: ep.player.coreTeamId,
       coreTeamName: ep.player.coreTeam?.name ?? null,
       primaryPosition: ep.player.primaryPosition,
+      secondaryPosition: ep.player.secondaryPosition,
+      tertiaryPosition: ep.player.tertiaryPosition,
       goalkeeperAbility: ep.player.goalkeeperAbility ?? 'NO',
       overallLevel: nonNullAttrs.length > 0
         ? Math.round((nonNullAttrs.reduce((sum, v) => sum + v, 0) / nonNullAttrs.length) * 10) / 10
@@ -67,6 +80,45 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
   const assignedPlayerIds = new Set(players.filter((p) => p.assignedSquadId !== null).map((p) => p.playerId));
   const availablePlayers = players.filter((p) => p.status === 'AVAILABLE');
   const unassignedPlayers = availablePlayers.filter((p) => !assignedPlayerIds.has(p.playerId));
+
+  const gameFormat = toGameFormat(event.gameFormat);
+
+  const squadBalances = squads.map((squad) => {
+    const squadPlayerProfiles = squad.players.map((sp) => ({
+      playerId: sp.playerId,
+      primaryPosition: sp.primaryPosition ?? 'CM',
+      secondaryPosition: null as string | null,
+      tertiaryPosition: null as string | null,
+      goalkeeperAbility: sp.goalkeeperAbility as 'NO' | 'EMERGENCY' | 'YES',
+      ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
+      positioning: null, oneVOneDefending: null, decisionMaking: null,
+      effort: null, teamplay: null, concentration: null, speed: null, strength: null,
+      coreTeamId: sp.coreTeamId, nonRotatable: false, preferredFoot: 'RIGHT' as const,
+      bestSide: 'RIGHT' as const, firstName: sp.firstName, lastName: sp.lastName,
+    }));
+    return computeSquadBalance(squad.id, squad.name, squad.intent as 'COMPETITIVE' | 'BALANCED' | 'MANUAL', squadPlayerProfiles);
+  });
+
+  const availablePlayerProfiles = availablePlayers.map((p) => ({
+    playerId: p.playerId,
+    primaryPosition: p.primaryPosition ?? 'CM',
+    secondaryPosition: null as string | null,
+    tertiaryPosition: null as string | null,
+    goalkeeperAbility: p.goalkeeperAbility as 'NO' | 'EMERGENCY' | 'YES',
+    ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
+    positioning: null, oneVOneDefending: null, decisionMaking: null,
+    effort: null, teamplay: null, concentration: null, speed: null, strength: null,
+    coreTeamId: p.coreTeamId, nonRotatable: false, preferredFoot: 'RIGHT' as const,
+    bestSide: 'RIGHT' as const, firstName: p.firstName, lastName: p.lastName,
+  }));
+
+  const validation = validateEventPool(
+    availablePlayerProfiles,
+    squads.length,
+    squads[0]?.targetSize ?? 7,
+    gameFormat,
+    [],
+  );
 
   const data = {
     id: event.id,
@@ -82,6 +134,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     players,
     availablePlayers,
     unassignedPlayers,
+    squadBalances,
+    validation,
   };
 
   return <EventDetail data={data} />;

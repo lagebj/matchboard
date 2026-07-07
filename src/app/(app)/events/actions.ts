@@ -423,7 +423,6 @@ export async function getAvailablePlayersForEvent(_planningPeriodId?: string) {
     },
     include: {
       coreTeam: true,
-      positions: true,
     },
     orderBy: [{ firstName: 'asc' }],
   });
