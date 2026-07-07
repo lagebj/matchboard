@@ -61,22 +61,25 @@ function RatingField({
   label,
   name,
 }: {
-  defaultValue: number;
+  defaultValue: number | null;
   label: string;
   name: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
-      <input
+      <select
         className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
-        defaultValue={defaultValue}
-        max={5}
-        min={1}
+        defaultValue={defaultValue ?? ""}
         name={name}
-        required
-        type="number"
-      />
+      >
+        <option value="">Not rated</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
     </label>
   );
 }
@@ -216,11 +219,11 @@ export function PlayerEditorForm({
             <p className="mt-1 text-sm app-copy-soft">Ball mastery and attacking quality.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <RatingField defaultValue={player?.ballControl ?? 5} label="Ball Control" name="ballControl" />
-            <RatingField defaultValue={player?.passing ?? 5} label="Passing" name="passing" />
-            <RatingField defaultValue={player?.firstTouch ?? 5} label="First Touch" name="firstTouch" />
+            <RatingField defaultValue={player?.ballControl ?? null} label="Ball Control" name="ballControl" />
+            <RatingField defaultValue={player?.passing ?? null} label="Passing" name="passing" />
+            <RatingField defaultValue={player?.firstTouch ?? null} label="First Touch" name="firstTouch" />
             <RatingField
-              defaultValue={player?.oneVOneAttacking ?? 5}
+              defaultValue={player?.oneVOneAttacking ?? null}
               label="1v1 Attacking"
               name="oneVOneAttacking"
             />
@@ -233,14 +236,14 @@ export function PlayerEditorForm({
             <p className="mt-1 text-sm app-copy-soft">Positioning, defending, and decisions.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <RatingField defaultValue={player?.positioning ?? 5} label="Positioning" name="positioning" />
+            <RatingField defaultValue={player?.positioning ?? null} label="Positioning" name="positioning" />
             <RatingField
-              defaultValue={player?.oneVOneDefending ?? 5}
+              defaultValue={player?.oneVOneDefending ?? null}
               label="1v1 Defending"
               name="oneVOneDefending"
             />
             <RatingField
-              defaultValue={player?.decisionMaking ?? 5}
+              defaultValue={player?.decisionMaking ?? null}
               label="Decision Making"
               name="decisionMaking"
             />
@@ -253,10 +256,10 @@ export function PlayerEditorForm({
             <p className="mt-1 text-sm app-copy-soft">Effort, concentration, and team play.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <RatingField defaultValue={player?.effort ?? 5} label="Effort" name="effort" />
-            <RatingField defaultValue={player?.teamplay ?? 5} label="Teamplay" name="teamplay" />
+            <RatingField defaultValue={player?.effort ?? null} label="Effort" name="effort" />
+            <RatingField defaultValue={player?.teamplay ?? null} label="Teamplay" name="teamplay" />
             <RatingField
-              defaultValue={player?.concentration ?? 5}
+              defaultValue={player?.concentration ?? null}
               label="Concentration"
               name="concentration"
             />
@@ -269,8 +272,8 @@ export function PlayerEditorForm({
             <p className="mt-1 text-sm app-copy-soft">Speed and strength.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <RatingField defaultValue={player?.speed ?? 5} label="Speed" name="speed" />
-            <RatingField defaultValue={player?.strength ?? 5} label="Strength" name="strength" />
+            <RatingField defaultValue={player?.speed ?? null} label="Speed" name="speed" />
+            <RatingField defaultValue={player?.strength ?? null} label="Strength" name="strength" />
           </div>
         </div>
       </section>

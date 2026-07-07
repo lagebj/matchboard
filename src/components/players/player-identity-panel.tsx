@@ -11,6 +11,30 @@ import {
   getOverallStarRating,
 } from "@/lib/player-metrics";
 
+const RATING_OPTIONS = [
+  { label: "Not rated", value: "" },
+  { label: "1", value: "1" },
+  { label: "2", value: "2" },
+  { label: "3", value: "3" },
+  { label: "4", value: "4" },
+  { label: "5", value: "5" },
+];
+
+const RATING_LABELS: Record<string, string> = {
+  ballControl: "Ball control",
+  passing: "Passing",
+  firstTouch: "First Touch",
+  oneVOneAttacking: "1v1 Attacking",
+  positioning: "Positioning",
+  oneVOneDefending: "1v1 Defending",
+  decisionMaking: "Decision Making",
+  effort: "Effort",
+  teamplay: "Team Play",
+  concentration: "Concentration",
+  speed: "Speed",
+  strength: "Strength",
+};
+
 type PlayerWithTeam = {
   id: string;
   firstName: string;
@@ -66,26 +90,10 @@ export function PlayerIdentityPanel({ player, teams, availabilityOptions, positi
   const overallStars = averages.overall != null ? getOverallStarRating(averages.overall) : 0;
 
   const attributeCategories = [
-    { label: "Technical", fields: [
-      { label: "Ball control", value: player.ballControl },
-      { label: "Passing", value: player.passing },
-      { label: "First touch", value: player.firstTouch },
-      { label: "1v1 attacking", value: player.oneVOneAttacking },
-    ]},
-    { label: "Tactical", fields: [
-      { label: "Positioning", value: player.positioning },
-      { label: "1v1 defending", value: player.oneVOneDefending },
-      { label: "Decision making", value: player.decisionMaking },
-    ]},
-    { label: "Mental", fields: [
-      { label: "Effort", value: player.effort },
-      { label: "Team play", value: player.teamplay },
-      { label: "Concentration", value: player.concentration },
-    ]},
-    { label: "Physical", fields: [
-      { label: "Speed", value: player.speed },
-      { label: "Strength", value: player.strength },
-    ]},
+    { label: "Technical", keys: ["ballControl", "passing", "firstTouch", "oneVOneAttacking"] as const },
+    { label: "Tactical", keys: ["positioning", "oneVOneDefending", "decisionMaking"] as const },
+    { label: "Mental", keys: ["effort", "teamplay", "concentration"] as const },
+    { label: "Physical", keys: ["speed", "strength"] as const },
   ];
 
   return (
@@ -209,11 +217,15 @@ export function PlayerIdentityPanel({ player, teams, availabilityOptions, positi
               <div key={cat.label}>
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-1">{cat.label}</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {cat.fields.map((f) => (
-                    <div key={f.label} className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-[var(--text-soft)]">{f.label}</span>
-                      <span className="text-sm font-medium text-zinc-100 tabular-nums">{f.value ?? "—"}</span>
-                    </div>
+                  {cat.keys.map((key) => (
+                    <InlineEditSelect
+                      key={key}
+                      label={RATING_LABELS[key]}
+                      value={player[key] != null ? String(player[key]) : ""}
+                      options={RATING_OPTIONS}
+                      onSave={handleSave(key)}
+                      emptyLabel="Not rated"
+                    />
                   ))}
                 </div>
               </div>
