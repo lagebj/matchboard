@@ -2,7 +2,8 @@
 type: ADR
 id: "0008"
 title: Event-specific temporary squad planning for cups and tournaments
-status: proposed
+status: active
+supersedes_by: "0009"
 date: 2026-07-07
 supersedes:
 supersedes_by:

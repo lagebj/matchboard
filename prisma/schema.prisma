@@ -412,7 +412,7 @@ enum MatchLineupAssignmentSource {
 enum PlayerPositionPriority {
   PRIMARY
   SECONDARY
-  CAN_PLAY
+  TERTIARY
 }
 
 model Formation {
@@ -1092,6 +1092,7 @@ model EventSquadPlayer {
   assignedPositionId  String?
   source              EventSquadPlayerSource     @default(AUTO)
   locked              Boolean                    @default(false)
+  positionFitTier     String?
   selectionReason     Json?
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt

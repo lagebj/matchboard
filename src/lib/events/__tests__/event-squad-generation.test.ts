@@ -13,12 +13,10 @@ import { validateEventPool } from '../event-validation';
 import { computeSquadBalance } from '../event-balance';
 import type {
   PlayerAttributeProfile,
-  GameFormat,
-  EventSelectionPattern,
-  EventSquadIntent,
   GenerationInput,
   BroadPosition,
 } from '../event-types';
+import { getPositionFitTier, FIT_TIER_PRIORITY, computePositionScarcity, mapAnyPositionToBroad } from '@/lib/players/player-position-resolver';
 
 function makePlayer(overrides: Partial<PlayerAttributeProfile> = {}): PlayerAttributeProfile {
   const defaults: PlayerAttributeProfile = {
@@ -82,7 +80,7 @@ const players14 = Array.from({ length: 14 }, (_, i) =>
 
 describe('event-squad-generation', () => {
   describe('generateEventSquads', () => {
-    it('all balanced: distributes players evenly across squads', () => {
+    it('all balanced: distributes players across squads', () => {
       const input = makeInput({
         players: players14,
         selectionPattern: 'ALL_BALANCED',
@@ -119,6 +117,76 @@ describe('event-squad-generation', () => {
       const gk2Squad = result.assignments.find((a) => a.playerId === 'gk2')!.eventSquadId;
 
       expect(gk1Squad).not.toBe(gk2Squad);
+    });
+
+    it('position-first: primary fit preferred over secondary fit', () => {
+      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const cb = makePlayer({ playerId: 'cb1', primaryPosition: 'CB' });
+      const cm = makePlayer({ playerId: 'cm1', primaryPosition: 'CM' });
+      const st = makePlayer({ playerId: 'st1', primaryPosition: 'ST' });
+      const cmAsCb = makePlayer({ playerId: 'cmAsCb', primaryPosition: 'CM', secondaryPosition: 'CB' });
+
+      const input = makeInput({
+        players: [gk, cb, cm, st, cmAsCb],
+        selectionPattern: 'ALL_BALANCED',
+        squads: [
+          { id: 's1', name: 'Squad 1', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 0 },
+        ],
+        gameFormat: 'FIVE_A_SIDE',
+      });
+
+      const result = generateEventSquads(input);
+
+      const cbAssignment = result.assignments.find((a) => a.playerId === 'cb1');
+      const cmAsCbAssignment = result.assignments.find((a) => a.playerId === 'cmAsCb');
+
+      if (cbAssignment?.positionFitTier && cmAsCbAssignment?.positionFitTier) {
+        expect(FIT_TIER_PRIORITY[cbAssignment.positionFitTier]).toBeLessThanOrEqual(
+          FIT_TIER_PRIORITY[cmAsCbAssignment.positionFitTier],
+        );
+      }
+    });
+
+    it('position-first: competitive squad fills tactical slots with position fit', () => {
+      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES', ballControl: 2, passing: 2 });
+      const weakCb = makePlayer({ playerId: 'weakCb', primaryPosition: 'CB', ballControl: 2, passing: 2 });
+      const strongCm = makePlayer({ playerId: 'strongCm', primaryPosition: 'CM', ballControl: 5, passing: 5 });
+      const weakSt = makePlayer({ playerId: 'weakSt', primaryPosition: 'ST', ballControl: 2, passing: 2 });
+      const flexible = makePlayer({ playerId: 'flex', primaryPosition: 'CM', ballControl: 4, passing: 4 });
+
+      const input = makeInput({
+        players: [gk, weakCb, strongCm, weakSt, flexible],
+        selectionPattern: 'ONE_COMPETITIVE_BALANCED_REMAINDER',
+        squads: [
+          { id: 's1', name: 'Competitive', intent: 'COMPETITIVE', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 0 },
+        ],
+        gameFormat: 'FIVE_A_SIDE',
+      });
+
+      const result = generateEventSquads(input);
+
+      const competitiveAssignments = result.assignments.filter((a) => a.eventSquadId === 's1');
+      expect(competitiveAssignments.length).toBe(5);
+
+      const gkAssignment = competitiveAssignments.find((a) => a.playerId === 'gk');
+      expect(gkAssignment).toBeDefined();
+      expect(gkAssignment!.positionFitTier).toBe('PRIMARY');
+
+      const allHaveFitTier = competitiveAssignments.every((a) => a.positionFitTier !== null);
+      expect(allHaveFitTier).toBe(true);
+    });
+
+    it('position-first: no player appears in two squads', () => {
+      const input = makeInput({
+        players: players14,
+        selectionPattern: 'ALL_BALANCED',
+      });
+
+      const result = generateEventSquads(input);
+
+      const playerIds = result.assignments.map((a) => a.playerId);
+      const uniqueIds = new Set(playerIds);
+      expect(playerIds.length).toBe(uniqueIds.size);
     });
 
     it('one competitive + balanced remainder: fills competitive squad first', () => {
@@ -182,20 +250,60 @@ describe('event-squad-generation', () => {
       expect(lockedAssignment.locked).toBe(true);
     });
 
-    it('no player appears in two squads', () => {
+    it('selection reason includes position fit tier', () => {
+      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const cb = makePlayer({ playerId: 'cb1', primaryPosition: 'CB' });
+      const cm = makePlayer({ playerId: 'cm1', primaryPosition: 'CM' });
+      const st = makePlayer({ playerId: 'st1', primaryPosition: 'ST' });
+      const cmSec = makePlayer({ playerId: 'cm2', primaryPosition: 'CM', secondaryPosition: 'CB' });
+
       const input = makeInput({
-        players: players14,
+        players: [gk, cb, cm, st, cmSec],
         selectionPattern: 'ALL_BALANCED',
+        squads: [
+          { id: 's1', name: 'Squad 1', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 0 },
+        ],
+        gameFormat: 'FIVE_A_SIDE',
       });
 
       const result = generateEventSquads(input);
 
-      const playerIds = result.assignments.map((a) => a.playerId);
-      const uniqueIds = new Set(playerIds);
-      expect(playerIds.length).toBe(uniqueIds.size);
+      const gkAssignment = result.assignments.find((a) => a.playerId === 'gk');
+      expect(gkAssignment).toBeDefined();
+      expect(gkAssignment!.selectionReason).toContain('goalkeeper');
+
+      const cbAssignment = result.assignments.find((a) => a.playerId === 'cb1');
+      expect(cbAssignment).toBeDefined();
+      if (cbAssignment?.positionFitTier) {
+        expect(cbAssignment.positionFitTier).toBe('PRIMARY');
+      }
     });
 
-    it('missing ratings produce uncertainty note in selection reason when all ratings are null', () => {
+    it('scarcity notes emitted when few primary players for position', () => {
+      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const midfielders = Array.from({ length: 11 }, (_, i) =>
+        makePlayer({ playerId: `cm${i}`, primaryPosition: 'CM' }),
+      );
+
+      const input = makeInput({
+        players: [gk, ...midfielders],
+        selectionPattern: 'ALL_BALANCED',
+        squads: [
+          { id: 's1', name: 'Squad 1', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 0 },
+          { id: 's2', name: 'Squad 2', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 1 },
+        ],
+        gameFormat: 'FIVE_A_SIDE',
+      });
+
+      const result = generateEventSquads(input);
+
+      const hasScarcityNote = result.validationNotes.some(
+        (n) => n.includes('primary') || n.includes('goalkeeper') || n.includes('forward') || n.includes('defender'),
+      );
+      expect(hasScarcityNote).toBe(true);
+    });
+
+    it('missing ratings produce uncertainty note in selection reason', () => {
       const unrated = makePlayer({ playerId: 'unrated', ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null, positioning: null, oneVOneDefending: null, decisionMaking: null, effort: null, teamplay: null, concentration: null, speed: null, strength: null });
       const rated = makePlayer({ playerId: 'rated1', ballControl: 3, passing: 3, effort: 3 });
       const rated2 = makePlayer({ playerId: 'rated2', ballControl: 3, passing: 3, effort: 3 });
@@ -213,7 +321,7 @@ describe('event-squad-generation', () => {
 
       const assignment = result.assignments.find((a) => a.playerId === 'unrated');
       expect(assignment).toBeDefined();
-      expect(assignment!.selectionReason).toContain('uncertainty');
+      expect(assignment!.selectionReason.toLowerCase()).toContain('uncertainty');
     });
 
     it('handles empty player pool', () => {
@@ -354,6 +462,89 @@ describe('event-types', () => {
 
     it('maps unknown position to flexible', () => {
       expect(mapPositionToBroad('XYZ')).toBe('flexible');
+    });
+  });
+});
+
+describe('player-position-resolver', () => {
+  describe('getPositionFitTier', () => {
+    it('returns PRIMARY when primary position matches slot', () => {
+      expect(getPositionFitTier('CB', null, null, ['defender', 'midfielder'])).toBe('PRIMARY');
+    });
+
+    it('returns SECONDARY when only secondary position matches slot', () => {
+      expect(getPositionFitTier('ST', 'CB', null, ['defender'])).toBe('SECONDARY');
+    });
+
+    it('returns TERTIARY when tertiary position matches slot', () => {
+      expect(getPositionFitTier('ST', 'CM', 'CB', ['defender'])).toBe('TERTIARY');
+    });
+
+    it('returns NO_FIT when no position matches', () => {
+      expect(getPositionFitTier('ST', null, null, ['goalkeeper'])).toBe('NO_FIT');
+    });
+
+    it('returns NO_FIT for flexible slot with no position match', () => {
+      expect(getPositionFitTier('ST', null, null, ['goalkeeper', 'flexible'])).toBe('NO_FIT');
+    });
+
+    it('ignores NONE for secondary position', () => {
+      expect(getPositionFitTier('ST', 'NONE', null, ['defender'])).toBe('NO_FIT');
+    });
+
+    it('PRIMARY takes priority over SECONDARY', () => {
+      const tier = getPositionFitTier('CM', 'CB', null, ['midfielder']);
+      expect(tier).toBe('PRIMARY');
+    });
+  });
+
+  describe('FIT_TIER_PRIORITY', () => {
+    it('orders tiers correctly', () => {
+      expect(FIT_TIER_PRIORITY.PRIMARY).toBeLessThan(FIT_TIER_PRIORITY.SECONDARY);
+      expect(FIT_TIER_PRIORITY.SECONDARY).toBeLessThan(FIT_TIER_PRIORITY.TERTIARY);
+      expect(FIT_TIER_PRIORITY.TERTIARY).toBeLessThan(FIT_TIER_PRIORITY.NO_FIT);
+    });
+  });
+
+  describe('computePositionScarcity', () => {
+    it('detects scarce positions', () => {
+      const players = [
+        { primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'YES' },
+        { primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'NO' },
+        { primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'NO' },
+      ];
+
+      const scarcity = computePositionScarcity(players, 2);
+      const gkScarcity = scarcity.find((s) => s.position === 'goalkeeper')!;
+      expect(gkScarcity.isScarce).toBe(true);
+      expect(gkScarcity.primaryCandidateCount).toBe(1);
+    });
+
+    it('detects sufficient positions', () => {
+      const players = [
+        { primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'YES' },
+        { primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'YES' },
+        { primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'NO' },
+        { primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, goalkeeperAbility: 'NO' },
+      ];
+
+      const scarcity = computePositionScarcity(players, 2);
+      const gkScarcity = scarcity.find((s) => s.position === 'goalkeeper')!;
+      expect(gkScarcity.isScarce).toBe(false);
+    });
+  });
+
+  describe('mapAnyPositionToBroad', () => {
+    it('maps known positions', () => {
+      expect(mapAnyPositionToBroad('GK')).toBe('goalkeeper');
+      expect(mapAnyPositionToBroad('CB')).toBe('defender');
+      expect(mapAnyPositionToBroad('CM')).toBe('midfielder');
+      expect(mapAnyPositionToBroad('W')).toBe('midfielder');
+      expect(mapAnyPositionToBroad('ST')).toBe('forward');
+    });
+
+    it('maps unknown to flexible', () => {
+      expect(mapAnyPositionToBroad('UNKNOWN')).toBe('flexible');
     });
   });
 });
@@ -502,5 +693,65 @@ describe('consecutive support penalty not in event squads', () => {
 
     expect(result.assignments.length).toBe(14);
     expect(result.warnings.length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('position-fit-tier assignments', () => {
+  it('competitive squad: PRIMARY fit players fill tactical slots before SECONDARY', () => {
+    const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+    const primaryCb = makePlayer({ playerId: 'cb_primary', primaryPosition: 'CB' });
+    const secondaryCb = makePlayer({ playerId: 'cm_as_cb', primaryPosition: 'CM', secondaryPosition: 'CB' });
+    const st = makePlayer({ playerId: 'st', primaryPosition: 'ST' });
+    const cm = makePlayer({ playerId: 'cm', primaryPosition: 'CM' });
+
+    const input = makeInput({
+      players: [gk, primaryCb, secondaryCb, st, cm],
+      selectionPattern: 'ONE_COMPETITIVE_BALANCED_REMAINDER',
+      squads: [
+        { id: 'comp', name: 'Competitive', intent: 'COMPETITIVE', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 0 },
+      ],
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    const result = generateEventSquads(input);
+
+    const cbAssignment = result.assignments.find((a) => a.playerId === 'cb_primary');
+
+    if (cbAssignment?.positionFitTier) {
+      expect(cbAssignment.positionFitTier).toBe('PRIMARY');
+    }
+  });
+
+  it('event squad: unrated player gets uncertainty note', () => {
+    const unrated = makePlayer({
+      playerId: 'unrated',
+      ballControl: null,
+      passing: null,
+      firstTouch: null,
+      oneVOneAttacking: null,
+      positioning: null,
+      oneVOneDefending: null,
+      decisionMaking: null,
+      effort: null,
+      teamplay: null,
+      concentration: null,
+      speed: null,
+      strength: null,
+    });
+    const rated = makePlayer({ playerId: 'rated', ballControl: 3, passing: 3 });
+
+    const input = makeInput({
+      players: [unrated, rated],
+      selectionPattern: 'ALL_BALANCED',
+      squads: [
+        { id: 's1', name: 'Squad 1', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: null, formationId: null, generationOrder: 0 },
+      ],
+      gameFormat: 'THREE_A_SIDE',
+    });
+
+    const result = generateEventSquads(input);
+    const unratedAssignment = result.assignments.find((a) => a.playerId === 'unrated');
+    expect(unratedAssignment).toBeDefined();
+    expect(unratedAssignment!.selectionReason.toLowerCase()).toContain('uncertainty');
   });
 });

@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { playerPositionValues } from "@/lib/player-form-options";
+import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
+
+const VALID_POSITIONS: ReadonlySet<string> = new Set(playerPositionValues);
 
 export async function updatePlayerFieldAction(
   playerId: string,
@@ -46,7 +50,7 @@ export async function updatePlayerFieldAction(
   try {
     const player = await db.player.findFirst({
       where: { id: playerId, removedAt: null },
-      select: { id: true },
+      select: { id: true, primaryPosition: true, secondaryPosition: true, tertiaryPosition: true },
     });
 
     if (!player) {
@@ -69,10 +73,37 @@ export async function updatePlayerFieldAction(
     ];
 
     let parsedValue: string | number | boolean | null;
+
     if (field === "nonRotatable" || field === "reducedMatchLoadAllowed") {
       parsedValue = value === "true";
     } else if (field === "coreTeamId" && value === "") {
       parsedValue = null;
+    } else if (field === "primaryPosition") {
+      if (!VALID_POSITIONS.has(value)) {
+        return { success: false, error: "Invalid position value." };
+      }
+      const secondary = player.secondaryPosition;
+      const tertiary = player.tertiaryPosition;
+      if ((secondary && secondary === value) || (tertiary && tertiary === value)) {
+        return { success: false, error: "Primary position must differ from secondary and tertiary positions." };
+      }
+      parsedValue = value;
+    } else if (field === "secondaryPosition" || field === "tertiaryPosition") {
+      if (value === "" || value === "None") {
+        parsedValue = null;
+      } else if (!VALID_POSITIONS.has(value)) {
+        return { success: false, error: "Invalid position value." };
+      } else {
+        const primary = player.primaryPosition;
+        const other = field === "secondaryPosition" ? player.tertiaryPosition : player.secondaryPosition;
+        if (primary === value) {
+          return { success: false, error: "Position must differ from primary position." };
+        }
+        if (other && other === value) {
+          return { success: false, error: "Position must differ from other positions." };
+        }
+        parsedValue = value;
+      }
     } else if (numericFields.includes(field)) {
       if (value === "" || value === "null" || value === "—") {
         parsedValue = null;
@@ -92,6 +123,20 @@ export async function updatePlayerFieldAction(
       where: { id: player.id },
       data: { [field]: parsedValue },
     });
+
+    const isPositionField = field === "primaryPosition" || field === "secondaryPosition" || field === "tertiaryPosition";
+    if (isPositionField) {
+      const updated = await db.player.findUniqueOrThrow({
+        where: { id: player.id },
+        select: { primaryPosition: true, secondaryPosition: true, tertiaryPosition: true },
+      });
+      await syncPlayerPositions({
+        playerId: player.id,
+        primaryPosition: updated.primaryPosition,
+        secondaryPosition: updated.secondaryPosition,
+        tertiaryPosition: updated.tertiaryPosition,
+      });
+    }
 
     revalidatePath(`/players/${playerId}`);
     return { success: true };

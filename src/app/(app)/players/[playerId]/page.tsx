@@ -5,7 +5,7 @@ import { formatDate } from "@/lib/date-utils";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
-import { availabilityOptions, playerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions } from "@/lib/player-form-options";
+import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions } from "@/lib/player-form-options";
 
 import { PlayerProfileLayout } from "@/components/players/player-profile-layout";
 import { PlayerProfileHeader } from "@/components/players/player-profile-header";
@@ -186,6 +186,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             teams={teams}
             availabilityOptions={availabilityOptions}
             positionOptions={playerPositionOptions}
+            optionalPositionOptions={optionalPlayerPositionOptions}
             footOptions={preferredFootOptions}
             secondaryFootOptions={secondaryFootOpts}
             bestSideOptions={bestSideOptions}
