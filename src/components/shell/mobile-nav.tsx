@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bot,
   CalendarRange,
+  CalendarDays,
   Users,
   Shield,
   type LucideIcon,
@@ -19,6 +20,7 @@ type MobileNavItem = {
 const mobileNavItems: MobileNavItem[] = [
   { href: "/assistant", label: "Assistant", icon: Bot },
   { href: "/fixtures", label: "Fixtures", icon: CalendarRange },
+  { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/players", label: "Players", icon: Users },
 ];

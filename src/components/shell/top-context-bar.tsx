@@ -28,6 +28,7 @@ type SearchResult = {
 const pageTitles: Record<string, string> = {
   "/assistant": "Assistant",
   "/fixtures": "Fixtures",
+  "/events": "Events",
   "/players": "Players",
   "/teams": "Teams",
   "/rules": "Rules",
@@ -41,6 +42,8 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/players/") && pathname !== "/players") return "Player";
   if (pathname.startsWith("/matches/") && pathname !== "/matches") return "Match";
   if (pathname.startsWith("/opponents/") && pathname !== "/opponents") return "Opponent";
+  if (pathname.startsWith("/events/new")) return "New Event";
+  if (pathname.startsWith("/events/") && pathname !== "/events") return "Event";
   return pageTitles[pathname] ?? "Matchboard";
 }
 

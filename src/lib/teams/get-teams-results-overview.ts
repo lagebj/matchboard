@@ -66,6 +66,7 @@ export async function getTeamsResultsOverview(
     where: {
       teamId: { in: teamIds },
       matchRound: { planningPeriodId },
+      status: { not: "CANCELLED" },
     },
     select: {
       id: true,

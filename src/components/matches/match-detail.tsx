@@ -15,11 +15,14 @@ import {
   ShieldCheck,
   Eye,
   LayoutGrid,
+  XCircle,
+  RotateCcw,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
+import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -74,6 +77,9 @@ type MatchData = {
   matchRoundStatus: string;
   matchFit: string;
   notes: string | null;
+  matchStatus: string;
+  cancelledAt: Date | null;
+  cancelledReason: string | null;
   postMatchStatus?: string;
   selections: SelectionRow[];
   warnings: WarningRow[];
@@ -185,6 +191,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const [isPending, startTransition] = useTransition();
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
+  const [cancelReason, setCancelReason] = useState("");
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MatchTab | null>(null);
 
@@ -238,8 +246,42 @@ export function MatchDetail({ match }: { match: MatchData }) {
     ? POST_MATCH_PILL[match.postMatchStatus]
     : null;
 
+  const isCancelled = match.matchStatus === "CANCELLED";
+
+  function handleCancel() {
+    startTransition(async () => {
+      await cancelMatchAction(match.id, cancelReason || undefined);
+      router.refresh();
+      setShowCancelDialog(false);
+    });
+  }
+
+  function handleReopen() {
+    if (!confirm("Reopen this match? It will be restored to scheduled status and will require normal post-match reporting.")) return;
+    startTransition(async () => {
+      await reopenMatchAction(match.id);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-5">
+      {isCancelled && (
+        <DecisionBanner
+          variant="blocked"
+          title="Match cancelled"
+          description={
+            match.cancelledReason
+              ? `This match was cancelled and will not require post-match reporting. Planned squad is kept for reference but will not count as played. Reason: ${match.cancelledReason}`
+              : "This match was cancelled and will not require post-match reporting. Planned squad is kept for reference but will not count as played."
+          }
+          action={
+            <Button variant="secondary" size="sm" onClick={handleReopen} disabled={isPending} leadingIcon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}>
+              {isPending ? "Reopening…" : "Reopen match"}
+            </Button>
+          }
+        />
+      )}
       <div>
         <Link
           href="/fixtures"
@@ -259,7 +301,10 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {statusPill && (
               <StatusPill variant={statusPill.variant}>{statusPill.label}</StatusPill>
             )}
-            {postMatchPill && (
+            {isCancelled && (
+              <StatusPill variant="danger">Cancelled</StatusPill>
+            )}
+            {postMatchPill && !isCancelled && (
               <StatusPill variant={postMatchPill.variant}>{postMatchPill.label}</StatusPill>
             )}
           </div>
@@ -555,6 +600,40 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 )}
               </Surface>
             )}
+            {!isCancelled && !matchFinalized && (
+              <Surface padding="md">
+                <SectionHeader title="Cancel match" description="Mark this match as cancelled if it was not played." />
+                {showCancelDialog ? (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <textarea
+                      className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-disabled)] focus:outline-none focus:border-[var(--accent)]"
+                      placeholder="Cancellation reason (optional)"
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      rows={2}
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="danger" size="sm" onClick={handleCancel} disabled={isPending}>
+                        {isPending ? "Cancelling…" : "Confirm cancellation"}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setShowCancelDialog(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 text-[var(--danger)]"
+                    leadingIcon={<XCircle className="h-3.5 w-3.5" aria-hidden="true" />}
+                    onClick={() => setShowCancelDialog(true)}
+                  >
+                    Mark as cancelled
+                  </Button>
+                )}
+              </Surface>
+            )}
           </aside>
         </div>
       )}
@@ -577,11 +656,20 @@ export function MatchDetail({ match }: { match: MatchData }) {
       )}
 
       {selectedTab === "after-match" && (
-        <Surface padding="md">
-          <p className="text-sm text-[var(--text-muted)]">
-            Opening post-match report…
-          </p>
-        </Surface>
+        isCancelled ? (
+          <Surface padding="md">
+            <SectionHeader title="Post-match report" />
+            <p className="text-sm text-[var(--text-muted)]">
+              This match was cancelled. No post-match report is required.
+            </p>
+          </Surface>
+        ) : (
+          <Surface padding="md">
+            <p className="text-sm text-[var(--text-muted)]">
+              Opening post-match report…
+            </p>
+          </Surface>
+        )
       )}
 
       {selectedTab === "opponent" && (

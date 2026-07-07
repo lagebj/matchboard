@@ -86,6 +86,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
         select: {
           id: true,
           teamId: true,
+          status: true,
         },
       },
     },
@@ -231,6 +232,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
 
     if (round.status === "FINALIZED") {
       for (const match of round.matches) {
+        if (match.status === "CANCELLED") continue;
         if (!existingReports.has(match.id)) {
           items.push(
             makeItem({

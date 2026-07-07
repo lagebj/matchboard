@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bot,
   CalendarRange,
+  CalendarDays,
   Users,
   Shield,
   LayoutGrid,
@@ -20,6 +21,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/assistant", label: "Assistant", icon: Bot },
   { href: "/fixtures", label: "Fixtures", icon: CalendarRange },
+  { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/players", label: "Players", icon: Users },
   { href: "/formations", label: "Formations", icon: LayoutGrid },

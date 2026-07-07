@@ -93,6 +93,10 @@ export async function refreshDraftSelection(matchId: string) {
     throw new Error("Match not found.");
   }
 
+  if (match.status === "CANCELLED") {
+    throw new Error("Cancelled matches cannot be regenerated. Reopen the match first.");
+  }
+
   const latestSelection = match.selections[0] ?? null;
 
   if (latestSelection?.status === SelectionStatus.FINALIZED) {

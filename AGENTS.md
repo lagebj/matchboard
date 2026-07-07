@@ -1217,6 +1217,23 @@ Note: BACKFILL remains the internal code role and rotation path role. Use "squad
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
+### Match status model (2 states)
+
+| Status | Meaning |
+|--------|---------|
+| SCHEDULED | Normal match, available for planning |
+| CANCELLED | Match did not happen, bypasses post-match reporting and statistics |
+
+Cancelled match rules:
+- Cancelled matches are excluded from draft generation, plan integrity computation, and finalization
+- Cancelled matches do not require post-match reports
+- Cancelled matches do not count as played appearances in season statistics
+- Cancelled matches display a "Cancelled" pill on the Fixtures page and match detail
+- Planned selections for cancelled matches are preserved as context but excluded from stats
+- Matches with a completed (REPORTED or LOCKED) post-match report cannot be cancelled
+- Reopening a cancelled match clears the cancelledAt timestamp and cancelledReason, restoring SCHEDULED status
+- The MatchStatus enum also retains legacy values for backward compatibility; new generation never produces BACKFILL as a user-facing role
+
 ## Event squad planning
 
 Matchboard supports temporary event squad planning for cups, tournaments, friendly days, and similar events. Event squads are separate from league match-round planning.

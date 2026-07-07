@@ -81,6 +81,7 @@ export async function computeRoundPlanIntegrity(
     where: { id: matchRoundId },
     include: {
       matches: {
+        where: { status: { not: "CANCELLED" } },
         include: {
           team: true,
           selections: {

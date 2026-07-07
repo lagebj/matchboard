@@ -41,6 +41,7 @@ const makeMatch = (overrides: Partial<FixtureMatch> = {}): FixtureMatch => ({
   decisionRequiredCount: 0,
   reportState: { state: "NO_REPORT" },
   availableActions: ["createDraft"],
+  matchStatus: "SCHEDULED",
   ...overrides,
 });
 

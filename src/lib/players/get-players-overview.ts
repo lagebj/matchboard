@@ -164,7 +164,7 @@ export async function getPlayersSeasonOverview(
 
   const matches = roundIds.length > 0
     ? await db.match.findMany({
-        where: { matchRoundId: { in: roundIds } },
+        where: { matchRoundId: { in: roundIds }, status: { not: "CANCELLED" } },
         select: {
           id: true,
           matchRoundId: true,
@@ -792,7 +792,7 @@ export async function getPlayersCurrentRoundAttention(
   });
 
   const matches = await db.match.findMany({
-    where: { matchRoundId },
+    where: { matchRoundId, status: { not: "CANCELLED" } },
     select: {
       id: true,
       opponent: true,

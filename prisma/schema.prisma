@@ -115,6 +115,9 @@ model Match {
   formation                  String?
   matchFit                    MatchFit   @default(UNKNOWN)
   notes                       String?
+  status                      MatchStatus @default(SCHEDULED)
+  cancelledAt                 DateTime?
+  cancelledReason             String?
   createdAt                   DateTime   @default(now())
   updatedAt                   DateTime   @updatedAt
 
@@ -518,6 +521,11 @@ enum MatchType {
   FRIENDLY
   CUP
   DEVELOPMENT
+}
+
+enum MatchStatus {
+  SCHEDULED
+  CANCELLED
 }
 
 enum WarningSeverity {
