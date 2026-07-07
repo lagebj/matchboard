@@ -27,6 +27,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
       source: p.source as string,
       locked: p.locked,
       selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
+      positionFitTier: p.positionFitTier,
       firstName: p.player.firstName,
       lastName: p.player.lastName,
       coreTeamId: p.player.coreTeamId,

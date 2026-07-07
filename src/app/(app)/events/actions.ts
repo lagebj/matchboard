@@ -576,6 +576,7 @@ export async function generateEventSquadsAction(eventId: string) {
             playerId: assignment.playerId,
             source: assignment.source,
             locked: assignment.locked,
+            positionFitTier: assignment.positionFitTier,
             selectionReason: assignment.selectionReason,
           },
         });

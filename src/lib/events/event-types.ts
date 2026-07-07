@@ -2,6 +2,8 @@ import type {
   Formation,
   FormationSlot,
 } from '@/generated/prisma/client';
+import type { PositionFitTier } from '@/lib/players/player-position-resolver';
+import { getPlayerBroadPositions as canonicalGetPlayerBroadPositions } from '@/lib/players/player-position-resolver';
 
 export type GameFormat = 'THREE_A_SIDE' | 'FIVE_A_SIDE' | 'SEVEN_A_SIDE' | 'NINE_A_SIDE' | 'ELEVEN_A_SIDE';
 
@@ -91,31 +93,14 @@ export function computeCompositeRatings(player: PlayerAttributeProfile): Composi
   };
 }
 
-export function mapPositionToBroad(position: string): BroadPosition {
-  switch (position) {
-    case 'GK': return 'goalkeeper';
-    case 'CB': return 'defender';
-    case 'CM': return 'midfielder';
-    case 'W': return 'midfielder';
-    case 'ST': return 'forward';
-    default: return 'flexible';
-  }
-}
-
 export function isGoalkeeperCapable(player: PlayerAttributeProfile): boolean {
   return player.goalkeeperAbility === 'YES' || player.goalkeeperAbility === 'EMERGENCY';
 }
 
+export { mapAnyPositionToBroad as mapPositionToBroad, getPositionFitTier } from '@/lib/players/player-position-resolver';
+
 export function getPlayerBroadPositions(player: PlayerAttributeProfile): BroadPosition[] {
-  const positions: BroadPosition[] = [];
-  if (player.primaryPosition) positions.push(mapPositionToBroad(player.primaryPosition));
-  if (player.secondaryPosition && player.secondaryPosition !== 'NONE') {
-    positions.push(mapPositionToBroad(player.secondaryPosition));
-  }
-  if (player.tertiaryPosition && player.tertiaryPosition !== 'NONE') {
-    positions.push(mapPositionToBroad(player.tertiaryPosition));
-  }
-  return [...new Set(positions)];
+  return canonicalGetPlayerBroadPositions(player.primaryPosition, player.secondaryPosition, player.tertiaryPosition);
 }
 
 export interface FormationSlotRequirement {
@@ -143,6 +128,7 @@ export interface EventSquadAssignment {
   source: EventSquadPlayerSource;
   locked: boolean;
   selectionReason: string;
+  positionFitTier: PositionFitTier | null;
 }
 
 export interface SquadBalanceSummary {

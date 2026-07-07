@@ -48,13 +48,14 @@ type PlayerIdentityPanelProps = {
   teams: Array<{ id: string; name: string }>;
   availabilityOptions: ReadonlyArray<SelectOption>;
   positionOptions: ReadonlyArray<SelectOption>;
+  optionalPositionOptions: ReadonlyArray<SelectOption>;
   footOptions: ReadonlyArray<SelectOption>;
   secondaryFootOptions: ReadonlyArray<SelectOption>;
   bestSideOptions: ReadonlyArray<SelectOption>;
   updateFieldAction: (playerId: string, field: string, value: string) => Promise<{ success: boolean; error?: string }>;
 };
 
-export function PlayerIdentityPanel({ player, teams, availabilityOptions, positionOptions, footOptions, secondaryFootOptions: secFootOptions, bestSideOptions, updateFieldAction }: PlayerIdentityPanelProps) {
+export function PlayerIdentityPanel({ player, teams, availabilityOptions, positionOptions, optionalPositionOptions, footOptions, secondaryFootOptions: secFootOptions, bestSideOptions, updateFieldAction }: PlayerIdentityPanelProps) {
   const teamOptions = teams.map((t) => ({ label: t.name, value: t.id }));
 
   const handleSave = (field: string) => async (value: string) => {
@@ -103,6 +104,20 @@ export function PlayerIdentityPanel({ player, teams, availabilityOptions, positi
             options={positionOptions}
             onSave={handleSave("primaryPosition")}
           />
+          <div className="mt-1 flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
+            <InlineEditSelect
+              label="2nd"
+              value={player.secondaryPosition ?? ""}
+              options={optionalPositionOptions}
+              onSave={handleSave("secondaryPosition")}
+            />
+            <InlineEditSelect
+              label="3rd"
+              value={player.tertiaryPosition ?? ""}
+              options={optionalPositionOptions}
+              onSave={handleSave("tertiaryPosition")}
+            />
+          </div>
         </div>
       </TacticalSurface>
 

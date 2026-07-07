@@ -6,6 +6,7 @@ export {
   mapPositionToBroad,
   isGoalkeeperCapable,
   getPlayerBroadPositions,
+  getPositionFitTier,
 } from './event-types';
 export type {
   PlayerAttributeProfile,

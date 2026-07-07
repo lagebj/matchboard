@@ -21,6 +21,13 @@ import { Button } from '@/components/ui/button';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { DecisionBanner } from '@/components/ui/decision-banner';
 
+const FIT_TIER_LABELS: Record<string, string> = {
+  PRIMARY: '1st',
+  SECONDARY: '2nd',
+  TERTIARY: '3rd',
+  NO_FIT: '',
+};
+
 type EventSquad = {
   id: string;
   name: string;
@@ -36,6 +43,7 @@ type EventSquad = {
     source: string;
     locked: boolean;
     selectionReason: string;
+    positionFitTier: string | null;
     firstName: string;
     lastName: string | null;
     coreTeamId: string | null;
@@ -342,6 +350,9 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             <span>{formatName(p)}</span>
                             {p.locked && <span className="text-[var(--accent)] text-[10px]">🔒</span>}
                             {p.isGK && <span className="text-[10px] text-[var(--text-muted)]">GK</span>}
+                            {p.positionFitTier && FIT_TIER_LABELS[p.positionFitTier] && (
+                              <span className="text-[10px] text-[var(--text-muted)]">{FIT_TIER_LABELS[p.positionFitTier]}</span>
+                            )}
                             <div className="invisible group-hover:visible flex gap-1 ml-1">
                               {!p.locked && (
                                 <button
