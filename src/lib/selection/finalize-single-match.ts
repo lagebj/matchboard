@@ -64,6 +64,18 @@ export async function finalizeSingleMatch(
     };
   }
 
+  if (match.status === "CANCELLED") {
+    return {
+      success: false,
+      warnings: ["Cancelled matches cannot be finalized. Reopen the match first."],
+      hardBlocked: true,
+      needsOverride: false,
+      finalizedSelectionCount: 0,
+      matchId,
+      roundAutoFinalized: false,
+    };
+  }
+
   const matchWarnings = match.matchRound.warnings.filter(
     (w) => w.matchId === matchId && !w.resolved,
   );

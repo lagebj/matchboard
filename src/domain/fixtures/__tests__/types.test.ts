@@ -68,6 +68,7 @@ describe("Fixtures Service unit tests", () => {
         decisionRequiredCount: 0,
         reportState: { state: "NO_REPORT" },
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
+        matchStatus: "SCHEDULED",
       };
       expect(match.teamId).toBe("team-1");
       expect(match.selectionState).toBe("DRAFT");

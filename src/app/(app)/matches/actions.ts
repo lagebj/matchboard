@@ -427,3 +427,81 @@ export async function finalizeMatchAction(formData: FormData) {
   }
   redirect(buildPathWithSearch(`/matches/${matchId}`, queryParams));
 }
+
+export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
+  await requireCoachAccess();
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, status: true, matchRoundId: true },
+  });
+
+  if (!match) {
+    throw new Error("Match not found.");
+  }
+
+  if (match.status === "CANCELLED") {
+    throw new Error("Match is already cancelled.");
+  }
+
+  const existingReport = await db.postMatchReport.findFirst({
+    where: {
+      matchId,
+      status: { in: ["REPORTED", "LOCKED"] },
+    },
+    select: { id: true },
+  });
+
+  if (existingReport) {
+    throw new Error("Cannot cancel a match that has a completed post-match report. Resolve the report data conflict first.");
+  }
+
+  await db.match.update({
+    where: { id: matchId },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancelledReason: cancelledReason?.trim() || null,
+    },
+  });
+
+  await reconcileRoundAfterDraftMutation(match.matchRoundId);
+
+  revalidatePath("/fixtures");
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath("/assistant");
+  revalidatePath("/rounds");
+}
+
+export async function reopenMatchAction(matchId: string) {
+  await requireCoachAccess();
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, status: true, matchRoundId: true },
+  });
+
+  if (!match) {
+    throw new Error("Match not found.");
+  }
+
+  if (match.status !== "CANCELLED") {
+    throw new Error("Match is not cancelled.");
+  }
+
+  await db.match.update({
+    where: { id: matchId },
+    data: {
+      status: "SCHEDULED",
+      cancelledAt: null,
+      cancelledReason: null,
+    },
+  });
+
+  await reconcileRoundAfterDraftMutation(match.matchRoundId);
+
+  revalidatePath("/fixtures");
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath("/assistant");
+  revalidatePath("/rounds");
+}

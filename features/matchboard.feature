@@ -5568,3 +5568,87 @@ Feature: Matchboard football operations workspace
       Then event squad assignments must not count as league appearances
       And event squad assignments must not count as core, support, or development matches
       And event squad assignments must not count as planned match opportunities
+
+  Feature: Cancelled matches
+    A cancelled match is a scheduled fixture that did not happen.
+    Cancelled matches bypass post-match reporting and do not count as played.
+
+    Rule: Cancelled matches use neutral coaching language
+
+    Scenario: Cancelled match terminology
+      Given a match has been marked as cancelled
+      Then the app must display "Cancelled" status
+      And the app must never display "Forfeit", "No result", or "Reported as cancelled"
+
+    Rule: Cancelled matches cannot be finalized
+
+    Scenario: Coach cannot finalize a cancelled match
+      Given match "M1" has status CANCELLED
+      When the coach attempts to finalize match "M1"
+      Then the finalization must be rejected
+      And the error must state that cancelled matches cannot be finalized
+
+    Scenario: Coach cannot regenerate draft for a cancelled match
+      Given match "M1" has status CANCELLED
+      When the coach attempts to regenerate the draft for match "M1"
+      Then the regeneration must be rejected
+      And the error must state that cancelled matches cannot be regenerated
+
+    Rule: Cancelled matches are excluded from generation
+
+    Scenario: Cancelled matches are skipped during round generation
+      Given a match round contains one scheduled match "M1" and one cancelled match "M2"
+      When the coach generates draft squads for the round
+      Then only match "M1" must receive generated selections
+      And match "M2" must not receive generated selections
+
+    Rule: Cancelled matches do not require post-match reporting
+
+    Scenario: Assistant does not prompt for post-match report on cancelled match
+      Given match "M1" is in a FINALIZED round with status CANCELLED
+      When the coach views the Assistant page
+      Then the Assistant must not show a post-match report work item for match "M1"
+
+    Rule: Cancelled matches do not generate plan integrity signals
+
+    Scenario: Cancelled matches are excluded from plan integrity computation
+      Given a match round contains one scheduled match "M1" and one cancelled match "M2"
+      And match "M1" has a blocked condition
+      When the system computes plan integrity signals
+      Then match "M2" must not contribute any plan integrity signals
+
+    Rule: Cancelled matches are excluded from statistics
+
+    Scenario: Cancelled matches do not count as played
+      Given match "M1" has status CANCELLED
+      And match "M1" was in a finalized round with planned selections
+      When the coach views season overview or player statistics
+      Then match "M1" must not count as a played match
+      And selections for match "M1" must not appear in appearance counts
+
+    Rule: Cancelled matches are excluded from fixture results
+
+    Scenario: Fixtures page shows cancelled badge
+      Given match "M1" has status CANCELLED
+      When the coach views the Fixtures page
+      Then match "M1" must display a "Cancelled" status pill
+      And match "M1" must not display a score or result outcome
+      And match "M1" must be visually dimmed compared to scheduled matches
+
+    Rule: Reopening a cancelled match restores it to scheduled
+
+    Scenario: Coach can reopen a cancelled match
+      Given match "M1" has status CANCELLED with a cancellation reason
+      When the coach reopens match "M1"
+      Then match "M1" status must be set to SCHEDULED
+      And the cancelledAt timestamp must be cleared
+      And the cancelledReason must be cleared
+      And the match must be available for normal planning again
+
+    Rule: Cancelling a match with a completed post-match report is blocked
+
+    Scenario: Coach cannot cancel a match with a completed report
+      Given match "M1" has a REPORTED or LOCKED post-match report
+      When the coach attempts to cancel match "M1"
+      Then the cancellation must be rejected
+      And the error must state that matches with completed reports cannot be cancelled

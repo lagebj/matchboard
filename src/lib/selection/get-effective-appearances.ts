@@ -83,7 +83,7 @@ export async function getEffectiveAppearancesForRound(
   matchRoundId: string,
 ): Promise<Map<string, EffectiveAppearancesResult>> {
   const matches = await db.match.findMany({
-    where: { matchRoundId },
+    where: { matchRoundId, status: { not: "CANCELLED" } },
     select: { id: true },
   });
 

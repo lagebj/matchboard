@@ -168,6 +168,8 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
             postMatchStatus: (postMatchStatus as FixtureMatch["postMatchStatus"]) ?? undefined,
             reportState,
             availableActions: getRoundActions(derivedRoundStatus, hasMatches),
+            matchStatus: match.status ?? "SCHEDULED",
+            cancelledReason: match.cancelledReason ?? null,
           };
         });
 

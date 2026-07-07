@@ -82,6 +82,10 @@ Completed fixtures use subtle outcome styling: soft green for Won, soft neutral/
 
 Matches can be rescheduled before a completed post-match report exists. Edit date and kick-off time from Match details. Inside the current Phase, Matchboard automatically places the match in the correct weekly round. When the target week does not yet have a round, Matchboard creates it automatically. Draft planning follows the moved match and integrity is recalculated. A finalised squad plan must be unfinalised before moving the match to another round. Completed match history cannot be rescheduled through ordinary editing. Moving outside the current Phase requires separate Phase handling.
 
+## Cancelled matches
+
+A cancelled match is a scheduled fixture that did not happen. The coach can cancel a match from the match detail page by providing a reason. Matches with a completed post-match report cannot be cancelled. Cancelled matches are excluded from draft generation, plan integrity computation, finalization, post-match reporting, and season statistics. Planned selections for cancelled matches are preserved as context but do not count as played appearances. The coach can reopen a cancelled match to restore it to scheduled status, making it available for normal planning again.
+
 ## Post-match workflow
 
 "After match" opens the reporting workspace directly. When no report exists and a finalised squad exists, the first entry creates a DRAFT report seeded from the planned squad automatically — no separate "Open report" or "Seed from plan" step. Reports use a single "Complete report" action instead of separate Submit and Lock steps. Post-match feedback applies only to actual participants with confirmed PRESENT attendance, including manually added matchday participants.

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { StatusRail } from "@/components/ui/status-rail";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { MatchTicket } from "@/components/ui/match-ticket";
+import { StatusPill } from "@/components/ui/status-pill";
 import type { ScoreCapsuleResult } from "@/components/ui/score-capsule";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarRange, OctagonAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -74,6 +75,7 @@ function IntegritySummary({
 
 function MatchRow({ match }: { match: FixtureMatch }) {
   const isCompleted = match.reportState.state === "COMPLETED";
+  const isCancelled = match.matchStatus === "CANCELLED";
 
   const completedResult = isCompleted && match.reportState.state === "COMPLETED"
     ? match.reportState.result
@@ -90,17 +92,27 @@ function MatchRow({ match }: { match: FixtureMatch }) {
     : undefined;
 
   return (
-    <MatchTicket
-      teamName={match.teamName}
-      opponentName={match.opponent}
-      dateLabel={match.startsAt ? new Date(match.startsAt).toLocaleDateString() : undefined}
-      status={match.selectionState}
-      reportStatus={match.postMatchStatus}
-      homeScore={completedResult?.goalsFor}
-      awayScore={completedResult?.goalsAgainst}
-      result={result ?? "unknown"}
-      href={`/matches/${match.id}`}
-    />
+    <div className={isCancelled ? "opacity-60" : ""}>
+      <MatchTicket
+        teamName={match.teamName}
+        opponentName={match.opponent}
+        dateLabel={match.startsAt ? new Date(match.startsAt).toLocaleDateString() : undefined}
+        status={isCancelled ? "FINALIZED" : match.selectionState}
+        reportStatus={isCancelled ? undefined : match.postMatchStatus}
+        homeScore={isCancelled ? undefined : completedResult?.goalsFor}
+        awayScore={isCancelled ? undefined : completedResult?.goalsAgainst}
+        result={isCancelled ? "unknown" : (result ?? "unknown")}
+        href={`/matches/${match.id}`}
+      />
+      {isCancelled && (
+        <div className="mt-1 flex items-center gap-1.5 px-1">
+          <StatusPill variant="danger">Cancelled</StatusPill>
+          {match.cancelledReason && (
+            <span className="text-[10px] text-[var(--text-muted)] truncate max-w-48">{match.cancelledReason}</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

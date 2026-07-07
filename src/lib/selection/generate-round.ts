@@ -19,6 +19,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
     where: { id: matchRoundId },
     include: {
       matches: {
+        where: { status: { not: "CANCELLED" } },
         include: {
           team: {
             select: {

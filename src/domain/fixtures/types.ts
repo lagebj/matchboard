@@ -67,4 +67,6 @@ export interface FixtureMatch {
   postMatchStatus?: "NOT_STARTED" | "DRAFT" | "REPORTED" | "LOCKED";
   reportState: FixtureReportState;
   availableActions: SelectionAction[];
+  matchStatus: "SCHEDULED" | "CANCELLED";
+  cancelledReason?: string | null;
 }
