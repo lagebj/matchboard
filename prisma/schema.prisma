@@ -154,27 +154,33 @@ model RuleConfig {
 }
 
 model Season {
-  id             String           @id @default(cuid())
-  name           String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  PlanningPeriod PlanningPeriod[]
+  id            String         @id @default(cuid())
+  name          String
+  year          Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  leagueSeasons LeagueSeason[]
+
+  @@map("Season")
 }
 
 model MatchRound {
-  id               String           @id @default(cuid())
-  name             String
-  planningPeriodId String
-  status           String           @default("DRAFT")
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  availabilities   Availability[]
-  matches          Match[]
-  PlanningPeriod   PlanningPeriod   @relation(fields: [planningPeriodId], references: [id])
+  id              String           @id @default(cuid())
+  name            String
+  leagueSeasonId  String
+  status          String           @default("DRAFT")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  availabilities  Availability[]
+  matches         Match[]
+  leagueSeason    LeagueSeason     @relation(fields: [leagueSeasonId], references: [id])
   movementLedger   MovementLedger[]
   playerLocks      PlayerLock[]
   selections       Selection[]
   warnings         Warning[]
+
+  @@index([leagueSeasonId])
+  @@map("MatchRound")
 }
 
 model Availability {
@@ -687,7 +693,6 @@ model Event {
   startsAt               DateTime
   endsAt                 DateTime?
   gameFormat             GameFormat
-  sourcePlanningPeriodId String?
   defaultFormationId     String?
   selectionPattern       EventSelectionPattern?
   notes                  String?
@@ -757,16 +762,25 @@ model EventSquadPlayer {
   @@index([playerId])
 }
 
-model PlanningPeriod {
-  id         String       @id
-  name       String
-  seasonId   String
-  startDate  DateTime
-  endDate    DateTime
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime
-  MatchRound MatchRound[]
-  Season     Season       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+model LeagueSeason {
+  id        String          @id @default(cuid())
+  name      String
+  seasonId  String
+  part      LeagueSeasonPart
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  matchRounds MatchRound[]
+  season    Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@index([seasonId])
+  @@map("LeagueSeason")
+}
+
+enum LeagueSeasonPart {
+  SPRING
+  FALL
 }
 
 enum FootPreference {
