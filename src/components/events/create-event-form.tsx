@@ -19,9 +19,7 @@ const GAME_FORMAT_OPTIONS = [
   { value: "ELEVEN_A_SIDE", label: "11-a-side" },
 ] as const;
 
-function formatGameFormat(gf: string): string {
-  return gf.replace("_", "-").toLowerCase();
-}
+import { formatGameFormat } from "@/lib/formatters/game-format";
 
 export function CreateEventForm({ formations }: { formations: Formation[] }) {
   const router = useRouter();

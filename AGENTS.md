@@ -1368,7 +1368,7 @@ Disallowed language: weak player, bad player, low quality, leftover, not good en
 - Events do not appear as primary sidebar items (the sidebar remains: Assistant, Fixtures, Teams, Players)
 - Events are accessible through Fixtures context or direct navigation
 
-### Key engine files (to be created)
+### Key engine files
 
 | File | Purpose |
 |------|---------|
@@ -1376,9 +1376,12 @@ Disallowed language: weak player, bad player, low quality, leftover, not good en
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
+| `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
+| `src/app/(app)/events/[eventId]/event-detail.tsx` | Event detail client component (tabs: overview, squads, player pool) |
 
 ## Testing requirements
 
@@ -1597,6 +1600,8 @@ Avoid:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
+| `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 
 ### Formation/tactics files
 

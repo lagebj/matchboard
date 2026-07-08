@@ -2,9 +2,7 @@ import Link from 'next/link';
 import { getEvents } from './actions';
 import { RatingBadge } from '@/components/ratings/rating-badge';
 
-function formatGameFormat(gf: string): string {
-  return gf.replace('_', '-').toLowerCase();
-}
+import { formatGameFormat } from "@/lib/formatters/game-format";
 
 export const metadata = { title: 'Events' };
 

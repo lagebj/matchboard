@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getEventById } from '../actions';
+import { getEventById, getAvailablePlayersForEvent } from '../actions';
 import { EventDetail } from './event-detail';
 import { computeSquadBalance } from '@/lib/events/event-balance';
 import { validateEventPool } from '@/lib/events/event-validation';
@@ -17,9 +17,36 @@ function toGameFormat(gf: string): GameFormat {
 
 export default async function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
-  const event = await getEventById(eventId);
+  const [event, allActivePlayers] = await Promise.all([
+    getEventById(eventId),
+    getAvailablePlayersForEvent(),
+  ]);
 
   if (!event) notFound();
+
+  const eventPlayerIds = new Set(event.players.map((ep) => ep.playerId));
+
+  const addablePlayers = allActivePlayers
+    .filter((p) => !eventPlayerIds.has(p.id))
+    .map((p) => {
+      const attrs = [p.ballControl, p.passing, p.firstTouch, p.oneVOneAttacking, p.positioning, p.oneVOneDefending, p.decisionMaking, p.effort, p.teamplay, p.concentration, p.speed, p.strength];
+      const nonNullAttrs = attrs.filter((v): v is number => v !== null);
+      return {
+        playerId: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        coreTeamId: p.coreTeamId,
+        coreTeamName: p.coreTeam?.name ?? null,
+        primaryPosition: p.primaryPosition,
+        secondaryPosition: p.secondaryPosition,
+        tertiaryPosition: p.tertiaryPosition,
+        goalkeeperAbility: p.goalkeeperAbility ?? 'NO',
+        overallLevel: nonNullAttrs.length > 0
+          ? Math.round((nonNullAttrs.reduce((sum, v) => sum + v, 0) / nonNullAttrs.length) * 10) / 10
+          : null,
+        isGK: p.goalkeeperAbility === 'YES' || p.goalkeeperAbility === 'EMERGENCY',
+      };
+    });
 
   const squads = event.squads.map((s) => ({
     id: s.id,
@@ -134,6 +161,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     players,
     availablePlayers,
     unassignedPlayers,
+    addablePlayers,
     squadBalances,
     validation,
   };
