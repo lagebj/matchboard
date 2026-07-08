@@ -6498,3 +6498,67 @@ Feature: Matchboard football operations workspace
         When the coach reschedules squad A's match to 10:30
         Then support conflicts must be recalculated
         And P1's assignment must show a conflict if overlap now exists
+
+    Rule: Helper planning is per-match inside the match card
+
+      Scenario: Match card shows planned helpers
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 vs Opponent X
+        And player P1 from squad B is assigned as support for squad A's match
+        When the coach views the matches tab
+        Then the match card for squad A vs Opponent X must show P1 as a planned helper
+        And it must show P1's source squad name
+        And it must show P1's planned role if set
+
+      Scenario: Match card shows no helpers message
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 vs Opponent X with no support assignments
+        When the coach views the matches tab
+        Then the match card must show "none" under Helpers
+
+      Scenario: Match card shows conflict warning on helper
+        Given an event with a support assignment that has a conflict
+        When the coach views the matches tab
+        Then the match card must show the conflict reason next to the helper
+
+      Scenario: Add helper control is inside the match card
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 vs Opponent X
+        When the coach views the matches tab
+        Then each match card must have an "Add helper" control
+        And clicking it must show eligible helper candidates for that match only
+
+      Scenario: Helper dropdown shows only eligible candidates
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 and squad B plays at 10:30
+        And player P1 from squad A is AVAILABLE
+        And player P2 from squad A is AVAILABLE
+        When the coach opens the helper selector for squad B's match
+        Then only players from non-overlapping squads must appear as available
+        And players from squad A must appear in "Unavailable at this time" with reason
+
+      Scenario: No available helpers message
+        Given an event with match duration 20 minutes
+        And all other squads have overlapping matches
+        When the coach opens the helper selector
+        Then the message "No available helpers at this match time" must appear
+
+      Scenario: Helper added appears immediately in match card
+        Given an event with match duration 20 minutes
+        And an eligible helper candidate
+        When the coach adds a helper from the match card
+        Then the helper must appear in that match card after refresh
+        And the helper count must update in the support overview
+
+      Scenario: Helper removed disappears from match card
+        Given an event with a support assignment
+        When the coach removes the helper from the match card
+        Then the helper must no longer appear in that match card
+        And the support load summary must update
+
+      Scenario: Support overview shows load summary without add controls
+        Given an event with match duration 20 minutes and support assignments
+        When the coach views the matches tab
+        Then a support overview section must show per-player load
+        And conflict count must be visible
+        And the add-helper control must not appear in the support overview

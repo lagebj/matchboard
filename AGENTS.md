@@ -1407,8 +1407,7 @@ Rules:
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
 | `src/app/(app)/events/[eventId]/event-detail.tsx` | Event detail client component (tabs: overview, squads, player pool) |
-| `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with support planning and post-match reporting |
-| `src/app/(app)/events/[eventId]/event-support-planning.tsx` | Support planning section component |
+| `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with per-match helper controls, support load summary, and post-match reporting |
 | `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches |
 | `src/lib/formatters/event-labels.ts` | Human-readable event type, squad intent, player status, match status, goalkeeper ability labels |
 | `src/lib/formatters/event-export-filename.ts` | Safe event export filename generation |
