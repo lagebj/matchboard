@@ -3,6 +3,8 @@
 import { useTransition, useState } from "react";
 import Link from "next/link";
 import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
+import { RatingBadge } from "@/components/ratings/rating-badge";
+import type { RatingSummary } from "@/lib/ratings/player-rating";
 
 type ManageBaseGroupsViewProps = {
   players: Array<{
@@ -14,6 +16,7 @@ type ManageBaseGroupsViewProps = {
     currentAvailability: string;
     nonRotatable: boolean;
     reducedMatchLoadAllowed: boolean;
+    overallRating: RatingSummary;
   }>;
   teams: Array<{ id: string; name: string }>;
 };
@@ -63,6 +66,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Player</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core team</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Position</th>
+                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Overall</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Availability</th>
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Flags</th>
                 <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -133,6 +137,9 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                     </td>
                     <td className="px-3 py-2 text-zinc-300">
                       {player.primaryPosition || "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <RatingBadge rating={player.overallRating} />
                     </td>
                     <td className="px-3 py-2">
                       <span className={isUnavailable ? "text-amber-300" : "text-emerald-400"}>

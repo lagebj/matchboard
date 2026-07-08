@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { PageHeader } from "@/components/ui/page-header";
 import { TeamShield } from "@/components/ui/team-shield";
+import { RatingBadge } from "@/components/ratings/rating-badge";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -42,6 +43,9 @@ function TeamResultsRow({ row }: { row: TeamPeriodResultsRow }) {
           {row.teamName}
         </Link>
       </td>
+      <td className="px-3 py-2.5">
+        <RatingBadge rating={{ value: row.overallRatingValue, displayValue: row.overallRatingDisplay, ratedAttributeCount: row.ratedPlayerCount, maxAttributeCount: 12 }} />
+      </td>
       <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.matchesPlayed}</td>
       <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.wins}-{row.draws}-{row.losses}</td>
       <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.goalsFor}</td>
@@ -67,13 +71,13 @@ function MobileTeamCard({ row }: { row: TeamPeriodResultsRow }) {
       </div>
       <div className="flex items-center justify-between mt-1">
         <span className="text-xs text-[var(--text-soft)] tabular-nums">{row.wins}-{row.draws}-{row.losses}</span>
-        <span className="text-xs text-[var(--text-muted)] tabular-nums">
+        <RatingBadge rating={{ value: row.overallRatingValue, displayValue: row.overallRatingDisplay, ratedAttributeCount: row.ratedPlayerCount, maxAttributeCount: 12 }} />
+      </div>
+      <div className="flex items-center justify-between mt-0.5">
+        <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
           GF {row.goalsFor} · GA {row.goalsAgainst} · GD {formatGd(row.goalDifference)}
         </span>
-      </div>
-      <div className="flex items-center justify-between mt-1">
         <span className="text-[10px] text-[var(--text-muted)]">Clean sheets {row.cleanSheets}</span>
-        <span className="text-[10px] text-[var(--text-muted)]">Core players {row.corePlayerCount}</span>
       </div>
     </Surface>
   );
@@ -159,6 +163,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
               <thead>
                 <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Team</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Rating</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Played</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">W-D-L</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">GF</th>

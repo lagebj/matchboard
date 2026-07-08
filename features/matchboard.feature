@@ -5725,3 +5725,96 @@ Feature: Matchboard football operations workspace
       Scenario: Override reason categories include engagement-specific categories
         Given the app supports override reason categories
         Then the categories must include: squad_too_small, support_missing, development_opportunity, no_planned_match_opportunity, double_load_needed, availability_changed, coach_judgement, match_already_played, data_correction, other, injured, late_withdrawal, parent_logistics, capacity_impossible
+
+  Feature: Coach-facing ratings display
+
+    Rule: Player overall rating is derived from attribute averages
+
+      Scenario: Player overview shows overall attribute rating
+        Given a player has rated attributes
+        When the player is displayed in the players overview
+        Then the overall rating must show the average of all non-null attributes
+        And the display must show both a number and stars
+        And null or missing attributes must be excluded from the average
+
+      Scenario: Player with no rated attributes shows Not rated
+        Given a player has no rated attributes
+        When the player is displayed in the players overview
+        Then the overall rating must show "Not rated"
+
+      Scenario: A rating of 0 is treated as unrated not poor
+        Given a player has ballControl set to 0 and passing set to 3
+        When the overall rating is calculated
+        Then 0 must be excluded from the average
+        And the average must be 3.0 from one rated attribute
+
+    Rule: Team rating is average of active player ratings
+
+      Scenario: League teams overview shows average team rating
+        Given a team has active players with rated attributes
+        When the team is displayed in the teams overview
+        Then the team rating must show the average of all active players' overall ratings
+        And removed or inactive players must be excluded
+        And players with no valid rating must be excluded from the average
+
+      Scenario: Team with no rated players shows Not rated
+        Given a team has no players with rated attributes
+        When the team is displayed in the teams overview
+        Then the team rating must show "Not rated"
+
+    Rule: Event squad rating is average of assigned player ratings
+
+      Scenario: Event squad shows average rating
+        Given an event squad has players with rated attributes
+        When the squad is displayed on the event detail page
+        Then the squad rating must show the average of assigned players' overall ratings
+        And unrated assigned players must be excluded from the average
+
+      Scenario: Empty squad handles rating gracefully
+        Given an event squad has no assigned players
+        When the squad is displayed on the event detail page
+        Then the squad must show no average rating
+
+    Rule: Ratings are coach-facing only
+
+      Scenario: Ratings must not appear in parent-facing exports
+        Given player and team ratings are displayed in the coach interface
+        When a parent-facing export is generated
+        Then player ratings must not be included
+        And team ratings must not be included
+        And squad ratings must not be included
+
+  Feature: Event creation
+
+    Rule: Default formation must match game format
+
+      Scenario: Create Event filters formations by game format
+        Given formations exist for 5-a-side and 7-a-side
+        When the coach selects 5-a-side as game format
+        Then the default formation dropdown must only show 5-a-side formations
+        And 7-a-side formations must not appear in the dropdown
+
+      Scenario: Changing game format clears incompatible formation
+        Given the coach has selected a 7-a-side formation
+        When the coach changes game format to 5-a-side
+        Then the selected formation must reset to "No formation"
+
+      Scenario: No matching formations shows helpful message
+        Given no formations exist for 3-a-side
+        When the coach selects 3-a-side as game format
+        Then the formation dropdown must show "No formations available for this game format"
+        And "No formation (role template)" must still be selectable
+
+      Scenario: Server rejects mismatched formation and game format
+        Given a coach submits an event with a 7-a-side formation
+        And the game format is 5-a-side
+        Then the server must reject the submission with a validation error
+
+    Rule: Event creation must persist and navigate
+
+      Scenario: Create Event persists and navigates to event detail
+        Given the coach fills in all required fields
+        When the coach submits the create event form
+        Then the event must be created in the database
+        And the coach must be navigated to the new event detail page
+        And the event must appear in the events list

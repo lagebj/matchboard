@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import {
@@ -85,6 +86,19 @@ export async function createEventAction(formData: FormData) {
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
   const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
 
+  if (defaultFormationId) {
+    const formation = await db.formation.findUnique({
+      where: { id: defaultFormationId },
+      select: { id: true, gameFormat: true },
+    });
+    if (!formation) {
+      throw new Error('Selected formation does not exist.');
+    }
+    if (formation.gameFormat !== gameFormat) {
+      throw new Error('Selected formation does not match the chosen game format.');
+    }
+  }
+
   const squadCount = parseInt(formData.get('squadCount') as string) || 2;
   const targetSize = parseInt(formData.get('targetSize') as string) || 7;
 
@@ -114,7 +128,7 @@ export async function createEventAction(formData: FormData) {
   });
 
   revalidatePath('/events');
-  return event;
+  redirect(`/events/${event.id}`);
 }
 
 export async function updateEventAction(id: string, formData: FormData) {
@@ -134,6 +148,19 @@ export async function updateEventAction(id: string, formData: FormData) {
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
   const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+
+  if (defaultFormationId) {
+    const formation = await db.formation.findUnique({
+      where: { id: defaultFormationId },
+      select: { id: true, gameFormat: true },
+    });
+    if (!formation) {
+      throw new Error('Selected formation does not exist.');
+    }
+    if (formation.gameFormat !== gameFormat) {
+      throw new Error('Selected formation does not match the chosen game format.');
+    }
+  }
 
   const event = await db.event.update({
     where: { id },
