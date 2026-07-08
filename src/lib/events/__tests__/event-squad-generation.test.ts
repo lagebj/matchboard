@@ -918,4 +918,66 @@ describe('computeLineupAssignment', () => {
     const defenderSlot = result.slots.find((s) => s.roleType === 'DEFENDER');
     expect(defenderSlot?.player?.playerId).toBe('def1');
   });
+
+  it('derives placement from player positions when no slot metadata', () => {
+    const playersWithoutSlotMetadata = [
+      { playerId: 'gk1', firstName: 'GK', lastName: 'One', primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: true, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'fwd1', firstName: 'Fwd', lastName: 'One', primaryPosition: 'ST', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'flex1', firstName: 'Flex', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+    ];
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: playersWithoutSlotMetadata,
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    expect(result.slots[0].player?.playerId).toBe('gk1');
+    expect(result.slots[0].player?.positionFitTier).toBe('PRIMARY');
+    expect(result.slots[1].player?.playerId).toBe('def1');
+    expect(result.slots[2].player?.playerId).toBe('mid1');
+    expect(result.slots[3].player?.playerId).toBe('fwd1');
+    expect(result.slots[4].player?.playerId).toBe('flex1');
+  });
+
+  it('derives placement for manual assignments without slot metadata', () => {
+    const manualPlayer = { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: 'CM' as string | null, tertiaryPosition: null, overallLevel: 4, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: 'Manually assigned by coach', locked: false };
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: [manualPlayer],
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    expect(result.unassignedPlayers.length).toBe(0);
+    const assignedSlot = result.slots.find((s) => s.player?.playerId === 'def1');
+    expect(assignedSlot).toBeDefined();
+    expect(assignedSlot?.player?.positionFitTier).toBeTruthy();
+  });
+
+  it('respects assigned role type over position-based derivation', () => {
+    const playerWithRole = { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: 'FORWARD' as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: 'Role override', locked: false };
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: [playerWithRole],
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    const forwardSlot = result.slots.find((s) => s.roleType === 'FORWARD');
+    expect(forwardSlot?.player?.playerId).toBe('mid1');
+    const midSlot = result.slots.find((s) => s.roleType === 'MIDFIELDER');
+    expect(midSlot?.player).toBeNull();
+  });
 });
