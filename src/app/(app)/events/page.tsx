@@ -1,5 +1,10 @@
 import Link from 'next/link';
 import { getEvents } from './actions';
+import { RatingBadge } from '@/components/ratings/rating-badge';
+
+function formatGameFormat(gf: string): string {
+  return gf.replace('_', '-').toLowerCase();
+}
 
 export const metadata = { title: 'Events' };
 
@@ -61,13 +66,13 @@ export default async function EventsPage() {
                         {new Date(event.startsAt).toLocaleDateString()}
                       </span>
                       <span>
-                        {event.gameFormat.replace('_', '-')}
+                        {formatGameFormat(event.gameFormat)}
                       </span>
                     </div>
                   </div>
                   <div className="text-right text-sm text-muted-foreground">
                     <div>{event.squads.length} squad{event.squads.length !== 1 ? 's' : ''}</div>
-                    <div>{availableCount} available player{availableCount !== 1 ? 's' : ''}</div>
+                    <div>{event.players.filter((p) => p.status === 'AVAILABLE').length} available player{event.players.filter((p) => p.status === 'AVAILABLE').length !== 1 ? 's' : ''}</div>
                     {totalSquadPlayers > 0 && (
                       <div>{totalSquadPlayers} assigned</div>
                     )}

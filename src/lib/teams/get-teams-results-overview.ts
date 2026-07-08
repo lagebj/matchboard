@@ -1,10 +1,15 @@
 import { db } from "@/lib/db";
 import { formatDateRange } from "@/lib/date/format-date-range";
+import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 
 export type TeamPeriodResultsRow = {
   teamId: string;
   teamName: string;
   corePlayerCount: number;
+  overallRatingValue: number | null;
+  overallRatingDisplay: string;
+  ratedPlayerCount: number;
+  totalPlayerCount: number;
   matchesPlayed: number;
   wins: number;
   draws: number;
@@ -39,8 +44,22 @@ export async function getTeamsResultsOverview(
       id: true,
       name: true,
       corePlayers: {
-        where: { removedAt: null },
-        select: { id: true },
+        where: { removedAt: null, active: true },
+        select: {
+          id: true,
+          ballControl: true,
+          passing: true,
+          firstTouch: true,
+          oneVOneAttacking: true,
+          positioning: true,
+          oneVOneDefending: true,
+          decisionMaking: true,
+          effort: true,
+          teamplay: true,
+          concentration: true,
+          speed: true,
+          strength: true,
+        },
       },
     },
     orderBy: [{ supportPriority: "asc" }, { name: "asc" }],
@@ -127,10 +146,35 @@ export async function getTeamsResultsOverview(
       if (oppGoals === 0) cleanSheets++;
     }
 
+    const playerRatings = team.corePlayers.map((p) =>
+      getPlayerOverallRating({
+        ballControl: p.ballControl,
+        passing: p.passing,
+        firstTouch: p.firstTouch,
+        oneVOneAttacking: p.oneVOneAttacking,
+        positioning: p.positioning,
+        oneVOneDefending: p.oneVOneDefending,
+        decisionMaking: p.decisionMaking,
+        effort: p.effort,
+        teamplay: p.teamplay,
+        concentration: p.concentration,
+        speed: p.speed,
+        strength: p.strength,
+      }),
+    );
+    const ratedValues = playerRatings.map((r) => r.value).filter((v): v is number => v !== null);
+    const teamOverallRating = ratedValues.length > 0
+      ? Math.round((ratedValues.reduce((sum, v) => sum + v, 0) / ratedValues.length) * 10) / 10
+      : null;
+
     return {
       teamId: team.id,
       teamName: team.name,
       corePlayerCount: team.corePlayers.length,
+      overallRatingValue: teamOverallRating,
+      overallRatingDisplay: teamOverallRating !== null ? teamOverallRating.toFixed(1) : "Not rated",
+      ratedPlayerCount: ratedValues.length,
+      totalPlayerCount: team.corePlayers.length,
       matchesPlayed,
       wins,
       draws,

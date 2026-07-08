@@ -20,6 +20,7 @@ import { StatusPill } from '@/components/ui/status-pill';
 import { Button } from '@/components/ui/button';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { DecisionBanner } from '@/components/ui/decision-banner';
+import { RatingBadge } from '@/components/ratings/rating-badge';
 
 const FIT_TIER_LABELS: Record<string, string> = {
   PRIMARY: '1st',
@@ -321,7 +322,9 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                     </div>
                     {balance && (
                       <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
-                        {balance.averageOverall !== null && <span>Avg: {balance.averageOverall}</span>}
+                        {balance.averageOverall !== null && (
+                          <RatingBadge rating={{ value: balance.averageOverall, displayValue: balance.averageOverall.toFixed(1), ratedAttributeCount: 0, maxAttributeCount: 12 }} />
+                        )}
                         <span>GK: {balance.goalkeeperCount}</span>
                         <span>DEF: {balance.defenderCount}</span>
                         <span>MID: {balance.midfielderCount}</span>
@@ -408,7 +411,9 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                       if (!balance) return null;
                       return (
                         <div className="mb-2 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
-                          {balance.averageOverall !== null && <span>Avg: {balance.averageOverall}</span>}
+                          {balance.averageOverall !== null && (
+                            <RatingBadge rating={{ value: balance.averageOverall, displayValue: balance.averageOverall.toFixed(1), ratedAttributeCount: 0, maxAttributeCount: 12 }} />
+                          )}
                           <span>GK: {balance.goalkeeperCount}</span>
                           <span>DEF: {balance.defenderCount}</span>
                           <span>MID: {balance.midfielderCount}</span>

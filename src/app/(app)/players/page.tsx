@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
+import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
+import type { RatingSummary } from "@/lib/ratings/player-rating";
 
 type PlayersPageProps = {
   searchParams: Promise<{
@@ -49,6 +51,24 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
     ? await getPlayersCurrentRoundAttention(selectedRoundId)
     : [];
 
+  const playerRatings = new Map<string, RatingSummary>();
+  for (const p of players) {
+    playerRatings.set(p.id, getPlayerOverallRating({
+      ballControl: p.ballControl,
+      passing: p.passing,
+      firstTouch: p.firstTouch,
+      oneVOneAttacking: p.oneVOneAttacking,
+      positioning: p.positioning,
+      oneVOneDefending: p.oneVOneDefending,
+      decisionMaking: p.decisionMaking,
+      effort: p.effort,
+      teamplay: p.teamplay,
+      concentration: p.concentration,
+      speed: p.speed,
+      strength: p.strength,
+    }));
+  }
+
   return (
     <PlayersPageClient
       players={players.map((p) => ({
@@ -61,6 +81,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
         currentAvailability: p.currentAvailability,
         nonRotatable: p.nonRotatable,
         reducedMatchLoadAllowed: p.reducedMatchLoadAllowed,
+        overallRating: playerRatings.get(p.id)!,
       }))}
       teams={teams}
       leagueSeasons={leagueSeasons}

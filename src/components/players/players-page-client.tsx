@@ -6,6 +6,7 @@ import { SeasonOverviewTable } from "./season-overview-table";
 import { CurrentRoundAttentionTable } from "./current-round-attention-table";
 import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
+import type { RatingSummary } from "@/lib/ratings/player-rating";
 import { formatLeagueSeasonDisplay } from "@/lib/date/format-phase-display";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ type PlayersPageClientProps = {
     currentAvailability: string;
     nonRotatable: boolean;
     reducedMatchLoadAllowed: boolean;
+    overallRating: RatingSummary;
   }>;
   teams: Array<{ id: string; name: string }>;
   leagueSeasons: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
@@ -181,6 +183,7 @@ export function PlayersPageClient({
             currentAvailability: p.currentAvailability,
             nonRotatable: p.nonRotatable,
             reducedMatchLoadAllowed: p.reducedMatchLoadAllowed,
+            overallRating: p.overallRating,
           }))}
           teams={teams}
         />
