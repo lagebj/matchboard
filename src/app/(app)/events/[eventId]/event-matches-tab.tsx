@@ -14,11 +14,14 @@ import {
   reopenEventMatchReportAction,
   getEventMatchReport,
 } from '../event-post-match-actions';
+import { getEventMatchSupportAssignmentsAction } from '../event-support-actions';
 import { getDefaultEventMatchCategory } from '@/lib/stats/match-category';
+import { getEventMatchWindow } from '@/lib/events/event-match-time';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
 import { EventMatchReportPanel } from './event-match-report-panel';
+import { SupportPlanningSection } from './event-support-planning';
 
 interface EventMatchWithReport {
   id: string;
@@ -48,6 +51,7 @@ interface EventMatchesTabProps {
     players: Array<{ playerId: string }>;
   }>;
   eventType: string;
+  matchDurationMinutes: number | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -62,10 +66,12 @@ const REPORT_STATUS_LABELS: Record<string, string> = {
   LOCKED: 'Completed',
 };
 
-export function EventMatchesTab({ eventId, squads, eventType }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinutes }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [supportAssignments, setSupportAssignments] = useState<any[]>([]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createSquadId, setCreateSquadId] = useState(squads[0]?.id ?? '');
@@ -82,8 +88,12 @@ export function EventMatchesTab({ eventId, squads, eventType }: EventMatchesTabP
 
   function loadMatches() {
     startTransition(async () => {
-      const result = await listEventMatchesAction(eventId);
-      setMatches(result);
+      const [matchResult, supportResult] = await Promise.all([
+        listEventMatchesAction(eventId),
+        getEventMatchSupportAssignmentsAction(eventId),
+      ]);
+      setMatches(matchResult);
+      setSupportAssignments(supportResult);
       setLoaded(true);
     });
   }
@@ -363,6 +373,9 @@ export function EventMatchesTab({ eventId, squads, eventType }: EventMatchesTabP
                       </StatusPill>
                       <span className="text-xs text-[var(--text-muted)]">
                         {new Date(m.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {matchDurationMinutes && (
+                          <>-{new Date(new Date(m.startsAt).getTime() + matchDurationMinutes * 60 * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</>
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -449,12 +462,13 @@ export function EventMatchesTab({ eventId, squads, eventType }: EventMatchesTabP
                           teamReflection: reportData.teamReflection,
                           opponentObservation: reportData.opponentObservation,
                           notes: reportData.notes,
-                          playerReports: (reportData.playerReports ?? []).map((pr: { id: string; playerId: string; attendanceStatus: string; source: string; player: { firstName: string; lastName: string | null } | null }) => ({
+                          playerReports: (reportData.playerReports ?? []).map((pr: { id: string; playerId: string; attendanceStatus: string; source: string; role: string | null; player: { firstName: string; lastName: string | null } | null }) => ({
                             id: pr.id,
                             playerId: pr.playerId,
                             playerName: pr.player ? `${pr.player.firstName}${pr.player.lastName ? ' ' + pr.player.lastName : ''}` : 'Unknown',
                             attendanceStatus: pr.attendanceStatus,
                             source: pr.source,
+                            role: pr.role,
                           })),
                           goalEvents: (reportData.goalEvents ?? []).map((g: { id: string; playerId: string | null; minute: number | null; type: string; note: string | null; scorer: { firstName: string; lastName: string | null } | null }) => ({
                             id: g.id,
@@ -485,6 +499,24 @@ export function EventMatchesTab({ eventId, squads, eventType }: EventMatchesTabP
           </Surface>
         );
       })}
+
+      {loaded && matches.length > 0 && (
+        <SupportPlanningSection
+          eventId={eventId}
+          matchDurationMinutes={matchDurationMinutes}
+          matches={matches.map((m) => ({
+            id: m.id,
+            eventSquadId: m.eventSquadId,
+            opponentName: m.opponentName,
+            startsAt: m.startsAt,
+            status: m.status,
+          }))}
+          squads={squads}
+          supportAssignments={supportAssignments}
+          playerProfiles={[]}
+          playerAvailability={[]}
+        />
+      )}
     </div>
   );
 }

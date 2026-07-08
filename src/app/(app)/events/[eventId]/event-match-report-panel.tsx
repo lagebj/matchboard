@@ -19,6 +19,7 @@ interface PlayerReport {
   playerName: string;
   attendanceStatus: string;
   source: string;
+  role: string | null;
 }
 
 interface GoalEvent {
@@ -335,7 +336,12 @@ export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatc
             <tbody>
               {report.playerReports.map((pr) => (
                 <tr key={pr.id} className="border-b border-[var(--border-soft)]">
-                  <td className="py-2 pr-3 text-zinc-100">{pr.playerName}</td>
+                  <td className="py-2 pr-3 text-zinc-100">
+                    {pr.playerName}
+                    {pr.role && pr.role.startsWith('Planned helper') && (
+                      <span className="ml-1 text-[10px] text-[var(--text-muted)]">({pr.role})</span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3 text-[var(--text-muted)]">{pr.source}</td>
                   <td className="py-2">
                     {isLocked ? (

@@ -93,7 +93,8 @@ model Player {
   selections              Selection[]
   eventPostMatchPlayers   EventPostMatchPlayer[]
   eventGoalEvents        EventGoalEvent[]        @relation("EventGoalScorer")
-  eventAssistEvents       EventAssistEvent[]       @relation("EventAssistProvider")
+  eventAssistEvents      EventAssistEvent[]       @relation("EventAssistProvider")
+  eventSupportAssignments EventMatchSupportAssignment[]
 
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
@@ -699,6 +700,7 @@ model Event {
   endsAt                 DateTime?
   gameFormat             GameFormat
   defaultFormationId     String?
+  matchDurationMinutes   Int?
   selectionPattern       EventSelectionPattern?
   notes                  String?
   createdAt              DateTime                  @default(now())
@@ -745,6 +747,8 @@ model EventSquad {
   formation          Formation?         @relation(fields: [formationId], references: [id])
   players            EventSquadPlayer[]
   eventMatches       EventMatch[]
+  supportSourceAssignments EventMatchSupportAssignment[] @relation("SupportSourceSquad")
+  supportTargetAssignments  EventMatchSupportAssignment[] @relation("SupportTargetSquad")
 
   @@index([eventId])
   @@index([intent])
@@ -787,9 +791,10 @@ model EventMatch {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  event           Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventSquad      EventSquad            @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
-  postMatchReport EventPostMatchReport?
+  event              Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventSquad         EventSquad                @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  postMatchReport    EventPostMatchReport?
+  supportAssignments EventMatchSupportAssignment[]
 
   @@index([eventId])
   @@index([eventSquadId])
@@ -869,6 +874,29 @@ model EventAssistEvent {
 
   @@index([reportId])
   @@index([playerId])
+}
+
+model EventMatchSupportAssignment {
+  id                 String   @id @default(cuid())
+  eventMatchId       String
+  playerId           String
+  sourceEventSquadId String
+  targetEventSquadId String
+  plannedRole        String?
+  note               String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  eventMatch       EventMatch  @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  player           Player      @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  sourceEventSquad EventSquad  @relation("SupportSourceSquad", fields: [sourceEventSquadId], references: [id], onDelete: Restrict)
+  targetEventSquad EventSquad  @relation("SupportTargetSquad", fields: [targetEventSquadId], references: [id], onDelete: Cascade)
+
+  @@unique([eventMatchId, playerId])
+  @@index([eventMatchId])
+  @@index([playerId])
+  @@index([sourceEventSquadId])
+  @@index([targetEventSquadId])
 }
 
 model LeagueSeason {

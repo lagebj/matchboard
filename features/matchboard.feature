@@ -6063,3 +6063,153 @@ Feature: Matchboard football operations workspace
         When the coach expands the report
         Then the attendance dropdowns must not be editable
         And add goal/assist buttons must not be visible
+
+  Feature: Event match support planning
+    As a coach
+    I want to plan temporary player help between event squads based on match timing
+    So that players can support other squads when their own squad is not playing
+
+    Background:
+      Given an active league season exists
+      And an event with multiple squads and scheduled matches
+
+    Rule: Event match duration enables support planning
+
+      Scenario: Set event match duration
+        Given an event without match duration set
+        When the coach sets the match duration to 20 minutes
+        Then the event matchDurationMinutes must be 20
+        And derived match end times must be calculated from startsAt plus duration
+
+      Scenario: Match duration is editable on event detail
+        Given an event with match duration 20 minutes
+        When the coach clicks the match duration field
+        Then an inline edit input must appear
+        When the coach enters 25 and presses Enter
+        Then the duration must update to 25 minutes
+        And the event detail must refresh to show "25 min"
+
+      Scenario: Clear match duration prevents support planning
+        Given an event without match duration
+        When the coach views the support planning section
+        Then a message must explain that match duration must be set first
+
+    Rule: Support assignment eligibility
+
+      Scenario: Eligible player can be added as helper
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 and squad B plays at 10:30
+        And player P1 is assigned to squad A and is AVAILABLE
+        When the coach adds P1 as support for squad B's match
+        Then P1 must be assigned as a planned helper
+        And P1's source squad must be squad A
+        And P1's target squad must be squad B
+
+      Scenario: Player cannot help own squad
+        Given an event with match duration 20 minutes
+        And player P1 is assigned to squad A
+        When the coach attempts to add P1 as support for squad A's own match
+        Then the server must reject with an error
+
+      Scenario: Player cannot help during overlapping match
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 (10:00-10:20)
+        And squad B plays at 10:10 (10:10-10:30)
+        And player P1 is assigned to squad A
+        When the coach attempts to add P1 as support for squad B's match
+        Then the server must reject because P1's own squad has an overlapping match
+
+      Scenario: Player can help when no time overlap
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 (10:00-10:20)
+        And squad B plays at 10:30 (10:30-10:50)
+        And player P1 is assigned to squad A and is AVAILABLE
+        When the coach adds P1 as support for squad B's match
+        Then the assignment must succeed
+
+      Scenario: Boundary times do not overlap
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 (10:00-10:20)
+        And squad B plays at 10:20 (10:20-10:40)
+        And player P1 is assigned to squad A and is AVAILABLE
+        When the coach adds P1 as support for squad B's match
+        Then the assignment must succeed because exact boundary times do not overlap
+
+      Scenario: Unavailable player cannot be helper
+        Given an event with match duration 20 minutes
+        And player P1 is marked UNAVAILABLE for the event
+        When the coach attempts to add P1 as support
+        Then the server must reject because P1 is unavailable
+
+      Scenario: Cancelled match does not block availability
+        Given an event with match duration 20 minutes
+        And squad A's match is CANCELLED
+        And squad B plays at the same time as squad A's match was scheduled
+        And player P1 is assigned to squad A and is AVAILABLE
+        When the coach adds P1 as support for squad B's match
+        Then the assignment must succeed because cancelled matches do not block availability
+
+    Rule: Support assignment conflict detection
+
+      Scenario: Conflict detected when match time changes after assignment
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 and squad B plays at 10:30
+        And player P1 is assigned as support for squad B's match
+        When squad A's match is rescheduled to 10:30 (overlapping with squad B)
+        Then P1's support assignment must show a conflict warning
+        And the conflict reason must indicate "Own squad now has overlapping match"
+
+      Scenario: Conflict detected when player removed from source squad
+        Given a valid support assignment for player P1
+        When P1 is removed from their source squad
+        Then P1's support assignment must show a conflict warning
+        And the conflict reason must indicate "Player removed from source squad"
+
+      Scenario: Conflict detected when player marked unavailable
+        Given a valid support assignment for player P1
+        When P1's availability is changed to UNAVAILABLE
+        Then P1's support assignment must show a conflict warning
+        And the conflict reason must indicate "Player unavailable for event"
+
+      Scenario: No conflict when valid assignment
+        Given an event with match duration 20 minutes
+        And a valid support assignment with no time conflicts
+        When the coach views support assignments
+        Then the assignment must show no conflict
+
+    Rule: Support assignment management
+
+      Scenario: Remove support assignment
+        Given a valid support assignment for player P1
+        When the coach removes the assignment
+        Then P1 must no longer appear as a helper
+        And P1 must be available to help another match
+
+      Scenario: Duplicate support assignment rejected
+        Given player P1 is already assigned as support for squad B's match
+        When the coach attempts to add P1 as support for the same match again
+        Then the server must reject with an error
+
+      Scenario: Support assignment with planned role
+        Given an event with match duration 20 minutes
+        And a valid support assignment for player P1
+        When the coach sets P1's planned role to "GK cover"
+        Then the role must be stored and displayed with the assignment
+
+    Rule: Support planning UI
+
+      Scenario: Support planning section shows per-match helpers
+        Given an event with match duration 20 minutes and multiple squads with scheduled matches
+        When the coach views the matches tab
+        Then each match must show its assigned helpers
+        And each helper must display their name, source squad, and planned role
+
+      Scenario: Support load summary shows player load
+        Given multiple support assignments across matches
+        When the coach views the support planning section
+        Then a support load summary must show how many matches each helper is supporting
+
+      Scenario: Helper role displayed in post-match report
+        Given an event match with support assignment for player P1 with role "Planned helper from Squad A"
+        When the coach views the post-match report
+        Then P1's name must show the helper role label
