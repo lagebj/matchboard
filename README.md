@@ -724,9 +724,23 @@ Event squad generation is entirely separate from league planning:
 
 - `/events` — event list page (secondary destination)
 - `/events/new` — create event
-- `/events/[eventId]` — event detail/planning
+- `/events/[eventId]` — event detail/planning with tabs: Overview, Squads, Player pool
 
 Events do not appear as primary sidebar items.
+
+### Player pool management
+
+The event detail page provides a Player pool tab (not "Availability") with:
+
+- **Add players**: Search and select from all active players not yet in the pool. Added players default to AVAILABLE status.
+- **Manage pool**: View all players in the pool, change availability status, remove players from the pool (which also removes any squad assignment).
+- **Manual squad assignment**: Unassigned players in the Squads tab can be assigned to any squad via dropdown. Players in squads can be unassigned back to the pool without removing from the pool.
+
+### Generation requirements
+
+- Squad generation requires at least one AVAILABLE player in the event pool
+- An empty pool shows a clear message directing the coach to add players first
+- No available players shows a clear message directing the coach to mark players as Available
 
 ## Coding style
 

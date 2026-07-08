@@ -10,6 +10,10 @@ import {
   updateEventPlayerAvailability,
   movePlayerBetweenSquadsAction,
   togglePlayerLockAction,
+  addPlayersToEventPoolAction,
+  removePlayerFromEventPoolAction,
+  assignPlayerToEventSquadAction,
+  unassignPlayerFromEventSquadAction,
 } from '../actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { PageHeader } from '@/components/ui/page-header';
@@ -72,6 +76,20 @@ type EventPlayer = {
   assignedSquadId: string | null;
 };
 
+type AddablePlayer = {
+  playerId: string;
+  firstName: string;
+  lastName: string | null;
+  coreTeamId: string | null;
+  coreTeamName: string | null;
+  primaryPosition: string | null;
+  secondaryPosition: string | null;
+  tertiaryPosition: string | null;
+  goalkeeperAbility: string;
+  overallLevel: number | null;
+  isGK: boolean;
+};
+
 type SquadBalanceSummary = {
   squadId: string;
   squadName: string;
@@ -112,11 +130,12 @@ type EventDetailData = {
   players: EventPlayer[];
   availablePlayers: EventPlayer[];
   unassignedPlayers: EventPlayer[];
+  addablePlayers: AddablePlayer[];
   squadBalances: SquadBalanceSummary[];
   validation: EventPoolValidation;
 };
 
-type TabKey = 'overview' | 'squads' | 'availability';
+type TabKey = 'overview' | 'squads' | 'pool';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   CUP: 'Cup',
@@ -150,24 +169,38 @@ function formatName(p: { firstName: string; lastName: string | null }): string {
   return p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName;
 }
 
-function formatGameFormat(gf: string): string {
-  return gf.replace('_', '-').toLowerCase();
-}
+import { formatGameFormat } from "@/lib/formatters/game-format";
 
 export function EventDetail({ data }: { data: EventDetailData }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
+  const [addFilter, setAddFilter] = useState<string>('');
+  const [selectedToAdd, setSelectedToAdd] = useState<Set<string>>(new Set());
+  const [assignDropdownSquad, setAssignDropdownSquad] = useState<string | null>(null);
 
   const totalAssigned = data.squads.reduce((sum, s) => sum + s.players.length, 0);
   const totalAvailable = data.availablePlayers.length;
   const totalUnassigned = data.unassignedPlayers.length;
+  const poolIsEmpty = data.players.length === 0;
 
   function handleGenerate() {
+    if (poolIsEmpty) {
+      alert('No players in the event pool. Add players to the pool on the Player pool tab before generating squads.');
+      return;
+    }
+    if (totalAvailable === 0) {
+      alert('No available players. Mark players as Available on the Player pool tab before generating squads.');
+      return;
+    }
     startTransition(async () => {
-      await generateEventSquadsAction(data.id);
-      router.refresh();
+      try {
+        await generateEventSquadsAction(data.id);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to generate squads. Check the player pool and try again.');
+      }
     });
   }
 
@@ -204,6 +237,37 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   function handleToggleLock(squadPlayerId: string, locked: boolean) {
     startTransition(async () => {
       await togglePlayerLockAction(squadPlayerId, locked);
+      router.refresh();
+    });
+  }
+
+  function handleAddPlayers() {
+    if (selectedToAdd.size === 0) return;
+    startTransition(async () => {
+      await addPlayersToEventPoolAction(data.id, Array.from(selectedToAdd), 'AVAILABLE');
+      setSelectedToAdd(new Set());
+      router.refresh();
+    });
+  }
+
+  function handleRemovePlayer(playerId: string) {
+    startTransition(async () => {
+      await removePlayerFromEventPoolAction(data.id, playerId);
+      router.refresh();
+    });
+  }
+
+  function handleAssignToSquad(squadId: string, playerId: string) {
+    startTransition(async () => {
+      await assignPlayerToEventSquadAction(data.id, squadId, playerId);
+      setAssignDropdownSquad(null);
+      router.refresh();
+    });
+  }
+
+  function handleUnassign(squadPlayerId: string) {
+    startTransition(async () => {
+      await unassignPlayerFromEventSquadAction(squadPlayerId);
       router.refresh();
     });
   }
@@ -253,6 +317,22 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         </div>
       )}
 
+      {poolIsEmpty && (
+        <DecisionBanner
+          variant="decision"
+          title="No players in pool"
+          description="Add players to the event pool on the Player pool tab before generating squads."
+        />
+      )}
+
+      {!poolIsEmpty && totalAvailable === 0 && (
+        <DecisionBanner
+          variant="decision"
+          title="No available players"
+          description="All players in the pool are marked as unavailable. Change player status to Available on the Player pool tab."
+        />
+      )}
+
       {data.selectionPattern && (
         <DecisionBanner
           variant="note"
@@ -265,7 +345,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         items={[
           { key: 'overview', label: 'Overview' },
           { key: 'squads', label: 'Squads' },
-          { key: 'availability', label: 'Availability' },
+          { key: 'pool', label: 'Player pool' },
         ]}
         activeKey={activeTab}
         onSelect={(key) => setActiveTab(key as TabKey)}
@@ -384,10 +464,26 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-zinc-100 truncate">{formatName(p)}</p>
                           <p className="text-[10px] text-[var(--text-muted)]">
-                            {[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || 'flexible'} · {p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}
+                            {[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || 'flexible'} · {p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}
                             {p.isGK && ' · GK'}
                           </p>
                         </div>
+                        {data.squads.length > 0 && (
+                          <select
+                            className="text-[10px] bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1"
+                            defaultValue=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleAssignToSquad(e.target.value, p.playerId);
+                              }
+                            }}
+                          >
+                            <option value="" disabled>Assign to...</option>
+                            {data.squads.map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     ))
                   )}
@@ -469,6 +565,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                                   Unlock
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleUnassign(p.id)}
+                                className="text-[10px] text-[var(--danger)] hover:underline"
+                                title="Remove from squad"
+                              >
+                                Remove
+                              </button>
                               {data.squads.length > 1 && (
                                 <select
                                   className="text-[10px] bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1"
@@ -498,78 +601,195 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         </div>
       )}
 
-      {activeTab === 'availability' && (
+      {activeTab === 'pool' && (
         <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {['all', 'AVAILABLE', 'UNAVAILABLE', 'UNKNOWN', 'RESERVE', 'WITHDRAWN'].map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setAvailabilityFilter(filter)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  availabilityFilter === filter
-                    ? 'bg-[var(--accent)] text-zinc-950'
-                    : 'bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
-                }`}
-              >
-                {filter === 'all' ? 'All' : filter.charAt(0) + filter.slice(1).toLowerCase().replace(/_/g, ' ')}
-              </button>
-            ))}
-          </div>
+          <Surface variant="default" padding="md">
+            <SectionHeader title="Add players to pool" />
+            <p className="mt-1 text-xs text-[var(--text-muted)] mb-3">
+              Add active players to this event. Only players in the pool with Available status are included in squad generation.
+            </p>
+            {data.addablePlayers.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)]">All active players are already in the pool.</p>
+            ) : (
+              <>
+                <div className="mb-3">
+                  <input
+                    type="text"
+                    placeholder="Search by name or team..."
+                    value={addFilter}
+                    onChange={(e) => setAddFilter(e.target.value)}
+                    className="w-full max-w-sm rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100 placeholder:text-[var(--text-muted)]"
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--border-soft)]">
+                        <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] w-8">
+                          <input
+                            type="checkbox"
+                            checked={selectedToAdd.size === data.addablePlayers.filter((p) => {
+                              const name = p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName;
+                              const team = p.coreTeamName ?? '';
+                              return !addFilter || name.toLowerCase().includes(addFilter.toLowerCase()) || team.toLowerCase().includes(addFilter.toLowerCase());
+                            }).length && selectedToAdd.size > 0}
+                            onChange={() => {
+                              const filtered = data.addablePlayers.filter((p) => {
+                                const name = p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName;
+                                const team = p.coreTeamName ?? '';
+                                return !addFilter || name.toLowerCase().includes(addFilter.toLowerCase()) || team.toLowerCase().includes(addFilter.toLowerCase());
+                              });
+                              if (selectedToAdd.size === filtered.length) {
+                                setSelectedToAdd(new Set());
+                              } else {
+                                setSelectedToAdd(new Set(filtered.map((p) => p.playerId)));
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Player</th>
+                        <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Team</th>
+                        <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Position</th>
+                        <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Overall</th>
+                        <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">GK</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.addablePlayers
+                        .filter((p) => {
+                          const name = p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName;
+                          const team = p.coreTeamName ?? '';
+                          return !addFilter || name.toLowerCase().includes(addFilter.toLowerCase()) || team.toLowerCase().includes(addFilter.toLowerCase());
+                        })
+                        .map((p) => (
+                        <tr key={p.playerId} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--surface-hover)]">
+                          <td className="py-2 px-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedToAdd.has(p.playerId)}
+                              onChange={() => {
+                                const next = new Set(selectedToAdd);
+                                if (next.has(p.playerId)) next.delete(p.playerId);
+                                else next.add(p.playerId);
+                                setSelectedToAdd(next);
+                              }}
+                            />
+                          </td>
+                          <td className="py-2 px-2 text-zinc-100">{formatName(p)}</td>
+                          <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
+                          <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
+                          <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}</td>
+                          <td className="py-2 px-2">{p.isGK && <span className="text-[10px] text-[var(--text-muted)]">GK</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <Button variant="primary" onClick={handleAddPlayers} disabled={isPending || selectedToAdd.size === 0}>
+                    {isPending ? 'Adding...' : `Add ${selectedToAdd.size} player${selectedToAdd.size !== 1 ? 's' : ''} to pool`}
+                  </Button>
+                  {selectedToAdd.size > 0 && (
+                    <Button variant="ghost" onClick={() => setSelectedToAdd(new Set())}>
+                      Clear selection
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </Surface>
 
           <Surface variant="default" padding="md">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border-soft)]">
-                    <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Player</th>
-                    <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Team</th>
-                    <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Position</th>
-                    <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Overall</th>
-                    <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Status</th>
-                    <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Squad</th>
-                    <th className="text-right py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPlayers.map((p) => (
-                    <tr key={p.playerId} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--surface-hover)]">
-                      <td className="py-2 px-2">
-                        <Link href={`/players/${p.playerId}`} className="text-zinc-100 hover:text-[var(--accent-strong)]">
-                          {formatName(p)}
-                        </Link>
-                      </td>
-                      <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
-                      <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
-                      <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}</td>
-                      <td className="py-2 px-2">
-                        <StatusPill variant={STATUS_VARIANTS[p.status] ?? 'neutral'}>
-                          {p.status.charAt(0) + p.status.slice(1).toLowerCase().replace(/_/g, ' ')}
-                        </StatusPill>
-                      </td>
-                      <td className="py-2 px-2 text-[var(--text-soft)]">
-                        {p.assignedSquadId
-                          ? data.squads.find((s) => s.id === p.assignedSquadId)?.name ?? '—'
-                          : '—'}
-                      </td>
-                      <td className="py-2 px-2 text-right">
-                        <select
-                          className="text-xs bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1.5 py-0.5"
-                          value={p.status}
-                          onChange={(e) => handleAvailabilityChange(p.playerId, e.target.value)}
-                        >
-                          <option value="AVAILABLE">Available</option>
-                          <option value="UNAVAILABLE">Unavailable</option>
-                          <option value="UNKNOWN">Unknown</option>
-                          <option value="RESERVE">Reserve</option>
-                          <option value="LATE_ADDITION">Late addition</option>
-                          <option value="WITHDRAWN">Withdrawn</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <SectionHeader title="Players in pool" />
+            <p className="mt-1 text-xs text-[var(--text-muted)] mb-3">
+              Manage availability status and remove players from the event pool.
+            </p>
+            <div className="flex gap-2 flex-wrap mb-3">
+              {['all', 'AVAILABLE', 'UNAVAILABLE', 'UNKNOWN', 'RESERVE', 'WITHDRAWN'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setAvailabilityFilter(filter)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    availabilityFilter === filter
+                      ? 'bg-[var(--accent)] text-zinc-950'
+                      : 'bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {filter === 'all' ? 'All' : filter.charAt(0) + filter.slice(1).toLowerCase().replace(/_/g, ' ')}
+                </button>
+              ))}
             </div>
+
+            {filteredPlayers.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)]">
+                {data.players.length === 0
+                  ? 'No players in the pool yet. Add players above.'
+                  : 'No players match this filter.'}
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-soft)]">
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Player</th>
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Team</th>
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Position</th>
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Overall</th>
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Status</th>
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Squad</th>
+                      <th className="text-left py-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlayers.map((p) => (
+                      <tr key={p.playerId} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--surface-hover)]">
+                        <td className="py-2 px-2">
+                          <Link href={`/players/${p.playerId}`} className="text-zinc-100 hover:text-[var(--accent-strong)]">
+                            {formatName(p)}
+                          </Link>
+                        </td>
+                        <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
+                        <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
+                        <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}</td>
+                        <td className="py-2 px-2">
+                          <StatusPill variant={STATUS_VARIANTS[p.status] ?? 'neutral'}>
+                            {p.status.charAt(0) + p.status.slice(1).toLowerCase().replace(/_/g, ' ')}
+                          </StatusPill>
+                        </td>
+                        <td className="py-2 px-2 text-[var(--text-soft)]">
+                          {p.assignedSquadId
+                            ? data.squads.find((s) => s.id === p.assignedSquadId)?.name ?? '—'
+                            : '—'}
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="text-xs bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1.5 py-0.5"
+                              value={p.status}
+                              onChange={(e) => handleAvailabilityChange(p.playerId, e.target.value)}
+                            >
+                              <option value="AVAILABLE">Available</option>
+                              <option value="UNAVAILABLE">Unavailable</option>
+                              <option value="UNKNOWN">Unknown</option>
+                              <option value="RESERVE">Reserve</option>
+                              <option value="LATE_ADDITION">Late addition</option>
+                              <option value="WITHDRAWN">Withdrawn</option>
+                            </select>
+                            <button
+                              onClick={() => handleRemovePlayer(p.playerId)}
+                              className="text-[10px] text-[var(--danger)] hover:underline"
+                              title="Remove from pool"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Surface>
         </div>
       )}

@@ -5545,6 +5545,63 @@ Feature: Matchboard football operations workspace
       And balance summaries must be recalculated
       And no player may exist in two squads for the same event
 
+    Scenario: Coach can add players to event pool from active player list
+      Given an event exists with no players in the pool
+      When the coach views the event detail page
+      Then the coach sees a list of all active players not yet in the pool
+      And the coach may select one or more players and add them to the pool
+      And newly added players receive AVAILABLE status by default
+      And players already in the pool are not duplicated
+
+    Scenario: Coach can remove players from event pool
+      Given an event exists with players in the pool
+      When the coach removes a player from the event pool
+      Then the player must be removed from the pool and any squad assignment
+      And the player may be added back later
+
+    Scenario: Coach can assign an unassigned player directly to a squad
+      Given an event has available unassigned players and existing squads
+      When the coach selects an unassigned player
+      Then the coach may assign the player to any squad using an assign dropdown
+      And the player receives a MANUAL source and selection reason
+      And the player is no longer shown as unassigned
+
+    Scenario: Coach can remove a player from a squad without removing from pool
+      Given an event has generated event squads
+      When the coach removes a player from a squad
+      Then the player is unassigned from the squad but remains in the event pool
+      And the player becomes available for reassignment
+
+    Scenario: Generate squads requires players in the pool
+      Given an event exists with no players in the pool
+      When the coach clicks Generate squads
+      Then the system must show a clear message that players need to be added to the pool first
+      And generation must not proceed
+
+    Scenario: Generate squads requires available players
+      Given an event exists with players in the pool but none marked as AVAILABLE
+      When the coach clicks Generate squads
+      Then the system must show a clear message that no players are available
+      And generation must not proceed
+
+    Scenario: Event detail shows player pool tab with add and manage functionality
+      Given an event exists
+      When the coach views the event detail page
+      Then the page must show a Player pool tab (not Availability)
+      And the Player pool tab must show players already in the event pool
+      And the Player pool tab must show a section to add players from the active player list
+      And the Player pool tab must allow changing availability status
+      And the Player pool tab must allow removing players from the pool
+
+    Scenario: Game format displays as human-readable label
+      Given an event exists with game format SEVEN_A_SIDE
+      When the coach views the event detail or event list
+      Then the game format must display as "7-a-side" not "seven-a_side" or "SEVEN_A_SIDE"
+      And THREE_A_SIDE must display as "3-a-side"
+      And FIVE_A_SIDE must display as "5-a-side"
+      And NINE_A_SIDE must display as "9-a-side"
+      And ELEVEN_A_SIDE must display as "11-a-side"
+
     Scenario: Coach can lock players in event squads
       Given an event has generated event squads
       When the coach locks a player assignment

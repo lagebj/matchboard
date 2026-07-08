@@ -249,6 +249,137 @@ export async function setEventPlayerPool(
   revalidatePath(`/events/${eventId}`);
 }
 
+export async function addPlayersToEventPoolAction(
+  eventId: string,
+  playerIds: string[],
+  defaultStatus: EventPlayerStatus = 'UNKNOWN',
+) {
+  await requireCoachAccess();
+
+  if (playerIds.length === 0) return;
+
+  if (!VALID_STATUSES.includes(defaultStatus)) {
+    throw new Error(`Invalid availability status: ${defaultStatus}`);
+  }
+
+  const existing = await db.eventPlayerAvailability.findMany({
+    where: { eventId, playerId: { in: playerIds } },
+    select: { playerId: true, status: true },
+  });
+
+  const existingIds = new Set(existing.map((e) => e.playerId));
+  const newPlayerIds = playerIds.filter((id) => !existingIds.has(id));
+
+  if (newPlayerIds.length > 0) {
+    await db.eventPlayerAvailability.createMany({
+      data: newPlayerIds.map((playerId) => ({
+        eventId,
+        playerId,
+        status: defaultStatus,
+      })),
+    });
+  }
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath('/events');
+}
+
+export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
+  await requireCoachAccess();
+
+  const squadAssignment = await db.eventSquadPlayer.findFirst({
+    where: { playerId, eventSquad: { eventId } },
+  });
+
+  if (squadAssignment) {
+    await db.eventSquadPlayer.delete({
+      where: { id: squadAssignment.id },
+    });
+  }
+
+  await db.eventPlayerAvailability.deleteMany({
+    where: { eventId, playerId },
+  });
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath('/events');
+}
+
+export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
+  await requireCoachAccess();
+
+  if (playerIds.length === 0) return;
+
+  await db.$transaction(async (tx) => {
+    await tx.eventSquadPlayer.deleteMany({
+      where: {
+        playerId: { in: playerIds },
+        eventSquad: { eventId },
+      },
+    });
+
+    await tx.eventPlayerAvailability.deleteMany({
+      where: { eventId, playerId: { in: playerIds } },
+    });
+  });
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath('/events');
+}
+
+export async function assignPlayerToEventSquadAction(
+  eventId: string,
+  squadId: string,
+  playerId: string,
+  locked: boolean = false,
+) {
+  await requireCoachAccess();
+
+  const existing = await db.eventSquadPlayer.findFirst({
+    where: { playerId, eventSquad: { eventId } },
+  });
+
+  if (existing) {
+    throw new Error('Player is already assigned to a squad in this event.');
+  }
+
+  await db.eventSquadPlayer.create({
+    data: {
+      eventSquadId: squadId,
+      playerId,
+      source: locked ? 'LOCKED' : 'MANUAL',
+      locked,
+      selectionReason: locked ? 'Locked by coach' : 'Manually assigned by coach',
+    },
+  });
+
+  revalidatePath(`/events/${eventId}`);
+}
+
+export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
+  await requireCoachAccess();
+
+  const squadPlayer = await db.eventSquadPlayer.findUnique({
+    where: { id: eventSquadPlayerId },
+    select: { eventSquadId: true },
+  });
+
+  if (!squadPlayer) throw new Error('Squad assignment not found.');
+
+  const squad = await db.eventSquad.findUnique({
+    where: { id: squadPlayer.eventSquadId },
+    select: { eventId: true },
+  });
+
+  await db.eventSquadPlayer.delete({
+    where: { id: eventSquadPlayerId },
+  });
+
+  if (squad) {
+    revalidatePath(`/events/${squad.eventId}`);
+  }
+}
+
 export async function addEventSquadAction(
   eventId: string,
   name: string,
@@ -474,6 +605,10 @@ export async function generateEventSquadsAction(eventId: string) {
 
   if (!event) throw new Error('Event not found.');
 
+  if (event.players.length === 0) {
+    throw new Error('No players in the event pool. Add players to the pool before generating squads.');
+  }
+
   const availableStatuses = ['AVAILABLE'] as const;
   const includeReserves = false;
   const includeLate = false;
@@ -484,6 +619,10 @@ export async function generateEventSquadsAction(eventId: string) {
     if (includeLate && ep.status === 'LATE_ADDITION') return true;
     return false;
   });
+
+  if (eligiblePlayers.length === 0) {
+    throw new Error('No available players in the event pool. Mark players as Available before generating squads.');
+  }
 
   const playersWithAttrs = eligiblePlayers.map((ep) => {
     const p = ep.player;
