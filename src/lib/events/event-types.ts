@@ -99,6 +99,13 @@ export function isGoalkeeperCapable(player: PlayerAttributeProfile): boolean {
 
 export { mapAnyPositionToBroad as mapPositionToBroad, getPositionFitTier } from '@/lib/players/player-position-resolver';
 
+export const FIT_TIER_LABELS: Record<string, string> = {
+  PRIMARY: '1st',
+  SECONDARY: '2nd',
+  TERTIARY: '3rd',
+  NO_FIT: '',
+};
+
 export function getPlayerBroadPositions(player: PlayerAttributeProfile): BroadPosition[] {
   return canonicalGetPlayerBroadPositions(player.primaryPosition, player.secondaryPosition, player.tertiaryPosition);
 }
@@ -127,6 +134,9 @@ export interface EventSquadAssignment {
   eventSquadId: string;
   assignedRoleType: string | null;
   assignedPositionId: string | null;
+  assignedSlotIndex: number | null;
+  assignedSlotLabel: string | null;
+  lineupOrder: number | null;
   source: EventSquadPlayerSource;
   locked: boolean;
   selectionReason: string;

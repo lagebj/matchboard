@@ -1,6 +1,8 @@
-export { generateEventSquads, getDefaultTargetSize } from './event-squad-generation';
+export { generateEventSquads, getDefaultTargetSize, getDefaultSlotRequirements } from './event-squad-generation';
 export { validateEventPool } from './event-validation';
 export { computeSquadBalance } from './event-balance';
+export { computeLineupAssignment } from './event-lineup-assignment';
+export type { LineupSlot, LineupAssignment } from './event-lineup-assignment';
 export {
   computeCompositeRatings,
   mapPositionToBroad,

@@ -7,22 +7,16 @@ import type {
   GenerationInput,
   GenerationOutput,
   FormationSlotRequirement,
+  CompositeRatings,
 } from './event-types';
+import type { Formation, FormationSlot } from '@/generated/prisma/client';
 import { computeCompositeRatings, isGoalkeeperCapable, getPlayerBroadPositions } from './event-types';
 import { getPositionFitTier, FIT_TIER_PRIORITY, computePositionScarcity } from '@/lib/players/player-position-resolver';
 import type { PositionFitTier } from '@/lib/players/player-position-resolver';
 import { computeSquadBalance } from './event-balance';
 
-type SlotAssignment = {
-  slotIndex: number;
-  roleType: string;
-  label: string;
-  acceptedPositions: BroadPosition[];
-  assignedPlayerId: string | null;
-};
-
 type PlayerWithRatings = PlayerAttributeProfile & {
-  ratings: ReturnType<typeof computeCompositeRatings>;
+  ratings: CompositeRatings;
   broadPositions: BroadPosition[];
   isGoalkeeper: boolean;
 };
@@ -36,6 +30,52 @@ function toPlayerWithRatings(player: PlayerAttributeProfile): PlayerWithRatings 
   };
 }
 
+type SlotCandidate = {
+  player: PlayerWithRatings;
+  fitTier: PositionFitTier;
+  roleRelevantRating: number;
+};
+
+type RoleRelevantRatingWeights = Record<string, (keyof CompositeRatings | null)[]>;
+
+const ROLE_RELEVANT_RATING_WEIGHTS: RoleRelevantRatingWeights = {
+  GOALKEEPER: ['goalkeeperAbility', 'gameUnderstanding', 'intensity', null],
+  DEFENDER: ['defending', 'gameUnderstanding', 'intensity', 'teamplay', null],
+  DEFENSIVE_MIDFIELDER: ['gameUnderstanding', 'defending', 'intensity', 'teamplay', null],
+  MIDFIELDER: ['teamplay', 'gameUnderstanding', 'attacking', 'intensity', null],
+  ATTACKING_MIDFIELDER: ['attacking', 'gameUnderstanding', 'teamplay', null],
+  FORWARD: ['attacking', 'intensity', 'gameUnderstanding', null],
+  FREE: [],
+};
+
+function getRoleRelevantRating(player: PlayerWithRatings, roleType: string): number {
+  const weights = ROLE_RELEVANT_RATING_WEIGHTS[roleType] ?? [];
+  if (weights.length === 0) {
+    return player.ratings.overallLevel ?? 0;
+  }
+
+  const values: number[] = [];
+  for (const key of weights) {
+    if (key === null) {
+      values.push(player.ratings.overallLevel ?? 0);
+      break;
+    }
+    if (key === 'goalkeeperAbility') {
+      values.push(player.goalkeeperAbility === 'YES' ? 5 : player.goalkeeperAbility === 'EMERGENCY' ? 3 : 1);
+      continue;
+    }
+    const val = player.ratings[key];
+    if (val !== null && val !== undefined) {
+      values.push(val);
+    }
+  }
+
+  if (values.length === 0) {
+    return player.ratings.overallLevel ?? 0;
+  }
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
 function getSlotRequirements(
   formation: { slots: FormationSlotRequirement[] } | null,
   gameFormat: GameFormat,
@@ -46,7 +86,7 @@ function getSlotRequirements(
   return getDefaultSlotRequirements(gameFormat);
 }
 
-function getDefaultSlotRequirements(gameFormat: GameFormat): FormationSlotRequirement[] {
+export function getDefaultSlotRequirements(gameFormat: GameFormat): FormationSlotRequirement[] {
   switch (gameFormat) {
     case 'THREE_A_SIDE':
       return [
@@ -108,64 +148,473 @@ function getDefaultSlotRequirements(gameFormat: GameFormat): FormationSlotRequir
   }
 }
 
-function getSlotPriority(slot: FormationSlotRequirement): number {
-  const priorityOrder: Record<string, number> = {
-    GOALKEEPER: 0,
-    DEFENDER: 1,
-    DEFENSIVE_MIDFIELDER: 2,
-    MIDFIELDER: 3,
-    ATTACKING_MIDFIELDER: 4,
-    FORWARD: 5,
-    FREE: 6,
-  };
-  return priorityOrder[slot.roleType] ?? 3;
+type BroadRole = 'goalkeeper' | 'defender' | 'midfielder' | 'forward' | 'flexible';
+
+function slotToBroadRole(slot: FormationSlotRequirement): BroadRole {
+  const roleType = slot.roleType.toUpperCase();
+  if (roleType === 'GOALKEEPER') return 'goalkeeper';
+  if (roleType === 'DEFENDER' || roleType === 'DEFENSIVE_MIDFIELDER') return 'defender';
+  if (roleType === 'FORWARD' || roleType === 'ATTACKING_MIDFIELDER') return 'forward';
+  if (roleType === 'MIDFIELDER') return 'midfielder';
+  if (roleType === 'FREE') return 'flexible';
+  if (slot.acceptedPositions.includes('goalkeeper')) return 'goalkeeper';
+  if (slot.acceptedPositions.includes('defender')) return 'defender';
+  if (slot.acceptedPositions.includes('forward')) return 'forward';
+  if (slot.acceptedPositions.includes('midfielder')) return 'midfielder';
+  return 'flexible';
 }
 
-function sortBySkill(a: PlayerWithRatings, b: PlayerWithRatings): number {
-  const aOverall = a.ratings.overallLevel ?? 0;
-  const bOverall = b.ratings.overallLevel ?? 0;
-  if (bOverall !== aOverall) return bOverall - aOverall;
-  const aNulls = [a.ballControl, a.passing, a.effort].filter((v) => v === null).length;
-  const bNulls = [b.ballControl, b.passing, b.effort].filter((v) => v === null).length;
-  return aNulls - bNulls;
+function playerPrimaryBroadRole(player: PlayerWithRatings): BroadRole {
+  if (player.isGoalkeeper && player.primaryPosition === 'GK') return 'goalkeeper';
+  const broads = player.broadPositions;
+  if (broads.length > 0) return broads[0];
+  return 'flexible';
 }
 
-function findBestFitPlayer(
+function getCandidatesForSlot(
   availablePlayers: PlayerWithRatings[],
-  acceptedPositions: BroadPosition[],
-  _scarcityProtectedPositions: Set<string>,
-): { player: PlayerWithRatings; fitTier: PositionFitTier } | null {
-  const candidates = availablePlayers
-    .map((p) => ({
-      player: p,
-      fitTier: getPositionFitTier(
-        p.primaryPosition,
-        p.secondaryPosition,
-        p.tertiaryPosition,
-        acceptedPositions,
-      ),
-    }))
-    .filter((c) => c.fitTier !== 'NO_FIT');
+  slot: FormationSlotRequirement,
+  protectedRoles: Set<string>,
+): {
+  primary: SlotCandidate[];
+  secondary: SlotCandidate[];
+  tertiary: SlotCandidate[];
+  noFit: SlotCandidate[];
+} {
+  const primary: SlotCandidate[] = [];
+  const secondary: SlotCandidate[] = [];
+  const tertiary: SlotCandidate[] = [];
+  const noFit: SlotCandidate[] = [];
 
-  candidates.sort((a, b) => {
-    const tierDiff = FIT_TIER_PRIORITY[a.fitTier] - FIT_TIER_PRIORITY[b.fitTier];
-    if (tierDiff !== 0) return tierDiff;
-    return sortBySkill(a.player, b.player);
+  for (const player of availablePlayers) {
+    const fitTier = getPositionFitTier(
+      player.primaryPosition,
+      player.secondaryPosition,
+      player.tertiaryPosition,
+      slot.acceptedPositions,
+    );
+    const roleRating = getRoleRelevantRating(player, slot.roleType);
+
+    const candidate: SlotCandidate = { player, fitTier, roleRelevantRating: roleRating };
+
+    if (fitTier === 'NO_FIT') {
+      if (slot.acceptedPositions.includes('flexible') || player.broadPositions.length === 0) {
+        noFit.push(candidate);
+      }
+      continue;
+    }
+
+    const primaryRole = playerPrimaryBroadRole(player);
+    if (protectedRoles.has(primaryRole) && primaryRole !== slotToBroadRole(slot)) {
+      if (fitTier === 'TERTIARY') continue;
+      if (fitTier === 'SECONDARY' && primaryRole !== 'flexible') continue;
+    }
+
+    if (fitTier === 'PRIMARY') primary.push(candidate);
+    else if (fitTier === 'SECONDARY') secondary.push(candidate);
+    else if (fitTier === 'TERTIARY') tertiary.push(candidate);
+  }
+
+  const sortByRating = (a: SlotCandidate, b: SlotCandidate) =>
+    b.roleRelevantRating - a.roleRelevantRating;
+
+  primary.sort(sortByRating);
+  secondary.sort(sortByRating);
+  tertiary.sort(sortByRating);
+  noFit.sort(sortByRating);
+
+  return { primary, secondary, tertiary, noFit };
+}
+
+function pickBestCandidate(
+  availablePlayers: PlayerWithRatings[],
+  slot: FormationSlotRequirement,
+  protectedRoles: Set<string>,
+): { player: PlayerWithRatings; fitTier: PositionFitTier } | null {
+  const candidates = getCandidatesForSlot(availablePlayers, slot, protectedRoles);
+
+  if (candidates.primary.length > 0) {
+    return { player: candidates.primary[0].player, fitTier: 'PRIMARY' };
+  }
+  if (candidates.secondary.length > 0) {
+    return { player: candidates.secondary[0].player, fitTier: 'SECONDARY' };
+  }
+  if (candidates.tertiary.length > 0) {
+    return { player: candidates.tertiary[0].player, fitTier: 'TERTIARY' };
+  }
+  if (candidates.noFit.length > 0) {
+    return { player: candidates.noFit[0].player, fitTier: 'NO_FIT' };
+  }
+  return null;
+}
+
+function buildSlotReason(
+  player: PlayerWithRatings,
+  slot: FormationSlotRequirement,
+  fitTier: PositionFitTier,
+  isCompetitive: boolean,
+): string {
+  const slotLabel = slot.label || slot.roleType;
+  const hasUncertainty = player.ratings.overallLevel === null;
+
+  if (player.isGoalkeeper && slot.acceptedPositions.includes('goalkeeper')) {
+    return 'Selected for goalkeeper coverage (primary fit)';
+  }
+
+  if (fitTier === 'TERTIARY') {
+    const broadRole = slot.acceptedPositions[0] ?? 'this position';
+    return `Assigned as emergency ${broadRole} cover because no primary or secondary ${broadRole} was available`;
+  }
+
+  if (fitTier === 'SECONDARY') {
+    return `Selected as secondary-position ${slotLabel.toLowerCase()} after primary ${slot.acceptedPositions[0] ?? 'candidates'} were exhausted`;
+  }
+
+  if (fitTier === 'NO_FIT') {
+    if (hasUncertainty) {
+      return 'Rating uncertainty: player has missing attributes';
+    }
+    return 'Selected as flexible player after core tactical roles were covered';
+  }
+
+  const tierLabel = 'primary';
+  const uncertaintySuffix = hasUncertainty ? ' (rating uncertainty)' : '';
+  if (isCompetitive) {
+    return `Selected as ${slotLabel.toLowerCase()} fit for competitive formation (${tierLabel})${uncertaintySuffix}`;
+  }
+  return `Selected as primary-position ${slotLabel.toLowerCase()}${uncertaintySuffix}`;
+}
+
+function getFormationForSquad(
+  squad: GenerationInput['squads'][0],
+  formations: (Formation & { slots: FormationSlot[] })[],
+  defaultFormationId: string | null,
+): { slots: FormationSlotRequirement[] } | null {
+  if (squad.formationId) {
+    const formation = formations.find((f) => f.id === squad.formationId);
+    if (formation) {
+      return {
+        slots: formation.slots.map((s) => ({
+          roleType: s.roleType,
+          acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
+          label: s.label,
+        })),
+      };
+    }
+  }
+  if (defaultFormationId) {
+    const formation = formations.find((f) => f.id === defaultFormationId);
+    if (formation) {
+      return {
+        slots: formation.slots.map((s) => ({
+          roleType: s.roleType,
+          acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
+          label: s.label,
+        })),
+      };
+    }
+  }
+  return null;
+}
+
+function distributeGoalkeepers(
+  players: PlayerWithRatings[],
+  squads: GenerationInput['squads'],
+  assignments: EventSquadAssignment[],
+  assignedGlobal: Set<string>,
+  gameFormat: GameFormat,
+  formations: (Formation & { slots: FormationSlot[] })[],
+  defaultFormationId: string | null,
+): void {
+  const gkPlayers = players.filter((p) => !assignedGlobal.has(p.playerId) && p.isGoalkeeper);
+  gkPlayers.sort((a, b) => {
+    if (a.primaryPosition === 'GK' && b.primaryPosition !== 'GK') return -1;
+    if (b.primaryPosition === 'GK' && a.primaryPosition !== 'GK') return 1;
+    return (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0);
   });
 
-  if (candidates.length > 0) {
-    return { player: candidates[0].player, fitTier: candidates[0].fitTier };
+  const slotsPerSquad = squads.map((squad) => {
+    const formation = getFormationForSquad(squad, formations, defaultFormationId);
+    return getSlotRequirements(formation, gameFormat);
+  });
+
+  for (let i = 0; i < gkPlayers.length && i < squads.length; i++) {
+    const gk = gkPlayers[i];
+    const squadIdx = i % squads.length;
+    const squad = squads[squadIdx];
+    const slots = slotsPerSquad[squadIdx];
+    const gkSlot = slots.find((s) => s.acceptedPositions.includes('goalkeeper'));
+
+    assignedGlobal.add(gk.playerId);
+    assignments.push({
+      playerId: gk.playerId,
+      eventSquadId: squad.id,
+      assignedRoleType: gkSlot?.roleType ?? 'GOALKEEPER',
+      assignedPositionId: gkSlot?.label ?? 'Goalkeeper',
+      assignedSlotIndex: gkSlot ? slots.indexOf(gkSlot) : null,
+      assignedSlotLabel: gkSlot?.label ?? 'Goalkeeper',
+      lineupOrder: 1,
+      source: 'AUTO',
+      locked: false,
+      selectionReason: gk.primaryPosition === 'GK'
+        ? 'Selected for goalkeeper coverage (primary fit)'
+        : 'Selected for goalkeeper coverage (emergency goalkeeper)',
+      positionFitTier: gk.primaryPosition === 'GK' ? 'PRIMARY' : 'SECONDARY',
+    });
+  }
+}
+
+type SlotWithSquad = {
+  squadIdx: number;
+  slotIdx: number;
+  slot: FormationSlotRequirement;
+  broadRole: BroadRole;
+};
+
+function distributeByRoleAcrossSquads(
+  players: PlayerWithRatings[],
+  squads: GenerationInput['squads'],
+  assignments: EventSquadAssignment[],
+  assignedGlobal: Set<string>,
+  gameFormat: GameFormat,
+  formations: (Formation & { slots: FormationSlot[] })[],
+  defaultFormationId: string | null,
+  notes: string[],
+): void {
+  const slotsPerSquad = squads.map((squad) => {
+    const formation = getFormationForSquad(squad, formations, defaultFormationId);
+    const slots = getSlotRequirements(formation, gameFormat);
+    const gkSlotIdx = slots.findIndex((s) => s.acceptedPositions.includes('goalkeeper'));
+    return { squad, slots, gkSlotIdx, nonGkSlots: gkSlotIdx >= 0 ? slots.filter((_, i) => i !== gkSlotIdx) : slots };
+  });
+
+  const allSlots: SlotWithSquad[] = [];
+  for (let squadIdx = 0; squadIdx < squads.length; squadIdx++) {
+    for (let slotIdx = 0; slotIdx < slotsPerSquad[squadIdx].nonGkSlots.length; slotIdx++) {
+      const slot = slotsPerSquad[squadIdx].nonGkSlots[slotIdx];
+      allSlots.push({
+        squadIdx,
+        slotIdx,
+        slot,
+        broadRole: slotToBroadRole(slot),
+      });
+    }
   }
 
-  const flexibleCandidates = availablePlayers.filter((p) =>
-    acceptedPositions.includes('flexible') || p.broadPositions.length === 0,
+  const roleOrder: BroadRole[] = ['defender', 'midfielder', 'forward', 'flexible'];
+  const rolesToProcess = new Set(roleOrder);
+
+  const roleSlots = new Map<BroadRole, SlotWithSquad[]>();
+  for (const slot of allSlots) {
+    if (!roleSlots.has(slot.broadRole)) {
+      roleSlots.set(slot.broadRole, []);
+    }
+    roleSlots.get(slot.broadRole)!.push(slot);
+  }
+
+  const scarcityInfo = computePositionScarcity(
+    players.filter((p) => !assignedGlobal.has(p.playerId)),
+    squads.length,
   );
-  if (flexibleCandidates.length > 0) {
-    flexibleCandidates.sort(sortBySkill);
-    return { player: flexibleCandidates[0], fitTier: 'NO_FIT' };
+  const protectedRoles = new Set(
+    scarcityInfo.filter((s) => s.isScarce).map((s) => s.position),
+  );
+
+  for (const role of rolesToProcess) {
+    const slotsForRole = roleSlots.get(role);
+    if (!slotsForRole || slotsForRole.length === 0) continue;
+
+    const availableForRole = players.filter(
+      (p) => !assignedGlobal.has(p.playerId),
+    );
+
+    let forward = true;
+    let slotIdx = 0;
+
+    while (slotIdx < slotsForRole.length) {
+      const indices = forward
+        ? Array.from({ length: squads.length }, (_, i) => i)
+        : Array.from({ length: squads.length }, (_, i) => squads.length - 1 - i);
+
+      let assignedAny = false;
+      for (const squadIdx of indices) {
+        const squadSlots = slotsForRole.filter((s) => s.squadIdx === squadIdx);
+        const squadSlot = squadSlots[slotIdx];
+        if (!squadSlot) continue;
+
+        const availableHere = players.filter((p) => !assignedGlobal.has(p.playerId));
+        const result = pickBestCandidate(availableHere, squadSlot.slot, protectedRoles);
+
+        if (result) {
+          assignedGlobal.add(result.player.playerId);
+          const fitTier = result.fitTier;
+          assignments.push({
+            playerId: result.player.playerId,
+            eventSquadId: squads[squadIdx].id,
+            assignedRoleType: squadSlot.slot.roleType,
+            assignedPositionId: squadSlot.slot.label,
+            assignedSlotIndex: slotsPerSquad[squadIdx].nonGkSlots.indexOf(squadSlot.slot),
+            assignedSlotLabel: squadSlot.slot.label,
+            lineupOrder: null,
+            source: 'AUTO',
+            locked: false,
+            selectionReason: buildSlotReason(result.player, squadSlot.slot, fitTier, false),
+            positionFitTier: fitTier,
+          });
+          assignedAny = true;
+        }
+      }
+
+      slotIdx++;
+      forward = !forward;
+    }
   }
 
-  return null;
+  const remainingPlayers = players.filter((p) => !assignedGlobal.has(p.playerId));
+  if (remainingPlayers.length > 0) {
+    distributeRemainingByBalance(remainingPlayers, squads, assignments, assignedGlobal);
+  }
+
+  optimizeSwapsForBalance(players, squads, assignments, assignedGlobal);
+}
+
+function distributeRemainingByBalance(
+  players: PlayerWithRatings[],
+  squads: GenerationInput['squads'],
+  assignments: EventSquadAssignment[],
+  assignedGlobal: Set<string>,
+): void {
+  const sorted = [...players].sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
+
+  const squadCounts = new Map<string, number>();
+  const squadRatingSums = new Map<string, number>();
+  for (const squad of squads) {
+    const count = assignments.filter((a) => a.eventSquadId === squad.id).length;
+    squadCounts.set(squad.id, count);
+    const squadPlayers = assignments
+      .filter((a) => a.eventSquadId === squad.id)
+      .map((a) => players.find((p) => p.playerId === a.playerId))
+      .filter((p): p is PlayerWithRatings => p !== undefined);
+    const ratedSum = squadPlayers.reduce((s, p) => s + (p.ratings.overallLevel ?? 0), 0);
+    squadRatingSums.set(squad.id, ratedSum);
+  }
+
+  for (const player of sorted) {
+    const maxSquadSize = squads[0]?.maxSize ?? squads[0]?.targetSize ?? 7;
+    const targetSquads = squads
+      .filter((s) => {
+        const currentCount = squadCounts.get(s.id) ?? 0;
+        return currentCount < maxSquadSize;
+      })
+      .sort((a, b) => {
+        const aCount = squadCounts.get(a.id) ?? 0;
+        const bCount = squadCounts.get(b.id) ?? 0;
+        if (aCount !== bCount) return aCount - bCount;
+        const aRating = squadRatingSums.get(a.id) ?? 0;
+        const bRating = squadRatingSums.get(b.id) ?? 0;
+        return aRating - bRating;
+      });
+
+    if (targetSquads.length === 0) continue;
+
+    const targetSquad = targetSquads[0];
+    const playerRating = player.ratings.overallLevel ?? 0;
+    assignedGlobal.add(player.playerId);
+    const hasUncertainty = player.ratings.overallLevel === null;
+    assignments.push({
+      playerId: player.playerId,
+      eventSquadId: targetSquad.id,
+      assignedRoleType: null,
+      assignedPositionId: null,
+      assignedSlotIndex: null,
+      assignedSlotLabel: null,
+      lineupOrder: null,
+      source: 'AUTO',
+      locked: false,
+      selectionReason: hasUncertainty
+        ? 'Rating uncertainty: player has missing attributes'
+        : 'Selected to balance remaining squads',
+      positionFitTier: 'NO_FIT',
+    });
+    squadCounts.set(targetSquad.id, (squadCounts.get(targetSquad.id) ?? 0) + 1);
+    squadRatingSums.set(targetSquad.id, (squadRatingSums.get(targetSquad.id) ?? 0) + playerRating);
+  }
+}
+
+function optimizeSwapsForBalance(
+  allPlayers: PlayerWithRatings[],
+  squads: GenerationInput['squads'],
+  assignments: EventSquadAssignment[],
+  assignedGlobal: Set<string>,
+): void {
+  const maxIterations = 50;
+  const lockedPlayerIds = new Set(
+    assignments.filter((a) => a.locked).map((a) => a.playerId),
+  );
+  const playerMap = new Map(allPlayers.map((p) => [p.playerId, p]));
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let improved = false;
+
+    for (let i = 0; i < squads.length; i++) {
+      for (let j = i + 1; j < squads.length; j++) {
+        const squadIAssignments = assignments.filter((a) => a.eventSquadId === squads[i].id);
+        const squadJAssignments = assignments.filter((a) => a.eventSquadId === squads[j].id);
+
+        if (Math.abs(squadIAssignments.length - squadJAssignments.length) > 1) continue;
+
+        const ratedI = squadIAssignments
+          .map((a) => playerMap.get(a.playerId))
+          .filter((p): p is PlayerWithRatings => p !== undefined && p.ratings.overallLevel !== null);
+        const ratedJ = squadJAssignments
+          .map((a) => playerMap.get(a.playerId))
+          .filter((p): p is PlayerWithRatings => p !== undefined && p.ratings.overallLevel !== null);
+
+        const avgI = ratedI.length > 0 ? ratedI.reduce((s, p) => s + p.ratings.overallLevel!, 0) / ratedI.length : 0;
+        const avgJ = ratedJ.length > 0 ? ratedJ.reduce((s, p) => s + p.ratings.overallLevel!, 0) / ratedJ.length : 0;
+        const currentSpread = Math.abs(avgI - avgJ);
+
+        for (const aI of squadIAssignments) {
+          if (lockedPlayerIds.has(aI.playerId)) continue;
+          if (aI.positionFitTier === 'PRIMARY') continue;
+
+          for (const aJ of squadJAssignments) {
+            if (lockedPlayerIds.has(aJ.playerId)) continue;
+            if (aJ.positionFitTier === 'PRIMARY') continue;
+
+            const playerI = playerMap.get(aI.playerId);
+            const playerJ = playerMap.get(aJ.playerId);
+            if (!playerI || !playerJ) continue;
+
+            const ratingI = playerI.ratings.overallLevel ?? 0;
+            const ratingJ = playerJ.ratings.overallLevel ?? 0;
+
+            if (ratingI === ratingJ) continue;
+
+            const newRatedI = ratedI.filter((p) => p.playerId !== aI.playerId);
+            newRatedI.push(...(playerJ.ratings.overallLevel !== null ? [playerJ] : []));
+            const newRatedJ = ratedJ.filter((p) => p.playerId !== aJ.playerId);
+            newRatedJ.push(...(playerI.ratings.overallLevel !== null ? [playerI] : []));
+
+            const newAvgI = newRatedI.length > 0 ? newRatedI.reduce((s, p) => s + p.ratings.overallLevel!, 0) / newRatedI.length : 0;
+            const newAvgJ = newRatedJ.length > 0 ? newRatedJ.reduce((s, p) => s + p.ratings.overallLevel!, 0) / newRatedJ.length : 0;
+            const newSpread = Math.abs(newAvgI - newAvgJ);
+
+            if (newSpread < currentSpread - 0.01) {
+              aI.eventSquadId = squads[j].id;
+              aJ.eventSquadId = squads[i].id;
+              improved = true;
+              break;
+            }
+          }
+          if (improved) break;
+        }
+      }
+      if (!improved) break;
+    }
+    if (!improved) break;
+  }
+  void assignedGlobal;
 }
 
 export function generateEventSquads(input: GenerationInput): GenerationOutput {
@@ -190,6 +639,9 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
           eventSquadId: squadId,
           assignedRoleType: null,
           assignedPositionId: null,
+          assignedSlotIndex: null,
+          assignedSlotLabel: null,
+          lineupOrder: null,
           source: 'LOCKED',
           locked: true,
           selectionReason: 'Kept because assignment was locked by coach',
@@ -204,7 +656,7 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
 
   const scarcityInfo = computePositionScarcity(remainingPlayers, squads.length);
   for (const scarcity of scarcityInfo) {
-    if (scarcity.note) {
+    if (scarcity.isScarce && scarcity.note) {
       validationNotes.push(scarcity.note);
     }
   }
@@ -269,112 +721,6 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
   };
 }
 
-function fillSquadSlots(
-  squadId: string,
-  slots: FormationSlotRequirement[],
-  players: PlayerWithRatings[],
-  assignedGlobal: Set<string>,
-  scarcityInfo: ReturnType<typeof computePositionScarcity>,
-  isCompetitive: boolean,
-): EventSquadAssignment[] {
-  const assignments: EventSquadAssignment[] = [];
-  const assignedInSquad = new Set<string>();
-  const slotAssignments: SlotAssignment[] = slots.map((slot, i) => ({
-    slotIndex: i,
-    roleType: slot.roleType,
-    label: slot.label,
-    acceptedPositions: slot.acceptedPositions,
-    assignedPlayerId: null,
-  }));
-
-  const sortedSlots = [...slotAssignments].sort(
-    (a, b) => getSlotPriority(a) - getSlotPriority(b),
-  );
-
-  const scarcePositions = new Set(
-    scarcityInfo.filter((s) => s.isScarce).map((s) => s.position),
-  );
-
-  for (const slot of sortedSlots) {
-    const availableForSlot = players.filter(
-      (p) => !assignedGlobal.has(p.playerId) && !assignedInSquad.has(p.playerId),
-    );
-
-    const result = findBestFitPlayer(availableForSlot, slot.acceptedPositions, scarcePositions);
-
-    if (result) {
-      slot.assignedPlayerId = result.player.playerId;
-      assignedInSquad.add(result.player.playerId);
-      assignedGlobal.add(result.player.playerId);
-
-      const reason = isCompetitive
-        ? buildCompetitiveSlotReason(result.player, slot, result.fitTier)
-        : buildBalancedSlotReason(result.player, slot, result.fitTier);
-
-      assignments.push({
-        playerId: result.player.playerId,
-        eventSquadId: squadId,
-        assignedRoleType: slot.roleType,
-        assignedPositionId: slot.label,
-        source: 'AUTO',
-        locked: false,
-        selectionReason: reason,
-        positionFitTier: result.fitTier,
-      });
-    }
-  }
-
-  return assignments;
-}
-
-function buildCompetitiveSlotReason(
-  player: PlayerWithRatings,
-  slot: SlotAssignment,
-  fitTier: PositionFitTier,
-): string {
-  if (player.isGoalkeeper && slot.acceptedPositions.includes('goalkeeper')) {
-    return 'Selected for goalkeeper coverage (primary fit)';
-  }
-
-  if (player.ratings.overallLevel === null) {
-    return `Rating uncertainty: player has missing attributes${fitTier !== 'NO_FIT' ? ` (${fitTier.toLowerCase()} position fit)` : ''}`;
-  }
-
-  if (fitTier === 'PRIMARY') {
-    return `Selected as ${slot.acceptedPositions[0]} fit for competitive formation (primary)`;
-  }
-  if (fitTier === 'SECONDARY') {
-    return `Selected as ${slot.acceptedPositions[0]} fit for competitive formation (secondary)`;
-  }
-  if (fitTier === 'TERTIARY') {
-    return `Selected as ${slot.acceptedPositions[0]} fit for competitive formation (tertiary)`;
-  }
-  return 'Selected as flexible player after core tactical roles were covered';
-}
-
-function buildBalancedSlotReason(
-  player: PlayerWithRatings,
-  slot: { acceptedPositions: BroadPosition[] },
-  fitTier: PositionFitTier,
-): string {
-  const hasUncertainty = player.ratings.overallLevel === null;
-
-  if (player.isGoalkeeper && slot.acceptedPositions.includes('goalkeeper')) {
-    return 'Selected for goalkeeper coverage';
-  }
-
-  if (fitTier === 'NO_FIT') {
-    if (hasUncertainty) {
-      return 'Rating uncertainty: player has missing attributes';
-    }
-    return 'Selected to balance remaining squads';
-  }
-
-  const tierLabel = fitTier === 'PRIMARY' ? 'primary' : fitTier === 'SECONDARY' ? 'secondary' : 'tertiary';
-  const uncertaintySuffix = hasUncertainty ? ' (rating uncertainty)' : '';
-  return `Selected as ${slot.acceptedPositions[0]} fit (${tierLabel} position)${uncertaintySuffix}`;
-}
-
 function distributeAllBalanced(
   players: PlayerWithRatings[],
   squads: GenerationInput['squads'],
@@ -389,265 +735,13 @@ function distributeAllBalanced(
 
   const assignedGlobal = new Set(assignments.map((a) => a.playerId));
 
-  const gkPlayers = players.filter((p) => !assignedGlobal.has(p.playerId) && p.isGoalkeeper);
-  gkPlayers.sort(sortBySkill);
+  distributeGoalkeepers(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId);
 
-  for (let i = 0; i < gkPlayers.length; i++) {
-    const gk = gkPlayers[i];
-    const targetSquad = squads[i % squads.length];
-    const formation = getFormationForSquad(targetSquad, formations, defaultFormationId);
-    const slots = getSlotRequirements(formation, gameFormat);
-    const gkSlot = slots.find((s) => s.acceptedPositions.includes('goalkeeper'));
-
-    assignedGlobal.add(gk.playerId);
-    assignments.push({
-      playerId: gk.playerId,
-      eventSquadId: targetSquad.id,
-      assignedRoleType: gkSlot?.roleType ?? 'GOALKEEPER',
-      assignedPositionId: gkSlot?.label ?? 'Goalkeeper',
-      source: 'AUTO',
-      locked: false,
-      selectionReason: 'Selected for goalkeeper coverage',
-      positionFitTier: gk.primaryPosition === 'GK' ? 'PRIMARY' : 'SECONDARY',
-    });
-  }
-
-  const allSlots = squads.map((squad) => {
-    const formation = getFormationForSquad(squad, formations, defaultFormationId);
-    const slotRequirements = getSlotRequirements(formation, gameFormat);
-    const gkSlotIdx = slotRequirements.findIndex((s) => s.acceptedPositions.includes('goalkeeper'));
-    const nonGkSlots = gkSlotIdx >= 0
-      ? slotRequirements.filter((_, i) => i !== gkSlotIdx)
-      : slotRequirements;
-    return { squad, nonGkSlots };
-  });
-
-  const positionGroups = groupSlotsByPosition(allSlots);
-
-  const allNonGkSlotRefs: Array<{ squadIdx: number; slotIdx: number; acceptedPositions: BroadPosition[] }> = [];
-  for (const group of positionGroups) {
-    for (const slotRef of group.slots) {
-      allNonGkSlotRefs.push({ ...slotRef, acceptedPositions: group.acceptedPositions });
-    }
-  }
-
-  const squadCount = squads.length;
-  let forward = true;
-
-  const perSquadSlotRefs: Map<number, Array<{ slotIdx: number; acceptedPositions: BroadPosition[] }>> = new Map();
-  for (let i = 0; i < squadCount; i++) {
-    perSquadSlotRefs.set(i, []);
-  }
-  for (const ref of allNonGkSlotRefs) {
-    perSquadSlotRefs.get(ref.squadIdx)!.push({ slotIdx: ref.slotIdx, acceptedPositions: ref.acceptedPositions });
-  }
-
-  const squadSlotQueues: Array<Array<{ slotIdx: number; acceptedPositions: BroadPosition[] }>> = [];
-  for (let i = 0; i < squadCount; i++) {
-    squadSlotQueues.push(perSquadSlotRefs.get(i)!);
-  }
-
-  const slotSnakeOrder: Array<{ squadIdx: number; slotIdx: number; acceptedPositions: BroadPosition[] }> = [];
-  const queueIdxs = new Array(squadCount).fill(0);
-
-  let hasSlots = true;
-  while (hasSlots) {
-    hasSlots = false;
-    const indices = forward
-      ? Array.from({ length: squadCount }, (_, i) => i)
-      : Array.from({ length: squadCount }, (_, i) => squadCount - 1 - i);
-
-    for (const si of indices) {
-      if (queueIdxs[si] < squadSlotQueues[si].length) {
-        const entry = squadSlotQueues[si][queueIdxs[si]];
-        slotSnakeOrder.push({ squadIdx: si, slotIdx: entry.slotIdx, acceptedPositions: entry.acceptedPositions });
-        queueIdxs[si]++;
-        hasSlots = true;
-      }
-    }
-    forward = !forward;
-  }
-
-  for (const slotRef of slotSnakeOrder) {
-    const slot = allSlots[slotRef.squadIdx].nonGkSlots[slotRef.slotIdx];
-    if (!slot) continue;
-
-    const candidates = players
-      .filter((p) => !assignedGlobal.has(p.playerId))
-      .filter((p) => slotRef.acceptedPositions.some((pos) =>
-        getPlayerBroadPositions(p).includes(pos) || p.isGoalkeeper === false,
-      ))
-      .sort((a, b) => {
-        const aFit = getBestFitTier(a, slotRef.acceptedPositions);
-        const bFit = getBestFitTier(b, slotRef.acceptedPositions);
-        const tierDiff = FIT_TIER_PRIORITY[aFit] - FIT_TIER_PRIORITY[bFit];
-        if (tierDiff !== 0) return tierDiff;
-        return (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0);
-      });
-
-    if (candidates.length === 0) continue;
-
-    const player = candidates[0];
-    assignedGlobal.add(player.playerId);
-    const fitTier = getBestFitTier(player, slot.acceptedPositions);
-    assignments.push({
-      playerId: player.playerId,
-      eventSquadId: squads[slotRef.squadIdx].id,
-      assignedRoleType: slot.roleType,
-      assignedPositionId: slot.label,
-      source: 'AUTO',
-      locked: false,
-      selectionReason: buildBalancedSlotReason(player, slot, fitTier),
-      positionFitTier: fitTier,
-    });
-  }
-
-  const remainingPlayers = players.filter(
-    (p) => !assignedGlobal.has(p.playerId),
+  const protectedRoles = new Set(
+    scarcityInfo.filter((s) => s.isScarce).map((s) => s.position),
   );
 
-  if (remainingPlayers.length > 0) {
-    distributeRemainingByBalance(remainingPlayers, squads, assignments, assignedGlobal);
-  }
-
-  optimizeSwapsForBalance(players, squads, assignments, assignedGlobal);
-}
-
-function getBestFitTier(
-  player: PlayerWithRatings,
-  acceptedPositions: BroadPosition[],
-): PositionFitTier {
-  return getPositionFitTier(
-    player.primaryPosition,
-    player.secondaryPosition,
-    player.tertiaryPosition,
-    acceptedPositions,
-  );
-}
-
-interface PositionSlotGroup {
-  acceptedPositions: BroadPosition[];
-  slots: Array<{ squadIdx: number; slotIdx: number }>;
-  slotsPerSquad: number[];
-}
-
-function groupSlotsByPosition(
-  allSlots: Array<{ squad: GenerationInput['squads'][0]; nonGkSlots: FormationSlotRequirement[] }>,
-): PositionSlotGroup[] {
-  const roleGroups = new Map<string, { acceptedPositions: BroadPosition[]; slots: Array<{ squadIdx: number; slotIdx: number }>; slotsPerSquad: number[] }>();
-
-  for (let squadIdx = 0; squadIdx < allSlots.length; squadIdx++) {
-    const { nonGkSlots } = allSlots[squadIdx];
-    for (let slotIdx = 0; slotIdx < nonGkSlots.length; slotIdx++) {
-      const slot = nonGkSlots[slotIdx];
-      const key = slot.roleType;
-      if (!roleGroups.has(key)) {
-        roleGroups.set(key, { acceptedPositions: slot.acceptedPositions, slots: [], slotsPerSquad: new Array(allSlots.length).fill(0) });
-      }
-      const group = roleGroups.get(key)!;
-      group.slots.push({ squadIdx, slotIdx });
-      group.slotsPerSquad[squadIdx]++;
-    }
-  }
-
-  return Array.from(roleGroups.values());
-}
-
-function snakeOrder(totalSlots: number, squadCount: number): Array<{ squadIdx: number; slotIdx: number }> {
-  const order: Array<{ squadIdx: number; slotIdx: number }> = [];
-  let forward = true;
-  let assigned = 0;
-  let round = 0;
-
-  while (assigned < totalSlots) {
-    const indices = forward
-      ? Array.from({ length: squadCount }, (_, i) => i)
-      : Array.from({ length: squadCount }, (_, i) => squadCount - 1 - i);
-
-    for (const squadIdx of indices) {
-      if (assigned >= totalSlots) break;
-      order.push({ squadIdx, slotIdx: round });
-      assigned++;
-    }
-    forward = !forward;
-    round++;
-  }
-
-  return order;
-}
-
-function optimizeSwapsForBalance(
-  allPlayers: PlayerWithRatings[],
-  squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
-  assignedGlobal: Set<string>,
-): void {
-  const maxIterations = 50;
-  const lockedPlayerIds = new Set(
-    assignments.filter((a) => a.locked).map((a) => a.playerId),
-  );
-
-  const playerMap = new Map(allPlayers.map((p) => [p.playerId, p]));
-
-  for (let iter = 0; iter < maxIterations; iter++) {
-    let improved = false;
-
-    for (let i = 0; i < squads.length; i++) {
-      for (let j = i + 1; j < squads.length; j++) {
-        const squadIAssignments = assignments.filter((a) => a.eventSquadId === squads[i].id);
-        const squadJAssignments = assignments.filter((a) => a.eventSquadId === squads[j].id);
-
-        if (Math.abs(squadIAssignments.length - squadJAssignments.length) > 1) continue;
-
-        const ratedI = squadIAssignments
-          .map((a) => playerMap.get(a.playerId))
-          .filter((p): p is PlayerWithRatings => p !== undefined && p.ratings.overallLevel !== null);
-        const ratedJ = squadJAssignments
-          .map((a) => playerMap.get(a.playerId))
-          .filter((p): p is PlayerWithRatings => p !== undefined && p.ratings.overallLevel !== null);
-
-        const avgI = ratedI.length > 0 ? ratedI.reduce((s, p) => s + p.ratings.overallLevel!, 0) / ratedI.length : 0;
-        const avgJ = ratedJ.length > 0 ? ratedJ.reduce((s, p) => s + p.ratings.overallLevel!, 0) / ratedJ.length : 0;
-        const currentSpread = Math.abs(avgI - avgJ);
-
-        for (const aI of squadIAssignments) {
-          if (lockedPlayerIds.has(aI.playerId)) continue;
-          for (const aJ of squadJAssignments) {
-            if (lockedPlayerIds.has(aJ.playerId)) continue;
-
-            const playerI = playerMap.get(aI.playerId);
-            const playerJ = playerMap.get(aJ.playerId);
-            if (!playerI || !playerJ) continue;
-
-            const ratingI = playerI.ratings.overallLevel ?? 0;
-            const ratingJ = playerJ.ratings.overallLevel ?? 0;
-
-            if (ratingI === ratingJ) continue;
-
-            const newRatedI = ratedI.filter((p) => p.playerId !== aI.playerId);
-            newRatedI.push(...(playerJ.ratings.overallLevel !== null ? [playerJ] : []));
-            const newRatedJ = ratedJ.filter((p) => p.playerId !== aJ.playerId);
-            newRatedJ.push(...(playerI.ratings.overallLevel !== null ? [playerI] : []));
-
-            const newAvgI = newRatedI.length > 0 ? newRatedI.reduce((s, p) => s + p.ratings.overallLevel!, 0) / newRatedI.length : 0;
-            const newAvgJ = newRatedJ.length > 0 ? newRatedJ.reduce((s, p) => s + p.ratings.overallLevel!, 0) / newRatedJ.length : 0;
-            const newSpread = Math.abs(newAvgI - newAvgJ);
-
-            if (newSpread < currentSpread - 0.01) {
-              aI.eventSquadId = squads[j].id;
-              aJ.eventSquadId = squads[i].id;
-              improved = true;
-              break;
-            }
-          }
-          if (improved) break;
-        }
-      }
-    }
-
-    if (!improved) break;
-  }
-  void assignedGlobal;
+  distributeByRoleAcrossSquads(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, notes);
 }
 
 function distributeOneCompetitiveBalancedRemainder(
@@ -674,17 +768,42 @@ function distributeOneCompetitiveBalancedRemainder(
   const competitiveFormation = getFormationForSquad(competitiveSquad, formations, defaultFormationId);
   const competitiveSlots = getSlotRequirements(competitiveFormation, gameFormat);
 
-  const competitiveAssignments = fillSquadSlots(
-    competitiveSquad.id,
-    competitiveSlots,
-    players,
-    assignedGlobal,
-    scarcityInfo,
-    true,
-  );
+  const sortedSlots = [...competitiveSlots].sort((a, b) => {
+    const priority: Record<string, number> = {
+      GOALKEEPER: 0,
+      DEFENDER: 1,
+      DEFENSIVE_MIDFIELDER: 2,
+      MIDFIELDER: 3,
+      ATTACKING_MIDFIELDER: 4,
+      FORWARD: 5,
+      FREE: 6,
+    };
+    return (priority[a.roleType] ?? 3) - (priority[b.roleType] ?? 3);
+  });
 
-  for (const assignment of competitiveAssignments) {
-    assignments.push(assignment);
+  for (const slot of sortedSlots) {
+    const availableForSlot = players.filter(
+      (p) => !assignedGlobal.has(p.playerId),
+    );
+    const result = pickBestCandidate(availableForSlot, slot, new Set());
+
+    if (result) {
+      assignedGlobal.add(result.player.playerId);
+      const fitTier = result.fitTier;
+      assignments.push({
+        playerId: result.player.playerId,
+        eventSquadId: competitiveSquad.id,
+        assignedRoleType: slot.roleType,
+        assignedPositionId: slot.label,
+        assignedSlotIndex: competitiveSlots.indexOf(slot),
+        assignedSlotLabel: slot.label,
+        lineupOrder: null,
+        source: 'AUTO',
+        locked: false,
+        selectionReason: buildSlotReason(result.player, slot, fitTier, true),
+        positionFitTier: fitTier,
+      });
+    }
   }
 
   const competitiveTarget = competitiveSquad.targetSize;
@@ -694,19 +813,23 @@ function distributeOneCompetitiveBalancedRemainder(
     const remainingForCompetitive = players.filter(
       (p) => !assignedGlobal.has(p.playerId),
     );
-    remainingForCompetitive.sort(sortBySkill);
+    remainingForCompetitive.sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
 
     for (const player of remainingForCompetitive) {
       if (assignments.filter((a) => a.eventSquadId === competitiveSquad.id).length >= competitiveTarget) break;
       assignedGlobal.add(player.playerId);
+      const hasUncertainty = player.ratings.overallLevel === null;
       assignments.push({
         playerId: player.playerId,
         eventSquadId: competitiveSquad.id,
         assignedRoleType: null,
         assignedPositionId: null,
+        assignedSlotIndex: null,
+        assignedSlotLabel: null,
+        lineupOrder: null,
         source: 'AUTO',
         locked: false,
-        selectionReason: 'Selected for competitive squad based on overall level',
+        selectionReason: hasUncertainty ? 'Rating uncertainty: player has missing attributes' : 'Selected for competitive squad based on overall level',
         positionFitTier: 'NO_FIT',
       });
     }
@@ -726,99 +849,6 @@ function distributeOneCompetitiveBalancedRemainder(
   }
 }
 
-function distributeRemainingByBalance(
-  players: PlayerWithRatings[],
-  squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
-  assignedGlobal: Set<string>,
-): void {
-  const sorted = [...players].sort(sortBySkill);
-
-  const squadCounts = new Map<string, number>();
-  const squadRatingSums = new Map<string, number>();
-  for (const squad of squads) {
-    const count = assignments.filter((a) => a.eventSquadId === squad.id).length;
-    squadCounts.set(squad.id, count);
-    const squadPlayers = assignments
-      .filter((a) => a.eventSquadId === squad.id)
-      .map((a) => players.find((p) => p.playerId === a.playerId))
-      .filter((p): p is PlayerWithRatings => p !== undefined);
-    const ratedSum = squadPlayers.reduce((s, p) => s + (p.ratings.overallLevel ?? 0), 0);
-    squadRatingSums.set(squad.id, ratedSum);
-  }
-
-  for (const player of sorted) {
-    const maxSquadSize = squads[0]?.maxSize ?? squads[0]?.targetSize ?? 7;
-    const targetSquads = squads
-      .filter((s) => {
-        const currentCount = squadCounts.get(s.id) ?? 0;
-        return currentCount < maxSquadSize;
-      })
-      .sort((a, b) => {
-        const aCount = squadCounts.get(a.id) ?? 0;
-        const bCount = squadCounts.get(b.id) ?? 0;
-        if (aCount !== bCount) return aCount - bCount;
-        const aRating = squadRatingSums.get(a.id) ?? 0;
-        const bRating = squadRatingSums.get(b.id) ?? 0;
-        return aRating - bRating;
-      });
-
-    if (targetSquads.length === 0) continue;
-
-    const targetSquad = targetSquads[0];
-    const playerRating = player.ratings.overallLevel ?? 0;
-    assignedGlobal.add(player.playerId);
-    const hasUncertainty = player.ratings.overallLevel === null;
-    assignments.push({
-      playerId: player.playerId,
-      eventSquadId: targetSquad.id,
-      assignedRoleType: null,
-      assignedPositionId: null,
-      source: 'AUTO',
-      locked: false,
-      selectionReason: hasUncertainty ? 'Rating uncertainty: player has missing attributes' : 'Selected to balance remaining squads',
-      positionFitTier: 'NO_FIT',
-    });
-    squadCounts.set(targetSquad.id, (squadCounts.get(targetSquad.id) ?? 0) + 1);
-    squadRatingSums.set(targetSquad.id, (squadRatingSums.get(targetSquad.id) ?? 0) + playerRating);
-  }
-}
-
-function getFormationForSquad(
-  squad: GenerationInput['squads'][0],
-  formations: (Formation & { slots: FormationSlot[] })[],
-  defaultFormationId: string | null,
-): { slots: FormationSlotRequirement[] } | null {
-  if (squad.formationId) {
-    const formation = formations.find((f) => f.id === squad.formationId);
-    if (formation) {
-      return {
-        slots: formation.slots.map((s) => ({
-          roleType: s.roleType,
-          acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
-          label: s.label,
-        })),
-      };
-    }
-  }
-  if (defaultFormationId) {
-    const formation = formations.find((f) => f.id === defaultFormationId);
-    if (formation) {
-      return {
-        slots: formation.slots.map((s) => ({
-          roleType: s.roleType,
-          acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
-          label: s.label,
-        })),
-      };
-    }
-  }
-  return null;
-}
-
-type Formation = import('@/generated/prisma/client').Formation;
-type FormationSlot = import('@/generated/prisma/client').FormationSlot;
-
 export function getDefaultTargetSize(format: GameFormat): number {
   switch (format) {
     case 'THREE_A_SIDE': return 3;
@@ -829,3 +859,4 @@ export function getDefaultTargetSize(format: GameFormat): number {
     default: return 7;
   }
 }
+
