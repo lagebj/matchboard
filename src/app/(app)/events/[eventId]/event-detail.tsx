@@ -308,6 +308,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         description={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${new Date(data.startsAt).toLocaleDateString()}`}
         actions={
           <div className="flex gap-2">
+            <a
+              href={`/events/${data.id}/export`}
+              download
+              className="inline-flex items-center justify-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-[var(--surface-base)] transition-colors"
+            >
+              Export event
+            </a>
             <Button variant="primary" onClick={handleGenerate} disabled={isPending}>
               {isPending ? 'Generating...' : 'Generate squads'}
             </Button>
