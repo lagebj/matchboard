@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { formatDate } from "@/lib/date-utils";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
+import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
 import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions } from "@/lib/player-form-options";
 
@@ -37,7 +38,7 @@ function formatSavedMessage(saved?: string): string | null {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats, readinessSignals] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats, readinessSignals, categoryStats] = await Promise.all([
     db.player.findFirst({
       where: { id: playerId, removedAt: null },
       include: { coreTeam: { select: { id: true, name: true } } },
@@ -98,6 +99,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       where: { playerId },
       orderBy: { signalType: "asc" },
     }),
+    getPlayerCategoryStats(playerId),
   ]);
 
   if (!player) notFound();
@@ -219,6 +221,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                 lastMatch: lastFinalizedStr,
               }}
               stats={actualStats}
+              categoryStats={categoryStats}
             />
             <PlayerMovementHistoryPanel movementHistory={movementEntries} />
           </div>

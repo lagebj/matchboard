@@ -5875,3 +5875,191 @@ Feature: Matchboard football operations workspace
         Then the event must be created in the database
         And the coach must be navigated to the new event detail page
         And the event must appear in the events list
+
+  # ============================================================
+  # Event matches and category-aware statistics
+  # ============================================================
+
+  Feature: Event matches and post-match reporting
+    As a coach
+    I want to register event matches and complete post-match reports
+    So that cup and tournament results are tracked separately from league results
+
+    Background:
+      Given an active league season exists
+      And an event with at least one squad exists
+
+    Rule: Event matches use CUP or OTHER category, never LEAGUE
+
+      Scenario: Create event match with CUP category
+        Given a CUP event with a squad
+        When the coach creates an event match for that squad
+        Then the match category must default to CUP
+        And the match status must be SCHEDULED
+
+      Scenario: Create event match rejects LEAGUE category
+        Given a CUP event with a squad
+        When the coach attempts to create an event match with LEAGUE category
+        Then the server must reject with an error
+
+      Scenario: Create event match defaults category from event type
+        Given a FRIENDLY_DAY event with a squad
+        When the coach creates an event match without specifying category
+        Then the category must default to OTHER
+
+    Rule: Event match CRUD lifecycle
+
+      Scenario: Cancel and reopen event match
+        Given a SCHEDULED event match
+        When the coach cancels the match with a reason
+        Then the match status must be CANCELLED
+        And the cancelledAt and cancelledReason must be recorded
+        When the coach reopens the match
+        Then the match status must be SCHEDULED
+        And cancelledAt and cancelledReason must be cleared
+
+      Scenario: Delete event match without completed report
+        Given a SCHEDULED event match
+        When the coach deletes the match
+        Then the match must be removed from the database
+
+      Scenario: Cannot cancel match with completed report
+        Given an event match with a LOCKED post-match report
+        When the coach attempts to cancel the match
+        Then the server must reject with an error
+
+    Rule: Event post-match report lifecycle
+
+      Scenario: Seed report from squad players
+        Given a SCHEDULED event match with a squad containing 2 players
+        When the coach seeds a post-match report
+        Then a DRAFT report must be created
+        And each squad player must have a player report with UNKNOWN attendance
+
+      Scenario: Cannot seed report for cancelled match
+        Given a CANCELLED event match
+        When the coach attempts to seed a report
+        Then the server must reject with an error
+
+      Scenario: Complete report requires all attendance set
+        Given a DRAFT event post-match report with UNKNOWN attendance
+        When the coach attempts to complete the report
+        Then the server must reject with an error about unknown attendance
+
+      Scenario: Complete report when all attendance is set
+        Given a DRAFT event post-match report where all players are PRESENT
+        And the score is set
+        When the coach completes the report
+        Then the report status must be LOCKED
+        And completedAt must be set
+
+      Scenario: Reopen completed report
+        Given a LOCKED event post-match report
+        When the coach reopens the report to DRAFT
+        Then the report status must be DRAFT
+        And completedAt must be cleared
+
+      Scenario: Cannot update score on locked report
+        Given a LOCKED event post-match report
+        When the coach attempts to update the score
+        Then the server must reject with an error about locked reports
+
+    Rule: Event goals and assists
+
+      Scenario: Add and remove goal
+        Given a DRAFT event post-match report
+        When the coach adds a goal for a player
+        Then the goal must be recorded with the player, minute, and type
+        When the coach removes the goal
+        Then the goal must be deleted
+
+      Scenario: Add and remove assist
+        Given a DRAFT event post-match report
+        When the coach adds an assist for a player
+        Then the assist must be recorded
+        When the coach removes the assist
+        Then the assist must be deleted
+
+      Scenario: Cannot add goals to locked report
+        Given a LOCKED event post-match report
+        When the coach attempts to add a goal
+        Then the server must reject with an error about locked reports
+
+    Rule: Category-aware player statistics
+
+      Scenario: Player category stats include league, cup, and other appearances
+        Given a player with 3 league appearances, 2 cup appearances, and 1 other appearance
+        When the coach views the player category stats
+        Then league appearances must show 3
+        And cup appearances must show 2
+        And other appearances must show 1
+        And total appearances must show 6
+
+      Scenario: Category stats only count completed reports
+        Given a player with 1 league appearance in a DRAFT report
+        When the coach views the player category stats
+        Then league appearances must show 0
+
+      Scenario: Cancelled matches are excluded from stats
+        Given a player with 1 cup match that was cancelled
+        When the coach views the player category stats
+        Then cup appearances must show 0
+
+    Rule: Category-aware team results
+
+      Scenario: League team results only count league matches
+        Given a team with 5 league matches (3W 1D 1L) and 2 cup matches
+        When the coach views the team league season results
+        Then the results must show 5 played, 3 won, 1 drawn, 1 lost
+        And cup results must not appear in league team results
+
+      Scenario: Event squad results track cup and other separately
+        Given an event squad with 3 cup matches (2W 1L)
+        When the coach views the event squad category stats
+        Then cup played must show 3
+        And cup won must show 2
+        And cup lost must show 1
+
+    Rule: Matches tab in event detail
+
+      Scenario: Matches tab shows matches grouped by squad
+        Given an event with 2 squads and 1 match per squad
+        When the coach navigates to the Matches tab
+        Then each squad must show its matches
+        And the match category, opponent, and date must be visible
+
+      Scenario: Match card shows report status and score
+        Given an event match with a LOCKED report and score 3-1
+        When the coach views the match card
+        Then the card must show "Completed" status
+        And the score "3-1" must be visible
+
+      Scenario: Match card shows cancel and delete actions for scheduled match
+        Given a SCHEDULED event match
+        When the coach views the match card
+        Then cancel and delete actions must be available
+
+      Scenario: Match card shows reopen action for cancelled match
+        Given a CANCELLED event match
+        When the coach views the match card
+        Then reopen action must be available
+
+    Rule: Post-match report panel in matches tab
+
+      Scenario: Expand report panel shows attendance table
+        Given an event match with a DRAFT report containing 2 players
+        When the coach expands the report
+        Then each player must be listed with an attendance dropdown
+        And the attendance options must be Present, No show, Absent, Unknown
+
+      Scenario: Report panel shows goals and assists
+        Given an event match with a DRAFT report containing 1 goal and 1 assist
+        When the coach expands the report
+        Then the goals section must show the scorer
+        And the assists section must show the assist provider
+
+      Scenario: Locked report is read-only
+        Given an event match with a LOCKED report
+        When the coach expands the report
+        Then the attendance dropdowns must not be editable
+        And add goal/assist buttons must not be visible

@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
 import { type MatchCategory } from './match-category';
-import { MatchStatus } from '@/generated/prisma/client';
 
 export interface EventMatchWithReport {
   id: string;

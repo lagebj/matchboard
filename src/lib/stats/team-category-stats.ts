@@ -6,7 +6,7 @@ export async function getLeagueTeamStats(
   teamId: string,
   leagueSeasonId?: string,
 ): Promise<EntityMatchStats> {
-  const matchWhere: any = {
+  const matchWhere: { teamId: string; category: 'LEAGUE'; status: { not: MatchStatus }; matchRound?: { leagueSeasonId: string } } = {
     teamId,
     category: 'LEAGUE',
     status: { not: MatchStatus.CANCELLED },

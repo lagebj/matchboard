@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { type MatchCategory, type CategoryStatLine, type PlayerCategoryStats, sumCategoryStatLines } from './match-category';
+import { type CategoryStatLine, type PlayerCategoryStats, sumCategoryStatLines } from './match-category';
 import { MatchStatus, MatchReportStatus } from '@/generated/prisma/client';
 
 export async function getPlayerCategoryStats(
@@ -26,7 +26,7 @@ async function getLeagueStatsForPlayer(
 ): Promise<CategoryStatLine> {
   const completedStatuses = [MatchReportStatus.REPORTED, MatchReportStatus.LOCKED];
 
-  const matchWhere: any = {
+  const matchWhere: { category: 'LEAGUE'; status: { not: MatchStatus }; matchRound?: { leagueSeasonId: string } } = {
     category: 'LEAGUE',
     status: { not: MatchStatus.CANCELLED },
     ...(leagueSeasonId ? { matchRound: { leagueSeasonId } } : {}),
