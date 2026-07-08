@@ -35,6 +35,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
   const [selectionPattern, setSelectionPattern] = useState("ALL_BALANCED");
   const [squadCount, setSquadCount] = useState(2);
   const [targetSize, setTargetSize] = useState(7);
+  const [matchDurationMinutes, setMatchDurationMinutes] = useState("20");
   const [notes, setNotes] = useState("");
 
   const filteredFormations = formations.filter(
@@ -162,6 +163,26 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label htmlFor="matchDurationMinutes" className="block text-sm font-medium mb-1">
+              Match duration (minutes)
+            </label>
+            <input
+              type="number"
+              id="matchDurationMinutes"
+              name="matchDurationMinutes"
+              min={5}
+              max={120}
+              value={matchDurationMinutes}
+              onChange={(e) => setMatchDurationMinutes(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              placeholder="20"
+            />
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              Duration in minutes for all matches in this event. Used to calculate match time windows for support planning.
+            </p>
           </div>
 
           <div>

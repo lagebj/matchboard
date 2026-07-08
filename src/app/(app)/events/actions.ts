@@ -86,6 +86,8 @@ export async function createEventAction(formData: FormData) {
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
   const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+  const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
+  const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
   if (defaultFormationId) {
     const formation = await db.formation.findUnique({
@@ -112,6 +114,7 @@ export async function createEventAction(formData: FormData) {
       gameFormat,
       defaultFormationId: defaultFormationId || undefined,
       selectionPattern,
+      matchDurationMinutes: validatedMatchDuration,
       notes,
       squads: {
         create: Array.from({ length: squadCount }, (_, i) => ({
@@ -149,6 +152,8 @@ export async function updateEventAction(id: string, formData: FormData) {
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
   const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+  const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
+  const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
   if (defaultFormationId) {
     const formation = await db.formation.findUnique({
@@ -173,6 +178,7 @@ export async function updateEventAction(id: string, formData: FormData) {
       gameFormat,
       defaultFormationId: defaultFormationId || null,
       selectionPattern,
+      matchDurationMinutes: validatedMatchDuration,
       notes,
     },
   });

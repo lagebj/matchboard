@@ -139,6 +139,7 @@ type EventDetailData = {
   startsAt: string;
   endsAt: string | null;
   gameFormat: string;
+  matchDurationMinutes: number | null;
   selectionPattern: string | null;
   notes: string | null;
   defaultFormationId: string | null;
@@ -385,6 +386,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Game format</p>
                 <p className="text-sm text-zinc-100">{formatGameFormat(data.gameFormat)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Match duration</p>
+                <p className="text-sm text-zinc-100">{data.matchDurationMinutes ? `${data.matchDurationMinutes} min` : 'Not set'}</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Starts</p>
