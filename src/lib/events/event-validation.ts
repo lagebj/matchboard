@@ -6,6 +6,7 @@ import {
   type FormationSlotRequirement,
   isGoalkeeperCapable,
   getPlayerBroadPositions,
+  computeCompositeRatings,
 } from './event-types';
 
 export function validateEventPool(
@@ -17,9 +18,23 @@ export function validateEventPool(
 ): EventPoolValidation {
   const available = players.filter((p) => p !== null);
   const availableCount = available.length;
-  const missingRatingsCount = available.filter(
-    (p) => p.ballControl === null || p.passing === null || p.effort === null,
-  ).length;
+
+  let missingRatingsCount = 0;
+  let partialRatingsCount = 0;
+  let ratedPlayerCount = 0;
+
+  for (const p of available) {
+    const ratings = computeCompositeRatings(p);
+    if (ratings.overallLevel === null) {
+      missingRatingsCount++;
+    } else {
+      ratedPlayerCount++;
+      const totalAttrs = 12;
+      if (ratings.overallLevel !== null && p.ballControl === null && p.effort === null && p.passing === null) {
+        partialRatingsCount++;
+      }
+    }
+  }
 
   const goalkeeperCount = available.filter(isGoalkeeperCapable).length;
   const goalkeeperPerSquad = targetSquadCount > 0 ? goalkeeperCount / targetSquadCount : 0;
@@ -91,10 +106,20 @@ export function validateEventPool(
     );
   }
 
-  if (missingRatingsCount > availableCount / 2) {
-    notes.push(
-      `Many players have missing ratings (${missingRatingsCount} of ${availableCount}), which may affect balance quality`,
-    );
+  if (missingRatingsCount > 0) {
+    if (missingRatingsCount === availableCount) {
+      notes.push(
+        `All ${missingRatingsCount} available players have no usable ratings, which will affect balance quality.`,
+      );
+    } else if (missingRatingsCount > availableCount / 2) {
+      notes.push(
+        `Many players have no usable ratings (${missingRatingsCount} of ${availableCount}), which may affect balance quality.`,
+      );
+    } else {
+      notes.push(
+        `${missingRatingsCount} of ${availableCount} available players have no usable ratings.`,
+      );
+    }
   }
 
   const requiredPositions = getRequiredPositionsByFormat(gameFormat, formationSlots);
@@ -111,6 +136,8 @@ export function validateEventPool(
     targetSquadCount,
     targetSize,
     missingRatingsCount,
+    partialRatingsCount,
+    ratedPlayerCount,
     goalkeeperCoverage: {
       total: goalkeeperCount,
       perSquad: Math.round(goalkeeperPerSquad * 10) / 10,

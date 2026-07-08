@@ -33,6 +33,7 @@ export function computeSquadBalance(
   let forwardCount = 0;
   let flexibleCount = 0;
   let missingRatingsCount = 0;
+  let ratedPlayerCount = 0;
   const coverageNotes: string[] = [];
 
   for (const player of players) {
@@ -40,6 +41,7 @@ export function computeSquadBalance(
     if (ratings.overallLevel !== null) {
       totalOverall += ratings.overallLevel;
       overallCount++;
+      ratedPlayerCount++;
     }
 
     const positions = getPlayerBroadPositions(player);
@@ -76,6 +78,7 @@ export function computeSquadBalance(
     intent,
     playerCount: players.length,
     averageOverall: overallCount > 0 ? Math.round((totalOverall / overallCount) * 10) / 10 : null,
+    ratedPlayerCount,
     goalkeeperCount,
     defenderCount,
     midfielderCount,

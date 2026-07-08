@@ -575,11 +575,41 @@ describe('event-validation', () => {
 
     it('notes many missing ratings', () => {
       const players = Array.from({ length: 14 }, (_, i) =>
-        makePlayer({ playerId: `p${i}`, ballControl: null, passing: null, effort: null }),
+        makePlayer({
+          playerId: `p${i}`,
+          ballControl: null,
+          passing: null,
+          firstTouch: null,
+          oneVOneAttacking: null,
+          positioning: null,
+          oneVOneDefending: null,
+          decisionMaking: null,
+          effort: null,
+          teamplay: null,
+          concentration: null,
+          speed: null,
+          strength: null,
+        }),
       );
       const result = validateEventPool(players, 2, 5, 'FIVE_A_SIDE', formatSlots);
+      expect(result.missingRatingsCount).toBe(14);
       expect(result.notes).toContainEqual(
-        expect.stringContaining('missing ratings'),
+        expect.stringContaining('no usable ratings'),
+      );
+    });
+
+    it('does not report missing ratings for fully rated players', () => {
+      const gk1 = makePlayer({ playerId: 'gk1', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const gk2 = makePlayer({ playerId: 'gk2', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const outfield = Array.from({ length: 12 }, (_, i) =>
+        makePlayer({ playerId: `p${i}` }),
+      );
+      const players = [gk1, gk2, ...outfield];
+      const result = validateEventPool(players, 2, 5, 'FIVE_A_SIDE', formatSlots);
+      expect(result.missingRatingsCount).toBe(0);
+      expect(result.ratedPlayerCount).toBe(14);
+      expect(result.notes).not.toContainEqual(
+        expect.stringContaining('no usable ratings'),
       );
     });
 

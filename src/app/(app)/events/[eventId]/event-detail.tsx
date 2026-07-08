@@ -56,6 +56,8 @@ type EventSquad = {
     secondaryPosition: string | null;
     tertiaryPosition: string | null;
     goalkeeperAbility: string | null;
+    overallLevel: number | null;
+    ratedAttributeCount: number;
     isGK: boolean;
   }[];
 };
@@ -72,6 +74,7 @@ type EventPlayer = {
   tertiaryPosition: string | null;
   goalkeeperAbility: string;
   overallLevel: number | null;
+  ratedAttributeCount: number;
   isGK: boolean;
   assignedSquadId: string | null;
 };
@@ -87,6 +90,7 @@ type AddablePlayer = {
   tertiaryPosition: string | null;
   goalkeeperAbility: string;
   overallLevel: number | null;
+  ratedAttributeCount: number;
   isGK: boolean;
 };
 
@@ -96,6 +100,7 @@ type SquadBalanceSummary = {
   intent: string;
   playerCount: number;
   averageOverall: number | null;
+  ratedPlayerCount: number;
   goalkeeperCount: number;
   defenderCount: number;
   midfielderCount: number;
@@ -110,6 +115,8 @@ type EventPoolValidation = {
   targetSquadCount: number;
   targetSize: number;
   missingRatingsCount: number;
+  partialRatingsCount: number;
+  ratedPlayerCount: number;
   goalkeeperCoverage: { total: number; perSquad: number; sufficient: boolean };
   positionCoverage: Record<string, { count: number; perSquad: number; sufficient: boolean }>;
   warnings: string[];
@@ -133,6 +140,7 @@ type EventDetailData = {
   addablePlayers: AddablePlayer[];
   squadBalances: SquadBalanceSummary[];
   validation: EventPoolValidation;
+  compatibleFormations: { id: string; name: string; gameFormat: string }[];
 };
 
 type TabKey = 'overview' | 'squads' | 'pool';
@@ -403,14 +411,14 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                     {balance && (
                       <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
                         {balance.averageOverall !== null && (
-                          <RatingBadge rating={{ value: balance.averageOverall, displayValue: balance.averageOverall.toFixed(1), ratedAttributeCount: 0, maxAttributeCount: 12 }} />
+                          <RatingBadge rating={{ value: balance.averageOverall, displayValue: balance.averageOverall.toFixed(1), ratedAttributeCount: balance.ratedPlayerCount, maxAttributeCount: balance.playerCount }} />
                         )}
                         <span>GK: {balance.goalkeeperCount}</span>
                         <span>DEF: {balance.defenderCount}</span>
                         <span>MID: {balance.midfielderCount}</span>
                         <span>FWD: {balance.forwardCount}</span>
                         {balance.flexibleCount > 0 && <span>Flex: {balance.flexibleCount}</span>}
-                        {balance.missingRatingsCount > 0 && <span className="text-[var(--warning)]">{balance.missingRatingsCount} unrated</span>}
+                        {balance.missingRatingsCount > 0 && <span className="text-[var(--warning)]">{balance.missingRatingsCount} not rated</span>}
                       </div>
                     )}
                     {balance && balance.coverageNotes.length > 0 && (
@@ -508,14 +516,14 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                       return (
                         <div className="mb-2 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
                           {balance.averageOverall !== null && (
-                            <RatingBadge rating={{ value: balance.averageOverall, displayValue: balance.averageOverall.toFixed(1), ratedAttributeCount: 0, maxAttributeCount: 12 }} />
+                            <RatingBadge rating={{ value: balance.averageOverall, displayValue: balance.averageOverall.toFixed(1), ratedAttributeCount: balance.ratedPlayerCount, maxAttributeCount: balance.playerCount }} />
                           )}
                           <span>GK: {balance.goalkeeperCount}</span>
                           <span>DEF: {balance.defenderCount}</span>
                           <span>MID: {balance.midfielderCount}</span>
                           <span>FWD: {balance.forwardCount}</span>
                           {balance.flexibleCount > 0 && <span>Flex: {balance.flexibleCount}</span>}
-                          {balance.missingRatingsCount > 0 && <span className="text-[var(--warning)]">{balance.missingRatingsCount} unrated</span>}
+                          {balance.missingRatingsCount > 0 && <span className="text-[var(--warning)]">{balance.missingRatingsCount} not rated</span>}
                         </div>
                       );
                     })()}
@@ -750,7 +758,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         </td>
                         <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
                         <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
-                        <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : '—'}</td>
+                        <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}</td>
                         <td className="py-2 px-2">
                           <StatusPill variant={STATUS_VARIANTS[p.status] ?? 'neutral'}>
                             {p.status.charAt(0) + p.status.slice(1).toLowerCase().replace(/_/g, ' ')}
