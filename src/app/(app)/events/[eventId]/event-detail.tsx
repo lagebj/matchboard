@@ -25,6 +25,7 @@ import { TabRail } from '@/components/ui/tab-rail';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
+import { EventMatchesTab } from './event-matches-tab';
 import { Button } from '@/components/ui/button';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { DecisionBanner } from '@/components/ui/decision-banner';
@@ -149,7 +150,7 @@ type EventDetailData = {
   squadTacticSuggestions: Record<string, TacticSuggestion | null>;
 };
 
-type TabKey = 'overview' | 'squads' | 'pool';
+type TabKey = 'overview' | 'squads' | 'pool' | 'matches';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   CUP: 'Cup',
@@ -368,6 +369,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           { key: 'overview', label: 'Overview' },
           { key: 'squads', label: 'Squads' },
           { key: 'pool', label: 'Player pool' },
+          { key: 'matches', label: 'Matches' },
         ]}
         activeKey={activeTab}
         onSelect={(key) => setActiveTab(key as TabKey)}
@@ -824,6 +826,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             )}
           </Surface>
         </div>
+      )}
+
+      {activeTab === 'matches' && (
+        <EventMatchesTab eventId={data.id} squads={data.squads} eventType={data.eventType} />
       )}
     </div>
   );

@@ -91,6 +91,9 @@ model Player {
   readinessSignals        PlayerReadinessSignal[]
   postMatchActuals        PostMatchPlayerActual[]
   selections              Selection[]
+  eventPostMatchPlayers   EventPostMatchPlayer[]
+  eventGoalEvents        EventGoalEvent[]        @relation("EventGoalScorer")
+  eventAssistEvents       EventAssistEvent[]       @relation("EventAssistProvider")
 
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
@@ -116,6 +119,7 @@ model Match {
   status                      MatchStatus                   @default(SCHEDULED)
   cancelledAt                 DateTime?
   cancelledReason             String?
+  category                    MatchCategory                 @default(LEAGUE)
   matchRound                  MatchRound                    @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   opponentTeam                OpponentTeam                  @relation(fields: [opponentTeamId], references: [id])
   team                        Team                          @relation(fields: [teamId], references: [id])
@@ -128,6 +132,7 @@ model Match {
 
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
+  @@index([category])
 }
 
 model OpponentTeam {
@@ -700,6 +705,7 @@ model Event {
   updatedAt              DateTime                  @updatedAt
   players                EventPlayerAvailability[]
   squads                 EventSquad[]
+  eventMatches           EventMatch[]
 
   @@index([startsAt])
   @@index([eventType])
@@ -738,6 +744,7 @@ model EventSquad {
   event              Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   formation          Formation?         @relation(fields: [formationId], references: [id])
   players            EventSquadPlayer[]
+  eventMatches       EventMatch[]
 
   @@index([eventId])
   @@index([intent])
@@ -759,6 +766,105 @@ model EventSquadPlayer {
   player             Player                 @relation(fields: [playerId], references: [id])
 
   @@unique([eventSquadId, playerId])
+  @@index([playerId])
+}
+
+model EventMatch {
+  id              String        @id @default(cuid())
+  eventId         String
+  eventSquadId    String
+  category        MatchCategory @default(CUP)
+  opponentName    String
+  startsAt        DateTime
+  location        String?
+  notes           String?
+  status          MatchStatus   @default(SCHEDULED)
+  cancelledAt     DateTime?
+  cancelledReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  event           Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventSquad      EventSquad            @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  postMatchReport EventPostMatchReport?
+
+  @@index([eventId])
+  @@index([eventSquadId])
+  @@index([category])
+  @@index([startsAt])
+  @@index([status])
+}
+
+model EventPostMatchReport {
+  id                String              @id @default(cuid())
+  eventMatchId      String              @unique
+  status            MatchReportStatus   @default(DRAFT)
+  ourScore          Int?
+  opponentScore     Int?
+  teamReflection    String?
+  opponentObservation String?
+  notes             String?
+  completedBy       String?
+  completedAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  eventMatch        EventMatch           @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  playerReports     EventPostMatchPlayer[]
+  goalEvents        EventGoalEvent[]
+  assistEvents      EventAssistEvent[]
+
+  @@index([status])
+}
+
+model EventPostMatchPlayer {
+  id               String   @id @default(cuid())
+  reportId         String
+  playerId         String
+  attendanceStatus String   @default("UNKNOWN")
+  minutesPlayed    Int?
+  role             String?
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  report           EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  player           Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([reportId, playerId])
+  @@index([playerId])
+  @@index([attendanceStatus])
+}
+
+model EventGoalEvent {
+  id        String   @id @default(cuid())
+  reportId  String
+  playerId  String?
+  minute    Int?
+  type      String   @default("NORMAL")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  report    EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  scorer    Player?              @relation("EventGoalScorer", fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([reportId])
+  @@index([playerId])
+}
+
+model EventAssistEvent {
+  id        String   @id @default(cuid())
+  reportId  String
+  playerId  String
+  type      String   @default("NORMAL")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  report    EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  assist    Player               @relation("EventAssistProvider", fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([reportId])
   @@index([playerId])
 }
 
@@ -1087,4 +1193,10 @@ enum EventSquadPlayerSource {
   AUTO
   MANUAL
   LOCKED
+}
+
+enum MatchCategory {
+  LEAGUE
+  CUP
+  OTHER
 }
