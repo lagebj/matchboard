@@ -6402,3 +6402,99 @@ Feature: Matchboard football operations workspace
         Given an event match with support assignment for player P1 with role "Planned helper from Squad A"
         When the coach views the post-match report
         Then P1's name must show the helper role label
+
+    Rule: Helper candidate eligibility guardrail
+
+      Scenario: Helper selector uses server-side eligibility calculation
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 (10:00-10:20)
+        And squad B plays at 10:10 (10:10-10:30)
+        When the coach opens the helper selector for squad B's match
+        Then players from squad A must not appear as available helpers
+        And the selector must show players from non-overlapping squads only
+
+      Scenario: Eligible and blocked players are separated in the UI
+        Given an event with match duration 20 minutes and three squads
+        And squad A plays at 10:00 (10:00-10:20)
+        And squad B plays at 10:10 (10:10-10:30)
+        And squad C plays at 11:00 (11:00-11:20)
+        When the coach opens the helper selector for squad B's match
+        Then players from squad C must appear in "Available helpers"
+        And players from squad A must appear in "Unavailable at this time" with reason "Own squad has overlapping match"
+
+      Scenario: No available helpers message
+        Given an event with match duration 20 minutes
+        And all squads have overlapping matches
+        When the coach opens the helper selector
+        Then the message "No available helpers at this match time" must appear
+
+      Scenario: Duration not set message
+        Given an event without match duration
+        When the coach views the support planning section
+        Then the message "Set event match duration before support availability can be calculated" must appear
+
+      Scenario: Server rejects invalid helper even if client submits manually
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 overlapping with squad B's match
+        And player P1 is assigned to squad A
+        When a manual request is sent to add P1 as support for squad B's match
+        Then the server must reject with "Cannot add helper: player's own squad has an overlapping match"
+
+      Scenario: Support conflicts recalculate after match edit
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 and squad B plays at 10:30
+        And player P1 from squad A is assigned as support for squad B's match
+        When squad A's match is rescheduled to 10:30 (overlapping with squad B)
+        Then P1's support assignment must show a conflict warning
+        And the conflict reason must indicate "Own squad now has overlapping match"
+
+      Scenario: Previously blocked player becomes eligible after schedule change
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:10 overlapping with squad B's match
+        When squad A's match is rescheduled to not overlap
+        Then players from squad A must become eligible helpers for squad B's match
+
+    Rule: Event match editing
+
+      Scenario: Coach can edit an existing event match
+        Given an event with a scheduled match
+        When the coach clicks Edit on the match
+        Then an edit form must appear with current match values prefilled
+        And the coach can update opponent, squad, date/time, category, location, and notes
+
+      Scenario: Editing match time persists
+        Given an event with a match scheduled at 10:00
+        When the coach edits the match time to 11:00 and saves
+        Then the match must show the updated time
+        And derived end time must reflect the new start time
+
+      Scenario: Editing event squad persists
+        Given an event with multiple squads
+        And a match assigned to squad A
+        When the coach edits the match to squad B
+        Then the match must show squad B
+        And helper availability must recalculate based on the new squad
+
+      Scenario: Invalid category is rejected
+        Given an event with a scheduled match
+        When the coach edits the category to LEAGUE
+        Then the server must reject with "Event match category must be CUP or OTHER"
+
+      Scenario: Event squad from another event is rejected
+        Given an event with a scheduled match
+        And a squad from a different event
+        When the coach edits the match to use the other event's squad
+        Then the server must reject with "same event"
+
+      Scenario: Editing time with completed report is restricted
+        Given an event match with a completed post-match report
+        When the coach attempts to change the match time
+        Then the server must reject with an error about completed reports
+
+      Scenario: Editing match time recalculates support conflicts
+        Given an event with match duration 20 minutes
+        And squad A plays at 10:00 and squad B plays at 10:30
+        And player P1 from squad A is assigned as support for squad B's match
+        When the coach reschedules squad A's match to 10:30
+        Then support conflicts must be recalculated
+        And P1's assignment must show a conflict if overlap now exists

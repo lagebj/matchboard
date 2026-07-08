@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import {
   addEventMatchSupportAssignmentAction,
   removeEventMatchSupportAssignmentAction,
+  getSupportCandidatesForMatchAction,
 } from '../event-support-actions';
-import type { EventSupportCandidate, SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
+import type { EventSupportCandidate } from '@/lib/events/event-match-support';
+import type { SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
 import { Surface } from '@/components/ui/surface';
-import { StatusPill } from '@/components/ui/status-pill';
 
 const PLANNED_ROLE_OPTIONS = ['', 'GK cover', 'Defender cover', 'Midfield cover', 'Forward cover', 'General cover'];
 
@@ -84,6 +85,8 @@ export function SupportPlanningSection({
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<EventSupportCandidate[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
 
   if (!matchDurationMinutes) {
     return (
@@ -116,6 +119,33 @@ export function SupportPlanningSection({
     supportLoadByPlayer.set(a.playerId, (supportLoadByPlayer.get(a.playerId) ?? 0) + 1);
   }
 
+  function handleAddClick(matchId: string) {
+    if (addingMatchId === matchId) {
+      setAddingMatchId(null);
+      setCandidates([]);
+      setSelectedPlayerId(null);
+      setSelectedRole('');
+      setError(null);
+      return;
+    }
+    setAddingMatchId(matchId);
+    setSelectedPlayerId(null);
+    setSelectedRole('');
+    setError(null);
+    setCandidates([]);
+    setLoadingCandidates(true);
+    startTransition(async () => {
+      try {
+        const result = await getSupportCandidatesForMatchAction(matchId);
+        setCandidates(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load candidates');
+      } finally {
+        setLoadingCandidates(false);
+      }
+    });
+  }
+
   function handleAddHelper(matchId: string) {
     if (!selectedPlayerId) return;
     setError(null);
@@ -127,6 +157,7 @@ export function SupportPlanningSection({
           plannedRole: selectedRole || undefined,
         });
         setAddingMatchId(null);
+        setCandidates([]);
         setSelectedPlayerId(null);
         setSelectedRole('');
       } catch (err) {
@@ -146,6 +177,9 @@ export function SupportPlanningSection({
     });
   }
 
+  const eligibleCandidates = candidates.filter((c) => c.available);
+  const blockedCandidates = candidates.filter((c) => !c.available);
+
   return (
     <Surface variant="default" padding="md">
       <SectionHeader title="Support planning" />
@@ -164,6 +198,7 @@ export function SupportPlanningSection({
           const matchAssignments = assignmentsByMatch.get(match.id) ?? [];
           const targetSquad = squads.find((s) => s.id === match.eventSquadId);
           const targetSquadName = targetSquad?.name ?? 'Unknown squad';
+          const isAdding = addingMatchId === match.id;
 
           return (
             <div key={match.id} className="border border-[var(--border-soft)] rounded-lg p-3">
@@ -177,16 +212,11 @@ export function SupportPlanningSection({
                   </span>
                 </div>
                 <button
-                  onClick={() => {
-                    setAddingMatchId(addingMatchId === match.id ? null : match.id);
-                    setSelectedPlayerId(null);
-                    setSelectedRole('');
-                    setError(null);
-                  }}
+                  onClick={() => handleAddClick(match.id)}
                   className="text-xs text-[var(--accent)] hover:underline"
                   disabled={isPending}
                 >
-                  {addingMatchId === match.id ? 'Cancel' : '+ Add helper'}
+                  {isAdding ? 'Cancel' : '+ Add helper'}
                 </button>
               </div>
 
@@ -213,60 +243,76 @@ export function SupportPlanningSection({
                 </div>
               )}
 
-              {addingMatchId === match.id && (
+              {isAdding && (
                 <div className="border-t border-[var(--border-soft)] pt-2 mt-2 space-y-2">
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <label className="block text-[10px] text-[var(--text-muted)] mb-1">Player</label>
-                      <select
-                        value={selectedPlayerId ?? ''}
-                        onChange={(e) => setSelectedPlayerId(e.target.value || null)}
-                        className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
-                      >
-                        <option value="">Select player...</option>
-                        {squads
-                          .filter((s) => s.id !== match.eventSquadId)
-                          .flatMap((s) =>
-                            s.players.map((p) => {
-                              const profile = playerProfiles.find((pp) => pp.id === p.playerId);
-                              const avail = playerAvailability.find((pa) => pa.playerId === p.playerId);
-                              const isUnavailable = avail?.status === 'UNAVAILABLE' || avail?.status === 'WITHDRAWN';
-                              const existingAssignment = supportAssignments.find(
-                                (sa) => sa.playerId === p.playerId && sa.eventMatchId === match.id,
-                              );
-                              return (
-                                <option
-                                  key={p.playerId}
-                                  value={p.playerId}
-                                  disabled={isUnavailable || !!existingAssignment}
-                                >
-                                  {profile ? formatName(profile) : p.playerId} ({s.name}){isUnavailable ? ' - unavailable' : ''}{existingAssignment ? ' - already assigned' : ''}
-                                </option>
-                              );
-                            }),
-                          )}
-                      </select>
-                    </div>
-                    <div className="w-36">
-                      <label className="block text-[10px] text-[var(--text-muted)] mb-1">Role</label>
-                      <select
-                        value={selectedRole}
-                        onChange={(e) => setSelectedRole(e.target.value)}
-                        className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
-                      >
-                        {PLANNED_ROLE_OPTIONS.map((r) => (
-                          <option key={r} value={r}>{r || 'No specific role'}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      onClick={() => handleAddHelper(match.id)}
-                      disabled={!selectedPlayerId || isPending}
-                      className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
-                    >
-                      Add
-                    </button>
-                  </div>
+                  {loadingCandidates && (
+                    <p className="text-xs text-[var(--text-muted)]">Loading candidates...</p>
+                  )}
+
+                  {!loadingCandidates && candidates.length > 0 && (
+                    <>
+                      {eligibleCandidates.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-1">Available helpers</p>
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                              <select
+                                value={selectedPlayerId ?? ''}
+                                onChange={(e) => setSelectedPlayerId(e.target.value || null)}
+                                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
+                              >
+                                <option value="">Select player...</option>
+                                {eligibleCandidates.map((c) => (
+                                  <option key={c.playerId} value={c.playerId}>
+                                    {c.firstName}{c.lastName ? ` ${c.lastName}` : ''} · from {c.sourceEventSquadName}{c.isGK ? ' · GK' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="w-36">
+                              <select
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
+                              >
+                                {PLANNED_ROLE_OPTIONS.map((r) => (
+                                  <option key={r} value={r}>{r || 'No specific role'}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <button
+                              onClick={() => handleAddHelper(match.id)}
+                              disabled={!selectedPlayerId || isPending}
+                              className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {eligibleCandidates.length === 0 && (
+                        <p className="text-xs text-[var(--text-muted)]">No available helpers at this match time.</p>
+                      )}
+
+                      {blockedCandidates.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-1">Unavailable at this time</p>
+                          <div className="space-y-0.5">
+                            {blockedCandidates.map((c) => (
+                              <p key={c.playerId} className="text-xs text-[var(--text-muted)]">
+                                {c.firstName}{c.lastName ? ` ${c.lastName}` : ''} · {c.unavailableReason}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {!loadingCandidates && candidates.length === 0 && (
+                    <p className="text-xs text-[var(--text-muted)]">No candidates found.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -279,7 +325,6 @@ export function SupportPlanningSection({
           <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-2">Support load</h4>
           <div className="flex flex-wrap gap-2">
             {Array.from(supportLoadByPlayer.entries()).map(([playerId, count]) => {
-              const profile = playerProfiles.find((p) => p.id === playerId);
               const assignment = supportAssignments.find((a) => a.playerId === playerId);
               return (
                 <div key={playerId} className="inline-flex items-center gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200">

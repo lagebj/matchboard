@@ -241,7 +241,7 @@ describe("Event support actions", () => {
           eventMatchId: match1.id,
           playerId,
         }),
-      ).rejects.toThrow("not eligible");
+      ).rejects.toThrow(/Cannot add helper.*unavailable/i);
     });
 
     it("rejects support assignment when player is in the target squad (same squad)", async () => {
@@ -255,7 +255,7 @@ describe("Event support actions", () => {
           eventMatchId: match1.id,
           playerId,
         }),
-      ).rejects.toThrow("not eligible");
+      ).rejects.toThrow(/Cannot add helper.*target squad/i);
     });
 
     it("rejects support assignment with invalid planned role", async () => {

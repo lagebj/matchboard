@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import { MatchCategory } from '@/generated/prisma/client';
-import type { EventMatchUpdateInput } from '@/generated/prisma/models/EventMatch';
 import { getDefaultEventMatchCategory } from '@/lib/stats/event-match-stats';
 
 const VALID_CATEGORIES: MatchCategory[] = ['CUP', 'OTHER'];
@@ -63,6 +62,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
   location?: string | null;
   notes?: string | null;
   category?: string;
+  eventSquadId?: string;
 }) {
   await requireCoachAccess();
 
@@ -73,22 +73,37 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
     where: { eventMatchId },
   });
 
-  if (report && report.status !== 'DRAFT') {
-    throw new Error('Cannot edit match with a completed report.');
+  if (data.eventSquadId !== undefined && data.eventSquadId !== existing.eventSquadId) {
+    if (report && report.status !== 'DRAFT') {
+      throw new Error('Cannot change squad for a match with a completed report.');
+    }
+    const squad = await db.eventSquad.findUnique({ where: { id: data.eventSquadId } });
+    if (!squad || squad.eventId !== existing.eventId) {
+      throw new Error('Event squad must belong to the same event.');
+    }
   }
 
-  const updateData: Partial<EventMatchUpdateInput> = {};
+  if (data.category !== undefined) {
+    if (!VALID_CATEGORIES.includes(data.category as MatchCategory)) {
+      throw new Error('Event match category must be CUP or OTHER.');
+    }
+    if (report && report.status !== 'DRAFT' && data.category !== existing.category) {
+      throw new Error('Cannot change category for a match with a completed report.');
+    }
+  }
+
+  if (data.startsAt !== undefined && report && report.status !== 'DRAFT') {
+    throw new Error('Cannot change match time for a match with a completed report.');
+  }
+
+  const updateData: Record<string, unknown> = {};
 
   if (data.opponentName !== undefined) updateData.opponentName = data.opponentName.trim();
   if (data.startsAt !== undefined) updateData.startsAt = new Date(data.startsAt);
   if (data.location !== undefined) updateData.location = data.location?.trim() || null;
   if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null;
-  if (data.category !== undefined) {
-    if (!VALID_CATEGORIES.includes(data.category as MatchCategory)) {
-      throw new Error('Event match category must be CUP or OTHER.');
-    }
-    updateData.category = data.category as MatchCategory;
-  }
+  if (data.category !== undefined) updateData.category = data.category as MatchCategory;
+  if (data.eventSquadId !== undefined) updateData.eventSquadId = data.eventSquadId;
 
   const updated = await db.eventMatch.update({
     where: { id: eventMatchId },

@@ -1401,8 +1401,8 @@ Rules:
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
-| `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, cancel, reopen |
-| `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list |
+| `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
+| `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
@@ -1635,8 +1635,8 @@ Avoid:
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
-| `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, cancel, reopen |
-| `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list |
+| `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
+| `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
 
 ### Formation/tactics files
 
