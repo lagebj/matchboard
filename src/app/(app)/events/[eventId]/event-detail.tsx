@@ -14,6 +14,7 @@ import {
   removePlayerFromEventPoolAction,
   assignPlayerToEventSquadAction,
   unassignPlayerFromEventSquadAction,
+  updateEventSquadNameAction,
 } from '../actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
@@ -196,6 +197,8 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [addFilter, setAddFilter] = useState<string>('');
   const [selectedToAdd, setSelectedToAdd] = useState<Set<string>>(new Set());
   const [assignDropdownSquad, setAssignDropdownSquad] = useState<string | null>(null);
+  const [editingSquadName, setEditingSquadName] = useState<string | null>(null);
+  const [editingSquadNameValue, setEditingSquadNameValue] = useState('');
 
   const totalAssigned = data.squads.reduce((sum, s) => sum + s.players.length, 0);
   const totalAvailable = data.availablePlayers.length;
@@ -517,9 +520,49 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                 {data.squads.map((squad) => (
                   <Surface key={squad.id} variant="default" padding="md">
                     <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <span className="text-sm font-semibold text-zinc-100">{squad.name}</span>
-                        <StatusPill variant="neutral" className="ml-2">{INTENT_LABELS[squad.intent] ?? squad.intent}</StatusPill>
+                      <div className="flex items-center gap-2">
+                        {editingSquadName === squad.id ? (
+                          <input
+                            type="text"
+                            value={editingSquadNameValue}
+                            onChange={(e) => setEditingSquadNameValue(e.target.value)}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                const trimmed = editingSquadNameValue.trim();
+                                if (trimmed) {
+                                  await updateEventSquadNameAction(squad.id, trimmed);
+                                  squad.name = trimmed;
+                                }
+                                setEditingSquadName(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingSquadName(null);
+                              }
+                            }}
+                            onBlur={async () => {
+                              const trimmed = editingSquadNameValue.trim();
+                              if (trimmed && trimmed !== squad.name) {
+                                await updateEventSquadNameAction(squad.id, trimmed);
+                                squad.name = trimmed;
+                              }
+                              setEditingSquadName(null);
+                            }}
+                            autoFocus
+                            className="text-sm font-semibold bg-transparent border-b border-[var(--accent)] text-zinc-100 outline-none px-0.5 w-32"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="text-sm font-semibold text-zinc-100 hover:text-[var(--accent)] transition-colors cursor-text"
+                            onClick={() => {
+                              setEditingSquadName(squad.id);
+                              setEditingSquadNameValue(squad.name);
+                            }}
+                            title="Click to edit squad name"
+                          >
+                            {squad.name}
+                          </button>
+                        )}
+                        <StatusPill variant="neutral">{INTENT_LABELS[squad.intent] ?? squad.intent}</StatusPill>
                       </div>
                       <span className="text-sm text-[var(--text-muted)]">
                         {squad.players.length}/{squad.targetSize}

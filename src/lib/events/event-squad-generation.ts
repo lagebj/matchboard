@@ -15,7 +15,7 @@ import { getPositionFitTier, FIT_TIER_PRIORITY, computePositionScarcity } from '
 import type { PositionFitTier } from '@/lib/players/player-position-resolver';
 import { computeSquadBalance } from './event-balance';
 
-type PlayerWithRatings = PlayerAttributeProfile & {
+export type PlayerWithRatings = PlayerAttributeProfile & {
   ratings: CompositeRatings;
   broadPositions: BroadPosition[];
   isGoalkeeper: boolean;
@@ -48,7 +48,7 @@ const ROLE_RELEVANT_RATING_WEIGHTS: RoleRelevantRatingWeights = {
   FREE: [],
 };
 
-function getRoleRelevantRating(player: PlayerWithRatings, roleType: string): number {
+export function getRoleRelevantRating(player: PlayerWithRatings, roleType: string): number {
   const weights = ROLE_RELEVANT_RATING_WEIGHTS[roleType] ?? [];
   if (weights.length === 0) {
     return player.ratings.overallLevel ?? 0;

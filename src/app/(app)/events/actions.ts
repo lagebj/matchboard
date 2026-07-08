@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import type { FormationSlotRoleType } from '@/generated/prisma/client';
 import {
   type EventType,
   type GameFormat,
@@ -451,6 +452,21 @@ export async function updateEventSquadAction(
   return squad;
 }
 
+export async function updateEventSquadNameAction(squadId: string, name: string) {
+  await requireCoachAccess();
+
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('Squad name cannot be empty.');
+
+  const squad = await db.eventSquad.update({
+    where: { id: squadId },
+    data: { name: trimmed },
+  });
+
+  revalidatePath(`/events/${squad.eventId}`);
+  return squad;
+}
+
 export async function removeEventSquadAction(squadId: string) {
   await requireCoachAccess();
 
@@ -728,6 +744,11 @@ export async function generateEventSquadsAction(eventId: string) {
         data: newAssignments.map((assignment) => ({
           eventSquadId: assignment.eventSquadId,
           playerId: assignment.playerId,
+          assignedSlotIndex: assignment.assignedSlotIndex,
+          assignedSlotLabel: assignment.assignedSlotLabel,
+          assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
+          assignedPositionId: assignment.assignedPositionId,
+          lineupOrder: assignment.lineupOrder,
           source: assignment.source,
           locked: assignment.locked,
           positionFitTier: assignment.positionFitTier,

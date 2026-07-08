@@ -1,6 +1,27 @@
 import type { FormationSlotData } from '@/lib/formations/types';
 import type { BroadPosition, GameFormat, FormationSlotRequirement } from './event-types';
-import { getDefaultSlotRequirements } from './event-squad-generation';
+import { getDefaultSlotRequirements, getRoleRelevantRating } from './event-squad-generation';
+import { getPositionFitTier } from './event-types';
+import type { PlayerWithRatings } from './event-squad-generation';
+
+type PlayerForLineup = {
+  playerId: string;
+  firstName: string;
+  lastName: string | null;
+  primaryPosition: string | null;
+  secondaryPosition: string | null;
+  tertiaryPosition: string | null;
+  overallLevel: number | null;
+  isGK: boolean;
+  positionFitTier: string | null;
+  assignedSlotIndex: number | null;
+  assignedSlotLabel: string | null;
+  assignedRoleType: string | null;
+  assignedPositionId: string | null;
+  lineupOrder: number | null;
+  selectionReason: string;
+  locked: boolean;
+};
 
 export type LineupSlot = {
   slotIndex: number;
@@ -67,43 +88,140 @@ function resolveSlots(
   }));
 }
 
+function getPlayerFitTier(
+  player: PlayerForLineup,
+  acceptedPositions: BroadPosition[],
+): 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'NO_FIT' {
+  return getPositionFitTier(
+    player.primaryPosition ?? '',
+    player.secondaryPosition,
+    player.tertiaryPosition,
+    acceptedPositions,
+  );
+}
+
+
+function toPlayerWithRatings(player: PlayerForLineup): PlayerWithRatings & { playerId: string } {
+  return {
+    playerId: player.playerId,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    coreTeamId: null,
+    primaryPosition: player.primaryPosition ?? '',
+    secondaryPosition: player.secondaryPosition,
+    tertiaryPosition: player.tertiaryPosition,
+    goalkeeperAbility: player.isGK ? 'YES' : 'NO',
+    ballControl: null,
+    passing: null,
+    firstTouch: null,
+    oneVOneAttacking: null,
+    positioning: null,
+    oneVOneDefending: null,
+    decisionMaking: null,
+    effort: null,
+    teamplay: null,
+    concentration: null,
+    speed: null,
+    strength: null,
+    nonRotatable: false,
+    preferredFoot: 'RIGHT',
+    bestSide: 'RIGHT',
+    ratings: {
+      overallLevel: player.overallLevel,
+      defending: null,
+      attacking: null,
+      gameUnderstanding: null,
+      intensity: null,
+      teamplay: null,
+      goalkeeperAbility: player.isGK ? 'YES' : 'NO',
+    },
+    broadPositions: player.primaryPosition
+      ? (player.secondaryPosition
+          ? [mapPositionCodeToBroad(player.primaryPosition), mapPositionCodeToBroad(player.secondaryPosition)]
+              .filter((v, i, a) => a.indexOf(v) === i)
+          : [mapPositionCodeToBroad(player.primaryPosition)])
+      : ['flexible' as BroadPosition],
+    isGoalkeeper: player.isGK,
+  };
+}
+
+function mapPositionCodeToBroad(position: string): BroadPosition {
+  const map: Record<string, BroadPosition> = {
+    GK: 'goalkeeper',
+    CB: 'defender',
+    CM: 'midfielder',
+    W: 'midfielder',
+    ST: 'forward',
+  };
+  return map[position] ?? 'flexible';
+}
+
+function findBestCandidate(
+  availablePlayers: PlayerForLineup[],
+  slot: SlotWithGrid,
+  assignedPlayerIds: Set<string>,
+): { player: PlayerForLineup; fitTier: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'NO_FIT' } | null {
+  const candidates = availablePlayers.filter((p) => {
+    if (assignedPlayerIds.has(p.playerId)) return false;
+    if (p.assignedRoleType !== null && p.assignedRoleType !== slot.roleType) return false;
+    return true;
+  });
+
+  const tiers: Array<'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'NO_FIT'> = ['PRIMARY', 'SECONDARY', 'TERTIARY', 'NO_FIT'];
+
+  for (const tier of tiers) {
+    const matchingTier = candidates.filter((p) => {
+      const fit = getPlayerFitTier(p, slot.acceptedPositions);
+      return fit === tier;
+    });
+
+    if (matchingTier.length > 0) {
+      matchingTier.sort((a, b) => {
+        const aRating = getRoleRelevantRating(toPlayerWithRatings(a), slot.roleType);
+        const bRating = getRoleRelevantRating(toPlayerWithRatings(b), slot.roleType);
+        return bRating - aRating;
+      });
+      return { player: matchingTier[0], fitTier: tier };
+    }
+  }
+
+  return null;
+}
+
+function formatFitTier(tier: string | null): string {
+  switch (tier) {
+    case 'PRIMARY': return '1st';
+    case 'SECONDARY': return '2nd';
+    case 'TERTIARY': return '3rd';
+    case 'NO_FIT': return '';
+    default: return '';
+  }
+}
+
 export function computeLineupAssignment(input: {
   squadId: string;
   squadName: string;
   formationId: string | null;
   formationName: string | null;
-  players: {
-    playerId: string;
-    firstName: string;
-    lastName: string | null;
-    primaryPosition: string | null;
-    secondaryPosition: string | null;
-    tertiaryPosition: string | null;
-    overallLevel: number | null;
-    isGK: boolean;
-    positionFitTier: string | null;
-    assignedSlotIndex: number | null;
-    assignedSlotLabel: string | null;
-    assignedRoleType: string | null;
-    assignedPositionId: string | null;
-    lineupOrder: number | null;
-    selectionReason: string;
-    locked: boolean;
-  }[];
+  players: PlayerForLineup[];
   formationSlots: FormationSlotData[] | null;
   gameFormat: GameFormat;
 }): LineupAssignment {
   const { squadId, squadName, formationId, formationName, players, formationSlots, gameFormat } = input;
 
   const slotRequirements = resolveSlots(formationSlots, gameFormat);
-
   const assignedPlayerIds = new Set<string>();
-  const slots: LineupSlot[] = slotRequirements.map((slot) => {
-    const assignedPlayer = players.find((p) => p.assignedSlotIndex === slot.slotIndex);
 
-    if (assignedPlayer) {
-      assignedPlayerIds.add(assignedPlayer.playerId);
-      return {
+  const slots: LineupSlot[] = [];
+
+  for (const slot of slotRequirements) {
+    const savedSlotPlayer = players.find(
+      (p) => p.assignedSlotIndex === slot.slotIndex && p.assignedSlotIndex !== null,
+    );
+
+    if (savedSlotPlayer) {
+      assignedPlayerIds.add(savedSlotPlayer.playerId);
+      slots.push({
         slotIndex: slot.slotIndex,
         roleType: slot.roleType,
         label: slot.label,
@@ -111,17 +229,18 @@ export function computeLineupAssignment(input: {
         gridX: slot.gridX,
         gridY: slot.gridY,
         player: {
-          playerId: assignedPlayer.playerId,
-          firstName: assignedPlayer.firstName,
-          lastName: assignedPlayer.lastName,
-          primaryPosition: assignedPlayer.primaryPosition,
-          overallLevel: assignedPlayer.overallLevel,
-          isGK: assignedPlayer.isGK,
-          positionFitTier: assignedPlayer.positionFitTier,
-          selectionReason: assignedPlayer.selectionReason,
-          locked: assignedPlayer.locked,
+          playerId: savedSlotPlayer.playerId,
+          firstName: savedSlotPlayer.firstName,
+          lastName: savedSlotPlayer.lastName,
+          primaryPosition: savedSlotPlayer.primaryPosition,
+          overallLevel: savedSlotPlayer.overallLevel,
+          isGK: savedSlotPlayer.isGK,
+          positionFitTier: savedSlotPlayer.positionFitTier,
+          selectionReason: savedSlotPlayer.selectionReason,
+          locked: savedSlotPlayer.locked,
         },
-      };
+      });
+      continue;
     }
 
     const roleMatchPlayer = players.find(
@@ -133,7 +252,7 @@ export function computeLineupAssignment(input: {
 
     if (roleMatchPlayer) {
       assignedPlayerIds.add(roleMatchPlayer.playerId);
-      return {
+      slots.push({
         slotIndex: slot.slotIndex,
         roleType: slot.roleType,
         label: slot.label,
@@ -151,10 +270,36 @@ export function computeLineupAssignment(input: {
           selectionReason: roleMatchPlayer.selectionReason,
           locked: roleMatchPlayer.locked,
         },
-      };
+      });
+      continue;
     }
 
-    return {
+    const derived = findBestCandidate(players, slot, assignedPlayerIds);
+    if (derived) {
+      assignedPlayerIds.add(derived.player.playerId);
+      slots.push({
+        slotIndex: slot.slotIndex,
+        roleType: slot.roleType,
+        label: slot.label,
+        acceptedPositions: slot.acceptedPositions,
+        gridX: slot.gridX,
+        gridY: slot.gridY,
+        player: {
+          playerId: derived.player.playerId,
+          firstName: derived.player.firstName,
+          lastName: derived.player.lastName,
+          primaryPosition: derived.player.primaryPosition,
+          overallLevel: derived.player.overallLevel,
+          isGK: derived.player.isGK,
+          positionFitTier: derived.player.positionFitTier ?? derived.fitTier,
+          selectionReason: derived.player.selectionReason || getDerivedReason(derived.player, slot, derived.fitTier),
+          locked: derived.player.locked,
+        },
+      });
+      continue;
+    }
+
+    slots.push({
       slotIndex: slot.slotIndex,
       roleType: slot.roleType,
       label: slot.label,
@@ -162,8 +307,8 @@ export function computeLineupAssignment(input: {
       gridX: slot.gridX,
       gridY: slot.gridY,
       player: null,
-    };
-  });
+    });
+  }
 
   const unassignedPlayers = players
     .filter((p) => !assignedPlayerIds.has(p.playerId))
@@ -187,3 +332,23 @@ export function computeLineupAssignment(input: {
     unassignedPlayers,
   };
 }
+
+function getDerivedReason(
+  player: PlayerForLineup,
+  slot: SlotWithGrid,
+  fitTier: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'NO_FIT',
+): string {
+  const positionLabel = slot.label || slot.roleType;
+  switch (fitTier) {
+    case 'PRIMARY':
+      return `Primary ${positionLabel.toLowerCase()} fit`;
+    case 'SECONDARY':
+      return `Secondary-position ${positionLabel.toLowerCase()} fit`;
+    case 'TERTIARY':
+      return `Emergency ${positionLabel.toLowerCase()} cover`;
+    case 'NO_FIT':
+      return player.isGK ? 'Goalkeeper' : 'Flexible placement';
+  }
+}
+
+export { formatFitTier, getPlayerFitTier, resolveSlots };
