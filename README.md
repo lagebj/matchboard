@@ -735,9 +735,22 @@ Players can temporarily help other event squads when their own squad is not play
 - **Match duration**: Set on the event detail overview (inline edit). Required before support planning.
 - **Overlap rule**: `a.startsAt < b.endsAt && b.startsAt < a.endsAt` — exact boundary times do NOT overlap.
 - **Eligibility**: Player must be in a different squad, their own squad must not be playing at the same time, and they must not be UNAVAILABLE or WITHDRAWN.
+- **Guardrail enforcement**: Helper eligibility is calculated server-side using `getSupportCandidatesForEventMatch`. The UI fetches candidates from this action. The add-helper server action independently recalculates eligibility before persisting.
+- **UI separation**: Available helpers and unavailable helpers are shown in separate sections. Unavailable helpers display the specific reason (overlapping match, unavailable, already helping, etc.).
 - **Conflict detection**: Dynamic at query time. Shows warnings when match times change after assignment, player is removed from source squad, or availability changes.
+- **Recalculation**: Editing a match time or squad triggers conflict recalculation for all support assignments in the event.
 - **Planned roles**: Optional — GK cover, Defender cover, Midfield cover, Forward cover, General cover.
 - **Post-match integration**: Support players appear in reports with "Planned helper from {squad name}" role label.
+
+### Event match editing
+
+Each event squad match can be edited after creation.
+
+- **Editable fields**: Opponent name, squad, date/time, category (Cup/Other), location, notes.
+- **Squad changes**: Must belong to the same event. Recalculates support availability and conflicts.
+- **Time changes**: Recalculates derived end time and support conflicts.
+- **Completed report restrictions**: Time and squad changes are blocked for matches with completed (non-DRAFT) reports. Category changes are also blocked. Opponent, location, and notes may still be editable.
+- **Category validation**: Only CUP and OTHER are valid for event matches. LEAGUE is rejected.
 
 ### Event export
 

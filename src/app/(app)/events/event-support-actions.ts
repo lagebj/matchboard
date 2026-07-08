@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
-import { checkSupportConflicts } from '@/lib/events/event-match-support';
+import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
 
 const VALID_PLANNED_ROLES = [
@@ -105,7 +105,19 @@ export async function addEventMatchSupportAssignmentAction(input: {
   });
 
   if (!eligibility.available) {
-    throw new Error(`Player is not eligible: ${eligibility.reason}`);
+    const reasonMap: Record<string, string> = {
+      'Already in target squad': 'Cannot add helper: player is already in the target squad.',
+      'Own squad has overlapping match': 'Cannot add helper: player\'s own squad has an overlapping match.',
+      'Already helping another overlapping match': 'Cannot add helper: player is already helping another overlapping match.',
+      'Player unavailable for event': 'Cannot add helper: player is unavailable for this event.',
+      'Player withdrawn for event': 'Cannot add helper: player has withdrawn from this event.',
+      'Target match is cancelled': 'Cannot add helper: target match is cancelled.',
+      'Event match duration not set': 'Cannot add helper: event match duration is not set.',
+      'Player not in event pool': 'Cannot add helper: player is not in the event pool.',
+      'Player removed from source squad': 'Cannot add helper: player has been removed from their source squad.',
+    };
+    const message = reasonMap[eligibility.reason ?? ''] ?? `Cannot add helper: ${eligibility.reason}`;
+    throw new Error(message);
   }
 
   const existing = await db.eventMatchSupportAssignment.findUnique({
@@ -244,4 +256,108 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
   });
 
   return conflicted;
+}
+
+export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
+  await requireCoachAccess();
+
+  const eventMatch = await db.eventMatch.findUnique({
+    where: { id: eventMatchId },
+    include: { event: true },
+  });
+  if (!eventMatch) throw new Error('Event match not found.');
+
+  const event = eventMatch.event;
+  const matchDurationMinutes = event.matchDurationMinutes;
+
+  const allEventMatches = await db.eventMatch.findMany({
+    where: { eventId: event.id },
+    select: { id: true, eventSquadId: true, startsAt: true, status: true },
+  });
+
+  const eventSquads = await db.eventSquad.findMany({
+    where: { eventId: event.id },
+    select: {
+      id: true,
+      name: true,
+      players: { select: { playerId: true } },
+    },
+  });
+
+  const playerIds = eventSquads.flatMap((s) => s.players.map((p) => p.playerId));
+  const uniquePlayerIds = [...new Set(playerIds)];
+
+  const playerProfiles = await db.player.findMany({
+    where: { id: { in: uniquePlayerIds } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      primaryPosition: true,
+      secondaryPosition: true,
+      tertiaryPosition: true,
+      goalkeeperAbility: true,
+      coreTeamId: true,
+      ballControl: true,
+      passing: true,
+      firstTouch: true,
+      oneVOneAttacking: true,
+      positioning: true,
+      oneVOneDefending: true,
+      decisionMaking: true,
+      effort: true,
+      teamplay: true,
+      concentration: true,
+      speed: true,
+      strength: true,
+      nonRotatable: true,
+      preferredFoot: true,
+      bestSide: true,
+    },
+  });
+
+  const existingSupportAssignments = await db.eventMatchSupportAssignment.findMany({
+    where: { eventMatch: { event: { id: event.id } } },
+    select: { eventMatchId: true, playerId: true, targetEventSquadId: true },
+  });
+
+  const playerEventAvailability = await db.eventPlayerAvailability.findMany({
+    where: { eventId: event.id },
+    select: { playerId: true, status: true },
+  });
+
+  if (!matchDurationMinutes || matchDurationMinutes <= 0) {
+    return playerProfiles.map((p) => ({
+      playerId: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      sourceEventSquadId: '',
+      sourceEventSquadName: '',
+      primaryPosition: p.primaryPosition,
+      secondaryPosition: p.secondaryPosition,
+      tertiaryPosition: p.tertiaryPosition,
+      goalkeeperAbility: p.goalkeeperAbility,
+      overallLevel: null,
+      isGK: p.goalkeeperAbility === 'YES' || p.goalkeeperAbility === 'EMERGENCY',
+      available: false,
+      unavailableReason: 'Event match duration not set',
+    }));
+  }
+
+  const targetMatch = {
+    id: eventMatch.id,
+    eventSquadId: eventMatch.eventSquadId,
+    startsAt: eventMatch.startsAt,
+    status: eventMatch.status,
+  };
+
+  return getSupportCandidatesForEventMatch({
+    targetMatch,
+    matchDurationMinutes,
+    allEventMatches,
+    eventSquads,
+    playerProfiles,
+    existingSupportAssignments,
+    playerEventAvailability,
+  });
 }

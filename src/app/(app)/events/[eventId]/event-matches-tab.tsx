@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import {
   createEventMatchAction,
+  updateEventMatchAction,
   cancelEventMatchAction,
   reopenEventMatchAction,
   deleteEventMatchAction,
@@ -94,6 +95,13 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
   const [createLocation, setCreateLocation] = useState('');
   const [createNotes, setCreateNotes] = useState('');
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [editOpponent, setEditOpponent] = useState('');
+  const [editSquadId, setEditSquadId] = useState('');
+  const [editStartsAt, setEditStartsAt] = useState('');
+  const [editCategory, setEditCategory] = useState('CUP');
+  const [editLocation, setEditLocation] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- report data shape varies with Prisma includes
   const [reportData, setReportData] = useState<any>(null);
 
@@ -153,6 +161,46 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
     startTransition(async () => {
       await deleteEventMatchAction(matchId);
       loadMatches();
+    });
+  }
+
+  function startEditMatch(m: EventMatchWithReport) {
+    setEditingMatchId(m.id);
+    setEditOpponent(m.opponentName);
+    setEditSquadId(m.eventSquadId);
+    const dateStr = new Date(m.startsAt).toISOString().slice(0, 16);
+    setEditStartsAt(dateStr);
+    setEditCategory(m.category);
+    setEditLocation(m.location ?? '');
+    setEditNotes(m.notes ?? '');
+  }
+
+  function cancelEdit() {
+    setEditingMatchId(null);
+    setEditOpponent('');
+    setEditSquadId('');
+    setEditStartsAt('');
+    setEditCategory('CUP');
+    setEditLocation('');
+    setEditNotes('');
+  }
+
+  function handleEditSave(matchId: string) {
+    startTransition(async () => {
+      try {
+        const data: Parameters<typeof updateEventMatchAction>[1] = {};
+        if (editOpponent.trim()) data.opponentName = editOpponent.trim();
+        if (editStartsAt) data.startsAt = editStartsAt;
+        data.category = editCategory;
+        data.location = editLocation.trim() || null;
+        data.notes = editNotes.trim() || null;
+        if (editSquadId) data.eventSquadId = editSquadId;
+        await updateEventMatchAction(matchId, data);
+        setEditingMatchId(null);
+        loadMatches();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to update match');
+      }
     });
   }
 
@@ -446,6 +494,12 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
                           >
                             Cancel
                           </button>
+                          <button
+                            onClick={() => startEditMatch(m)}
+                            className="text-[10px] text-[var(--accent)] hover:underline ml-1"
+                          >
+                            Edit
+                          </button>
                         </>
                       )}
                       <button
@@ -461,6 +515,89 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
                   )}
                   {m.cancelledReason && (
                     <p className="text-xs text-[var(--warning)] mt-1">Cancelled: {m.cancelledReason}</p>
+                  )}
+                  {editingMatchId === m.id && (
+                    <div className="mt-3 border-t border-[var(--border-soft)] pt-3 space-y-2">
+                      <h4 className="text-xs font-semibold text-zinc-100">Edit match</h4>
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Opponent name</label>
+                        <input
+                          type="text"
+                          value={editOpponent}
+                          onChange={(e) => setEditOpponent(e.target.value)}
+                          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Squad</label>
+                        <select
+                          value={editSquadId}
+                          onChange={(e) => setEditSquadId(e.target.value)}
+                          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                        >
+                          {squads.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Date and time</label>
+                        <input
+                          type="datetime-local"
+                          value={editStartsAt}
+                          onChange={(e) => setEditStartsAt(e.target.value)}
+                          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Category</label>
+                        <select
+                          value={editCategory}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                        >
+                          <option value="CUP">Cup</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Location (optional)</label>
+                        <input
+                          type="text"
+                          value={editLocation}
+                          onChange={(e) => setEditLocation(e.target.value)}
+                          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Notes (optional)</label>
+                        <textarea
+                          value={editNotes}
+                          onChange={(e) => setEditNotes(e.target.value)}
+                          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                          rows={2}
+                          maxLength={500}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditSave(m.id)}
+                          disabled={isPending}
+                          className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                        >
+                          Save changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                   {expandedMatchId === m.id && reportData && (
                     <div className="mt-3 border-t border-[var(--border-soft)] pt-3">

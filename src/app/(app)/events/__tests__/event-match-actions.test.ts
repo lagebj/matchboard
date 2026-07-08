@@ -20,6 +20,7 @@ let fixture: TestFixtureIds;
 
 import {
   createEventMatchAction,
+  updateEventMatchAction,
   cancelEventMatchAction,
   reopenEventMatchAction,
   deleteEventMatchAction,
@@ -151,6 +152,118 @@ describe('Event match CRUD actions', () => {
       const matches = await listEventMatchesAction(eventId);
       expect(Array.isArray(matches)).toBe(true);
       expect(matches.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('updateEventMatchAction', () => {
+    let updateEventId: string;
+    let updateSquad1Id: string;
+    let updateSquad2Id: string;
+    let updateMatchId: string;
+
+    beforeAll(async () => {
+      const event = await testDb.event.create({
+        data: {
+          name: 'Update Test Event',
+          eventType: 'CUP',
+          startsAt: new Date('2026-10-01'),
+          gameFormat: 'SEVEN_A_SIDE',
+          matchDurationMinutes: 25,
+          squads: {
+            create: [
+              { name: 'Red Team', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0 },
+              { name: 'Blue Team', intent: 'BALANCED', targetSize: 7, generationOrder: 1 },
+            ],
+          },
+        },
+        include: { squads: true },
+      });
+      updateEventId = event.id;
+      updateSquad1Id = event.squads[0]!.id;
+      updateSquad2Id = event.squads[1]!.id;
+
+      const formData = new FormData();
+      formData.set('eventId', updateEventId);
+      formData.set('eventSquadId', updateSquad1Id);
+      formData.set('opponentName', 'Original Opponent');
+      formData.set('startsAt', '2026-10-01T10:00');
+      formData.set('category', 'CUP');
+      const match = await createEventMatchAction(formData);
+      updateMatchId = match.id;
+    });
+
+    it('updates opponent name', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        opponentName: 'Updated Opponent',
+      });
+      expect(updated.opponentName).toBe('Updated Opponent');
+    });
+
+    it('updates startsAt', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        startsAt: '2026-10-01T12:00',
+      });
+      expect(new Date(updated.startsAt).getHours()).toBe(12);
+    });
+
+    it('updates category', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        category: 'OTHER',
+      });
+      expect(updated.category).toBe('OTHER');
+    });
+
+    it('updates location', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        location: 'Home pitch',
+      });
+      expect(updated.location).toBe('Home pitch');
+    });
+
+    it('updates notes', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        notes: 'Important match notes',
+      });
+      expect(updated.notes).toBe('Important match notes');
+    });
+
+    it('updates eventSquadId to another squad in same event', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        eventSquadId: updateSquad2Id,
+      });
+      expect(updated.eventSquadId).toBe(updateSquad2Id);
+    });
+
+    it('rejects eventSquadId from another event', async () => {
+      const otherEvent = await testDb.event.create({
+        data: {
+          name: 'Other Event',
+          eventType: 'CUP',
+          startsAt: new Date('2026-11-01'),
+          gameFormat: 'SEVEN_A_SIDE',
+          squads: {
+            create: { name: 'Other Squad', intent: 'BALANCED', targetSize: 7, generationOrder: 0 },
+          },
+        },
+        include: { squads: true },
+      });
+      const otherSquadId = otherEvent.squads[0]!.id;
+
+      await expect(
+        updateEventMatchAction(updateMatchId, { eventSquadId: otherSquadId }),
+      ).rejects.toThrow('same event');
+    });
+
+    it('rejects invalid category', async () => {
+      await expect(
+        updateEventMatchAction(updateMatchId, { category: 'LEAGUE' }),
+      ).rejects.toThrow('CUP or OTHER');
+    });
+
+    it('rejects updating match that does not exist', async () => {
+      await expect(
+        updateEventMatchAction('nonexistent-id', { opponentName: 'Test' }),
+      ).rejects.toThrow('not found');
     });
   });
 });
