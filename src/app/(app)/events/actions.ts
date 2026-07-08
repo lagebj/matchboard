@@ -722,30 +722,21 @@ export async function generateEventSquadsAction(eventId: string) {
       });
     }
 
-    for (const assignment of result.assignments) {
-      if (assignment.source === 'LOCKED') continue;
-
-      const existing = await tx.eventSquadPlayer.findFirst({
-        where: {
-          playerId: assignment.playerId,
+    const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED');
+    if (newAssignments.length > 0) {
+      await tx.eventSquadPlayer.createMany({
+        data: newAssignments.map((assignment) => ({
           eventSquadId: assignment.eventSquadId,
-        },
+          playerId: assignment.playerId,
+          source: assignment.source,
+          locked: assignment.locked,
+          positionFitTier: assignment.positionFitTier,
+          selectionReason: assignment.selectionReason,
+        })),
+        skipDuplicates: true,
       });
-
-      if (!existing) {
-        await tx.eventSquadPlayer.create({
-          data: {
-            eventSquadId: assignment.eventSquadId,
-            playerId: assignment.playerId,
-            source: assignment.source,
-            locked: assignment.locked,
-            positionFitTier: assignment.positionFitTier,
-            selectionReason: assignment.selectionReason,
-          },
-        });
-      }
     }
-  });
+  }, { timeout: 15000 });
 
   revalidatePath(`/events/${eventId}`);
 
