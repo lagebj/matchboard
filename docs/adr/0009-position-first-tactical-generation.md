@@ -2,10 +2,10 @@
 type: ADR
 id: "0009"
 title: Position-first tactical squad generation with canonical position resolution
-status: proposed
+status: superseded
 date: 2026-07-07
 supersedes:
-supersedes_by:
+supersedes_by: "0012"
 tags: [selection-engine, schema, domain-model, event-squad]
 ---
 

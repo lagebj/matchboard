@@ -4,10 +4,8 @@ import { EventDetail } from './event-detail';
 import { computeSquadBalance } from '@/lib/events/event-balance';
 import { validateEventPool } from '@/lib/events/event-validation';
 import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
-import { getPlayerOverallRating, getAverageRating } from '@/lib/ratings/player-rating';
-import { suggestBestFormationForPlayers } from '@/lib/events/tactic-suggestion';
+import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
-import type { TacticSuggestion } from '@/lib/events/tactic-suggestion';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +31,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
 
   const playerById = new Map(event.players.map((ep) => [ep.playerId, ep.player]));
 
+  const formationMap = new Map(compatibleFormations.map((f) => [f.id, f]));
+
   const addablePlayers = allActivePlayers
     .filter((p) => !eventPlayerIds.has(p.id))
     .map((p) => {
@@ -53,37 +53,56 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
       };
     });
 
-  const squads = event.squads.map((s) => ({
-    id: s.id,
-    name: s.name,
-    intent: s.intent as string,
-    targetSize: s.targetSize,
-    minSize: s.minSize,
-    maxSize: s.maxSize,
-    formationId: s.formationId,
-    generationOrder: s.generationOrder,
-    players: s.players.map((p) => {
-      const rating = getPlayerOverallRating(p.player);
-      return {
-        id: p.id,
-        playerId: p.playerId,
-        source: p.source as string,
-        locked: p.locked,
-        selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
-        positionFitTier: p.positionFitTier,
-        firstName: p.player.firstName,
-        lastName: p.player.lastName,
-        coreTeamId: p.player.coreTeamId,
-        primaryPosition: p.player.primaryPosition,
-        secondaryPosition: p.player.secondaryPosition,
-        tertiaryPosition: p.player.tertiaryPosition,
-        goalkeeperAbility: p.player.goalkeeperAbility ?? 'NO',
-        overallLevel: rating.value,
-        ratedAttributeCount: rating.ratedAttributeCount,
-        isGK: p.player.goalkeeperAbility === 'YES' || p.player.goalkeeperAbility === 'EMERGENCY',
-      };
-    }),
-  }));
+  const squads = event.squads.map((s) => {
+    const formation = s.formationId ? formationMap.get(s.formationId) : (event.defaultFormationId ? formationMap.get(event.defaultFormationId) : undefined);
+    return {
+      id: s.id,
+      name: s.name,
+      intent: s.intent as string,
+      targetSize: s.targetSize,
+      minSize: s.minSize,
+      maxSize: s.maxSize,
+      formationId: s.formationId,
+      formationName: formation?.name ?? null,
+      formationSlots: (formation?.slots ?? []).map((slot) => ({
+        id: slot.id,
+        roleType: slot.roleType,
+        label: slot.label,
+        shortLabel: slot.label,
+        acceptedPositionIds: Array.isArray(slot.acceptedPositionIds) ? slot.acceptedPositionIds as string[] : [],
+        gridX: slot.gridX,
+        gridY: slot.gridY,
+        sortOrder: slot.sortOrder,
+      })),
+      generationOrder: s.generationOrder,
+      players: s.players.map((p) => {
+        const rating = getPlayerOverallRating(p.player);
+        return {
+          id: p.id,
+          playerId: p.playerId,
+          source: p.source as string,
+          locked: p.locked,
+          selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
+          positionFitTier: p.positionFitTier,
+          assignedSlotIndex: p.assignedSlotIndex,
+          assignedSlotLabel: p.assignedSlotLabel,
+          assignedRoleType: p.assignedRoleType,
+          assignedPositionId: p.assignedPositionId,
+          lineupOrder: p.lineupOrder,
+          firstName: p.player.firstName,
+          lastName: p.player.lastName,
+          coreTeamId: p.player.coreTeamId,
+          primaryPosition: p.player.primaryPosition,
+          secondaryPosition: p.player.secondaryPosition,
+          tertiaryPosition: p.player.tertiaryPosition,
+          goalkeeperAbility: p.player.goalkeeperAbility ?? 'NO',
+          overallLevel: rating.value,
+          ratedAttributeCount: rating.ratedAttributeCount,
+          isGK: p.player.goalkeeperAbility === 'YES' || p.player.goalkeeperAbility === 'EMERGENCY',
+        };
+      }),
+    };
+  });
 
   const players = event.players.map((ep) => {
     const rating = getPlayerOverallRating(ep.player);
@@ -190,74 +209,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     [],
   );
 
-  const tacticSuggestion = availablePlayerProfiles.length > 0
-    ? suggestBestFormationForPlayers({
-        players: availablePlayerProfiles,
-        formations: compatibleFormations.map((f) => ({
-          id: f.id,
-          name: f.name,
-          gameFormat: f.gameFormat,
-          slots: f.slots.map((s) => ({
-            roleType: s.roleType,
-            acceptedPositions: (typeof s.acceptedPositionIds === 'string'
-              ? s.acceptedPositionIds.split(',').map((p) => p.trim())
-              : Array.isArray(s.acceptedPositionIds)
-                ? (s.acceptedPositionIds as string[]).map((p) => String(p).trim())
-                : []) as import('@/lib/events/event-types').BroadPosition[],
-            label: s.label ?? s.roleType,
-          })),
-        })),
-        gameFormat,
-      })
-    : null;
-
-  const squadTacticSuggestions: Record<string, TacticSuggestion | null> = {};
-  for (const squad of squads) {
-    const squadPlayerProfiles = squad.players.map((sp) => {
-      const fullPlayer = playerById.get(sp.playerId);
-      if (fullPlayer) {
-        return toPlayerAttributeProfile(fullPlayer);
-      }
-      return toPlayerAttributeProfile({
-        id: sp.playerId,
-        firstName: sp.firstName,
-        lastName: sp.lastName,
-        coreTeamId: sp.coreTeamId,
-        primaryPosition: sp.primaryPosition,
-        secondaryPosition: sp.secondaryPosition,
-        tertiaryPosition: sp.tertiaryPosition,
-        goalkeeperAbility: sp.goalkeeperAbility,
-        ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
-        positioning: null, oneVOneDefending: null, decisionMaking: null,
-        effort: null, teamplay: null, concentration: null, speed: null, strength: null,
-        nonRotatable: false, preferredFoot: 'RIGHT', bestSide: 'RIGHT',
-      });
-    });
-
-    if (squadPlayerProfiles.length > 0 && compatibleFormations.length > 0) {
-      squadTacticSuggestions[squad.id] = suggestBestFormationForPlayers({
-        players: squadPlayerProfiles,
-        formations: compatibleFormations.map((f) => ({
-          id: f.id,
-          name: f.name,
-          gameFormat: f.gameFormat,
-          slots: f.slots.map((s) => ({
-            roleType: s.roleType,
-            acceptedPositions: (typeof s.acceptedPositionIds === 'string'
-              ? s.acceptedPositionIds.split(',').map((p) => p.trim())
-              : Array.isArray(s.acceptedPositionIds)
-                ? (s.acceptedPositionIds as string[]).map((p) => String(p).trim())
-                : []) as import('@/lib/events/event-types').BroadPosition[],
-            label: s.label ?? s.roleType,
-          })),
-        })),
-        gameFormat,
-      });
-    } else {
-      squadTacticSuggestions[squad.id] = null;
-    }
-  }
-
   const data = {
     id: event.id,
     name: event.name,
@@ -276,8 +227,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     squadBalances,
     validation,
     compatibleFormations,
-    tacticSuggestion,
-    squadTacticSuggestions,
+    formationMap,
   };
 
   return <EventDetail data={data} />;

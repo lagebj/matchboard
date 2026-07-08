@@ -756,6 +756,9 @@ model EventSquadPlayer {
   playerId           String
   assignedRoleType   FormationSlotRoleType?
   assignedPositionId String?
+  assignedSlotIndex  Int?
+  assignedSlotLabel  String?
+  lineupOrder        Int?
   source             EventSquadPlayerSource @default(AUTO)
   locked             Boolean                @default(false)
   selectionReason    Json?

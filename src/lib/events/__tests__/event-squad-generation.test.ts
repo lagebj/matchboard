@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   generateEventSquads,
   getDefaultTargetSize,
+  getDefaultSlotRequirements,
 } from '../event-squad-generation';
 import {
   computeCompositeRatings,
@@ -17,6 +18,8 @@ import type {
   BroadPosition,
 } from '../event-types';
 import { getPositionFitTier, FIT_TIER_PRIORITY, computePositionScarcity, mapAnyPositionToBroad } from '@/lib/players/player-position-resolver';
+import { computeLineupAssignment } from '../event-lineup-assignment';
+import type { LineupAssignment } from '../event-lineup-assignment';
 
 function makePlayer(overrides: Partial<PlayerAttributeProfile> = {}): PlayerAttributeProfile {
   const defaults: PlayerAttributeProfile = {
@@ -783,5 +786,136 @@ describe('position-fit-tier assignments', () => {
     const unratedAssignment = result.assignments.find((a) => a.playerId === 'unrated');
     expect(unratedAssignment).toBeDefined();
     expect(unratedAssignment!.selectionReason.toLowerCase()).toContain('uncertainty');
+  });
+});
+
+describe('getDefaultSlotRequirements', () => {
+  it('returns 3 slots for THREE_A_SIDE', () => {
+    const slots = getDefaultSlotRequirements('THREE_A_SIDE');
+    expect(slots.length).toBe(3);
+  });
+
+  it('returns 5 slots for FIVE_A_SIDE including goalkeeper', () => {
+    const slots = getDefaultSlotRequirements('FIVE_A_SIDE');
+    expect(slots.length).toBe(5);
+    expect(slots.some((s) => s.roleType === 'GOALKEEPER')).toBe(true);
+  });
+
+  it('returns 7 slots for SEVEN_A_SIDE', () => {
+    const slots = getDefaultSlotRequirements('SEVEN_A_SIDE');
+    expect(slots.length).toBe(7);
+  });
+
+  it('returns 9 slots for NINE_A_SIDE', () => {
+    const slots = getDefaultSlotRequirements('NINE_A_SIDE');
+    expect(slots.length).toBe(9);
+  });
+
+  it('returns 11 slots for ELEVEN_A_SIDE', () => {
+    const slots = getDefaultSlotRequirements('ELEVEN_A_SIDE');
+    expect(slots.length).toBe(11);
+    expect(slots.filter((s) => s.roleType === 'GOALKEEPER').length).toBe(1);
+  });
+
+  it('all slots have acceptedPositions arrays', () => {
+    for (const format of ['THREE_A_SIDE', 'FIVE_A_SIDE', 'SEVEN_A_SIDE', 'NINE_A_SIDE', 'ELEVEN_A_SIDE'] as const) {
+      const slots = getDefaultSlotRequirements(format);
+      for (const slot of slots) {
+        expect(Array.isArray(slot.acceptedPositions)).toBe(true);
+        expect(slot.acceptedPositions.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe('computeLineupAssignment', () => {
+  const basePlayers = [
+    { playerId: 'gk1', firstName: 'GK', lastName: 'One', primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: true, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 0 as number | null, assignedSlotLabel: 'Goalkeeper' as string | null, assignedRoleType: 'GOALKEEPER' as string | null, assignedPositionId: 'Goalkeeper' as string | null, lineupOrder: 1 as number | null, selectionReason: 'Selected for goalkeeper coverage', locked: false },
+    { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 1 as number | null, assignedSlotLabel: 'Defender' as string | null, assignedRoleType: 'DEFENDER' as string | null, assignedPositionId: 'Defender' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position defender', locked: false },
+    { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 2 as number | null, assignedSlotLabel: 'Midfielder' as string | null, assignedRoleType: 'MIDFIELDER' as string | null, assignedPositionId: 'Midfielder' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position midfielder', locked: false },
+    { playerId: 'fwd1', firstName: 'Fwd', lastName: 'One', primaryPosition: 'ST', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 3 as number | null, assignedSlotLabel: 'Forward' as string | null, assignedRoleType: 'FORWARD' as string | null, assignedPositionId: 'Forward' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position forward', locked: false },
+    { playerId: 'flex1', firstName: 'Flex', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'NO_FIT' as const, assignedSlotIndex: 4 as number | null, assignedSlotLabel: 'Flexible' as string | null, assignedRoleType: 'FREE' as string | null, assignedPositionId: 'Flexible' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as flexible player', locked: false },
+  ];
+
+  it('maps assigned players to formation slots by slot index', () => {
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: basePlayers,
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    expect(result.squadId).toBe('s1');
+    expect(result.slots.length).toBe(5);
+    expect(result.slots[0].player?.playerId).toBe('gk1');
+    expect(result.slots[0].roleType).toBe('GOALKEEPER');
+    expect(result.slots[1].player?.playerId).toBe('def1');
+    expect(result.slots[2].player?.playerId).toBe('mid1');
+    expect(result.slots[3].player?.playerId).toBe('fwd1');
+    expect(result.slots[4].player?.playerId).toBe('flex1');
+  });
+
+  it('falls back to default slots when no formation provided', () => {
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: basePlayers,
+      formationSlots: null,
+      gameFormat: 'SEVEN_A_SIDE',
+    });
+
+    expect(result.slots.length).toBe(7);
+  });
+
+  it('puts unassigned players in unassigned list', () => {
+    const extraPlayer = { ...basePlayers[0], playerId: 'extra1', assignedSlotIndex: null, assignedSlotLabel: null, assignedRoleType: null, assignedPositionId: null, lineupOrder: null, positionFitTier: 'NO_FIT' as const, selectionReason: 'Extra player' };
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: [...basePlayers, extraPlayer],
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    expect(result.unassignedPlayers.length).toBe(1);
+    expect(result.unassignedPlayers[0].playerId).toBe('extra1');
+  });
+
+  it('shows empty slot when no player assigned', () => {
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: [basePlayers[0]],
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    const emptySlots = result.slots.filter((s) => s.player === null);
+    expect(emptySlots.length).toBe(4);
+  });
+
+  it('matches players by role type when slot index is null', () => {
+    const playerWithRoleOnly = { ...basePlayers[1], assignedSlotIndex: null };
+    const result = computeLineupAssignment({
+      squadId: 's1',
+      squadName: 'Squad 1',
+      formationId: null,
+      formationName: null,
+      players: [playerWithRoleOnly],
+      formationSlots: null,
+      gameFormat: 'FIVE_A_SIDE',
+    });
+
+    const defenderSlot = result.slots.find((s) => s.roleType === 'DEFENDER');
+    expect(defenderSlot?.player?.playerId).toBe('def1');
   });
 });
