@@ -114,6 +114,8 @@ export interface EventPoolValidation {
   targetSquadCount: number;
   targetSize: number;
   missingRatingsCount: number;
+  partialRatingsCount: number;
+  ratedPlayerCount: number;
   goalkeeperCoverage: { total: number; perSquad: number; sufficient: boolean };
   positionCoverage: Record<BroadPosition, { count: number; perSquad: number; sufficient: boolean }>;
   warnings: string[];
@@ -137,6 +139,7 @@ export interface SquadBalanceSummary {
   intent: EventSquadIntent;
   playerCount: number;
   averageOverall: number | null;
+  ratedPlayerCount: number;
   goalkeeperCount: number;
   defenderCount: number;
   midfielderCount: number;

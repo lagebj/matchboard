@@ -3,6 +3,8 @@ import { getEventById, getAvailablePlayersForEvent } from '../actions';
 import { EventDetail } from './event-detail';
 import { computeSquadBalance } from '@/lib/events/event-balance';
 import { validateEventPool } from '@/lib/events/event-validation';
+import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
+import { getPlayerOverallRating, getAverageRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
 
 export const dynamic = 'force-dynamic';
@@ -17,20 +19,22 @@ function toGameFormat(gf: string): GameFormat {
 
 export default async function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
-  const [event, allActivePlayers] = await Promise.all([
+  const [event, allActivePlayers, compatibleFormations] = await Promise.all([
     getEventById(eventId),
     getAvailablePlayersForEvent(),
+    getCompatibleFormationsForEvent(eventId),
   ]);
 
   if (!event) notFound();
 
   const eventPlayerIds = new Set(event.players.map((ep) => ep.playerId));
 
+  const playerById = new Map(event.players.map((ep) => [ep.playerId, ep.player]));
+
   const addablePlayers = allActivePlayers
     .filter((p) => !eventPlayerIds.has(p.id))
     .map((p) => {
-      const attrs = [p.ballControl, p.passing, p.firstTouch, p.oneVOneAttacking, p.positioning, p.oneVOneDefending, p.decisionMaking, p.effort, p.teamplay, p.concentration, p.speed, p.strength];
-      const nonNullAttrs = attrs.filter((v): v is number => v !== null);
+      const rating = getPlayerOverallRating(p);
       return {
         playerId: p.id,
         firstName: p.firstName,
@@ -41,9 +45,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
         secondaryPosition: p.secondaryPosition,
         tertiaryPosition: p.tertiaryPosition,
         goalkeeperAbility: p.goalkeeperAbility ?? 'NO',
-        overallLevel: nonNullAttrs.length > 0
-          ? Math.round((nonNullAttrs.reduce((sum, v) => sum + v, 0) / nonNullAttrs.length) * 10) / 10
-          : null,
+        overallLevel: rating.value,
+        ratedAttributeCount: rating.ratedAttributeCount,
         isGK: p.goalkeeperAbility === 'YES' || p.goalkeeperAbility === 'EMERGENCY',
       };
     });
@@ -57,34 +60,31 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     maxSize: s.maxSize,
     formationId: s.formationId,
     generationOrder: s.generationOrder,
-    players: s.players.map((p) => ({
-      id: p.id,
-      playerId: p.playerId,
-      source: p.source as string,
-      locked: p.locked,
-      selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
-      positionFitTier: p.positionFitTier,
-      firstName: p.player.firstName,
-      lastName: p.player.lastName,
-      coreTeamId: p.player.coreTeamId,
-      primaryPosition: p.player.primaryPosition,
-      secondaryPosition: p.player.secondaryPosition,
-      tertiaryPosition: p.player.tertiaryPosition,
-      goalkeeperAbility: p.player.goalkeeperAbility ?? 'NO',
-      isGK: p.player.goalkeeperAbility === 'YES' || p.player.goalkeeperAbility === 'EMERGENCY',
-    })),
+    players: s.players.map((p) => {
+      const rating = getPlayerOverallRating(p.player);
+      return {
+        id: p.id,
+        playerId: p.playerId,
+        source: p.source as string,
+        locked: p.locked,
+        selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
+        positionFitTier: p.positionFitTier,
+        firstName: p.player.firstName,
+        lastName: p.player.lastName,
+        coreTeamId: p.player.coreTeamId,
+        primaryPosition: p.player.primaryPosition,
+        secondaryPosition: p.player.secondaryPosition,
+        tertiaryPosition: p.player.tertiaryPosition,
+        goalkeeperAbility: p.player.goalkeeperAbility ?? 'NO',
+        overallLevel: rating.value,
+        ratedAttributeCount: rating.ratedAttributeCount,
+        isGK: p.player.goalkeeperAbility === 'YES' || p.player.goalkeeperAbility === 'EMERGENCY',
+      };
+    }),
   }));
 
-  const allPlayerAttrs = (p: typeof event.players[number]['player']) => [
-    p.ballControl, p.passing, p.firstTouch, p.oneVOneAttacking,
-    p.positioning, p.oneVOneDefending, p.decisionMaking,
-    p.effort, p.teamplay, p.concentration, p.speed, p.strength,
-  ];
-
   const players = event.players.map((ep) => {
-    const attrs = allPlayerAttrs(ep.player);
-    const nonNullAttrs = attrs.filter((v): v is number => v !== null);
-
+    const rating = getPlayerOverallRating(ep.player);
     return {
       playerId: ep.playerId,
       status: ep.status as string,
@@ -96,9 +96,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
       secondaryPosition: ep.player.secondaryPosition,
       tertiaryPosition: ep.player.tertiaryPosition,
       goalkeeperAbility: ep.player.goalkeeperAbility ?? 'NO',
-      overallLevel: nonNullAttrs.length > 0
-        ? Math.round((nonNullAttrs.reduce((sum, v) => sum + v, 0) / nonNullAttrs.length) * 10) / 10
-        : null,
+      overallLevel: rating.value,
+      ratedAttributeCount: rating.ratedAttributeCount,
       isGK: ep.player.goalkeeperAbility === 'YES' || ep.player.goalkeeperAbility === 'EMERGENCY',
       assignedSquadId: squads.find((s) => s.players.some((sp) => sp.playerId === ep.playerId))?.id ?? null,
     };
@@ -111,33 +110,75 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
   const gameFormat = toGameFormat(event.gameFormat);
 
   const squadBalances = squads.map((squad) => {
-    const squadPlayerProfiles = squad.players.map((sp) => ({
-      playerId: sp.playerId,
-      primaryPosition: sp.primaryPosition ?? 'CM',
-      secondaryPosition: null as string | null,
-      tertiaryPosition: null as string | null,
-      goalkeeperAbility: sp.goalkeeperAbility as 'NO' | 'EMERGENCY' | 'YES',
-      ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
-      positioning: null, oneVOneDefending: null, decisionMaking: null,
-      effort: null, teamplay: null, concentration: null, speed: null, strength: null,
-      coreTeamId: sp.coreTeamId, nonRotatable: false, preferredFoot: 'RIGHT' as const,
-      bestSide: 'RIGHT' as const, firstName: sp.firstName, lastName: sp.lastName,
-    }));
+    const squadPlayerProfiles = squad.players.map((sp) => {
+      const fullPlayer = playerById.get(sp.playerId);
+      if (fullPlayer) {
+        return toPlayerAttributeProfile(fullPlayer);
+      }
+      return toPlayerAttributeProfile({
+        id: sp.playerId,
+        firstName: sp.firstName,
+        lastName: sp.lastName,
+        coreTeamId: sp.coreTeamId,
+        primaryPosition: sp.primaryPosition,
+        secondaryPosition: sp.secondaryPosition,
+        tertiaryPosition: sp.tertiaryPosition,
+        goalkeeperAbility: sp.goalkeeperAbility,
+        ballControl: null,
+        passing: null,
+        firstTouch: null,
+        oneVOneAttacking: null,
+        positioning: null,
+        oneVOneDefending: null,
+        decisionMaking: null,
+        effort: null,
+        teamplay: null,
+        concentration: null,
+        speed: null,
+        strength: null,
+        nonRotatable: false,
+        preferredFoot: 'RIGHT',
+        bestSide: 'RIGHT',
+      });
+    });
     return computeSquadBalance(squad.id, squad.name, squad.intent as 'COMPETITIVE' | 'BALANCED' | 'MANUAL', squadPlayerProfiles);
   });
 
-  const availablePlayerProfiles = availablePlayers.map((p) => ({
-    playerId: p.playerId,
-    primaryPosition: p.primaryPosition ?? 'CM',
-    secondaryPosition: null as string | null,
-    tertiaryPosition: null as string | null,
-    goalkeeperAbility: p.goalkeeperAbility as 'NO' | 'EMERGENCY' | 'YES',
-    ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
-    positioning: null, oneVOneDefending: null, decisionMaking: null,
-    effort: null, teamplay: null, concentration: null, speed: null, strength: null,
-    coreTeamId: p.coreTeamId, nonRotatable: false, preferredFoot: 'RIGHT' as const,
-    bestSide: 'RIGHT' as const, firstName: p.firstName, lastName: p.lastName,
-  }));
+  const availablePlayerProfiles = availablePlayers.map((p) => {
+    const fullPlayer = playerById.get(p.playerId);
+    if (fullPlayer) {
+      return toPlayerAttributeProfile(fullPlayer);
+    }
+    const ap = allActivePlayers.find((a) => a.id === p.playerId);
+    if (ap) {
+      return toPlayerAttributeProfile(ap);
+    }
+    return toPlayerAttributeProfile({
+      id: p.playerId,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      coreTeamId: p.coreTeamId,
+      primaryPosition: p.primaryPosition,
+      secondaryPosition: p.secondaryPosition,
+      tertiaryPosition: p.tertiaryPosition,
+      goalkeeperAbility: p.goalkeeperAbility,
+      ballControl: null,
+      passing: null,
+      firstTouch: null,
+      oneVOneAttacking: null,
+      positioning: null,
+      oneVOneDefending: null,
+      decisionMaking: null,
+      effort: null,
+      teamplay: null,
+      concentration: null,
+      speed: null,
+      strength: null,
+      nonRotatable: false,
+      preferredFoot: 'RIGHT',
+      bestSide: 'RIGHT',
+    });
+  });
 
   const validation = validateEventPool(
     availablePlayerProfiles,
@@ -164,7 +205,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     addablePlayers,
     squadBalances,
     validation,
+    compatibleFormations,
   };
 
   return <EventDetail data={data} />;
+}
+
+async function getCompatibleFormationsForEvent(eventId: string) {
+  const { getEventById, getFormations } = await import('../actions');
+  const event = await getEventById(eventId);
+  if (!event) return [];
+  const formations = await getFormations();
+  return formations.filter((f) => f.gameFormat === event.gameFormat);
 }
