@@ -266,7 +266,7 @@ export function AssistantCommandCentrePage({
 }: {
   commandCentre: AssistantCommandCentre;
 }) {
-  const { items, planningPeriodName } = commandCentre;
+  const { items, leagueSeasonName } = commandCentre;
   const actionable = items.filter(isActionable);
   const upcoming = items.filter((i) => i.category === "upcoming_round");
   const nextAction = actionable[0];
@@ -282,7 +282,7 @@ export function AssistantCommandCentrePage({
       <PageHeader
         title="Assistant"
         description="What needs attention before the next matches."
-        context={planningPeriodName ? <span>{planningPeriodName}</span> : null}
+        context={leagueSeasonName ? <span>{leagueSeasonName}</span> : null}
       />
 
       {/* Metric strip */}

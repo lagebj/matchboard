@@ -10,23 +10,23 @@ export async function PATCH(request: Request) {
     const { id, name } = body;
 
     if (!id || typeof id !== "string") {
-      return Response.json({ error: "Planning period ID is required." }, { status: 400 });
+      return Response.json({ error: "League season ID is required." }, { status: 400 });
     }
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return Response.json({ error: "Phase name is required." }, { status: 400 });
+      return Response.json({ error: "League season name is required." }, { status: 400 });
     }
 
     if (name.trim().length > 100) {
-      return Response.json({ error: "Phase name must be 100 characters or fewer." }, { status: 400 });
+      return Response.json({ error: "League season name must be 100 characters or fewer." }, { status: 400 });
     }
 
-    const existing = await db.planningPeriod.findUnique({ where: { id } });
+    const existing = await db.leagueSeason.findUnique({ where: { id } });
     if (!existing) {
-      return Response.json({ error: "Planning period not found." }, { status: 404 });
+      return Response.json({ error: "League season not found." }, { status: 404 });
     }
 
-    await db.planningPeriod.update({
+    await db.leagueSeason.update({
       where: { id },
       data: { name: name.trim() },
     });
@@ -40,7 +40,7 @@ export async function PATCH(request: Request) {
     return Response.json({ success: true, name: name.trim() });
   } catch (error) {
     return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to update phase name." },
+      { error: error instanceof Error ? error.message : "Failed to update league season name." },
       { status: 500 },
     );
   }

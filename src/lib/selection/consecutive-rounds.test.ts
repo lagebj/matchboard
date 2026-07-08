@@ -44,7 +44,7 @@ async function finalizeRound(db: PrismaClient, roundId: string): Promise<void> {
 
 async function createNextRound(
   db: PrismaClient,
-  planningPeriodId: string,
+  leagueSeasonId: string,
   teams: Record<string, string>,
   weekNumber: number,
   dateOffset: number,
@@ -52,7 +52,7 @@ async function createNextRound(
   const round = await db.matchRound.create({
     data: {
       name: `W${weekNumber} Test`,
-      planningPeriodId,
+      leagueSeasonId,
       status: "DRAFT",
     },
   });
@@ -131,7 +131,7 @@ describe("Consecutive rounds (W19 then W20) produce valid selections", () => {
   it("generates W20 with history from W19 and produces valid selections", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
 
-    const w20 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 20, 1);
+    const w20 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 20, 1);
 
     const w20Result = await generateMatchRound(w20.roundId);
     expect(w20Result.matchResults.length).toBe(3);
@@ -189,7 +189,7 @@ describe("W21 round after two finalized rounds", () => {
     await createGeneratedDraftRound(w19Result);
     await finalizeRound(testDb, fixtureIds.matchRoundId);
 
-    const w20 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 20, 1);
+    const w20 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 20, 1);
     const w20Result = await generateMatchRound(w20.roundId);
     await createGeneratedDraftRound(w20Result);
     await finalizeRound(testDb, w20.roundId);
@@ -202,7 +202,7 @@ describe("W21 round after two finalized rounds", () => {
   it("generates W21 without errors after two finalized rounds", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
 
-    const w21 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 21, 2);
+    const w21 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 21, 2);
     const w21Result = await generateMatchRound(w21.roundId);
 
     expect(w21Result.matchResults.length).toBe(3);
@@ -214,7 +214,7 @@ describe("W21 round after two finalized rounds", () => {
   it("W21 has no cross-match duplicates", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
 
-    const w21 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 21, 2);
+    const w21 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 21, 2);
     const w21Result = await generateMatchRound(w21.roundId);
 
     const crossMatchWarnings = w21Result.roundWarnings.filter(
@@ -226,7 +226,7 @@ describe("W21 round after two finalized rounds", () => {
   it("W21 has no in-match duplicates", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
 
-    const w21 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 21, 2);
+    const w21 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 21, 2);
     const w21Result = await generateMatchRound(w21.roundId);
 
     for (const matchResult of w21Result.matchResults) {
@@ -238,7 +238,7 @@ describe("W21 round after two finalized rounds", () => {
   it("W21 still produces rotation despite history", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
 
-    const w21 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 21, 2);
+    const w21 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 21, 2);
     const w21Result = await generateMatchRound(w21.roundId);
 
     const nonCoreSelections = w21Result.matchResults.flatMap(
@@ -250,7 +250,7 @@ describe("W21 round after two finalized rounds", () => {
   it("W21 every excluded player has an explanation", async () => {
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
 
-    const w21 = await createNextRound(testDb, fixtureIds.planningPeriodId, fixtureIds.teams, 21, 2);
+    const w21 = await createNextRound(testDb, fixtureIds.leagueSeasonId, fixtureIds.teams, 21, 2);
     const w21Result = await generateMatchRound(w21.roundId);
 
     for (const matchResult of w21Result.matchResults) {

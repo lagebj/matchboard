@@ -35,7 +35,7 @@ function createAdapter(url: string) {
   teams: any[];
   players: any[];
   seasons: any[];
-  planningPeriods: any[];
+  leagueSeasons: any[];
   matchRounds: any[];
   opponentTeams: any[];
   matches: any[];
@@ -93,17 +93,18 @@ async function main() {
     console.log("Importing seasons...");
     const seasonIdMap = new Map<string, string>();
     for (const s of data.seasons) {
-      const created = await db.season.create({ data: { id: s.id, name: s.name } });
+      const created = await db.season.create({ data: { id: s.id, name: s.name, year: s.year ?? (parseInt(s.name) || new Date().getFullYear()) } });
       seasonIdMap.set(s.id, created.id);
     }
 
-    console.log("Importing planning periods...");
+    console.log("Importing league seasons...");
     const periodIdMap = new Map<string, string>();
-    for (const p of data.planningPeriods) {
-      const created = await db.planningPeriod.create({
+    for (const p of data.leagueSeasons) {
+      const created = await db.leagueSeason.create({
         data: {
           id: p.id,
           name: p.name,
+          part: p.part ?? 'SPRING',
           seasonId: seasonIdMap.get(p.seasonId) ?? p.seasonId,
           startDate: new Date(p.startDate),
           endDate: new Date(p.endDate),
@@ -205,7 +206,7 @@ async function main() {
         data: {
           id: mr.id,
           name: mr.name,
-          planningPeriodId: periodIdMap.get(mr.planningPeriodId) ?? mr.planningPeriodId,
+          leagueSeasonId: periodIdMap.get(mr.leagueSeasonId) ?? mr.leagueSeasonId,
           status: mr.status ?? "DRAFT",
         },
       });
@@ -368,7 +369,7 @@ async function main() {
       teams: await db.team.count(),
       players: await db.player.count(),
       seasons: await db.season.count(),
-      planningPeriods: await db.planningPeriod.count(),
+      leagueSeasons: await db.leagueSeason.count(),
       matchRounds: await db.matchRound.count(),
       matches: await db.match.count(),
       availabilities: await db.availability.count(),

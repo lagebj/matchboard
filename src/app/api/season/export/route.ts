@@ -40,25 +40,25 @@ function buildFilename(format: ExportFormat) {
 export async function GET(request: NextRequest) {
   await requireCoachAccess();
   const { searchParams } = request.nextUrl;
-  const planningPeriodId = searchParams.get("planningPeriodId");
+  const leagueSeasonId = searchParams.get("leagueSeasonId");
   const format = getExportFormat(searchParams.get("format"));
   const visibility = getVisibilityMode(searchParams.get("visibility"));
 
-  if (!planningPeriodId) {
-    return NextResponse.json({ error: "planningPeriodId required" }, { status: 400 });
+  if (!leagueSeasonId) {
+    return NextResponse.json({ error: "leagueSeasonId required" }, { status: 400 });
   }
 
-  const planningPeriod = await db.planningPeriod.findUnique({
-    where: { id: planningPeriodId },
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
     select: { name: true, startDate: true, endDate: true },
   });
 
-  if (!planningPeriod) {
-    return NextResponse.json({ error: "Planning period not found" }, { status: 404 });
+  if (!leagueSeason) {
+    return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
 
   const matchRounds = await db.matchRound.findMany({
-    where: { planningPeriodId, status: "FINALIZED" },
+    where: { leagueSeasonId, status: "FINALIZED" },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -244,9 +244,9 @@ export async function GET(request: NextRequest) {
 
   if (format === "json") {
     const data = {
-      planningPeriod: planningPeriod.name,
-      startDate: formatDate(planningPeriod.startDate),
-      endDate: formatDate(planningPeriod.endDate),
+      leagueSeason: leagueSeason.name,
+      startDate: formatDate(leagueSeason.startDate),
+      endDate: formatDate(leagueSeason.endDate),
       finalizedRounds: roundIds.length,
       visibility,
       selections: isParent ? selectionRows.map((r) => _sanitizeSelection({ ...r, overrideReasonCategory: r.overrideReasonCategory ?? undefined, overrideReasonDetail: r.overrideReasonDetail ?? undefined, explanation: r.explanation ?? undefined, controlledDoubleLoad: r.controlledDoubleLoad } as Parameters<typeof _sanitizeSelection>[0])) : selectionRows,
@@ -264,8 +264,8 @@ export async function GET(request: NextRequest) {
   if (format === "csv") {
     const sections: string[] = [];
 
-    sections.push(`# ${planningPeriod.name} — Season Export`);
-    sections.push(`Period: ${formatDate(planningPeriod.startDate)} — ${formatDate(planningPeriod.endDate)}`);
+    sections.push(`# ${leagueSeason.name} — Season Export`);
+    sections.push(`Period: ${formatDate(leagueSeason.startDate)} — ${formatDate(leagueSeason.endDate)}`);
     sections.push(`Finalized rounds: ${roundIds.length}`);
     sections.push("");
 
@@ -320,8 +320,8 @@ export async function GET(request: NextRequest) {
 
   if (format === "txt") {
     const lines: string[] = [];
-    lines.push(`${planningPeriod.name}`);
-    lines.push(`Period: ${formatDate(planningPeriod.startDate)} — ${formatDate(planningPeriod.endDate)}`);
+    lines.push(`${leagueSeason.name}`);
+    lines.push(`Period: ${formatDate(leagueSeason.startDate)} — ${formatDate(leagueSeason.endDate)}`);
     lines.push(`Finalized rounds: ${roundIds.length}`);
     lines.push("");
     lines.push("=== SQUADS ===");
@@ -387,8 +387,8 @@ export async function GET(request: NextRequest) {
   }
 
   const md: string[] = [];
-  md.push(`# ${planningPeriod.name} — Season Export`);
-  md.push(`**Period:** ${formatDate(planningPeriod.startDate)} — ${formatDate(planningPeriod.endDate)}`);
+  md.push(`# ${leagueSeason.name} — Season Export`);
+  md.push(`**Period:** ${formatDate(leagueSeason.startDate)} — ${formatDate(leagueSeason.endDate)}`);
   md.push(`**Finalized rounds:** ${roundIds.length}`);
   md.push("");
 

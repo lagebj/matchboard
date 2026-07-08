@@ -99,7 +99,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("No phases found.")).toBeInTheDocument();
+      expect(screen.getByText("No league seasons found.")).toBeInTheDocument();
     });
   });
 

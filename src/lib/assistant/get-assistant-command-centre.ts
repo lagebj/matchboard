@@ -8,18 +8,18 @@ import type {
 import { CATEGORY_PRIORITY } from "./types";
 
 export async function getAssistantCommandCentre(): Promise<AssistantCommandCentre> {
-  const planningPeriod = await db.planningPeriod.findFirst({
+  const leagueSeason = await db.leagueSeason.findFirst({
     orderBy: { startDate: "desc" },
     select: { id: true, name: true },
   });
 
-  if (!planningPeriod) {
+  if (!leagueSeason) {
     return emptyResult(null, null, [
       makeItem({
         category: "setup_missing",
         matchRoundId: "none",
-        title: "No planning period exists",
-        summary: "Create a planning period to get started.",
+        title: "No league season exists",
+        summary: "Create a league season to get started.",
         primaryActionLabel: "View Fixtures",
         primaryActionHref: "/fixtures",
         affectedTeamIds: [],
@@ -30,7 +30,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
 
   const teamCount = await db.team.count();
   if (teamCount === 0) {
-    return emptyResult(planningPeriod.id, planningPeriod.name, [
+    return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
         category: "setup_missing",
         matchRoundId: "none",
@@ -46,7 +46,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
 
   const playerCount = await db.player.count({ where: { removedAt: null } });
   if (playerCount === 0) {
-    return emptyResult(planningPeriod.id, planningPeriod.name, [
+    return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
         category: "setup_missing",
         matchRoundId: "none",
@@ -61,10 +61,10 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   }
 
   const matchCount = await db.match.count({
-    where: { matchRound: { planningPeriodId: planningPeriod.id } },
+    where: { matchRound: { leagueSeasonId: leagueSeason.id } },
   });
   if (matchCount === 0) {
-    return emptyResult(planningPeriod.id, planningPeriod.name, [
+    return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
         category: "setup_missing",
         matchRoundId: "none",
@@ -79,7 +79,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   }
 
   const rounds = await db.matchRound.findMany({
-    where: { planningPeriodId: planningPeriod.id },
+    where: { leagueSeasonId: leagueSeason.id },
     orderBy: { name: "asc" },
     include: {
       matches: {
@@ -260,8 +260,8 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   });
 
   return {
-    planningPeriodId: planningPeriod.id,
-    planningPeriodName: planningPeriod.name,
+    leagueSeasonId: leagueSeason.id,
+    leagueSeasonName: leagueSeason.name,
     items,
     computedAt: new Date(),
   };
@@ -286,13 +286,13 @@ function makeItem(
 }
 
 function emptyResult(
-  planningPeriodId: string | null,
-  planningPeriodName: string | null,
+  leagueSeasonId: string | null,
+  leagueSeasonName: string | null,
   items: AssistantWorkItem[],
 ): AssistantCommandCentre {
   return {
-    planningPeriodId,
-    planningPeriodName,
+    leagueSeasonId,
+    leagueSeasonName,
     items,
     computedAt: new Date(),
   };

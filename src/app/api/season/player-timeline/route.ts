@@ -7,12 +7,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const playerId = searchParams.get("playerId");
   const includeDrafts = searchParams.get("includeDrafts") === "true";
-  const planningPeriodId = searchParams.get("planningPeriodId") || undefined;
+  const leagueSeasonId = searchParams.get("leagueSeasonId") || undefined;
 
   if (!playerId) {
     return NextResponse.json({ error: "playerId required" }, { status: 400 });
   }
 
-  const timeline = await getPlayerMovementTimeline(playerId, includeDrafts, planningPeriodId);
+  const timeline = await getPlayerMovementTimeline(playerId, includeDrafts, leagueSeasonId);
   return NextResponse.json(timeline);
 }

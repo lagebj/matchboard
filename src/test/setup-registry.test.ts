@@ -308,7 +308,7 @@ describe("Setup registry: create match action assigns match to round by date", (
 });
 
 describe("Setup registry: Today page next-action reflects setup state", () => {
-  function getNextAction(teamCount: number, playerCount: number, totalMatchCount: number, activePlanningPeriod?: unknown, activeMatchRound?: unknown): { label: string; href: string } | null {
+  function getNextAction(teamCount: number, playerCount: number, totalMatchCount: number, activeLeagueSeason?: unknown, activeMatchRound?: unknown): { label: string; href: string } | null {
     if (teamCount === 0) {
       return { label: "Create a team to get started", href: "/teams/new" };
     }
@@ -318,7 +318,7 @@ describe("Setup registry: Today page next-action reflects setup state", () => {
     if (totalMatchCount === 0) {
       return { label: "Create a match to plan a round", href: "/matches/new" };
     }
-    if (!activePlanningPeriod || !activeMatchRound) {
+    if (!activeLeagueSeason || !activeMatchRound) {
       return { label: "Select a round", href: "/rounds" };
     }
     return null;

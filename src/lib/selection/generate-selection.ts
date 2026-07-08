@@ -6,7 +6,7 @@ import { getCoreMatchDropHistory } from "@/lib/selection/get-core-match-drop-his
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 import { getFloatingHistory } from "@/lib/selection/get-floating-history";
 import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
-import { getPlanningPeriodFairness } from "@/lib/selection/get-planning-period-fairness";
+import { getLeagueSeasonFairness } from "@/lib/selection/get-planning-period-fairness";
 import { getTargetTeamEligibility } from "@/lib/selection/get-target-team-eligibility";
 import { buildExplanation } from "@/lib/selection/explanation-generation";
 import {
@@ -15,7 +15,7 @@ import {
   isDevelopmentBlocked,
   isSupportAvoidSuitability,
 } from "@/lib/selection/selection-eligibility";
-import { type PlanningPeriodRoleCounts, getRecentLoadScore } from "@/lib/selection/selection-fairness";
+import { type LeagueSeasonRoleCounts, getRecentLoadScore } from "@/lib/selection/selection-fairness";
 import { type ReadinessSignalEntry } from "@/lib/selection/readiness-scoring";
 import { getNegativeReadinessSignals } from "@/lib/selection/readiness-scoring";
 import {
@@ -307,16 +307,16 @@ export async function generateSelection(matchId: string, options?: { deferRotati
 
   const matchRound = await db.matchRound.findUnique({
     where: { id: match.matchRoundId },
-    select: { planningPeriodId: true },
+    select: { leagueSeasonId: true },
   });
 
-  const planningPeriodCounts = new Map<string, PlanningPeriodRoleCounts>();
+  const leagueSeasonCounts = new Map<string, LeagueSeasonRoleCounts>();
   const consecutiveSupportByPlayer = new Map<string, number>();
 
-  if (matchRound?.planningPeriodId) {
-    const fairness = await getPlanningPeriodFairness(matchRound.planningPeriodId);
+  if (matchRound?.leagueSeasonId) {
+    const fairness = await getLeagueSeasonFairness(matchRound.leagueSeasonId);
     for (const playerResult of fairness.players) {
-      planningPeriodCounts.set(playerResult.playerId, {
+      leagueSeasonCounts.set(playerResult.playerId, {
         coreCount: playerResult.coreCount,
         developmentCount: playerResult.developmentCount,
         supportCount: playerResult.supportCount,
@@ -918,8 +918,8 @@ export async function generateSelection(matchId: string, options?: { deferRotati
       return leftPriority - rightPriority;
     }
 
-    const leftCoreCount = planningPeriodCounts.get(left.player.id)?.coreCount ?? 0;
-    const rightCoreCount = planningPeriodCounts.get(right.player.id)?.coreCount ?? 0;
+    const leftCoreCount = leagueSeasonCounts.get(left.player.id)?.coreCount ?? 0;
+    const rightCoreCount = leagueSeasonCounts.get(right.player.id)?.coreCount ?? 0;
 
     if (leftCoreCount !== rightCoreCount) {
       return leftCoreCount - rightCoreCount;
@@ -1175,7 +1175,7 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     const candidate = getRankedRotationCandidates(
       remainingRotationCandidates.filter(filter),
       selectedPlayers,
-      planningPeriodCounts,
+      leagueSeasonCounts,
       consecutiveSupportByPlayer,
     )[0];
 

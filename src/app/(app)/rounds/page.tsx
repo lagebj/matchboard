@@ -17,7 +17,7 @@ type RoundItem = {
 };
 
 export default async function RoundsPage() {
-  const activePlanningPeriod = await db.planningPeriod.findFirst({
+  const activeLeagueSeason = await db.leagueSeason.findFirst({
     orderBy: { startDate: "desc" },
   });
 
@@ -70,7 +70,7 @@ export default async function RoundsPage() {
 
       <RoundListClient
         rounds={roundItems}
-        activePlanningPeriodId={activePlanningPeriod?.id ?? null}
+        activeLeagueSeasonId={activeLeagueSeason?.id ?? null}
         hasDraftRounds={roundItems.some((r) => r.derivedStatus === "DRAFT" || r.derivedStatus === "BLOCKED" || r.derivedStatus === "READY")}
         hasNotGeneratedRounds={roundItems.some((r) => r.derivedStatus === "NOT_GENERATED")}
         roundCount={roundItems.length}

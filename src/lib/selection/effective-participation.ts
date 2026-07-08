@@ -315,14 +315,14 @@ export async function getEffectiveRoundParticipation(
 
 export async function getEffectiveParticipationHistory(
   playerId: string,
-  options?: { planningPeriodId?: string; beforeDate?: Date },
+  options?: { leagueSeasonId?: string; beforeDate?: Date },
 ): Promise<EffectiveParticipationRow[]> {
   const where: Record<string, unknown> = {};
   if (options?.beforeDate) {
     where.startsAt = { lt: options.beforeDate };
   }
-  if (options?.planningPeriodId) {
-    where.matchRound = { planningPeriodId: options.planningPeriodId };
+  if (options?.leagueSeasonId) {
+    where.matchRound = { leagueSeasonId: options.leagueSeasonId };
   }
 
   const matches = await db.match.findMany({
@@ -355,9 +355,9 @@ export async function getEffectivePlanningContext(
 
 export async function getEffectiveSeasonStats(
   playerId: string,
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<PlayerSeasonStats> {
-  const rows = await getEffectiveRoundParticipationForPlayer(playerId, planningPeriodId);
+  const rows = await getEffectiveRoundParticipationForPlayer(playerId, leagueSeasonId);
 
   let coreCount = 0;
   let supportCount = 0;
@@ -439,10 +439,10 @@ export async function getEffectiveSeasonStats(
 
 async function getEffectiveRoundParticipationForPlayer(
   playerId: string,
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<EffectiveParticipationRow[]> {
   const rounds = await db.matchRound.findMany({
-    where: { planningPeriodId },
+    where: { leagueSeasonId },
     select: { id: true },
   });
 

@@ -25,8 +25,8 @@ export type AssistantWorkItem = {
 };
 
 export type AssistantCommandCentre = {
-  planningPeriodId: string | null;
-  planningPeriodName: string | null;
+  leagueSeasonId: string | null;
+  leagueSeasonName: string | null;
   items: AssistantWorkItem[];
   computedAt: Date;
 };

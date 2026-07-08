@@ -52,7 +52,7 @@ describe("Coaching Intent Actions", () => {
     });
 
     it("creates a coaching intent for a planning period scope", async () => {
-      const result = await setCoachingIntentAction("PLANNING_PERIOD", fixture.planningPeriodId, "CONFIDENCE_REBUILD", null);
+      const result = await setCoachingIntentAction("PLANNING_PERIOD", fixture.leagueSeasonId, "CONFIDENCE_REBUILD", null);
       expect(result.success).toBe(true);
     });
 

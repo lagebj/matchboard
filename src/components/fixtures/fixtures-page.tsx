@@ -247,7 +247,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
             onClick={() => {
               startTransition(async () => {
                 const fd = new FormData();
-                fd.set("planningPeriodId", period.id);
+                fd.set("leagueSeasonId", period.id);
                 const result = await fixturePopulateAllAction(
                   { error: "" },
                   fd,
@@ -348,8 +348,8 @@ export function FixturesPage() {
         </Surface>
       ) : !data || data.periods.length === 0 ? (
         <EmptyState
-          title="No phases found."
-          description="Create a season and phase to start planning rounds."
+          title="No league seasons found."
+          description="Create a season and league season to start planning rounds."
         />
       ) : (
         <div className="flex flex-col gap-8">

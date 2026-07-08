@@ -76,14 +76,14 @@ export async function evaluateControlledDoubleLoad(
 
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId },
-    select: { planningPeriodId: true },
+    select: { leagueSeasonId: true },
   });
 
   if (!matchRound) {
     return { matchResults, assignments, warnings };
   }
 
-  const doubleLoadCounts = await loadDoubleLoadCounts(matchRound.planningPeriodId);
+  const doubleLoadCounts = await loadDoubleLoadCounts(matchRound.leagueSeasonId);
 
   const allMatches = await db.match.findMany({
     where: { id: { in: matchResults.map((r) => r.matchId) } },
@@ -243,7 +243,7 @@ export async function evaluateControlledDoubleLoad(
         warnings.push({
           severity: "WARNING",
           code: "double_load_exceeded_max",
-          message: `${candidate.playerName} has reached the maximum double-load count (${candidate.maxDoubleLoads}) for this planning period and is not eligible for another double-load.`,
+          message: `${candidate.playerName} has reached the maximum double-load count (${candidate.maxDoubleLoads}) for this league season and is not eligible for another double-load.`,
           playerId: candidate.playerId,
         });
         usedPlayerIds.add(candidate.playerId);
@@ -321,7 +321,7 @@ export async function evaluateControlledDoubleLoad(
 }
 
 async function loadDoubleLoadCounts(
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
 
@@ -330,7 +330,7 @@ async function loadDoubleLoadCounts(
       controlledDoubleLoad: true,
       match: {
         matchRound: {
-          planningPeriodId,
+          leagueSeasonId,
           status: "FINALIZED",
         },
       },

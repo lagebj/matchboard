@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { resolveOrCreateMatchRoundForDate, isSameIsoWeek, AmbiguousRoundError, DateOutsidePhaseError } from "../resolve-or-create-match-round-for-date";
+import { resolveOrCreateMatchRoundForDate, isSameIsoWeek, AmbiguousRoundError, DateOutsideLeagueSeasonError } from "../resolve-or-create-match-round-for-date";
 
 vi.mock("@/lib/db", () => ({
   db: {
-    planningPeriod: {
+    leagueSeason: {
       findUnique: vi.fn(),
     },
     matchRound: {
@@ -22,11 +22,11 @@ const PERIOD_END = new Date("2026-06-30T23:59:59Z");
 describe("resolveOrCreateMatchRoundForDate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(db.planningPeriod.findUnique).mockResolvedValue({
+    vi.mocked(db.leagueSeason.findUnique).mockResolvedValue({
       id: PERIOD_ID,
       startDate: PERIOD_START,
       endDate: PERIOD_END,
-    } as unknown as Awaited<ReturnType<typeof db.planningPeriod.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.leagueSeason.findUnique>>);
   });
 
   it("reuses an existing same-Phase ISO-week-label round", async () => {
@@ -35,7 +35,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     ] as unknown as Awaited<ReturnType<typeof db.matchRound.findMany>>);
 
     const result = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId: PERIOD_ID,
+      leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
     });
 
@@ -50,7 +50,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     ] as unknown as Awaited<ReturnType<typeof db.matchRound.findMany>>);
 
     const result = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId: PERIOD_ID,
+      leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
     });
 
@@ -66,14 +66,14 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     } as unknown as Awaited<ReturnType<typeof db.matchRound.create>>);
 
     const result = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId: PERIOD_ID,
+      leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
     });
 
     expect(result.created).toBe(true);
     expect(db.matchRound.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ planningPeriodId: PERIOD_ID }),
+        where: expect.objectContaining({ leagueSeasonId: PERIOD_ID }),
       }),
     );
   });
@@ -86,7 +86,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     } as unknown as Awaited<ReturnType<typeof db.matchRound.create>>);
 
     const result = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId: PERIOD_ID,
+      leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-06-08T15:00:00Z"),
     });
 
@@ -97,7 +97,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           name: "W24 2026",
-          planningPeriodId: PERIOD_ID,
+          leagueSeasonId: PERIOD_ID,
           status: "NOT_GENERATED",
         }),
       }),
@@ -107,10 +107,10 @@ describe("resolveOrCreateMatchRoundForDate", () => {
   it("rejects a date outside the Phase", async () => {
     await expect(
       resolveOrCreateMatchRoundForDate({
-        planningPeriodId: PERIOD_ID,
+        leagueSeasonId: PERIOD_ID,
         startsAt: new Date("2026-08-15T15:00:00Z"),
       }),
-    ).rejects.toThrow(DateOutsidePhaseError);
+    ).rejects.toThrow(DateOutsideLeagueSeasonError);
 
     expect(db.matchRound.findMany).not.toHaveBeenCalled();
     expect(db.matchRound.create).not.toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
 
     await expect(
       resolveOrCreateMatchRoundForDate({
-        planningPeriodId: PERIOD_ID,
+        leagueSeasonId: PERIOD_ID,
         startsAt: new Date("2026-06-08T15:00:00Z"),
       }),
     ).rejects.toThrow(AmbiguousRoundError);
@@ -134,7 +134,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
 
   it("works with a transaction client", async () => {
     const txMock = {
-      planningPeriod: { findUnique: vi.fn().mockResolvedValue({ id: PERIOD_ID, startDate: PERIOD_START, endDate: PERIOD_END }) },
+      leagueSeason: { findUnique: vi.fn().mockResolvedValue({ id: PERIOD_ID, startDate: PERIOD_START, endDate: PERIOD_END }) },
       matchRound: {
         findMany: vi.fn().mockResolvedValue([{ id: "r-w20", name: "W20 2026" }]),
         create: vi.fn(),
@@ -142,7 +142,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     };
 
     const result = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId: PERIOD_ID,
+      leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
       tx: txMock as unknown as Parameters<typeof resolveOrCreateMatchRoundForDate>[0]["tx"],
     });
@@ -153,14 +153,14 @@ describe("resolveOrCreateMatchRoundForDate", () => {
   });
 
   it("rejects missing planning period", async () => {
-    vi.mocked(db.planningPeriod.findUnique).mockResolvedValue(null);
+    vi.mocked(db.leagueSeason.findUnique).mockResolvedValue(null);
 
     await expect(
       resolveOrCreateMatchRoundForDate({
-        planningPeriodId: "nonexistent",
+        leagueSeasonId: "nonexistent",
         startsAt: new Date("2026-05-11T15:00:00Z"),
       }),
-    ).rejects.toThrow(DateOutsidePhaseError);
+    ).rejects.toThrow(DateOutsideLeagueSeasonError);
   });
 });
 

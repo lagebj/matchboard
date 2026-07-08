@@ -24,7 +24,7 @@ type FilterState = "all" | "needs_action" | "draft" | "ready" | "finalized";
 
 type RoundListClientProps = {
   rounds: RoundListItem[];
-  activePlanningPeriodId: string | null;
+  activeLeagueSeasonId: string | null;
   hasDraftRounds: boolean;
   hasNotGeneratedRounds: boolean;
   roundCount: number;
@@ -53,7 +53,7 @@ function filterRounds(rounds: RoundListItem[], filter: FilterState): RoundListIt
   }
 }
 
-export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
+export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
@@ -95,14 +95,14 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
               Regroup rounds
             </button>
           )}
-          {hasNotGeneratedRounds && activePlanningPeriodId && (
+          {hasNotGeneratedRounds && activeLeagueSeasonId && (
             <button
               className="rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 py-1.5 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition"
               disabled={isPending}
               onClick={() => {
                 startTransition(async () => {
                   const fd = new FormData();
-                  fd.set("planningPeriodId", activePlanningPeriodId);
+                  fd.set("leagueSeasonId", activeLeagueSeasonId);
                   await populateAllAction({ error: "" }, fd);
                   router.refresh();
                 });
@@ -111,14 +111,14 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
               {isPending ? "Generating..." : "Populate all rounds"}
             </button>
           )}
-          {hasDraftRounds && activePlanningPeriodId && (
+          {hasDraftRounds && activeLeagueSeasonId && (
             <button
               className="rounded-full border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition"
               disabled={isPending}
               onClick={() => {
                 startTransition(async () => {
                   const fd = new FormData();
-                  fd.set("planningPeriodId", activePlanningPeriodId);
+                  fd.set("leagueSeasonId", activeLeagueSeasonId);
                   const result = await regenerateAllDraftsAction({ error: "" }, fd);
                   if (result.result) setRegenerateResult(result.result);
                   router.refresh();
@@ -128,7 +128,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
               {isPending ? "Regenerating..." : "Regenerate all drafts"}
             </button>
           )}
-          {hasDraftRounds && activePlanningPeriodId && (
+          {hasDraftRounds && activeLeagueSeasonId && (
             <button
               className="rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
               onClick={() => setShowClearAllDialog(true)}
@@ -305,7 +305,7 @@ export function RoundListClient({ rounds, activePlanningPeriodId, hasDraftRounds
                 onClick={() => {
                   startTransition(async () => {
                     const formData = new FormData();
-                    formData.set("planningPeriodId", activePlanningPeriodId!);
+                    formData.set("leagueSeasonId", activeLeagueSeasonId!);
                     await clearAllDraftsAction(formData);
                     setShowClearAllDialog(false);
                     router.refresh();

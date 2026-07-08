@@ -13,27 +13,27 @@ export async function GET(request: Request) {
   }
 
   const ctx = await getOperationalContext();
-  const phaseDisplay = ctx.planningPeriod
+  const phaseDisplay = ctx.leagueSeason
     ? formatPhaseDisplay({
         seasonName: ctx.season?.name ?? "",
-        phaseName: ctx.planningPeriod.name,
-        startDate: ctx.planningPeriod.startDate,
-        endDate: ctx.planningPeriod.endDate,
+        phaseName: ctx.leagueSeason.name,
+        startDate: ctx.leagueSeason.startDate,
+        endDate: ctx.leagueSeason.endDate,
       })
     : null;
 
   return Response.json({
     season: ctx.season,
-    planningPeriod: ctx.planningPeriod
+    leagueSeason: ctx.leagueSeason
       ? {
-          id: ctx.planningPeriod.id,
-          name: ctx.planningPeriod.name,
-          phaseLabel: phaseDisplay?.phaseLabel ?? ctx.planningPeriod.name,
+          id: ctx.leagueSeason.id,
+          name: ctx.leagueSeason.name,
+          leagueSeasonLabel: phaseDisplay?.leagueSeasonLabel ?? ctx.leagueSeason.name,
           seasonLabel: phaseDisplay?.seasonLabel ?? "",
-          combinedLabel: phaseDisplay?.combinedLabel ?? ctx.planningPeriod.name,
+          combinedLabel: phaseDisplay?.combinedLabel ?? ctx.leagueSeason.name,
           dateRangeLabel: phaseDisplay?.dateRangeLabel ?? "",
-          startDate: ctx.planningPeriod.startDate.toISOString(),
-          endDate: ctx.planningPeriod.endDate.toISOString(),
+          startDate: ctx.leagueSeason.startDate.toISOString(),
+          endDate: ctx.leagueSeason.endDate.toISOString(),
         }
       : null,
     matchRound: ctx.matchRound,

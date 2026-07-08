@@ -1,10 +1,10 @@
 # Matchboard
 
-Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals/explainability, finalized history, and post-match reflection across a planning period.
+Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals/explainability, finalized history, and post-match reflection across a league season.
 
 It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
-Selections are generated per match round. Fairness is evaluated across the season/planning period.
+Selections are generated per match round. Fairness is evaluated across the season/league season.
 
 The app plans squads for already-created matches. It does not auto-create fixtures, schedule a season, or manage a club.
 
@@ -14,7 +14,7 @@ The primary workflow is:
 
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Define intent** — Set match purpose, team risk, desired football behavior, support need, development focus.
-3. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round uses round-level orchestration (not match-by-match). No round is finalized.
+3. **Populate all** — Generate draft selections for all rounds in the active league season. Each round uses round-level orchestration (not match-by-match). No round is finalized.
 4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
 6. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
@@ -26,9 +26,9 @@ The central operating flow is: `Assistant → Fixtures → Round Board → Match
 The canonical primary navigation is: Assistant, Fixtures, Teams, Players.
 
 - Assistant (`/assistant`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows.
-- Fixtures (`/fixtures`) provides the planning-period and round hierarchy. Completed match results are shown directly in fixture rows.
+- Fixtures (`/fixtures`) provides the league-season and round hierarchy. Completed match results are shown directly in fixture rows.
 - Round Board is the primary squad decision surface.
-- Teams provides selected-planning-period team results and team detail workspaces. Team rules remain in team detail.
+- Teams provides selected-league-season team results and team detail workspaces. Team rules remain in team detail.
 - Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
 - Season, History and Rules are secondary analysis/configuration destinations.
 
@@ -38,13 +38,13 @@ The Players page is the coach-facing overview for participation statistics, curr
 
 ### Three modes
 
-- **Season overview** (default): factual player matrix with actual participation and recorded match statistics for a selected phase. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
+- **Season overview** (default): factual player matrix with actual participation and recorded match statistics for a selected league season. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
 - **Current round attention**: canonical live plan-integrity state for a selected round. Uses `computeRoundPlanIntegrity` only. Does not derive attention from goals, assists, or historical movement.
 - **Manage base groups**: stable core-team assignment and player registry administration. Separate from weekly match selection and seasonal review.
 
 ### Season overview metrics
 
-Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent. All scoped to the selected phase. Goals and assists are factual statistics only — they do not affect selection generation or fairness.
+Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent. All scoped to the selected league season. Goals and assists are factual statistics only — they do not affect selection generation or fairness.
 
 ### Current round attention states
 
@@ -60,15 +60,15 @@ Covered, Decision required (available eligible without planned match opportunity
 - Base-group management is separate from match planning and seasonal review.
 - Coach-facing only. Not included in parent-facing exports.
 
-## Planning periods
+## League seasons
 
-Season is the full football-year context. Phase is the bounded spring/autumn operational window (internally a PlanningPeriod).
+Season is the full football-year context. Each Season has a `year` field identifying the football year (e.g. 2026). LeagueSeason is the bounded spring/autumn operational window, with an auto-derived `part` field (`SPRING` or `FALL`) based on its date range.
 
-User-facing text uses "Phase" and "Season", never "Planning period". Phase display labels are derived from `startDate` and `endDate`, not from stored names. A spring phase spanning April to June 2026 shows as "Spring 2026 · Apr–Jun". An autumn phase spanning August to October 2026 shows as "Autumn 2026 · Aug–Oct". A misleading stored name like "April 2026" for a multi-month scope is never shown alone — the visible label must communicate the actual date range.
+User-facing text uses "League season" and "Season", never "Planning period" or "Phase". League season display labels are derived from `startDate`, `endDate`, and the `part` field. A spring league season spanning April to June 2026 shows as "Spring 2026 · Apr–Jun". An autumn league season spanning August to October 2026 shows as "Autumn 2026 · Aug–Oct". A misleading stored name like "April 2026" for a multi-month scope is never shown alone — the visible label must communicate the actual date range.
 
 ## Teams overview
 
-The Teams page shows selected-phase completed match results. Required columns: Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players. Team rules, squad limits, support priority and rotation paths remain in team detail (`/teams/[teamId]`).
+The Teams page shows selected-league-season completed match results. Required columns: Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players. Team rules, squad limits, support priority and rotation paths remain in team detail (`/teams/[teamId]`).
 
 Team result statistics derive from completed post-match reports only (REPORTED or LOCKED). DRAFT reports do not count as results. Team GF/GA derives from PostMatchReport score values, not from player Goal events.
 
@@ -80,7 +80,7 @@ Completed fixtures use subtle outcome styling: soft green for Won, soft neutral/
 
 ## Match rescheduling
 
-Matches can be rescheduled before a completed post-match report exists. Edit date and kick-off time from Match details. Inside the current Phase, Matchboard automatically places the match in the correct weekly round. When the target week does not yet have a round, Matchboard creates it automatically. Draft planning follows the moved match and integrity is recalculated. A finalised squad plan must be unfinalised before moving the match to another round. Completed match history cannot be rescheduled through ordinary editing. Moving outside the current Phase requires separate Phase handling.
+Matches can be rescheduled before a completed post-match report exists. Edit date and kick-off time from Match details. Inside the current LeagueSeason, Matchboard automatically places the match in the correct weekly round. When the target week does not yet have a round, Matchboard creates it automatically. Draft planning follows the moved match and integrity is recalculated. A finalised squad plan must be unfinalised before moving the match to another round. Completed match history cannot be rescheduled through ordinary editing. Moving outside the current LeagueSeason requires separate league season handling.
 
 ## Cancelled matches
 
@@ -105,7 +105,7 @@ The interface prioritises actionable football decisions over configuration expos
   - **Movement ledger is mandatory.** Every non-core player movement must create a MovementLedger entry. Support, development, and squad repair from another team all create ledger entries. The movement ledger is the authoritative record of player movement. The export must never show empty movements when non-core selections exist.
 - **Same-round player uniqueness is the default.** A player must not be planned for two matches in the same round/week. The generation engine does NOT produce controlled double-load. Existing historical data with `controlledDoubleLoad = true` must still be readable. Actual double-load from post-match reports is tracked through effective participation/history and must not mutate finalized planned selections. Additional actual appearances from post-match reports are recorded separately as unplanned participation and do not mutate finalized planned selections.
 - **Target squad size is a planning target, not a hard cap.** A team may be selected above target up to `maxSquadSize`. Below `targetSquadSize` but above `minAcceptedSquadSize` generates a Planning note. Below `minAcceptedSquadSize` is a hard floor requiring manual override.
-- **The match round is the operational planning unit.** The season/planning period is the fairness and load-balancing context.
+- **The match round is the operational planning unit.** The season/league season is the fairness and load-balancing context.
 - **Plan integrity signals are persisted to the database** and read back by the UI and finalization logic. Current active integrity is computed from the current editable draft — signals belonging to earlier drafts no longer appear after their cause is resolved. Resolving a condition removes it from current work. Blocked conditions prevent normal finalization (require conscious override with reason). Decision required conditions allow finalization with a recorded reason. Planning notes are informational only and do not block finalization or create active work items. Fixtures displays structured Blocked and Decision required summaries only — never generic issue totals. Round Board shows Plan integrity, Planning notes and Why this selection — never actionable warnings or generic warning counts. Selection rationale is explanation only and is never counted as unresolved work. Planned selections and actual participation remain separate.
 - **Draft selections are editable and not final history.** The coach can manually add, remove, change role, or replace players in draft match squads. Manual edits use the same domain validation as automatic generation. UI-only validation is not enough.
 - **Finalized rounds become hard history.** Finalized selections cannot be edited without an audit trail.
@@ -117,7 +117,7 @@ It is not a generic club-management platform, not a parent communication platfor
 
 Matchboard supports a coaching loop: intent → selection → responsibility → execution → reflection → learning.
 
-Coaching intent can be attached to planning periods, match rounds, matches, teams, and selections. Intent categories include team_first, reset_after_error, support_teammates, positional_discipline, play_through_team, defensive_recovery, confidence_rebuild, challenge_exposure, stabilize_weaker_team, and protect_match_function.
+Coaching intent can be attached to league seasons, match rounds, matches, teams, and selections. Intent categories include team_first, reset_after_error, support_teammates, positional_discipline, play_through_team, defensive_recovery, confidence_rebuild, challenge_exposure, stabilize_weaker_team, and protect_match_function.
 
 Intent informs explanations and plan integrity signals but does not silently override hard eligibility rules. Intent can be edited by the coach before finalization. Intent remains coach-facing unless explicitly exported through neutral parent-safe language. Finalized history preserves intent snapshots from finalization time.
 
@@ -199,7 +199,7 @@ BLOCKED and READY are derived status values — they are not stored in the datab
 
 ## How populate all works
 
-Populate all generates draft selections for all non-finalized rounds in the active planning period in one action. It groups matches by round and generates per round using round-level orchestration. It processes rounds in chronological order. Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same run. Populate all does not finalize any round. On partial failure, successful round generations are kept and failures are reported.
+Populate all generates draft selections for all non-finalized rounds in the active league season in one action. It groups matches by round and generates per round using round-level orchestration. It processes rounds in chronological order. Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same run. Populate all does not finalize any round. On partial failure, successful round generations are kept and failures are reported.
 
 ## How round review works
 
@@ -212,7 +212,7 @@ Draft match squads can be manually edited before finalization. The coach can add
 ## How clear draft actions work
 
 Draft selections can be cleared at three levels:
-- **Clear all** — removes all non-finalized draft data (selections, plan integrity signals, explanations, movement ledger, provisional context) across all rounds in the planning period
+- **Clear all** — removes all non-finalized draft data (selections, plan integrity signals, explanations, movement ledger, provisional context) across all rounds in the league season
 - **Clear round** — removes draft data for one selected round only
 - **Clear match** — removes draft data for one selected match only
 
@@ -220,7 +220,7 @@ Clear actions preserve finalized selections, finalized history, teams, players, 
 
 ## How finalization works
 
-Finalizing a round locks all selections as immutable history. The app checks for Blocked conditions before allowing finalization. Finalized selections cannot be edited without an explicit reopen or audit entry. Finalized rounds contribute to season/planning-period fairness calculations.
+Finalizing a round locks all selections as immutable history. The app checks for Blocked conditions before allowing finalization. Finalized selections cannot be edited without an explicit reopen or audit entry. Finalized rounds contribute to season/league-season fairness calculations.
 
 ## How un-finalization works
 
@@ -228,7 +228,7 @@ Finalized matches and rounds can be un-finalized to revert selections back to DR
 
 ## How season overview works
 
-The season overview (`/season`) is the fairness control surface for the planning period. It helps the coach understand whether player load, support burden, development exposure, drops, and movement are fair across the season.
+The season overview (`/season`) is the fairness control surface for the league season. It helps the coach understand whether player load, support burden, development exposure, drops, and movement are fair across the season.
 
 **Primary view: Player × round matrix.** Each row is a player, each column is a round. Cells show the role (Core, Support, Development, Squad repair) and team for that round. Summary columns show rounds played, core matches, support count, development count, additional actual appearances, drops, and plan integrity signal count.
 
@@ -236,7 +236,7 @@ The season overview (`/season`) is the fairness control surface for the planning
 
 **Movement path summary.** A secondary view shows team-to-team movement totals: source team, target team, role, count, unique players, last used, and plan integrity signals. Each path row is drillable.
 
-**Player drill-down.** Clicking a player shows their movement timeline across rounds: round, date, team, role, draft/finalized state, and explanation. The timeline is scoped to the selected planning period.
+**Player drill-down.** Clicking a player shows their movement timeline across rounds: round, date, team, role, draft/finalized state, and explanation. The timeline is scoped to the selected league season.
 
 **Plan integrity signals.** The overview generates signals such as high support burden, low development exposure, repeated additional actual appearances, consecutive movement, and disproportionate team support. Each signal includes category (Blocked/Decision required/Planning note), affected player/team/path, reason, drill-down link, and whether it is based on finalized-only or draft-included data.
 
@@ -429,7 +429,7 @@ Empty states must be actionable:
 
 ### Teams page (`/teams`)
 
-The Teams page is a lightweight directory. It shows each team with core player count, squad limits, support priority, active movement paths, and current planning period burden. Each team links to its detail page.
+The Teams page is a lightweight directory. It shows each team with core player count, squad limits, support priority, active movement paths, and current league season burden. Each team links to its detail page.
 
 The all-teams page must not become a catch-all dashboard. It must not show squad rosters inline. Detailed team work happens on the team-specific detail page.
 
@@ -508,7 +508,7 @@ Key rules enforced by the engine:
 
 ### Populate all workflow
 
-Populate all generates drafts for all non-finalized rounds in the active planning period:
+Populate all generates drafts for all non-finalized rounds in the active league season:
 
 - Calls `generateMatchRound` for each round in chronological order
 - Uses round-level orchestration (not match-by-match)
@@ -523,6 +523,8 @@ Populate all generates drafts for all non-finalized rounds in the active plannin
 | Path | Purpose |
 |------|---------|
 | `src/lib/selection/` | Selection engine, round-level orchestrator, support, routing, squad repair |
+| `src/lib/rounds/` | Round-level engagement computation and override validation |
+| `src/lib/seasons/` | LeagueSeason part (SPRING/FALL), year, label, and date range derivation |
 | `src/lib/rules/` | Rule configuration loading and validation |
 | `src/lib/` | DB client, shared utilities, player metrics, date helpers |
 | `src/app/` | Next.js App Router pages, layouts, server actions, API routes |
@@ -553,6 +555,7 @@ RotationPath is the single source of truth for automatic non-core player movemen
 - **Selection**: per-player per-match record with role (CORE, SUPPORT, DEVELOPMENT, SQUAD_REPAIR), status (DRAFT/FINALIZED), overrideReasonCategory (enum), overrideReasonDetail (free text), and structured explanation JSON. BACKFILL remains in the Prisma enum for backward compatibility of historical data and manual overrides. New generation produces SUPPORT with squad repair explanation codes for squad repair, not BACKFILL. DOUBLE_LOAD is not a valid role value for new generation. The `controlledDoubleLoad` field is legacy — no new `true` values are written by the generation engine. Actual double-load from post-match reports is tracked through effective participation, not via `controlledDoubleLoad`. Additional actual appearances from post-match reports are recorded separately as unplanned participation and do not mutate finalized planned selections.
 - **MovementLedger**: mandatory record for every non-core player movement. Created during draft generation, flipped from isDraft=true to isDraft=false during finalization. Support, development, and squad repair from another team all create ledger entries. The movement ledger is the authoritative record of player movement — the export must never show empty movements when non-core selections exist.
 - **MatchRound**: weekly planning unit — selections are generated and validated per round, not per match in isolation
+- **LeagueSeason**: bounded spring/autumn operational window with auto-derived `part` (SPRING or FALL) and belonging to a Season with a `year` field. The internal model is LeagueSeason (was PlanningPeriod). User-facing text uses "League season" or "Season", never "Planning period" or "Phase".
 - **Warning**: per-round signals with severity (HARD_BLOCK, REQUIRES_OVERRIDE, WARNING, SCORING_PREFERENCE), persisted to database. Current active integrity is derived from the current editable draft — recalculation yielding zero signals clears stale rows. The UI displays these as Blocked, Decision required, or Planning note based on the visible signal model. SCORING_PREFERENCE is explanation only and is never persisted as an active issue. Planning notes never create active work items or finalisation requirements.
 
 ## Sensitive data policy

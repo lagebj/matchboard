@@ -15,7 +15,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
   const seasons = await db.season.findMany({
     orderBy: { name: "desc" },
     include: {
-      planningPeriods: {
+      leagueSeasons: {
         orderBy: { startDate: "asc" },
         include: {
           matchRounds: {
@@ -37,7 +37,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
   }
 
   const allMatchIds = seasons.flatMap((s) =>
-    s.planningPeriods.flatMap((p) =>
+    s.leagueSeasons.flatMap((p) =>
       p.matchRounds.flatMap((r) => r.matches.map((m) => m.id)),
     ),
   );
@@ -79,7 +79,7 @@ export async function getFixturesOverview(): Promise<FixturesOverview> {
   const periods: FixturePeriod[] = [];
 
   for (const season of seasons) {
-    for (const period of season.planningPeriods) {
+    for (const period of season.leagueSeasons) {
       const rounds: FixtureRound[] = [];
 
       for (const round of period.matchRounds) {

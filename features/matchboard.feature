@@ -1,12 +1,12 @@
 Feature: Matchboard football operations workspace
 
-  Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a planning period.
+  Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, warnings/explainability, finalized history, and post-match reflection across a league season.
 
   It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not local-first, not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
   Matchboard generates selections per match round.
   A match round is the operational planning unit.
-  The season or planning period is the fairness and load-balancing context.
+  The season or league season is the fairness and load-balancing context.
 
   Matchboard plans squads for already-created matches.
   It does not auto-create fixtures or schedule a season.
@@ -45,7 +45,7 @@ Feature: Matchboard football operations workspace
   Background:
     Given the app has a hosted PostgreSQL database
     And the coach can configure seasons
-    And the coach can configure planning periods
+    And the coach can configure league seasons
     And the coach can configure teams
     And the coach can configure players
     And each player has exactly one core team
@@ -66,7 +66,7 @@ Feature: Matchboard football operations workspace
       And the app must not create new matches or fixtures on its own
 
     Scenario: Matchboard is not a scheduling system
-      Given a season and planning period exist
+      Given a season and league season exist
       When the coach uses the app
       Then the app must not automatically schedule matches across the season
       And the app must require the coach to create matches manually
@@ -80,21 +80,21 @@ Feature: Matchboard football operations workspace
 
   Rule: Main domain hierarchy
 
-    The app uses Season, Planning Period, Match Round, Match, Selection, Movement Ledger, Rule Configuration, Warning, and Manual Override as the core planning hierarchy.
+    The app uses Season, LeagueSeason, Match Round, Match, Selection, Movement Ledger, Rule Configuration, Warning, and Manual Override as the core planning hierarchy.
 
     Scenario: Matchboard uses planning hierarchy
       Given a season exists
-      And a planning period belongs to the season
-      And a match round belongs to the planning period
+      And a league season belongs to the season
+      And a match round belongs to the league season
       And a match belongs to the match round
       When the coach opens the match round
-      Then the app must show the match round inside its planning period
+      Then the app must show the match round inside its league season
       And the app must show every match belonging to the match round
 
-    Scenario: Planning period tracks fairness across match rounds
-      Given planning period "Spring Block 1" contains match rounds "R1", "R2", and "R3"
-      When the coach opens planning period review
-      Then the app must include selections, movements, drops, warnings, match fit feedback, and overrides from all match rounds in the planning period
+    Scenario: League season tracks fairness across match rounds
+      Given league season "Spring 2026" contains match rounds "R1", "R2", and "R3"
+      When the coach opens league season review
+      Then the app must include selections, movements, drops, warnings, match fit feedback, and overrides from all match rounds in the league season
 
     Scenario: Finalized match round stores snapshot
       Given match round "R1" has generated selections
@@ -659,19 +659,19 @@ Feature: Matchboard football operations workspace
        And the issue must be described as a planning integrity failure
        And normal finalisation must be prevented
 
-     Scenario: Available eligible player without planned match opportunity requires decision
-       Given player "p1" is active
-       And "p1" is eligible for planning in match round "R1"
-       And "p1" is recorded as available for "R1"
-       And "p1" is not assigned to any planned match in "R1"
-       When the Round Board validates participation coverage
-       Then the round must show "Decision required"
-       And the issue must state that "p1" has no planned match opportunity this round
-       And finalisation must require either assignment of "p1" or a recorded reason
+      Scenario: Available eligible player without planned match opportunity is blocked
+        Given player "p1" is active
+        And "p1" is eligible for planning in match round "R1"
+        And "p1" is recorded as available for "R1"
+        And "p1" is not assigned to any planned match in "R1"
+        When the Round Board validates participation coverage
+        Then the round must show "Blocked"
+        And the issue must state that "p1" has no planned match opportunity this round
+        And finalisation must require assignment of "p1" or a recorded override reason
 
-     Scenario: Repeated missed planned opportunities are highlighted within the same decision
-       Given player "p1" is available and unassigned in match round "R3"
-       And "p1" was also available and received no planned match opportunity in at least one earlier round in the same planning period
+      Scenario: Repeated missed planned opportunities are highlighted within the same blocked condition
+        Given player "p1" is available and unassigned in match round "R3"
+        And "p1" was also available and received no planned match opportunity in at least one earlier round in the same league season
        When the Round Board explains the current decision
        Then the issue must state that the current missing opportunity repeats an earlier omission
        And the repeated history must increase explanatory prominence
@@ -783,19 +783,19 @@ Feature: Matchboard football operations workspace
       Then one Blocked integrity signal must identify "p1" and the affected matches
       And Matchboard must not present planned double-load as a valid option
 
-    Scenario: Available eligible player without planned opportunity requires decision
-      Given player "p1" is active, eligible and confirmed available for editable round "R1"
-      And "p1" is assigned to no planned match in "R1"
-      When current plan integrity is computed
-      Then one Decision required signal must state that "p1" has no planned match opportunity
-      And finalisation must require assignment or a recorded permitted reason
+     Scenario: Available eligible player without planned opportunity is blocked
+       Given player "p1" is active, eligible and confirmed available for editable round "R1"
+       And "p1" is assigned to no planned match in "R1"
+       When current plan integrity is computed
+       Then one Blocked signal must state that "p1" has no planned match opportunity
+       And finalisation must require assignment or a recorded permitted override reason
 
-    Scenario: Repeated omission enriches one current decision
-      Given "p1" currently has no planned match opportunity in "R1"
-      And "p1" was confirmed available without planned opportunity in an earlier round in the same planning period
-      When current plan integrity is computed
-      Then only one current Decision required signal must exist for "p1" in "R1"
-      And the signal must contain repeated-omission context
+     Scenario: Repeated omission enriches one current blocked condition
+       Given "p1" currently has no planned match opportunity in "R1"
+       And "p1" was confirmed available without planned opportunity in an earlier round in the same league season
+       When current plan integrity is computed
+       Then only one current Blocked signal must exist for "p1" in "R1"
+       And the signal must contain repeated-omission context
 
   Rule: Planning notes are not unresolved issues
 
@@ -1483,7 +1483,7 @@ Feature: Matchboard football operations workspace
       And the app must not mark the finalised planned squads as invalid
 
     Scenario: Additional actual appearances affect future participation context
-      Given player "p1" has one additional actual appearance in planning period "P1"
+      Given player "p1" has one additional actual appearance in league season "LS1"
       When future fairness or load context is calculated
       Then the additional actual appearance must count as actual match participation
       And it may be considered when comparing otherwise equivalent future movement candidates
@@ -1690,7 +1690,7 @@ Feature: Matchboard football operations workspace
       Then player "b2" should rank above player "b1"
 
     Scenario: First match round must still produce rotation
-      Given this is the first match round in a planning period
+      Given this is the first match round in a league season
       And no historical selections exist
       And Team C needs support from Team B
       And Team B has eligible support players
@@ -1729,7 +1729,7 @@ Feature: Matchboard football operations workspace
       Then player "p1" must still be selected as support
 
 
-  Rule: Planning period fairness
+  Rule: League season fairness
 
     The app must track fairness using available rounds, not calendar rounds.
     Players must not build selection debt for rounds where they were unavailable.
@@ -1753,39 +1753,39 @@ Feature: Matchboard football operations workspace
 
     Scenario: Player with fewer support duties is preferred
       Given player "b1" and player "b2" are eligible to support Team C
-      And player "b1" has supported Team C 2 times in the active planning period
-      And player "b2" has supported Team C 0 times in the active planning period
+      And player "b1" has supported Team C 2 times in the active league season
+      And player "b2" has supported Team C 0 times in the active league season
       When the app ranks support candidates
       Then player "b2" should rank above player "b1"
 
     Scenario: Development candidate with no exposure is preferred
       Given player "c1" and player "c2" are eligible for Team B development
-      And player "c1" has received 0 development rotations in the active planning period
-      And player "c2" has received 2 development rotations in the active planning period
+      And player "c1" has received 0 development rotations in the active league season
+      And player "c2" has received 2 development rotations in the active league season
       When the app ranks development candidates
       Then player "c1" should rank above player "c2"
 
     Scenario: Player with too few core matches is protected
       Given player "b1" is eligible to support Team C
-      And player "b1" has fewer than minimum core matches while available in the active planning period
+      And player "b1" has fewer than minimum core matches while available in the active league season
       When the app ranks Team C support candidates
       Then player "b1" should be deprioritized for support
       And player "b1" should be prioritized for Team B core selection
 
     Scenario: Player repeatedly used downwards is flagged
-      Given player "b1" has played more support matches than core matches in the active planning period
-      When the coach opens planning period review
+      Given player "b1" has played more support matches than core matches in the active league season
+      When the coach opens league season review
       Then the app must flag player "b1" for support burden review
 
     Scenario: Player repeatedly used upwards is flagged
-      Given player "c1" has played more development matches than core matches in the active planning period
-      When the coach opens planning period review
+      Given player "c1" has played more development matches than core matches in the active league season
+      When the coach opens league season review
       Then the app must flag player "c1" for hidden promotion review
 
     Scenario: Player with no core matches is flagged
       Given player "p1" was available for several match rounds
-      And player "p1" has no core selections in the active planning period
-      When the coach opens planning period review
+      And player "p1" has no core selections in the active league season
+      When the coach opens league season review
       Then the app must flag player "p1" for core exposure review
 
 
@@ -1795,7 +1795,7 @@ Feature: Matchboard football operations workspace
     A donor team can be hollowed out even if individual rotation seems fair.
 
     Scenario: Donor team burden is tracked
-      Given Team B has donated players to Team C in every match round of the active planning period
+      Given Team B has donated players to Team C in every match round of the active league season
       When the app opens Team B health
       Then the app must show high donor burden
       And recommend squad repair or reduced optional movement if configured
@@ -1814,7 +1814,7 @@ Feature: Matchboard football operations workspace
       Then the app must warn that Team B continuity is low
 
     Scenario: Team receives too little support over time
-      Given Team C has missed target support in several match rounds in the active planning period
+      Given Team C has missed target support in several match rounds in the active league season
       When the coach opens Team C health
       Then the app must flag repeated support shortage
 
@@ -1927,7 +1927,7 @@ Feature: Matchboard football operations workspace
       And the support need
       And position fit
       And cooldown status
-      And planning period burden
+      And league season burden
       And consequences for player "b1"'s core team
 
     Scenario: App explains why player was not selected
@@ -1961,7 +1961,7 @@ Feature: Matchboard football operations workspace
       Given match "M1" has been completed
       When the coach records match fit as "too_hard"
       Then the app must store match fit value
-      And make it available in planning period review
+      And make it available in league season review
 
     Scenario: Match fit uses supported values
       Given a completed match exists
@@ -2043,7 +2043,7 @@ Feature: Matchboard football operations workspace
       Then the Assistant must show a post-match report work item for that match
 
     Scenario: No active work when all rounds finalized
-      Given all rounds in the active planning period are finalized
+      Given all rounds in the active league season are finalized
       When the coach opens the app
       Then the app must show no active work
 
@@ -2156,13 +2156,13 @@ Feature: Matchboard football operations workspace
   Rule: Draft reset and clear actions
 
     Draft selections can be cleared at three levels without damaging finalized history or setup data.
-    Clear all removes all non-finalized draft data across the entire planning period.
+    Clear all removes all non-finalized draft data across the entire league season.
     Clear round removes draft data for one selected round.
     Clear match removes draft data for one selected match.
     All clear actions preserve finalized selections, finalized movement ledger, teams, players, matches, rounds, rules, and availability.
 
     Scenario: Coach can clear all draft squads
-      Given active planning period has draft selections in multiple rounds
+      Given active league season has draft selections in multiple rounds
       When the coach clears all drafts
       Then every draft selection across all non-finalized rounds must be removed
       And every draft warning must be removed
@@ -2227,7 +2227,7 @@ Feature: Matchboard football operations workspace
       And affected round warnings must be updated
 
     Scenario: Clear all requires confirmation
-      Given active planning period has draft selections
+      Given active league season has draft selections
       When the coach triggers clear all drafts
       Then the app must require explicit confirmation
       And the confirmation must explain that only non-finalized draft data will be removed
@@ -2414,8 +2414,8 @@ Feature: Matchboard football operations workspace
       And automatic selections for all matches in "R1" must be recalculated
       And round warnings must be rebuilt
 
-    Scenario: Coach regenerates all drafts in planning period
-      Given an active planning period has draft rounds "R1" and "R2" and a finalized round "R3"
+    Scenario: Coach regenerates all drafts in league season
+      Given an active league season has draft rounds "R1" and "R2" and a finalized round "R3"
       When the coach regenerates all drafts
       Then automatic selections for "R1" and "R2" must be recalculated
       And finalized selections for "R3" must remain unchanged
@@ -2444,20 +2444,20 @@ Feature: Matchboard football operations workspace
       Then the app must show a regeneration button in the round board action bar
 
     Scenario: Regeneration shows button on rounds list and fixtures page
-      Given an active planning period has draft rounds
+      Given an active league season has draft rounds
       When the coach views the rounds list or fixtures page
       Then the app must show a "Regenerate all drafts" button
 
 
   Rule: Populate all workflow
 
-    The coach can generate drafts for all rounds in a planning period in one action.
+    The coach can generate drafts for all rounds in a league season in one action.
     Populate all generates drafts per round — not match by match — preserving round-level conflict resolution.
     Populate all does not finalize rounds. Each round remains in draft state for review.
     Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same populate-all run.
 
-    Scenario: Coach populates all rounds in active planning period
-      Given an active planning period contains match rounds "R1", "R2", and "R3"
+    Scenario: Coach populates all rounds in active league season
+      Given an active league season contains match rounds "R1", "R2", and "R3"
       And none of the match rounds have been finalized
       When the coach triggers populate all
       Then the app must generate draft selections for each match round in chronological order
@@ -2465,7 +2465,7 @@ Feature: Matchboard football operations workspace
       And no round must be finalized by populate all
 
     Scenario: Populate all skips finalized rounds
-      Given an active planning period contains match rounds "R1", "R2", and "R3"
+      Given an active league season contains match rounds "R1", "R2", and "R3"
       And match round "R1" is already finalized
       When the coach triggers populate all
       Then the app must skip match round "R1"
@@ -2481,7 +2481,7 @@ Feature: Matchboard football operations workspace
       And the app must not generate each match in isolation
 
     Scenario: Populate all warns on partial failure
-      Given an active planning period contains match rounds "R1", "R2", and "R3"
+      Given an active league season contains match rounds "R1", "R2", and "R3"
       And match round "R2" generation fails
       When the coach triggers populate all
       Then the app must still generate draft selections for "R1" and "R3"
@@ -2489,7 +2489,7 @@ Feature: Matchboard football operations workspace
       And the app must not roll back successful round generations
 
     Scenario: Populate all does not finalize any round
-      Given an active planning period contains match rounds in draft state
+      Given an active league season contains match rounds in draft state
       When the coach triggers populate all
       Then every match round must remain in draft state after generation
       And the coach must explicitly finalize each round after review
@@ -2532,7 +2532,7 @@ Feature: Matchboard football operations workspace
       And WARNING and SCORING_PREFERENCE warnings must be hidden behind a toggle
 
     Scenario: Setup progress shows which rounds need action
-      Given an active planning period contains match rounds
+      Given an active league season contains match rounds
       When the coach opens the Assistant page
       Then the app must show which rounds have been generated
       And which rounds need generation
@@ -2541,13 +2541,13 @@ Feature: Matchboard football operations workspace
       And which rounds are finalized
 
     Scenario: Next action reflects current setup state
-      Given an active planning period has no generated rounds
+      Given an active league season has no generated rounds
       When the coach opens the Assistant page
       Then the next action must be to populate rounds or generate the first round
-      Given an active planning period has draft rounds with blockers
+      Given an active league season has draft rounds with blockers
       When the coach opens the Assistant page
       Then the next action must be to review blockers
-      Given an active planning period has draft rounds without blockers
+      Given an active league season has draft rounds without blockers
       When the coach opens the Assistant page
       Then the next action must be to finalize the ready round
 
@@ -2595,7 +2595,7 @@ Feature: Matchboard football operations workspace
     Scenario: Season export is available from the season overview page
       Given the coach is on the season overview page
       Then the export button must be visible with format selection (CSV, JSON, TXT, Markdown)
-      And the export must be scoped to the selected planning period
+      And the export must be scoped to the selected league season
 
 
   Rule: Record-to-record navigation
@@ -2613,7 +2613,7 @@ Feature: Matchboard football operations workspace
       Then the page must provide a way to move to previous and next match without returning to overview
 
     Scenario: Coach can move to previous or next match round
-      Given multiple match rounds exist in a planning period
+      Given multiple match rounds exist in a league season
       When the coach opens one match round
       Then the page must provide a way to move to previous and next match round without returning to overview
 
@@ -2642,10 +2642,10 @@ Feature: Matchboard football operations workspace
       And the navigation must not be organized primarily around database entities only
 
     Scenario: Top context bar shows current operational context
-      Given a season, planning period, and match round exist
+      Given a season, league season, and match round exist
       When the coach uses the app
       Then the top context bar must show current season
-      And current planning period
+      And current league season
       And current match round
       And match round status
       And quick search or quick navigation
@@ -2674,7 +2674,7 @@ Feature: Matchboard football operations workspace
 
     Scenario: Assistant page is the default landing page
       Given the coach opens the app
-      When a season and active planning period exist
+      When a season and active league season exist
       Then the coach must land on the Assistant page
       And the first visible screen must show current match round status
       And work items requiring action
@@ -2728,7 +2728,7 @@ Feature: Matchboard football operations workspace
       And the coach must not need to search through tables to find the problem
 
     Scenario: Empty state when no work exists
-      Given all rounds in the active planning period are finalized
+      Given all rounds in the active league season are finalized
       And all finalized matches have post-match reports
       When the coach opens the Assistant page
       Then the app must show a no-work state with a link to Fixtures
@@ -2769,14 +2769,14 @@ Feature: Matchboard football operations workspace
     It may look table-like, but its purpose is visual movement and fairness overview, not raw data editing.
 
     Scenario: Coach views player usage across rounds
-      Given a planning period has multiple match rounds
+      Given a league season has multiple match rounds
       When the coach opens Squad Planner Matrix
       Then the app must show players as rows
       And match rounds as columns
       And each cell must show the player's selection role or availability state
 
     Scenario: Squad Planner Matrix shows role history as visual cells
-      Given a planning period has several match rounds
+      Given a league season has several match rounds
       When the coach opens Squad Planner Matrix
       Then players must appear as rows
       And match rounds must appear as columns
@@ -2795,7 +2795,7 @@ Feature: Matchboard football operations workspace
 
     Scenario: Matrix highlights missing development exposure
       Given player "c2" is development ready
-      And player "c2" has not received development exposure in the active planning period
+      And player "c2" has not received development exposure in the active league season
       When the coach opens Squad Planner Matrix
       Then the app must highlight missing development exposure
 
@@ -2932,7 +2932,7 @@ Feature: Matchboard football operations workspace
       And squad size limits
       And support priority
       And active movement paths
-      And current planning period burden
+      And current league season burden
       And each team must link to its team detail page
 
     Scenario: Coach navigates to team detail
@@ -2942,7 +2942,7 @@ Feature: Matchboard football operations workspace
       And the detail page must show the Team B workspace
 
     Scenario: Coach views team health
-      Given Team B has donated players in the planning period
+      Given Team B has donated players in the league season
       When the coach opens Team B detail
       Then the app must show support given
       And support received
@@ -3081,7 +3081,7 @@ Feature: Matchboard football operations workspace
       When the coach opens Rotation Graph
       Then each team must appear as a node
       And each movement path must appear as a directed edge
-      And each edge must show role and usage count for the active planning period
+      And each edge must show role and usage count for the active league season
 
     Scenario: Coach creates path from graph
       Given Team A and Team B exist
@@ -3414,7 +3414,7 @@ Feature: Matchboard football operations workspace
     The season overview is the fairness control surface, not a decorative analytics page. It exists to help the coach trust or challenge the season pattern.
 
     Scenario: Season overview shows player-by-round matrix
-      Given a planning period has 4 match rounds and 20 active players
+      Given a league season has 4 match rounds and 20 active players
       When the coach opens the season overview
       Then the overview must show a matrix with one row per player and one column per round
 
@@ -3462,7 +3462,7 @@ Feature: Matchboard football operations workspace
       Then "p1" development column must show 1
 
     Scenario: Overview summarizes legacy double-load per player
-      Given player "p1" has 1 finalized selection marked with controlledDoubleLoad = true from a previous planning period
+      Given player "p1" has 1 finalized selection marked with controlledDoubleLoad = true from a previous league season
       When the coach views the season overview
       Then "p1" legacy additional-assignment column must show 1
       And the column must be labelled as legacy, not as a current planning feature
@@ -3522,7 +3522,7 @@ Feature: Matchboard football operations workspace
       And the app must generate a DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE Blocked signal
 
     Scenario: Existing legacy controlledDoubleLoad data remains readable
-      Given existing finalized data has player "p1" with controlledDoubleLoad = true from a previous planning period
+      Given existing finalized data has player "p1" with controlledDoubleLoad = true from a previous league season
       When the coach views historical season data
       Then the app must display the data as legacy history labelled "legacy additional assignment"
       And the app must not present it as a currently supported planning feature
@@ -3905,7 +3905,7 @@ Feature: Matchboard football operations workspace
     - match experience
     - development opportunity
     - squad adjustment
-    - planning period
+     - league season
     - match group
 
     Parent-facing language must avoid:
@@ -4191,7 +4191,7 @@ Feature: Matchboard football operations workspace
 
     Scenario: Fixtures provides the season and round hierarchy
       Given the coach opens Fixtures
-      Then the page must show the planning period and round hierarchy
+      Then the page must show the league season and round hierarchy
       And each round must show its status and the correct next action
 
     Scenario: Round Board is the primary squad decision surface
@@ -4666,7 +4666,7 @@ Feature: Matchboard football operations workspace
 
   Season overview is the default mode.
 
-  Season overview displays factual participation and recorded match statistics for a selected planning period.
+   Season overview displays factual participation and recorded match statistics for a selected league season.
 
   Current round attention displays current plan-integrity context for a selected match round.
 
@@ -4674,11 +4674,11 @@ Feature: Matchboard football operations workspace
 
   Scenario: Players opens in season overview mode
     Given an authenticated coach opens "/players"
-    And an active planning period exists
+    And an active league season exists
     When active players exist
     Then "Season overview" must be selected by default
-    And the selected planning period must be visible
-    And the page must show participation statistics scoped to that planning period
+    And the selected league season must be visible
+    And the page must show participation statistics scoped to that league season
 
   Scenario: Coach switches Players modes
     Given the coach is viewing "/players"
@@ -4690,7 +4690,7 @@ Feature: Matchboard football operations workspace
 
   Scenario: Actual reported participation counts as played
     Given a reported or locked post-match report records player "p1" as having played
-    When the coach views Season overview for the containing planning period
+    When the coach views Season overview for the containing league season
     Then "Played" for "p1" must increase by one
     And recorded goals and assists for "p1" must be included
 
@@ -4747,7 +4747,7 @@ Feature: Matchboard football operations workspace
       | Review |
       | Dropped count or status |
       | Separate Profile action column |
-    And numerical values must be scoped to the visible selected phase
+     And numerical values must be scoped to the visible selected league season
 
   Scenario: Player name provides profile navigation
     Given the coach views the player matrix
@@ -4878,86 +4878,99 @@ Feature: Matchboard football operations workspace
 
   Scenario: Season overview renders player matrix without summary panel
     Given the coach opens "/players" in "Season overview" mode
-    And a selected planning period exists
+    And a selected league season exists
     Then the player matrix must be visible
     And the page must not render a summary-statistics card or summary strip above the matrix
     And the page must not render a "Movement paths" overview section
 
   Scenario: Season overview retains factual player comparison
-    Given reported or locked match facts exist in the selected planning period
+    Given reported or locked match facts exist in the selected league season
     When the coach views Season overview
     Then factual player data required by the matrix must remain visible
     And factual filtering and sorting must remain usable
     And no automatic fairness judgement must be shown
 
-  Rule: Season is the long-lived context and Phase is the planning window
+   Rule: Season is the long-lived context and LeagueSeason is the planning window
 
-    Season is the full football year context.
+     Season is the full football year context. Each Season has a year field identifying the football year.
 
-    Phase is the bounded operational fixture and planning window represented internally by PlanningPeriod.
+     LeagueSeason is the bounded operational fixture and planning window, derived from the PlanningPeriod model. Each LeagueSeason belongs to a Season and has a part (SPRING or FALL) that is auto-derived from its date range.
 
-    A phase must never be shown using a misleading single-month label when its date range spans several months.
+     A league season must never be shown using a misleading single-month label when its date range spans several months.
 
-  Scenario: Spring phase is displayed truthfully
-    Given season "2026" contains a PlanningPeriod from April through June
-    And the phase is identified as Spring
-    When it is shown in the application shell or selectors
-    Then the app must show "Spring 2026"
-    And it must show a date-range cue equivalent to "Apr–Jun"
+     Scenario: Spring league season is displayed truthfully
+       Given season "2026" contains a LeagueSeason from April through June
+       And the league season part is auto-derived as SPRING
+       When it is shown in the application shell or selectors
+       Then the app must show "Spring 2026"
+       And it must show a date-range cue equivalent to "Apr–Jun"
 
-  Scenario: Autumn phase is displayed truthfully
-    Given season "2026" contains a PlanningPeriod from August through October
-    And the phase is identified as Autumn
-    When it is shown in the application shell or selectors
-    Then the app must show "Autumn 2026"
-    And it must show a date-range cue equivalent to "Aug–Oct"
+     Scenario: Fall league season is displayed truthfully
+       Given season "2026" contains a LeagueSeason from August through October
+       And the league season part is auto-derived as FALL
+       When it is shown in the application shell or selectors
+       Then the app must show "Fall 2026"
+       And it must show a date-range cue equivalent to "Aug–Oct"
 
-  Scenario: Misleading existing period name does not dominate the UI
-    Given a PlanningPeriod is stored with name "April 2026"
-    And its dates span April through June 2026
-    When it is shown in the top bar or primary workflow selectors
-    Then it must not be presented solely as "April 2026"
-    And the visible scope must communicate the April through June range
+     Scenario: Misleading existing period name does not dominate the UI
+       Given a LeagueSeason is stored with name "April 2026"
+       And its dates span April through June 2026
+       When it is shown in the top bar or primary workflow selectors
+       Then it must not be presented solely as "April 2026"
+       And the visible scope must communicate the April through June range
 
-  Scenario: Multi-month planning period displays its full date range
-    Given a planning period starts in April 2026
-    And it ends in June 2026
-    When the planning period is shown in a selector or page heading
-    Then its visible label must be "April–June 2026"
-    And it must not be displayed solely as "April 2026"
+     Scenario: Multi-month league season displays its full date range
+       Given a league season starts in April 2026
+       And it ends in June 2026
+       When the league season is shown in a selector or page heading
+       Then its visible label must be "April–June 2026"
+       And it must not be displayed solely as "April 2026"
 
-  Scenario: Multi-month autumn planning period displays its full range
-    Given a planning period starts in August 2026
-    And it ends in October 2026
-    When the planning period is shown
-    Then its visible label must be "August–October 2026"
+     Scenario: Multi-month autumn league season displays its full range
+       Given a league season starts in August 2026
+       And it ends in October 2026
+       When the league season is shown
+       Then its visible label must be "August–October 2026"
 
-  Scenario: Cross-year planning period displays both years
-    Given a planning period starts in December 2026
-    And it ends in February 2027
-    When the planning period is shown
-    Then its visible label must be "December 2026–February 2027"
+     Scenario: Cross-year league season displays both years
+       Given a league season starts in December 2026
+       And it ends in February 2027
+       When the league season is shown
+       Then its visible label must be "December 2026–February 2027"
 
-  Scenario: Single-month planning period displays month and year
-    Given a planning period starts in April 2026
-    And it ends in April 2026
-    When the planning period is shown
-    Then its visible label must be "April 2026"
+     Scenario: Single-month league season displays month and year
+       Given a league season starts in April 2026
+       And it ends in April 2026
+       When the league season is shown
+       Then its visible label must be "April 2026"
+
+     Scenario: LeagueSeason part is auto-derived from date range
+       Given a LeagueSeason has startDate in January and endDate in May
+       When the league season part is computed
+       Then the part must be SPRING
+       Given a LeagueSeason has startDate in August and endDate in November
+       When the league season part is computed
+       Then the part must be FALL
+
+     Scenario: Season year identifies the football year
+       Given a Season exists with year 2026
+       When the season is displayed
+       Then the season must show "2026" as the year identifier
 
   Rule: Teams overview presents selected-period team results
 
-    The default Teams page is a factual team-results overview for the selected planning period.
+     The default Teams page is a factual team-results overview for the selected league season.
 
-    Team configuration and rules remain available in team detail instead of dominating the main overview.
+     Team configuration and rules remain available in team detail instead of dominating the main overview.
 
-  Scenario: Teams overview is scoped to selected planning period
-    Given a planning period exists
+   Scenario: Teams overview is scoped to selected league season
+     Given a league season exists
     When the coach opens "/teams"
-    Then the page must show a planning-period selector using the derived date-range label
-    And the page must state that results are scoped to the selected planning period
+     Then the page must show a league-season selector using the derived date-range label
+     And the page must state that results are scoped to the selected league season
 
   Scenario: Teams overview shows completed-result statistics
-    Given teams have REPORTED or LOCKED post-match reports in the selected planning period
+     Given teams have REPORTED or LOCKED post-match reports in the selected league season
     When the coach views "/teams"
     Then the default table must show these columns in order:
       | Team |
@@ -4989,15 +5002,15 @@ Feature: Matchboard football operations workspace
 
     A coach may edit the scheduled date and time of a match after it has been created.
 
-    Rescheduling must preserve the distinction between fixture scheduling, round membership, phase scope, planned squad selection and completed match history.
+    Rescheduling must preserve the distinction between fixture scheduling, round membership, league season scope, planned squad selection and completed match history.
 
     A match with a completed post-match report must not be casually rescheduled through the normal pre-match edit flow.
 
   Scenario: Coach edits date and time for an unplayed match
-    Given match "M1" exists in phase "P1"
+    Given match "M1" exists in league season "LS1"
     And "M1" does not have a completed post-match report
     When the coach edits the scheduled date and time
-    And the new scheduled date remains within phase "P1"
+    And the new scheduled date remains within league season "LS1"
     Then the new scheduled date and time must be saved
     And Fixtures must show the updated date and time
     And existing planned squad data must be preserved unless current integrity rules make it invalid
@@ -5005,18 +5018,18 @@ Feature: Matchboard football operations workspace
 
   Rule: Rescheduled matches are automatically placed in their date-derived weekly round
 
-    A Match Round is the ISO-week planning container for matches inside a Phase.
+    A Match Round is the ISO-week planning container for matches inside a LeagueSeason.
 
-    When an unplayed match is rescheduled within its Phase, Matchboard must resolve the correct round from the new match date.
+    When an unplayed match is rescheduled within its LeagueSeason, Matchboard must resolve the correct round from the new match date.
 
-    When one appropriate target-week round already exists in the Phase, Matchboard must reuse it.
+    When one appropriate target-week round already exists in the LeagueSeason, Matchboard must reuse it.
 
-    When no appropriate target-week round exists in the Phase, Matchboard must create it automatically.
+    When no appropriate target-week round exists in the LeagueSeason, Matchboard must create it automatically.
 
     Normal rescheduling must not require the coach to select or create a round manually.
 
   Scenario: Reschedule into an existing later round
-    Given phase "Spring 2026" contains round "W20 2026"
+    Given league season "Spring 2026" contains round "W20 2026"
     And match "M1" currently belongs to round "W18 2026"
     And "M1" has no completed post-match report
     And "M1" has no finalised selection
@@ -5026,13 +5039,13 @@ Feature: Matchboard football operations workspace
     And the coach must not select a destination round
 
   Scenario: Reschedule beyond existing rounds creates the missing round
-    Given phase "Spring 2026" contains rounds through "W22 2026"
+    Given league season "Spring 2026" contains rounds through "W22 2026"
     And no round exists for ISO week 24 of 2026
     And match "M1" currently belongs to round "W18 2026"
     And "M1" has no completed post-match report
     And "M1" has no finalised selection
     When the coach changes the match date to ISO week 24 of 2026
-    Then Matchboard must create round "W24 2026" in phase "Spring 2026"
+    Then Matchboard must create round "W24 2026" in league season "Spring 2026"
     And the created round must have the initial not-generated status
     And "M1" must automatically move to "W24 2026"
     And Fixtures must display "M1" under "W24 2026"
@@ -5043,11 +5056,11 @@ Feature: Matchboard football operations workspace
     Then "M1" must remain in its existing round
     And no new round must be created
 
-  Scenario: Outside-phase reschedule does not create a new phase or round
-    Given match "M1" belongs to phase "Spring 2026"
-    When the coach changes its date to a date outside the phase range
-    Then the save must be rejected
-    And no phase or round must be created
+   Scenario: Outside-league-season reschedule does not create a new league season or round
+     Given match "M1" belongs to league season "Spring 2026"
+     When the coach changes its date to a date outside the league season range
+     Then the save must be rejected
+     And no league season or round must be created
 
   Rule: Moving a match preserves round-linked planning consistency
 
@@ -5058,7 +5071,7 @@ Feature: Matchboard football operations workspace
   Scenario: Draft-planned match moves round-linked records transactionally
     Given match "M1" has DRAFT selections and draft movement-ledger rows in "W18 2026"
     And no FINALIZED selection exists for "M1"
-    When "M1" is rescheduled to "W24 2026" in the same phase
+    When "M1" is rescheduled to "W24 2026" in the same league season
     Then "M1" must reference "W24 2026"
     And all DRAFT selections for "M1" must reference "W24 2026"
     And all draft movement-ledger rows for "M1" must reference "W24 2026"
@@ -5079,22 +5092,22 @@ Feature: Matchboard football operations workspace
     Then the save must be rejected through the existing factual-correction boundary
     And no round must be created or changed
 
-  Rule: Target-round resolution is deterministic inside the current Phase
+   Rule: Target-round resolution is deterministic inside the current LeagueSeason
 
   Scenario: A unique existing target-week round is reused
-    Given one round in the current Phase represents ISO week 24
+    Given one round in the current LeagueSeason represents ISO week 24
     When a match is rescheduled to ISO week 24
     Then that round must be reused
     And no duplicate target-week round must be created
 
   Scenario: Legacy-named round containing a target-week match is reused
-    Given one round in the current Phase contains a match scheduled in ISO week 24
+    Given one round in the current LeagueSeason contains a match scheduled in ISO week 24
     And its name is not the generated ISO-week label
     When another match is rescheduled to ISO week 24
     Then the existing round must be reused
 
   Scenario: Ambiguous target-week rounds reject automatic placement
-    Given more than one round in the current Phase represents ISO week 24
+    Given more than one round in the current LeagueSeason represents ISO week 24
     When a match is rescheduled to ISO week 24
     Then the save must be rejected
     And no new round must be created
@@ -5366,10 +5379,9 @@ Feature: Matchboard football operations workspace
       When the coach creates an event
       Then the event must have a name
       And the event must have a type chosen from CUP, TOURNAMENT, FRIENDLY_DAY, or OTHER
-      And the event must have a start date
-      And the event must have a game format
-      And the event must have a source planning period
-      And the event must store these properties
+       And the event must have a start date
+       And the event must have a game format
+       And the event must store these properties
 
     Scenario: Event is separate from league planning
       Given an event exists with generated event squads
@@ -5651,4 +5663,65 @@ Feature: Matchboard football operations workspace
       Given match "M1" has a REPORTED or LOCKED post-match report
       When the coach attempts to cancel match "M1"
       Then the cancellation must be rejected
-      And the error must state that matches with completed reports cannot be cancelled
+       And the error must state that matches with completed reports cannot be cancelled
+
+  Feature: Round engagement and league season structure
+
+    Rule: Round engagement measures participation coverage
+
+      Round engagement computes what fraction of eligible available players have a planned match opportunity in a match round.
+
+      Scenario: Round engagement is computed per round
+        Given match round "R1" has 20 active players
+        And 15 of those players are available or tentative
+        And 12 of those players have a planned match assignment in "R1"
+        When the coach views round "R1" engagement
+        Then the engagement percentage must be 80 (12 out of 15)
+        And 3 available players must be listed as missing a planned opportunity
+        And 5 unavailable players must not count toward engagement
+
+      Scenario: Cancelled matches are excluded from engagement
+        Given match round "R1" contains one scheduled match "M1" and one cancelled match "M2"
+        When the coach views round "R1" engagement
+        Then cancelled match "M2" must not affect engagement calculation
+        And only players eligible for "M1" must count toward engagement
+
+      Scenario: Engagement override has structured reasons
+        Given the coach records an engagement override
+        Then the override reason must include a category from the predefined list
+        And the category must be one of: injured, late_withdrawal, parent_logistics, capacity_impossible, coach_decision, other
+        And free-text detail must be provided for the override
+
+      Scenario: Engagement override requires detail
+        Given the coach records an engagement override with category "coach_decision"
+        When the coach provides no detail or detail shorter than 3 characters
+        Then the override must be rejected with a validation error
+
+    Rule: LeagueSeason has a part derived from its date range
+
+      Scenario: LeagueSeason part SPRING is derived from dates in first half of year
+        Given a LeagueSeason has startDate in January 2026 and endDate in May 2026
+        When the league season part is computed
+        Then the part must be SPRING
+
+      Scenario: LeagueSeason part FALL is derived from dates in second half of year
+        Given a LeagueSeason has startDate in August 2026 and endDate in November 2026
+        When the league season part is computed
+        Then the part must be FALL
+
+      Scenario: Season year identifies the football year
+        Given a Season exists with year 2026
+        When the season is displayed
+        Then the season label must include "2026"
+
+      Scenario: LeagueSeason belongs to a Season
+        Given a LeagueSeason exists
+        Then it must reference a Season
+        And the Season must have a year field
+        And the LeagueSeason must have a part field of SPRING or FALL
+
+    Rule: Override reason categories include engagement override reasons
+
+      Scenario: Override reason categories include engagement-specific categories
+        Given the app supports override reason categories
+        Then the categories must include: squad_too_small, support_missing, development_opportunity, no_planned_match_opportunity, double_load_needed, availability_changed, coach_judgement, match_already_played, data_correction, other, injured, late_withdrawal, parent_logistics, capacity_impossible

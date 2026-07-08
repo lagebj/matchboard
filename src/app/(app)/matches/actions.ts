@@ -13,8 +13,13 @@ import {
   resolveOrCreateMatchRoundForDate,
   isSameIsoWeek,
   AmbiguousRoundError,
-  DateOutsidePhaseError,
+  DateOutsideLeagueSeasonError,
 } from "@/lib/matches/resolve-or-create-match-round-for-date";
+import {
+  getLeagueSeasonPartForDate,
+  getLeagueSeasonDateRange,
+  formatLeagueSeasonLabel,
+} from "@/lib/seasons/league-season";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 
 function readText(formData: FormData, fieldName: string): string {
@@ -111,7 +116,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
 
     let matchRoundId: string;
 
-    const activePlanningPeriod = await db.planningPeriod.findFirst({
+    const activeLeagueSeason = await db.leagueSeason.findFirst({
       where: {
         startDate: { lte: weekEnd },
         endDate: { gte: weekStart },
@@ -119,9 +124,9 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       orderBy: { createdAt: "desc" },
     });
 
-    if (activePlanningPeriod) {
+    if (activeLeagueSeason) {
       const resolved = await resolveOrCreateMatchRoundForDate({
-        planningPeriodId: activePlanningPeriod.id,
+        leagueSeasonId: activeLeagueSeason.id,
         startsAt,
       });
       matchRoundId = resolved.roundId;
@@ -154,31 +159,35 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
 async function createFullHierarchy(startsAt: Date, weekStart: Date, _weekEnd: Date): Promise<string> {
   const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
 
+  const part = getLeagueSeasonPartForDate(startsAt);
+  const dateRange = getLeagueSeasonDateRange(startsAt.getUTCFullYear(), part);
+  const name = formatLeagueSeasonLabel({ year: startsAt.getUTCFullYear(), part });
+
   const periodData = {
-    name: startsAt.toLocaleString("default", { month: "long", year: "numeric" }),
-    startDate: weekStart,
-    endDate: new Date(weekStart.getUTCFullYear(), weekStart.getUTCMonth() + 3, 0),
+    name,
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
   };
 
   if (!season) {
     const created = await db.season.create({
-      data: { name: `${startsAt.getUTCFullYear()} Season` },
+      data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear() },
     });
-    const period = await db.planningPeriod.create({
-      data: { ...periodData, seasonId: created.id },
+    const period = await db.leagueSeason.create({
+      data: { ...periodData, part, seasonId: created.id },
     });
     const resolved = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId: period.id,
+      leagueSeasonId: period.id,
       startsAt,
     });
     return resolved.roundId;
   }
 
-  const period = await db.planningPeriod.create({
-    data: { ...periodData, seasonId: season.id },
+  const period = await db.leagueSeason.create({
+    data: { ...periodData, part, seasonId: season.id },
   });
   const resolved = await resolveOrCreateMatchRoundForDate({
-    planningPeriodId: period.id,
+    leagueSeasonId: period.id,
     startsAt,
   });
   return resolved.roundId;
@@ -234,8 +243,8 @@ export async function updateMatchAction(
           select: {
             id: true,
             name: true,
-            planningPeriodId: true,
-            planningPeriod: {
+            leagueSeasonId: true,
+            leagueSeason: {
               select: { id: true, startDate: true, endDate: true },
             },
           },
@@ -260,9 +269,9 @@ export async function updateMatchAction(
       return { success: false, error: "Invalid date." };
     }
 
-    const pp = match.matchRound.planningPeriod;
+    const pp = match.matchRound.leagueSeason;
     if (parsedDate < pp.startDate || parsedDate > pp.endDate) {
-      return { success: false, error: "This date is outside the current phase. Move the match to a phase covering the new date or update the phase first." };
+      return { success: false, error: "This date is outside the current league season. Move the match to a league season covering the new date or update the league season first." };
     }
 
     const currentRoundId = match.matchRoundId;
@@ -299,10 +308,10 @@ export async function updateMatchAction(
       };
     }
 
-    const planningPeriodId = match.matchRound.planningPeriodId;
+    const leagueSeasonId = match.matchRound.leagueSeasonId;
 
     const resolved = await resolveOrCreateMatchRoundForDate({
-      planningPeriodId,
+      leagueSeasonId,
       startsAt: parsedDate,
     });
 
@@ -376,7 +385,7 @@ export async function updateMatchAction(
     if (error instanceof AmbiguousRoundError) {
       return { success: false, error: error.message };
     }
-    if (error instanceof DateOutsidePhaseError) {
+    if (error instanceof DateOutsideLeagueSeasonError) {
       return { success: false, error: error.message };
     }
     const message = error instanceof Error ? error.message : "Could not update the match.";

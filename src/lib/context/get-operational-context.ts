@@ -2,12 +2,12 @@ import { db } from "@/lib/db";
 
 export type OperationalContext = {
   season: { id: string; name: string } | null;
-  planningPeriod: { id: string; name: string; startDate: Date; endDate: Date } | null;
+  leagueSeason: { id: string; name: string; startDate: Date; endDate: Date } | null;
   matchRound: { id: string; name: string; status: string; hasDraftSelections: boolean; hasMatches: boolean; blockedSignalCount: number } | null;
 };
 
 export async function getOperationalContext(): Promise<OperationalContext> {
-  const activePeriods = await db.planningPeriod.findMany({
+  const activePeriods = await db.leagueSeason.findMany({
     where: {
       startDate: { lte: new Date() },
       endDate: { gte: new Date() },
@@ -26,12 +26,12 @@ export async function getOperationalContext(): Promise<OperationalContext> {
   const period = activePeriods[0];
   if (!period) {
     const anySeason = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
-    const anyPeriod = await db.planningPeriod.findFirst({ orderBy: { createdAt: "desc" } });
+    const anyPeriod = await db.leagueSeason.findFirst({ orderBy: { createdAt: "desc" } });
     const anyRound = await db.matchRound.findFirst({ orderBy: { createdAt: "desc" } });
 
     return {
       season: anySeason ? { id: anySeason.id, name: anySeason.name } : null,
-      planningPeriod: anyPeriod
+      leagueSeason: anyPeriod
         ? { id: anyPeriod.id, name: anyPeriod.name, startDate: anyPeriod.startDate, endDate: anyPeriod.endDate }
         : null,
       matchRound: anyRound ? await enrichMatchRound(anyRound.id, anyRound.name, anyRound.status) : null,
@@ -41,20 +41,20 @@ export async function getOperationalContext(): Promise<OperationalContext> {
   const round = period.matchRounds[0];
   if (!round) {
     const latestRound = await db.matchRound.findFirst({
-      where: { planningPeriodId: period.id },
+      where: { leagueSeasonId: period.id },
       orderBy: { createdAt: "desc" },
     });
 
     return {
       season: { id: period.season.id, name: period.season.name },
-      planningPeriod: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate },
+      leagueSeason: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate },
       matchRound: latestRound ? await enrichMatchRound(latestRound.id, latestRound.name, latestRound.status) : null,
     };
   }
 
   return {
     season: { id: period.season.id, name: period.season.name },
-    planningPeriod: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate },
+    leagueSeason: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate },
     matchRound: await enrichMatchRound(round.id, round.name, round.status),
   };
 }

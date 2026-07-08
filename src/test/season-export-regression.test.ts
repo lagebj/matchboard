@@ -48,7 +48,7 @@ describe("Season export regression", () => {
       },
     });
 
-    const paths = await getMovementPathSummary(fixtureIds.planningPeriodId);
+    const paths = await getMovementPathSummary(fixtureIds.leagueSeasonId);
 
     const supportPath = paths.find((p) => p.role === "SUPPORT" && p.fromTeamName === "Bla" && p.toTeamName === "Hvit");
     expect(supportPath).toBeDefined();
@@ -97,7 +97,7 @@ describe("Season export regression", () => {
       },
     });
 
-    const summary = await getPlayerLoadSummary(fixtureIds.planningPeriodId, true);
+    const summary = await getPlayerLoadSummary(fixtureIds.leagueSeasonId, true);
     const player = summary.find((p) => p.playerId === blaPlayer.id);
 
     expect(player).toBeDefined();
@@ -120,7 +120,7 @@ describe("Season export regression", () => {
       },
     });
 
-    const summary = await getPlayerLoadSummary(fixtureIds.planningPeriodId, true);
+    const summary = await getPlayerLoadSummary(fixtureIds.leagueSeasonId, true);
     const player = summary.find((p) => p.playerId === blaPlayer.id);
 
     expect(player).toBeDefined();
@@ -140,7 +140,7 @@ describe("Season export regression", () => {
       ],
     });
 
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, true);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
     const burdenWarning = warnings.find((w) => w.rule === "high_support_burden" && w.playerId === blaPlayer.id);
 
     expect(burdenWarning).toBeDefined();
@@ -157,7 +157,7 @@ describe("Season export regression", () => {
       ],
     });
 
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, true);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
     const belongingWarning = warnings.find((w) => w.rule === "low_core_belonging" && w.playerId === blaPlayer.id);
 
     expect(belongingWarning).toBeDefined();
@@ -174,7 +174,7 @@ describe("Season export regression", () => {
       ],
     });
 
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, true);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
     const doubleLoadWarning = warnings.find((w) => w.rule === "repeated_double_load" && w.playerId === blaPlayer.id);
 
     expect(doubleLoadWarning).toBeDefined();

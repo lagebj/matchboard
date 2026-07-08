@@ -70,7 +70,7 @@ export type PlayerCurrentRoundAttentionRow = {
 };
 
 export type PlayersOverviewResult = {
-  planningPeriod: { id: string; label: string };
+  leagueSeason: { id: string; label: string };
   selectedRound?: { id: string; label: string };
   seasonRows: PlayerSeasonOverviewRow[];
   currentRoundRows?: PlayerCurrentRoundAttentionRow[];
@@ -101,7 +101,7 @@ export type SeasonFairnessWarning = {
 };
 
 export type SeasonOverviewResult = {
-  planningPeriod: { id: string; label: string };
+  leagueSeason: { id: string; label: string };
   roundColumns: Array<{ id: string; name: string }>;
   seasonRows: PlayerSeasonOverviewRow[];
   movementPaths: MovementPathSummary[];
@@ -109,17 +109,17 @@ export type SeasonOverviewResult = {
 };
 
 export async function getPlayersSeasonOverview(
-  planningPeriodId: string,
+  leagueSeasonId: string,
   options?: { teamId?: string },
 ): Promise<SeasonOverviewResult> {
-  const planningPeriod = await db.planningPeriod.findUnique({
-    where: { id: planningPeriodId },
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
     select: { id: true, name: true },
   });
 
-  if (!planningPeriod) {
+  if (!leagueSeason) {
     return {
-      planningPeriod: { id: planningPeriodId, label: "Unknown" },
+      leagueSeason: { id: leagueSeasonId, label: "Unknown" },
       roundColumns: [],
       seasonRows: [],
       movementPaths: [],
@@ -145,7 +145,7 @@ export async function getPlayersSeasonOverview(
 
   if (players.length === 0) {
     return {
-      planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
+      leagueSeason: { id: leagueSeason.id, label: leagueSeason.name },
       roundColumns: [],
       seasonRows: [],
       movementPaths: [],
@@ -156,7 +156,7 @@ export async function getPlayersSeasonOverview(
   const playerIds = players.map((p) => p.id);
 
   const rounds = await db.matchRound.findMany({
-    where: { planningPeriodId },
+    where: { leagueSeasonId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -754,7 +754,7 @@ export async function getPlayersSeasonOverview(
   }
 
   return {
-    planningPeriod: { id: planningPeriod.id, label: planningPeriod.name },
+      leagueSeason: { id: leagueSeason.id, label: leagueSeason.name },
     roundColumns: roundColumns,
     seasonRows,
     movementPaths,

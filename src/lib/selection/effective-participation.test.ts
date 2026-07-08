@@ -140,17 +140,18 @@ describe("Effective participation database queries", () => {
       await testDb.ruleConfig.create({
         data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5 },
       });
-      const season = await testDb.season.create({ data: { name: "Test Season" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 No Report", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 No Report", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {
@@ -256,17 +257,18 @@ describe("Effective participation database queries", () => {
       await testDb.ruleConfig.create({
         data: { name: "Test rules 2", minDaysBetweenAnyMatches: 3, warningThreshold: 5 },
       });
-      const season = await testDb.season.create({ data: { name: "Test Season 2" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season 2", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 2",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Reported", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 Reported", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {
@@ -449,17 +451,18 @@ describe("Effective participation database queries", () => {
     });
 
     it("excludes NO_SHOW players from participation", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 3" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season 3", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 3",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 NoShow", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 NoShow", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {
@@ -547,17 +550,18 @@ describe("Effective participation database queries", () => {
     });
 
     it("includes added-post-match players", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 4" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season 4", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 4",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Added", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 Added", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {
@@ -630,17 +634,18 @@ describe("Effective participation database queries", () => {
     });
 
     it("includes emergency backfill players", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 5" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season 5", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 5",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Emergency", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 Emergency", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {
@@ -714,17 +719,18 @@ describe("Effective participation database queries", () => {
 
   describe("match with DRAFT report", () => {
     it("uses finalized selections, not draft report data", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 6" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season 6", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 6",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 DraftReport", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 DraftReport", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {
@@ -811,17 +817,18 @@ describe("Effective participation database queries", () => {
 
   describe("match with LOCKED report", () => {
     it("uses ACTUAL_LOCKED source for locked reports", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 7" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Test Season 7", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 7",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Locked", planningPeriodId: period.id, status: "FINALIZED" },
+        data: { name: "W1 Locked", leagueSeasonId: period.id, status: "FINALIZED" },
       });
       const team = await testDb.team.create({
         data: {
@@ -907,17 +914,18 @@ describe("Effective participation database queries", () => {
 
   describe("getEffectiveSeasonStats", () => {
     it("computes season stats including role classification and flags", async () => {
-      const season = await testDb.season.create({ data: { name: "Stats Season" } });
-      const period = await testDb.planningPeriod.create({
+      const season = await testDb.season.create({ data: { name: "Stats Season", year: 2026 } });
+      const period = await testDb.leagueSeason.create({
         data: {
           name: "Stats Period",
+          part: "SPRING",
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Stats", planningPeriodId: period.id, status: "DRAFT" },
+        data: { name: "W1 Stats", leagueSeasonId: period.id, status: "DRAFT" },
       });
       const team = await testDb.team.create({
         data: {

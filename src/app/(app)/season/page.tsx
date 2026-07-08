@@ -14,16 +14,16 @@ const READINESS_LABELS: Record<string, string> = {
 };
 
 export default async function SeasonPage() {
-  const planningPeriods = await db.planningPeriod.findMany({
+  const leagueSeasons = await db.leagueSeason.findMany({
     orderBy: { startDate: "desc" },
     select: { id: true, name: true, startDate: true, endDate: true },
   });
 
-  const activePlanningPeriod = planningPeriods[0] ?? null;
+  const activeLeagueSeason = leagueSeasons[0] ?? null;
 
-  const planningPeriodIntent = activePlanningPeriod
+  const leagueSeasonIntent = activeLeagueSeason
     ? await db.coachingIntent.findFirst({
-        where: { scopeType: "PLANNING_PERIOD", scopeId: activePlanningPeriod.id },
+        where: { scopeType: "PLANNING_PERIOD", scopeId: activeLeagueSeason.id },
         select: { id: true, category: true },
       })
     : null;
@@ -62,13 +62,13 @@ export default async function SeasonPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      {activePlanningPeriod && (
+      {activeLeagueSeason && (
         <CoachingIntentSelector
           scopeType="PLANNING_PERIOD"
-          scopeId={activePlanningPeriod.id}
-          currentIntent={planningPeriodIntent?.category ?? undefined}
-          currentIntentId={planningPeriodIntent?.id ?? undefined}
-          label="Planning period intent"
+          scopeId={activeLeagueSeason.id}
+          currentIntent={leagueSeasonIntent?.category ?? undefined}
+          currentIntentId={leagueSeasonIntent?.id ?? undefined}
+          label="League season intent"
         />
       )}
       {readinessWarningData.length > 0 && (
@@ -84,8 +84,8 @@ export default async function SeasonPage() {
         </div>
       )}
       <SeasonOverviewClient
-        planningPeriods={planningPeriods}
-        activePlanningPeriodId={activePlanningPeriod?.id ?? null}
+        leagueSeasons={leagueSeasons}
+        activeLeagueSeasonId={activeLeagueSeason?.id ?? null}
       />
     </div>
   );

@@ -85,7 +85,7 @@ type MatchData = {
   warnings: WarningRow[];
   coachingIntent?: string;
   coachingIntentId?: string;
-  inheritedIntentScope?: "round" | "planning period";
+  inheritedIntentScope?: "round" | "league season";
   opponentTeamId?: string | null;
   phaseStartDate?: Date;
   phaseEndDate?: Date;

@@ -46,7 +46,7 @@ describe("Season fairness warnings — new warnings", () => {
       },
     });
 
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, false);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, false);
     const pathWarnings = warnings.filter((w) => w.rule === "expected_support_path_unused");
 
     expect(pathWarnings.length).toBeGreaterThan(0);
@@ -60,7 +60,7 @@ describe("Season fairness warnings — new warnings", () => {
     const blaPlayer = fixtureIds.players.find((p) => p.coreTeamId === blaTeamId)!;
 
     const matchRound = await testDb.matchRound.findFirst({
-      where: { planningPeriodId: fixtureIds.planningPeriodId },
+      where: { leagueSeasonId: fixtureIds.leagueSeasonId },
     });
 
     const rodMatch = await testDb.match.findFirst({
@@ -89,7 +89,7 @@ describe("Season fairness warnings — new warnings", () => {
       },
     });
 
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, true);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
 
     const blaSupportUsage = warnings.filter(
       (w) => w.rule === "expected_support_path_unused" && w.teamId === blaTeamId && w.message.includes("Blå"),
@@ -109,7 +109,7 @@ describe("Season fairness warnings — new warnings", () => {
       const mr = await testDb.matchRound.create({
         data: {
           name: `Consecutive week ${i + 1}`,
-          planningPeriodId: fixtureIds.planningPeriodId,
+          leagueSeasonId: fixtureIds.leagueSeasonId,
           status: "FINALIZED",
         },
       });
@@ -149,7 +149,7 @@ describe("Season fairness warnings — new warnings", () => {
       });
     }
 
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, false);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, false);
     const consecutiveWarnings = warnings.filter(
       (w) => w.rule === "player_moved_consecutive_rounds" && w.playerId === blaPlayer.id,
     );
@@ -159,7 +159,7 @@ describe("Season fairness warnings — new warnings", () => {
   });
 
   it("generates team_round_disproportionate_support warning per round", async () => {
-    const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, true);
+    const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
     const roundSupportWarnings = warnings.filter(
       (w) => w.rule === "team_round_disproportionate_support",
     );

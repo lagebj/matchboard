@@ -25,8 +25,8 @@ describe("updateMatchAction validation", () => {
       matchRound: {
         id: "r1",
         name: "W16 2026",
-        planningPeriodId: "p1",
-        planningPeriod: {
+        leagueSeasonId: "p1",
+        leagueSeason: {
           id: "p1",
           startDate: new Date("2026-04-01"),
           endDate: new Date("2026-06-30"),
@@ -57,8 +57,8 @@ describe("updateMatchAction validation", () => {
       matchRound: {
         id: "r1",
         name: "W16 2026",
-        planningPeriodId: "p1",
-        planningPeriod: {
+        leagueSeasonId: "p1",
+        leagueSeason: {
           id: "p1",
           startDate: new Date("2026-04-01"),
           endDate: new Date("2026-06-30"),
@@ -73,7 +73,7 @@ describe("updateMatchAction validation", () => {
     if (result.success) {
       expect.unreachable("Should have rejected out-of-phase date");
     } else {
-      expect(result.error).toContain("outside the current phase");
+      expect(result.error).toContain("outside the current league season");
     }
   });
 
@@ -89,8 +89,8 @@ describe("updateMatchAction validation", () => {
       matchRound: {
         id: "r1",
         name: "W16 2026",
-        planningPeriodId: "p1",
-        planningPeriod: {
+        leagueSeasonId: "p1",
+        leagueSeason: {
           id: "p1",
           startDate: new Date("2026-04-01"),
           endDate: new Date("2026-06-30"),
@@ -122,8 +122,8 @@ describe("updateMatchAction validation", () => {
       matchRound: {
         id: "r1",
         name: "W17 2026",
-        planningPeriodId: "p1",
-        planningPeriod: {
+        leagueSeasonId: "p1",
+        leagueSeason: {
           id: "p1",
           startDate: new Date("2026-04-01"),
           endDate: new Date("2026-06-30"),

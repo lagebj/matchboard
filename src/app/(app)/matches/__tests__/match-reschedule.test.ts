@@ -18,8 +18,8 @@ vi.mock("@/lib/matches/resolve-or-create-match-round-for-date", () => ({
   AmbiguousRoundError: class AmbiguousRoundError extends Error {
     constructor(m: string) { super(m); this.name = "AmbiguousRoundError"; }
   },
-  DateOutsidePhaseError: class DateOutsidePhaseError extends Error {
-    constructor(m: string) { super(m); this.name = "DateOutsidePhaseError"; }
+  DateOutsideLeagueSeasonError: class DateOutsideLeagueSeasonError extends Error {
+    constructor(m: string) { super(m); this.name = "DateOutsideLeagueSeasonError"; }
   },
 }));
 
@@ -44,8 +44,8 @@ describe("updateMatchAction automatic round placement", () => {
       matchRound: {
         id: "r1",
         name: "W17 2026",
-        planningPeriodId: "p1",
-        planningPeriod: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
+        leagueSeasonId: "p1",
+        leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
     } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
@@ -66,8 +66,8 @@ describe("updateMatchAction automatic round placement", () => {
       matchRound: {
         id: "r1",
         name: "W16 2026",
-        planningPeriodId: "p1",
-        planningPeriod: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
+        leagueSeasonId: "p1",
+        leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
     } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
@@ -191,8 +191,8 @@ describe("updateMatchAction automatic round placement", () => {
       matchRound: {
         id: "r1",
         name: "W17 2026",
-        planningPeriodId: "p1",
-        planningPeriod: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
+        leagueSeasonId: "p1",
+        leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
     } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue({
@@ -222,8 +222,8 @@ describe("updateMatchAction automatic round placement", () => {
       matchRound: {
         id: "r1",
         name: "W17 2026",
-        planningPeriodId: "p1",
-        planningPeriod: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
+        leagueSeasonId: "p1",
+        leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
     } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
@@ -233,7 +233,7 @@ describe("updateMatchAction automatic round placement", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("outside the current phase");
+      expect(result.error).toContain("outside the current league season");
     }
     expect(resolveOrCreateMatchRoundForDate).not.toHaveBeenCalled();
   });

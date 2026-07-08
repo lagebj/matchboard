@@ -12,13 +12,13 @@ export async function fetchFixturesOverview() {
 export async function fixturePopulateAllAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
   await requireCoachAccess();
   try {
-    const planningPeriodId = formData.get("planningPeriodId");
-    if (typeof planningPeriodId !== "string" || !planningPeriodId) {
-      throw new Error("Planning period ID is required.");
+    const leagueSeasonId = formData.get("leagueSeasonId");
+    if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
+      throw new Error("League season ID is required.");
     }
 
     const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
-    await populateAllDrafts(planningPeriodId);
+    await populateAllDrafts(leagueSeasonId);
 
     revalidatePath("/");
     revalidatePath("/fixtures");
@@ -34,16 +34,16 @@ export async function fixturePopulateAllAction(prevState: { error: string; resul
 export async function fixtureRegenerateAllAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
   await requireCoachAccess();
   try {
-    const planningPeriodId = formData.get("planningPeriodId");
-    if (typeof planningPeriodId !== "string" || !planningPeriodId) {
-      throw new Error("Planning period ID is required.");
+    const leagueSeasonId = formData.get("leagueSeasonId");
+    if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
+      throw new Error("League season ID is required.");
     }
 
     const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
     const db = (await import("@/lib/db")).db;
 
     const rounds = await db.matchRound.findMany({
-      where: { planningPeriodId, status: "DRAFT" },
+      where: { leagueSeasonId, status: "DRAFT" },
       select: { id: true, name: true },
     });
 
@@ -77,13 +77,13 @@ export async function fixtureRegenerateAllAction(prevState: { error: string; res
 
 export async function fixtureClearAllDraftsAction(formData: FormData) {
   await requireCoachAccess();
-  const planningPeriodId = formData.get("planningPeriodId");
-  if (typeof planningPeriodId !== "string" || !planningPeriodId) {
-    throw new Error("Planning period ID is required.");
+  const leagueSeasonId = formData.get("leagueSeasonId");
+  if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
+    throw new Error("League season ID is required.");
   }
 
   const { clearAllDraftSelections } = await import("@/lib/selection/clear-draft-selection");
-  await clearAllDraftSelections(planningPeriodId);
+  await clearAllDraftSelections(leagueSeasonId);
 
   revalidatePath("/");
   revalidatePath("/fixtures");

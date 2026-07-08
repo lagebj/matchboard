@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   const dryRun = body.dryRun === true;
-  const planningPeriodId = typeof body.planningPeriodId === "string" ? body.planningPeriodId : undefined;
+  const leagueSeasonId = typeof body.leagueSeasonId === "string" ? body.leagueSeasonId : undefined;
   const matchId = typeof body.matchId === "string" ? body.matchId : undefined;
   const rawDomains = body.domains;
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   try {
     const result = await reconcileCanonicalDerivedData({
       dryRun,
-      planningPeriodId,
+      leagueSeasonId,
       matchId,
       domains,
     });

@@ -8,11 +8,11 @@ export type ClearDraftResult = {
 };
 
 export async function clearAllDraftSelections(
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<ClearDraftResult> {
   const matchRounds = await db.matchRound.findMany({
     where: {
-      planningPeriodId,
+      leagueSeasonId,
       status: { not: "FINALIZED" },
     },
     select: { id: true },

@@ -37,7 +37,7 @@ describe("Season overview service", () => {
         },
       });
 
-      const matrix = await getSeasonPlayerRoundMatrix(fixtureIds.planningPeriodId, true);
+      const matrix = await getSeasonPlayerRoundMatrix(fixtureIds.leagueSeasonId, true);
 
       const player = matrix.players.find((p) => p.playerId === playerId);
       expect(player).toBeDefined();
@@ -61,8 +61,8 @@ describe("Season overview service", () => {
         },
       });
 
-      const matrixDraftExcluded = await getSeasonPlayerRoundMatrix(fixtureIds.planningPeriodId, false);
-      const matrixDraftIncluded = await getSeasonPlayerRoundMatrix(fixtureIds.planningPeriodId, true);
+      const matrixDraftExcluded = await getSeasonPlayerRoundMatrix(fixtureIds.leagueSeasonId, false);
+      const matrixDraftIncluded = await getSeasonPlayerRoundMatrix(fixtureIds.leagueSeasonId, true);
 
       const playerExcluded = matrixDraftExcluded.players.find((p) => p.playerId === playerId);
       const playerIncluded = matrixDraftIncluded.players.find((p) => p.playerId === playerId);
@@ -98,7 +98,7 @@ describe("Season overview service", () => {
         },
       });
 
-      const matrix = await getSeasonPlayerRoundMatrix(fixtureIds.planningPeriodId, true);
+      const matrix = await getSeasonPlayerRoundMatrix(fixtureIds.leagueSeasonId, true);
 
       const coreRow = matrix.players.find((p) => p.playerId === corePlayer.id);
       const supportRow = matrix.players.find((p) => p.playerId === supportPlayer.id);
@@ -120,7 +120,7 @@ describe("Season overview service", () => {
         },
       });
 
-      const matrix = await getSeasonPlayerRoundMatrix(fixtureIds.planningPeriodId, true);
+      const matrix = await getSeasonPlayerRoundMatrix(fixtureIds.leagueSeasonId, true);
       const player = matrix.players.find((p) => p.playerId === playerId);
 
       expect(player!.unavailableRounds).toBe(1);
@@ -138,7 +138,7 @@ describe("Season overview service", () => {
 
   describe("getPlayerLoadSummary", () => {
     it("returns load summary for all players", async () => {
-      const summary = await getPlayerLoadSummary(fixtureIds.planningPeriodId);
+      const summary = await getPlayerLoadSummary(fixtureIds.leagueSeasonId);
 
       expect(summary.length).toBeGreaterThanOrEqual(9);
       for (const entry of summary) {
@@ -170,7 +170,7 @@ describe("Season overview service", () => {
         },
       });
 
-      const paths = await getMovementPathSummary(fixtureIds.planningPeriodId);
+      const paths = await getMovementPathSummary(fixtureIds.leagueSeasonId);
 
       const devPath = paths.find((p) => p.role === "DEVELOPMENT" && p.fromTeamName === "Bla" && p.toTeamName === "Hvit");
       expect(devPath).toBeDefined();
@@ -195,8 +195,8 @@ describe("Season overview service", () => {
         },
       });
 
-      const pathsExcluded = await getMovementPathSummary(fixtureIds.planningPeriodId, false);
-      const pathsIncluded = await getMovementPathSummary(fixtureIds.planningPeriodId, true);
+      const pathsExcluded = await getMovementPathSummary(fixtureIds.leagueSeasonId, false);
+      const pathsIncluded = await getMovementPathSummary(fixtureIds.leagueSeasonId, true);
 
       const draftPathExcluded = pathsExcluded.find((p) => p.role === "BACKFILL" && p.fromTeamName === "Rod" && p.toTeamName === "Bla");
       const draftPathIncluded = pathsIncluded.find((p) => p.role === "BACKFILL" && p.fromTeamName === "Rod" && p.toTeamName === "Bla");
@@ -258,7 +258,7 @@ describe("Season overview service", () => {
       const blaTeamId = fixtureIds.teams["Bla"]!;
       const blaPlayer = fixtureIds.players.find((p) => p.coreTeamId === blaTeamId)!;
 
-      const timeline = await getPlayerMovementTimeline(blaPlayer.id, true, fixtureIds.planningPeriodId);
+      const timeline = await getPlayerMovementTimeline(blaPlayer.id, true, fixtureIds.leagueSeasonId);
 
       for (const entry of timeline) {
         expect(entry).toHaveProperty("matchRoundId");
@@ -281,7 +281,7 @@ describe("Season overview service", () => {
         ],
       });
 
-      const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId);
+      const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId);
 
       const burdenWarning = warnings.find((w) => w.rule === "high_support_burden" && w.playerId === blaPlayer.id);
       expect(burdenWarning).toBeDefined();
@@ -299,7 +299,7 @@ describe("Season overview service", () => {
         ],
       });
 
-      const warnings = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId);
+      const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId);
 
       const doubleLoadWarning = warnings.find((w) => w.rule === "repeated_double_load" && w.playerId === blaPlayer.id);
       expect(doubleLoadWarning).toBeDefined();
@@ -343,10 +343,10 @@ describe("Season overview service", () => {
         },
       });
 
-      const warningsExcluded = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, false);
+      const warningsExcluded = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, false);
       const draftWarningExcluded = warningsExcluded.find((w) => w.playerId === rodPlayer.id);
 
-      const warningsIncluded = await getSeasonFairnessWarnings(fixtureIds.planningPeriodId, true);
+      const warningsIncluded = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
       const draftWarningIncluded = warningsIncluded.find((w) => w.playerId === rodPlayer.id && w.rule === "high_support_burden");
 
       expect(draftWarningExcluded).toBeUndefined();

@@ -36,7 +36,7 @@ type ExportData = {
   teams: unknown[];
   players: unknown[];
   seasons: unknown[];
-  planningPeriods: unknown[];
+  leagueSeasons: unknown[];
   matchRounds: unknown[];
   matches: unknown[];
   availabilities: unknown[];
@@ -66,7 +66,7 @@ async function main() {
       teams,
       players,
       seasons,
-      planningPeriods,
+      leagueSeasons,
       matchRounds,
       matches,
       availabilities,
@@ -81,7 +81,7 @@ async function main() {
       db.team.findMany({ where: { archivedAt: null } }),
       db.player.findMany({ where: { removedAt: null, active: true } }),
       db.season.findMany(),
-      db.planningPeriod.findMany(),
+      db.leagueSeason.findMany(),
       db.matchRound.findMany(),
       db.match.findMany(),
       db.availability.findMany(),
@@ -102,7 +102,7 @@ async function main() {
       teams,
       players,
       seasons,
-      planningPeriods,
+      leagueSeasons,
       matchRounds,
       matches,
       availabilities,
@@ -130,7 +130,7 @@ async function main() {
     console.log(`  Teams:           ${teams.length}`);
     console.log(`  Players:         ${players.length}`);
     console.log(`  Seasons:         ${seasons.length}`);
-    console.log(`  Planning periods:${planningPeriods.length}`);
+    console.log(`  League seasons:${leagueSeasons.length}`);
     console.log(`  Match rounds:    ${matchRounds.length}`);
     console.log(`  Matches:         ${matches.length}`);
     console.log(`  Availabilities:  ${availabilities.length}`);

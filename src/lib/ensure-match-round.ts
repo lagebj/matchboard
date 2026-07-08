@@ -1,5 +1,11 @@
 import { db } from "@/lib/db";
 import { formatIsoWeekKey, formatIsoWeekLabel } from "@/lib/date-utils";
+import {
+  getLeagueSeasonPartForDate,
+  getLeagueSeasonDateRange,
+  formatLeagueSeasonLabel,
+  type LeagueSeasonPart,
+} from "@/lib/seasons/league-season";
 
 export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string> {
   const weekKey = formatIsoWeekKey(startsAt);
@@ -8,7 +14,7 @@ export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string>
   const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
 
   if (season) {
-    const matchingPeriod = await db.planningPeriod.findFirst({
+    const matchingPeriod = await db.leagueSeason.findFirst({
       where: {
         seasonId: season.id,
         startDate: { lte: startsAt },
@@ -25,10 +31,10 @@ export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string>
   return createFullHierarchy(startsAt, weekKey, weekLabel);
 }
 
-async function findOrCreateRound(planningPeriodId: string, weekKey: string, weekLabel: string): Promise<string> {
+async function findOrCreateRound(leagueSeasonId: string, weekKey: string, weekLabel: string): Promise<string> {
   const existing = await db.matchRound.findFirst({
     where: {
-      planningPeriodId,
+      leagueSeasonId,
       name: weekLabel,
     },
   });
@@ -40,7 +46,7 @@ async function findOrCreateRound(planningPeriodId: string, weekKey: string, week
   const round = await db.matchRound.create({
     data: {
       name: weekLabel,
-      planningPeriodId,
+      leagueSeasonId,
     },
   });
 
@@ -48,18 +54,19 @@ async function findOrCreateRound(planningPeriodId: string, weekKey: string, week
 }
 
 async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: string): Promise<string> {
-  const periodStart = new Date(Date.UTC(startsAt.getUTCFullYear(), startsAt.getUTCMonth(), 1));
-  const periodEnd = new Date(Date.UTC(startsAt.getUTCFullYear(), startsAt.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+  const part: LeagueSeasonPart = getLeagueSeasonPartForDate(startsAt);
+  const dateRange = getLeagueSeasonDateRange(startsAt.getUTCFullYear(), part);
+  const name = formatLeagueSeasonLabel({ year: startsAt.getUTCFullYear(), part });
 
   const roundId = await db.$transaction(async (tx) => {
     let season = await tx.season.findFirst({ orderBy: { createdAt: "desc" } });
     if (!season) {
       season = await tx.season.create({
-        data: { name: `${startsAt.getUTCFullYear()} Season` },
+        data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear() },
       });
     }
 
-    let period = await tx.planningPeriod.findFirst({
+    let period = await tx.leagueSeason.findFirst({
       where: {
         seasonId: season.id,
         startDate: { lte: startsAt },
@@ -68,19 +75,20 @@ async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: s
     });
 
     if (!period) {
-      period = await tx.planningPeriod.create({
+      period = await tx.leagueSeason.create({
         data: {
-          name: `${periodStart.toLocaleString("en", { month: "long", timeZone: "UTC" })} ${startsAt.getUTCFullYear()}`,
+          name,
+          part,
           seasonId: season.id,
-          startDate: periodStart,
-          endDate: periodEnd,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
         },
       });
     }
 
     let round = await tx.matchRound.findFirst({
       where: {
-        planningPeriodId: period.id,
+        leagueSeasonId: period.id,
         name: weekLabel,
       },
     });
@@ -89,7 +97,7 @@ async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: s
       round = await tx.matchRound.create({
         data: {
           name: weekLabel,
-          planningPeriodId: period.id,
+          leagueSeasonId: period.id,
         },
       });
     }

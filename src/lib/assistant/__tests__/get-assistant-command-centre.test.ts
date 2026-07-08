@@ -163,7 +163,7 @@ describe("getAssistantCommandCentre", () => {
 
     const round2 = await db.matchRound.create({
       data: {
-        planningPeriodId: fixture.planningPeriodId,
+        leagueSeasonId: fixture.leagueSeasonId,
         name: "W20 Test",
         status: "READY",
       },
@@ -236,8 +236,8 @@ describe("getAssistantCommandCentre", () => {
 
   it("returns planning period name", async () => {
     const result = await getAssistantCommandCentre();
-    expect(result.planningPeriodId).toBe(fixture.planningPeriodId);
-    expect(result.planningPeriodName).toBeTruthy();
+    expect(result.leagueSeasonId).toBe(fixture.leagueSeasonId);
+    expect(result.leagueSeasonName).toBeTruthy();
   });
 
   it("returns computedAt timestamp", async () => {
@@ -261,12 +261,13 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     await cleanExceptRules(setupDb);
 
     const season = await setupDb.season.create({
-      data: { name: "Setup Season" },
+      data: { name: "Setup Season", year: 2026 },
     });
-    const period = await setupDb.planningPeriod.create({
+    const period = await setupDb.leagueSeason.create({
       data: {
         seasonId: season.id,
         name: "Setup Period",
+        part: "SPRING",
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
       },
@@ -279,7 +280,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     expect(setupItems.length).toBe(1);
     expect(setupItems[0]!.title.toLowerCase()).toContain("team");
 
-    await setupDb.planningPeriod.delete({ where: { id: period.id } });
+    await setupDb.leagueSeason.delete({ where: { id: period.id } });
     await setupDb.season.delete({ where: { id: season.id } });
   });
 
@@ -287,12 +288,13 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     await cleanExceptRules(setupDb);
 
     const season = await setupDb.season.create({
-      data: { name: "Setup Season 2" },
+      data: { name: "Setup Season 2", year: 2026 },
     });
-    const period = await setupDb.planningPeriod.create({
+    const period = await setupDb.leagueSeason.create({
       data: {
         seasonId: season.id,
         name: "Setup Period 2",
+        part: "SPRING",
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
       },
@@ -309,7 +311,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     expect(setupItems[0]!.title.toLowerCase()).toContain("player");
 
     await setupDb.team.delete({ where: { id: team.id } });
-    await setupDb.planningPeriod.delete({ where: { id: period.id } });
+    await setupDb.leagueSeason.delete({ where: { id: period.id } });
     await setupDb.season.delete({ where: { id: season.id } });
   });
 
@@ -317,12 +319,13 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     await cleanExceptRules(setupDb);
 
     const season = await setupDb.season.create({
-      data: { name: "Setup Season 3" },
+      data: { name: "Setup Season 3", year: 2026 },
     });
-    const period = await setupDb.planningPeriod.create({
+    const period = await setupDb.leagueSeason.create({
       data: {
         seasonId: season.id,
         name: "Setup Period 3",
+        part: "SPRING",
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
       },
@@ -354,7 +357,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
       where: { coreTeamId: team.id },
     });
     await setupDb.team.delete({ where: { id: team.id } });
-    await setupDb.planningPeriod.delete({ where: { id: period.id } });
+    await setupDb.leagueSeason.delete({ where: { id: period.id } });
     await setupDb.season.delete({ where: { id: season.id } });
   });
 });
@@ -379,7 +382,7 @@ async function cleanExceptRules(db: PrismaClient) {
   await db.playerLock.deleteMany();
   await db.match.deleteMany();
   await db.matchRound.deleteMany();
-  await db.planningPeriod.deleteMany();
+  await db.leagueSeason.deleteMany();
   await db.season.deleteMany();
   await db.player.deleteMany();
   await db.rotationPath.deleteMany();

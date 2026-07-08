@@ -23,11 +23,12 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
   await import("@/test/test-db");
 
   const season = await testDb.season.create({
-    data: { name: `Season ${Date.now()}` },
+    data: { name: `Season ${Date.now()}`, year: 2026 },
   });
-  const period = await testDb.planningPeriod.create({
+  const period = await testDb.leagueSeason.create({
     data: {
       name: `Period ${Date.now()}`,
+      part: "SPRING",
       seasonId: season.id,
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
@@ -36,7 +37,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
   const round = await testDb.matchRound.create({
     data: {
       name: `Round ${Date.now()}`,
-      planningPeriodId: period.id,
+      leagueSeasonId: period.id,
       status: "DRAFT",
     },
   });
@@ -132,7 +133,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
 
   return {
     seasonId: season.id,
-    planningPeriodId: period.id,
+    leagueSeasonId: period.id,
     matchRoundId: round.id,
     teams: teamIds,
     players,
@@ -180,7 +181,7 @@ describe("clear-draft-selection", () => {
       const { clearAllDraftSelections } = await import(
         "@/lib/selection/clear-draft-selection"
       );
-      const result = await clearAllDraftSelections(fx.planningPeriodId);
+      const result = await clearAllDraftSelections(fx.leagueSeasonId);
 
       expect(result.selectionsDeleted).toBe(1);
 
@@ -232,7 +233,7 @@ describe("clear-draft-selection", () => {
       const { clearAllDraftSelections } = await import(
         "@/lib/selection/clear-draft-selection"
       );
-      const result = await clearAllDraftSelections(fx.planningPeriodId);
+      const result = await clearAllDraftSelections(fx.leagueSeasonId);
 
       expect(result.selectionsDeleted).toBe(1);
       expect(result.warningsDeleted).toBe(1);
@@ -323,7 +324,7 @@ describe("clear-draft-selection", () => {
       const secondRound = await testDb.matchRound.create({
         data: {
           name: "W20 Other",
-          planningPeriodId: fx.planningPeriodId,
+          leagueSeasonId: fx.leagueSeasonId,
           status: "DRAFT",
         },
       });
@@ -533,7 +534,7 @@ describe("clear-draft-selection", () => {
       const { clearAllDraftSelections } = await import(
         "@/lib/selection/clear-draft-selection"
       );
-      await clearAllDraftSelections(fx.planningPeriodId);
+      await clearAllDraftSelections(fx.leagueSeasonId);
 
       expect(await testDb.team.count()).toBe(teamsBefore);
       expect(await testDb.player.count()).toBe(playersBefore);

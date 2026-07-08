@@ -40,8 +40,8 @@ export type PlayerRowSummary = {
 };
 
 export type SeasonPlayerRoundMatrix = {
-  planningPeriodId: string;
-  planningPeriodName: string;
+  leagueSeasonId: string;
+  leagueSeasonName: string;
   roundCount: number;
   finalizedRoundCount: number;
   draftRoundCount: number;
@@ -57,18 +57,18 @@ export type SeasonPlayerRoundMatrix = {
 };
 
 export async function getSeasonPlayerRoundMatrix(
-  planningPeriodId: string,
+  leagueSeasonId: string,
   includeDrafts: boolean = false,
 ): Promise<SeasonPlayerRoundMatrix> {
-  const planningPeriod = await db.planningPeriod.findUnique({
-    where: { id: planningPeriodId },
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
     select: { id: true, name: true },
   });
 
-  if (!planningPeriod) {
+  if (!leagueSeason) {
     return {
-      planningPeriodId,
-      planningPeriodName: "Unknown",
+      leagueSeasonId,
+      leagueSeasonName: "Unknown",
       roundCount: 0,
       finalizedRoundCount: 0,
       draftRoundCount: 0,
@@ -81,7 +81,7 @@ export async function getSeasonPlayerRoundMatrix(
   }
 
   const matchRounds = await db.matchRound.findMany({
-    where: { planningPeriodId },
+    where: { leagueSeasonId },
     select: { id: true, name: true, status: true },
     orderBy: { name: "asc" },
   });
@@ -247,7 +247,7 @@ export async function getSeasonPlayerRoundMatrix(
   const finalizedRoundCount = rounds.filter((r) => r.isFinalized).length;
   const draftRoundCount = rounds.filter((r) => !r.isFinalized).length;
 
-  const fairness = await getSeasonFairnessWarningsInternal(planningPeriodId, includeDrafts);
+  const fairness = await getSeasonFairnessWarningsInternal(leagueSeasonId, includeDrafts);
 
   const warningCounts = new Map<string, number>();
   for (const f of fairness) {
@@ -270,8 +270,8 @@ export async function getSeasonPlayerRoundMatrix(
   const doubleLoadCount = playerRows.filter((p) => p.doubleLoadRounds > 0).length;
 
   return {
-    planningPeriodId: planningPeriod.id,
-    planningPeriodName: planningPeriod.name,
+    leagueSeasonId: leagueSeason.id,
+    leagueSeasonName: leagueSeason.name,
     roundCount: rounds.length,
     finalizedRoundCount,
     draftRoundCount,
@@ -295,14 +295,14 @@ type FairnessWarning = {
 };
 
 async function getSeasonFairnessWarningsInternal(
-  planningPeriodId: string,
+  leagueSeasonId: string,
   includeDrafts: boolean,
 ): Promise<FairnessWarning[]> {
   const warnings: FairnessWarning[] = [];
 
   const fairness = await db.selection.findMany({
     where: {
-      matchRound: { planningPeriodId },
+      matchRound: { leagueSeasonId },
       status: includeDrafts ? { in: [SelectionStatus.FINALIZED, SelectionStatus.DRAFT] } : { in: [SelectionStatus.FINALIZED] },
       player: { removedAt: null, active: true },
     },
@@ -445,7 +445,7 @@ async function getSeasonFairnessWarningsInternal(
 
   const supportMovements = await db.movementLedger.findMany({
     where: {
-      matchRound: { planningPeriodId },
+      matchRound: { leagueSeasonId },
       role: "SUPPORT",
       ...(includeDrafts ? {} : { isDraft: false }),
     },
@@ -462,7 +462,7 @@ async function getSeasonFairnessWarningsInternal(
       warnings.push({
         severity: "SCORING_PREFERENCE",
         rule: "expected_support_path_unused",
-        message: `Active support path from ${path.fromTeam.name} to ${path.toTeam.name} has no support selections this planning period.`,
+        message: `Active support path from ${path.fromTeam.name} to ${path.toTeam.name} has no support selections this league season.`,
         teamId: path.fromTeamId,
         teamName: path.fromTeam.name,
         basedOnDraft: includeDrafts,
@@ -472,7 +472,7 @@ async function getSeasonFairnessWarningsInternal(
 
   const selectionsByRound = await db.selection.findMany({
     where: {
-      matchRound: { planningPeriodId },
+      matchRound: { leagueSeasonId },
       status: includeDrafts ? { in: [SelectionStatus.FINALIZED, SelectionStatus.DRAFT] } : { in: [SelectionStatus.FINALIZED] },
       player: { removedAt: null, active: true },
     },
@@ -494,7 +494,7 @@ async function getSeasonFairnessWarningsInternal(
   });
 
   const roundsByDate = await db.matchRound.findMany({
-    where: { planningPeriodId },
+    where: { leagueSeasonId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -596,14 +596,14 @@ async function getSeasonFairnessWarningsInternal(
 }
 
 export async function getSeasonFairnessWarnings(
-  planningPeriodId: string,
+  leagueSeasonId: string,
   includeDrafts: boolean = false,
 ): Promise<FairnessWarning[]> {
-  return getSeasonFairnessWarningsInternal(planningPeriodId, includeDrafts);
+  return getSeasonFairnessWarningsInternal(leagueSeasonId, includeDrafts);
 }
 
 export async function getPlayerLoadSummary(
-  planningPeriodId: string,
+  leagueSeasonId: string,
   includeDrafts: boolean = false,
 ): Promise<Array<{
   playerId: string;
@@ -619,7 +619,7 @@ export async function getPlayerLoadSummary(
   droppedRounds: number;
   unavailableRounds: number;
 }>> {
-  const matrix = await getSeasonPlayerRoundMatrix(planningPeriodId, includeDrafts);
+  const matrix = await getSeasonPlayerRoundMatrix(leagueSeasonId, includeDrafts);
   return matrix.players.map((p) => ({
     playerId: p.playerId,
     playerName: p.playerName,
@@ -648,7 +648,7 @@ export type MovementPathRow = {
 };
 
 export async function getMovementPathSummary(
-  planningPeriodId: string,
+  leagueSeasonId: string,
   includeDrafts: boolean = false,
 ): Promise<MovementPathRow[]> {
   const _selectionStatusFilter = includeDrafts
@@ -657,7 +657,7 @@ export async function getMovementPathSummary(
 
   const movements = await db.movementLedger.findMany({
     where: {
-      matchRound: { planningPeriodId },
+      matchRound: { leagueSeasonId },
       isDraft: includeDrafts ? undefined : false,
       ...(includeDrafts ? {} : { isDraft: false }),
     },
@@ -739,7 +739,7 @@ export type MovementTimelineEntry = {
 export async function getPlayerMovementTimeline(
   playerId: string,
   includeDrafts: boolean = false,
-  planningPeriodId?: string,
+  leagueSeasonId?: string,
 ): Promise<MovementTimelineEntry[]> {
   const selectionStatusFilter = includeDrafts
     ? { in: [SelectionStatus.FINALIZED, SelectionStatus.DRAFT] }
@@ -749,8 +749,8 @@ export async function getPlayerMovementTimeline(
     playerId,
     status: selectionStatusFilter,
   };
-  if (planningPeriodId) {
-    selectionWhere.matchRound = { planningPeriodId };
+  if (leagueSeasonId) {
+    selectionWhere.matchRound = { leagueSeasonId };
   }
 
   const selections = await db.selection.findMany({
@@ -770,8 +770,8 @@ export async function getPlayerMovementTimeline(
   const _matchRoundIds = [...new Set(selections.map((s) => s.matchRoundId))];
 
   const movementWhere: Record<string, unknown> = { playerId };
-  if (planningPeriodId) {
-    movementWhere.matchRound = { planningPeriodId };
+  if (leagueSeasonId) {
+    movementWhere.matchRound = { leagueSeasonId };
   }
   if (!includeDrafts) {
     movementWhere.isDraft = false;

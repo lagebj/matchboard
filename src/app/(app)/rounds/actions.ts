@@ -44,15 +44,15 @@ export async function finalizeRoundFromListAction(formData: FormData) {
 
 export async function clearAllDraftsAction(formData: FormData) {
   await requireCoachAccess();
-  const planningPeriodId = formData.get("planningPeriodId");
-  if (typeof planningPeriodId !== "string" || !planningPeriodId) {
-    throw new Error("Planning period ID is required.");
+  const leagueSeasonId = formData.get("leagueSeasonId");
+  if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
+    throw new Error("League season ID is required.");
   }
 
-  await clearAllDraftSelections(planningPeriodId);
+  await clearAllDraftSelections(leagueSeasonId);
 
   const draftRounds = await db.matchRound.findMany({
-    where: { planningPeriodId, status: "DRAFT" },
+    where: { leagueSeasonId, status: "DRAFT" },
     select: { id: true },
   });
   for (const round of draftRounds) {
@@ -121,13 +121,13 @@ export async function generateRoundAction(prevState: { error: string }, formData
 export async function populateAllAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   await requireCoachAccess();
   try {
-    const planningPeriodId = formData.get("planningPeriodId");
-    if (typeof planningPeriodId !== "string" || !planningPeriodId) {
-      throw new Error("Planning period ID is required.");
+    const leagueSeasonId = formData.get("leagueSeasonId");
+    if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
+      throw new Error("League season ID is required.");
     }
 
     const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
-    await populateAllDrafts(planningPeriodId);
+    await populateAllDrafts(leagueSeasonId);
 
     revalidatePath("/");
     revalidatePath("/rounds");
@@ -142,16 +142,16 @@ export async function populateAllAction(prevState: { error: string }, formData: 
 export async function regenerateAllDraftsAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
   await requireCoachAccess();
   try {
-    const planningPeriodId = formData.get("planningPeriodId");
-    if (typeof planningPeriodId !== "string" || !planningPeriodId) {
-      throw new Error("Planning period ID is required.");
+    const leagueSeasonId = formData.get("leagueSeasonId");
+    if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
+      throw new Error("League season ID is required.");
     }
 
     const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
     const db = (await import("@/lib/db")).db;
 
     const rounds = await db.matchRound.findMany({
-      where: { planningPeriodId, status: "DRAFT" },
+      where: { leagueSeasonId, status: "DRAFT" },
       select: { id: true, name: true },
     });
 

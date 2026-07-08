@@ -72,7 +72,7 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.playerLock.deleteMany();
   await db.match.deleteMany();
   await db.matchRound.deleteMany();
-  await db.planningPeriod.deleteMany();
+  await db.leagueSeason.deleteMany();
   await db.season.deleteMany();
   await db.player.deleteMany();
   await db.rotationPath.deleteMany();
@@ -83,7 +83,7 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
 
 export type TestFixtureIds = {
   seasonId: string;
-  planningPeriodId: string;
+  leagueSeasonId: string;
   matchRoundId: string;
   teams: Record<string, string>;
   players: Array<{
@@ -141,12 +141,13 @@ export async function seedTestFixture(
   });
 
   const season = await db.season.create({
-    data: { name: "Test Season" },
+    data: { name: "Test Season", year: 2026 },
   });
 
-  const period = await db.planningPeriod.create({
+  const period = await db.leagueSeason.create({
     data: {
       name: "Test Period",
+      part: "SPRING",
       seasonId: season.id,
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
@@ -156,7 +157,7 @@ export async function seedTestFixture(
   const round = await db.matchRound.create({
     data: {
       name: "W19 Test",
-      planningPeriodId: period.id,
+      leagueSeasonId: period.id,
       status: "DRAFT",
     },
   });
@@ -278,7 +279,7 @@ export async function seedTestFixture(
 
   return {
     seasonId: season.id,
-    planningPeriodId: period.id,
+    leagueSeasonId: period.id,
     matchRoundId: round.id,
     teams: teamIds,
     players,

@@ -5,7 +5,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 type TransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
 
 type ResolveInput = {
-  planningPeriodId: string;
+  leagueSeasonId: string;
   startsAt: Date;
   tx?: TransactionClient;
 };
@@ -24,31 +24,31 @@ export class AmbiguousRoundError extends Error {
   }
 }
 
-export class DateOutsidePhaseError extends Error {
+export class DateOutsideLeagueSeasonError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "DateOutsidePhaseError";
+    this.name = "DateOutsideLeagueSeasonError";
   }
 }
 
 export async function resolveOrCreateMatchRoundForDate(
   input: ResolveInput,
 ): Promise<ResolvedMatchRound> {
-  const { planningPeriodId, startsAt } = input;
+  const { leagueSeasonId, startsAt } = input;
   const client = input.tx ?? db;
 
-  const period = await client.planningPeriod.findUnique({
-    where: { id: planningPeriodId },
+  const period = await client.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
     select: { id: true, startDate: true, endDate: true },
   });
 
   if (!period) {
-    throw new DateOutsidePhaseError("Planning period not found.");
+    throw new DateOutsideLeagueSeasonError("League season not found.");
   }
 
   if (startsAt < period.startDate || startsAt > period.endDate) {
-    throw new DateOutsidePhaseError(
-      "This date is outside the current phase. Move the match to a phase covering the new date or update the phase first.",
+    throw new DateOutsideLeagueSeasonError(
+      "This date is outside the current league season. Move the match to a league season covering the new date or update the league season first.",
     );
   }
 
@@ -57,7 +57,7 @@ export async function resolveOrCreateMatchRoundForDate(
 
   const candidates = await client.matchRound.findMany({
     where: {
-      planningPeriodId,
+      leagueSeasonId,
       OR: [
         { name: isoWeekLabel },
         {
@@ -94,7 +94,7 @@ export async function resolveOrCreateMatchRoundForDate(
   const created = await client.matchRound.create({
     data: {
       name: isoWeekLabel,
-      planningPeriodId,
+      leagueSeasonId,
       status: "NOT_GENERATED",
     },
     select: { id: true, name: true },

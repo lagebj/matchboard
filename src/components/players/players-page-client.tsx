@@ -6,7 +6,7 @@ import { SeasonOverviewTable } from "./season-overview-table";
 import { CurrentRoundAttentionTable } from "./current-round-attention-table";
 import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
-import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
+import { formatLeagueSeasonDisplay } from "@/lib/date/format-phase-display";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DecisionBanner } from "@/components/ui/decision-banner";
@@ -26,8 +26,8 @@ type PlayersPageClientProps = {
     reducedMatchLoadAllowed: boolean;
   }>;
   teams: Array<{ id: string; name: string }>;
-  planningPeriods: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
-  matchRounds: Array<{ id: string; name: string; planningPeriodId?: string | null }>;
+  leagueSeasons: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
+  matchRounds: Array<{ id: string; name: string; leagueSeasonId?: string | null }>;
   seasonRows: PlayerSeasonOverviewRow[];
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;
@@ -40,7 +40,7 @@ type PlayersPageClientProps = {
 export function PlayersPageClient({
   players,
   teams,
-  planningPeriods,
+  leagueSeasons,
   matchRounds,
   seasonRows,
   currentRoundRows,
@@ -56,12 +56,12 @@ export function PlayersPageClient({
     (initialMode === "attention" ? "attention" : initialMode === "groups" ? "groups" : "season") as "season" | "attention" | "groups",
   );
 
-  const selectedPeriod = planningPeriods.find((p) => p.id === selectedPeriodId);
+  const selectedPeriod = leagueSeasons.find((p) => p.id === selectedPeriodId);
   const selectedRound = matchRounds.find((r) => r.id === selectedRoundId);
-  const periodLabel = selectedPeriod ? formatPhaseDisplay({ seasonName: selectedPeriod.name, phaseName: selectedPeriod.name, startDate: new Date(selectedPeriod.startDate), endDate: new Date(selectedPeriod.endDate) }).combinedLabel : "No phase";
+  const periodLabel = selectedPeriod ? formatLeagueSeasonDisplay({ seasonName: selectedPeriod.name, leagueSeasonName: selectedPeriod.name, startDate: new Date(selectedPeriod.startDate), endDate: new Date(selectedPeriod.endDate) }).combinedLabel : "No league season";
   const roundLabel = selectedRound?.name ?? "No round selected";
 
-  const roundsForPeriod = matchRounds.filter((r) => r.planningPeriodId === selectedPeriodId);
+  const roundsForPeriod = matchRounds.filter((r) => r.leagueSeasonId === selectedPeriodId);
 
   function navigate(params: Record<string, string | undefined>) {
     const all = new URLSearchParams(searchParams.toString());
@@ -110,21 +110,21 @@ export function PlayersPageClient({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-muted)]">Phase:</span>
+              <span className="text-xs text-[var(--text-muted)]">League season:</span>
               <select
                 value={selectedPeriodId}
                 onChange={(e) => navigate({ periodId: e.target.value, mode: "season" })}
                 className={selectClass}
               >
-                {planningPeriods.map((p) => (
-                  <option key={p.id} value={p.id}>{formatPhaseDisplay({ seasonName: p.name, phaseName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
+                {leagueSeasons.map((p) => (
+                  <option key={p.id} value={p.id}>{formatLeagueSeasonDisplay({ seasonName: p.name, leagueSeasonName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
                 ))}
               </select>
             </label>
           </div>
           <SeasonOverviewTable
             rows={seasonRows}
-            planningPeriodLabel={periodLabel}
+            leagueSeasonLabel={periodLabel}
             teams={teams}
           />
         </>
@@ -134,14 +134,14 @@ export function PlayersPageClient({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-muted)]">Phase:</span>
+              <span className="text-xs text-[var(--text-muted)]">League season:</span>
               <select
                 value={selectedPeriodId}
                 onChange={(e) => navigate({ periodId: e.target.value, mode: "attention" })}
                 className={selectClass}
               >
-                {planningPeriods.map((p) => (
-                  <option key={p.id} value={p.id}>{formatPhaseDisplay({ seasonName: p.name, phaseName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
+                {leagueSeasons.map((p) => (
+                  <option key={p.id} value={p.id}>{formatLeagueSeasonDisplay({ seasonName: p.name, leagueSeasonName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
                 ))}
               </select>
             </label>

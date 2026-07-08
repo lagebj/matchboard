@@ -6,7 +6,7 @@ import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
 
 export type PopulateAllResult = {
-  planningPeriodId: string;
+  leagueSeasonId: string;
   results: PopulateRoundResult[];
   failedRoundIds: string[];
   skippedRoundIds: string[];
@@ -26,10 +26,10 @@ export type PopulateRoundResult = {
 };
 
 export async function populateAllDrafts(
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<PopulateAllResult> {
-  const planningPeriod = await db.planningPeriod.findUnique({
-    where: { id: planningPeriodId },
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
     include: {
       matchRounds: {
         include: {
@@ -43,11 +43,11 @@ export async function populateAllDrafts(
     },
   });
 
-  if (!planningPeriod) {
-    throw new Error("Planning period not found.");
+  if (!leagueSeason) {
+    throw new Error("League season not found.");
   }
 
-  const sortedRounds = [...planningPeriod.matchRounds].sort((a, b) => {
+  const sortedRounds = [...leagueSeason.matchRounds].sort((a, b) => {
     const aEarliest = a.matches.length > 0 ? Math.min(...a.matches.map((m) => new Date(m.startsAt).getTime())) : 0;
     const bEarliest = b.matches.length > 0 ? Math.min(...b.matches.map((m) => new Date(m.startsAt).getTime())) : 0;
     return aEarliest - bEarliest;
@@ -101,11 +101,11 @@ export async function populateAllDrafts(
   }
 
   return {
-    planningPeriodId,
+    leagueSeasonId,
     results,
     failedRoundIds,
     skippedRoundIds,
-    totalRounds: planningPeriod.matchRounds.length,
+    totalRounds: leagueSeason.matchRounds.length,
     generatedCount: results.filter((r) => r.success).length,
     failedCount: failedRoundIds.length,
     skippedCount: skippedRoundIds.length,
