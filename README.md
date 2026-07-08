@@ -739,6 +739,22 @@ Players can temporarily help other event squads when their own squad is not play
 - **Planned roles**: Optional — GK cover, Defender cover, Midfield cover, Forward cover, General cover.
 - **Post-match integration**: Support players appear in reports with "Planned helper from {squad name}" role label.
 
+### Event export
+
+Coaches can export a complete event overview as an Excel workbook (.xlsx) from the event detail page.
+
+- **Export button**: Available on the event detail page header. Downloads the file immediately.
+- **Filename**: Based on the event name and start date (e.g., `Slemmestad Cup 2026-07-08.xlsx`).
+- **Overview sheet**: Event name, type (friendly label), game format, match duration, squad count, match count, export timestamp.
+- **Squads sheet**: One row per player per squad — squad name, player name, position. Does not expose ratings or internal IDs.
+- **Match plan sheet**: One row per match — squad, opponent, category (friendly label), date, start/end time, status (friendly label), planned helpers.
+- **Support plan sheet**: One row per planned helper — match times, target squad, opponent, helper name, source squad, planned role, conflict status.
+- **Support load sheet**: One row per helper — name, source squad, number of support matches, conflict count.
+- **Conflicts sheet**: Lists active support conflicts with match context and reason, or "No support conflicts" if none.
+- **Labels**: Uses friendly labels throughout (7-a-side not SEVEN_A_SIDE, Cup not CUP, Scheduled not SCHEDULED, Not rated not null).
+- **Missing duration**: Shows "Not set" and "Duration not set" when match duration is not configured.
+- **Authentication**: Required. Unauthenticated requests are rejected.
+
 ### Player pool management
 
 The event detail page provides a Player pool tab (not "Availability") with:
