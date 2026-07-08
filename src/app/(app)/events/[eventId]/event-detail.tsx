@@ -15,7 +15,11 @@ import {
   assignPlayerToEventSquadAction,
   unassignPlayerFromEventSquadAction,
 } from '../actions';
+import { suggestBestFormationForPlayers } from '@/lib/events/tactic-suggestion';
+import type { TacticSuggestion } from '@/lib/events/tactic-suggestion';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
+
+type FormationInfo = { id: string; name: string; gameFormat: string };
 import { PageHeader } from '@/components/ui/page-header';
 import { TabRail } from '@/components/ui/tab-rail';
 import { Surface } from '@/components/ui/surface';
@@ -141,6 +145,8 @@ type EventDetailData = {
   squadBalances: SquadBalanceSummary[];
   validation: EventPoolValidation;
   compatibleFormations: { id: string; name: string; gameFormat: string }[];
+  tacticSuggestion: TacticSuggestion | null;
+  squadTacticSuggestions: Record<string, TacticSuggestion | null>;
 };
 
 type TabKey = 'overview' | 'squads' | 'pool';
@@ -349,6 +355,14 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         />
       )}
 
+      {data.tacticSuggestion && data.tacticSuggestion.formationId && (
+        <DecisionBanner
+          variant="note"
+          title="Best tactic fit from available pool"
+          description={`${data.tacticSuggestion.formationName ?? 'Unknown'} — ${data.tacticSuggestion.coverageSummary.coveredSlots}/${data.tacticSuggestion.coverageSummary.totalSlots} slots covered · ${data.tacticSuggestion.coverageSummary.primaryFits} primary · ${data.tacticSuggestion.coverageSummary.secondaryFits} secondary`}
+        />
+      )}
+
       <TabRail
         items={[
           { key: 'overview', label: 'Overview' },
@@ -426,6 +440,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         {balance.coverageNotes.map((note, i) => (
                           <p key={i} className="text-[10px] text-[var(--warning)]">{note}</p>
                         ))}
+                      </div>
+                    )}
+                    {data.squadTacticSuggestions[squad.id] && data.squadTacticSuggestions[squad.id]!.formationId && (
+                      <div className="mt-1 text-[10px] text-[var(--text-muted)]">
+                        Best fit: {data.squadTacticSuggestions[squad.id]!.formationName} · {data.squadTacticSuggestions[squad.id]!.coverageSummary.coveredSlots}/{data.squadTacticSuggestions[squad.id]!.coverageSummary.totalSlots} slots covered
                       </div>
                     )}
                     {squad.players.length > 0 && (
@@ -538,6 +557,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         </div>
                       );
                     })()}
+                    {data.squadTacticSuggestions[squad.id] && data.squadTacticSuggestions[squad.id]!.formationId && (
+                      <div className="mb-2 text-[10px] text-[var(--text-muted)]">
+                        Best fit: {data.squadTacticSuggestions[squad.id]!.formationName} · {data.squadTacticSuggestions[squad.id]!.coverageSummary.coveredSlots}/{data.squadTacticSuggestions[squad.id]!.coverageSummary.totalSlots} slots covered
+                      </div>
+                    )}
                     {squad.players.length === 0 ? (
                       <p className="text-xs text-[var(--text-muted)]">No players assigned yet</p>
                     ) : (
