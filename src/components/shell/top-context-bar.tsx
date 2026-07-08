@@ -7,10 +7,10 @@ import { Search } from "lucide-react";
 
 type ContextData = {
   season: { id: string; name: string } | null;
-  planningPeriod: {
+  leagueSeason: {
     id: string;
     name: string;
-    phaseLabel: string;
+    leagueSeasonLabel: string;
     seasonLabel: string;
     combinedLabel: string;
     dateRangeLabel: string;
@@ -51,7 +51,7 @@ function getPageTitle(pathname: string): string {
  * TopContextBar — professional operations command bar.
  *
  * Left: current page/module context.
- * Middle: season/phase/week context.
+ * Middle: season/league season/week context.
  * Right: search + user controls.
  * Search must not dominate. Never "Dashboard".
  */
@@ -94,9 +94,9 @@ export function TopContextBar() {
         <span className="text-sm font-semibold text-zinc-50 shrink-0">{title}</span>
         {ctx && (
           <div className="hidden items-center gap-2 text-xs text-[var(--text-muted)] min-w-0 lg:flex">
-            {ctx.planningPeriod && (
-              <span className="truncate">
-                {ctx.planningPeriod.seasonLabel} · {ctx.planningPeriod.combinedLabel}
+            {ctx.leagueSeason && (
+               <span className="truncate">
+                {ctx.leagueSeason.seasonLabel} · {ctx.leagueSeason.combinedLabel}
               </span>
             )}
             {ctx.matchRound && (

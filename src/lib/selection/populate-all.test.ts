@@ -145,7 +145,7 @@ describe("Populate all workflow", () => {
     const round2 = await testDb.matchRound.create({
       data: {
         name: "W20 Populate Test",
-        planningPeriodId: fixtureIds.planningPeriodId,
+        leagueSeasonId: fixtureIds.leagueSeasonId,
         status: "DRAFT",
       },
     });
@@ -177,7 +177,7 @@ describe("Populate all workflow", () => {
       });
     }
 
-    const result = await populateAllDrafts(fixtureIds.planningPeriodId);
+    const result = await populateAllDrafts(fixtureIds.leagueSeasonId);
 
     expect(result.totalRounds).toBe(2);
     expect(result.generatedCount).toBe(2);
@@ -192,7 +192,7 @@ describe("Populate all workflow", () => {
       data: { status: "FINALIZED" },
     });
 
-    const result = await populateAllDrafts(fixtureIds.planningPeriodId);
+    const result = await populateAllDrafts(fixtureIds.leagueSeasonId);
 
     expect(result.skippedCount).toBe(1);
     expect(result.skippedRoundIds).toContain(fixtureIds.matchRoundId);
@@ -204,7 +204,7 @@ describe("Populate all workflow", () => {
       data: { status: "DRAFT" },
     });
 
-    await populateAllDrafts(fixtureIds.planningPeriodId);
+    await populateAllDrafts(fixtureIds.leagueSeasonId);
 
     const round = await testDb.matchRound.findUnique({
       where: { id: fixtureIds.matchRoundId },
@@ -214,7 +214,7 @@ describe("Populate all workflow", () => {
   });
 
   it("persists warnings for generated rounds", async () => {
-    await populateAllDrafts(fixtureIds.planningPeriodId);
+    await populateAllDrafts(fixtureIds.leagueSeasonId);
 
     const warnings = await testDb.warning.findMany({
       where: { matchRoundId: fixtureIds.matchRoundId },

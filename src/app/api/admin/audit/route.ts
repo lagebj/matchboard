@@ -14,11 +14,11 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const planningPeriodId = url.searchParams.get("planningPeriodId") ?? undefined;
+  const leagueSeasonId = url.searchParams.get("leagueSeasonId") ?? undefined;
   const matchId = url.searchParams.get("matchId") ?? undefined;
 
   try {
-    const result = await auditDataIntegrity({ planningPeriodId, matchId });
+    const result = await auditDataIntegrity({ leagueSeasonId, matchId });
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Audit failed";

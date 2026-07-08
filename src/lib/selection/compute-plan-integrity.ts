@@ -254,7 +254,7 @@ export async function computeRoundPlanIntegrity(
   }
 
   // 4. AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY: one signal per affected player
-  const planningPeriod = await db.planningPeriod.findFirst({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { matchRounds: { some: { id: matchRoundId } } },
     select: { id: true },
   });
@@ -273,10 +273,10 @@ export async function computeRoundPlanIntegrity(
 
     let repeatedContext: { earlierMissedRoundCount: number; roundLabels: string[] } | undefined;
 
-    if (planningPeriod) {
+    if (leagueSeason) {
       const earlierRounds = await db.matchRound.findMany({
         where: {
-          planningPeriodId: planningPeriod.id,
+          leagueSeasonId: leagueSeason.id,
           status: "FINALIZED",
           id: { not: matchRoundId },
         },
@@ -313,13 +313,13 @@ export async function computeRoundPlanIntegrity(
 
     signals.push({
       idempotencyKey: makeIdempotencyKey("AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY", matchRoundId, null, null, player.id),
-      kind: "DECISION_REQUIRED",
+      kind: "BLOCKED",
       ruleCode: "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY",
       matchRoundId,
       playerId: player.id,
-      title: `Decision required: ${playerName} has no planned match opportunity this round`,
+      title: `Blocked: ${playerName} has no planned match opportunity this round`,
       currentState: `${playerName} is available for this round but is not assigned to a match.`,
-      consequence: "Assign the player to an eligible match or record why no planned opportunity is provided before finalising.",
+      consequence: "Assign the player to an eligible match or provide an override reason before finalising.",
       classificationReason: "Available eligible player without planned match opportunity",
       primaryActionLabel: "Assign player",
       primaryActionTarget: `/rounds/${matchRoundId}`,

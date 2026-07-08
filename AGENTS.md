@@ -1,6 +1,6 @@
 # Matchboard Agent Instructions
 
-Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals, finalized history, and post-match reflection across a planning period.
+Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals, finalized history, and post-match reflection across a league season.
 
 It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
@@ -39,13 +39,13 @@ Every branch must run lint, typecheck, tests, build, and schema validation where
 
 ## Workflow
 
-Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews plan integrity signals by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
+Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews plan integrity signals by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/league-season history is used to keep load, support, drops, development exposure, and fairness balanced over time.
 
 The primary coach workflow is:
 
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Define intent** — Set match purpose, team risk, desired football behavior, support need, development focus.
-3. **Populate all** — Generate draft selections for all rounds in the active planning period. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
+3. **Populate all** — Generate draft selections for all rounds in the active league season. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
 4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
 6. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
@@ -87,7 +87,7 @@ Selections are generated per match round.
 
 A match round is the operational planning unit.
 
-The season or planning period is the fairness and load-balancing context.
+The season or league season is the fairness and load-balancing context.
 
 A round may contain one or more matches.
 
@@ -106,7 +106,7 @@ No phase may create a second planned selection for the same player in the same r
 
 No phase may be skipped. Each phase must complete before the next begins.
 
-Populate all generates drafts for all rounds in a planning period in one action. It does not finalize. Each round is generated via round-level orchestration to preserve cross-match conflict resolution.
+Populate all generates drafts for all rounds in a league season in one action. It does not finalize. Each round is generated via round-level orchestration to preserve cross-match conflict resolution.
 
 Populate all must not generate each match independently. Populate all must group matches by round and run round generation per round.
 
@@ -123,7 +123,7 @@ Movement is based on:
 - learning behavior
 - game impact
 - appropriate challenge
-- fairness across the season/planning period
+- fairness across the season/league season
 
 Movement is not a punishment or permanent label.
 
@@ -140,7 +140,7 @@ This loop must be reflected in the UI workflow, not just the selection engine.
 Selection logic must not be changed without preserving explainability and child-safe language.
 
 Coaching intent can be attached to:
-- planning periods
+- league seasons
 - match rounds
 - matches
 - teams
@@ -282,7 +282,7 @@ Parent-facing language must use neutral terms:
 - match experience
 - development opportunity
 - squad adjustment
-- planning period
+- league season
 - match group
 
 Parent-facing language must never use:
@@ -727,7 +727,7 @@ Existing data that has non-core selections but empty MovementLedger must be back
 Generated draft selections can be regenerated at three levels:
 - **Regenerate match** — rerun automatic selection for one match, preserving any manual edits
 - **Regenerate round** — rerun round-level orchestration for one round, preserving any manual edits
-- **Regenerate all drafts** — regenerate all DRAFT rounds in the planning period, preserving manual edits in each
+- **Regenerate all drafts** — regenerate all DRAFT rounds in the league season, preserving manual edits in each
 
 Regeneration rules:
 - Regeneration preserves manual edits: selections marked as manually added or manually removed are kept, and only automatic selections are recalculated
@@ -824,7 +824,7 @@ Rules must be testable without React.
 
 ## Populate all
 
-Populate all is a convenience workflow that generates drafts for all non-finalized rounds in the active planning period.
+Populate all is a convenience workflow that generates drafts for all non-finalized rounds in the active league season.
 
 - It calls `generateMatchRound` for each round in chronological order
 - It groups matches by round and generates per round (not match-by-match)
@@ -894,7 +894,7 @@ Active navigation state:
 
 Operational workflow hierarchy:
 1. Assistant identifies the next required action.
-2. Fixtures provides the season/planning-period and round hierarchy.
+2. Fixtures provides the season/league-season and round hierarchy.
 3. Round Board is the primary squad decision surface.
 4. Match detail handles match-specific preparation, finalisation and post-match reporting.
 5. Team and Player pages provide supporting context and configuration.
@@ -905,7 +905,7 @@ Operational workflow hierarchy:
 Teams, Players, and Matches are setup registries. They serve data-entry efficiency, not football operations workflow. Each registry page is a dense table with prominent Create actions and actionable empty states. Create buttons must never be dead links. Empty states must link directly to creation.
 
 - Teams (`/teams`): dense table of teams with core player count, squad limits, support priority. Links to `/teams/new` for creation. Links to `/teams/[teamId]` for detail. Empty state: "No teams yet. Create a team." with direct link to `/teams/new`.
-- Players (`/players`): three-mode surface — Season overview (actual participation and recorded match statistics for a selected planning period), Current round attention (canonical live plan-integrity state for a selected round), Manage base groups (stable core-team assignment and player registry administration). Links to `/players/new` for creation. Links to `/players/[playerId]` for full profile. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Add a player." with direct link to `/players/new`.
+- Players (`/players`): three-mode surface — Season overview (actual participation and recorded match statistics for a selected league season), Current round attention (canonical live plan-integrity state for a selected round), Manage base groups (stable core-team assignment and player registry administration). Links to `/players/new` for creation. Links to `/players/[playerId]` for full profile. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Add a player." with direct link to `/players/new`.
 - Fixtures provides match creation and match registry. The `/matches/new` route creates matches assigned to match rounds based on date. Fixtures must not expose a separate fixture-list mental model through a competing `/matches` navigation destination.
 
 Create routes must work reliably. `/teams/new` must save all team fields (not just name and a few fields). `/players/new` must not silently disappear when teams exist. `/matches/new` must assign matches to match rounds based on date.
@@ -961,12 +961,12 @@ Players overview display rules:
 - Visible phase labels are derived from startDate and endDate; stored names must not misstate visible time scope.
 - The default Season overview table must not show round columns (W18 2026 etc.), Last movement, Review, dropped count/status, or a separate Profile button column.
 - Player name must be a focusable link to the full player profile.
-- User-facing vocabulary uses Phase (not Planning period) for the bounded spring/autumn operational window.
+- User-facing vocabulary uses League season (not Phase or Planning period) for the bounded spring/autumn operational window.
 - User-facing vocabulary uses Season for the broad football-year context.
 
 ### Teams page and team detail
 
-The `/teams` page is a selected-planning-period completed-results overview. It must not present configuration-first columns.
+The `/teams` page is a selected-league-season completed-results overview. It must not present configuration-first columns.
 
 Required copy: `Teams` heading with subtitle `Results and match record for {planningPeriodRange}.`
 
@@ -1020,14 +1020,14 @@ Status vocabulary: The app uses exactly these visible status labels: Not generat
 
 Warning and signal hierarchy: Blocked conditions must be visually dominant and placed beside the affected round or match. Decision required conditions must be visible without opening hidden technical detail. Planning notes may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
 
-User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team), Phase (not Planning period in user-facing text), Season (for the broad football-year context). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
+User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team), League season (not Phase or Planning period), Season (for the broad football-year context). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
 
 Season and Phase vocabulary:
 
-- Season is the full football-year context. Phase is the bounded spring/autumn operational window (internally a PlanningPeriod).
-- User-facing text must use "Phase" and "Season", never "Planning period".
+- Season is the full football-year context. League season is the bounded spring/autumn operational window (internally a LeagueSeason with LeagueSeasonPart SPRING/FALL).
+- User-facing text must use "League season" and "Season", never "Phase" or "Planning period".
 - A Phase display must include truthful date-range context (e.g. "Spring 2026 · Apr–Jun") and must not expose misleading single-month labels for multi-month ranges.
-- PlanningPeriod remains the internal model. The database model is not renamed.
+- LeagueSeason is the database model. The database model was renamed from PlanningPeriod.
 
 Match schedule editing:
 
@@ -1131,8 +1131,8 @@ Filters:
 
 Season page layout:
 
-- Header: "Season" with subtitle "Track load, movement, and fairness across the planning period."
-- Controls: planning period selector, finalized/draft toggle, filters
+- Header: "Season" with subtitle "Track load, movement, and fairness across the league season."
+- Controls: league season selector, finalized/draft toggle, filters
 - Top summary strip: total rounds, finalized rounds, draft rounds, players with plan integrity signals, highest support burden, legacy additional assignment count
 - Main: player × round matrix
 - Side or lower panel: selected player/path drill-down
@@ -1182,7 +1182,7 @@ Parent export includes:
 - Movement direction (without team names or role labels)
 - Player statistics: player, team, rounds played
 
-API endpoint: `/api/season/export?planningPeriodId=<id>&format=<csv|json|txt|md>&visibility=<coach|parent>`
+API endpoint: `/api/season/export?leagueSeasonId=<id>&format=<csv|json|txt|md>&visibility=<coach|parent>`
 
 ### Prohibited copy
 
@@ -1263,7 +1263,7 @@ Event squad generation is separate from league round generation:
 ### Event models
 
 Events use separate Prisma models:
-- `Event`: top-level container with name, type (CUP/TOURNAMENT/FRIENDLY_DAY/OTHER), date range, game format, source planning period, default formation, selection pattern
+- `Event`: top-level container with name, type (CUP/TOURNAMENT/FRIENDLY_DAY/OTHER), date range, game format, independent of league season, default formation, selection pattern
 - `EventPlayerAvailability`: per-player availability for this event (AVAILABLE/UNAVAILABLE/UNKNOWN/RESERVE/LATE_ADDITION/WITHDRAWN)
 - `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary
 - `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason
@@ -1396,7 +1396,7 @@ Required test coverage should include:
 - non-rotatable exclusion from generic backfill
 - plan integrity signal generation when support/backfill fails
 - plan integrity signal persistence after generation
-- season/planning-period fairness
+- season/league-season fairness
 - unavailable rounds excluded from fairness debt
 - explanation output for important decisions
 - populate all generates all rounds without finalizing
@@ -1578,7 +1578,9 @@ Avoid:
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
 | `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
-| `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
+| `src/lib/selection/get-league-season-fairness.ts` | Fairness calculation (FINALIZED only) |
+| `src/lib/seasons/league-season.ts` | Date-derived SPRING/FALL assignment, labels, date ranges |
+| `src/lib/rounds/round-engagement.ts` | Round engagement enforcement and override validation |
 | `src/lib/selection/get-consecutive-support-count.ts` | Consecutive support round tracking |
 | `src/lib/selection/refresh-draft-selection.ts` | Regenerate draft for a match or round |
 | `src/lib/selection/populate-all-drafts.ts` | Populate all convenience workflow |

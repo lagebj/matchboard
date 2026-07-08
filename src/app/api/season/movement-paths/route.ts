@@ -5,13 +5,13 @@ import { requireCoachAccess } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   await requireCoachAccess();
   const { searchParams } = request.nextUrl;
-  const planningPeriodId = searchParams.get("planningPeriodId");
+  const leagueSeasonId = searchParams.get("leagueSeasonId");
   const includeDrafts = searchParams.get("includeDrafts") === "true";
 
-  if (!planningPeriodId) {
-    return NextResponse.json({ error: "planningPeriodId required" }, { status: 400 });
+  if (!leagueSeasonId) {
+    return NextResponse.json({ error: "leagueSeasonId required" }, { status: 400 });
   }
 
-  const paths = await getMovementPathSummary(planningPeriodId, includeDrafts);
+  const paths = await getMovementPathSummary(leagueSeasonId, includeDrafts);
   return NextResponse.json(paths);
 }

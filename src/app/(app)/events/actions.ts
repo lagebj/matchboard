@@ -74,7 +74,6 @@ export async function createEventAction(formData: FormData) {
   const startsAt = formData.get('startsAt') as string;
   const endsAt = (formData.get('endsAt') as string) || null;
   const gameFormatRaw = formData.get('gameFormat') as string | null;
-  const sourcePlanningPeriodId = (formData.get('sourcePlanningPeriodId') as string) || null;
   const defaultFormationId = (formData.get('defaultFormationId') as string) || null;
   const selectionPatternRaw = formData.get('selectionPattern') as string | null;
   const notes = (formData.get('notes') as string)?.trim() || null;
@@ -96,7 +95,6 @@ export async function createEventAction(formData: FormData) {
       startsAt: new Date(startsAt),
       endsAt: endsAt ? new Date(endsAt) : null,
       gameFormat,
-      sourcePlanningPeriodId,
       defaultFormationId: defaultFormationId || undefined,
       selectionPattern,
       notes,
@@ -397,9 +395,9 @@ export async function clearEventSquadsAction(eventId: string) {
   revalidatePath(`/events/${eventId}`);
 }
 
-export async function getPlanningPeriods() {
+export async function getLeagueSeasons() {
   await requireCoachAccess();
-  return db.planningPeriod.findMany({
+  return db.leagueSeason.findMany({
     orderBy: { startDate: 'desc' },
   });
 }
@@ -413,7 +411,7 @@ export async function getFormations() {
   });
 }
 
-export async function getAvailablePlayersForEvent(_planningPeriodId?: string) {
+export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
   await requireCoachAccess();
 
   return db.player.findMany({

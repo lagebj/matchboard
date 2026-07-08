@@ -6,7 +6,7 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 
 type SeasonOverviewTableProps = {
   rows: PlayerSeasonOverviewRow[];
-  planningPeriodLabel: string;
+  leagueSeasonLabel: string;
   teams: Array<{ id: string; name: string }>;
 };
 
@@ -35,7 +35,7 @@ type LoadFilter = "all" | "low_load" | "high_load";
 
 export function SeasonOverviewTable({
   rows,
-  planningPeriodLabel,
+  leagueSeasonLabel,
   teams,
 }: SeasonOverviewTableProps) {
   const [sortField, setSortField] = useState<SortField>("actualAppearances");
@@ -154,7 +154,7 @@ export function SeasonOverviewTable({
     <div className="flex flex-col gap-3">
       <p className="text-xs text-zinc-500">
         Actual participation and recorded match statistics for{" "}
-        <span className="font-medium text-zinc-400">{planningPeriodLabel}</span>.
+        <span className="font-medium text-zinc-400">{leagueSeasonLabel}</span>.
         Played, goals and assists use reported match participation. Finalised upcoming matches remain separate until match reporting is completed.
       </p>
 

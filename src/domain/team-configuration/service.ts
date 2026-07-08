@@ -39,7 +39,7 @@ export const KNOWN_RULES: TeamRuleConfiguration[] = [
   {
     ruleId: "match-load-fairness",
     name: "Match load fairness",
-    description: "Player load is tracked across the planning period to balance selections.",
+    description: "Player load is tracked across the league season to balance selections.",
     scope: "GLOBAL",
     enabled: true,
     editable: false,

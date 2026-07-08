@@ -22,7 +22,7 @@ export type TeamBurdenResult = {
 
 export type TeamBurden = {
   teams: TeamBurdenResult[];
-  planningPeriodId: string;
+  leagueSeasonId: string;
 };
 
 function isDonorRole(role: SelectionRole): boolean {
@@ -44,16 +44,16 @@ function isReceptionRole(role: SelectionRole): boolean {
 }
 
 export async function getTeamBurden(
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<TeamBurden> {
   const [matchRounds, matches, teams, selections] = await Promise.all([
     db.matchRound.findMany({
-      where: { planningPeriodId },
+      where: { leagueSeasonId },
       select: { id: true },
       orderBy: { createdAt: "asc" },
     }),
     db.match.findMany({
-      where: { matchRound: { planningPeriodId } },
+      where: { matchRound: { leagueSeasonId } },
       select: {
         id: true,
         matchRoundId: true,
@@ -72,7 +72,7 @@ export async function getTeamBurden(
     db.selection.findMany({
       where: {
         status: SelectionStatus.FINALIZED,
-        matchRound: { planningPeriodId },
+        matchRound: { leagueSeasonId },
       },
       select: {
         playerId: true,
@@ -197,7 +197,7 @@ export async function getTeamBurden(
   }
 
   return {
-    planningPeriodId,
+    leagueSeasonId,
     teams: results,
   };
 }

@@ -82,20 +82,20 @@ function MobileTeamCard({ row }: { row: TeamPeriodResultsRow }) {
 export default async function TeamsPage({ searchParams }: TeamsPageProps) {
   const { periodId, error, saved } = await searchParams;
 
-  const planningPeriods = await db.planningPeriod.findMany({
+  const leagueSeasons = await db.leagueSeason.findMany({
     orderBy: { startDate: "desc" },
     select: { id: true, name: true, startDate: true, endDate: true },
   });
 
-  const selectedPeriodId = periodId ?? planningPeriods[0]?.id;
+  const selectedPeriodId = periodId ?? leagueSeasons[0]?.id;
 
   const overview = selectedPeriodId
     ? await getTeamsResultsOverview(selectedPeriodId)
     : null;
 
   const selectedPeriod = selectedPeriodId
-    ? planningPeriods.find((p) => p.id === selectedPeriodId)
-    : planningPeriods[0];
+    ? leagueSeasons.find((p) => p.id === selectedPeriodId)
+    : leagueSeasons[0];
 
   const periodLabel = selectedPeriod
     ? formatPhaseDisplay({
@@ -106,7 +106,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
       }).combinedLabel
     : "No phase";
 
-  const periodOptions = planningPeriods.map((p) => ({
+  const periodOptions = leagueSeasons.map((p) => ({
     id: p.id,
     label: formatPhaseDisplay({
       seasonName: p.name,
@@ -133,7 +133,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
 
       <div className="flex items-center justify-between gap-2">
         {selectedPeriodId && (
-          <TeamPeriodSelector planningPeriods={periodOptions} selectedPeriodId={selectedPeriodId} />
+          <TeamPeriodSelector leagueSeasons={periodOptions} selectedPeriodId={selectedPeriodId} />
         )}
       </div>
 

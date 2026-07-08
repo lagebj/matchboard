@@ -2,7 +2,7 @@ import type { SelectedPlayer } from "@/lib/selection/types";
 import type { RotationCandidateCategory } from "@/lib/selection/selection-types";
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 
-export type PlanningPeriodRoleCounts = {
+export type LeagueSeasonRoleCounts = {
   coreCount: number;
   developmentCount: number;
   supportCount: number;
@@ -16,14 +16,14 @@ export function getPositionNeedScore(selectedPlayers: SelectedPlayer[], chosenPo
   return selectedPlayers.filter((player) => player.chosenPosition === chosenPosition).length;
 }
 
-export function getPlanningPeriodFairnessBonus(
+export function getLeagueSeasonFairnessBonus(
   playerId: string,
-  planningPeriodCounts: Map<string, PlanningPeriodRoleCounts> | null,
+  leagueSeasonCounts: Map<string, LeagueSeasonRoleCounts> | null,
   candidateCategory: RotationCandidateCategory,
 ): number {
-  if (!planningPeriodCounts) return 0;
+  if (!leagueSeasonCounts) return 0;
 
-  const counts = planningPeriodCounts.get(playerId);
+  const counts = leagueSeasonCounts.get(playerId);
   if (!counts) return 0;
 
   // Support-role candidates (SUPPORT, including former BACKFILL-equivalent)

@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { getPlanningPeriods, getFormations } from '../actions';
+import { getLeagueSeasons, getFormations } from '../actions';
 
 export const metadata = { title: 'Create Event' };
 
 export default async function CreateEventPage() {
-  const [planningPeriods, formations] = await Promise.all([
-    getPlanningPeriods(),
+  const [leagueSeasons, formations] = await Promise.all([
+    getLeagueSeasons(),
     getFormations(),
   ]);
 
@@ -90,24 +90,6 @@ export default async function CreateEventPage() {
               <option value="SEVEN_A_SIDE">7-a-side</option>
               <option value="NINE_A_SIDE">9-a-side</option>
               <option value="ELEVEN_A_SIDE">11-a-side</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="sourcePlanningPeriodId" className="block text-sm font-medium mb-1">
-              Source phase
-            </label>
-            <select
-              id="sourcePlanningPeriodId"
-              name="sourcePlanningPeriodId"
-              className="w-full rounded-md border px-3 py-2 text-sm"
-            >
-              <option value="">None</option>
-              {planningPeriods.map((pp) => (
-                <option key={pp.id} value={pp.id}>
-                  {pp.name}
-                </option>
-              ))}
             </select>
           </div>
 

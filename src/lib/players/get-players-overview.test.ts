@@ -44,20 +44,20 @@ describe("getPlayersSeasonOverview", () => {
   });
 
   it("returns planning period info and player rows", async () => {
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId);
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
 
-    expect(result.planningPeriod.id).toBe(fixture.planningPeriodId);
-    expect(result.planningPeriod.label).toBe("Test Period");
+    expect(result.leagueSeason.id).toBe(fixture.leagueSeasonId);
+    expect(result.leagueSeason.label).toBe("Test Period");
     expect(result.seasonRows.length).toBeGreaterThan(0);
   });
 
   it("returns all active players in the season", async () => {
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId);
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
     expect(result.seasonRows.length).toBe(fixture.players.length);
   });
 
   it("each row has required fields", async () => {
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId);
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
 
     for (const row of result.seasonRows) {
       expect(row.playerId).toBeDefined();
@@ -74,7 +74,7 @@ describe("getPlayersSeasonOverview", () => {
   });
 
   it("counts zero appearances when no post-match reports exist", async () => {
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId);
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
 
     for (const row of result.seasonRows) {
       expect(row.actualAppearances).toBe(0);
@@ -91,14 +91,14 @@ describe("getPlayersSeasonOverview", () => {
   it("returns empty results for non-existent planning period", async () => {
     const result = await getPlayersSeasonOverview("nonexistent-id");
 
-    expect(result.planningPeriod.label).toBe("Unknown");
+    expect(result.leagueSeason.label).toBe("Unknown");
     expect(result.seasonRows).toEqual([]);
   });
 
   it("filters by team when teamId is provided", async () => {
     const blaTeamId = fixture.teams["Bla"];
 
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId, { teamId: blaTeamId });
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId, { teamId: blaTeamId });
 
     for (const row of result.seasonRows) {
       expect(row.coreTeam?.id).toBe(blaTeamId);
@@ -163,7 +163,7 @@ describe("getPlayersSeasonOverview", () => {
       },
     });
 
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId);
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
     const playerRow = result.seasonRows.find((r) => r.playerId === player.id);
 
     expect(playerRow).toBeDefined();
@@ -194,7 +194,7 @@ describe("getPlayersSeasonOverview", () => {
       },
     });
 
-    const result = await getPlayersSeasonOverview(fixture.planningPeriodId);
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
     const playerRow = result.seasonRows.find((r) => r.playerId === player.id);
 
     expect(playerRow).toBeDefined();

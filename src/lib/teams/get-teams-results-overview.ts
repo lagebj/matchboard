@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { formatPlanningPeriodRange } from "@/lib/date/format-planning-period-range";
+import { formatDateRange } from "@/lib/date/format-date-range";
 
 export type TeamPeriodResultsRow = {
   teamId: string;
@@ -16,7 +16,7 @@ export type TeamPeriodResultsRow = {
 };
 
 export type TeamsResultsOverview = {
-  planningPeriod: {
+  leagueSeason: {
     id: string;
     startDate: Date;
     endDate: Date;
@@ -26,10 +26,10 @@ export type TeamsResultsOverview = {
 };
 
 export async function getTeamsResultsOverview(
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<TeamsResultsOverview> {
-  const planningPeriod = await db.planningPeriod.findUniqueOrThrow({
-    where: { id: planningPeriodId },
+  const leagueSeason = await db.leagueSeason.findUniqueOrThrow({
+    where: { id: leagueSeasonId },
     select: { id: true, startDate: true, endDate: true },
   });
 
@@ -49,13 +49,13 @@ export async function getTeamsResultsOverview(
   const teamIds = teams.map((t) => t.id);
   if (teamIds.length === 0) {
     return {
-      planningPeriod: {
-        id: planningPeriod.id,
-        startDate: planningPeriod.startDate,
-        endDate: planningPeriod.endDate,
-        displayLabel: formatPlanningPeriodRange(
-          new Date(planningPeriod.startDate),
-          new Date(planningPeriod.endDate),
+      leagueSeason: {
+        id: leagueSeason.id,
+        startDate: leagueSeason.startDate,
+        endDate: leagueSeason.endDate,
+        displayLabel: formatDateRange(
+          new Date(leagueSeason.startDate),
+          new Date(leagueSeason.endDate),
         ),
       },
       rows: [],
@@ -65,7 +65,7 @@ export async function getTeamsResultsOverview(
   const matches = await db.match.findMany({
     where: {
       teamId: { in: teamIds },
-      matchRound: { planningPeriodId },
+      matchRound: { leagueSeasonId },
       status: { not: "CANCELLED" },
     },
     select: {
@@ -143,13 +143,13 @@ export async function getTeamsResultsOverview(
   });
 
   return {
-    planningPeriod: {
-      id: planningPeriod.id,
-      startDate: planningPeriod.startDate,
-      endDate: planningPeriod.endDate,
-      displayLabel: formatPlanningPeriodRange(
-        new Date(planningPeriod.startDate),
-        new Date(planningPeriod.endDate),
+    leagueSeason: {
+      id: leagueSeason.id,
+      startDate: leagueSeason.startDate,
+      endDate: leagueSeason.endDate,
+      displayLabel: formatDateRange(
+        new Date(leagueSeason.startDate),
+        new Date(leagueSeason.endDate),
       ),
     },
     rows,

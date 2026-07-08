@@ -20,23 +20,23 @@ export type PlayerFairnessResult = {
   availableRounds: number;
 };
 
-export type PlanningPeriodFairness = {
+export type LeagueSeasonFairness = {
   players: PlayerFairnessResult[];
-  planningPeriodId: string;
+  leagueSeasonId: string;
 };
 
-export async function getPlanningPeriodFairness(
-  planningPeriodId: string,
-): Promise<PlanningPeriodFairness> {
+export async function getLeagueSeasonFairness(
+  leagueSeasonId: string,
+): Promise<LeagueSeasonFairness> {
   const [matchRounds, finalizedSelections, players, availabilities, reportedReports] = await Promise.all([
     db.matchRound.findMany({
-      where: { planningPeriodId },
+      where: { leagueSeasonId },
       select: { id: true },
     }),
     db.selection.findMany({
       where: {
         status: SelectionStatus.FINALIZED,
-        matchRound: { planningPeriodId },
+        matchRound: { leagueSeasonId },
       },
       select: {
         playerId: true,
@@ -66,7 +66,7 @@ export async function getPlanningPeriodFairness(
     }),
     db.availability.findMany({
       where: {
-        matchRound: { planningPeriodId },
+        matchRound: { leagueSeasonId },
         status: "AVAILABLE",
       },
       select: {
@@ -222,6 +222,6 @@ export async function getPlanningPeriodFairness(
 
   return {
     players: results,
-    planningPeriodId,
+    leagueSeasonId,
   };
 }

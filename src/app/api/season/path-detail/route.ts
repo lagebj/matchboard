@@ -8,10 +8,10 @@ export async function GET(request: NextRequest) {
   const fromTeamId = searchParams.get("fromTeamId");
   const toTeamId = searchParams.get("toTeamId");
   const role = searchParams.get("role");
-  const planningPeriodId = searchParams.get("planningPeriodId");
+  const leagueSeasonId = searchParams.get("leagueSeasonId");
   const includeDrafts = searchParams.get("includeDrafts") === "true";
 
-  if (!fromTeamId || !toTeamId || !role || !planningPeriodId) {
+  if (!fromTeamId || !toTeamId || !role || !leagueSeasonId) {
     return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
   }
 
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     fromTeamId,
     toTeamId,
     role: role as "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL",
-    matchRound: { planningPeriodId },
+    matchRound: { leagueSeasonId },
     ...(includeDrafts ? {} : { isDraft: false }),
   };
 

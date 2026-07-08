@@ -3,7 +3,7 @@ import type { MovementCandidateDriftSignal } from "./movement-candidate";
 
 const EIGHT_WEEKS_MS = 8 * 7 * 24 * 60 * 60 * 1000;
 
-export async function detectMovementCandidateDrift(planningPeriodId: string): Promise<MovementCandidateDriftSignal[]> {
+export async function detectMovementCandidateDrift(leagueSeasonId: string): Promise<MovementCandidateDriftSignal[]> {
   const now = new Date();
   const signals: MovementCandidateDriftSignal[] = [];
 
@@ -45,7 +45,7 @@ export async function detectMovementCandidateDrift(planningPeriodId: string): Pr
       where: {
         playerId: { in: playerIds },
         isDraft: false,
-        matchRound: { planningPeriodId },
+        matchRound: { leagueSeasonId },
       },
       select: {
         playerId: true,
@@ -131,13 +131,13 @@ export async function detectMovementCandidateDrift(planningPeriodId: string): Pr
     }
   }
 
-  const teamCoreReplacementSignals = await detectTeamCoreReplacementPattern(planningPeriodId);
+  const teamCoreReplacementSignals = await detectTeamCoreReplacementPattern(leagueSeasonId);
   signals.push(...teamCoreReplacementSignals);
 
   return signals;
 }
 
-async function detectTeamCoreReplacementPattern(planningPeriodId: string): Promise<MovementCandidateDriftSignal[]> {
+async function detectTeamCoreReplacementPattern(leagueSeasonId: string): Promise<MovementCandidateDriftSignal[]> {
   const signals: MovementCandidateDriftSignal[] = [];
 
   const teams = await db.team.findMany({
@@ -148,7 +148,7 @@ async function detectTeamCoreReplacementPattern(planningPeriodId: string): Promi
   for (const team of teams) {
     const rounds = await db.matchRound.findMany({
       where: {
-        planningPeriodId,
+        leagueSeasonId,
         status: "FINALIZED",
         matches: { some: { teamId: team.id } },
       },

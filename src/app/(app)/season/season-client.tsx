@@ -12,7 +12,7 @@ import { READINESS_SIGNAL_LABELS, READINESS_VALUE_LABELS, type ReadinessSignalTy
 import { formatSelectionRole } from "@/lib/match-utils";
 import type { SelectionRole } from "@/generated/prisma/client";
 
-type PlanningPeriodOption = {
+type LeagueSeasonOption = {
   id: string;
   name: string;
   startDate: Date;
@@ -20,8 +20,8 @@ type PlanningPeriodOption = {
 };
 
 type SeasonClientProps = {
-  planningPeriods: PlanningPeriodOption[];
-  activePlanningPeriodId: string | null;
+  leagueSeasons: LeagueSeasonOption[];
+  activeLeagueSeasonId: string | null;
 };
 
 type FilterState =
@@ -66,11 +66,11 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function SeasonOverviewClient({
-  planningPeriods,
-  activePlanningPeriodId,
+  leagueSeasons,
+  activeLeagueSeasonId,
 }: SeasonClientProps) {
   const [selectedPeriodId, setSelectedPeriodId] = useState(
-    activePlanningPeriodId ?? planningPeriods[0]?.id ?? "",
+    activeLeagueSeasonId ?? leagueSeasons[0]?.id ?? "",
   );
   const [includeDrafts, setIncludeDrafts] = useState(false);
   const [filter, setFilter] = useState<FilterState>("all");
@@ -88,13 +88,13 @@ export function SeasonOverviewClient({
   >([]);
   const [exportFormat, setExportFormat] = useState<"csv" | "json" | "txt" | "md">("csv");
 
-  const exportUrl = `/api/season/export?planningPeriodId=${selectedPeriodId}&format=${exportFormat}&visibility=coach`;
+  const exportUrl = `/api/season/export?leagueSeasonId=${selectedPeriodId}&format=${exportFormat}&visibility=coach`;
 
   useEffect(() => {
     if (!selectedPeriodId) return;
     startTransition(async () => {
       const res = await fetch(
-        `/api/season/matrix?planningPeriodId=${selectedPeriodId}&includeDrafts=${includeDrafts}`,
+        `/api/season/matrix?leagueSeasonId=${selectedPeriodId}&includeDrafts=${includeDrafts}`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -107,7 +107,7 @@ export function SeasonOverviewClient({
     if (!selectedPeriodId) return;
     startTransition(async () => {
       const res = await fetch(
-        `/api/season/movement-paths?planningPeriodId=${selectedPeriodId}&includeDrafts=${includeDrafts}`,
+        `/api/season/movement-paths?leagueSeasonId=${selectedPeriodId}&includeDrafts=${includeDrafts}`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -124,7 +124,7 @@ export function SeasonOverviewClient({
     }
     startTransition(async () => {
       const res = await fetch(
-        `/api/season/player-timeline?playerId=${selectedPlayerId}&includeDrafts=${includeDrafts}&planningPeriodId=${selectedPeriodId}`,
+        `/api/season/player-timeline?playerId=${selectedPlayerId}&includeDrafts=${includeDrafts}&leagueSeasonId=${selectedPeriodId}`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -145,7 +145,7 @@ export function SeasonOverviewClient({
           value={selectedPeriodId}
           onChange={(e) => setSelectedPeriodId(e.target.value)}
         >
-          {planningPeriods.map((p) => (
+          {leagueSeasons.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
@@ -550,7 +550,7 @@ export function SeasonOverviewClient({
                       } else {
                         setSelectedPathKey(key);
                         fetch(
-                          `/api/season/path-detail?fromTeamId=${path.fromTeamId}&toTeamId=${path.toTeamId}&role=${path.role}&planningPeriodId=${selectedPeriodId}&includeDrafts=${includeDrafts}`,
+                          `/api/season/path-detail?fromTeamId=${path.fromTeamId}&toTeamId=${path.toTeamId}&role=${path.role}&leagueSeasonId=${selectedPeriodId}&includeDrafts=${includeDrafts}`,
                         )
                           .then((r) => r.json())
                           .then((data) => setPathPlayers(data));

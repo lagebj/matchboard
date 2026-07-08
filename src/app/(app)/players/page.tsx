@@ -16,7 +16,7 @@ type PlayersPageProps = {
 export default async function PlayersPage({ searchParams }: PlayersPageProps) {
   const { mode, periodId, roundId, error, saved } = await searchParams;
 
-  const [players, teams, planningPeriods, matchRounds] = await Promise.all([
+  const [players, teams, leagueSeasons, matchRounds] = await Promise.all([
     db.player.findMany({
       where: { removedAt: null, active: true },
       include: { coreTeam: { select: { id: true, name: true } } },
@@ -27,21 +27,21 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    db.planningPeriod.findMany({
+    db.leagueSeason.findMany({
       orderBy: { startDate: "desc" },
       select: { id: true, name: true, startDate: true, endDate: true },
     }),
     db.matchRound.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, planningPeriodId: true },
+      select: { id: true, name: true, leagueSeasonId: true },
     }),
   ]);
 
-  const selectedPeriodId = periodId ?? planningPeriods[0]?.id ?? "";
+  const selectedPeriodId = periodId ?? leagueSeasons[0]?.id ?? "";
 
   const seasonData = selectedPeriodId
     ? await getPlayersSeasonOverview(selectedPeriodId)
-    : { planningPeriod: { id: "", label: "No phase" }, seasonRows: [] as PlayerSeasonOverviewRow[] };
+    : { leagueSeason: { id: "", label: "No phase" }, seasonRows: [] as PlayerSeasonOverviewRow[] };
 
   const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
 
@@ -63,7 +63,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
         reducedMatchLoadAllowed: p.reducedMatchLoadAllowed,
       }))}
       teams={teams}
-      planningPeriods={planningPeriods}
+      leagueSeasons={leagueSeasons}
       matchRounds={matchRounds}
       seasonRows={seasonData.seasonRows}
       currentRoundRows={currentRoundRows}

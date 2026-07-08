@@ -7,7 +7,7 @@ type Dbc = PrismaClient;
 async function reconcilePlayerGoalsDerivedProjection(
   db: Dbc,
   dryRun: boolean,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<{ inspected: number; proposedChanges: number; appliedChanges: number; skipped: number }> {
   const completedReports = await db.postMatchReport.findMany({
@@ -27,8 +27,8 @@ async function reconcilePlayerGoalsDerivedProjection(
     },
   });
 
-  const filteredReports = scope.planningPeriodId
-    ? await filterReportsByPlanningPeriod(db, completedReports, scope.planningPeriodId)
+  const filteredReports = scope.leagueSeasonId
+    ? await filterReportsByLeagueSeason(db, completedReports, scope.leagueSeasonId)
     : completedReports;
 
   let inspected = 0;
@@ -83,7 +83,7 @@ async function reconcilePlayerGoalsDerivedProjection(
 async function reconcilePlayerAssistsDerivedProjection(
   db: Dbc,
   dryRun: boolean,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<{ inspected: number; proposedChanges: number; appliedChanges: number; skipped: number }> {
   const completedReports = await db.postMatchReport.findMany({
@@ -103,8 +103,8 @@ async function reconcilePlayerAssistsDerivedProjection(
     },
   });
 
-  const filteredReports = scope.planningPeriodId
-    ? await filterReportsByPlanningPeriod(db, completedReports, scope.planningPeriodId)
+  const filteredReports = scope.leagueSeasonId
+    ? await filterReportsByLeagueSeason(db, completedReports, scope.leagueSeasonId)
     : completedReports;
 
   let inspected = 0;
@@ -157,7 +157,7 @@ async function reconcilePlayerAssistsDerivedProjection(
 async function reconcileOpponentSnapshotDerivedProjection(
   db: Dbc,
   dryRun: boolean,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<{ inspected: number; proposedChanges: number; appliedChanges: number; skipped: number }> {
   const matches = await db.match.findMany({
@@ -223,13 +223,13 @@ async function reconcileOpponentSnapshotDerivedProjection(
 async function rebuildActivePlanIntegrityProjection(
   db: Dbc,
   dryRun: boolean,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<{ inspected: number; proposedChanges: number; appliedChanges: number; skipped: number }> {
   const { computeRoundPlanIntegrity } = await import("@/lib/selection/compute-plan-integrity");
   const { replaceRoundActiveSignals } = await import("@/lib/selection/reconcile-integrity");
 
-  const whereClause: { status: string; id?: string; matchRound?: { planningPeriodId?: string } } = {
+  const whereClause: { status: string; id?: string; matchRound?: { leagueSeasonId?: string } } = {
     status: "DRAFT",
   };
 
@@ -241,8 +241,8 @@ async function rebuildActivePlanIntegrityProjection(
     if (match) {
       whereClause.id = match.matchRoundId;
     }
-  } else if (scope.planningPeriodId) {
-    whereClause.matchRound = { planningPeriodId: scope.planningPeriodId };
+  } else if (scope.leagueSeasonId) {
+    whereClause.matchRound = { leagueSeasonId: scope.leagueSeasonId };
   }
 
   const rounds = await db.matchRound.findMany({
@@ -292,7 +292,7 @@ export async function reconcileCanonicalDerivedData(input: ReconcileInput, dbCli
   const db = dbClient ?? defaultDb;
   const findings: IntegrityFinding[] = [];
   const scope = {
-    planningPeriodId: input.planningPeriodId,
+    leagueSeasonId: input.leagueSeasonId,
     matchId: input.matchId,
   };
 
@@ -341,17 +341,17 @@ export async function reconcileCanonicalDerivedData(input: ReconcileInput, dbCli
   };
 }
 
-async function filterReportsByPlanningPeriod<T extends { matchId: string }>(
+async function filterReportsByLeagueSeason<T extends { matchId: string }>(
   db: Dbc,
   items: T[],
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<T[]> {
   if (items.length === 0) return items;
   const matchIds = items.map((i) => i.matchId);
   const matchingMatchIds = new Set(
     (
       await db.match.findMany({
-        where: { id: { in: matchIds }, matchRound: { planningPeriodId } },
+        where: { id: { in: matchIds }, matchRound: { leagueSeasonId } },
         select: { id: true },
       })
     ).map((m) => m.id),

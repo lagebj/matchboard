@@ -11,7 +11,7 @@
  * Migration guide:
  * - getEffectiveAppearancesForMatch → getEffectiveMatchParticipation
  * - getEffectiveAppearancesForRound → getEffectiveRoundParticipation
- * - getPlayerActualSeasonStats → getEffectiveSeasonStats (note: requires planningPeriodId)
+ * - getPlayerActualSeasonStats → getEffectiveSeasonStats (note: requires leagueSeasonId)
  *
  * This file is retained temporarily until all consumers are migrated.
  * See: src/app/(app)/players/[playerId]/page.tsx for the remaining consumer.

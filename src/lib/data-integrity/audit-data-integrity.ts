@@ -9,7 +9,7 @@ const COMPLETED_STATUSES: CompletedReportStatus[] = ["REPORTED", "LOCKED"];
 
 async function checkGoalAggregateDiffersFromGoalEvents(
   db: Dbc,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const where = {
@@ -27,8 +27,8 @@ async function checkGoalAggregateDiffersFromGoalEvents(
     },
   });
 
-  const filteredReports = scope.planningPeriodId
-    ? await filterByPlanningPeriod(db, reports, scope.planningPeriodId)
+  const filteredReports = scope.leagueSeasonId
+    ? await filterByLeagueSeason(db, reports, scope.leagueSeasonId)
     : reports;
 
   for (const report of filteredReports) {
@@ -72,7 +72,7 @@ async function checkGoalAggregateDiffersFromGoalEvents(
 
 async function checkAssistAggregateDiffersFromAssistEvents(
   db: Dbc,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const where = {
@@ -90,8 +90,8 @@ async function checkAssistAggregateDiffersFromAssistEvents(
     },
   });
 
-  const filteredReports = scope.planningPeriodId
-    ? await filterByPlanningPeriod(db, reports, scope.planningPeriodId)
+  const filteredReports = scope.leagueSeasonId
+    ? await filterByLeagueSeason(db, reports, scope.leagueSeasonId)
     : reports;
 
   for (const report of filteredReports) {
@@ -133,7 +133,7 @@ async function checkAssistAggregateDiffersFromAssistEvents(
 
 async function checkReportedUnknownAttendance(
   db: Dbc,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const where = {
@@ -152,8 +152,8 @@ async function checkReportedUnknownAttendance(
     },
   });
 
-  const filteredActuals = scope.planningPeriodId
-    ? await filterByPlanningPeriod(db, unknownActuals, scope.planningPeriodId)
+  const filteredActuals = scope.leagueSeasonId
+    ? await filterByLeagueSeason(db, unknownActuals, scope.leagueSeasonId)
     : unknownActuals;
 
   for (const actual of filteredActuals) {
@@ -174,12 +174,12 @@ async function checkReportedUnknownAttendance(
 
 async function checkPlannedPlayerNotPresentWithoutAbsenceReason(
   db: Dbc,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const matchIds = scope.matchId
     ? [scope.matchId]
-    : await getCompletedMatchIds(db, scope.planningPeriodId);
+    : await getCompletedMatchIds(db, scope.leagueSeasonId);
 
   for (const matchId of matchIds) {
     const finalizedSelections = await db.selection.findMany({
@@ -252,12 +252,12 @@ async function checkPlannedPlayerNotPresentWithoutAbsenceReason(
 
 async function checkGoalEventCountExceedsTeamScore(
   db: Dbc,
-  scope: { planningPeriodId?: string; matchId?: string },
+  scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const matchIds = scope.matchId
     ? [scope.matchId]
-    : await getCompletedMatchIds(db, scope.planningPeriodId);
+    : await getCompletedMatchIds(db, scope.leagueSeasonId);
 
   for (const matchId of matchIds) {
     const match = await db.match.findUnique({
@@ -307,7 +307,7 @@ async function checkGoalEventCountExceedsTeamScore(
 
 async function checkCandidateSupportConfigDivergence(
   db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const teams = await db.team.findMany({
@@ -335,7 +335,7 @@ async function checkCandidateSupportConfigDivergence(
 
 async function checkCandidateOpponentIdentityDivergence(
   db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   findings: IntegrityFinding[],
 ): Promise<void> {
   const matchesWithOpponent = await db.match.findMany({
@@ -380,46 +380,46 @@ async function checkCandidateOpponentIdentityDivergence(
 
 async function checkCandidateSelectionExplanationDivergence(
   _db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   _findings: IntegrityFinding[],
 ): Promise<void> {
 }
 async function checkCandidateAvailabilityPrecedence(
   _db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   _findings: IntegrityFinding[],
 ): Promise<void> {
 }
 async function checkCandidateSupportNoShowCounterDrift(
   _db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   _findings: IntegrityFinding[],
 ): Promise<void> {
 }
 async function checkCandidateDoubleLoadLegacyRemnants(
   _db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   _findings: IntegrityFinding[],
 ): Promise<void> {
 }
 async function checkCandidateWarningProjectionDrift(
   _db: Dbc,
-  _scope: { planningPeriodId?: string; matchId?: string },
+  _scope: { leagueSeasonId?: string; matchId?: string },
   _findings: IntegrityFinding[],
 ): Promise<void> {
 }
 
-async function filterByPlanningPeriod<T extends { matchId: string }>(
+async function filterByLeagueSeason<T extends { matchId: string }>(
   db: Dbc,
   items: T[],
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<T[]> {
   if (items.length === 0) return items;
   const matchIds = items.map((i) => i.matchId);
   const matchingMatchIds = new Set(
     (
       await db.match.findMany({
-        where: { id: { in: matchIds }, matchRound: { planningPeriodId } },
+        where: { id: { in: matchIds }, matchRound: { leagueSeasonId } },
         select: { id: true },
       })
     ).map((m) => m.id),
@@ -427,10 +427,10 @@ async function filterByPlanningPeriod<T extends { matchId: string }>(
   return items.filter((i) => matchingMatchIds.has(i.matchId));
 }
 
-async function getCompletedMatchIds(db: Dbc, planningPeriodId?: string): Promise<string[]> {
-  if (planningPeriodId) {
+async function getCompletedMatchIds(db: Dbc, leagueSeasonId?: string): Promise<string[]> {
+  if (leagueSeasonId) {
     const matches = await db.match.findMany({
-      where: { matchRound: { planningPeriodId } },
+      where: { matchRound: { leagueSeasonId } },
       select: { id: true },
     });
     return matches.map((m) => m.id);
@@ -445,7 +445,7 @@ async function getCompletedMatchIds(db: Dbc, planningPeriodId?: string): Promise
 export async function auditDataIntegrity(input?: IntegrityAuditInput, dbClient?: PrismaClient): Promise<IntegrityAuditResult> {
   const db = dbClient ?? defaultDb;
   const scope = {
-    planningPeriodId: input?.planningPeriodId,
+    leagueSeasonId: input?.leagueSeasonId,
     matchId: input?.matchId,
   };
 

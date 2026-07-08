@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }
 
-  let body: { level: string; planningPeriodId?: string; matchRoundId?: string; matchId?: string };
+  let body: { level: string; leagueSeasonId?: string; matchRoundId?: string; matchId?: string };
   try {
     body = await request.json();
   } catch {
@@ -21,10 +21,10 @@ export async function POST(request: Request) {
 
   try {
     if (level === "all") {
-      if (!body.planningPeriodId || typeof body.planningPeriodId !== "string") {
-        return NextResponse.json({ error: "planningPeriodId is required for clear all" }, { status: 400 });
+      if (!body.leagueSeasonId || typeof body.leagueSeasonId !== "string") {
+        return NextResponse.json({ error: "leagueSeasonId is required for clear all" }, { status: 400 });
       }
-      const result = await clearAllDraftSelections(body.planningPeriodId);
+      const result = await clearAllDraftSelections(body.leagueSeasonId);
       return NextResponse.json({ level: "all", ...result });
     }
 

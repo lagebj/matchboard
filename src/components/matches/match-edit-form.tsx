@@ -133,7 +133,7 @@ export function MatchEditForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">Phase</span>
+          <span className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">League season</span>
           <span className="text-sm text-[var(--text-soft)]">{phaseDateRange}</span>
         </div>
 

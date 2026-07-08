@@ -333,7 +333,7 @@ export async function isPlayerActiveCandidate(
 
 export async function enrichCandidatesWithMovementHistory(
   candidates: MovementCandidateSummary[],
-  planningPeriodId: string,
+  leagueSeasonId: string,
 ): Promise<MovementCandidateSummary[]> {
   if (candidates.length === 0) return candidates;
 
@@ -342,7 +342,7 @@ export async function enrichCandidatesWithMovementHistory(
   const movements = await db.movementLedger.findMany({
     where: {
       playerId: { in: playerIds },
-      matchRound: { planningPeriodId },
+      matchRound: { leagueSeasonId },
     },
     select: {
       playerId: true,

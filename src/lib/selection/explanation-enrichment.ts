@@ -56,12 +56,12 @@ export async function getMatchIntentMap(matchIds: string[]): Promise<Map<string,
       .filter((m) => !intentMap.has(m.id))
       .map((m) => m.matchRoundId);
 
-    const planningPeriods = await db.matchRound.findMany({
-      where: { id: { in: [...new Set(matchIdsStillWithoutIntent)] } },
-      select: { id: true, planningPeriodId: true },
+    const leagueSeasons = await db.matchRound.findMany({
+
+      select: { id: true, leagueSeasonId: true },
     });
 
-    const uniquePeriodIds = [...new Set(planningPeriods.map((p) => p.planningPeriodId))];
+    const uniquePeriodIds = [...new Set(leagueSeasons.map((p) => p.leagueSeasonId))];
 
     if (uniquePeriodIds.length > 0) {
       const periodIntents = await db.coachingIntent.findMany({
@@ -77,8 +77,8 @@ export async function getMatchIntentMap(matchIds: string[]): Promise<Map<string,
       }
 
       const roundToPeriod = new Map<string, string>();
-      for (const p of planningPeriods) {
-        roundToPeriod.set(p.id, p.planningPeriodId);
+      for (const p of leagueSeasons) {
+        roundToPeriod.set(p.id, p.leagueSeasonId);
       }
 
       for (const m of matchRounds) {

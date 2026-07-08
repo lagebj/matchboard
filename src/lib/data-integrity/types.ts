@@ -25,7 +25,7 @@ export type IntegrityFinding = {
   entityId: string;
   matchId?: string;
   playerId?: string;
-  planningPeriodId?: string;
+  leagueSeasonId?: string;
   message: string;
   canonicalValue?: unknown;
   conflictingValue?: unknown;
@@ -36,7 +36,7 @@ export type IntegrityFinding = {
 export type IntegrityAuditResult = {
   executedAt: Date;
   scope: {
-    planningPeriodId?: string;
+    leagueSeasonId?: string;
     matchId?: string;
   };
   countsByDomain: Partial<Record<IntegrityDomain, number>>;
@@ -45,13 +45,13 @@ export type IntegrityAuditResult = {
 };
 
 export type IntegrityAuditInput = {
-  planningPeriodId?: string;
+  leagueSeasonId?: string;
   matchId?: string;
 };
 
 export type ReconcileInput = {
   dryRun: boolean;
-  planningPeriodId?: string;
+  leagueSeasonId?: string;
   matchId?: string;
   domains: Array<"PLAYER_GOALS_DERIVED_PROJECTION" | "PLAYER_ASSISTS_DERIVED_PROJECTION" | "OPPONENT_SNAPSHOT_DERIVED_PROJECTION" | "ACTIVE_PLAN_INTEGRITY_PROJECTION">;
 };

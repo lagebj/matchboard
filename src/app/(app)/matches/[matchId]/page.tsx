@@ -17,7 +17,7 @@ export default async function MatchDetailPage({
     where: { id: matchId },
     include: {
       team: { select: { id: true, name: true } },
-      matchRound: { select: { id: true, name: true, status: true, planningPeriodId: true, planningPeriod: { select: { id: true, startDate: true, endDate: true } } } },
+      matchRound: { select: { id: true, name: true, status: true, leagueSeasonId: true, leagueSeason: { select: { id: true, startDate: true, endDate: true } } } },
       selections: {
         where: { status: { in: ["DRAFT", "FINALIZED"] } },
         include: {
@@ -120,10 +120,10 @@ export default async function MatchDetailPage({
           coachingIntent: activeIntent?.category ?? undefined,
           coachingIntentId: matchIntent[0]?.id ?? undefined,
           inheritedIntentScope: activeIntent && activeIntent.scopeType !== "MATCH"
-            ? (activeIntent.scopeType === "MATCH_ROUND" ? "round" : "planning period")
+            ? (activeIntent.scopeType === "MATCH_ROUND" ? "round" : "league season")
             : undefined,
-          phaseStartDate: match.matchRound.planningPeriod.startDate,
-          phaseEndDate: match.matchRound.planningPeriod.endDate,
+          phaseStartDate: match.matchRound.leagueSeason.startDate,
+          phaseEndDate: match.matchRound.leagueSeason.endDate,
         }}
       />
     </div>

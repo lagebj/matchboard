@@ -1,13 +1,13 @@
-type PhaseDisplayInput = {
+type LeagueSeasonDisplayInput = {
   seasonName: string;
-  phaseName?: string | null;
+  leagueSeasonName?: string | null;
   startDate: Date;
   endDate: Date;
 };
 
-type PhaseDisplay = {
+type LeagueSeasonDisplay = {
   seasonLabel: string;
-  phaseLabel: string;
+  leagueSeasonLabel: string;
   dateRangeLabel: string;
   combinedLabel: string;
 };
@@ -44,7 +44,7 @@ const SHORT_MONTH_NAMES = [
 
 const SEASON_KEYWORDS = ["spring", "autumn", "fall", "winter", "summer"] as const;
 
-function isMeaningfulPhaseName(name: string | null | undefined): boolean {
+function isMeaningfulLeagueSeasonName(name: string | null | undefined): boolean {
   if (!name) return false;
   const lower = name.toLowerCase().trim();
   if (lower.length < 3) return false;
@@ -87,41 +87,57 @@ function formatShortDateRange(startDate: Date, endDate: Date): string {
   return `${SHORT_MONTH_NAMES[startMonth]}\u2013${SHORT_MONTH_NAMES[endMonth]}`;
 }
 
-export function formatPhaseDisplay(input: PhaseDisplayInput): PhaseDisplay {
-  const { seasonName, phaseName, startDate, endDate } = input;
+export function formatLeagueSeasonDisplay(input: LeagueSeasonDisplayInput): LeagueSeasonDisplay {
+  const { seasonName, leagueSeasonName, startDate, endDate } = input;
   const fallbackYear = startDate.getUTCFullYear();
   const seasonYear = extractSeasonYear(seasonName, fallbackYear);
   const seasonLabel = `${seasonYear} Season`;
   const dateRangeLabel = formatShortDateRange(startDate, endDate);
   const fullDateRange = formatFullDateRange(startDate, endDate);
 
-  if (isMeaningfulPhaseName(phaseName)) {
-    const phaseLabel = phaseName!.trim();
+  if (isMeaningfulLeagueSeasonName(leagueSeasonName)) {
+    const leagueSeasonLabel = leagueSeasonName!.trim();
     return {
       seasonLabel,
-      phaseLabel,
+      leagueSeasonLabel,
       dateRangeLabel,
-      combinedLabel: `${phaseLabel} \u00B7 ${dateRangeLabel}`,
+      combinedLabel: `${leagueSeasonLabel} \u00B7 ${dateRangeLabel}`,
     };
   }
 
-  if (phaseName && phaseName.trim().length > 0) {
-    const phaseLabel = fullDateRange;
+  if (leagueSeasonName && leagueSeasonName.trim().length > 0) {
+    const leagueSeasonLabel = fullDateRange;
     return {
       seasonLabel,
-      phaseLabel,
+      leagueSeasonLabel,
       dateRangeLabel,
       combinedLabel: fullDateRange,
     };
   }
 
-  const phaseLabel = fullDateRange;
+  const leagueSeasonLabel = fullDateRange;
   return {
     seasonLabel,
-    phaseLabel,
+    leagueSeasonLabel,
     dateRangeLabel,
     combinedLabel: fullDateRange,
   };
 }
 
 export { formatFullDateRange, formatShortDateRange };
+
+export type { LeagueSeasonDisplayInput, LeagueSeasonDisplay };
+
+export function formatPhaseDisplay(input: {
+  seasonName: string;
+  phaseName?: string | null;
+  startDate: Date;
+  endDate: Date;
+}): ReturnType<typeof formatLeagueSeasonDisplay> {
+  return formatLeagueSeasonDisplay({
+    seasonName: input.seasonName,
+    leagueSeasonName: input.phaseName,
+    startDate: input.startDate,
+    endDate: input.endDate,
+  });
+}

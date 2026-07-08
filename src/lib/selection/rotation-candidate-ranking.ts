@@ -1,6 +1,6 @@
 import type { SelectedPlayer } from "@/lib/selection/types";
 import type { RotationCandidate } from "@/lib/selection/selection-types";
-import { type PlanningPeriodRoleCounts, getPlanningPeriodFairnessBonus } from "@/lib/selection/selection-fairness";
+import { type LeagueSeasonRoleCounts, getLeagueSeasonFairnessBonus } from "@/lib/selection/selection-fairness";
 import { getPositionNeedScore } from "@/lib/selection/selection-fairness";
 
 const SUPPORTED_POSITIONS = ["GK", "CB", "CM", "W", "ST"] as const;
@@ -85,7 +85,7 @@ function getPositionMatchScore(level: RotationCandidate["positionMatchLevel"]): 
 export function getRotationCandidatePriorityScore(
   candidate: Omit<RotationCandidate, "priorityScore">,
   selectedPlayers: SelectedPlayer[],
-  planningPeriodCounts: Map<string, PlanningPeriodRoleCounts> | null,
+  leagueSeasonCounts: Map<string, LeagueSeasonRoleCounts> | null,
   consecutiveSupportRounds: number = 0,
 ) {
   const consecutiveSupportPenalty = candidate.candidateCategory === "SUPPORT" && consecutiveSupportRounds > 1
@@ -101,7 +101,7 @@ export function getRotationCandidatePriorityScore(
     (candidate.missedCoreMatchThisWeek ? 30 : 0) +
     getPositionMatchScore(candidate.positionMatchLevel) +
     candidate.suitabilityScore +
-    getPlanningPeriodFairnessBonus(candidate.player.id, planningPeriodCounts, candidate.candidateCategory) +
+    getLeagueSeasonFairnessBonus(candidate.player.id, leagueSeasonCounts, candidate.candidateCategory) +
     movementCandidateBonus -
     candidate.registeredAppearanceCount * 4 -
     candidate.floatingHistory.totalFloatingMatches * 3 -
@@ -114,7 +114,7 @@ export function getRotationCandidatePriorityScore(
 export function getRankedRotationCandidates(
   candidates: Array<Omit<RotationCandidate, "priorityScore">>,
   selectedPlayers: SelectedPlayer[],
-  planningPeriodCounts: Map<string, PlanningPeriodRoleCounts> | null,
+  leagueSeasonCounts: Map<string, LeagueSeasonRoleCounts> | null,
   consecutiveSupportByPlayer: Map<string, number> = new Map(),
 ) {
   return candidates
@@ -123,7 +123,7 @@ export function getRankedRotationCandidates(
       priorityScore: getRotationCandidatePriorityScore(
         candidate,
         selectedPlayers,
-        planningPeriodCounts,
+        leagueSeasonCounts,
         consecutiveSupportByPlayer.get(candidate.player.id) ?? 0,
       ),
     }))

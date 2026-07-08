@@ -13,7 +13,7 @@ const MONTH_NAMES = [
   "December",
 ] as const;
 
-export function formatPlanningPeriodRange(
+export function formatDateRange(
   startDate: Date,
   endDate: Date,
 ): string {
