@@ -52,6 +52,17 @@ interface EventMatchesTabProps {
   }>;
   eventType: string;
   matchDurationMinutes: number | null;
+  playerProfiles: Array<{
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    primaryPosition: string | null;
+    secondaryPosition: string | null;
+    tertiaryPosition: string | null;
+    goalkeeperAbility: string | null;
+    coreTeamId: string | null;
+  }>;
+  playerAvailability: Array<{ playerId: string; status: string }>;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -66,7 +77,7 @@ const REPORT_STATUS_LABELS: Record<string, string> = {
   LOCKED: 'Completed',
 };
 
-export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinutes }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinutes, playerProfiles, playerAvailability }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -104,7 +115,7 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
     formData.set('eventId', eventId);
     formData.set('eventSquadId', createSquadId);
     formData.set('opponentName', createOpponent);
-    formData.set('startsAt', createDate);
+    formData.set('startsAt', createDate ? new Date(createDate).toISOString() : '');
     formData.set('category', createCategory);
     formData.set('location', createLocation);
     formData.set('notes', createNotes);
@@ -513,8 +524,8 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
           }))}
           squads={squads}
           supportAssignments={supportAssignments}
-          playerProfiles={[]}
-          playerAvailability={[]}
+          playerProfiles={playerProfiles}
+          playerAvailability={playerAvailability}
         />
       )}
     </div>

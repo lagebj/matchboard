@@ -939,7 +939,26 @@ export function EventDetail({ data }: { data: EventDetailData }) {
       )}
 
       {activeTab === 'matches' && (
-        <EventMatchesTab eventId={data.id} squads={data.squads} eventType={data.eventType} matchDurationMinutes={data.matchDurationMinutes} />
+        <EventMatchesTab
+          eventId={data.id}
+          squads={data.squads}
+          eventType={data.eventType}
+          matchDurationMinutes={data.matchDurationMinutes}
+          playerProfiles={data.players.map((p) => ({
+            id: p.playerId,
+            firstName: p.firstName,
+            lastName: p.lastName,
+            primaryPosition: p.primaryPosition,
+            secondaryPosition: p.secondaryPosition,
+            tertiaryPosition: p.tertiaryPosition,
+            goalkeeperAbility: p.goalkeeperAbility,
+            coreTeamId: p.coreTeamId,
+          }))}
+          playerAvailability={data.players.map((p) => ({
+            playerId: p.playerId,
+            status: p.status,
+          }))}
+        />
       )}
     </div>
   );
