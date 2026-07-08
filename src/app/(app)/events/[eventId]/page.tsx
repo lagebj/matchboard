@@ -5,7 +5,9 @@ import { computeSquadBalance } from '@/lib/events/event-balance';
 import { validateEventPool } from '@/lib/events/event-validation';
 import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
 import { getPlayerOverallRating, getAverageRating } from '@/lib/ratings/player-rating';
+import { suggestBestFormationForPlayers } from '@/lib/events/tactic-suggestion';
 import type { GameFormat } from '@/lib/events/event-types';
+import type { TacticSuggestion } from '@/lib/events/tactic-suggestion';
 
 export const dynamic = 'force-dynamic';
 
@@ -188,6 +190,74 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     [],
   );
 
+  const tacticSuggestion = availablePlayerProfiles.length > 0
+    ? suggestBestFormationForPlayers({
+        players: availablePlayerProfiles,
+        formations: compatibleFormations.map((f) => ({
+          id: f.id,
+          name: f.name,
+          gameFormat: f.gameFormat,
+          slots: f.slots.map((s) => ({
+            roleType: s.roleType,
+            acceptedPositions: (typeof s.acceptedPositionIds === 'string'
+              ? s.acceptedPositionIds.split(',').map((p) => p.trim())
+              : Array.isArray(s.acceptedPositionIds)
+                ? (s.acceptedPositionIds as string[]).map((p) => String(p).trim())
+                : []) as import('@/lib/events/event-types').BroadPosition[],
+            label: s.label ?? s.roleType,
+          })),
+        })),
+        gameFormat,
+      })
+    : null;
+
+  const squadTacticSuggestions: Record<string, TacticSuggestion | null> = {};
+  for (const squad of squads) {
+    const squadPlayerProfiles = squad.players.map((sp) => {
+      const fullPlayer = playerById.get(sp.playerId);
+      if (fullPlayer) {
+        return toPlayerAttributeProfile(fullPlayer);
+      }
+      return toPlayerAttributeProfile({
+        id: sp.playerId,
+        firstName: sp.firstName,
+        lastName: sp.lastName,
+        coreTeamId: sp.coreTeamId,
+        primaryPosition: sp.primaryPosition,
+        secondaryPosition: sp.secondaryPosition,
+        tertiaryPosition: sp.tertiaryPosition,
+        goalkeeperAbility: sp.goalkeeperAbility,
+        ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
+        positioning: null, oneVOneDefending: null, decisionMaking: null,
+        effort: null, teamplay: null, concentration: null, speed: null, strength: null,
+        nonRotatable: false, preferredFoot: 'RIGHT', bestSide: 'RIGHT',
+      });
+    });
+
+    if (squadPlayerProfiles.length > 0 && compatibleFormations.length > 0) {
+      squadTacticSuggestions[squad.id] = suggestBestFormationForPlayers({
+        players: squadPlayerProfiles,
+        formations: compatibleFormations.map((f) => ({
+          id: f.id,
+          name: f.name,
+          gameFormat: f.gameFormat,
+          slots: f.slots.map((s) => ({
+            roleType: s.roleType,
+            acceptedPositions: (typeof s.acceptedPositionIds === 'string'
+              ? s.acceptedPositionIds.split(',').map((p) => p.trim())
+              : Array.isArray(s.acceptedPositionIds)
+                ? (s.acceptedPositionIds as string[]).map((p) => String(p).trim())
+                : []) as import('@/lib/events/event-types').BroadPosition[],
+            label: s.label ?? s.roleType,
+          })),
+        })),
+        gameFormat,
+      });
+    } else {
+      squadTacticSuggestions[squad.id] = null;
+    }
+  }
+
   const data = {
     id: event.id,
     name: event.name,
@@ -206,6 +276,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     squadBalances,
     validation,
     compatibleFormations,
+    tacticSuggestion,
+    squadTacticSuggestions,
   };
 
   return <EventDetail data={data} />;
