@@ -1360,6 +1360,26 @@ Every EventSquadPlayer has a selection reason. Examples:
 
 Disallowed language: weak player, bad player, low quality, leftover, not good enough, punishment, B team player.
 
+### Event match support planning
+
+Matchboard supports temporary player help between event squads based on match timing overlap.
+
+Rules:
+- A player can only help another squad when their own squad is not playing at the same time
+- Time overlap uses event match duration: `a.startsAt < b.endsAt && b.startsAt < a.endsAt`
+- Exact boundary times do NOT overlap (e.g., 10:00-10:20 and 10:20-10:40)
+- Cancelled matches do NOT block player availability
+- Players marked UNAVAILABLE or WITHDRAWN for the event cannot be helpers
+- A player cannot be assigned as support for their own squad's match
+- Duplicate support assignments (same player, same match) are rejected
+- Support assignments are persisted in EventMatchSupportAssignment (unique on [eventMatchId, playerId])
+- Planned role is optional: GK cover, Defender cover, Midfield cover, Forward cover, General cover
+- Conflict detection runs at query time, not stored — when match times or player availability change, conflicts are recomputed dynamically
+- Conflict reasons: own squad overlapping, already helping another overlapping match, player removed from source squad, player unavailable, match cancelled, duration not set
+- Support assignments appear in post-match reports with "Planned helper from {squad name}" role label
+- Match duration is editable on the event detail overview via inline edit
+- Match duration must be set before support planning is available
+
 ### Event routes and navigation
 
 - `/events` — event list page (secondary destination, accessible from Fixtures or navigation)
@@ -1376,12 +1396,19 @@ Disallowed language: weak player, bad player, low quality, leftover, not good en
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
+| `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
+| `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, cancel, reopen |
+| `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
 | `src/app/(app)/events/[eventId]/event-detail.tsx` | Event detail client component (tabs: overview, squads, player pool) |
+| `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with support planning and post-match reporting |
+| `src/app/(app)/events/[eventId]/event-support-planning.tsx` | Support planning section component |
+| `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches |
 
 ## Testing requirements
 
@@ -1600,8 +1627,12 @@ Avoid:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
+| `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
+| `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, cancel, reopen |
+| `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list |
 
 ### Formation/tactics files
 

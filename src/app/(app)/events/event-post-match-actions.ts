@@ -14,6 +14,12 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
       eventSquad: {
         include: { players: { include: { player: true } } },
       },
+      supportAssignments: {
+        include: {
+          player: true,
+          sourceEventSquad: { select: { name: true } },
+        },
+      },
     },
   });
 
@@ -31,15 +37,27 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
     throw new Error('Report already exists for this match.');
   }
 
+  const squadPlayerIds = new Set(eventMatch.eventSquad.players.map((sp) => sp.playerId));
+  const supportPlayerReports = eventMatch.supportAssignments
+    .filter((sa) => !squadPlayerIds.has(sa.playerId))
+    .map((sa) => ({
+      playerId: sa.playerId,
+      attendanceStatus: 'UNKNOWN' as const,
+      role: `Planned helper from ${sa.sourceEventSquad.name}`,
+    }));
+
   const report = await db.eventPostMatchReport.create({
     data: {
       eventMatchId,
       status: 'DRAFT',
       playerReports: {
-        create: eventMatch.eventSquad.players.map((sp) => ({
-          playerId: sp.playerId,
-          attendanceStatus: 'UNKNOWN',
-        })),
+        create: [
+          ...eventMatch.eventSquad.players.map((sp) => ({
+            playerId: sp.playerId,
+            attendanceStatus: 'UNKNOWN' as const,
+          })),
+          ...supportPlayerReports,
+        ],
       },
     },
     include: {

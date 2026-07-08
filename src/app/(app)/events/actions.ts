@@ -473,6 +473,21 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
   return squad;
 }
 
+export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
+  await requireCoachAccess();
+
+  const validated = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
+
+  const event = await db.event.update({
+    where: { id: eventId },
+    data: { matchDurationMinutes: validated },
+  });
+
+  revalidatePath('/events');
+  revalidatePath(`/events/${eventId}`);
+  return event;
+}
+
 export async function removeEventSquadAction(squadId: string) {
   await requireCoachAccess();
 

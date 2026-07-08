@@ -724,9 +724,20 @@ Event squad generation is entirely separate from league planning:
 
 - `/events` — event list page (secondary destination)
 - `/events/new` — create event
-- `/events/[eventId]` — event detail/planning with tabs: Overview, Squads, Player pool
+- `/events/[eventId]` — event detail/planning with tabs: Overview, Squads, Player pool, Matches
 
 Events do not appear as primary sidebar items.
+
+### Event match support planning
+
+Players can temporarily help other event squads when their own squad is not playing at the same time.
+
+- **Match duration**: Set on the event detail overview (inline edit). Required before support planning.
+- **Overlap rule**: `a.startsAt < b.endsAt && b.startsAt < a.endsAt` — exact boundary times do NOT overlap.
+- **Eligibility**: Player must be in a different squad, their own squad must not be playing at the same time, and they must not be UNAVAILABLE or WITHDRAWN.
+- **Conflict detection**: Dynamic at query time. Shows warnings when match times change after assignment, player is removed from source squad, or availability changes.
+- **Planned roles**: Optional — GK cover, Defender cover, Midfield cover, Forward cover, General cover.
+- **Post-match integration**: Support players appear in reports with "Planned helper from {squad name}" role label.
 
 ### Player pool management
 

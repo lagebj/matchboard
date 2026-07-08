@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
+import { checkSupportConflicts } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
 
 const VALID_PLANNED_ROLES = [
@@ -177,6 +178,12 @@ export async function updateEventMatchSupportAssignmentAction(input: {
 export async function getEventMatchSupportAssignmentsAction(eventId: string) {
   await requireCoachAccess();
 
+  const event = await db.event.findUnique({
+    where: { id: eventId },
+    select: { matchDurationMinutes: true },
+  });
+  if (!event) throw new Error('Event not found.');
+
   const assignments = await db.eventMatchSupportAssignment.findMany({
     where: { eventMatch: { eventId } },
     include: {
@@ -190,5 +197,51 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
     orderBy: { createdAt: 'asc' },
   });
 
-  return assignments;
+  if (assignments.length === 0) return [];
+
+  const allEventMatches = await db.eventMatch.findMany({
+    where: { eventId },
+    select: { id: true, eventSquadId: true, startsAt: true, status: true },
+  });
+
+  const eventSquads = await db.eventSquad.findMany({
+    where: { eventId },
+    select: { id: true, name: true, players: { select: { playerId: true } } },
+  });
+
+  const playerAvailability = await db.eventPlayerAvailability.findMany({
+    where: { eventId },
+    select: { playerId: true, status: true },
+  });
+
+  const playerNames = new Map<string, { firstName: string; lastName: string | null }>();
+  const squadNames = new Map<string, string>();
+  for (const a of assignments) {
+    playerNames.set(a.playerId, { firstName: a.player.firstName, lastName: a.player.lastName });
+  }
+  for (const s of eventSquads) {
+    squadNames.set(s.id, s.name);
+  }
+
+  const matchDurationMinutes = event.matchDurationMinutes ?? 0;
+
+  const conflicted = checkSupportConflicts({
+    assignments: assignments.map((a) => ({
+      id: a.id,
+      eventMatchId: a.eventMatchId,
+      playerId: a.playerId,
+      sourceEventSquadId: a.sourceEventSquadId,
+      targetEventSquadId: a.targetEventSquadId,
+      plannedRole: a.plannedRole,
+      note: a.note,
+    })),
+    allEventMatches,
+    matchDurationMinutes,
+    eventSquads,
+    playerEventAvailability: playerAvailability,
+    playerNames,
+    squadNames,
+  });
+
+  return conflicted;
 }

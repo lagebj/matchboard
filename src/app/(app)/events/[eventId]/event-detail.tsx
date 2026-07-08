@@ -15,6 +15,7 @@ import {
   assignPlayerToEventSquadAction,
   unassignPlayerFromEventSquadAction,
   updateEventSquadNameAction,
+  updateEventMatchDurationAction,
 } from '../actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
@@ -200,6 +201,9 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [assignDropdownSquad, setAssignDropdownSquad] = useState<string | null>(null);
   const [editingSquadName, setEditingSquadName] = useState<string | null>(null);
   const [editingSquadNameValue, setEditingSquadNameValue] = useState('');
+  const [editingDuration, setEditingDuration] = useState(false);
+  const [durationValue, setDurationValue] = useState('');
+  const [localDuration, setLocalDuration] = useState<number | null | undefined>(undefined);
 
   const totalAssigned = data.squads.reduce((sum, s) => sum + s.players.length, 0);
   const totalAvailable = data.availablePlayers.length;
@@ -389,7 +393,54 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Match duration</p>
-                <p className="text-sm text-zinc-100">{data.matchDurationMinutes ? `${data.matchDurationMinutes} min` : 'Not set'}</p>
+                {editingDuration ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={durationValue}
+                      onChange={(e) => setDurationValue(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          const mins = durationValue ? parseInt(durationValue) : null;
+                          const validated = mins !== null && mins > 0 ? mins : null;
+                          await updateEventMatchDurationAction(data.id, validated);
+                          setLocalDuration(validated);
+                          setEditingDuration(false);
+                          router.refresh();
+                        } else if (e.key === 'Escape') {
+                          setEditingDuration(false);
+                        }
+                      }}
+                      onBlur={async () => {
+                        const mins = durationValue ? parseInt(durationValue) : null;
+                        const validated = mins !== null && mins > 0 ? mins : null;
+                        await updateEventMatchDurationAction(data.id, validated);
+                        setLocalDuration(validated);
+                        setEditingDuration(false);
+                        router.refresh();
+                      }}
+                      autoFocus
+                      className="w-20 rounded border border-[var(--accent)] bg-transparent px-1.5 py-0.5 text-sm text-zinc-100 outline-none"
+                      placeholder="min"
+                    />
+                    <span className="text-xs text-[var(--text-muted)]">min</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-sm text-zinc-100 hover:text-[var(--accent)] transition-colors cursor-text"
+                    onClick={() => {
+                      const current = localDuration !== undefined ? localDuration : data.matchDurationMinutes;
+                      setDurationValue(current?.toString() ?? '');
+                      setEditingDuration(true);
+                    }}
+                    title="Click to edit match duration"
+                  >
+                    {(localDuration !== undefined ? localDuration : data.matchDurationMinutes) ? `${(localDuration !== undefined ? localDuration : data.matchDurationMinutes)} min` : 'Not set'}
+                  </button>
+                )}
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Starts</p>
@@ -888,7 +939,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
       )}
 
       {activeTab === 'matches' && (
-        <EventMatchesTab eventId={data.id} squads={data.squads} eventType={data.eventType} />
+        <EventMatchesTab eventId={data.id} squads={data.squads} eventType={data.eventType} matchDurationMinutes={data.matchDurationMinutes} />
       )}
     </div>
   );
