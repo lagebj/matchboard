@@ -18,6 +18,7 @@ export async function updatePlayerFieldAction(
   const allowedFields = new Set([
     "firstName",
     "lastName",
+    "shirtNumber",
     "coreTeamId",
     "primaryPosition",
     "secondaryPosition",
@@ -26,6 +27,7 @@ export async function updatePlayerFieldAction(
     "secondaryFoot",
     "bestSide",
     "currentAvailability",
+    "goalkeeperAbility",
     "nonRotatable",
     "reducedMatchLoadAllowed",
     "ballControl",
@@ -76,6 +78,24 @@ export async function updatePlayerFieldAction(
 
     if (field === "nonRotatable" || field === "reducedMatchLoadAllowed") {
       parsedValue = value === "true";
+    } else if (field === "shirtNumber") {
+      if (value === "" || value === "null" || value === "—") {
+        parsedValue = null;
+      } else {
+        const num = parseInt(value, 10);
+        if (isNaN(num) || num < 1 || num > 99) {
+          return { success: false, error: "Shirt number must be between 1 and 99." };
+        }
+        parsedValue = num;
+      }
+    } else if (field === "goalkeeperAbility") {
+      if (value === "" || value === "null" || value === "—") {
+        parsedValue = "NO";
+      } else if (value !== "NO" && value !== "EMERGENCY" && value !== "YES") {
+        return { success: false, error: "Invalid goalkeeper ability value." };
+      } else {
+        parsedValue = value;
+      }
     } else if (field === "coreTeamId" && value === "") {
       parsedValue = null;
     } else if (field === "primaryPosition") {

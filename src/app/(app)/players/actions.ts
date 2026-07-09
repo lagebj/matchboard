@@ -6,6 +6,7 @@ import {
   AvailabilityStatus,
   BestSide,
   FootPreference,
+  GoalkeeperAbility,
   Prisma,
   SecondaryFoot,
 } from "@/generated/prisma/client";
@@ -26,6 +27,7 @@ type PlayerInput = {
   effort: number | null;
   firstName: string;
   firstTouch: number | null;
+  goalkeeperAbility: GoalkeeperAbility;
   lastName: string | null;
   nonRotatable: boolean;
   notes: string | null;
@@ -38,6 +40,7 @@ type PlayerInput = {
   reducedMatchLoadAllowed: boolean;
   secondaryFoot: SecondaryFoot;
   secondaryPosition: string | null;
+  shirtNumber: number | null;
   speed: number | null;
   strength: number | null;
   teamplay: number | null;
@@ -198,6 +201,7 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
     effort: readOptionalRating(formData, "effort"),
     firstName,
     firstTouch: readOptionalRating(formData, "firstTouch"),
+    goalkeeperAbility: (readText(formData, "goalkeeperAbility") || "NO") as GoalkeeperAbility,
     lastName: readOptionalText(formData, "lastName"),
     nonRotatable: readCheckbox(formData, "nonRotatable"),
     notes: readOptionalText(formData, "notes"),
@@ -210,6 +214,7 @@ async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
     reducedMatchLoadAllowed: readCheckbox(formData, "reducedMatchLoadAllowed"),
     secondaryFoot: readSecondaryFoot(formData),
     secondaryPosition: readOptionalPosition(formData, "secondaryPosition"),
+    shirtNumber: readOptionalRating(formData, "shirtNumber"),
     speed: readOptionalRating(formData, "speed"),
     strength: readOptionalRating(formData, "strength"),
     teamplay: readOptionalRating(formData, "teamplay"),

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTransition, useState, useRef, useEffect } from "react";
-import { TeamShield } from "@/components/ui/team-shield";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
 import { togglePlayerActiveAction, removePlayerAction } from "@/app/(app)/players/actions";
@@ -13,6 +12,11 @@ type PlayerWithTeam = {
   id: string;
   firstName: string;
   lastName: string | null;
+  shirtNumber: number | null;
+  primaryPosition: string;
+  secondaryPosition: string | null;
+  tertiaryPosition: string | null;
+  goalkeeperAbility: string;
   currentAvailability: AvailabilityStatus;
   active: boolean;
   nonRotatable: boolean;
@@ -31,6 +35,26 @@ const AVAILABILITY_VARIANT: Record<string, "success" | "warning" | "danger" | "n
   AWAY: "warning",
   UNKNOWN: "neutral",
 };
+
+const POSITION_SHORT: Record<string, string> = {
+  GK: "GK",
+  CB: "CB",
+  CM: "CM",
+  W: "W",
+  ST: "ST",
+};
+
+const GK_LABELS: Record<string, string> = {
+  NO: "",
+  EMERGENCY: "Emergency GK",
+  YES: "GK",
+};
+
+function getInitials(firstName: string, lastName: string | null): string {
+  const first = firstName.charAt(0).toUpperCase();
+  const last = lastName ? lastName.charAt(0).toUpperCase() : "";
+  return last ? `${first}${last}` : first;
+}
 
 type PlayerProfileHeaderProps = {
   player: PlayerWithTeam;
@@ -71,10 +95,26 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
     setMenuOpen(false);
   };
 
+  const initials = getInitials(player.firstName, player.lastName);
+  const positions = [player.primaryPosition, player.secondaryPosition, player.tertiaryPosition].filter(Boolean) as string[];
+  const gkLabel = GK_LABELS[player.goalkeeperAbility] ?? "";
+  const isGK = player.goalkeeperAbility === "YES";
+
   return (
     <div className="flex items-start gap-4">
-      <TeamShield teamName={player.coreTeam?.name ?? "Unassigned"} size="lg" />
+      {/* Identity badge: initials + shirt number */}
+      <div className="relative flex flex-col items-center justify-center shrink-0">
+        <div className={`flex items-center justify-center w-16 h-16 rounded-xl text-xl font-bold ${isGK ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-[var(--surface-muted)] text-zinc-100 border border-[var(--border-soft)]"}`}>
+          {initials}
+        </div>
+        {player.shirtNumber != null && (
+          <div className="absolute -bottom-1 -right-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--accent)] text-[10px] font-bold text-white">
+            {player.shirtNumber}
+          </div>
+        )}
+      </div>
 
+      {/* Identity info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="text-xl font-semibold text-zinc-50">{formatPlayerName(player)}</h1>
@@ -91,11 +131,38 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
             <StatusPill key={f} variant="warning" size="sm">{f}</StatusPill>
           ))}
         </div>
-        <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-          {player.coreTeam?.name ?? "Unassigned"}
-        </p>
+
+        {/* Team + positions row */}
+        <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-[var(--text-muted)]">
+            {player.coreTeam?.name ?? "Unassigned"}
+          </span>
+          {positions.length > 0 && (
+            <span className="text-[var(--border-soft)]">·</span>
+          )}
+          {positions.map((pos, i) => (
+            <span
+              key={pos}
+              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                i === 0
+                  ? "bg-[var(--accent)]/15 text-[var(--accent)]"
+                  : i === 1
+                    ? "bg-zinc-700/50 text-zinc-300"
+                    : "bg-zinc-800/50 text-zinc-400"
+              }`}
+            >
+              {POSITION_SHORT[pos] ?? pos}
+            </span>
+          ))}
+          {gkLabel && (
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300">
+              {gkLabel}
+            </span>
+          )}
+        </div>
       </div>
 
+      {/* Navigation + actions */}
       <div className="flex items-center gap-1.5 shrink-0">
         {previousPlayerId && (
           <Link
@@ -120,7 +187,6 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
           All players
         </Link>
 
-        {/* Actions menu */}
         <div className="relative" ref={menuRef}>
           <button
             type="button"

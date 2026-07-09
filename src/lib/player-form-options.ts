@@ -2,6 +2,7 @@ import {
   AvailabilityStatus,
   BestSide,
   FootPreference,
+  GoalkeeperAbility,
   MatchType,
   MatchVenue,
   SecondaryFoot,
@@ -71,4 +72,10 @@ export const matchTypeOptions = [
 export const matchVenueOptions = [
   { label: "Home", value: MatchVenue.HOME },
   { label: "Away", value: MatchVenue.AWAY },
+] as const;
+
+export const goalkeeperAbilityOptions = [
+  { label: "No", value: GoalkeeperAbility.NO },
+  { label: "Emergency", value: GoalkeeperAbility.EMERGENCY },
+  { label: "Yes", value: GoalkeeperAbility.YES },
 ] as const;

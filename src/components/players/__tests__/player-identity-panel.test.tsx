@@ -8,10 +8,12 @@ const basePlayer = {
   id: "p1",
   firstName: "Test",
   lastName: "Player",
+  shirtNumber: null,
   coreTeamId: "team-1",
   primaryPosition: "CM",
   secondaryPosition: null,
   tertiaryPosition: null,
+  goalkeeperAbility: "NO",
   preferredFoot: "RIGHT",
   secondaryFoot: "WEAK",
   bestSide: "CENTER",
@@ -19,6 +21,8 @@ const basePlayer = {
   nonRotatable: false,
   reducedMatchLoadAllowed: false,
   notes: null,
+  supportInstruction: null,
+  developmentInstruction: null,
   ballControl: null,
   passing: null,
   firstTouch: null,
@@ -63,6 +67,12 @@ const bestSideOptions = [
   { label: "Right", value: "RIGHT" },
 ];
 
+const goalkeeperAbilityOptions = [
+  { label: "No", value: "NO" },
+  { label: "Emergency", value: "EMERGENCY" },
+  { label: "Yes", value: "YES" },
+];
+
 const availabilityOptions = [
   { label: "Available", value: "AVAILABLE" },
   { label: "Injured", value: "INJURED" },
@@ -87,6 +97,7 @@ describe("PlayerIdentityPanel — editable attributes", () => {
         footOptions={footOptions}
         secondaryFootOptions={secondaryFootOptions}
         bestSideOptions={bestSideOptions}
+        goalkeeperAbilityOptions={goalkeeperAbilityOptions}
         updateFieldAction={mockUpdateFieldAction}
       />,
     );
@@ -122,6 +133,7 @@ describe("PlayerIdentityPanel — editable attributes", () => {
         footOptions={footOptions}
         secondaryFootOptions={secondaryFootOptions}
         bestSideOptions={bestSideOptions}
+        goalkeeperAbilityOptions={goalkeeperAbilityOptions}
         updateFieldAction={mockUpdateFieldAction}
       />,
     );
@@ -148,6 +160,7 @@ describe("PlayerIdentityPanel — editable attributes", () => {
         footOptions={footOptions}
         secondaryFootOptions={secondaryFootOptions}
         bestSideOptions={bestSideOptions}
+        goalkeeperAbilityOptions={goalkeeperAbilityOptions}
         updateFieldAction={mockUpdateFieldAction}
       />,
     );
@@ -169,6 +182,7 @@ describe("PlayerIdentityPanel — editable attributes", () => {
         footOptions={footOptions}
         secondaryFootOptions={secondaryFootOptions}
         bestSideOptions={bestSideOptions}
+        goalkeeperAbilityOptions={goalkeeperAbilityOptions}
         updateFieldAction={mockUpdateFieldAction}
       />,
     );
@@ -200,6 +214,7 @@ describe("PlayerIdentityPanel — editable attributes", () => {
         footOptions={footOptions}
         secondaryFootOptions={secondaryFootOptions}
         bestSideOptions={bestSideOptions}
+        goalkeeperAbilityOptions={goalkeeperAbilityOptions}
         updateFieldAction={mockUpdateFieldAction}
       />,
     );

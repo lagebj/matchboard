@@ -3,6 +3,7 @@ import {
   AvailabilityStatus,
   BestSide,
   FootPreference,
+  GoalkeeperAbility,
   SecondaryFoot,
   type Player,
   type Team,
@@ -10,6 +11,7 @@ import {
 import {
   availabilityOptions,
   bestSideOptions,
+  goalkeeperAbilityOptions,
   optionalPlayerPositionOptions,
   playerPositionOptions,
   preferredFootOptions,
@@ -134,6 +136,18 @@ export function PlayerEditorForm({
         />
         <TextField defaultValue={player?.lastName ?? ""} label="Last Name" name="lastName" />
         <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+          Shirt Number
+          <input
+            className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
+            defaultValue={player?.shirtNumber ?? ""}
+            name="shirtNumber"
+            placeholder="Optional"
+            type="number"
+            min={1}
+            max={99}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
           Core Team
           <select
             className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
@@ -168,6 +182,13 @@ export function PlayerEditorForm({
           name="tertiaryPosition"
           options={optionalPlayerPositionOptions}
           required={false}
+        />
+
+        <SelectField
+          defaultValue={player?.goalkeeperAbility ?? GoalkeeperAbility.NO}
+          label="Goalkeeper Ability"
+          name="goalkeeperAbility"
+          options={goalkeeperAbilityOptions}
         />
 
         <SelectField

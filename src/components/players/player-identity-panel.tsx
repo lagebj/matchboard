@@ -39,10 +39,12 @@ type PlayerWithTeam = {
   id: string;
   firstName: string;
   lastName: string | null;
+  shirtNumber: number | null;
   coreTeamId: string | null;
   primaryPosition: string | null;
   secondaryPosition: string | null;
   tertiaryPosition: string | null;
+  goalkeeperAbility: string;
   preferredFoot: string | null;
   secondaryFoot: string | null;
   bestSide: string | null;
@@ -50,6 +52,8 @@ type PlayerWithTeam = {
   nonRotatable: boolean;
   reducedMatchLoadAllowed: boolean;
   notes: string | null;
+  supportInstruction: string | null;
+  developmentInstruction: string | null;
   ballControl: number | null;
   passing: number | null;
   firstTouch: number | null;
@@ -76,10 +80,11 @@ type PlayerIdentityPanelProps = {
   footOptions: ReadonlyArray<SelectOption>;
   secondaryFootOptions: ReadonlyArray<SelectOption>;
   bestSideOptions: ReadonlyArray<SelectOption>;
+  goalkeeperAbilityOptions: ReadonlyArray<SelectOption>;
   updateFieldAction: (playerId: string, field: string, value: string) => Promise<{ success: boolean; error?: string }>;
 };
 
-export function PlayerIdentityPanel({ player, teams, availabilityOptions, positionOptions, optionalPositionOptions, footOptions, secondaryFootOptions: secFootOptions, bestSideOptions, updateFieldAction }: PlayerIdentityPanelProps) {
+export function PlayerIdentityPanel({ player, teams, availabilityOptions, positionOptions, optionalPositionOptions, footOptions, secondaryFootOptions: secFootOptions, bestSideOptions, goalkeeperAbilityOptions, updateFieldAction }: PlayerIdentityPanelProps) {
   const teamOptions = teams.map((t) => ({ label: t.name, value: t.id }));
 
   const handleSave = (field: string) => async (value: string) => {
@@ -144,11 +149,22 @@ export function PlayerIdentityPanel({ player, teams, availabilityOptions, positi
             value={player.lastName}
             onSave={handleSave("lastName")}
           />
+          <InlineEditField
+            label="Shirt number"
+            value={player.shirtNumber != null ? String(player.shirtNumber) : ""}
+            onSave={handleSave("shirtNumber")}
+          />
           <InlineEditSelect
             label="Team"
             value={player.coreTeamId}
             options={teamOptions}
             onSave={handleSave("coreTeamId")}
+          />
+          <InlineEditSelect
+            label="Goalkeeper"
+            value={player.goalkeeperAbility}
+            options={goalkeeperAbilityOptions}
+            onSave={handleSave("goalkeeperAbility")}
           />
           <InlineEditSelect
             label="Foot"

@@ -6,7 +6,7 @@ import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
-import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions } from "@/lib/player-form-options";
+import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions, goalkeeperAbilityOptions } from "@/lib/player-form-options";
 
 import { PlayerProfileLayout } from "@/components/players/player-profile-layout";
 import { PlayerProfileHeader } from "@/components/players/player-profile-header";
@@ -16,6 +16,7 @@ import { PlayerStatsPanel } from "@/components/players/player-stats-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
 import { PlayerMovementHistoryPanel } from "@/components/players/player-movement-history-panel";
 import { PlayerExplanationsPanel } from "@/components/players/player-explanations-panel";
+import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 
 import { updatePlayerFieldAction } from "./inline-actions";
 
@@ -104,6 +105,36 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   if (!player) notFound();
 
+  const [rotationPaths, movementCandidates] = await Promise.all([
+    db.rotationPath.findMany({
+      where: {
+        OR: [
+          { fromTeamId: player.coreTeamId ?? "" },
+          { toTeamId: player.coreTeamId ?? "" },
+        ],
+        fromTeam: { archivedAt: null },
+        toTeam: { archivedAt: null },
+      },
+      include: {
+        fromTeam: { select: { id: true, name: true } },
+        toTeam: { select: { id: true, name: true } },
+      },
+      orderBy: [{ fromTeamId: "asc" }, { role: "asc" }],
+    }),
+    db.movementCandidate.findMany({
+      where: { playerId },
+      include: {
+        rotationPath: {
+          include: {
+            fromTeam: { select: { name: true } },
+            toTeam: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
   const orderedIds = orderedPlayerIds.map((entry) => entry.id);
   const currentPlayerIndex = orderedIds.indexOf(player.id);
   const previousPlayerId = currentPlayerIndex > 0 ? orderedIds[currentPlayerIndex - 1] : null;
@@ -169,6 +200,25 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
     ? `${formatDate(lastFinalized.match.startsAt)} vs ${lastFinalized.match.opponent}`
     : null;
 
+  const mappedRotationPaths = rotationPaths.map((rp) => ({
+    id: rp.id,
+    fromTeamName: rp.fromTeam.name,
+    toTeamName: rp.toTeam.name,
+    role: rp.role,
+    active: rp.active,
+  }));
+
+  const mappedMovementCandidates = movementCandidates.map((mc) => ({
+    id: mc.id,
+    rotationPathId: mc.rotationPathId,
+    fromTeamName: mc.rotationPath.fromTeam.name,
+    toTeamName: mc.rotationPath.toTeam.name,
+    role: mc.role,
+    status: mc.status,
+    rationaleCategory: mc.rationaleCategory,
+    rationaleNote: mc.rationaleNote,
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       {error && <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>}
@@ -192,6 +242,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             footOptions={preferredFootOptions}
             secondaryFootOptions={secondaryFootOpts}
             bestSideOptions={bestSideOptions}
+            goalkeeperAbilityOptions={goalkeeperAbilityOptions}
             updateFieldAction={updatePlayerFieldAction}
           />
         }
@@ -224,6 +275,11 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               categoryStats={categoryStats}
             />
             <PlayerMovementHistoryPanel movementHistory={movementEntries} />
+            <PlayerSquadContextPanel
+              rotationPaths={mappedRotationPaths}
+              movementCandidates={mappedMovementCandidates}
+              coreTeamId={player.coreTeamId}
+            />
           </div>
         }
       />
