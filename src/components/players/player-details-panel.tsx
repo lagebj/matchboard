@@ -37,9 +37,9 @@ export function PlayerDetailsPanel({ player, teams, footOptions, secondaryFootOp
   };
 
   return (
-    <TacticalSurface variant="default" padding="md">
+    <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Details" />
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
         <InlineEditField
           label="First name"
           value={player.firstName}
@@ -51,7 +51,7 @@ export function PlayerDetailsPanel({ player, teams, footOptions, secondaryFootOp
           onSave={handleSave("lastName")}
         />
         <InlineEditField
-          label="Shirt number"
+          label="Shirt"
           value={player.shirtNumber != null ? String(player.shirtNumber) : ""}
           onSave={handleSave("shirtNumber")}
         />
@@ -62,7 +62,7 @@ export function PlayerDetailsPanel({ player, teams, footOptions, secondaryFootOp
           onSave={handleSave("coreTeamId")}
         />
         <InlineEditSelect
-          label="Goalkeeper"
+          label="GK ability"
           value={player.goalkeeperAbility}
           options={goalkeeperAbilityOptions}
           onSave={handleSave("goalkeeperAbility")}

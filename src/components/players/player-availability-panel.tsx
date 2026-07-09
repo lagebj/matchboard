@@ -26,28 +26,26 @@ export function PlayerAvailabilityPanel({ player, availabilityOptions, updateFie
   };
 
   return (
-    <TacticalSurface variant="default" padding="md">
+    <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Availability" />
-
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-1.5 flex flex-col gap-1.5">
         <InlineEditSelect
           label="Status"
           value={player.currentAvailability}
           options={availabilityOptions}
           onSave={handleSave("currentAvailability")}
         />
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rotation</span>
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-[var(--text-muted)]">Rotation</span>
           <span className={cn(
-            "text-sm",
-            player.nonRotatable ? "text-[var(--warning)]" : "text-zinc-100",
+            player.nonRotatable ? "text-[var(--warning)]" : "text-zinc-200",
           )}>
             {player.nonRotatable ? "Non-rotatable" : "Eligible"}
           </span>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Planning constraint</span>
-          <span className="text-sm text-zinc-100">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-[var(--text-muted)]">Planning constraint</span>
+          <span className="text-zinc-200">
             {player.reducedMatchLoadAllowed ? "Reduced match involvement" : "Standard"}
           </span>
         </div>

@@ -24,47 +24,47 @@ export function PlayerStatsSummaryTable({
   );
 
   return (
-    <TacticalSurface variant="default" padding="md">
+    <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Statistics" />
       {!hasAnyData && !hasCategoryData ? (
-        <p className="mt-2 text-sm text-[var(--text-soft)]">No match statistics yet.</p>
+        <p className="mt-1.5 text-[11px] text-[var(--text-soft)]">No match statistics yet.</p>
       ) : (
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="mt-1">
+          <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b border-[var(--border-soft)]">
-                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Competition</th>
-                <th className="text-right py-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Apps</th>
-                <th className="text-right py-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Goals</th>
-                <th className="text-right py-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Assists</th>
+                <th className="text-left py-1 pr-3 font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]" style={{ fontSize: '9px' }}>Competition</th>
+                <th className="text-right py-1 px-2 font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]" style={{ fontSize: '9px' }}>Apps</th>
+                <th className="text-right py-1 px-2 font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]" style={{ fontSize: '9px' }}>Goals</th>
+                <th className="text-right py-1 px-2 font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]" style={{ fontSize: '9px' }}>Assists</th>
               </tr>
             </thead>
             <tbody>
               {hasCategoryData && categoryStats && (
                 <>
                   {([categoryStats.league, categoryStats.cup, categoryStats.other] as const).map((line) => (
-                    <tr key={line.category} className="border-b border-[var(--border-soft)]/50">
-                      <td className="py-1.5 pr-3 text-zinc-200 font-medium">{MATCH_CATEGORY_LABELS[line.category]}</td>
-                      <td className="text-right py-1.5 px-2 tabular-nums text-zinc-200">{line.appearances}</td>
-                      <td className="text-right py-1.5 px-2 tabular-nums text-zinc-200">{line.goals}</td>
-                      <td className="text-right py-1.5 px-2 tabular-nums text-zinc-200">{line.assists}</td>
+                    <tr key={line.category} className="border-b border-[var(--border-soft)]/40">
+                      <td className="py-1 pr-3 text-zinc-200">{MATCH_CATEGORY_LABELS[line.category]}</td>
+                      <td className="text-right py-1 px-2 tabular-nums text-zinc-200">{line.appearances}</td>
+                      <td className="text-right py-1 px-2 tabular-nums text-zinc-200">{line.goals}</td>
+                      <td className="text-right py-1 px-2 tabular-nums text-zinc-200">{line.assists}</td>
                     </tr>
                   ))}
                 </>
               )}
               <tr className="font-semibold">
-                <td className="py-1.5 pr-3 text-zinc-100">Total</td>
-                <td className="text-right py-1.5 px-2 tabular-nums text-zinc-100">
+                <td className="py-1 pr-3 text-zinc-100">Total</td>
+                <td className="text-right py-1 px-2 tabular-nums text-zinc-100">
                   {hasCategoryData && categoryStats
                     ? categoryStats.total.appearances
                     : stats.actualAppearances}
                 </td>
-                <td className="text-right py-1.5 px-2 tabular-nums text-zinc-100">
+                <td className="text-right py-1 px-2 tabular-nums text-zinc-100">
                   {hasCategoryData && categoryStats
                     ? categoryStats.total.goals
                     : stats.goals}
                 </td>
-                <td className="text-right py-1.5 px-2 tabular-nums text-zinc-100">
+                <td className="text-right py-1 px-2 tabular-nums text-zinc-100">
                   {hasCategoryData && categoryStats
                     ? categoryStats.total.assists
                     : stats.assists}

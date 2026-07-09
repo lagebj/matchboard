@@ -64,33 +64,33 @@ export function PlayerReportSummaryPanel({ player }: PlayerReportSummaryPanelPro
   const hasAnyRatings = averages.overall !== null;
 
   return (
-    <TacticalSurface variant="default" padding="md">
+    <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Attribute summary" />
       {!hasAnyRatings ? (
-        <p className="mt-2 text-sm text-[var(--text-soft)]">No attributes rated yet.</p>
+        <p className="mt-1.5 text-[11px] text-[var(--text-soft)]">No attributes rated yet.</p>
       ) : (
-        <div className="mt-2 flex flex-col gap-2">
+        <div className="mt-1.5">
           <div className="grid grid-cols-4 gap-2">
             {summaries.map((cat) => (
-              <div key={cat.label} className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{cat.label}</span>
-                <span className="text-lg font-semibold tabular-nums text-zinc-100">
+              <div key={cat.label} className="flex flex-col items-center gap-px">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
+                <span className="text-base font-semibold tabular-nums text-zinc-100 leading-tight">
                   {cat.average !== null ? cat.average.toFixed(1) : "—"}
                 </span>
-                <span className="text-[10px] text-[var(--text-muted)]">{cat.ratedCount}/{cat.totalKeys.length}</span>
+                <span className="text-[9px] text-zinc-500">{cat.ratedCount}/{cat.totalKeys.length}</span>
               </div>
             ))}
           </div>
-          <div className="mt-1 flex flex-col gap-1 border-t border-[var(--border-soft)] pt-2">
+          <div className="mt-1.5 flex gap-3 border-t border-[var(--border-soft)] pt-1.5 text-[11px]">
             {strongest && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-[var(--text-muted)]">Strongest area</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[var(--text-muted)]">Strongest</span>
                 <span className="text-emerald-400 font-medium">{strongest}</span>
               </div>
             )}
             {weakest && weakest !== strongest && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-[var(--text-muted)]">Needs most coaching attention</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[var(--text-muted)]">Needs coaching</span>
                 <span className="text-amber-400 font-medium">{weakest}</span>
               </div>
             )}

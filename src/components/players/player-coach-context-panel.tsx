@@ -22,9 +22,9 @@ export function CoachContextPanel({ player, updateFieldAction }: CoachContextPan
   };
 
   return (
-    <TacticalSurface variant="default" padding="md">
+    <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Coach context" />
-      <div className="mt-2 flex flex-col gap-3">
+      <div className="mt-1.5 flex flex-col gap-2">
         <InlineEditField
           label="Notes"
           value={player.notes ?? ""}
