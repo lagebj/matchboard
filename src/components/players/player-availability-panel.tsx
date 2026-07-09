@@ -46,9 +46,9 @@ export function PlayerAvailabilityPanel({ player, availabilityOptions, updateFie
           </span>
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Load</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Planning constraint</span>
           <span className="text-sm text-zinc-100">
-            {player.reducedMatchLoadAllowed ? "Reduced load" : "Standard"}
+            {player.reducedMatchLoadAllowed ? "Reduced match involvement" : "Standard"}
           </span>
         </div>
       </div>
