@@ -10,12 +10,12 @@ import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptio
 
 import { PlayerProfileLayout } from "@/components/players/player-profile-layout";
 import { PlayerProfileHeader } from "@/components/players/player-profile-header";
-import { PlayerIdentityPanel } from "@/components/players/player-identity-panel";
-import { PlayerCoachingSignalsPanel } from "@/components/players/player-coaching-signals-panel";
+import { PlayerPositionProfile } from "@/components/players/player-position-profile";
+import { PlayerDetailsPanel } from "@/components/players/player-details-panel";
+import { PlayerAttributesPanel } from "@/components/players/player-attributes-panel";
+import { PlayerAvailabilityPanel } from "@/components/players/player-availability-panel";
 import { PlayerStatsPanel } from "@/components/players/player-stats-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
-import { PlayerMovementHistoryPanel } from "@/components/players/player-movement-history-panel";
-import { PlayerExplanationsPanel } from "@/components/players/player-explanations-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 
 import { updatePlayerFieldAction } from "./inline-actions";
@@ -39,7 +39,7 @@ function formatSavedMessage(saved?: string): string | null {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, recentExplanationsRaw, actualStats, readinessSignals, categoryStats] = await Promise.all([
+  const [player, teams, orderedPlayerIds, finalizedHistory, savedInvolvementSnapshots, movementHistory, actualStats, categoryStats] = await Promise.all([
     db.player.findFirst({
       where: { id: playerId, removedAt: null },
       include: { coreTeam: { select: { id: true, name: true } } },
@@ -80,26 +80,9 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         toTeam: { select: { id: true, name: true } },
       },
       orderBy: [{ createdAt: "desc" }],
-      take: 20,
-    }),
-    db.selection.findMany({
-      where: { playerId },
-      select: {
-        id: true,
-        role: true,
-        explanation: true,
-        overrideReason: true,
-        match: { select: { id: true, opponent: true, startsAt: true, team: { select: { name: true } } } },
-        createdAt: true,
-      },
-      orderBy: [{ createdAt: "desc" }],
-      take: 20,
+      take: 10,
     }),
     getPlayerAllTimeStats(playerId),
-    db.playerReadinessSignal.findMany({
-      where: { playerId },
-      orderBy: { signalType: "asc" },
-    }),
     getPlayerCategoryStats(playerId),
   ]);
 
@@ -163,20 +146,6 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   if (player.supportSuitability && player.supportSuitability !== "neutral") planningFlags.push("Support " + player.supportSuitability);
   if (player.developmentReadiness && player.developmentReadiness !== "neutral") planningFlags.push("Dev " + player.developmentReadiness);
 
-  const recentExplanations = recentExplanationsRaw
-    .filter((sel) => sel.explanation !== null || sel.overrideReason !== null)
-    .slice(0, 10)
-    .map((sel) => ({
-      id: sel.id,
-      role: sel.role,
-      explanation: typeof sel.explanation === "string" ? sel.explanation : sel.explanation ? JSON.stringify(sel.explanation) : null,
-      overrideReason: sel.overrideReason,
-      matchDate: sel.match.startsAt,
-      matchId: sel.match.id,
-      teamName: sel.match.team.name,
-      opponent: sel.match.opponent,
-    }));
-
   const movementEntries = movementHistory.map((entry) => ({
     id: entry.id,
     fromTeamName: entry.fromTeam.name,
@@ -233,48 +202,14 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
       <PlayerProfileLayout
         left={
-          <PlayerIdentityPanel
-            player={player}
-            teams={teams}
-            availabilityOptions={availabilityOptions}
-            positionOptions={playerPositionOptions}
-            optionalPositionOptions={optionalPlayerPositionOptions}
-            footOptions={preferredFootOptions}
-            secondaryFootOptions={secondaryFootOpts}
-            bestSideOptions={bestSideOptions}
-            goalkeeperAbilityOptions={goalkeeperAbilityOptions}
-            updateFieldAction={updatePlayerFieldAction}
-          />
-        }
-        center={
           <div className="flex flex-col gap-3">
+            <PlayerPositionProfile
+              player={player}
+              positionOptions={playerPositionOptions}
+              optionalPositionOptions={optionalPlayerPositionOptions}
+              updateFieldAction={updatePlayerFieldAction}
+            />
             <PlayerCurrentInvolvementPanel involvement={mappedInvolvement} />
-            <PlayerCoachingSignalsPanel
-              playerId={player.id}
-              signals={readinessSignals.map((s) => ({ id: s.id, signalType: s.signalType, value: s.value, note: s.note }))}
-            />
-            <PlayerExplanationsPanel explanations={recentExplanations} />
-          </div>
-        }
-        right={
-          <div className="flex flex-col gap-3">
-            <PlayerStatsPanel
-              selectionStatus={{
-                total: savedInvolvement.length,
-                draft: draftInvolvement.length,
-                finalized: finalizedInvolvement.length,
-                floating: totalFloating,
-              }}
-              finalizedHistory={{
-                core: coreCount,
-                support: supportCount,
-                development: devCount,
-                lastMatch: lastFinalizedStr,
-              }}
-              stats={actualStats}
-              categoryStats={categoryStats}
-            />
-            <PlayerMovementHistoryPanel movementHistory={movementEntries} />
             <PlayerSquadContextPanel
               rotationPaths={mappedRotationPaths}
               movementCandidates={mappedMovementCandidates}
@@ -282,6 +217,49 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             />
           </div>
         }
+        center={
+          <div className="flex flex-col gap-3">
+            <PlayerDetailsPanel
+              player={player}
+              teams={teams}
+              footOptions={preferredFootOptions}
+              secondaryFootOptions={secondaryFootOpts}
+              bestSideOptions={bestSideOptions}
+              goalkeeperAbilityOptions={goalkeeperAbilityOptions}
+              updateFieldAction={updatePlayerFieldAction}
+            />
+          </div>
+        }
+        right={
+          <div className="flex flex-col gap-3">
+            <PlayerAvailabilityPanel
+              player={player}
+              availabilityOptions={availabilityOptions}
+              updateFieldAction={updatePlayerFieldAction}
+            />
+            <PlayerAttributesPanel
+              player={player}
+              updateFieldAction={updatePlayerFieldAction}
+            />
+          </div>
+        }
+      />
+
+      <PlayerStatsPanel
+        selectionStatus={{
+          total: savedInvolvement.length,
+          draft: draftInvolvement.length,
+          finalized: finalizedInvolvement.length,
+          floating: totalFloating,
+        }}
+        finalizedHistory={{
+          core: coreCount,
+          support: supportCount,
+          development: devCount,
+          lastMatch: lastFinalizedStr,
+        }}
+        stats={actualStats}
+        categoryStats={categoryStats}
       />
     </div>
   );
