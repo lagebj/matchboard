@@ -70,9 +70,9 @@ export const ROLE_COLORS: Record<FormationSlotRoleType, string> = {
 };
 
 const SIZE_CONFIG: Record<TacticsBoardSize, { aspectClass: string }> = {
-  compact: { aspectClass: "aspect-[16/9]" },
-  standard: { aspectClass: "aspect-[16/9]" },
-  wide: { aspectClass: "aspect-[16/9]" },
+  compact: { aspectClass: "aspect-[3/2]" },
+  standard: { aspectClass: "aspect-[3/2]" },
+  wide: { aspectClass: "aspect-[3/2]" },
 };
 
 type PositionProfileRenderProps = {
@@ -143,74 +143,66 @@ function PitchMarkings({ orientation }: { orientation: BoardOrientation }) {
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none"
         viewBox="0 0 100 100"
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         aria-hidden="true"
       >
         <rect
-          x="0.5"
-          y="0.5"
-          width="99"
-          height="99"
-          rx="1"
+          x="1" y="8" width="98" height="84"
+          rx="0.5"
           fill="none"
           stroke="var(--border-soft)"
-          strokeWidth="0.5"
+          strokeWidth="0.4"
         />
         <line
-          x1="50"
-          y1="0.5"
-          x2="50"
-          y2="99.5"
+          x1="50" y1="8" x2="50" y2="92"
           stroke="var(--border-soft)"
           strokeWidth="0.3"
         />
         <circle
-          cx="50"
-          cy="50"
-          r="12"
+          cx="50" cy="50" r="9"
           fill="none"
           stroke="var(--border-soft)"
           strokeWidth="0.3"
         />
+        <circle
+          cx="50" cy="50" r="0.5"
+          fill="var(--border-soft)"
+        />
         <rect
-          x="0.5"
-          y="25"
-          width="23.5"
-          height="50"
+          x="1" y="27" width="17" height="46"
           fill="none"
           stroke="var(--border-soft)"
           strokeWidth="0.3"
-          rx="0.3"
+          rx="0.2"
         />
         <rect
-          x="0.5"
-          y="35"
-          width="11.5"
-          height="30"
+          x="1" y="37" width="7" height="26"
           fill="none"
           stroke="var(--border-soft)"
           strokeWidth="0.2"
           rx="0.2"
         />
+        <circle
+          cx="14" cy="50" r="0.5"
+          fill="var(--border-soft)"
+        />
         <rect
-          x="76"
-          y="25"
-          width="23.5"
-          height="50"
+          x="82" y="27" width="17" height="46"
           fill="none"
           stroke="var(--border-soft)"
           strokeWidth="0.3"
-          rx="0.3"
+          rx="0.2"
         />
         <rect
-          x="88"
-          y="35"
-          width="11.5"
-          height="30"
+          x="92" y="37" width="7" height="26"
           fill="none"
           stroke="var(--border-soft)"
           strokeWidth="0.2"
           rx="0.2"
+        />
+        <circle
+          cx="86" cy="50" r="0.5"
+          fill="var(--border-soft)"
         />
       </svg>
     );
@@ -220,54 +212,66 @@ function PitchMarkings({ orientation }: { orientation: BoardOrientation }) {
     <svg
       className="absolute inset-0 w-full h-full pointer-events-none"
       viewBox="0 0 100 100"
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
       <rect
-        x="0.5"
-        y="0.5"
-        width="99"
-        height="99"
-        rx="1"
+        x="8" y="1" width="84" height="98"
+        rx="0.5"
         fill="none"
         stroke="var(--border-soft)"
-        strokeWidth="0.5"
+        strokeWidth="0.4"
       />
       <line
-        x1="0.5"
-        y1="50"
-        x2="99.5"
-        y2="50"
+        x1="8" y1="50" x2="92" y2="50"
         stroke="var(--border-soft)"
         strokeWidth="0.3"
       />
       <circle
-        cx="50"
-        cy="50"
-        r="12"
+        cx="50" cy="50" r="9"
         fill="none"
         stroke="var(--border-soft)"
         strokeWidth="0.3"
       />
+      <circle
+        cx="50" cy="50" r="0.5"
+        fill="var(--border-soft)"
+      />
       <rect
-        x="25"
-        y="76"
-        width="50"
-        height="23.5"
+        x="27" y="76" width="46" height="23"
         fill="none"
         stroke="var(--border-soft)"
         strokeWidth="0.3"
-        rx="0.3"
+        rx="0.2"
       />
       <rect
-        x="35"
-        y="88"
-        width="30"
-        height="11.5"
+        x="37" y="89" width="26" height="10"
         fill="none"
         stroke="var(--border-soft)"
         strokeWidth="0.2"
         rx="0.2"
+      />
+      <circle
+        cx="50" cy="86" r="0.5"
+        fill="var(--border-soft)"
+      />
+      <rect
+        x="27" y="1" width="46" height="23"
+        fill="none"
+        stroke="var(--border-soft)"
+        strokeWidth="0.3"
+        rx="0.2"
+      />
+      <rect
+        x="37" y="1" width="26" height="10"
+        fill="none"
+        stroke="var(--border-soft)"
+        strokeWidth="0.2"
+        rx="0.2"
+      />
+      <circle
+        cx="50" cy="14" r="0.5"
+        fill="var(--border-soft)"
       />
     </svg>
   );

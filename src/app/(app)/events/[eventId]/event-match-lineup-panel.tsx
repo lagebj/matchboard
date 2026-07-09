@@ -18,6 +18,7 @@ import { PitchLineupView } from '@/components/formations/pitch-formation';
 import { PlayerPicker } from '@/components/formations/player-picker';
 import { Surface } from '@/components/ui/surface';
 import { cn } from '@/lib/cn';
+import { computeLineupRating, formatLineupRatingLabel } from '@/lib/events/event-lineup-rating';
 
 type FormationSlot = {
   id: string;
@@ -79,6 +80,7 @@ type PoolPlayer = {
   isGK: boolean;
   source: 'squad' | 'helper';
   squadName: string | null;
+  overallLevel: number | null;
 };
 
 export function EventMatchLineupPanel({
@@ -308,6 +310,19 @@ export function EventMatchLineupPanel({
     }));
   }, [eligiblePlayers]);
 
+  const lineupRating = useMemo(() => {
+    if (!lineup || !lineup.formation) return null;
+    const assignedPlayerIds = new Set(
+      (lineup.assignments ?? []).filter((a) => a.playerId).map((a) => a.playerId!),
+    );
+    const starters = eligiblePlayers.filter((p) => assignedPlayerIds.has(p.id));
+    const totalSlots = lineup.formation.slots.length;
+    return computeLineupRating(
+      starters.map((p) => ({ overallLevel: p.overallLevel })),
+      totalSlots,
+    );
+  }, [lineup, eligiblePlayers]);
+
   if (loading) {
     return (
       <Surface variant="default" padding="md">
@@ -381,7 +396,17 @@ export function EventMatchLineupPanel({
     <Surface variant="default" padding="md">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+          <div className="flex items-center gap-3">
+            <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+            {lineupRating && lineupRating.totalSlots > 0 && (
+              <span className="text-xs text-[var(--text-muted)]">
+                {lineupRating.averageRating !== null
+                  ? formatLineupRatingLabel(lineupRating)
+                  : `${lineupRating.totalStarterCount}/${lineupRating.totalSlots} starters \u00B7 Not rated`
+                }
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleAutoFill}
