@@ -511,4 +511,252 @@ describe('Event export route', () => {
     expect(helpersValue).toContain('(from Blå');
     expect(helpersValue).toContain('GK cover');
   });
+
+  describe('Event Match Lineups sheet', () => {
+    it('includes Event Match Lineups sheet when lineups exist', async () => {
+      const { event, squad1 } = await createTestEvent();
+
+      const blaTeamId = fixtureIds.teams['Bla']!;
+      const blaPlayers = fixtureIds.players.filter((p) => p.coreTeamId === blaTeamId);
+
+      const formation = await testDb.formation.create({
+        data: {
+          name: 'Test 7v7',
+          gameFormat: 'SEVEN_A_SIDE',
+          source: 'CUSTOM',
+          isArchived: false,
+        },
+      });
+
+      const slotPositions = [
+        { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER', sortOrder: 0 },
+        { gridX: 0, gridY: 4, label: 'LB', shortLabel: 'LB', roleType: 'DEFENDER', sortOrder: 1 },
+        { gridX: 2, gridY: 4, label: 'CB', shortLabel: 'CB', roleType: 'DEFENDER', sortOrder: 2 },
+        { gridX: 4, gridY: 4, label: 'RB', shortLabel: 'RB', roleType: 'DEFENDER', sortOrder: 3 },
+        { gridX: 2, gridY: 2, label: 'CM', shortLabel: 'CM', roleType: 'MIDFIELDER', sortOrder: 4 },
+        { gridX: 2, gridY: 1, label: 'AM', shortLabel: 'AM', roleType: 'ATTACKING_MIDFIELDER', sortOrder: 5 },
+        { gridX: 2, gridY: 0, label: 'ST', shortLabel: 'ST', roleType: 'FORWARD', sortOrder: 6 },
+      ];
+
+      for (const slot of slotPositions) {
+        await testDb.formationSlot.create({
+          data: {
+            formationId: formation.id,
+            ...slot,
+            acceptedPositionIds: [],
+          },
+        });
+      }
+
+      const match = await testDb.eventMatch.findFirst({
+        where: { eventId: event.id, eventSquadId: squad1.id },
+      });
+
+      const lineup = await testDb.eventMatchLineup.create({
+        data: {
+          eventMatchId: match!.id,
+          formationId: formation.id,
+          status: 'DRAFT',
+        },
+      });
+
+      const firstPlayer = blaPlayers[0];
+      await testDb.eventMatchLineupAssignment.create({
+        data: {
+          lineupId: lineup.id,
+          playerId: firstPlayer.id,
+          slotId: slotPositions[0].label,
+          slotIndex: 0,
+          slotLabel: 'GK',
+          roleType: 'GOALKEEPER',
+          source: 'BASE_SQUAD',
+        },
+      });
+
+      const { workbook } = await exportWorkbook(event.id);
+
+      const sheetNames = workbook.worksheets.map((ws) => ws.name);
+      expect(sheetNames).toContain('Event Match Lineups');
+
+      const ws = workbook.getWorksheet('Event Match Lineups')!;
+      const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
+      expect(headers).toContain('Event squad');
+      expect(headers).toContain('Opponent');
+      expect(headers).toContain('Formation');
+      expect(headers).toContain('Slot');
+      expect(headers).toContain('Role');
+      expect(headers).toContain('Player');
+      expect(headers).toContain('Helper?');
+      expect(headers).toContain('Lineup rating');
+      expect(headers).toContain('Complete?');
+    });
+
+    it('shows assigned player in lineup export', async () => {
+      const { event, squad1 } = await createTestEvent();
+
+      const blaTeamId = fixtureIds.teams['Bla']!;
+      const blaPlayers = fixtureIds.players.filter((p) => p.coreTeamId === blaTeamId);
+
+      const formation = await testDb.formation.create({
+        data: {
+          name: 'Test 7v7 B',
+          gameFormat: 'SEVEN_A_SIDE',
+          source: 'CUSTOM',
+          isArchived: false,
+        },
+      });
+
+      const slotPositions = [
+        { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER', sortOrder: 0 },
+        { gridX: 2, gridY: 2, label: 'CM', shortLabel: 'CM', roleType: 'MIDFIELDER', sortOrder: 1 },
+      ];
+
+      for (const slot of slotPositions) {
+        await testDb.formationSlot.create({
+          data: {
+            formationId: formation.id,
+            ...slot,
+            acceptedPositionIds: [],
+          },
+        });
+      }
+
+      const match = await testDb.eventMatch.findFirst({
+        where: { eventId: event.id, eventSquadId: squad1.id },
+      });
+
+      const lineup = await testDb.eventMatchLineup.create({
+        data: {
+          eventMatchId: match!.id,
+          formationId: formation.id,
+          status: 'DRAFT',
+        },
+      });
+
+      await testDb.eventMatchLineupAssignment.create({
+        data: {
+          lineupId: lineup.id,
+          playerId: blaPlayers[0].id,
+          slotId: 'GK',
+          slotIndex: 0,
+          slotLabel: 'GK',
+          roleType: 'GOALKEEPER',
+          source: 'BASE_SQUAD',
+        },
+      });
+
+      await testDb.eventMatchLineupAssignment.create({
+        data: {
+          lineupId: lineup.id,
+          playerId: null,
+          slotId: 'CM',
+          slotIndex: 1,
+          slotLabel: 'CM',
+          roleType: 'MIDFIELDER',
+          source: 'BASE_SQUAD',
+        },
+      });
+
+      const { workbook } = await exportWorkbook(event.id);
+      const ws = workbook.getWorksheet('Event Match Lineups')!;
+
+      const playerCol = getHeaderIndex(ws, 'Player');
+      const slotCol = getHeaderIndex(ws, 'Slot');
+      const completeCol = getHeaderIndex(ws, 'Complete?');
+      const helperCol = getHeaderIndex(ws, 'Helper?');
+
+      const dataRows: ExcelJS.Row[] = [];
+      for (let i = 2; i <= ws.rowCount; i++) {
+        dataRows.push(ws.getRow(i));
+      }
+
+      expect(dataRows.length).toBeGreaterThanOrEqual(2);
+
+      const gkRow = dataRows.find((r) => getCellText(r.getCell(slotCol)) === 'GK');
+      expect(gkRow).toBeDefined();
+      expect(getCellText(gkRow!.getCell(playerCol))).toContain(blaPlayers[0].firstName);
+
+      const cmRow = dataRows.find((r) => getCellText(r.getCell(slotCol)) === 'CM');
+      expect(cmRow).toBeDefined();
+      expect(getCellText(cmRow!.getCell(playerCol))).toBe('Unassigned');
+
+      expect(getCellText(gkRow!.getCell(helperCol))).toBe('No');
+
+      const completeValue = getCellText(gkRow!.getCell(completeCol));
+      expect(completeValue).toBe('No');
+    });
+
+    it('shows No lineup saved when match has no lineup', async () => {
+      const { event } = await createTestEvent();
+      const { workbook } = await exportWorkbook(event.id);
+
+      const sheetNames = workbook.worksheets.map((ws) => ws.name);
+      expect(sheetNames).not.toContain('Event Match Lineups');
+    });
+
+    it('marks helper players correctly', async () => {
+      const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
+
+      await testDb.eventMatchSupportAssignment.create({
+        data: {
+          eventMatchId: match2.id,
+          playerId: blaPlayers[0].id,
+          sourceEventSquadId: squad1.id,
+          targetEventSquadId: squad2.id,
+          plannedRole: 'GK cover',
+        },
+      });
+
+      const formation = await testDb.formation.create({
+        data: {
+          name: 'Test 7v7 C',
+          gameFormat: 'SEVEN_A_SIDE',
+          source: 'CUSTOM',
+          isArchived: false,
+        },
+      });
+
+      const slot = { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER', sortOrder: 0 };
+      await testDb.formationSlot.create({
+        data: { formationId: formation.id, ...slot, acceptedPositionIds: [] },
+      });
+
+      const lineup = await testDb.eventMatchLineup.create({
+        data: {
+          eventMatchId: match2.id,
+          formationId: formation.id,
+          status: 'DRAFT',
+        },
+      });
+
+      await testDb.eventMatchLineupAssignment.create({
+        data: {
+          lineupId: lineup.id,
+          playerId: blaPlayers[0].id,
+          slotId: 'GK',
+          slotIndex: 0,
+          slotLabel: 'GK',
+          roleType: 'GOALKEEPER',
+          source: 'HELPER',
+        },
+      });
+
+      const { workbook } = await exportWorkbook(event.id);
+      const ws = workbook.getWorksheet('Event Match Lineups')!;
+
+      const helperCol = getHeaderIndex(ws, 'Helper?');
+      const playerCol = getHeaderIndex(ws, 'Player');
+
+      for (let i = 2; i <= ws.rowCount; i++) {
+        const row = ws.getRow(i);
+        const playerText = getCellText(row.getCell(playerCol));
+        if (playerText.includes(blaPlayers[0].firstName)) {
+          expect(getCellText(row.getCell(helperCol))).toBe('Yes');
+          return;
+        }
+      }
+
+      expect.fail('Helper player row not found in lineup export');
+    });
+  });
 });

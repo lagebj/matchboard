@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getBoardPositionPercent,
   getBoardAspectRatio,
+  getBoardViewBox,
   type BoardProjectionOptions,
 } from "../board-projection";
 import { GRID_X_PERCENT, GRID_Y_PERCENT } from "../types";
@@ -188,16 +189,30 @@ describe("getBoardPositionPercent", () => {
   });
 
   describe("getBoardAspectRatio", () => {
-    it("returns 5/7 for vertical orientation", () => {
-      expect(getBoardAspectRatio({ orientation: "vertical" })).toBe(5 / 7);
+    it("returns 68/105 for vertical orientation", () => {
+      expect(getBoardAspectRatio({ orientation: "vertical" })).toBe(68 / 105);
     });
 
-    it("returns 3/2 for horizontal orientation", () => {
-      expect(getBoardAspectRatio({ orientation: "horizontal" })).toBe(3 / 2);
+    it("returns 105/68 for horizontal orientation", () => {
+      expect(getBoardAspectRatio({ orientation: "horizontal" })).toBe(105 / 68);
     });
 
-    it("defaults to 3/2 (horizontal)", () => {
-      expect(getBoardAspectRatio()).toBe(3 / 2);
+    it("defaults to 105/68 (horizontal)", () => {
+      expect(getBoardAspectRatio()).toBe(105 / 68);
+    });
+  });
+
+  describe("getBoardViewBox", () => {
+    it("returns horizontal viewBox for horizontal orientation", () => {
+      expect(getBoardViewBox({ orientation: "horizontal" })).toBe("0 0 105 68");
+    });
+
+    it("returns vertical viewBox for vertical orientation", () => {
+      expect(getBoardViewBox({ orientation: "vertical" })).toBe("0 0 68 105");
+    });
+
+    it("defaults to horizontal viewBox", () => {
+      expect(getBoardViewBox()).toBe("0 0 105 68");
     });
   });
 });
