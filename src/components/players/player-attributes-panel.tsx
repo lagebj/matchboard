@@ -1,12 +1,12 @@
 "use client";
 
-import { InlineEditSelect } from "@/components/ui/inline-edit-select";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { SectionHeader } from "@/components/ui/section-header";
+import { InlineEditSelect } from "@/components/ui/inline-edit-select";
 import { getPlayerAttributeAverages } from "@/lib/player-metrics";
 
 const RATING_OPTIONS = [
-  { label: "Not rated", value: "" },
+  { label: "—", value: "" },
   { label: "1", value: "1" },
   { label: "2", value: "2" },
   { label: "3", value: "3" },
@@ -77,22 +77,30 @@ export function PlayerAttributesPanel({ player, updateFieldAction }: PlayerAttri
           const catAvg = averages[cat.label.toLowerCase() as keyof ReturnType<typeof getPlayerAttributeAverages>];
           return (
             <div key={cat.label}>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{cat.label}</p>
-                <span className="text-xs text-zinc-400">{formatAvg(catAvg as number | null)}</span>
+                <span className="text-xs tabular-nums text-zinc-400">{formatAvg(catAvg as number | null)}</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                {cat.keys.map((key) => (
-                  <InlineEditSelect
-                    key={key}
-                    label={RATING_LABELS[key]}
-                    value={player[key] != null ? String(player[key]) : ""}
-                    options={RATING_OPTIONS}
-                    onSave={handleSave(key)}
-                    emptyLabel="Not rated"
-                  />
-                ))}
-              </div>
+              <table className="w-full text-xs">
+                <tbody>
+                  {cat.keys.map((key) => (
+                    <tr key={key} className="border-b border-[var(--border-soft)]/30 last:border-0">
+                      <td className="py-1 pr-2 text-zinc-300 font-medium whitespace-nowrap w-1/3">
+                        {RATING_LABELS[key]}
+                      </td>
+                      <td className="py-1">
+                        <InlineEditSelect
+                          label={RATING_LABELS[key]}
+                          value={player[key] != null ? String(player[key]) : ""}
+                          options={RATING_OPTIONS}
+                          onSave={handleSave(key)}
+                          emptyLabel="Not rated"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           );
         })}

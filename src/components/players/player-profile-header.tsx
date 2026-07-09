@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useTransition, useState, useRef, useEffect } from "react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatAvailabilityStatus, formatPlayerName } from "@/lib/player-metrics";
+import { getPlayerAttributeAverages, getOverallStarRating } from "@/lib/player-metrics";
 import { togglePlayerActiveAction, removePlayerAction } from "@/app/(app)/players/actions";
 
 type AvailabilityStatus = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
-type PlayerWithTeam = {
+type PlayerWithTeamAndAttributes = {
   id: string;
   firstName: string;
   lastName: string | null;
@@ -25,6 +26,18 @@ type PlayerWithTeam = {
   supportSuitability: string | null;
   developmentReadiness: string | null;
   coreTeam: { id: string; name: string } | null;
+  ballControl: number | null;
+  passing: number | null;
+  firstTouch: number | null;
+  oneVOneAttacking: number | null;
+  positioning: number | null;
+  oneVOneDefending: number | null;
+  decisionMaking: number | null;
+  effort: number | null;
+  teamplay: number | null;
+  concentration: number | null;
+  speed: number | null;
+  strength: number | null;
 };
 
 const AVAILABILITY_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
@@ -57,7 +70,7 @@ function getInitials(firstName: string, lastName: string | null): string {
 }
 
 type PlayerProfileHeaderProps = {
-  player: PlayerWithTeam;
+  player: PlayerWithTeamAndAttributes;
   previousPlayerId: string | null;
   nextPlayerId: string | null;
   planningFlags: string[];
@@ -100,9 +113,13 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
   const gkLabel = GK_LABELS[player.goalkeeperAbility] ?? "";
   const isGK = player.goalkeeperAbility === "YES";
 
+  const averages = getPlayerAttributeAverages(player);
+  const overallStars = getOverallStarRating(averages.overall);
+  const hasRatings = averages.overall !== null;
+
   return (
     <div className="flex items-start gap-4">
-      {/* Identity badge: initials + shirt number */}
+      {/* Identity badge */}
       <div className="relative flex flex-col items-center justify-center shrink-0">
         <div className={`flex items-center justify-center w-16 h-16 rounded-xl text-xl font-bold ${isGK ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-[var(--surface-muted)] text-zinc-100 border border-[var(--border-soft)]"}`}>
           {initials}
@@ -132,7 +149,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
           ))}
         </div>
 
-        {/* Team + positions row */}
+        {/* Team + positions + star rating row */}
         <div className="mt-0.5 flex items-center gap-2 flex-wrap">
           <span className="text-sm text-[var(--text-muted)]">
             {player.coreTeam?.name ?? "Unassigned"}
@@ -158,6 +175,20 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300">
               {gkLabel}
             </span>
+          )}
+          {hasRatings && (
+            <>
+              <span className="text-[var(--border-soft)]">·</span>
+              <span className="inline-flex items-center gap-1" aria-label={`${overallStars} star overall rating`}>
+                <span className="text-sm text-amber-400">
+                  {"★".repeat(overallStars)}
+                </span>
+                <span className="text-sm text-zinc-600">
+                  {"★".repeat(5 - overallStars)}
+                </span>
+                <span className="text-xs text-zinc-400 tabular-nums">{averages.overall!.toFixed(1)}</span>
+              </span>
+            </>
           )}
         </div>
       </div>

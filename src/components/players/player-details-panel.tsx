@@ -15,7 +15,6 @@ type PlayerWithDetails = {
   preferredFoot: string | null;
   secondaryFoot: string | null;
   bestSide: string | null;
-  notes: string | null;
   coreTeam: { id: string; name: string } | null;
 };
 
@@ -38,68 +37,55 @@ export function PlayerDetailsPanel({ player, teams, footOptions, secondaryFootOp
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <TacticalSurface variant="default" padding="md">
-        <SectionHeader title="Details" />
-        <div className="mt-2 flex flex-col gap-2">
-          <InlineEditField
-            label="First name"
-            value={player.firstName}
-            onSave={handleSave("firstName")}
-          />
-          <InlineEditField
-            label="Last name"
-            value={player.lastName}
-            onSave={handleSave("lastName")}
-          />
-          <InlineEditField
-            label="Shirt number"
-            value={player.shirtNumber != null ? String(player.shirtNumber) : ""}
-            onSave={handleSave("shirtNumber")}
-          />
-          <InlineEditSelect
-            label="Team"
-            value={player.coreTeamId}
-            options={teamOptions}
-            onSave={handleSave("coreTeamId")}
-          />
-          <InlineEditSelect
-            label="Goalkeeper"
-            value={player.goalkeeperAbility}
-            options={goalkeeperAbilityOptions}
-            onSave={handleSave("goalkeeperAbility")}
-          />
-          <InlineEditSelect
-            label="Foot"
-            value={player.preferredFoot}
-            options={footOptions}
-            onSave={handleSave("preferredFoot")}
-          />
-          <InlineEditSelect
-            label="Stronger foot"
-            value={player.secondaryFoot}
-            options={secFootOptions}
-            onSave={handleSave("secondaryFoot")}
-          />
-          <InlineEditSelect
-            label="Best side"
-            value={player.bestSide}
-            options={bestSideOptions}
-            onSave={handleSave("bestSide")}
-          />
-        </div>
-      </TacticalSurface>
-
-      <TacticalSurface variant="default" padding="md">
-        <SectionHeader title="Notes" />
-        <div className="mt-2">
-          <InlineEditField
-            label="Notes"
-            value={player.notes ?? ""}
-            onSave={handleSave("notes")}
-          />
-        </div>
-      </TacticalSurface>
-    </div>
+    <TacticalSurface variant="default" padding="md">
+      <SectionHeader title="Details" />
+      <div className="mt-2 flex flex-col gap-2">
+        <InlineEditField
+          label="First name"
+          value={player.firstName}
+          onSave={handleSave("firstName")}
+        />
+        <InlineEditField
+          label="Last name"
+          value={player.lastName ?? ""}
+          onSave={handleSave("lastName")}
+        />
+        <InlineEditField
+          label="Shirt number"
+          value={player.shirtNumber != null ? String(player.shirtNumber) : ""}
+          onSave={handleSave("shirtNumber")}
+        />
+        <InlineEditSelect
+          label="Team"
+          value={player.coreTeamId}
+          options={teamOptions}
+          onSave={handleSave("coreTeamId")}
+        />
+        <InlineEditSelect
+          label="Goalkeeper"
+          value={player.goalkeeperAbility}
+          options={goalkeeperAbilityOptions}
+          onSave={handleSave("goalkeeperAbility")}
+        />
+        <InlineEditSelect
+          label="Foot"
+          value={player.preferredFoot}
+          options={footOptions}
+          onSave={handleSave("preferredFoot")}
+        />
+        <InlineEditSelect
+          label="Stronger foot"
+          value={player.secondaryFoot}
+          options={secFootOptions}
+          onSave={handleSave("secondaryFoot")}
+        />
+        <InlineEditSelect
+          label="Best side"
+          value={player.bestSide}
+          options={bestSideOptions}
+          onSave={handleSave("bestSide")}
+        />
+      </div>
+    </TacticalSurface>
   );
 }
