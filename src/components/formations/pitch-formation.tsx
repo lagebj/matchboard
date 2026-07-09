@@ -1,11 +1,18 @@
 "use client";
 
-import { WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, GRID_WIDTH, GRID_HEIGHT, ROLE_TYPE_LABELS, formatGameFormatShort, getGridPositionPercent } from "@/lib/formations/types";
+import { WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  TacticsBoard,
+  ROLE_COLORS,
+  type TacticsBoardSlot,
+  type TacticsBoardAssignment,
+  type TacticsBoardPlayer,
+} from "@/components/formations/tactics-board";
 
 type FormationSlotDisplay = {
   id: string;
@@ -26,16 +33,8 @@ type PitchFormationBuilderProps = {
   onRemoveSlot: (slotId: string) => void;
   maxSlots: number;
   readOnly?: boolean;
-};
-
-const ROLE_COLORS: Record<FormationSlotRoleType, string> = {
-  GOALKEEPER: "bg-amber-500/80 text-amber-950 border-amber-400",
-  DEFENDER: "bg-sky-500/80 text-sky-950 border-sky-400",
-  DEFENSIVE_MIDFIELDER: "bg-teal-500/80 text-teal-950 border-teal-400",
-  MIDFIELDER: "bg-emerald-500/80 text-emerald-950 border-emerald-400",
-  ATTACKING_MIDFIELDER: "bg-orange-500/80 text-orange-950 border-orange-400",
-  FORWARD: "bg-red-500/80 text-red-950 border-red-400",
-  FREE: "bg-zinc-500/80 text-zinc-950 border-zinc-400",
+  orientation?: "horizontal" | "vertical";
+  attackingDirection?: "left-to-right" | "right-to-left";
 };
 
 export function PitchFormationBuilder({
@@ -46,13 +45,21 @@ export function PitchFormationBuilder({
   onRemoveSlot: _onRemoveSlot,
   maxSlots,
   readOnly = false,
+  orientation = "vertical",
+  attackingDirection = "left-to-right",
 }: PitchFormationBuilderProps) {
-  const slotMap = new Map<string, FormationSlotDisplay>();
-  for (const slot of slots) {
-    slotMap.set(`${slot.gridX},${slot.gridY}`, slot);
-  }
-
   const canAddMore = slots.length < maxSlots;
+
+  const boardSlots: TacticsBoardSlot[] = slots.map((s) => ({
+    id: s.id,
+    gridX: s.gridX,
+    gridY: s.gridY,
+    label: s.label,
+    shortLabel: s.shortLabel,
+    roleType: s.roleType,
+    acceptedPositionIds: s.acceptedPositionIds,
+    sortOrder: s.sortOrder,
+  }));
 
   return (
     <div className="flex flex-col gap-3">
@@ -65,66 +72,17 @@ export function PitchFormationBuilder({
         </span>
       </div>
 
-      <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
-        <div data-testid="pitch-surface" className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
-          {/* Pitch markings — stretched to fill pitchSurface with preserveAspectRatio="none" */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            <rect x="0.5" y="0.5" width="99" height="99" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.5" />
-            <line x1="0.5" y1="50" x2="99.5" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-            <circle cx="50" cy="50" r="12" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-            <rect x="25" y="76" width="50" height="23.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-            <rect x="35" y="88" width="30" height="11.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
-          </svg>
-
-          {/* Grid points and slots */}
-          {Array.from({ length: GRID_HEIGHT }, (_, y) =>
-            Array.from({ length: GRID_WIDTH }, (_, x) => {
-              const key = `${x},${y}`;
-              const slot = slotMap.get(key);
-              const { x: xPct, y: yPct } = getGridPositionPercent(x, y);
-
-              if (slot) {
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => !readOnly && onEditSlot(slot.id)}
-                    className={cn(
-                      "absolute z-10 flex flex-col items-center justify-center rounded-lg border-2 px-1 py-0.5 text-xs font-semibold transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 min-w-[3rem]",
-                      ROLE_COLORS[slot.roleType],
-                      readOnly && "cursor-default hover:scale-100",
-                    )}
-                    style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
-                    aria-label={`${slot.shortLabel}: ${slot.label} (${ROLE_TYPE_LABELS[slot.roleType]})`}
-                  >
-                    <span className="text-[10px] leading-tight font-bold">{slot.shortLabel}</span>
-                    <span className="text-[8px] leading-none opacity-70">{ROLE_TYPE_LABELS[slot.roleType].split(" ")[0]}</span>
-                  </button>
-                );
-              }
-
-              if (readOnly) return null;
-
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => canAddMore ? onAddSlot(x, y) : undefined}
-                  disabled={!canAddMore}
-                  className={cn(
-                    "absolute z-5 flex items-center justify-center rounded-full border-2 border-dashed border-[var(--border-soft)] bg-[var(--surface-base)]/50 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:border-[var(--accent)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 w-8 h-8",
-                    !canAddMore && "opacity-30 cursor-not-allowed",
-                  )}
-                  style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
-                  aria-label={`Add slot at ${WIDTH_LANE_LABELS[x]}, ${DEPTH_LANE_LABELS[y]}`}
-                >
-                  <span className="text-lg leading-none">+</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
+      <TacticsBoard
+        mode="formation-builder"
+        orientation={orientation}
+        attackingDirection={attackingDirection}
+        size="wide"
+        slots={boardSlots}
+        canAddMore={canAddMore}
+        readOnly={readOnly}
+        onAddSlot={onAddSlot}
+        onEditSlot={onEditSlot}
+      />
     </div>
   );
 }
@@ -251,6 +209,8 @@ type PitchLineupViewProps = {
   players: { id: string; firstName: string; lastName: string | null; primaryPosition: string }[];
   onSlotClick?: (assignmentId: string | null, slotId: string, playerId: string | null) => void;
   readOnly?: boolean;
+  orientation?: "horizontal" | "vertical";
+  attackingDirection?: "left-to-right" | "right-to-left";
 };
 
 export function PitchLineupView({
@@ -260,64 +220,48 @@ export function PitchLineupView({
   players,
   onSlotClick,
   readOnly = false,
+  orientation = "vertical",
+  attackingDirection = "left-to-right",
 }: PitchLineupViewProps) {
-  const playerMap = new Map(players.map((p) => [p.id, p]));
-  const assignmentMap = new Map(assignments.map((a) => [a.slotId, a]));
+  const boardSlots: TacticsBoardSlot[] = slots.map((s) => ({
+    id: s.id,
+    gridX: s.gridX,
+    gridY: s.gridY,
+    label: s.label,
+    shortLabel: s.shortLabel,
+    roleType: s.roleType,
+    acceptedPositionIds: s.acceptedPositionIds,
+    sortOrder: s.sortOrder,
+  }));
+
+  const boardAssignments: TacticsBoardAssignment[] = assignments.map((a) => ({
+    id: a.id,
+    slotId: a.slotId,
+    playerId: a.playerId,
+    locked: a.locked,
+    source: a.source,
+  }));
+
+  const boardPlayers: TacticsBoardPlayer[] = players.map((p) => ({
+    id: p.id,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    primaryPosition: p.primaryPosition,
+  }));
 
   return (
-    <div className="pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]">
-      <div data-testid="pitch-surface" className="pitch-surface relative w-full aspect-[5/7] bg-[var(--surface-tactical)]">
-        {/* Pitch markings — stretched to fill pitchSurface with preserveAspectRatio="none" */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <rect x="0.5" y="0.5" width="99" height="99" rx="1" fill="none" stroke="var(--border-soft)" strokeWidth="0.5" />
-          <line x1="0.5" y1="50" x2="99.5" y2="50" stroke="var(--border-soft)" strokeWidth="0.3" />
-          <circle cx="50" cy="50" r="12" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-          <rect x="25" y="76" width="50" height="23.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.3" />
-          <rect x="35" y="88" width="30" height="11.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
-        </svg>
-
-      {slots.map((slot) => {
-        const assignment = assignmentMap.get(slot.id);
-        const player = assignment?.playerId ? playerMap.get(assignment.playerId) : null;
-        const { x: xPct, y: yPct } = getGridPositionPercent(slot.gridX, slot.gridY);
-
-        return (
-          <button
-            key={slot.id}
-            type="button"
-            onClick={() => {
-              if (!readOnly && onSlotClick) {
-                onSlotClick(assignment?.id ?? null, slot.id, assignment?.playerId ?? null);
-              }
-            }}
-            className={cn(
-              "absolute z-10 flex flex-col items-center justify-center rounded-lg border-2 px-1 py-0.5 text-xs font-semibold transition-transform min-w-[3.5rem]",
-              player
-                ? "bg-[var(--accent)]/20 border-[var(--accent)] text-zinc-100 hover:scale-105 cursor-pointer"
-                : cn("border-2 cursor-pointer hover:scale-105", ROLE_COLORS[slot.roleType], "opacity-60 hover:opacity-80"),
-              assignment?.locked && "ring-1 ring-[var(--accent)]",
-              readOnly && "cursor-default hover:scale-100",
-            )}
-            style={{ left: `${xPct}%`, top: `${yPct}%`, transform: "translate(-50%, -50%)" }}
-            aria-label={player ? `${player.firstName} ${player.lastName ?? ""} - ${slot.shortLabel}` : `${slot.shortLabel}: ${slot.label} (tap to assign)`}
-          >
-            {player ? (
-              <>
-                <span className="text-[10px] leading-tight font-bold truncate max-w-full">
-                  {player.firstName}{player.lastName ? ` ${player.lastName.charAt(0)}.` : ""}
-                </span>
-                <span className="text-[8px] leading-none opacity-70">{slot.shortLabel}</span>
-              </>
-            ) : (
-              <>
-                <span className="text-[10px] leading-tight font-bold">{slot.shortLabel}</span>
-                <span className="text-[8px] leading-none opacity-70">{ROLE_TYPE_LABELS[slot.roleType].split(" ")[0]}</span>
-              </>
-            )}
-          </button>
-        );
-      })}
-      </div>
-    </div>
+    <TacticsBoard
+      mode={readOnly ? "lineup-readonly" : "lineup-assignment"}
+      orientation={orientation}
+      attackingDirection={attackingDirection}
+      size="standard"
+      slots={boardSlots}
+      assignments={boardAssignments}
+      players={boardPlayers}
+      onSlotClick={onSlotClick}
+      readOnly={readOnly}
+    />
   );
 }
+
+export { ROLE_COLORS };

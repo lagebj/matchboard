@@ -273,6 +273,7 @@ export function FormationsBuilderClient({
           onEditSlot={handleEditSlot}
           onRemoveSlot={handleRemoveSlot}
           maxSlots={maxSlots}
+          orientation="horizontal"
         />
       </Surface>
 

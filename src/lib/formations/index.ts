@@ -68,3 +68,14 @@ export type {
   SuggestLineupInput,
   AssignmentMigration,
 } from "./suggest";
+
+export {
+  getBoardPositionPercent,
+} from "./board-projection";
+
+export type {
+  BoardOrientation,
+  AttackingDirection,
+  BoardProjectionOptions,
+  BoardPosition,
+} from "./board-projection";

@@ -1,6 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import {
+  TacticsBoard,
+  type TacticsBoardPositionMarker,
+} from "@/components/formations/tactics-board";
+import { getBoardPositionPercent } from "@/lib/formations/board-projection";
 
 type PositionMapProps = {
   primaryPosition?: string | null;
@@ -9,28 +14,28 @@ type PositionMapProps = {
   className?: string;
 };
 
-const POSITION_COORDS: Record<string, { x: number; y: number }> = {
-  GK: { x: 50, y: 90 },
-  CB: { x: 50, y: 72 },
-  LB: { x: 15, y: 72 },
-  RB: { x: 85, y: 72 },
-  CM: { x: 50, y: 50 },
-  DM: { x: 50, y: 60 },
-  AM: { x: 50, y: 40 },
-  LM: { x: 15, y: 50 },
-  WM: { x: 20, y: 40 },
-  LW: { x: 15, y: 35 },
-  RW: { x: 85, y: 35 },
-  RM: { x: 85, y: 50 },
-  W: { x: 20, y: 38 },
-  ST: { x: 50, y: 20 },
-  CF: { x: 50, y: 22 },
+const POSITION_GRID: Record<string, { gridX: number; gridY: number }> = {
+  GK: { gridX: 2, gridY: 5 },
+  CB: { gridX: 2, gridY: 4 },
+  LB: { gridX: 0, gridY: 4 },
+  RB: { gridX: 4, gridY: 4 },
+  CM: { gridX: 2, gridY: 2 },
+  DM: { gridX: 2, gridY: 3 },
+  AM: { gridX: 2, gridY: 1 },
+  LM: { gridX: 0, gridY: 2 },
+  WM: { gridX: 1, gridY: 1 },
+  LW: { gridX: 0, gridY: 0 },
+  RW: { gridX: 4, gridY: 0 },
+  RM: { gridX: 4, gridY: 2 },
+  W: { gridX: 1, gridY: 0 },
+  ST: { gridX: 2, gridY: 0 },
+  CF: { gridX: 2, gridY: 0 },
 };
 
-const SIZE_MAP = {
-  sm: { width: 120, height: 160, dot: 6, primary: 8, font: 7 },
-  md: { width: 180, height: 240, dot: 8, primary: 10, font: 8 },
-  lg: { width: 240, height: 320, dot: 10, primary: 13, font: 9 },
+const SIZE_MAP: Record<string, "compact" | "standard" | "wide"> = {
+  sm: "compact",
+  md: "standard",
+  lg: "wide",
 };
 
 export function PositionMap({
@@ -39,120 +44,40 @@ export function PositionMap({
   size = "md",
   className,
 }: PositionMapProps) {
-  const dims = SIZE_MAP[size];
-  const primary = primaryPosition ? POSITION_COORDS[primaryPosition] : undefined;
-  const secondaries = secondaryPositions
-    .filter((p) => p !== primaryPosition)
-    .map((p) => ({ pos: p, ...POSITION_COORDS[p] }))
-    .filter(Boolean);
+  const boardSize = SIZE_MAP[size] ?? "standard";
+
+  const markers: TacticsBoardPositionMarker[] = [];
+
+  for (const pos of secondaryPositions) {
+    if (pos === primaryPosition) continue;
+    const coords = POSITION_GRID[pos];
+    if (!coords) continue;
+    const { x, y } = getBoardPositionPercent(coords.gridX, coords.gridY, {
+      orientation: "horizontal",
+      attackingDirection: "left-to-right",
+    });
+    markers.push({ pos, x, y, isPrimary: false });
+  }
+
+  if (primaryPosition) {
+    const coords = POSITION_GRID[primaryPosition];
+    if (coords) {
+      const { x, y } = getBoardPositionPercent(coords.gridX, coords.gridY, {
+        orientation: "horizontal",
+        attackingDirection: "left-to-right",
+      });
+      markers.push({ pos: primaryPosition, x, y, isPrimary: true });
+    }
+  }
 
   return (
-    <svg
-      viewBox="0 0 100 100"
-      width={dims.width}
-      height={dims.height}
-      className={cn("select-none", className)}
-      role="img"
-      aria-label={
-        primaryPosition
-          ? `Pitch position map. Primary: ${primaryPosition}${secondaries.length > 0 ? `, secondary: ${secondaries.map((s) => s.pos).join(", ")}` : ""}`
-          : "Pitch position map. No position set"
-      }
-    >
-      {/* Pitch outline */}
-      <rect
-        x="2" y="2" width="96" height="96"
-        rx="1"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.5"
-      />
-
-      {/* Halfway line */}
-      <line x1="2" y1="50" x2="98" y2="50" stroke="var(--border-soft)" strokeWidth="0.4" />
-
-      {/* Center circle */}
-      <circle cx="50" cy="50" r="12" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
-      <circle cx="50" cy="50" r="1.2" fill="var(--border-soft)" />
-
-      {/* Top penalty area */}
-      <rect x="25" y="2" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" rx="0.3" />
-      {/* Top goal area */}
-      <rect x="35" y="2" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.2" />
-      {/* Top penalty spot */}
-      <circle cx="50" cy="13" r="0.8" fill="var(--border-soft)" />
-
-      {/* Bottom penalty area */}
-      <rect x="25" y="82" width="50" height="16" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" rx="0.3" />
-      {/* Bottom goal area */}
-      <rect x="35" y="91" width="30" height="7" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.2" />
-      {/* Bottom penalty spot */}
-      <circle cx="50" cy="87" r="0.8" fill="var(--border-soft)" />
-
-      {/* Corner arcs */}
-      <path d="M 2 6 A 4 4 0 0 1 6 2" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-      <path d="M 94 2 A 4 4 0 0 1 98 6" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-      <path d="M 2 94 A 4 4 0 0 0 6 98" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-      <path d="M 94 98 A 4 4 0 0 0 98 94" fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
-
-      {/* Secondary position markers */}
-      {secondaries.map((s) => (
-        <g key={s.pos}>
-          <circle
-            cx={s.x}
-            cy={s.y}
-            r={dims.dot / 2}
-            fill="var(--accent)"
-            opacity="0.45"
-          />
-          <text
-            x={s.x}
-            y={s.y + dims.font * 0.35}
-            textAnchor="middle"
-            fill="var(--accent)"
-            fontSize={dims.font}
-            fontWeight="500"
-            opacity="0.6"
-          >
-            {s.pos}
-          </text>
-        </g>
-      ))}
-
-      {/* Primary position marker */}
-      {primary && (
-        <g>
-          <circle
-            cx={primary.x}
-            cy={primary.y}
-            r={dims.primary / 2}
-            fill="var(--accent-strong)"
-          />
-          <text
-            x={primary.x}
-            y={primary.y + dims.font * 0.35}
-            textAnchor="middle"
-            fill="var(--surface-base)"
-            fontSize={dims.font}
-            fontWeight="700"
-          >
-            {primaryPosition}
-          </text>
-        </g>
-      )}
-
-      {/* No position set fallback */}
-      {!primaryPosition && secondaries.length === 0 && (
-        <text
-          x="50" y="52"
-          textAnchor="middle"
-          fill="var(--text-muted)"
-          fontSize="7"
-          fontWeight="400"
-        >
-          No position
-        </text>
-      )}
-    </svg>
+    <TacticsBoard
+      mode="position-profile"
+      orientation="horizontal"
+      attackingDirection="left-to-right"
+      size={boardSize}
+      markers={markers}
+      className={cn(className)}
+    />
   );
 }
