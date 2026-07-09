@@ -1564,6 +1564,7 @@ Matchboard is deployed to **Vercel** with **Neon Postgres**. SQLite is not used 
 
 ### Hard rules
 
+- **Never push directly to `main`.** All changes must go through a branch and pull request. No exceptions.
 - Real secrets belong only in local `.env` and Vercel environment variables
 - `.env` must never be committed
 - `.env.example` may contain placeholders only
