@@ -11,6 +11,10 @@ import {
 } from "@/lib/formations/types";
 import {
   getBoardPositionPercent,
+  getBoardAspectRatio,
+  getBoardViewBox,
+  PITCH_WIDTH,
+  PITCH_HEIGHT,
   type BoardOrientation,
   type AttackingDirection,
 } from "@/lib/formations/board-projection";
@@ -69,11 +73,10 @@ export const ROLE_COLORS: Record<FormationSlotRoleType, string> = {
   FREE: "bg-zinc-500/80 text-zinc-950 border-zinc-400",
 };
 
-const SIZE_CONFIG: Record<TacticsBoardSize, { aspectClass: string }> = {
-  compact: { aspectClass: "aspect-[3/2]" },
-  standard: { aspectClass: "aspect-[3/2]" },
-  wide: { aspectClass: "aspect-[3/2]" },
-};
+function getAspectClass(orientation: BoardOrientation): string {
+  if (orientation === "vertical") return "aspect-[68/105]";
+  return "aspect-[105/68]";
+}
 
 type PositionProfileRenderProps = {
   markers: TacticsBoardPositionMarker[];
@@ -119,203 +122,174 @@ type TacticsBoardProps = {
   | ({ mode: "selection-preview" } & SelectionPreviewRenderProps)
 );
 
-const DOT_SIZE: Record<TacticsBoardSize, number> = {
-  compact: 6,
-  standard: 8,
-  wide: 10,
-};
 
-const PRIMARY_DOT_SIZE: Record<TacticsBoardSize, number> = {
-  compact: 8,
-  standard: 10,
-  wide: 13,
-};
 
-const FONT_SIZE: Record<TacticsBoardSize, number> = {
-  compact: 6,
-  standard: 8,
-  wide: 9,
-};
+const M = 2;
+const HALF_W = PITCH_WIDTH / 2;
+const HALF_H = PITCH_HEIGHT / 2;
+const PA_W = 16.5;
+const PA_H = 40.32;
+const GA_W = 5.5;
+const GA_H = 18.32;
+const CENTER_R = 9.15;
+const PENALTY_SPOT = 11;
+const GOAL_W = 7.32;
 
-function PitchMarkings({ orientation }: { orientation: BoardOrientation }) {
-  if (orientation === "horizontal") {
-    return (
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="xMidYMid meet"
-        aria-hidden="true"
-      >
-        <rect
-          x="1" y="8" width="98" height="84"
-          rx="0.5"
-          fill="none"
-          stroke="var(--border-soft)"
-          strokeWidth="0.4"
-        />
-        <line
-          x1="50" y1="8" x2="50" y2="92"
-          stroke="var(--border-soft)"
-          strokeWidth="0.3"
-        />
-        <circle
-          cx="50" cy="50" r="9"
-          fill="none"
-          stroke="var(--border-soft)"
-          strokeWidth="0.3"
-        />
-        <circle
-          cx="50" cy="50" r="0.5"
-          fill="var(--border-soft)"
-        />
-        <rect
-          x="1" y="27" width="17" height="46"
-          fill="none"
-          stroke="var(--border-soft)"
-          strokeWidth="0.3"
-          rx="0.2"
-        />
-        <rect
-          x="1" y="37" width="7" height="26"
-          fill="none"
-          stroke="var(--border-soft)"
-          strokeWidth="0.2"
-          rx="0.2"
-        />
-        <circle
-          cx="14" cy="50" r="0.5"
-          fill="var(--border-soft)"
-        />
-        <rect
-          x="82" y="27" width="17" height="46"
-          fill="none"
-          stroke="var(--border-soft)"
-          strokeWidth="0.3"
-          rx="0.2"
-        />
-        <rect
-          x="92" y="37" width="7" height="26"
-          fill="none"
-          stroke="var(--border-soft)"
-          strokeWidth="0.2"
-          rx="0.2"
-        />
-        <circle
-          cx="86" cy="50" r="0.5"
-          fill="var(--border-soft)"
-        />
-      </svg>
-    );
-  }
-
+function HorizontalPitchMarkings() {
+  const paTop = HALF_H - PA_H / 2;
+  const gaTop = HALF_H - GA_H / 2;
   return (
     <svg
       className="absolute inset-0 w-full h-full pointer-events-none"
-      viewBox="0 0 100 100"
+      viewBox={`0 0 ${PITCH_WIDTH} ${PITCH_HEIGHT}`}
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
-      <rect
-        x="8" y="1" width="84" height="98"
-        rx="0.5"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.4"
-      />
-      <line
-        x1="8" y1="50" x2="92" y2="50"
-        stroke="var(--border-soft)"
-        strokeWidth="0.3"
-      />
-      <circle
-        cx="50" cy="50" r="9"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.3"
-      />
-      <circle
-        cx="50" cy="50" r="0.5"
-        fill="var(--border-soft)"
-      />
-      <rect
-        x="27" y="76" width="46" height="23"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.3"
-        rx="0.2"
-      />
-      <rect
-        x="37" y="89" width="26" height="10"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.2"
-        rx="0.2"
-      />
-      <circle
-        cx="50" cy="86" r="0.5"
-        fill="var(--border-soft)"
-      />
-      <rect
-        x="27" y="1" width="46" height="23"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.3"
-        rx="0.2"
-      />
-      <rect
-        x="37" y="1" width="26" height="10"
-        fill="none"
-        stroke="var(--border-soft)"
-        strokeWidth="0.2"
-        rx="0.2"
-      />
-      <circle
-        cx="50" cy="14" r="0.5"
-        fill="var(--border-soft)"
-      />
+      <rect x={M} y={M} width={PITCH_WIDTH - 2 * M} height={PITCH_HEIGHT - 2 * M}
+        rx="0.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
+      <line x1={HALF_W} y1={M} x2={HALF_W} y2={PITCH_HEIGHT - M}
+        stroke="var(--border-soft)" strokeWidth="0.3" />
+      <circle cx={HALF_W} cy={HALF_H} r={CENTER_R}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+      <circle cx={HALF_W} cy={HALF_H} r="0.6" fill="var(--border-soft)" />
+      <rect x={M} y={paTop} width={PA_W} height={PA_H}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.2" />
+      <rect x={M} y={gaTop} width={GA_W} height={GA_H}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+      <circle cx={M + PENALTY_SPOT} cy={HALF_H} r="0.6" fill="var(--border-soft)" />
+      <rect x={PITCH_WIDTH - M - PA_W} y={paTop} width={PA_W} height={PA_H}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.2" />
+      <rect x={PITCH_WIDTH - M - GA_W} y={gaTop} width={GA_W} height={GA_H}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+      <circle cx={PITCH_WIDTH - M - PENALTY_SPOT} cy={HALF_H} r="0.6" fill="var(--border-soft)" />
+      <line x1={M + PA_W} y1={HALF_H - CENTER_R} x2={M + PA_W} y2={HALF_H + CENTER_R}
+        stroke="var(--border-soft)" strokeWidth="0.2" />
+      <line x1={PITCH_WIDTH - M - PA_W} y1={HALF_H - CENTER_R} x2={PITCH_WIDTH - M - PA_W} y2={HALF_H + CENTER_R}
+        stroke="var(--border-soft)" strokeWidth="0.2" />
+      <rect x={M - 0.3} y={HALF_H - GOAL_W / 2} width={0.3} height={GOAL_W}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+      <rect x={PITCH_WIDTH - M} y={HALF_H - GOAL_W / 2} width={0.3} height={GOAL_W}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
     </svg>
   );
 }
 
+function VerticalPitchMarkings() {
+  const paLeft = HALF_H - PA_H / 2;
+  const gaLeft = HALF_H - GA_H / 2;
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      viewBox={`0 0 ${PITCH_HEIGHT} ${PITCH_WIDTH}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <rect x={M} y={M} width={PITCH_HEIGHT - 2 * M} height={PITCH_WIDTH - 2 * M}
+        rx="0.5" fill="none" stroke="var(--border-soft)" strokeWidth="0.4" />
+      <line x1={M} y1={HALF_W} x2={PITCH_HEIGHT - M} y2={HALF_W}
+        stroke="var(--border-soft)" strokeWidth="0.3" />
+      <circle cx={HALF_H} cy={HALF_W} r={CENTER_R}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+      <circle cx={HALF_H} cy={HALF_W} r="0.6" fill="var(--border-soft)" />
+      <rect x={paLeft} y={PITCH_WIDTH - M - PA_W} width={PA_H} height={PA_W}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.2" />
+      <rect x={gaLeft} y={PITCH_WIDTH - M - GA_W} width={GA_H} height={GA_W}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+      <circle cx={HALF_H} cy={PITCH_WIDTH - M - PENALTY_SPOT} r="0.6" fill="var(--border-soft)" />
+      <rect x={paLeft} y={M} width={PA_H} height={PA_W}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" rx="0.2" />
+      <rect x={gaLeft} y={M} width={GA_H} height={GA_W}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.2" rx="0.2" />
+      <circle cx={HALF_H} cy={M + PENALTY_SPOT} r="0.6" fill="var(--border-soft)" />
+      <rect x={HALF_H - GOAL_W / 2} y={PITCH_WIDTH - M} width={GOAL_W} height={0.3}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+      <rect x={HALF_H - GOAL_W / 2} y={M - 0.3} width={GOAL_W} height={0.3}
+        fill="none" stroke="var(--border-soft)" strokeWidth="0.3" />
+    </svg>
+  );
+}
+
+function PitchMarkings({ orientation }: { orientation: BoardOrientation }) {
+  if (orientation === "horizontal") {
+    return <HorizontalPitchMarkings />;
+  }
+  return <VerticalPitchMarkings />;
+}
+
+function pctToViewBox(pctX: number, pctY: number, orientation: BoardOrientation): { x: number; y: number } {
+  if (orientation === "vertical") {
+    return { x: pctX / 100 * PITCH_HEIGHT, y: pctY / 100 * PITCH_WIDTH };
+  }
+  return { x: pctX / 100 * PITCH_WIDTH, y: pctY / 100 * PITCH_HEIGHT };
+}
+
+const H_SCALE = PITCH_HEIGHT / 100;
+const V_SCALE = PITCH_WIDTH / 100;
+
+const DOT_SIZE_SCALED: Record<TacticsBoardSize, number> = {
+  compact: 4,
+  standard: 5.5,
+  wide: 7,
+};
+
+const PRIMARY_DOT_SIZE_SCALED: Record<TacticsBoardSize, number> = {
+  compact: 5.5,
+  standard: 7,
+  wide: 9,
+};
+
+const FONT_SIZE_SCALED: Record<TacticsBoardSize, number> = {
+  compact: 4,
+  standard: 5.5,
+  wide: 6,
+};
+
 function PositionProfileContent({
   markers,
   size,
+  orientation,
 }: PositionProfileRenderProps & { orientation: BoardOrientation; attackingDirection: AttackingDirection }) {
-  const dotR = DOT_SIZE[size] / 2;
-  const primaryR = PRIMARY_DOT_SIZE[size] / 2;
-  const fontSize = FONT_SIZE[size];
+  const dotR = DOT_SIZE_SCALED[size] / 2;
+  const primaryR = PRIMARY_DOT_SIZE_SCALED[size] / 2;
+  const fontSize = FONT_SIZE_SCALED[size];
+  const noPosPos = orientation === "vertical"
+    ? { x: PITCH_HEIGHT / 2, y: PITCH_WIDTH / 2 }
+    : { x: PITCH_WIDTH / 2, y: PITCH_HEIGHT / 2 };
 
   return (
     <>
-      {markers.map((m) => (
-        <g key={m.pos}>
-          <circle
-            cx={m.x}
-            cy={m.y}
-            r={m.isPrimary ? primaryR : dotR}
-            fill={m.isPrimary ? "var(--accent-strong)" : "var(--accent)"}
-            opacity={m.isPrimary ? 1 : 0.45}
-          />
-          <text
-            x={m.x}
-            y={m.y + fontSize * 0.35}
-            textAnchor="middle"
-            fill={m.isPrimary ? "var(--surface-base)" : "var(--accent)"}
-            fontSize={fontSize}
-            fontWeight={m.isPrimary ? 700 : 500}
-            opacity={m.isPrimary ? 1 : 0.6}
-          >
-            {m.pos}
-          </text>
-        </g>
-      ))}
+      {markers.map((m) => {
+        const svgPos = pctToViewBox(m.x, m.y, orientation);
+        return (
+          <g key={m.pos}>
+            <circle
+              cx={svgPos.x}
+              cy={svgPos.y}
+              r={m.isPrimary ? primaryR : dotR}
+              fill={m.isPrimary ? "var(--accent-strong)" : "var(--accent)"}
+              opacity={m.isPrimary ? 1 : 0.45}
+            />
+            <text
+              x={svgPos.x}
+              y={svgPos.y + fontSize * 0.35}
+              textAnchor="middle"
+              fill={m.isPrimary ? "var(--surface-base)" : "var(--accent)"}
+              fontSize={fontSize}
+              fontWeight={m.isPrimary ? 700 : 500}
+              opacity={m.isPrimary ? 1 : 0.6}
+            >
+              {m.pos}
+            </text>
+          </g>
+        );
+      })}
       {markers.length === 0 && (
         <text
-          x="50"
-          y="52"
+          x={noPosPos.x}
+          y={noPosPos.y}
           textAnchor="middle"
           fill="var(--text-muted)"
-          fontSize="7"
+          fontSize={fontSize}
           fontWeight="400"
         >
           No position
@@ -602,7 +576,8 @@ export function TacticsBoard(props: TacticsBoardProps) {
   const orientation = props.orientation ?? "horizontal";
   const attackingDirection = props.attackingDirection ?? "left-to-right";
   const size = props.size ?? "standard";
-  const sizeConfig = SIZE_CONFIG[size];
+  const aspectClass = getAspectClass(orientation);
+  const viewBox = getBoardViewBox({ orientation });
 
   if (props.mode === "position-profile") {
     const { markers } = props;
@@ -610,12 +585,12 @@ export function TacticsBoard(props: TacticsBoardProps) {
       <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", sizeConfig.aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
         >
           <PitchMarkings orientation={orientation} />
           <svg
             className="absolute inset-0 w-full h-full"
-            viewBox="0 0 100 100"
+            viewBox={viewBox}
             preserveAspectRatio="xMidYMid meet"
             role="img"
             aria-label={
@@ -644,7 +619,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
       <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", sizeConfig.aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
         >
           <PitchMarkings orientation={orientation} />
           <FormationBuilderContent
@@ -669,7 +644,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
       <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", sizeConfig.aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
         >
           <PitchMarkings orientation={orientation} />
           <LineupContent
@@ -693,7 +668,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
       <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", sizeConfig.aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
         >
           <PitchMarkings orientation={orientation} />
           <SelectionPreviewContent

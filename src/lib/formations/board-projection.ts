@@ -3,6 +3,9 @@ import { GRID_X_PERCENT, GRID_Y_PERCENT } from "./types";
 export type BoardOrientation = "horizontal" | "vertical";
 export type AttackingDirection = "left-to-right" | "right-to-left";
 
+export const PITCH_WIDTH = 105;
+export const PITCH_HEIGHT = 68;
+
 export type BoardProjectionOptions = {
   orientation?: BoardOrientation;
   attackingDirection?: AttackingDirection;
@@ -36,9 +39,13 @@ export function getBoardPositionPercent(
 }
 
 export function getBoardAspectRatio(options?: BoardProjectionOptions): number {
-  return options?.orientation === "vertical" ? 5 / 7 : 3 / 2;
+  if (options?.orientation === "vertical") return PITCH_HEIGHT / PITCH_WIDTH;
+  return PITCH_WIDTH / PITCH_HEIGHT;
 }
 
-export function getBoardViewBox(_options?: BoardProjectionOptions): string {
-  return "0 0 100 100";
+export function getBoardViewBox(options?: BoardProjectionOptions): string {
+  if (options?.orientation === "vertical") {
+    return `0 0 ${PITCH_HEIGHT} ${PITCH_WIDTH}`;
+  }
+  return `0 0 ${PITCH_WIDTH} ${PITCH_HEIGHT}`;
 }

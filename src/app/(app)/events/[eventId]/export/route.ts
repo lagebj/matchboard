@@ -9,6 +9,7 @@ import {
 } from '@/lib/formatters/event-labels';
 import { safeEventExportFilename } from '@/lib/formatters/event-export-filename';
 import { checkSupportConflicts, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
+import { computeLineupRating } from '@/lib/events/event-lineup-rating';
 
 type SquadPlayer = {
   playerId: string;
@@ -178,6 +179,66 @@ export async function GET(
     squadPlayerMap.set(squad.id, squad.players);
   }
 
+  const lineupData = await db.eventMatchLineup.findMany({
+    where: {
+      eventMatch: { eventId },
+    },
+    include: {
+      formation: { include: { slots: { orderBy: { sortOrder: 'asc' } } } },
+      assignments: {
+        include: {
+          player: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              primaryPosition: true,
+              secondaryPosition: true,
+              tertiaryPosition: true,
+              goalkeeperAbility: true,
+              ballControl: true,
+              passing: true,
+              firstTouch: true,
+              oneVOneAttacking: true,
+              positioning: true,
+              oneVOneDefending: true,
+              decisionMaking: true,
+              effort: true,
+              teamplay: true,
+              concentration: true,
+              speed: true,
+              strength: true,
+            },
+          },
+        },
+        orderBy: { slotIndex: 'asc' },
+      },
+      eventMatch: {
+        select: {
+          id: true,
+          opponentName: true,
+          startsAt: true,
+          eventSquadId: true,
+          eventSquad: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { eventMatch: { startsAt: 'asc' } },
+  });
+
+  const helperPlayerIds = new Set<string>();
+  for (const m of eventMatches) {
+    for (const a of m.supportAssignments) {
+      helperPlayerIds.add(a.playerId);
+    }
+  }
+
+  const squadPlayerIdSet = new Map<string, Set<string>>();
+  for (const squad of event.squads) {
+    const ids = new Set(squad.players.map((p) => p.playerId));
+    squadPlayerIdSet.set(squad.id, ids);
+  }
+
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Matchboard';
   workbook.created = new Date();
@@ -185,6 +246,7 @@ export async function GET(
   buildSquadsSheet(workbook, event.squads);
   buildMatchCallOutSheet(workbook, eventMatches, matchDurationMinutes, squadPlayerMap, supportConflictData);
   buildConflictsSheet(workbook, supportConflictData, eventMatches, matchDurationMinutes);
+  buildLineupsSheet(workbook, lineupData, eventMatches, helperPlayerIds, squadPlayerIdSet);
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = safeEventExportFilename(event.name, event.startsAt);
@@ -413,4 +475,171 @@ function formatDate(date: Date): string {
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+type LineupData = {
+  id: string;
+  eventMatchId: string;
+  formationId: string | null;
+  status: string;
+  formation: {
+    id: string;
+    name: string;
+    gameFormat: string;
+    slots: { id: string; roleType: string; label: string; shortLabel: string; gridX: number; gridY: number; sortOrder: number }[];
+  } | null;
+  assignments: {
+    id: string;
+    playerId: string | null;
+    slotId: string | null;
+    slotIndex: number | null;
+    slotLabel: string | null;
+    roleType: string | null;
+    source: string;
+    player: {
+      id: string;
+      firstName: string;
+      lastName: string | null;
+      primaryPosition: string | null;
+      secondaryPosition: string | null;
+      tertiaryPosition: string | null;
+      goalkeeperAbility: string;
+      ballControl: number | null;
+      passing: number | null;
+      firstTouch: number | null;
+      oneVOneAttacking: number | null;
+      positioning: number | null;
+      oneVOneDefending: number | null;
+      decisionMaking: number | null;
+      effort: number | null;
+      teamplay: number | null;
+      concentration: number | null;
+      speed: number | null;
+      strength: number | null;
+    } | null;
+  }[];
+  eventMatch: {
+    id: string;
+    opponentName: string;
+    startsAt: Date;
+    eventSquadId: string;
+    eventSquad: { id: string; name: string };
+  };
+};
+
+function buildLineupsSheet(
+  workbook: ExcelJS.Workbook,
+  lineupData: LineupData[],
+  eventMatches: EventMatchData[],
+  helperPlayerIds: Set<string>,
+  squadPlayerIdSet: Map<string, Set<string>>,
+) {
+  if (lineupData.length === 0) return;
+
+  const ws = workbook.addWorksheet('Event Match Lineups');
+  const headers = [
+    'Event squad', 'Opponent', 'Match date', 'Match time',
+    'Formation', 'Slot', 'Role',
+    'Player', 'Primary position', 'GK',
+    'Helper?', 'Source', 'Lineup rating', 'Star rating',
+    'Rated starters', 'Total starters', 'Total slots', 'Provisional?',
+    'Complete?',
+  ];
+  const widths = [16, 20, 12, 8, 18, 10, 18, 24, 16, 8, 8, 10, 14, 10, 14, 14, 12, 12, 10];
+  addHeaderRow(ws, headers, widths);
+
+  for (const lineup of lineupData) {
+    const match = lineup.eventMatch;
+    const formation = lineup.formation;
+    const formationSlots = formation?.slots ?? [];
+    const totalSlots = formationSlots.length || lineup.assignments.length;
+    const assignedSlots = lineup.assignments.filter((a) => a.playerId !== null);
+    const starters = assignedSlots
+      .filter((a) => a.player)
+      .map((a) => {
+        const p = a.player!;
+        const attrs: Record<string, number | null> = {
+          ballControl: p.ballControl,
+          passing: p.passing,
+          firstTouch: p.firstTouch,
+          oneVOneAttacking: p.oneVOneAttacking,
+          positioning: p.positioning,
+          oneVOneDefending: p.oneVOneDefending,
+          decisionMaking: p.decisionMaking,
+          effort: p.effort,
+          teamplay: p.teamplay,
+          concentration: p.concentration,
+          speed: p.speed,
+          strength: p.strength,
+        };
+        const values = Object.values(attrs).filter((v): v is number => v != null);
+        const avg = values.length > 0 ? Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10 : null;
+        return { overallLevel: avg };
+      });
+
+    const rating = computeLineupRating(starters, totalSlots);
+    const isComplete = assignedSlots.length >= totalSlots;
+
+    const slotIdToSlot = new Map(formationSlots.map((s) => [s.id, s]));
+
+    if (lineup.assignments.length === 0 && !formation) {
+      ws.addRow([
+        match.eventSquad.name, match.opponentName, formatDate(match.startsAt), formatTime(match.startsAt),
+        'No lineup saved', '', '', '', '', '', '', '',
+        '', '', '', '', '', '', '',
+      ]);
+      continue;
+    }
+
+    const ratingNum = rating.averageRating !== null ? rating.averageRating : 'Not rated';
+    const starStr = rating.averageRating !== null ? '★'.repeat(Math.floor(rating.starRating)) + (rating.starRating % 1 >= 0.5 ? '½' : '') : '';
+    const ratingLabel = rating.averageRating !== null
+      ? `${rating.averageRating.toFixed(1)} · ${rating.ratedStarterCount}/${rating.totalSlots} rated`
+      : 'Not rated';
+
+    for (const assignment of lineup.assignments) {
+      const formationSlot = assignment.slotId ? slotIdToSlot.get(assignment.slotId) : null;
+      const slotLabel = assignment.slotLabel ?? formationSlot?.label ?? formationSlot?.roleType ?? '—';
+      const roleLabel = assignment.roleType ?? formationSlot?.roleType ?? '—';
+
+      const player = assignment.player;
+      const playerName = player ? formatPlayerName(player.firstName, player.lastName) : '';
+      const primaryPos = player?.primaryPosition ?? '';
+      const gk = player ? formatGoalkeeperAbility(player.goalkeeperAbility) : '';
+
+      const isHelper = assignment.playerId ? helperPlayerIds.has(assignment.playerId) : false;
+      const source = assignment.source === 'HELPER' ? 'Helper' : 'Squad';
+
+      const firstRowForMatch = assignment === lineup.assignments[0];
+      const ratingValue = firstRowForMatch ? ratingNum : '';
+      const starValue = firstRowForMatch ? starStr : '';
+      const ratedCount = firstRowForMatch ? `${rating.ratedStarterCount}/${rating.totalSlots}` : '';
+      const starterCount = firstRowForMatch ? assignedSlots.length : '';
+      const slotCount = firstRowForMatch ? totalSlots : '';
+      const provLabel = firstRowForMatch ? (rating.isProvisional ? 'Yes' : 'No') : '';
+      const completeLabel = firstRowForMatch ? (isComplete ? 'Yes' : 'No') : '';
+
+      ws.addRow([
+        match.eventSquad.name,
+        match.opponentName,
+        formatDate(match.startsAt),
+        formatTime(match.startsAt),
+        formation?.name ?? '—',
+        slotLabel,
+        roleLabel,
+        playerName || 'Unassigned',
+        primaryPos,
+        gk,
+        isHelper ? 'Yes' : (assignment.playerId ? 'No' : ''),
+        source,
+        ratingValue,
+        starValue,
+        ratedCount,
+        starterCount,
+        slotCount,
+        provLabel,
+        completeLabel,
+      ]);
+    }
+  }
 }
