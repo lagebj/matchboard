@@ -427,6 +427,7 @@ export function EventMatchLineupPanel({
             players={pitchPlayers}
             onSlotClick={handleSlotClick}
             readOnly={lineup.status === 'CONFIRMED' || isPending}
+            orientation="horizontal"
           />
         ) : (
           <p className="text-xs text-[var(--text-muted)]">

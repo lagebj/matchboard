@@ -588,6 +588,7 @@ export function MatchTacticsPanel({
                 players={playerPool}
                 onSlotClick={handleSlotClick}
                 readOnly={isConfirmed}
+                orientation="horizontal"
               />
             </div>
             {!isConfirmed && (
