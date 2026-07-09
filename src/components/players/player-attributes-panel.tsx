@@ -18,10 +18,10 @@ const RATING_LABELS: Record<string, string> = {
   ballControl: "Ball Control",
   passing: "Passing",
   firstTouch: "First Touch",
-  oneVOneAttacking: "1v1 Attacking",
+  oneVOneAttacking: "1v1 Att.",
   positioning: "Positioning",
-  oneVOneDefending: "1v1 Defending",
-  decisionMaking: "Decision Making",
+  oneVOneDefending: "1v1 Def.",
+  decisionMaking: "Decisions",
   effort: "Effort",
   teamplay: "Team Play",
   concentration: "Concentration",
@@ -70,37 +70,31 @@ export function PlayerAttributesPanel({ player, updateFieldAction }: PlayerAttri
   const averages = getPlayerAttributeAverages(player);
 
   return (
-    <TacticalSurface variant="default" padding="md">
+    <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Attributes" />
-      <div className="mt-2 flex flex-col gap-3">
+      <div className="mt-1 flex flex-col gap-2">
         {ATTRIBUTE_CATEGORIES.map((cat) => {
           const catAvg = averages[cat.label.toLowerCase() as keyof ReturnType<typeof getPlayerAttributeAverages>];
           return (
             <div key={cat.label}>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{cat.label}</p>
-                <span className="text-xs tabular-nums text-zinc-400">{formatAvg(catAvg as number | null)}</span>
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
+                <span className="text-[10px] tabular-nums text-zinc-500">{formatAvg(catAvg as number | null)}</span>
               </div>
-              <table className="w-full text-xs">
-                <tbody>
-                  {cat.keys.map((key) => (
-                    <tr key={key} className="border-b border-[var(--border-soft)]/30 last:border-0">
-                      <td className="py-1 pr-2 text-zinc-300 font-medium whitespace-nowrap w-1/3">
-                        {RATING_LABELS[key]}
-                      </td>
-                      <td className="py-1">
-                        <InlineEditSelect
-                          label={RATING_LABELS[key]}
-                          value={player[key] != null ? String(player[key]) : ""}
-                          options={RATING_OPTIONS}
-                          onSave={handleSave(key)}
-                          emptyLabel="Not rated"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="flex flex-col gap-px">
+                {cat.keys.map((key) => (
+                  <div key={key} className="flex items-center justify-between gap-2 py-0.5">
+                    <span className="text-[11px] text-zinc-400 whitespace-nowrap">{RATING_LABELS[key]}</span>
+                    <InlineEditSelect
+                      label={RATING_LABELS[key]}
+                      value={player[key] != null ? String(player[key]) : ""}
+                      options={RATING_OPTIONS}
+                      onSave={handleSave(key)}
+                      emptyLabel="—"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })}
