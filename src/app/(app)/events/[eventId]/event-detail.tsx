@@ -19,9 +19,7 @@ import {
 } from '../actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
-import { computeLineupAssignment } from '@/lib/events/event-lineup-assignment';
-import { EventSquadLineupBoard } from '@/components/events/event-squad-lineup-board';
-import type { FormationSlotData, FormationSlotRoleType } from '@/lib/formations/types';
+import type { FormationSlotRoleType } from '@/lib/formations/types';
 import type { GameFormat } from '@/lib/events/event-types';
 import { PageHeader } from '@/components/ui/page-header';
 import { TabRail } from '@/components/ui/tab-rail';
@@ -664,23 +662,6 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         Formation: {squad.formationName}
                       </div>
                     )}
-                    {squad.players.length > 0 && (() => {
-                      const assignment = computeLineupAssignment({
-                        squadId: squad.id,
-                        squadName: squad.name,
-                        formationId: squad.formationId,
-                        formationName: squad.formationName,
-                        players: squad.players,
-                        formationSlots: squad.formationSlots.length > 0 ? squad.formationSlots as FormationSlotData[] : null,
-                        gameFormat: data.gameFormat as GameFormat,
-                      });
-                      return (
-                        <EventSquadLineupBoard
-                          assignment={assignment}
-                          gameFormat={data.gameFormat}
-                        />
-                      );
-                    })()}
                     {squad.players.length === 0 ? (
                       <p className="text-xs text-[var(--text-muted)]">No players assigned yet</p>
                     ) : (
@@ -692,8 +673,19 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             title={p.selectionReason || undefined}
                           >
                             <span>{formatName(p)}</span>
-                            {p.locked && <span className="text-[var(--accent)] text-[10px]">🔒</span>}
-                            {p.isGK && <span className="text-[10px] text-[var(--text-muted)]">GK</span>}
+                            {p.isGK && <span className="text-[10px] font-medium text-amber-400">GK</span>}
+                            {p.primaryPosition && (
+                              <span className="text-[10px] text-[var(--text-muted)]">{p.primaryPosition}</span>
+                            )}
+                            {p.secondaryPosition && (
+                              <span className="text-[10px] text-[var(--text-muted)]">· {p.secondaryPosition}</span>
+                            )}
+                            {p.tertiaryPosition && (
+                              <span className="text-[10px] text-[var(--text-muted)]">· {p.tertiaryPosition}</span>
+                            )}
+                            {p.goalkeeperAbility === 'EMERGENCY' && !p.isGK && (
+                              <span className="text-[10px] text-amber-500">Emergency GK</span>
+                            )}
                             {p.positionFitTier && FIT_TIER_LABELS[p.positionFitTier] && (
                               <span className="text-[10px] text-[var(--text-muted)]">{FIT_TIER_LABELS[p.positionFitTier]}</span>
                             )}

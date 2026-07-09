@@ -4,7 +4,9 @@ import {
   type GameFormat,
   type EventPoolValidation,
   type FormationSlotRequirement,
+  type GoalkeeperCoverageTier,
   isGoalkeeperCapable,
+  getGoalkeeperCoverageTier,
   getPlayerBroadPositions,
   computeCompositeRatings,
 } from './event-types';
@@ -39,6 +41,15 @@ export function validateEventPool(
   const goalkeeperCount = available.filter(isGoalkeeperCapable).length;
   const goalkeeperPerSquad = targetSquadCount > 0 ? goalkeeperCount / targetSquadCount : 0;
   const goalkeeperSufficient = goalkeeperCount >= targetSquadCount;
+
+  const goalkeeperTiers = available.reduce(
+    (acc, p) => {
+      const tier = getGoalkeeperCoverageTier(p);
+      if (tier !== 'none') acc[tier]++;
+      return acc;
+    },
+    { strong: 0, acceptable: 0, emergency: 0 } as Record<Exclude<GoalkeeperCoverageTier, 'none'>, number>,
+  );
 
   const positionCounts: Record<BroadPosition, number> = {
     goalkeeper: goalkeeperCount,
@@ -101,8 +112,16 @@ export function validateEventPool(
   }
 
   if (!goalkeeperSufficient) {
+    const strong = goalkeeperTiers.strong;
+    const acceptable = goalkeeperTiers.acceptable;
+    const emergency = goalkeeperTiers.emergency;
+    const parts: string[] = [];
+    if (strong > 0) parts.push(`${strong} strong`);
+    if (acceptable > 0) parts.push(`${acceptable} acceptable`);
+    if (emergency > 0) parts.push(`${emergency} emergency`);
+    const coverage = parts.length > 0 ? `: ${parts.join(', ')}` : '';
     warnings.push(
-      `Insufficient goalkeeper coverage: ${goalkeeperCount} goalkeeper-capable players for ${targetSquadCount} squads`,
+      `Insufficient goalkeeper coverage${coverage} for ${targetSquadCount} squads`,
     );
   }
 

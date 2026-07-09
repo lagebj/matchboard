@@ -93,8 +93,19 @@ export function computeCompositeRatings(player: PlayerAttributeProfile): Composi
   };
 }
 
+export type GoalkeeperCoverageTier = 'strong' | 'acceptable' | 'emergency' | 'none';
+
+export function getGoalkeeperCoverageTier(player: PlayerAttributeProfile): GoalkeeperCoverageTier {
+  if (player.goalkeeperAbility === 'YES') return 'strong';
+  if (player.primaryPosition === 'GK') return 'strong';
+  if (player.secondaryPosition === 'GK') return 'acceptable';
+  if (player.tertiaryPosition === 'GK') return 'emergency';
+  if (player.goalkeeperAbility === 'EMERGENCY') return 'emergency';
+  return 'none';
+}
+
 export function isGoalkeeperCapable(player: PlayerAttributeProfile): boolean {
-  return player.goalkeeperAbility === 'YES' || player.goalkeeperAbility === 'EMERGENCY';
+  return getGoalkeeperCoverageTier(player) !== 'none';
 }
 
 export { mapAnyPositionToBroad as mapPositionToBroad, getPositionFitTier } from '@/lib/players/player-position-resolver';

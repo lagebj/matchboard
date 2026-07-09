@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import {
   createEventMatchAction,
   updateEventMatchAction,
@@ -113,6 +113,7 @@ function formatEndTime(startsAt: Date | string, durationMinutes: number | null):
 export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinutes, playerProfiles, playerAvailability }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [supportAssignments, setSupportAssignments] = useState<SupportAssignment[]>([]);
 
@@ -136,17 +137,27 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- report data shape varies with Prisma includes
   const [reportData, setReportData] = useState<any>(null);
 
-  function loadMatches() {
+  const loadMatches = useCallback(() => {
+    setLoadError(null);
     startTransition(async () => {
-      const [matchResult, supportResult] = await Promise.all([
-        listEventMatchesAction(eventId),
-        getEventMatchSupportAssignmentsAction(eventId),
-      ]);
-      setMatches(matchResult);
-      setSupportAssignments(supportResult);
-      setLoaded(true);
+      try {
+        const [matchResult, supportResult] = await Promise.all([
+          listEventMatchesAction(eventId),
+          getEventMatchSupportAssignmentsAction(eventId),
+        ]);
+        setMatches(matchResult);
+        setSupportAssignments(supportResult);
+        setLoaded(true);
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : 'Could not load matches');
+      }
     });
-  }
+  }, [eventId, startTransition]);
+
+  useEffect(() => {
+    loadMatches();
+    // startTransition makes setState async, not synchronous cascading renders
+  }, [loadMatches]);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -311,18 +322,20 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
   if (!loaded) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <SectionHeader title="Matches" />
-          <button
-            onClick={loadMatches}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
-          >
-            Load matches
-          </button>
-        </div>
-        <p className="text-sm text-[var(--text-muted)]">
-          Click &quot;Load matches&quot; to see and manage event matches.
-        </p>
+        <SectionHeader title="Matches" />
+        {loadError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-[var(--text-muted)]">Could not load matches.</p>
+            <button
+              onClick={loadMatches}
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--text-muted)]">Loading matches…</p>
+        )}
       </div>
     );
   }

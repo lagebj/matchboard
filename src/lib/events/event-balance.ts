@@ -3,10 +3,12 @@ import type {
   SquadBalanceSummary,
   EventSquadIntent,
   BroadPosition,
+  GoalkeeperCoverageTier,
 } from './event-types';
 import {
   computeCompositeRatings,
   isGoalkeeperCapable,
+  getGoalkeeperCoverageTier,
   getPlayerBroadPositions,
 } from './event-types';
 
@@ -45,9 +47,13 @@ export function computeSquadBalance(
     }
 
     const positions = getPlayerBroadPositions(player);
-    const isGK = isGoalkeeperCapable(player);
+    const gkTier = getGoalkeeperCoverageTier(player);
+    const isGK = gkTier !== 'none';
     if (isGK) {
       goalkeeperCount++;
+      if (gkTier === 'emergency') {
+        coverageNotes.push('Uses emergency goalkeeper coverage');
+      }
     } else if (positions.length === 0) {
       flexibleCount++;
     } else {
