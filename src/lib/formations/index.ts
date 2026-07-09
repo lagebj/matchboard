@@ -71,6 +71,7 @@ export type {
 
 export {
   getBoardPositionPercent,
+  getBoardAspectRatio,
 } from "./board-projection";
 
 export type {

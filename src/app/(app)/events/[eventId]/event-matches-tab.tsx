@@ -97,6 +97,7 @@ interface EventMatchesTabProps {
     tertiaryPosition: string | null;
     goalkeeperAbility: string | null;
     coreTeamId: string | null;
+    overallLevel: number | null;
   }>;
   playerAvailability: Array<{ playerId: string; status: string }>;
 }
@@ -673,6 +674,7 @@ function EventMatchCard({
     tertiaryPosition: string | null;
     goalkeeperAbility: string | null;
     coreTeamId: string | null;
+    overallLevel: number | null;
   }>;
 }) {
   const [addingHelper, setAddingHelper] = useState(false);
@@ -1110,6 +1112,7 @@ function EventMatchCard({
                           isGK: profile.goalkeeperAbility === 'YES',
                           source: 'squad' as const,
                           squadName: squads.find((sq) => sq.id === s.id)?.name ?? null,
+                          overallLevel: profile.overallLevel ?? null,
                         }
                       : undefined;
                   })
@@ -1131,6 +1134,7 @@ function EventMatchCard({
                   isGK: profile?.goalkeeperAbility === 'YES',
                   source: 'helper' as const,
                   squadName: a.sourceEventSquadName,
+                  overallLevel: profile?.overallLevel ?? null,
                 };
               })}
           />

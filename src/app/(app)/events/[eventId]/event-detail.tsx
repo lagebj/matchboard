@@ -953,6 +953,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             tertiaryPosition: p.tertiaryPosition,
             goalkeeperAbility: p.goalkeeperAbility,
             coreTeamId: p.coreTeamId,
+            overallLevel: p.overallLevel ?? null,
           }))}
           playerAvailability={data.players.map((p) => ({
             playerId: p.playerId,

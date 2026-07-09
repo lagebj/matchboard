@@ -29,14 +29,14 @@ export function getBoardPositionPercent(
   }
 
   if (attackingDirection === "left-to-right") {
-    return { x: modelY, y: 100 - modelX };
+    return { x: 100 - modelY, y: modelX };
   }
 
-  return { x: 100 - modelY, y: 100 - modelX };
+  return { x: modelY, y: 100 - modelX };
 }
 
-export function getBoardAspectRation(options?: BoardProjectionOptions): number {
-  return options?.orientation === "vertical" ? 5 / 7 : 16 / 9;
+export function getBoardAspectRatio(options?: BoardProjectionOptions): number {
+  return options?.orientation === "vertical" ? 5 / 7 : 3 / 2;
 }
 
 export function getBoardViewBox(_options?: BoardProjectionOptions): string {
