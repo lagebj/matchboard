@@ -95,6 +95,7 @@ model Player {
   eventGoalEvents        EventGoalEvent[]        @relation("EventGoalScorer")
   eventAssistEvents      EventAssistEvent[]       @relation("EventAssistProvider")
   eventSupportAssignments EventMatchSupportAssignment[]
+  eventLineupAssignments EventMatchLineupAssignment[]
 
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
@@ -281,6 +282,7 @@ model Formation {
   team            Team?           @relation(fields: [teamId], references: [id], onDelete: Cascade)
   slots           FormationSlot[]
   lineups         MatchLineup[]
+  eventLineups    EventMatchLineup[]
 
   @@index([gameFormat])
   @@index([teamId])
@@ -795,6 +797,7 @@ model EventMatch {
   eventSquad         EventSquad                @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
   postMatchReport    EventPostMatchReport?
   supportAssignments EventMatchSupportAssignment[]
+  lineup             EventMatchLineup?
 
   @@index([eventId])
   @@index([eventSquadId])
@@ -897,6 +900,49 @@ model EventMatchSupportAssignment {
   @@index([playerId])
   @@index([sourceEventSquadId])
   @@index([targetEventSquadId])
+}
+
+enum EventMatchLineupPlayerSource {
+  BASE_SQUAD
+  HELPER
+}
+
+model EventMatchLineup {
+  id            String   @id @default(cuid())
+  eventMatchId  String   @unique
+  formationId   String?
+  status        MatchLineupStatus @default(DRAFT)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  eventMatch    EventMatch                  @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  formation     Formation?                  @relation(fields: [formationId], references: [id], onDelete: SetNull)
+  assignments   EventMatchLineupAssignment[]
+
+  @@index([status])
+}
+
+model EventMatchLineupAssignment {
+  id          String   @id @default(cuid())
+  lineupId    String
+  playerId    String?
+  slotId      String?
+  slotIndex   Int?
+  slotLabel   String?
+  roleType    FormationSlotRoleType?
+  source      EventMatchLineupPlayerSource @default(BASE_SQUAD)
+  x           Float?
+  y           Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lineup      EventMatchLineup @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player      Player?          @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([lineupId, playerId])
+  @@index([lineupId])
+  @@index([playerId])
 }
 
 model LeagueSeason {

@@ -942,6 +942,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           eventId={data.id}
           squads={data.squads}
           eventType={data.eventType}
+          gameFormat={data.gameFormat}
           matchDurationMinutes={data.matchDurationMinutes}
           playerProfiles={data.players.map((p) => ({
             id: p.playerId,
