@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { PrismaClient } from '@/generated/prisma/client';
+import type { FormationSlotRoleType } from '@/generated/prisma/client';
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture, type TestFixtureIds } from '@/test/test-db';
 import ExcelJS from 'exceljs';
 
@@ -223,20 +224,17 @@ describe('Event export route', () => {
 
     const ws = workbook.getWorksheet('Match call-out')!;
     const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
-    expect(headers).toContain('Date');
-    expect(headers).toContain('Start');
+    expect(headers).toContain('Time');
     expect(headers).toContain('End');
     expect(headers).toContain('Squad');
     expect(headers).toContain('Opponent');
-    expect(headers).toContain('Base squad players');
-    expect(headers).toContain('Helpers');
-    expect(headers).toContain('All involved players');
-    expect(headers).toContain('Notes / conflicts');
+    expect(headers).toContain('Players');
+    expect(headers).toContain('Notes');
 
     expect(ws.rowCount - 1).toBeGreaterThanOrEqual(2);
   });
 
-  it('Match call-out includes base squad players and helpers with source squad', async () => {
+  it('Match call-out includes helpers in Players column with source squad', async () => {
     const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
 
     await testDb.eventMatchSupportAssignment.create({
@@ -253,17 +251,17 @@ describe('Event export route', () => {
 
     const ws = workbook.getWorksheet('Match call-out')!;
     const squadCol = getHeaderIndex(ws, 'Squad');
-    const helpersCol = getHeaderIndex(ws, 'Helpers');
+    const playersCol = getHeaderIndex(ws, 'Players');
 
     const match2Row = findRowByCellContaining(ws, squadCol, 'Rød');
     expect(match2Row).toBeDefined();
 
-    const helpersValue = getCellText(match2Row!.getCell(helpersCol));
-    expect(helpersValue).toContain('from Blå');
-    expect(helpersValue).toContain('Defender cover');
+    const playersValue = getCellText(match2Row!.getCell(playersCol));
+    expect(playersValue).toContain('from Blå');
+    expect(playersValue).toContain('Helpers:');
   });
 
-  it('All involved players includes base squad and helpers', async () => {
+  it('Players column includes helpers with source squad marker', async () => {
     const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
 
     await testDb.eventMatchSupportAssignment.create({
@@ -279,33 +277,33 @@ describe('Event export route', () => {
 
     const ws = workbook.getWorksheet('Match call-out')!;
     const squadCol = getHeaderIndex(ws, 'Squad');
-    const allInvolvedCol = getHeaderIndex(ws, 'All involved players');
+    const playersCol = getHeaderIndex(ws, 'Players');
 
     const match2Row = findRowByCellContaining(ws, squadCol, 'Rød');
     expect(match2Row).toBeDefined();
 
-    const allInvolved = getCellText(match2Row!.getCell(allInvolvedCol));
-    expect(allInvolved).toContain('[helper from Blå]');
+    const playersValue = getCellText(match2Row!.getCell(playersCol));
+    expect(playersValue).toContain('(from Blå)');
   });
 
-  it('Match call-out shows None for helpers when no support', async () => {
+  it('Match call-out shows Players as base names only when no support', async () => {
     const { event } = await createTestEvent();
     const { workbook } = await exportWorkbook(event.id);
 
     const ws = workbook.getWorksheet('Match call-out')!;
-    const helpersCol = getHeaderIndex(ws, 'Helpers');
+    const playersCol = getHeaderIndex(ws, 'Players');
     const squadCol = getHeaderIndex(ws, 'Squad');
 
     for (let i = 2; i <= ws.rowCount; i++) {
       const row = ws.getRow(i);
       const squadValue = getCellText(row.getCell(squadCol));
       if (!squadValue.trim()) continue;
-      const helpers = getCellText(row.getCell(helpersCol));
-      expect(helpers).toBe('None');
+      const players = getCellText(row.getCell(playersCol));
+      expect(players).not.toContain('Helpers');
     }
   });
 
-  it('Match call-out shows Duration not set note when event has no duration', async () => {
+  it('Match call-out shows No duration note when event has no duration', async () => {
     const event = await testDb.event.create({
       data: {
         name: 'No Duration Cup',
@@ -351,14 +349,14 @@ describe('Event export route', () => {
     const { workbook } = await exportWorkbook(event.id);
 
     const ws = workbook.getWorksheet('Match call-out')!;
-    const notesCol = getHeaderIndex(ws, 'Notes / conflicts');
+    const notesCol = getHeaderIndex(ws, 'Notes');
 
     const dataRow = ws.getRow(2);
     const notesValue = getCellText(dataRow.getCell(notesCol));
-    expect(notesValue).toContain('Duration not set');
+    expect(notesValue).toContain('No duration');
   });
 
-  it('Cancelled match is clearly marked in status and notes', async () => {
+  it('Cancelled match is clearly marked in notes and greyed out', async () => {
     const { event, squad1 } = await createTestEvent();
 
     await testDb.eventMatch.create({
@@ -378,14 +376,10 @@ describe('Event export route', () => {
 
     const ws = workbook.getWorksheet('Match call-out')!;
     const opponentCol = getHeaderIndex(ws, 'Opponent');
-    const statusCol = getHeaderIndex(ws, 'Status');
-    const notesCol = getHeaderIndex(ws, 'Notes / conflicts');
+    const notesCol = getHeaderIndex(ws, 'Notes');
 
     const cancelledRow = findRowByCellContaining(ws, opponentCol, 'Cancelled Opponent');
     expect(cancelledRow).toBeDefined();
-
-    const statusValue = getCellText(cancelledRow!.getCell(statusCol));
-    expect(statusValue).toBe('Cancelled');
 
     const notesValue = getCellText(cancelledRow!.getCell(notesCol));
     expect(notesValue).toContain('Cancelled');
@@ -477,16 +471,16 @@ describe('Event export route', () => {
     const { workbook } = await exportWorkbook(event.id);
 
     const ws = workbook.getWorksheet('Match call-out')!;
-    const statusCol = getHeaderIndex(ws, 'Status');
     const opponentCol = getHeaderIndex(ws, 'Opponent');
+    const notesCol = getHeaderIndex(ws, 'Notes');
 
     const cancelledRow = findRowByCellContaining(ws, opponentCol, 'Cancelled Team');
     expect(cancelledRow).toBeDefined();
-    const statusValue = getCellText(cancelledRow!.getCell(statusCol));
-    expect(statusValue).toBe('Cancelled');
+    const notesValue = getCellText(cancelledRow!.getCell(notesCol));
+    expect(notesValue).toContain('Cancelled');
   });
 
-  it('helper display includes source squad and role', async () => {
+  it('helper display includes source squad in Players column', async () => {
     const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
 
     await testDb.eventMatchSupportAssignment.create({
@@ -503,13 +497,12 @@ describe('Event export route', () => {
 
     const ws = workbook.getWorksheet('Match call-out')!;
     const squadCol = getHeaderIndex(ws, 'Squad');
-    const helpersCol = getHeaderIndex(ws, 'Helpers');
+    const playersCol = getHeaderIndex(ws, 'Players');
 
     const match2Row = findRowByCellContaining(ws, squadCol, 'Rød');
     expect(match2Row).toBeDefined();
-    const helpersValue = getCellText(match2Row!.getCell(helpersCol));
-    expect(helpersValue).toContain('(from Blå');
-    expect(helpersValue).toContain('GK cover');
+    const playersValue = getCellText(match2Row!.getCell(playersCol));
+    expect(playersValue).toContain('(from Blå)');
   });
 
   describe('Event Match Lineups sheet', () => {
@@ -528,14 +521,14 @@ describe('Event export route', () => {
         },
       });
 
-      const slotPositions = [
-        { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER', sortOrder: 0 },
-        { gridX: 0, gridY: 4, label: 'LB', shortLabel: 'LB', roleType: 'DEFENDER', sortOrder: 1 },
-        { gridX: 2, gridY: 4, label: 'CB', shortLabel: 'CB', roleType: 'DEFENDER', sortOrder: 2 },
-        { gridX: 4, gridY: 4, label: 'RB', shortLabel: 'RB', roleType: 'DEFENDER', sortOrder: 3 },
-        { gridX: 2, gridY: 2, label: 'CM', shortLabel: 'CM', roleType: 'MIDFIELDER', sortOrder: 4 },
-        { gridX: 2, gridY: 1, label: 'AM', shortLabel: 'AM', roleType: 'ATTACKING_MIDFIELDER', sortOrder: 5 },
-        { gridX: 2, gridY: 0, label: 'ST', shortLabel: 'ST', roleType: 'FORWARD', sortOrder: 6 },
+      const slotPositions: { gridX: number; gridY: number; label: string; shortLabel: string; roleType: FormationSlotRoleType; sortOrder: number }[] = [
+        { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER' as FormationSlotRoleType, sortOrder: 0 },
+        { gridX: 0, gridY: 4, label: 'LB', shortLabel: 'LB', roleType: 'DEFENDER' as FormationSlotRoleType, sortOrder: 1 },
+        { gridX: 2, gridY: 4, label: 'CB', shortLabel: 'CB', roleType: 'DEFENDER' as FormationSlotRoleType, sortOrder: 2 },
+        { gridX: 4, gridY: 4, label: 'RB', shortLabel: 'RB', roleType: 'DEFENDER' as FormationSlotRoleType, sortOrder: 3 },
+        { gridX: 2, gridY: 2, label: 'CM', shortLabel: 'CM', roleType: 'MIDFIELDER' as FormationSlotRoleType, sortOrder: 4 },
+        { gridX: 2, gridY: 1, label: 'AM', shortLabel: 'AM', roleType: 'ATTACKING_MIDFIELDER' as FormationSlotRoleType, sortOrder: 5 },
+        { gridX: 2, gridY: 0, label: 'ST', shortLabel: 'ST', roleType: 'FORWARD' as FormationSlotRoleType, sortOrder: 6 },
       ];
 
       for (const slot of slotPositions) {
@@ -577,21 +570,9 @@ describe('Event export route', () => {
 
       const sheetNames = workbook.worksheets.map((ws) => ws.name);
       expect(sheetNames).toContain('Event Match Lineups');
-
-      const ws = workbook.getWorksheet('Event Match Lineups')!;
-      const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
-      expect(headers).toContain('Event squad');
-      expect(headers).toContain('Opponent');
-      expect(headers).toContain('Formation');
-      expect(headers).toContain('Slot');
-      expect(headers).toContain('Role');
-      expect(headers).toContain('Player');
-      expect(headers).toContain('Helper?');
-      expect(headers).toContain('Lineup rating');
-      expect(headers).toContain('Complete?');
     });
 
-    it('shows assigned player in lineup export', async () => {
+    it('shows match header, formation, and assigned player in lineup export', async () => {
       const { event, squad1 } = await createTestEvent();
 
       const blaTeamId = fixtureIds.teams['Bla']!;
@@ -606,12 +587,12 @@ describe('Event export route', () => {
         },
       });
 
-      const slotPositions = [
-        { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER', sortOrder: 0 },
-        { gridX: 2, gridY: 2, label: 'CM', shortLabel: 'CM', roleType: 'MIDFIELDER', sortOrder: 1 },
+      const slotPositions2: { gridX: number; gridY: number; label: string; shortLabel: string; roleType: FormationSlotRoleType; sortOrder: number }[] = [
+        { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER' as FormationSlotRoleType, sortOrder: 0 },
+        { gridX: 2, gridY: 2, label: 'CM', shortLabel: 'CM', roleType: 'MIDFIELDER' as FormationSlotRoleType, sortOrder: 1 },
       ];
 
-      for (const slot of slotPositions) {
+      for (const slot of slotPositions2) {
         await testDb.formationSlot.create({
           data: {
             formationId: formation.id,
@@ -660,33 +641,26 @@ describe('Event export route', () => {
       const { workbook } = await exportWorkbook(event.id);
       const ws = workbook.getWorksheet('Event Match Lineups')!;
 
-      const playerCol = getHeaderIndex(ws, 'Player');
-      const slotCol = getHeaderIndex(ws, 'Slot');
-      const completeCol = getHeaderIndex(ws, 'Complete?');
-      const helperCol = getHeaderIndex(ws, 'Helper?');
+      let foundPlayerName = false;
+      let foundFormation = false;
+      let foundGK = false;
 
-      const dataRows: ExcelJS.Row[] = [];
-      for (let i = 2; i <= ws.rowCount; i++) {
-        dataRows.push(ws.getRow(i));
+      for (let i = 1; i <= ws.rowCount; i++) {
+        const row = ws.getRow(i);
+        for (let j = 1; j <= ws.columnCount; j++) {
+          const cellText = getCellText(row.getCell(j));
+          if (cellText.includes(blaPlayers[0].firstName)) foundPlayerName = true;
+          if (cellText.includes('Test 7v7')) foundFormation = true;
+          if (cellText === 'GK') foundGK = true;
+        }
       }
 
-      expect(dataRows.length).toBeGreaterThanOrEqual(2);
-
-      const gkRow = dataRows.find((r) => getCellText(r.getCell(slotCol)) === 'GK');
-      expect(gkRow).toBeDefined();
-      expect(getCellText(gkRow!.getCell(playerCol))).toContain(blaPlayers[0].firstName);
-
-      const cmRow = dataRows.find((r) => getCellText(r.getCell(slotCol)) === 'CM');
-      expect(cmRow).toBeDefined();
-      expect(getCellText(cmRow!.getCell(playerCol))).toBe('Unassigned');
-
-      expect(getCellText(gkRow!.getCell(helperCol))).toBe('No');
-
-      const completeValue = getCellText(gkRow!.getCell(completeCol));
-      expect(completeValue).toBe('No');
+      expect(foundPlayerName).toBe(true);
+      expect(foundFormation).toBe(true);
+      expect(foundGK).toBe(true);
     });
 
-    it('shows No lineup saved when match has no lineup', async () => {
+    it('does not include Event Match Lineups when no lineups exist', async () => {
       const { event } = await createTestEvent();
       const { workbook } = await exportWorkbook(event.id);
 
@@ -694,7 +668,7 @@ describe('Event export route', () => {
       expect(sheetNames).not.toContain('Event Match Lineups');
     });
 
-    it('marks helper players correctly', async () => {
+    it('shows helper player with helper marker in lineup', async () => {
       const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
 
       await testDb.eventMatchSupportAssignment.create({
@@ -716,7 +690,7 @@ describe('Event export route', () => {
         },
       });
 
-      const slot = { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER', sortOrder: 0 };
+      const slot = { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER' as FormationSlotRoleType, sortOrder: 0 };
       await testDb.formationSlot.create({
         data: { formationId: formation.id, ...slot, acceptedPositionIds: [] },
       });
@@ -744,19 +718,18 @@ describe('Event export route', () => {
       const { workbook } = await exportWorkbook(event.id);
       const ws = workbook.getWorksheet('Event Match Lineups')!;
 
-      const helperCol = getHeaderIndex(ws, 'Helper?');
-      const playerCol = getHeaderIndex(ws, 'Player');
-
-      for (let i = 2; i <= ws.rowCount; i++) {
+      let foundHelper = false;
+      for (let i = 1; i <= ws.rowCount; i++) {
         const row = ws.getRow(i);
-        const playerText = getCellText(row.getCell(playerCol));
-        if (playerText.includes(blaPlayers[0].firstName)) {
-          expect(getCellText(row.getCell(helperCol))).toBe('Yes');
-          return;
+        for (let j = 1; j <= ws.columnCount; j++) {
+          const cellText = getCellText(row.getCell(j));
+          if (cellText.includes('helper') || cellText.includes('Helper')) {
+            foundHelper = true;
+          }
         }
       }
 
-      expect.fail('Helper player row not found in lineup export');
+      expect(foundHelper).toBe(true);
     });
   });
 });

@@ -9,7 +9,7 @@ import {
 } from '@/lib/formatters/event-labels';
 import { safeEventExportFilename } from '@/lib/formatters/event-export-filename';
 import { checkSupportConflicts, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
-import { computeLineupRating } from '@/lib/events/event-lineup-rating';
+import { computeLineupRating, formatStarRating } from '@/lib/events/event-lineup-rating';
 
 type SquadPlayer = {
   playerId: string;
@@ -56,6 +56,31 @@ type EventMatchData = {
   eventSquad: { id: string; name: string };
   supportAssignments: SupportAssignment[];
 };
+
+const ROLE_ORDER = ['GOALKEEPER', 'DEFENDER', 'DEFENSIVE_MIDFIELDER', 'MIDFIELDER', 'ATTACKING_MIDFIELDER', 'FORWARD', 'FREE'] as const;
+
+const ROLE_SHORT: Record<string, string> = {
+  GOALKEEPER: 'GK',
+  DEFENDER: 'DEF',
+  DEFENSIVE_MIDFIELDER: 'DM',
+  MIDFIELDER: 'MID',
+  ATTACKING_MIDFIELDER: 'AM',
+  FORWARD: 'ATT',
+  FREE: 'Flex',
+};
+
+function roleGroup(roleType: string | null): string {
+  if (!roleType) return 'Other';
+  switch (roleType) {
+    case 'GOALKEEPER': return 'GK';
+    case 'DEFENDER':
+    case 'DEFENSIVE_MIDFIELDER': return 'DEF';
+    case 'MIDFIELDER': return 'MID';
+    case 'ATTACKING_MIDFIELDER':
+    case 'FORWARD': return 'ATT';
+    default: return 'Other';
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -218,6 +243,7 @@ export async function GET(
           id: true,
           opponentName: true,
           startsAt: true,
+          location: true,
           eventSquadId: true,
           eventSquad: { select: { id: true, name: true } },
         },
@@ -226,19 +252,6 @@ export async function GET(
     orderBy: { eventMatch: { startsAt: 'asc' } },
   });
 
-  const helperPlayerIds = new Set<string>();
-  for (const m of eventMatches) {
-    for (const a of m.supportAssignments) {
-      helperPlayerIds.add(a.playerId);
-    }
-  }
-
-  const squadPlayerIdSet = new Map<string, Set<string>>();
-  for (const squad of event.squads) {
-    const ids = new Set(squad.players.map((p) => p.playerId));
-    squadPlayerIdSet.set(squad.id, ids);
-  }
-
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Matchboard';
   workbook.created = new Date();
@@ -246,14 +259,14 @@ export async function GET(
   buildSquadsSheet(workbook, event.squads);
   buildMatchCallOutSheet(workbook, eventMatches, matchDurationMinutes, squadPlayerMap, supportConflictData);
   buildConflictsSheet(workbook, supportConflictData, eventMatches, matchDurationMinutes);
-  buildLineupsSheet(workbook, lineupData, eventMatches, helperPlayerIds, squadPlayerIdSet);
+  buildLineupsSheet(workbook, lineupData, eventMatches, event.squads);
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = safeEventExportFilename(event.name, event.startsAt);
 
   return new NextResponse(buffer, {
     headers: {
-      'Content-Type': 'application/vnd.openxmlformats-offencedocument.spreadsheetml.sheet',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,
     },
   });
@@ -262,8 +275,11 @@ export async function GET(
 function addHeaderRow(ws: ExcelJS.Worksheet, headers: string[], widths: number[]) {
   const row = ws.addRow(headers);
   row.eachCell((cell) => {
-    cell.font = { bold: true };
+    cell.font = { bold: true, size: 10 };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+    cell.border = {
+      bottom: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+    };
   });
   ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 0 }];
   headers.forEach((_, i) => {
@@ -271,42 +287,37 @@ function addHeaderRow(ws: ExcelJS.Worksheet, headers: string[], widths: number[]
   });
 }
 
-function formatHelperDisplay(
-  assignments: SupportAssignment[],
-  conflictData: SupportAssignmentWithConflict[],
-): string {
-  if (assignments.length === 0) return 'None';
-
-  return assignments
-    .map((a) => {
-      const name = formatPlayerName(a.player.firstName, a.player.lastName);
-      const source = a.sourceEventSquad.name;
-      const role = a.plannedRole ? `, ${a.plannedRole}` : '';
-      const conflict = conflictData.find((c) => c.id === a.id);
-      const conflictMark = conflict?.isConflict ? ' — conflict' : '';
-      return `${name} (from ${source}${role})${conflictMark}`;
-    })
-    .join('\n');
+function addSectionHeader(ws: ExcelJS.Worksheet, text: string, colSpan: number) {
+  const row = ws.addRow([text]);
+  const cell = row.getCell(1);
+  cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+  cell.alignment = { vertical: 'middle' };
+  row.height = 22;
+  if (colSpan > 1) {
+    ws.mergeCells(row.number, 1, row.number, colSpan);
+  }
 }
 
-function formatAllInvolvedPlayers(
-  squadPlayers: SquadPlayer[],
-  assignments: SupportAssignment[],
-  conflictData: SupportAssignmentWithConflict[],
-): string {
-  const baseNames = squadPlayers.map((p) =>
-    formatPlayerName(p.player.firstName, p.player.lastName),
-  );
+function addMatchMetaRow(ws: ExcelJS.Worksheet, label: string, value: string, colSpan: number) {
+  const row = ws.addRow([label, value]);
+  row.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF64748B' } };
+  row.getCell(2).font = { size: 10 };
+  if (colSpan > 2) {
+    ws.mergeCells(row.number, 2, row.number, colSpan);
+  }
+}
 
-  const helperNames = assignments.map((a) => {
-    const name = formatPlayerName(a.player.firstName, a.player.lastName);
-    const source = a.sourceEventSquad.name;
-    const conflict = conflictData.find((c) => c.id === a.id);
-    const conflictMark = conflict?.isConflict ? ' — conflict' : '';
-    return `${name} [helper from ${source}]${conflictMark}`;
-  });
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
-  return [...baseNames, ...helperNames].join('\n');
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatPlayerList(players: { firstName: string; lastName: string | null }[]): string {
+  return players.map((p) => formatPlayerName(p.firstName, p.lastName)).join(' · ') || 'None';
 }
 
 function buildSquadsSheet(
@@ -351,13 +362,16 @@ function buildMatchCallOutSheet(
   conflictData: SupportAssignmentWithConflict[],
 ) {
   const ws = workbook.addWorksheet('Match call-out');
-  const headers = [
-    'Date', 'Start', 'End', 'Squad', 'Opponent', 'Location / pitch',
-    'Category', 'Status',
-    'Base squad players', 'Helpers', 'All involved players',
-    'Notes / conflicts',
-  ];
-  const widths = [12, 8, 8, 18, 22, 18, 10, 12, 45, 35, 55, 40];
+
+  ws.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
+  const headers = ['Time', 'End', 'Squad', 'Opponent', 'Pitch', 'Players', 'Notes'];
+  const widths = [10, 8, 16, 22, 14, 55, 30];
   addHeaderRow(ws, headers, widths);
 
   for (const m of eventMatches) {
@@ -365,67 +379,60 @@ function buildMatchCallOutSheet(
       ? new Date(m.startsAt.getTime() + matchDurationMinutes * 60 * 1000)
       : null;
 
-    const matchConflicts = conflictData.filter((c) => c.eventMatchId === m.id);
     const squadPlayers = squadPlayerMap.get(m.eventSquadId) ?? [];
+    const playerList = squadPlayers.map((p) =>
+      formatPlayerName(p.player.firstName, p.player.lastName),
+    ).join(', ');
 
-    const baseSquadNames = squadPlayers
-      .map((p) => formatPlayerName(p.player.firstName, p.player.lastName))
-      .join('\n') || 'None';
+    const helperNames = m.supportAssignments.length > 0
+      ? m.supportAssignments.map((a) => {
+          const name = formatPlayerName(a.player.firstName, a.player.lastName);
+          const conflict = conflictData.find((c) => c.id === a.id);
+          const conflictMark = conflict?.isConflict ? ' \u26A0' : '';
+          return `${name} (from ${a.sourceEventSquad.name})${conflictMark}`;
+        }).join(', ')
+      : '';
 
-    const helpersDisplay = formatHelperDisplay(m.supportAssignments, matchConflicts);
-
-    const allInvolved = formatAllInvolvedPlayers(squadPlayers, m.supportAssignments, matchConflicts);
+    const allPlayers = helperNames ? `${playerList} | Helpers: ${helperNames}` : playerList;
 
     const notes: string[] = [];
-    if (m.status === 'CANCELLED') {
-      notes.push('Cancelled');
+    if (m.status === 'CANCELLED') notes.push('Cancelled');
+    if (!endTime) notes.push('No duration');
+    const matchConflicts = conflictData.filter((c) => c.eventMatchId === m.id && c.isConflict);
+    for (const c of matchConflicts) {
+      const playerName = conflictData.find((d) => d.id === c.id);
+      notes.push(`${playerName ? formatPlayerName(playerName.firstName, playerName.lastName) : 'Player'}: conflict`);
     }
-    if (!endTime) {
-      notes.push('Duration not set');
-    }
-    for (const c of matchConflicts.filter((c) => c.isConflict)) {
-      const conflictEntry = conflictData.find((d) => d.id === c.id);
-      const playerName = conflictEntry
-        ? formatPlayerName(conflictEntry.firstName, conflictEntry.lastName)
-        : 'Unknown player';
-      notes.push(`${playerName}: ${c.conflictReason ?? 'Conflict'}`);
-    }
-    const notesText = notes.length > 0 ? notes.join('\n') : 'OK';
 
     const row = ws.addRow([
-      formatDate(m.startsAt),
       formatTime(m.startsAt),
       endTime ? formatTime(endTime) : '—',
       m.eventSquad.name,
       m.opponentName,
-      m.location ?? '—',
-      m.category,
-      formatEventMatchStatus(m.status),
-      baseSquadNames,
-      helpersDisplay,
-      allInvolved,
-      notesText,
+      m.location ?? '',
+      allPlayers || 'None',
+      notes.length > 0 ? notes.join(', ') : '',
     ]);
 
     row.eachCell((cell, colNumber) => {
-      if (colNumber >= 9 && colNumber <= 12) {
-        cell.alignment = { wrapText: true, vertical: 'top' };
-      }
+      cell.alignment = { vertical: 'top', wrapText: colNumber >= 6 };
+      cell.font = { size: 10 };
     });
+
+    if (m.status === 'CANCELLED') {
+      row.eachCell((cell) => {
+        cell.font = { size: 10, color: { argb: 'FF9CA3AF' } };
+      });
+    }
   }
 
-  ws.getColumn(1).width = 12;
+  ws.getColumn(1).width = 10;
   ws.getColumn(2).width = 8;
-  ws.getColumn(3).width = 8;
-  ws.getColumn(4).width = 18;
-  ws.getColumn(5).width = 22;
-  ws.getColumn(6).width = 18;
-  ws.getColumn(7).width = 10;
-  ws.getColumn(8).width = 12;
-  ws.getColumn(9).width = 45;
-  ws.getColumn(10).width = 35;
-  ws.getColumn(11).width = 55;
-  ws.getColumn(12).width = 40;
+  ws.getColumn(3).width = 16;
+  ws.getColumn(4).width = 22;
+  ws.getColumn(5).width = 14;
+  ws.getColumn(6).width = 55;
+  ws.getColumn(7).width = 30;
 }
 
 function buildConflictsSheet(
@@ -435,7 +442,6 @@ function buildConflictsSheet(
   matchDurationMinutes: number,
 ) {
   const conflicts = supportConflictData.filter((c) => c.isConflict);
-
   if (conflicts.length === 0) return;
 
   const ws = workbook.addWorksheet('Conflicts');
@@ -467,14 +473,6 @@ function buildConflictsSheet(
   ws.getColumn(4).width = 24;
   ws.getColumn(5).width = 18;
   ws.getColumn(6).width = 30;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
 type LineupData = {
@@ -522,31 +520,69 @@ type LineupData = {
     id: string;
     opponentName: string;
     startsAt: Date;
+    location: string | null;
     eventSquadId: string;
     eventSquad: { id: string; name: string };
   };
 };
 
+function computeOverallLevel(player: {
+  ballControl: number | null;
+  passing: number | null;
+  firstTouch: number | null;
+  oneVOneAttacking: number | null;
+  positioning: number | null;
+  oneVOneDefending: number | null;
+  decisionMaking: number | null;
+  effort: number | null;
+  teamplay: number | null;
+  concentration: number | null;
+  speed: number | null;
+  strength: number | null;
+} | null): number | null {
+  if (!player) return null;
+  const values = [
+    player.ballControl, player.passing, player.firstTouch, player.oneVOneAttacking,
+    player.positioning, player.oneVOneDefending, player.decisionMaking,
+    player.effort, player.teamplay, player.concentration, player.speed, player.strength,
+  ].filter((v): v is number => v != null);
+  if (values.length === 0) return null;
+  return Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10;
+}
+
 function buildLineupsSheet(
   workbook: ExcelJS.Workbook,
   lineupData: LineupData[],
   eventMatches: EventMatchData[],
-  helperPlayerIds: Set<string>,
-  squadPlayerIdSet: Map<string, Set<string>>,
+  eventSquads: EventSquadData[],
 ) {
-  if (lineupData.length === 0) return;
+  if (lineupData.length === 0) {
+    for (const m of eventMatches) {
+      const matchLineup = lineupData.find((l) => l.eventMatchId === m.id);
+      if (!matchLineup) continue;
+    }
+    if (lineupData.length === 0 && eventMatches.every((m) => !lineupData.find((l) => l.eventMatchId === m.id))) {
+      return;
+    }
+  }
 
   const ws = workbook.addWorksheet('Event Match Lineups');
-  const headers = [
-    'Event squad', 'Opponent', 'Match date', 'Match time',
-    'Formation', 'Slot', 'Role',
-    'Player', 'Primary position', 'GK',
-    'Helper?', 'Source', 'Lineup rating', 'Star rating',
-    'Rated starters', 'Total starters', 'Total slots', 'Provisional?',
-    'Complete?',
-  ];
-  const widths = [16, 20, 12, 8, 18, 10, 18, 24, 16, 8, 8, 10, 14, 10, 14, 14, 12, 12, 10];
-  addHeaderRow(ws, headers, widths);
+
+  ws.pageSetup = {
+    orientation: 'portrait',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
+  const squadMap = new Map(eventSquads.map((s) => [s.id, s]));
+
+  const matchHelperMap = new Map<string, SupportAssignment[]>();
+  for (const m of eventMatches) {
+    matchHelperMap.set(m.id, m.supportAssignments);
+  }
+
+  let firstSheet = true;
 
   for (const lineup of lineupData) {
     const match = lineup.eventMatch;
@@ -556,90 +592,125 @@ function buildLineupsSheet(
     const assignedSlots = lineup.assignments.filter((a) => a.playerId !== null);
     const starters = assignedSlots
       .filter((a) => a.player)
-      .map((a) => {
-        const p = a.player!;
-        const attrs: Record<string, number | null> = {
-          ballControl: p.ballControl,
-          passing: p.passing,
-          firstTouch: p.firstTouch,
-          oneVOneAttacking: p.oneVOneAttacking,
-          positioning: p.positioning,
-          oneVOneDefending: p.oneVOneDefending,
-          decisionMaking: p.decisionMaking,
-          effort: p.effort,
-          teamplay: p.teamplay,
-          concentration: p.concentration,
-          speed: p.speed,
-          strength: p.strength,
-        };
-        const values = Object.values(attrs).filter((v): v is number => v != null);
-        const avg = values.length > 0 ? Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10 : null;
-        return { overallLevel: avg };
-      });
+      .map((a) => ({ overallLevel: computeOverallLevel(a.player) }));
 
     const rating = computeLineupRating(starters, totalSlots);
     const isComplete = assignedSlots.length >= totalSlots;
 
-    const slotIdToSlot = new Map(formationSlots.map((s) => [s.id, s]));
+    if (!firstSheet) {
+      ws.addRow([]);
+    }
+    firstSheet = false;
 
-    if (lineup.assignments.length === 0 && !formation) {
-      ws.addRow([
-        match.eventSquad.name, match.opponentName, formatDate(match.startsAt), formatTime(match.startsAt),
-        'No lineup saved', '', '', '', '', '', '', '',
-        '', '', '', '', '', '', '',
-      ]);
-      continue;
+    addSectionHeader(ws, `${match.eventSquad.name} vs ${match.opponentName}`, 5);
+
+    const timeStr = formatTime(match.startsAt);
+    const dateStr = formatDate(match.startsAt);
+    const locationStr = match.location ? ` · ${match.location}` : '';
+    addMatchMetaRow(ws, 'Time', `${dateStr} ${timeStr}${locationStr}`, 5);
+
+    if (formation) {
+      addMatchMetaRow(ws, 'Formation', formation.name, 5);
     }
 
-    const ratingNum = rating.averageRating !== null ? rating.averageRating : 'Not rated';
-    const starStr = rating.averageRating !== null ? '★'.repeat(Math.floor(rating.starRating)) + (rating.starRating % 1 >= 0.5 ? '½' : '') : '';
-    const ratingLabel = rating.averageRating !== null
-      ? `${rating.averageRating.toFixed(1)} · ${rating.ratedStarterCount}/${rating.totalSlots} rated`
-      : 'Not rated';
-
-    for (const assignment of lineup.assignments) {
-      const formationSlot = assignment.slotId ? slotIdToSlot.get(assignment.slotId) : null;
-      const slotLabel = assignment.slotLabel ?? formationSlot?.label ?? formationSlot?.roleType ?? '—';
-      const roleLabel = assignment.roleType ?? formationSlot?.roleType ?? '—';
-
-      const player = assignment.player;
-      const playerName = player ? formatPlayerName(player.firstName, player.lastName) : '';
-      const primaryPos = player?.primaryPosition ?? '';
-      const gk = player ? formatGoalkeeperAbility(player.goalkeeperAbility) : '';
-
-      const isHelper = assignment.playerId ? helperPlayerIds.has(assignment.playerId) : false;
-      const source = assignment.source === 'HELPER' ? 'Helper' : 'Squad';
-
-      const firstRowForMatch = assignment === lineup.assignments[0];
-      const ratingValue = firstRowForMatch ? ratingNum : '';
-      const starValue = firstRowForMatch ? starStr : '';
-      const ratedCount = firstRowForMatch ? `${rating.ratedStarterCount}/${rating.totalSlots}` : '';
-      const starterCount = firstRowForMatch ? assignedSlots.length : '';
-      const slotCount = firstRowForMatch ? totalSlots : '';
-      const provLabel = firstRowForMatch ? (rating.isProvisional ? 'Yes' : 'No') : '';
-      const completeLabel = firstRowForMatch ? (isComplete ? 'Yes' : 'No') : '';
-
-      ws.addRow([
-        match.eventSquad.name,
-        match.opponentName,
-        formatDate(match.startsAt),
-        formatTime(match.startsAt),
-        formation?.name ?? '—',
-        slotLabel,
-        roleLabel,
-        playerName || 'Unassigned',
-        primaryPos,
-        gk,
-        isHelper ? 'Yes' : (assignment.playerId ? 'No' : ''),
-        source,
-        ratingValue,
-        starValue,
-        ratedCount,
-        starterCount,
-        slotCount,
-        provLabel,
-        completeLabel,
+    if (rating.averageRating !== null) {
+      const stars = formatStarRating(rating.starRating) || '';
+      const provLabel = rating.isProvisional ? ' · provisional' : '';
+      const ratingRow = ws.addRow([
+        'Rating',
+        `${rating.averageRating.toFixed(1)} ${stars} · ${rating.ratedStarterCount}/${rating.totalSlots} rated${provLabel}`,
       ]);
+      ratingRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF64748B' } };
+      ratingRow.getCell(2).font = { size: 10 };
+    } else if (totalSlots > 0) {
+      const ratingRow = ws.addRow(['Rating', `${assignedSlots.length}/${totalSlots} starters · Not rated`]);
+      ratingRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF64748B' } };
+      ratingRow.getCell(2).font = { size: 10 };
+    }
+
+    if (!isComplete && totalSlots > 0) {
+      const missingRoles = lineup.assignments
+        .filter((a) => !a.playerId)
+        .map((a) => a.slotLabel ?? a.roleType ?? '?')
+        .join(', ');
+      const warnRow = ws.addRow(['Missing', missingRoles]);
+      warnRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FFEF4444' } };
+      warnRow.getCell(2).font = { size: 10, color: { argb: 'FFEF4444' } };
+    }
+
+    ws.addRow([]);
+
+    if (formationSlots.length > 0 || lineup.assignments.length > 0) {
+      const groups = new Map<string, { label: string; players: string[] }>();
+      const groupOrder = ['GK', 'DEF', 'MID', 'ATT', 'Other'];
+
+      for (const groupKey of groupOrder) {
+        groups.set(groupKey, { label: groupKey, players: [] });
+      }
+
+      for (const assignment of lineup.assignments) {
+        const group = roleGroup(assignment.roleType);
+        const player = assignment.player;
+        const playerName = player ? formatPlayerName(player.firstName, player.lastName) : '—';
+        const slotLabel = assignment.slotLabel ?? '—';
+        const isHelper = assignment.source === 'HELPER';
+        const display = player ? `${playerName} (${slotLabel}${isHelper ? ', helper' : ''})` : `— (${slotLabel})`;
+        groups.get(group)!.players.push(display);
+      }
+
+      for (const groupKey of groupOrder) {
+        const g = groups.get(groupKey)!;
+        if (g.players.length === 0) continue;
+        const roleRow = ws.addRow([g.label, g.players.join(' · ')]);
+        roleRow.getCell(1).font = { bold: true, size: 10 };
+        roleRow.getCell(2).font = { size: 10 };
+        roleRow.eachCell((cell) => {
+          cell.alignment = { vertical: 'top' };
+        });
+      }
+    } else if (!formation) {
+      const noLineupRow = ws.addRow(['', 'No starting lineup planned']);
+      noLineupRow.getCell(2).font = { size: 10, italic: true, color: { argb: 'FF9CA3AF' } };
+    }
+
+    const starterIds = new Set(assignedSlots.map((a) => a.playerId).filter(Boolean));
+
+    const matchHelpers = matchHelperMap.get(match.id) ?? [];
+    const helperIdsInSquad = new Set(matchHelpers.map((h) => h.playerId));
+
+    const squad = squadMap.get(match.eventSquadId);
+    const squadPlayerIds = new Set((squad?.players ?? []).map((p) => p.playerId));
+
+    const subPlayers: string[] = [];
+    const processedSubIds = new Set<string>();
+
+    for (const sp of (squad?.players ?? [])) {
+      if (!starterIds.has(sp.playerId) && !processedSubIds.has(sp.playerId)) {
+        subPlayers.push(formatPlayerName(sp.player.firstName, sp.player.lastName));
+        processedSubIds.add(sp.playerId);
+      }
+    }
+    for (const h of matchHelpers) {
+      if (!starterIds.has(h.playerId) && !processedSubIds.has(h.playerId)) {
+        subPlayers.push(`${formatPlayerName(h.player.firstName, h.player.lastName)} (helper from ${h.sourceEventSquad.name})`);
+        processedSubIds.add(h.playerId);
+      }
+    }
+
+    if (subPlayers.length > 0) {
+      ws.addRow([]);
+      const subRow = ws.addRow(['Subs', subPlayers.join(' · ')]);
+      subRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF64748B' } };
+      subRow.getCell(2).font = { size: 10 };
+      subRow.eachCell((cell) => {
+        cell.alignment = { vertical: 'top', wrapText: true };
+      });
     }
   }
+
+  ws.getColumn(1).width = 12;
+  ws.getColumn(2).width = 60;
+  ws.getColumn(3).width = 16;
+  ws.getColumn(4).width = 16;
+  ws.getColumn(5).width = 16;
 }
