@@ -39,6 +39,7 @@ model Team {
 model Player {
   id                      String                    @id @default(cuid())
   playerCode              Int                       @unique
+  shirtNumber             Int?
   firstName               String
   lastName                String?
   active                  Boolean                   @default(true)
