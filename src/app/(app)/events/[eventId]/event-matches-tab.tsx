@@ -517,25 +517,15 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                   setEditLocation={setEditLocation}
                   editNotes={editNotes}
                   setEditNotes={setEditNotes}
-                  onSaveEdit={handleEditSave}
-                  cancelEdit={cancelEdit}
-                  squads={squads}
-                  refreshReport={refreshReport}
-                  lineupMatchId={lineupMatchId}
-                  onToggleLineup={(matchId) => setLineupMatchId(prev => prev === matchId ? null : matchId)}
-                  gameFormat={gameFormat}
-                  squadPlayers={squads.flatMap(s => s.players.map(sp => {
-                    const profile = playerProfiles.find(pp => pp.id === sp.playerId);
-                    return profile ? {
-                      id: profile.id,
-                      firstName: profile.firstName,
-                      lastName: profile.lastName,
-                      primaryPosition: profile.primaryPosition,
-                      goalkeeperAbility: profile.goalkeeperAbility ?? 'NO',
-                      isGK: profile.goalkeeperAbility === 'YES',
-                    } : null;
-                  })).filter(Boolean) as Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null; goalkeeperAbility: string; isGK: boolean }>}
-                />
+                    onSaveEdit={handleEditSave}
+                    cancelEdit={cancelEdit}
+                    squads={squads}
+                    refreshReport={refreshReport}
+                    lineupMatchId={lineupMatchId}
+                    onToggleLineup={(matchId) => setLineupMatchId(prev => prev === matchId ? null : matchId)}
+                    gameFormat={gameFormat}
+                    playerProfiles={playerProfiles}
+                  />
               ))}
             </div>
           </Surface>
@@ -631,7 +621,7 @@ function EventMatchCard({
   lineupMatchId,
   onToggleLineup,
   gameFormat,
-  squadPlayers,
+  playerProfiles,
 }: {
   match: EventMatchWithReport;
   squadName: string;
@@ -674,7 +664,16 @@ function EventMatchCard({
   lineupMatchId: string | null;
   onToggleLineup: (matchId: string) => void;
   gameFormat: string;
-  squadPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null; goalkeeperAbility: string; isGK: boolean }>;
+  playerProfiles: Array<{
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    primaryPosition: string | null;
+    secondaryPosition: string | null;
+    tertiaryPosition: string | null;
+    goalkeeperAbility: string | null;
+    coreTeamId: string | null;
+  }>;
 }) {
   const [addingHelper, setAddingHelper] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -1093,8 +1092,47 @@ function EventMatchCard({
         <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
           <EventMatchLineupPanel
             eventMatchId={match.id}
-            squadPlayers={squadPlayers}
+            squadPlayers={squads
+              .filter((s) => s.id === match.eventSquadId)
+              .flatMap((s) =>
+                s.players
+                  .map((sp) => {
+                    const profile = playerProfiles.find((pp) => pp.id === sp.playerId);
+                    return profile
+                      ? {
+                          id: profile.id,
+                          firstName: profile.firstName,
+                          lastName: profile.lastName,
+                          primaryPosition: profile.primaryPosition,
+                          secondaryPosition: profile.secondaryPosition,
+                          tertiaryPosition: profile.tertiaryPosition,
+                          goalkeeperAbility: profile.goalkeeperAbility ?? 'NO',
+                          isGK: profile.goalkeeperAbility === 'YES',
+                          source: 'squad' as const,
+                          squadName: squads.find((sq) => sq.id === s.id)?.name ?? null,
+                        }
+                      : undefined;
+                  })
+                  .filter((p): p is NonNullable<typeof p> => p !== undefined),
+              )}
             gameFormat={gameFormat}
+            helperPlayers={assignmentsForMatch
+              .filter((a) => !a.isConflict)
+              .map((a) => {
+                const profile = playerProfiles.find((pp) => pp.id === a.playerId);
+                return {
+                  id: a.playerId,
+                  firstName: a.firstName,
+                  lastName: a.lastName,
+                  primaryPosition: profile?.primaryPosition ?? null,
+                  secondaryPosition: profile?.secondaryPosition ?? null,
+                  tertiaryPosition: profile?.tertiaryPosition ?? null,
+                  goalkeeperAbility: profile?.goalkeeperAbility ?? 'NO',
+                  isGK: profile?.goalkeeperAbility === 'YES',
+                  source: 'helper' as const,
+                  squadName: a.sourceEventSquadName,
+                };
+              })}
           />
         </div>
       )}

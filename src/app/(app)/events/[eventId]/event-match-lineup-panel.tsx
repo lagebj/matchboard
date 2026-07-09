@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useEffect, useMemo } from 'react';
 import {
   getEventMatchLineup,
   createEventMatchLineup,
@@ -11,7 +11,13 @@ import {
   changeEventMatchLineupFormation,
   getAvailableFormations,
 } from './event-lineup-actions';
+import { getPlayerSlotCompatibility } from '@/lib/formations/lineup-compatibility';
+import type { FormationSlotRoleType, BroadPosition, FormationSlotData } from '@/lib/formations/types';
+import { ROLE_TYPE_LABELS } from '@/lib/formations/types';
+import { PitchLineupView } from '@/components/formations/pitch-formation';
+import { PlayerPicker } from '@/components/formations/player-picker';
 import { Surface } from '@/components/ui/surface';
+import { cn } from '@/lib/cn';
 
 type FormationSlot = {
   id: string;
@@ -21,6 +27,7 @@ type FormationSlot = {
   gridY: number;
   acceptedPositionIds: string[] | unknown[];
   sortOrder: number;
+  shortLabel?: string;
 };
 
 type Formation = {
@@ -61,39 +68,53 @@ type LineupData = {
   assignments: LineupAssignment[];
 };
 
-type SquadPlayer = {
+type PoolPlayer = {
   id: string;
   firstName: string;
   lastName: string | null;
   primaryPosition: string | null;
+  secondaryPosition: string | null;
+  tertiaryPosition: string | null;
   goalkeeperAbility: string;
   isGK: boolean;
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  GOALKEEPER: 'GK',
-  DEFENDER: 'DEF',
-  DEFENSIVE_MIDFIELDER: 'CDM',
-  MIDFIELDER: 'MID',
-  ATTACKING_MIDFIELDER: 'CAM',
-  FORWARD: 'FWD',
-  FREE: 'Flex',
+  source: 'squad' | 'helper';
+  squadName: string | null;
 };
 
 export function EventMatchLineupPanel({
   eventMatchId,
   squadPlayers,
   gameFormat,
+  helperPlayers,
 }: {
   eventMatchId: string;
-  squadPlayers: SquadPlayer[];
+  squadPlayers: PoolPlayer[];
   gameFormat: string;
+  helperPlayers?: PoolPlayer[];
 }) {
   const [lineup, setLineup] = useState<LineupData | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [pickerState, setPickerState] = useState<{
+    assignmentId: string | null;
+    slotId: string;
+    slotLabel: string;
+    acceptedPositions: BroadPosition[];
+  } | null>(null);
+
+  const eligiblePlayers = useMemo(() => {
+    const pool = [...squadPlayers];
+    if (helperPlayers) {
+      for (const hp of helperPlayers) {
+        if (!pool.some((p) => p.id === hp.id)) {
+          pool.push(hp);
+        }
+      }
+    }
+    return pool;
+  }, [squadPlayers, helperPlayers]);
 
   const loadLineup = useCallback(() => {
     setLoading(true);
@@ -104,7 +125,9 @@ export function EventMatchLineupPanel({
           getEventMatchLineup(eventMatchId),
           getAvailableFormations(gameFormat),
         ]);
-        setLineup(lineupData as LineupData | null);
+        if (lineupData) {
+          setLineup(lineupData as LineupData);
+        }
         setFormations(formationsData as Formation[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load lineup');
@@ -114,16 +137,17 @@ export function EventMatchLineupPanel({
     });
   }, [eventMatchId, gameFormat, startTransition]);
 
+  useEffect(() => {
+    loadLineup();
+  }, [loadLineup]);
+
   const handleCreate = (formationId?: string) => {
     startTransition(async () => {
       try {
         setError(null);
-        const data = await createEventMatchLineup({
-          eventMatchId,
-          formationId,
-        });
-        const fullLineup = await getEventMatchLineup(eventMatchId);
-        setLineup(fullLineup as LineupData | null);
+        await createEventMatchLineup({ eventMatchId, formationId });
+        const updated = await getEventMatchLineup(eventMatchId);
+        setLineup(updated as LineupData | null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to create lineup');
       }
@@ -159,8 +183,13 @@ export function EventMatchLineupPanel({
     });
   };
 
-  const handleChangeFormation = (formationId: string | null) => {
+  const handleChangeFormation = (formationId: string) => {
     if (!lineup) return;
+    const hasAssignments = lineup.assignments.some((a) => a.playerId !== null);
+    if (hasAssignments) {
+      const confirmed = window.confirm('Changing formation will replace all current assignments. Continue?');
+      if (!confirmed) return;
+    }
     startTransition(async () => {
       try {
         setError(null);
@@ -173,60 +202,136 @@ export function EventMatchLineupPanel({
     });
   };
 
-  const handleAssign = (assignmentId: string, playerId: string) => {
-    if (!lineup) return;
+  const handleSlotClick = useCallback((assignmentId: string | null, slotId: string, _playerId: string | null) => {
+    if (!lineup || lineup.status === 'CONFIRMED') return;
+    const formationSlot = lineup.formation?.slots.find((s) => s.id === slotId);
+    setPickerState({
+      assignmentId,
+      slotId,
+      slotLabel: formationSlot?.label ?? formationSlot?.roleType ?? 'Slot',
+      acceptedPositions: (formationSlot?.acceptedPositionIds ?? []) as BroadPosition[],
+    });
+  }, [lineup]);
+
+  const handlePlayerSelect = useCallback((playerId: string) => {
+    if (!pickerState || !lineup) return;
     startTransition(async () => {
       try {
         setError(null);
-        await assignPlayerToLineupSlot(lineup.id, assignmentId, playerId);
+        const targetAssignmentId = pickerState.assignmentId ?? lineup.assignments.find((a) => a.slotId === pickerState.slotId && !a.playerId)?.id;
+        if (!targetAssignmentId) return;
+        await assignPlayerToLineupSlot(lineup.id, targetAssignmentId, playerId);
+        setPickerState(null);
         const updated = await getEventMatchLineup(eventMatchId);
         setLineup(updated as LineupData | null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to assign player');
       }
     });
-  };
+  }, [pickerState, lineup, eventMatchId, startTransition]);
 
-  const handleRemove = (assignmentId: string) => {
+  const handleRemovePlayer = useCallback(() => {
+    if (!pickerState?.assignmentId || !lineup) return;
     startTransition(async () => {
       try {
         setError(null);
-        await removePlayerFromLineupSlot(assignmentId);
+        await removePlayerFromLineupSlot(pickerState.assignmentId!);
+        setPickerState(null);
         const updated = await getEventMatchLineup(eventMatchId);
         setLineup(updated as LineupData | null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to remove player');
       }
     });
-  };
+  }, [pickerState, lineup, eventMatchId, startTransition]);
 
-  const assignedPlayerIds = new Set(
-    (lineup?.assignments ?? []).filter((a) => a.playerId).map((a) => a.playerId!),
+  const assignedPlayerIds = useMemo(
+    () => new Set((lineup?.assignments ?? []).filter((a) => a.playerId).map((a) => a.playerId!)),
+    [lineup],
   );
 
-  if (!lineup && !loading) {
+  const assignedAssignmentId = useMemo(() => {
+    if (!pickerState) return null;
+    return lineup?.assignments.find((a) => a.slotId === pickerState.slotId && a.playerId)?.playerId ?? null;
+  }, [pickerState, lineup]);
+
+  const currentAssignedPlayer = useMemo(() => {
+    if (!assignedAssignmentId) return null;
+    return eligiblePlayers.find((p) => p.id === assignedAssignmentId) ?? null;
+  }, [assignedAssignmentId, eligiblePlayers]);
+
+  const pickerSlot: FormationSlotData | null = useMemo(() => {
+    if (!pickerState) return null;
+    return {
+      id: pickerState.slotId,
+      gridX: 0,
+      gridY: 0,
+      label: pickerState.slotLabel,
+      shortLabel: ROLE_TYPE_LABELS[pickerState.acceptedPositions[0] as FormationSlotRoleType] ?? pickerState.slotLabel,
+      roleType: 'FREE' as FormationSlotRoleType,
+      acceptedPositionIds: pickerState.acceptedPositions,
+      sortOrder: 0,
+    };
+  }, [pickerState]);
+
+  const pitchSlots = useMemo(() => {
+    if (!lineup?.formation?.slots) return [];
+    return lineup.formation.slots.map((s) => ({
+      id: s.id,
+      gridX: s.gridX,
+      gridY: s.gridY,
+      label: s.label ?? s.roleType,
+      shortLabel: ROLE_TYPE_LABELS[s.roleType as FormationSlotRoleType] ?? s.roleType,
+      roleType: s.roleType as FormationSlotRoleType,
+      acceptedPositionIds: (s.acceptedPositionIds ?? []) as BroadPosition[],
+      sortOrder: s.sortOrder,
+    }));
+  }, [lineup]);
+
+  const pitchAssignments = useMemo(() => {
+    if (!lineup) return [];
+    return lineup.assignments.map((a) => ({
+      id: a.id,
+      slotId: a.slotId ?? '',
+      playerId: a.playerId,
+      locked: false,
+      source: a.source,
+    }));
+  }, [lineup]);
+
+  const pitchPlayers = useMemo(() => {
+    return eligiblePlayers.map((p) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      primaryPosition: p.primaryPosition ?? 'FREE',
+    }));
+  }, [eligiblePlayers]);
+
+  if (loading) {
     return (
       <Surface variant="default" padding="md">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
-            <button
-              onClick={loadLineup}
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
-            >
-              Load lineup
-            </button>
-          </div>
-          {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
         </div>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">Loading lineup...</p>
       </Surface>
     );
   }
 
-  if (loading && !lineup) {
+  if (error && !lineup) {
     return (
       <Surface variant="default" padding="md">
-        <p className="text-sm text-[var(--text-muted)]">Loading lineup...</p>
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+        </div>
+        <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>
+        <button
+          onClick={loadLineup}
+          className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+        >
+          Retry
+        </button>
       </Surface>
     );
   }
@@ -234,7 +339,40 @@ export function EventMatchLineupPanel({
   if (!lineup) {
     return (
       <Surface variant="default" padding="md">
-        <p className="text-sm text-[var(--text-muted)]">No lineup data.</p>
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+          <button
+            onClick={() => handleCreate(formations[0]?.id)}
+            disabled={isPending || formations.length === 0}
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+          >
+            Create lineup
+          </button>
+        </div>
+        {formations.length === 0 && (
+          <p className="mt-2 text-sm text-[var(--text-muted)]">No formations available for this game format. Create a formation first.</p>
+        )}
+        {formations.length > 0 && (
+          <p className="mt-2 text-sm text-[var(--text-muted)]">No starting lineup planned yet. Select a formation to begin.</p>
+        )}
+        {formations.length > 0 && (
+          <div className="mt-3">
+            <label className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-1">
+              Formation
+            </label>
+            <select
+              onChange={(e) => { if (e.target.value) handleCreate(e.target.value); }}
+              disabled={isPending}
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              defaultValue=""
+            >
+              <option value="" disabled>Select a formation...</option>
+              {formations.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </Surface>
     );
   }
@@ -270,70 +408,26 @@ export function EventMatchLineupPanel({
           </label>
           <select
             value={lineup.formationId ?? ''}
-            onChange={(e) => handleChangeFormation(e.target.value || null)}
+            onChange={(e) => { if (e.target.value) handleChangeFormation(e.target.value); }}
             disabled={isPending}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
           >
             <option value="">No formation</option>
             {formations.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
+              <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
         </div>
 
-        {lineup.assignments.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-              Positions
-            </p>
-            {lineup.assignments.map((assignment) => {
-              const roleLabel = ROLE_LABELS[assignment.roleType ?? ''] ?? assignment.roleType ?? 'Slot';
-              const availablePlayers = squadPlayers.filter(
-                (p) => !assignedPlayerIds.has(p.id) || p.id === assignment.playerId,
-              );
-
-              return (
-                <div
-                  key={assignment.id}
-                  className="flex items-center gap-2 rounded-md border border-[var(--border-soft)] px-3 py-2"
-                >
-                  <span className="w-12 text-xs font-mono font-medium text-zinc-300">
-                    {roleLabel}
-                  </span>
-                  <select
-                    value={assignment.playerId ?? ''}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleAssign(assignment.id, e.target.value);
-                      } else {
-                        handleRemove(assignment.id);
-                      }
-                    }}
-                    disabled={isPending}
-                    className="flex-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
-                  >
-                    <option value="">— Empty —</option>
-                    {availablePlayers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.firstName}{p.lastName ? ` ${p.lastName}` : ''}{p.isGK ? ' · GK' : ''}{p.primaryPosition ? ` · ${p.primaryPosition}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {assignment.playerId && (
-                    <button
-                      onClick={() => handleRemove(assignment.id)}
-                      className="text-[var(--danger)] hover:underline text-[10px]"
-                      disabled={isPending}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {pitchSlots.length > 0 ? (
+          <PitchLineupView
+            gameFormat={gameFormat}
+            slots={pitchSlots}
+            assignments={pitchAssignments}
+            players={pitchPlayers}
+            onSlotClick={handleSlotClick}
+            readOnly={lineup.status === 'CONFIRMED' || isPending}
+          />
         ) : (
           <p className="text-xs text-[var(--text-muted)]">
             {lineup.formationId
@@ -342,27 +436,57 @@ export function EventMatchLineupPanel({
           </p>
         )}
 
-        {lineup.assignments.length > 0 && (
+        {eligiblePlayers.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-1">
-              Unassigned players
+              Available players
             </p>
             <div className="flex flex-wrap gap-1">
-              {squadPlayers
+              {eligiblePlayers
                 .filter((p) => !assignedPlayerIds.has(p.id))
                 .map((p) => (
                   <span
                     key={p.id}
-                    className="inline-flex items-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] text-zinc-300"
+                    className={cn(
+                      "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px]",
+                      p.source === 'helper'
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                        : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-zinc-300",
+                    )}
                   >
-                    {p.firstName}{p.lastName ? ` ${p.lastName}` : ''}{p.isGK ? ' · GK' : ''}
+                    {p.firstName}{p.lastName ? ` ${p.lastName}` : ''}{p.isGK ? ' · GK' : ''}{p.primaryPosition ? ` · ${p.primaryPosition}` : ''}
+                    {p.source === 'helper' && <span className="ml-1 text-amber-400">H</span>}
                   </span>
                 ))}
-              {squadPlayers.filter((p) => !assignedPlayerIds.has(p.id)).length === 0 && (
+              {eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id)).length === 0 && (
                 <span className="text-xs text-[var(--text-muted)]">All players assigned</span>
               )}
             </div>
           </div>
+        )}
+
+        {pickerState && pickerSlot && (
+          <PlayerPicker
+            isOpen={!!pickerState}
+            onClose={() => setPickerState(null)}
+            players={eligiblePlayers.map((p) => ({
+              id: p.id,
+              firstName: p.firstName,
+              lastName: p.lastName,
+              primaryPosition: p.primaryPosition ?? 'FREE',
+              coreTeamName: p.source === 'helper' ? `Helper${p.squadName ? ` from ${p.squadName}` : ''}` : undefined,
+            }))}
+            slot={pickerSlot}
+            assignedPlayerIds={assignedPlayerIds}
+            currentAssignedPlayer={currentAssignedPlayer ? {
+              id: currentAssignedPlayer.id,
+              firstName: currentAssignedPlayer.firstName,
+              lastName: currentAssignedPlayer.lastName,
+              primaryPosition: currentAssignedPlayer.primaryPosition ?? 'FREE',
+            } : null}
+            onSelect={handlePlayerSelect}
+            onClear={handleRemovePlayer}
+          />
         )}
       </div>
     </Surface>
