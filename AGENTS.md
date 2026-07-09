@@ -1267,6 +1267,8 @@ Events use separate Prisma models:
 - `EventPlayerAvailability`: per-player availability for this event (AVAILABLE/UNAVAILABLE/UNKNOWN/RESERVE/LATE_ADDITION/WITHDRAWN)
 - `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary
 - `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason
+- `EventMatchLineup`: per-match lineup with formation reference, status (DRAFT/CONFIRMED), cascade delete with EventMatch
+- `EventMatchLineupAssignment`: per-slot player assignment within a lineup, with slot position (slotId, slotIndex, slotLabel, roleType, x, y), source (BASE_SQUAD/HELPER), unique on [lineupId, playerId]
 
 Event squads are NOT normal `Team` rows. They are temporary event artifacts with no league identity.
 
@@ -1407,8 +1409,10 @@ Rules:
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
 | `src/app/(app)/events/[eventId]/event-detail.tsx` | Event detail client component (tabs: overview, squads, player pool) |
-| `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with per-match helper controls, support load summary, and post-match reporting |
+| `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with per-match helper controls, support load summary, lineup, and post-match reporting |
 | `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches |
+| `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
+| `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 | `src/lib/formatters/event-labels.ts` | Human-readable event type, squad intent, player status, match status, goalkeeper ability labels |
 | `src/lib/formatters/event-export-filename.ts` | Safe event export filename generation |
 | `src/app/(app)/events/[eventId]/export/route.ts` | GET route: Excel workbook export with Squads, Match call-out, and optional Conflicts sheets |
@@ -1636,6 +1640,8 @@ Avoid:
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
+| `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
+| `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 
 ### Formation/tactics files
 

@@ -7,6 +7,7 @@ import {
 import {
   computeCompositeRatings,
   isGoalkeeperCapable,
+  getGoalkeeperCoverageTier,
   getPlayerBroadPositions,
   mapPositionToBroad,
 } from '../event-types';
@@ -429,8 +430,50 @@ describe('event-types', () => {
       expect(isGoalkeeperCapable(makePlayer({ goalkeeperAbility: 'EMERGENCY' }))).toBe(true);
     });
 
-    it('returns false for NO goalkeeper ability', () => {
+    it('returns true for primary position GK', () => {
+      expect(isGoalkeeperCapable(makePlayer({ primaryPosition: 'GK', goalkeeperAbility: 'NO' }))).toBe(true);
+    });
+
+    it('returns true for secondary position GK', () => {
+      expect(isGoalkeeperCapable(makePlayer({ primaryPosition: 'CB', secondaryPosition: 'GK', goalkeeperAbility: 'NO' }))).toBe(true);
+    });
+
+    it('returns true for tertiary position GK', () => {
+      expect(isGoalkeeperCapable(makePlayer({ primaryPosition: 'CB', secondaryPosition: 'CM', tertiaryPosition: 'GK', goalkeeperAbility: 'NO' }))).toBe(true);
+    });
+
+    it('returns false for NO goalkeeper ability and no GK position', () => {
       expect(isGoalkeeperCapable(makePlayer({ goalkeeperAbility: 'NO' }))).toBe(false);
+    });
+  });
+
+  describe('getGoalkeeperCoverageTier', () => {
+    it('returns strong for goalkeeperAbility YES', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ goalkeeperAbility: 'YES' }))).toBe('strong');
+    });
+
+    it('returns strong for primary position GK', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ primaryPosition: 'GK', goalkeeperAbility: 'NO' }))).toBe('strong');
+    });
+
+    it('returns acceptable for secondary position GK', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ primaryPosition: 'CB', secondaryPosition: 'GK', goalkeeperAbility: 'NO' }))).toBe('acceptable');
+    });
+
+    it('returns emergency for tertiary position GK', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ primaryPosition: 'CB', secondaryPosition: 'CM', tertiaryPosition: 'GK', goalkeeperAbility: 'NO' }))).toBe('emergency');
+    });
+
+    it('returns emergency for goalkeeperAbility EMERGENCY', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ goalkeeperAbility: 'EMERGENCY' }))).toBe('emergency');
+    });
+
+    it('returns none for NO ability and no GK position', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ goalkeeperAbility: 'NO' }))).toBe('none');
+    });
+
+    it('returns strong for primary GK with YES ability', () => {
+      expect(getGoalkeeperCoverageTier(makePlayer({ primaryPosition: 'GK', goalkeeperAbility: 'YES' }))).toBe('strong');
     });
   });
 

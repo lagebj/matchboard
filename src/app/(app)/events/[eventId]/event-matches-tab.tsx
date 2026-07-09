@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import {
   createEventMatchAction,
   updateEventMatchAction,
@@ -27,6 +27,7 @@ import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
 import { EventMatchReportPanel } from './event-match-report-panel';
+import { EventMatchLineupPanel } from './event-match-lineup-panel';
 
 const PLANNED_ROLE_OPTIONS = ['', 'GK cover', 'Defender cover', 'Midfield cover', 'Forward cover', 'General cover'];
 
@@ -85,6 +86,7 @@ interface EventMatchesTabProps {
     players: Array<{ playerId: string }>;
   }>;
   eventType: string;
+  gameFormat: string;
   matchDurationMinutes: number | null;
   playerProfiles: Array<{
     id: string;
@@ -110,9 +112,10 @@ function formatEndTime(startsAt: Date | string, durationMinutes: number | null):
   return formatTime(end);
 }
 
-export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinutes, playerProfiles, playerAvailability }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, playerProfiles, playerAvailability }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [supportAssignments, setSupportAssignments] = useState<SupportAssignment[]>([]);
 
@@ -135,18 +138,28 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
   const [editNotes, setEditNotes] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- report data shape varies with Prisma includes
   const [reportData, setReportData] = useState<any>(null);
+  const [lineupMatchId, setLineupMatchId] = useState<string | null>(null);
 
-  function loadMatches() {
+  const loadMatches = useCallback(() => {
+    setLoadError(null);
     startTransition(async () => {
-      const [matchResult, supportResult] = await Promise.all([
-        listEventMatchesAction(eventId),
-        getEventMatchSupportAssignmentsAction(eventId),
-      ]);
-      setMatches(matchResult);
-      setSupportAssignments(supportResult);
-      setLoaded(true);
+      try {
+        const [matchResult, supportResult] = await Promise.all([
+          listEventMatchesAction(eventId),
+          getEventMatchSupportAssignmentsAction(eventId),
+        ]);
+        setMatches(matchResult);
+        setSupportAssignments(supportResult);
+        setLoaded(true);
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : 'Could not load matches');
+      }
     });
-  }
+  }, [eventId, startTransition]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -311,18 +324,20 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
   if (!loaded) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <SectionHeader title="Matches" />
-          <button
-            onClick={loadMatches}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
-          >
-            Load matches
-          </button>
-        </div>
-        <p className="text-sm text-[var(--text-muted)]">
-          Click &quot;Load matches&quot; to see and manage event matches.
-        </p>
+        <SectionHeader title="Matches" />
+        {loadError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-[var(--text-muted)]">Could not load matches.</p>
+            <button
+              onClick={loadMatches}
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--text-muted)]">Loading matches…</p>
+        )}
       </div>
     );
   }
@@ -506,6 +521,20 @@ export function EventMatchesTab({ eventId, squads, eventType, matchDurationMinut
                   cancelEdit={cancelEdit}
                   squads={squads}
                   refreshReport={refreshReport}
+                  lineupMatchId={lineupMatchId}
+                  onToggleLineup={(matchId) => setLineupMatchId(prev => prev === matchId ? null : matchId)}
+                  gameFormat={gameFormat}
+                  squadPlayers={squads.flatMap(s => s.players.map(sp => {
+                    const profile = playerProfiles.find(pp => pp.id === sp.playerId);
+                    return profile ? {
+                      id: profile.id,
+                      firstName: profile.firstName,
+                      lastName: profile.lastName,
+                      primaryPosition: profile.primaryPosition,
+                      goalkeeperAbility: profile.goalkeeperAbility ?? 'NO',
+                      isGK: profile.goalkeeperAbility === 'YES',
+                    } : null;
+                  })).filter(Boolean) as Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null; goalkeeperAbility: string; isGK: boolean }>}
                 />
               ))}
             </div>
@@ -599,6 +628,10 @@ function EventMatchCard({
   cancelEdit,
   squads,
   refreshReport,
+  lineupMatchId,
+  onToggleLineup,
+  gameFormat,
+  squadPlayers,
 }: {
   match: EventMatchWithReport;
   squadName: string;
@@ -638,6 +671,10 @@ function EventMatchCard({
   cancelEdit: () => void;
   squads: Array<{ id: string; name: string; intent: string; players: Array<{ playerId: string }> }>;
   refreshReport: () => void;
+  lineupMatchId: string | null;
+  onToggleLineup: (matchId: string) => void;
+  gameFormat: string;
+  squadPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null; goalkeeperAbility: string; isGK: boolean }>;
 }) {
   const [addingHelper, setAddingHelper] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -792,6 +829,14 @@ function EventMatchCard({
           >
             Delete
           </button>
+          {match.status !== 'CANCELLED' && (
+            <button
+              onClick={() => onToggleLineup(match.id)}
+              className="text-[10px] text-[var(--accent)] hover:underline ml-1"
+            >
+              {lineupMatchId === match.id ? '▼ Lineup' : '▶ Lineup'}
+            </button>
+          )}
         </div>
       </div>
       {match.location && (
@@ -1043,6 +1088,15 @@ function EventMatchCard({
       )}
       {expandedMatchId === match.id && isPending && !reportData && (
         <p className="mt-3 text-sm text-[var(--text-muted)]">Loading report...</p>
+      )}
+      {lineupMatchId === match.id && match.status !== 'CANCELLED' && (
+        <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
+          <EventMatchLineupPanel
+            eventMatchId={match.id}
+            squadPlayers={squadPlayers}
+            gameFormat={gameFormat}
+          />
+        </div>
       )}
     </div>
   );
