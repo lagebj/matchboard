@@ -6,7 +6,7 @@ import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
-import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions } from "@/lib/player-form-options";
+import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions as secondaryFootOpts, bestSideOptions, goalkeeperAbilityOptions } from "@/lib/player-form-options";
 
 import { PlayerProfileLayout } from "@/components/players/player-profile-layout";
 import { PlayerProfileHeader } from "@/components/players/player-profile-header";
@@ -192,6 +192,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             footOptions={preferredFootOptions}
             secondaryFootOptions={secondaryFootOpts}
             bestSideOptions={bestSideOptions}
+            goalkeeperAbilityOptions={goalkeeperAbilityOptions}
             updateFieldAction={updatePlayerFieldAction}
           />
         }
