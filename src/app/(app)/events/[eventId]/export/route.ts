@@ -2,19 +2,59 @@ import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
-import { formatGameFormat } from '@/lib/formatters/game-format';
-import { MATCH_CATEGORY_LABELS } from '@/lib/stats/match-category';
 import {
-  formatEventType,
-  formatEventSquadIntent,
-  formatEventPlayerStatus,
   formatEventMatchStatus,
   formatGoalkeeperAbility,
   formatPlayerName,
 } from '@/lib/formatters/event-labels';
 import { safeEventExportFilename } from '@/lib/formatters/event-export-filename';
-import { getEventMatchWindow } from '@/lib/events/event-match-time';
-import { checkSupportConflicts } from '@/lib/events/event-match-support';
+import { checkSupportConflicts, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
+
+type SquadPlayer = {
+  playerId: string;
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    primaryPosition: string | null;
+    secondaryPosition: string | null;
+    tertiaryPosition: string | null;
+    goalkeeperAbility: string | null;
+  };
+};
+
+type EventSquadData = {
+  id: string;
+  name: string;
+  generationOrder: number;
+  players: SquadPlayer[];
+};
+
+type SupportAssignment = {
+  id: string;
+  eventMatchId: string;
+  playerId: string;
+  sourceEventSquadId: string;
+  targetEventSquadId: string;
+  plannedRole: string | null;
+  note: string | null;
+  player: { id: string; firstName: string; lastName: string | null };
+  sourceEventSquad: { id: string; name: string };
+  targetEventSquad: { id: string; name: string };
+};
+
+type EventMatchData = {
+  id: string;
+  eventSquadId: string;
+  category: string;
+  opponentName: string;
+  startsAt: Date;
+  location: string | null;
+  status: string;
+  cancelledAt: Date | null;
+  eventSquad: { id: string; name: string };
+  supportAssignments: SupportAssignment[];
+};
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +82,7 @@ export async function GET(
                 },
               },
             },
+            orderBy: { lineupOrder: 'asc' },
           },
         },
         orderBy: { generationOrder: 'asc' },
@@ -53,11 +94,6 @@ export async function GET(
               id: true,
               firstName: true,
               lastName: true,
-              primaryPosition: true,
-              secondaryPosition: true,
-              tertiaryPosition: true,
-              goalkeeperAbility: true,
-              coreTeamId: true,
             },
           },
         },
@@ -69,34 +105,20 @@ export async function GET(
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
   }
 
-  const eventMatches = await db.eventMatch.findMany({
+  const eventMatches: EventMatchData[] = await db.eventMatch.findMany({
     where: { eventId },
     include: {
       eventSquad: { select: { id: true, name: true } },
-      postMatchReport: {
-        select: {
-          id: true,
-          status: true,
-          ourScore: true,
-          opponentScore: true,
-        },
-      },
       supportAssignments: {
         include: {
-          player: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
+          player: { select: { id: true, firstName: true, lastName: true } },
           sourceEventSquad: { select: { id: true, name: true } },
           targetEventSquad: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'asc' },
       },
     },
-    orderBy: { startsAt: 'asc' },
+    orderBy: [{ startsAt: 'asc' }, { eventSquadId: 'asc' }],
   });
 
   const matchDurationMinutes = event.matchDurationMinutes ?? 0;
@@ -151,125 +173,94 @@ export async function GET(
     squadNames,
   });
 
+  const squadPlayerMap = new Map<string, SquadPlayer[]>();
+  for (const squad of event.squads) {
+    squadPlayerMap.set(squad.id, squad.players);
+  }
+
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Matchboard';
   workbook.created = new Date();
 
-  buildOverviewSheet(workbook, event, eventMatches, supportConflictData, matchDurationMinutes);
-  buildSquadsSheet(workbook, event);
-  buildMatchPlanSheet(workbook, eventMatches, matchDurationMinutes, supportConflictData, playerNames, squadNames);
-  buildSupportPlanSheet(workbook, eventMatches, matchDurationMinutes, supportConflictData, playerNames, squadNames);
-  buildSupportLoadSheet(workbook, supportConflictData, playerNames, squadNames);
-  buildConflictsSheet(workbook, supportConflictData, playerNames, squadNames, eventMatches, matchDurationMinutes);
+  buildSquadsSheet(workbook, event.squads);
+  buildMatchCallOutSheet(workbook, eventMatches, matchDurationMinutes, squadPlayerMap, supportConflictData);
+  buildConflictsSheet(workbook, supportConflictData, eventMatches, matchDurationMinutes);
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = safeEventExportFilename(event.name, event.startsAt);
 
   return new NextResponse(buffer, {
     headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Type': 'application/vnd.openxmlformats-offencedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,
     },
   });
 }
 
-function addHeaderRow(ws: ExcelJS.Worksheet, headers: string[]) {
+function addHeaderRow(ws: ExcelJS.Worksheet, headers: string[], widths: number[]) {
   const row = ws.addRow(headers);
   row.eachCell((cell) => {
     cell.font = { bold: true };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
   });
   ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 0 }];
-}
-
-function autoWidth(ws: ExcelJS.Worksheet) {
-  ws.columns.forEach((col) => {
-    let maxLen = 0;
-    col.eachCell?.({ includeEmpty: false }, (cell) => {
-      const len = String(cell.value ?? '').length;
-      if (len > maxLen) maxLen = len;
-    });
-    col.width = Math.max(maxLen + 2, 10);
+  headers.forEach((_, i) => {
+    ws.getColumn(i + 1).width = widths[i];
   });
 }
 
-function buildOverviewSheet(
-  workbook: ExcelJS.Workbook,
-  event: {
-    name: string;
-    eventType: string;
-    gameFormat: string;
-    startsAt: Date;
-    endsAt: Date | null;
-    matchDurationMinutes: number | null;
-    squads: unknown[];
-  },
-  eventMatches: { status: string; supportAssignments: unknown[] }[],
-  supportConflictData: { isConflict: boolean }[],
-  matchDurationMinutes: number,
-) {
-  const ws = workbook.addWorksheet('Overview');
-  const conflictCount = supportConflictData.filter((d) => d.isConflict).length;
-  const completedMatches = eventMatches.filter(
-    (m) => m.status === 'SCHEDULED' || m.status === 'CANCELLED',
-  ).length;
+function formatHelperDisplay(
+  assignments: SupportAssignment[],
+  conflictData: SupportAssignmentWithConflict[],
+): string {
+  if (assignments.length === 0) return 'None';
 
-  const data: [string, string][] = [
-    ['Event', event.name],
-    ['Type', formatEventType(event.eventType)],
-    ['Game format', formatGameFormat(event.gameFormat)],
-    ['Date', formatDate(event.startsAt)],
-    ['End date', event.endsAt ? formatDate(event.endsAt) : '—'],
-    ['Match duration', event.matchDurationMinutes ? `${event.matchDurationMinutes} minutes` : 'Not set'],
-    ['Squads', String(event.squads.length)],
-    ['Matches', String(eventMatches.length)],
-    ['Planned helpers', String(eventMatches.reduce((sum, m) => sum + m.supportAssignments.length, 0))],
-    ['Support conflicts', String(conflictCount)],
-    ['Exported', formatDateTime(new Date())],
-  ];
+  return assignments
+    .map((a) => {
+      const name = formatPlayerName(a.player.firstName, a.player.lastName);
+      const source = a.sourceEventSquad.name;
+      const role = a.plannedRole ? `, ${a.plannedRole}` : '';
+      const conflict = conflictData.find((c) => c.id === a.id);
+      const conflictMark = conflict?.isConflict ? ' — conflict' : '';
+      return `${name} (from ${source}${role})${conflictMark}`;
+    })
+    .join('\n');
+}
 
-  addHeaderRow(ws, ['Property', 'Value']);
-  for (const [label, value] of data) {
-    ws.addRow([label, value]);
-  }
-  autoWidth(ws);
+function formatAllInvolvedPlayers(
+  squadPlayers: SquadPlayer[],
+  assignments: SupportAssignment[],
+  conflictData: SupportAssignmentWithConflict[],
+): string {
+  const baseNames = squadPlayers.map((p) =>
+    formatPlayerName(p.player.firstName, p.player.lastName),
+  );
+
+  const helperNames = assignments.map((a) => {
+    const name = formatPlayerName(a.player.firstName, a.player.lastName);
+    const source = a.sourceEventSquad.name;
+    const conflict = conflictData.find((c) => c.id === a.id);
+    const conflictMark = conflict?.isConflict ? ' — conflict' : '';
+    return `${name} [helper from ${source}]${conflictMark}`;
+  });
+
+  return [...baseNames, ...helperNames].join('\n');
 }
 
 function buildSquadsSheet(
   workbook: ExcelJS.Workbook,
-  event: {
-    squads: {
-      name: string;
-      intent: string;
-      players: {
-        player: {
-          firstName: string;
-          lastName: string | null;
-          primaryPosition: string | null;
-          secondaryPosition: string | null;
-          tertiaryPosition: string | null;
-          goalkeeperAbility: string | null;
-        };
-      }[];
-    }[];
-  },
+  squads: EventSquadData[],
 ) {
   const ws = workbook.addWorksheet('Squads');
-  addHeaderRow(ws, [
-    'Squad',
-    'Intent',
-    'Player',
-    'Primary position',
-    'Secondary position',
-    'Tertiary position',
-    'Goalkeeper ability',
-  ]);
+  const headers = ['Squad', 'Player', 'Primary position', 'Secondary position', 'Tertiary position', 'GK'];
+  const widths = [18, 24, 16, 16, 16, 10];
+  addHeaderRow(ws, headers, widths);
 
-  for (const squad of event.squads) {
-    for (const p of squad.players) {
+  for (const squad of squads) {
+    for (let i = 0; i < squad.players.length; i++) {
+      const p = squad.players[i];
       ws.addRow([
-        squad.name,
-        formatEventSquadIntent(squad.intent),
+        i === 0 ? squad.name : '',
         formatPlayerName(p.player.firstName, p.player.lastName),
         p.player.primaryPosition ?? '—',
         p.player.secondaryPosition ?? '—',
@@ -277,272 +268,129 @@ function buildSquadsSheet(
         formatGoalkeeperAbility(p.player.goalkeeperAbility),
       ]);
     }
+    if (squad !== squads[squads.length - 1]) {
+      ws.addRow([]);
+    }
   }
-  autoWidth(ws);
+
+  ws.getColumn(1).width = 18;
+  ws.getColumn(2).width = 24;
+  ws.getColumn(3).width = 16;
+  ws.getColumn(4).width = 16;
+  ws.getColumn(5).width = 16;
+  ws.getColumn(6).width = 10;
 }
 
-function buildMatchPlanSheet(
+function buildMatchCallOutSheet(
   workbook: ExcelJS.Workbook,
-  eventMatches: {
-    id: string;
-    category: string;
-    opponentName: string;
-    startsAt: Date;
-    location: string | null;
-    status: string;
-    cancelledAt: Date | null;
-    eventSquad: { id: string; name: string };
-    postMatchReport: {
-      id: string;
-      status: string;
-      ourScore: number | null;
-      opponentScore: number | null;
-    } | null;
-    supportAssignments: {
-      playerId: string;
-      player: { firstName: string; lastName: string | null };
-      sourceEventSquadId: string;
-      sourceEventSquad: { id: string; name: string };
-      plannedRole: string | null;
-    }[];
-  }[],
+  eventMatches: EventMatchData[],
   matchDurationMinutes: number,
-  supportConflictData: {
-    eventMatchId: string;
-    playerId: string;
-    isConflict: boolean;
-  }[],
-  playerNames: Map<string, { firstName: string; lastName: string | null }>,
-  squadNames: Map<string, string>,
+  squadPlayerMap: Map<string, SquadPlayer[]>,
+  conflictData: SupportAssignmentWithConflict[],
 ) {
-  const ws = workbook.addWorksheet('Match plan');
-  addHeaderRow(ws, [
-    'Squad',
-    'Opponent',
-    'Category',
-    'Date',
-    'Start',
-    'End',
-    'Location',
-    'Status',
-    'Score',
-    'Report',
-    'Planned helpers',
-    'Helper source squads',
-    'Conflict count',
-  ]);
+  const ws = workbook.addWorksheet('Match call-out');
+  const headers = [
+    'Date', 'Start', 'End', 'Squad', 'Opponent', 'Location / pitch',
+    'Category', 'Status',
+    'Base squad players', 'Helpers', 'All involved players',
+    'Notes / conflicts',
+  ];
+  const widths = [12, 8, 8, 18, 22, 18, 10, 12, 45, 35, 55, 40];
+  addHeaderRow(ws, headers, widths);
 
   for (const m of eventMatches) {
     const endTime = matchDurationMinutes > 0
       ? new Date(m.startsAt.getTime() + matchDurationMinutes * 60 * 1000)
       : null;
 
-    const matchConflicts = supportConflictData.filter((c) => c.eventMatchId === m.id);
-    const conflictCount = matchConflicts.filter((c) => c.isConflict).length;
+    const matchConflicts = conflictData.filter((c) => c.eventMatchId === m.id);
+    const squadPlayers = squadPlayerMap.get(m.eventSquadId) ?? [];
 
-    const helperNames = m.supportAssignments.map((a) =>
-      formatPlayerName(a.player.firstName, a.player.lastName),
-    );
-    const sourceSquadNames = m.supportAssignments.map((a) => a.sourceEventSquad.name);
+    const baseSquadNames = squadPlayers
+      .map((p) => formatPlayerName(p.player.firstName, p.player.lastName))
+      .join('\n') || 'None';
 
-    const score = m.postMatchReport?.ourScore !== null && m.postMatchReport?.ourScore !== undefined
-      ? `${m.postMatchReport.ourScore}-${m.postMatchReport.opponentScore}`
-      : '—';
+    const helpersDisplay = formatHelperDisplay(m.supportAssignments, matchConflicts);
 
-    const reportStatus = m.postMatchReport
-      ? (MATCH_CATEGORY_LABELS as Record<string, string>)[m.postMatchReport.status] ?? m.postMatchReport.status
-      : '—';
+    const allInvolved = formatAllInvolvedPlayers(squadPlayers, m.supportAssignments, matchConflicts);
 
-    ws.addRow([
-      m.eventSquad.name,
-      m.opponentName,
-      (MATCH_CATEGORY_LABELS as Record<string, string>)[m.category] ?? m.category,
+    const notes: string[] = [];
+    if (m.status === 'CANCELLED') {
+      notes.push('Cancelled');
+    }
+    if (!endTime) {
+      notes.push('Duration not set');
+    }
+    for (const c of matchConflicts.filter((c) => c.isConflict)) {
+      const conflictEntry = conflictData.find((d) => d.id === c.id);
+      const playerName = conflictEntry
+        ? formatPlayerName(conflictEntry.firstName, conflictEntry.lastName)
+        : 'Unknown player';
+      notes.push(`${playerName}: ${c.conflictReason ?? 'Conflict'}`);
+    }
+    const notesText = notes.length > 0 ? notes.join('\n') : 'OK';
+
+    const row = ws.addRow([
       formatDate(m.startsAt),
       formatTime(m.startsAt),
-      endTime ? formatTime(endTime) : 'Duration not set',
+      endTime ? formatTime(endTime) : '—',
+      m.eventSquad.name,
+      m.opponentName,
       m.location ?? '—',
+      m.category,
       formatEventMatchStatus(m.status),
-      score,
-      reportStatus,
-      helperNames.length > 0 ? helperNames.join(', ') : 'None',
-      sourceSquadNames.length > 0 ? sourceSquadNames.join(', ') : '—',
-      conflictCount,
+      baseSquadNames,
+      helpersDisplay,
+      allInvolved,
+      notesText,
     ]);
-  }
-  autoWidth(ws);
-}
 
-function buildSupportPlanSheet(
-  workbook: ExcelJS.Workbook,
-  eventMatches: {
-    id: string;
-    category: string;
-    opponentName: string;
-    startsAt: Date;
-    status: string;
-    eventSquad: { id: string; name: string };
-    supportAssignments: {
-      id: string;
-      playerId: string;
-      player: { firstName: string; lastName: string | null };
-      sourceEventSquadId: string;
-      sourceEventSquad: { id: string; name: string };
-      plannedRole: string | null;
-      note: string | null;
-    }[];
-  }[],
-  matchDurationMinutes: number,
-  supportConflictData: {
-    id: string;
-    eventMatchId: string;
-    playerId: string;
-    firstName: string;
-    lastName: string | null;
-    sourceEventSquadName: string;
-    isConflict: boolean;
-    conflictReason: string | null;
-    plannedRole: string | null;
-    note: string | null;
-  }[],
-  playerNames: Map<string, { firstName: string; lastName: string | null }>,
-  squadNames: Map<string, string>,
-) {
-  const ws = workbook.addWorksheet('Support plan');
-  addHeaderRow(ws, [
-    'Match start',
-    'Match end',
-    'Target squad',
-    'Opponent',
-    'Helper',
-    'Source squad',
-    'Planned role',
-    'Note',
-    'Conflict',
-    'Conflict reason',
-  ]);
-
-  for (const m of eventMatches) {
-    const endTime = matchDurationMinutes > 0
-      ? new Date(m.startsAt.getTime() + matchDurationMinutes * 60 * 1000)
-      : null;
-
-    for (const a of m.supportAssignments) {
-      const conflict = supportConflictData.find((c) => c.id === a.id);
-      ws.addRow([
-        formatTime(m.startsAt),
-        endTime ? formatTime(endTime) : 'Duration not set',
-        m.eventSquad.name,
-        m.opponentName,
-        formatPlayerName(a.player.firstName, a.player.lastName),
-        a.sourceEventSquad.name,
-        a.plannedRole ?? '—',
-        a.note ?? '—',
-        conflict?.isConflict ? 'Conflict' : 'OK',
-        conflict?.conflictReason ?? '—',
-      ]);
-    }
-  }
-  autoWidth(ws);
-}
-
-function buildSupportLoadSheet(
-  workbook: ExcelJS.Workbook,
-  supportConflictData: {
-    playerId: string;
-    firstName: string;
-    lastName: string | null;
-    sourceEventSquadName: string;
-    isConflict: boolean;
-  }[],
-  playerNames: Map<string, { firstName: string; lastName: string | null }>,
-  squadNames: Map<string, string>,
-) {
-  const ws = workbook.addWorksheet('Support load');
-
-  const helperMap = new Map<string, {
-    name: string;
-    sourceSquad: string;
-    matchCount: number;
-    conflictCount: number;
-  }>();
-
-  for (const a of supportConflictData) {
-    const existing = helperMap.get(a.playerId);
-    if (existing) {
-      existing.matchCount++;
-      if (a.isConflict) existing.conflictCount++;
-    } else {
-      helperMap.set(a.playerId, {
-        name: formatPlayerName(a.firstName, a.lastName),
-        sourceSquad: a.sourceEventSquadName,
-        matchCount: 1,
-        conflictCount: a.isConflict ? 1 : 0,
-      });
-    }
+    row.eachCell((cell, colNumber) => {
+      if (colNumber >= 9 && colNumber <= 12) {
+        cell.alignment = { wrapText: true, vertical: 'top' };
+      }
+    });
   }
 
-  addHeaderRow(ws, [
-    'Helper',
-    'Source squad',
-    'Support matches',
-    'Conflict count',
-  ]);
-
-  for (const [, info] of helperMap) {
-    ws.addRow([
-      info.name,
-      info.sourceSquad,
-      info.matchCount,
-      info.conflictCount,
-    ]);
-  }
-  autoWidth(ws);
+  ws.getColumn(1).width = 12;
+  ws.getColumn(2).width = 8;
+  ws.getColumn(3).width = 8;
+  ws.getColumn(4).width = 18;
+  ws.getColumn(5).width = 22;
+  ws.getColumn(6).width = 18;
+  ws.getColumn(7).width = 10;
+  ws.getColumn(8).width = 12;
+  ws.getColumn(9).width = 45;
+  ws.getColumn(10).width = 35;
+  ws.getColumn(11).width = 55;
+  ws.getColumn(12).width = 40;
 }
 
 function buildConflictsSheet(
   workbook: ExcelJS.Workbook,
-  supportConflictData: {
-    eventMatchId: string;
-    playerId: string;
-    firstName: string;
-    lastName: string | null;
-    sourceEventSquadName: string;
-    isConflict: boolean;
-    conflictReason: string | null;
-  }[],
-  playerNames: Map<string, { firstName: string; lastName: string | null }>,
-  squadNames: Map<string, string>,
-  eventMatches: {
-    id: string;
-    opponentName: string;
-    startsAt: Date;
-    eventSquad: { name: string };
-  }[],
+  supportConflictData: SupportAssignmentWithConflict[],
+  eventMatches: EventMatchData[],
   matchDurationMinutes: number,
 ) {
-  const ws = workbook.addWorksheet('Conflicts');
   const conflicts = supportConflictData.filter((c) => c.isConflict);
 
-  if (conflicts.length === 0) {
-    addHeaderRow(ws, ['Status']);
-    ws.addRow(['No support conflicts']);
-    autoWidth(ws);
-    return;
-  }
+  if (conflicts.length === 0) return;
 
-  addHeaderRow(ws, [
-    'Match start',
-    'Target squad',
-    'Opponent',
-    'Helper',
-    'Source squad',
-    'Conflict reason',
-  ]);
+  const ws = workbook.addWorksheet('Conflicts');
+  const headers = ['Match time', 'Target squad', 'Opponent', 'Helper', 'Source squad', 'Conflict reason'];
+  const widths = [14, 18, 22, 24, 18, 30];
+  addHeaderRow(ws, headers, widths);
 
   for (const c of conflicts) {
     const match = eventMatches.find((m) => m.id === c.eventMatchId);
+    const matchTime = match ? formatTime(match.startsAt) : '—';
+    const endTime = match && matchDurationMinutes > 0
+      ? formatTime(new Date(match.startsAt.getTime() + matchDurationMinutes * 60 * 1000))
+      : null;
+    const matchTimeDisplay = endTime ? `${matchTime}–${endTime}` : matchTime;
+
     ws.addRow([
-      match ? formatTime(match.startsAt) : '—',
+      matchTimeDisplay,
       match?.eventSquad.name ?? '—',
       match?.opponentName ?? '—',
       formatPlayerName(c.firstName, c.lastName),
@@ -550,7 +398,13 @@ function buildConflictsSheet(
       c.conflictReason ?? '—',
     ]);
   }
-  autoWidth(ws);
+
+  ws.getColumn(1).width = 14;
+  ws.getColumn(2).width = 18;
+  ws.getColumn(3).width = 22;
+  ws.getColumn(4).width = 24;
+  ws.getColumn(5).width = 18;
+  ws.getColumn(6).width = 30;
 }
 
 function formatDate(date: Date): string {
@@ -559,14 +413,4 @@ function formatDate(date: Date): string {
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDateTime(date: Date): string {
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }

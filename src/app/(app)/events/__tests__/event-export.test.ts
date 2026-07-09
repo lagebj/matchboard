@@ -18,11 +18,49 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
-function getOverviewValue(ws: ExcelJS.Worksheet, label: string): string | null {
+function getCellText(cell: ExcelJS.Cell): string {
+  const value = cell.value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) {
+    return value.map((v) => {
+      if (typeof v === 'string') return v;
+      if (v && typeof v === 'object' && 'text' in v) return (v as { text: string }).text;
+      if (v && typeof v === 'object' && 'richText' in v) {
+        return (v as { richText: { text: string }[] }).richText.map((r) => r.text).join('');
+      }
+      return String(v);
+    }).join('');
+  }
+  if (typeof value === 'object' && 'richText' in value) {
+    return (value as { richText: { text: string }[] }).richText.map((r) => r.text).join('');
+  }
+  return String(value);
+}
+
+function getHeaderIndex(ws: ExcelJS.Worksheet, headerText: string): number {
+  const headerRow = ws.getRow(1);
+  let colIndex = 1;
+  let found = false;
+  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    const text = getCellText(cell);
+    if (text === headerText) {
+      colIndex = colNumber;
+      found = true;
+    }
+  });
+  return found ? colIndex : -1;
+}
+
+function findRowByCellContaining(ws: ExcelJS.Worksheet, colNumber: number, substring: string): ExcelJS.Row | null {
   for (let i = 2; i <= ws.rowCount; i++) {
     const row = ws.getRow(i);
-    if (String(row.getCell(1).value ?? '') === label) {
-      return String(row.getCell(2).value ?? '');
+    const cellValue = getCellText(row.getCell(colNumber));
+    if (cellValue.includes(substring)) {
+      return row;
     }
   }
   return null;
@@ -128,12 +166,12 @@ describe('Event export route', () => {
     return { response, workbook };
   }
 
-  it('generates xlsx with expected sheets', async () => {
+  it('generates xlsx with Squads and Match call-out sheets', async () => {
     const { event } = await createTestEvent();
     const { response, workbook } = await exportWorkbook(event.id);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('Content-Type')).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(response.headers.get('Content-Type')).toContain('spreadsheetml');
 
     const disposition = response.headers.get('Content-Disposition')!;
     expect(disposition).toContain('attachment');
@@ -141,41 +179,64 @@ describe('Event export route', () => {
     expect(disposition).toContain('export-test-cup');
 
     const sheetNames = workbook.worksheets.map((ws) => ws.name);
-    expect(sheetNames).toContain('Overview');
     expect(sheetNames).toContain('Squads');
-    expect(sheetNames).toContain('Match plan');
-    expect(sheetNames).toContain('Support plan');
-    expect(sheetNames).toContain('Support load');
-    expect(sheetNames).toContain('Conflicts');
+    expect(sheetNames).toContain('Match call-out');
+    expect(sheetNames).not.toContain('Overview');
+    expect(sheetNames).not.toContain('Support plan');
+    expect(sheetNames).not.toContain('Support load');
+    expect(sheetNames).not.toContain('Match plan');
   });
 
-  it('overview sheet contains event name, game format, and duration', async () => {
+  it('Squads sheet contains each squad and player with correct columns', async () => {
     const { event } = await createTestEvent();
     const { workbook } = await exportWorkbook(event.id);
 
-    const ws = workbook.getWorksheet('Overview')!;
-    expect(getOverviewValue(ws, 'Event')).toBe('Export Test Cup');
-    expect(getOverviewValue(ws, 'Game format')).toBe('7-a-side');
-    expect(getOverviewValue(ws, 'Match duration')).toBe('20 minutes');
-    expect(getOverviewValue(ws, 'Type')).toBe('Cup');
-  });
-
-  it('match plan sheet contains matches with headers', async () => {
-    const { event } = await createTestEvent();
-    const { workbook } = await exportWorkbook(event.id);
-
-    const ws = workbook.getWorksheet('Match plan')!;
-    const headerRow = ws.getRow(1);
-    const headers = (headerRow.values as (string | undefined)[]).map((v) => String(v ?? ''));
+    const ws = workbook.getWorksheet('Squads')!;
+    const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
     expect(headers).toContain('Squad');
-    expect(headers).toContain('Opponent');
+    expect(headers).toContain('Player');
+    expect(headers).toContain('Primary position');
+    expect(headers).toContain('GK');
+
+    expect(headers).not.toContain('Intent');
+    expect(headers).not.toContain('Selection reason');
+    expect(headers).not.toContain('Rating');
+    expect(headers).not.toContain('ID');
+
+    expect(ws.rowCount - 1).toBeGreaterThanOrEqual(6);
+  });
+
+  it('Squads sheet does not include ratings or internal IDs', async () => {
+    const { event } = await createTestEvent();
+    const { workbook } = await exportWorkbook(event.id);
+
+    const ws = workbook.getWorksheet('Squads')!;
+    const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
+    expect(headers).not.toContain('Overall');
+    expect(headers).not.toContain('Rating');
+    expect(headers).not.toContain('ID');
+  });
+
+  it('Match call-out sheet contains one row per match with required columns', async () => {
+    const { event } = await createTestEvent();
+    const { workbook } = await exportWorkbook(event.id);
+
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
+    expect(headers).toContain('Date');
     expect(headers).toContain('Start');
     expect(headers).toContain('End');
+    expect(headers).toContain('Squad');
+    expect(headers).toContain('Opponent');
+    expect(headers).toContain('Base squad players');
+    expect(headers).toContain('Helpers');
+    expect(headers).toContain('All involved players');
+    expect(headers).toContain('Notes / conflicts');
 
     expect(ws.rowCount - 1).toBeGreaterThanOrEqual(2);
   });
 
-  it('support plan sheet includes helpers with conflict status', async () => {
+  it('Match call-out includes base squad players and helpers with source squad', async () => {
     const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
 
     await testDb.eventMatchSupportAssignment.create({
@@ -190,16 +251,19 @@ describe('Event export route', () => {
 
     const { workbook } = await exportWorkbook(event.id);
 
-    const ws = workbook.getWorksheet('Support plan')!;
-    const headerRow = ws.getRow(1);
-    const headers = (headerRow.values as (string | undefined)[]).map((v) => String(v ?? ''));
-    expect(headers).toContain('Helper');
-    expect(headers).toContain('Source squad');
-    expect(headers).toContain('Planned role');
-    expect(headers).toContain('Conflict');
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const squadCol = getHeaderIndex(ws, 'Squad');
+    const helpersCol = getHeaderIndex(ws, 'Helpers');
+
+    const match2Row = findRowByCellContaining(ws, squadCol, 'Rød');
+    expect(match2Row).toBeDefined();
+
+    const helpersValue = getCellText(match2Row!.getCell(helpersCol));
+    expect(helpersValue).toContain('from Blå');
+    expect(helpersValue).toContain('Defender cover');
   });
 
-  it('support load sheet aggregates helpers', async () => {
+  it('All involved players includes base squad and helpers', async () => {
     const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
 
     await testDb.eventMatchSupportAssignment.create({
@@ -208,30 +272,40 @@ describe('Event export route', () => {
         playerId: blaPlayers[0].id,
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
-        plannedRole: 'General cover',
       },
     });
 
     const { workbook } = await exportWorkbook(event.id);
 
-    const ws = workbook.getWorksheet('Support load')!;
-    const headerRow = ws.getRow(1);
-    const headers = (headerRow.values as (string | undefined)[]).map((v) => String(v ?? ''));
-    expect(headers).toContain('Helper');
-    expect(headers).toContain('Source squad');
-    expect(headers).toContain('Support matches');
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const squadCol = getHeaderIndex(ws, 'Squad');
+    const allInvolvedCol = getHeaderIndex(ws, 'All involved players');
+
+    const match2Row = findRowByCellContaining(ws, squadCol, 'Rød');
+    expect(match2Row).toBeDefined();
+
+    const allInvolved = getCellText(match2Row!.getCell(allInvolvedCol));
+    expect(allInvolved).toContain('[helper from Blå]');
   });
 
-  it('conflicts sheet shows no conflicts when support is valid', async () => {
+  it('Match call-out shows None for helpers when no support', async () => {
     const { event } = await createTestEvent();
     const { workbook } = await exportWorkbook(event.id);
 
-    const ws = workbook.getWorksheet('Conflicts')!;
-    const firstDataRow = ws.getRow(2);
-    expect(String(firstDataRow.getCell(1).value ?? '')).toBe('No support conflicts');
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const helpersCol = getHeaderIndex(ws, 'Helpers');
+    const squadCol = getHeaderIndex(ws, 'Squad');
+
+    for (let i = 2; i <= ws.rowCount; i++) {
+      const row = ws.getRow(i);
+      const squadValue = getCellText(row.getCell(squadCol));
+      if (!squadValue.trim()) continue;
+      const helpers = getCellText(row.getCell(helpersCol));
+      expect(helpers).toBe('None');
+    }
   });
 
-  it('handles missing match duration gracefully', async () => {
+  it('Match call-out shows Duration not set note when event has no duration', async () => {
     const event = await testDb.event.create({
       data: {
         name: 'No Duration Cup',
@@ -251,6 +325,18 @@ describe('Event export route', () => {
       },
     });
 
+    const blaTeamId = fixtureIds.teams['Bla']!;
+    const blaPlayers = fixtureIds.players.filter((p) => p.coreTeamId === blaTeamId);
+
+    for (const p of blaPlayers.slice(0, 3)) {
+      await testDb.eventPlayerAvailability.create({
+        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
+      });
+      await testDb.eventSquadPlayer.create({
+        data: { eventSquadId: squad.id, playerId: p.id, source: 'AUTO', locked: false },
+      });
+    }
+
     await testDb.eventMatch.create({
       data: {
         eventId: event.id,
@@ -264,27 +350,15 @@ describe('Event export route', () => {
 
     const { workbook } = await exportWorkbook(event.id);
 
-    const overviewWs = workbook.getWorksheet('Overview')!;
-    expect(getOverviewValue(overviewWs, 'Match duration')).toBe('Not set');
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const notesCol = getHeaderIndex(ws, 'Notes / conflicts');
 
-    const matchPlanWs = workbook.getWorksheet('Match plan')!;
-    const dataRows = matchPlanWs.getRows(2, matchPlanWs.rowCount - 1);
-    expect(dataRows).toBeDefined();
-    expect(dataRows!.length).toBeGreaterThanOrEqual(1);
-    const endCellValue = String(dataRows![0].getCell(6).value ?? '');
-    expect(endCellValue).toBe('Duration not set');
+    const dataRow = ws.getRow(2);
+    const notesValue = getCellText(dataRow.getCell(notesCol));
+    expect(notesValue).toContain('Duration not set');
   });
 
-  it('returns 404 for nonexistent event', async () => {
-    const { GET } = await import('@/app/(app)/events/[eventId]/export/route');
-    const request = new Request('http://localhost/events/nonexistent/export');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await GET(request as any, { params: Promise.resolve({ eventId: 'nonexistent' }) });
-
-    expect(response.status).toBe(404);
-  });
-
-  it('includes cancelled match in match plan', async () => {
+  it('Cancelled match is clearly marked in status and notes', async () => {
     const { event, squad1 } = await createTestEvent();
 
     await testDb.eventMatch.create({
@@ -302,24 +376,139 @@ describe('Event export route', () => {
 
     const { workbook } = await exportWorkbook(event.id);
 
-    const ws = workbook.getWorksheet('Match plan')!;
-    const dataRows = ws.getRows(2, ws.rowCount - 1);
-    expect(dataRows).toBeDefined();
-    expect(dataRows!.length).toBeGreaterThanOrEqual(3);
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const opponentCol = getHeaderIndex(ws, 'Opponent');
+    const statusCol = getHeaderIndex(ws, 'Status');
+    const notesCol = getHeaderIndex(ws, 'Notes / conflicts');
 
-    const cancelledRow = dataRows!.find((row) =>
-      String(row.getCell(2).value ?? '') === 'Cancelled Opponent',
-    );
+    const cancelledRow = findRowByCellContaining(ws, opponentCol, 'Cancelled Opponent');
     expect(cancelledRow).toBeDefined();
-    expect(String(cancelledRow!.getCell(8).value ?? '')).toBe('Cancelled');
+
+    const statusValue = getCellText(cancelledRow!.getCell(statusCol));
+    expect(statusValue).toBe('Cancelled');
+
+    const notesValue = getCellText(cancelledRow!.getCell(notesCol));
+    expect(notesValue).toContain('Cancelled');
   });
 
-  it('export uses friendly labels not enum values', async () => {
+  it('Conflicts sheet appears only when conflicts exist', async () => {
     const { event } = await createTestEvent();
     const { workbook } = await exportWorkbook(event.id);
 
-    const overviewWs = workbook.getWorksheet('Overview')!;
-    expect(getOverviewValue(overviewWs, 'Type')).toBe('Cup');
-    expect(getOverviewValue(overviewWs, 'Game format')).toBe('7-a-side');
+    const sheetNames = workbook.worksheets.map((ws) => ws.name);
+    expect(sheetNames).not.toContain('Conflicts');
+  });
+
+  it('Conflicts sheet appears when support conflicts exist', async () => {
+    const { event, squad1, squad2, match1, match2, blaPlayers } = await createTestEvent();
+
+    await testDb.eventMatchSupportAssignment.create({
+      data: {
+        eventMatchId: match2.id,
+        playerId: blaPlayers[0].id,
+        sourceEventSquadId: squad1.id,
+        targetEventSquadId: squad2.id,
+      },
+    });
+
+    await testDb.eventMatch.update({
+      where: { id: match1.id },
+      data: { startsAt: new Date('2026-07-01T10:15:00Z') },
+    });
+
+    const { workbook } = await exportWorkbook(event.id);
+
+    const sheetNames = workbook.worksheets.map((ws) => ws.name);
+    expect(sheetNames).toContain('Conflicts');
+
+    const ws = workbook.getWorksheet('Conflicts')!;
+    const headerRow = ws.getRow(1);
+    const headers = (headerRow.values as (string | undefined)[]).map((v) => String(v ?? ''));
+    expect(headers).toContain('Helper');
+    expect(headers).toContain('Source squad');
+    expect(headers).toContain('Conflict reason');
+    expect(headers).toContain('Match time');
+  });
+
+  it('returns 404 for nonexistent event', async () => {
+    const { GET } = await import('@/app/(app)/events/[eventId]/export/route');
+    const request = new Request('http://localhost/events/nonexistent/export');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await GET(request as any, { params: Promise.resolve({ eventId: 'nonexistent' }) });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('does not include Overview, Support plan, or Support load sheets', async () => {
+    const { event } = await createTestEvent();
+    const { workbook } = await exportWorkbook(event.id);
+
+    const sheetNames = workbook.worksheets.map((ws) => ws.name);
+    expect(sheetNames).not.toContain('Overview');
+    expect(sheetNames).not.toContain('Support plan');
+    expect(sheetNames).not.toContain('Support load');
+  });
+
+  it('Squads sheet does not include Intent column', async () => {
+    const { event } = await createTestEvent();
+    const { workbook } = await exportWorkbook(event.id);
+
+    const ws = workbook.getWorksheet('Squads')!;
+    const headers = (ws.getRow(1).values as (string | undefined)[]).map((v) => String(v ?? ''));
+    expect(headers).not.toContain('Intent');
+  });
+
+  it('export uses friendly match status labels', async () => {
+    const { event, squad1 } = await createTestEvent();
+
+    await testDb.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad1.id,
+        category: 'CUP',
+        opponentName: 'Cancelled Team',
+        startsAt: new Date('2026-07-01T12:00:00Z'),
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancelledReason: 'Weather',
+      },
+    });
+
+    const { workbook } = await exportWorkbook(event.id);
+
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const statusCol = getHeaderIndex(ws, 'Status');
+    const opponentCol = getHeaderIndex(ws, 'Opponent');
+
+    const cancelledRow = findRowByCellContaining(ws, opponentCol, 'Cancelled Team');
+    expect(cancelledRow).toBeDefined();
+    const statusValue = getCellText(cancelledRow!.getCell(statusCol));
+    expect(statusValue).toBe('Cancelled');
+  });
+
+  it('helper display includes source squad and role', async () => {
+    const { event, squad1, squad2, match2, blaPlayers } = await createTestEvent();
+
+    await testDb.eventMatchSupportAssignment.create({
+      data: {
+        eventMatchId: match2.id,
+        playerId: blaPlayers[0].id,
+        sourceEventSquadId: squad1.id,
+        targetEventSquadId: squad2.id,
+        plannedRole: 'GK cover',
+      },
+    });
+
+    const { workbook } = await exportWorkbook(event.id);
+
+    const ws = workbook.getWorksheet('Match call-out')!;
+    const squadCol = getHeaderIndex(ws, 'Squad');
+    const helpersCol = getHeaderIndex(ws, 'Helpers');
+
+    const match2Row = findRowByCellContaining(ws, squadCol, 'Rød');
+    expect(match2Row).toBeDefined();
+    const helpersValue = getCellText(match2Row!.getCell(helpersCol));
+    expect(helpersValue).toContain('(from Blå');
+    expect(helpersValue).toContain('GK cover');
   });
 });

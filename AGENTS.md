@@ -1385,7 +1385,7 @@ Rules:
 - `/events` — event list page (secondary destination, accessible from Fixtures or navigation)
 - `/events/new` — create event
 - `/events/[eventId]` — event detail/planning page
-- `/events/[eventId]/export` — GET route: Excel workbook export (Overview, Squads, Match plan, Support plan, Support load, Conflicts sheets)
+- `/events/[eventId]/export` — GET route: Excel workbook export (Squads, Match call-out, optional Conflicts sheets)
 - Events do not appear as primary sidebar items (the sidebar remains: Assistant, Fixtures, Teams, Players)
 - Events are accessible through Fixtures context or direct navigation
 
@@ -1411,7 +1411,7 @@ Rules:
 | `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches |
 | `src/lib/formatters/event-labels.ts` | Human-readable event type, squad intent, player status, match status, goalkeeper ability labels |
 | `src/lib/formatters/event-export-filename.ts` | Safe event export filename generation |
-| `src/app/(app)/events/[eventId]/export/route.ts` | GET route: Excel workbook export with 6 sheets (Overview, Squads, Match plan, Support plan, Support load, Conflicts) |
+| `src/app/(app)/events/[eventId]/export/route.ts` | GET route: Excel workbook export with Squads, Match call-out, and optional Conflicts sheets |
 
 ## Testing requirements
 

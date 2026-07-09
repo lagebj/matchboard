@@ -6064,194 +6064,180 @@ Feature: Matchboard football operations workspace
         Then the attendance dropdowns must not be editable
         And add goal/assist buttons must not be visible
 
-  Feature: Event export
+   Feature: Event export
 
-    As a coach
-    I want to export a complete event overview as an Excel workbook
-    So that I can use it for event preparation and execution
+     As a coach
+     I want to export a matchday call-out pack as an Excel workbook
+     So that I can quickly see which players belong to each squad and which players to call for each match
 
-    Background:
-      Given an active league season exists
-      And an event with at least one squad exists
+     Background:
+       Given an active league season exists
+       And an event with at least one squad exists
 
-    Rule: Event export is always available
+     Rule: Event export is always available
 
-      Scenario: Coach exports an event as Excel
-        Given an event with squads and scheduled matches
-        When the coach clicks "Export event" on the event detail page
-        Then an Excel workbook must be downloaded
-        And the filename must be based on the event name and date
-        And the Content-Type must be xlsx
-        And the Content-Disposition must include attachment
+       Scenario: Coach exports an event as Excel
+         Given an event with squads and scheduled matches
+         When the coach clicks "Export event" on the event detail page
+         Then an Excel workbook must be downloaded
+         And the filename must be based on the event name and date
+         And the Content-Type must be xlsx
+         And the Content-Disposition must include attachment
 
-      Scenario: Export works before post-match reports
-        Given an event with squads and scheduled matches but no reports
-        When the coach exports the event
-        Then the export must succeed
-        And the workbook must contain match plan data without scores
+       Scenario: Export works before post-match reports
+         Given an event with squads and scheduled matches but no reports
+         When the coach exports the event
+         Then the export must succeed
+         And the workbook must contain match call-out data without scores
 
-      Scenario: Export works for an event with no squads
-        Given an event with no squads and no matches
-        When the coach exports the event
-        Then the export must succeed
-        And the overview must show 0 squads and 0 matches
-        And the squads sheet must show no players
-        And the match plan sheet must show no matches
+       Scenario: Export works for an event with no squads
+         Given an event with no squads and no matches
+         When the coach exports the event
+         Then the export must succeed
+         And the Squads sheet must show no players
+         And the Match call-out sheet must show no matches
 
-      Scenario: Export works for an event with no matches
-        Given an event with squads but no matches
-        When the coach exports the event
-        Then the export must succeed
-        And the match plan sheet must show no matches
-        And the support plan sheet must show no helpers
+       Scenario: Export works for an event with no matches
+         Given an event with squads but no matches
+         When the coach exports the event
+         Then the export must succeed
+         And the Match call-out sheet must show no matches
 
-      Scenario: Export works for an event with missing match duration
-        Given an event with squads and matches but no match duration set
-        When the coach exports the event
-        Then the export must succeed
-        And the overview must show "Not set" for match duration
-        And the match plan must show "Duration not set" for end times
-        And support availability must be marked as not calculable
+       Scenario: Export works for an event with missing match duration
+         Given an event with squads and matches but no match duration set
+         When the coach exports the event
+         Then the export must succeed
+         And the Match call-out sheet must show "—" for end time
+         And the Notes column must contain "Duration not set"
 
-    Rule: Export requires authentication
+     Rule: Export requires authentication
 
-      Scenario: Unauthenticated request is rejected
-        Given an unauthenticated request to the event export route
-        Then the response must require authentication
-        And no event data must be returned
+       Scenario: Unauthenticated request is rejected
+         Given an unauthenticated request to the event export route
+         Then the response must require authentication
+         And no event data must be returned
 
-    Rule: Overview sheet
+     Rule: Workbook structure
 
-      Scenario: Overview sheet contains event metadata
-        Given an event named "Slemmestad Cup" of type CUP with game format 7-a-side and match duration 20 minutes
-        When the coach exports the event
-        Then the Overview sheet must contain the event name
-        And the Overview sheet must contain the event type as "Cup"
-        And the Overview sheet must contain the game format as "7-a-side"
-        And the Overview sheet must contain the match duration as "20 minutes"
-        And the Overview sheet must contain the number of squads
-        And the Overview sheet must contain the number of matches
-        And the Overview sheet must contain the export timestamp
+       Scenario: Workbook contains Squads and Match call-out sheets
+         Given an event with squads and scheduled matches
+         When the coach exports the event
+         Then the workbook must contain a "Squads" sheet
+         And the workbook must contain a "Match call-out" sheet
+         And the workbook must not contain an "Overview" sheet
+         And the workbook must not contain a "Support plan" sheet
+         And the workbook must not contain a "Support load" sheet
 
-    Rule: Squads sheet
+       Scenario: Conflicts sheet appears only when conflicts exist
+         Given an event with no support conflicts
+         When the coach exports the event
+         Then the workbook must not contain a "Conflicts" sheet
 
-      Scenario: Squads sheet lists players per squad
-        Given an event with 3 squads and assigned players
-        When the coach exports the event
-        Then the Squads sheet must have one row per player
-        And each row must contain squad name, player name, and position
-        And the sheet must not contain internal player IDs
-        And the sheet must not contain player ratings
+       Scenario: Conflicts sheet appears when support conflicts exist
+         Given an event with support conflicts
+         When the coach exports the event
+         Then the workbook must contain a "Conflicts" sheet
+         And the Conflicts sheet must list each conflict with match time, target squad, opponent, helper, source squad, and conflict reason
 
-    Rule: Match plan sheet
+     Rule: Squads sheet
 
-      Scenario: Match plan sheet lists all matches
-        Given an event with 9 scheduled matches
-        When the coach exports the event
-        Then the Match plan sheet must have one row per match
-        And each row must contain squad name, opponent, category, date, start time, and end time
-        And the end time must be derived from start time plus match duration
-        And category must show friendly labels like "Cup" not "CUP"
-        And status must show friendly labels like "Scheduled" not "SCHEDULED"
+       Scenario: Squads sheet lists players per squad
+         Given an event with 3 squads and assigned players
+         When the coach exports the event
+         Then the Squads sheet must have one row per player
+         And each row must contain squad name, player name, primary position, secondary position, tertiary position, and goalkeeper ability
+         And the sheet must not contain internal player IDs
+         And the sheet must not contain player ratings
+         And the sheet must not contain squad intent
+         And the sheet must not contain selection reasons
 
-      Scenario: Match plan includes cancelled matches
-        Given an event with a cancelled match
-        When the coach exports the event
-        Then the cancelled match must appear in the Match plan sheet
-        And the status must show "Cancelled"
+       Scenario: Squads sheet uses friendly goalkeeper ability labels
+         Given an event squad player with goalkeeperAbility YES
+         When the coach exports the event
+         Then goalkeeper ability must appear as "Yes" not "YES"
+         And a player with null goalkeeper ability must appear as "Not rated"
 
-      Scenario: Match plan includes planned helpers per match
-        Given an event with planned support assignments
-        When the coach exports the event
-        Then each match row must show planned helper names
-        And each match row must show helper source squad names
-        And each match row must show the conflict count
+       Scenario: Squads sheet separates squads with blank rows
+         Given an event with multiple squads
+         When the coach exports the event
+         Then the Squads sheet must have a blank row between each squad's players
 
-    Rule: Support plan sheet
+     Rule: Match call-out sheet
 
-      Scenario: Support plan sheet lists planned helpers
-        Given an event with support assignments for match Blå vs Opponent A
-        When the coach exports the event
-        Then the Support plan sheet must have one row per planned helper
-        And each row must contain match start time, match end time, target squad, opponent, helper name, source squad, planned role, and conflict status
+       Scenario: Match call-out sheet lists all matches
+         Given an event with scheduled matches
+         When the coach exports the event
+         Then the Match call-out sheet must have one row per match
+         And each row must contain date, start time, end time, squad, opponent, location, category, and status
 
-      Scenario: Support plan shows conflict status
-        Given a support assignment where the helper's own squad has an overlapping match
-        When the coach exports the event
-        Then the conflict column must show "Conflict"
-        And the conflict reason column must describe the conflict
+       Scenario: Match call-out includes cancelled matches
+         Given an event with a cancelled match
+         When the coach exports the event
+         Then the cancelled match must appear in the Match call-out sheet
+         And the status must show "Cancelled"
+         And the Notes column must contain "Cancelled"
 
-      Scenario: Support plan shows OK for valid assignments
-        Given a support assignment with no conflicts
-        When the coach exports the event
-        Then the conflict column must show "OK"
+       Scenario: Match call-out includes base squad players
+         Given an event with squads and assigned players
+         When the coach exports the event
+         Then each match row must list all base squad players
 
-    Rule: Support load sheet
+       Scenario: Match call-out includes helpers with source squad
+         Given an event with planned support assignments
+         When the coach exports the event
+         Then each match row must show helper names with source squad
+         And helpers must be shown as "Player Name (from Squad Name)"
+         And helpers with a planned role must include the role
+         And matches with no helpers must show "None"
 
-      Scenario: Support load aggregates helpers
-        Given a player assigned as helper for 2 matches
-        When the coach exports the event
-        Then the Support load sheet must have one row per helper
-        And the row must show the helper name, source squad, and number of support matches
-        And the row must show the conflict count
+       Scenario: Match call-out includes all involved players
+         Given an event with squads, matches, and support assignments
+         When the coach exports the event
+         Then each match row must have an "All involved players" column
+         And the column must list base squad players plus helper players
+         And helper players must be marked with "[helper from Squad Name]"
+         And a player must not be duplicated if they are in both base squad and helpers
 
-    Rule: Conflicts sheet
+       Scenario: Match call-out shows conflict information
+         Given a support assignment with a conflict
+         When the coach exports the event
+         Then the helper must be marked with "— conflict" in the Helpers column
+         And the Notes column must describe the conflict
 
-      Scenario: Conflicts sheet shows active conflicts
-        Given an event with 2 support conflicts
-        When the coach exports the event
-        Then the Conflicts sheet must list each conflict
-        And each conflict row must contain match time, target squad, opponent, helper name, source squad, and conflict reason
+       Scenario: Match call-out shows OK when no issues
+         Given an event with matches and no conflicts or issues
+         When the coach exports the event
+         Then the Notes column must show "OK"
 
-      Scenario: No conflicts shows empty state
-        Given an event with no support conflicts
-        When the coach exports the event
-        Then the Conflicts sheet must show "No support conflicts"
+       Scenario: Match call-out shows Duration not set when missing
+         Given an event with matches but no match duration
+         When the coach exports the event
+         Then the End column must show "—"
+         And the Notes column must contain "Duration not set"
 
-    Rule: Export uses friendly labels
+     Rule: Export uses friendly labels
 
-      Scenario: Export uses friendly game format labels
-        Given an event with game format SEVEN_A_SIDE
-        When the coach exports the event
-        Then game format must appear as "7-a-side" not "SEVEN_A_SIDE"
+       Scenario: Export uses friendly match status labels
+         Given an event with SCHEDULED and CANCELLED matches
+         When the coach exports the event
+         Then status must appear as "Scheduled" and "Cancelled" not "SCHEDULED" and "CANCELLED"
 
-      Scenario: Export uses friendly event type labels
-        Given an event with type CUP
-        When the coach exports the event
-        Then event type must appear as "Cup" not "CUP"
+     Rule: Export does not expose internal data
 
-      Scenario: Export uses friendly match category labels
-        Given an event with CUP matches
-        When the coach exports the event
-        Then match category must appear as "Cup" not "CUP"
+       Scenario: Export does not expose player ratings
+         Given an event with players who have numeric ratings
+         When the coach exports the event
+         Then the Squads sheet must not contain any rating columns
 
-      Scenario: Export uses friendly match status labels
-        Given an event with a SCHEDULED match and a CANCELLED match
-        When the coach exports the event
-        Then status must appear as "Scheduled" and "Cancelled" not "SCHEDULED" and "CANCELLED"
+       Scenario: Export does not expose internal IDs
+         Given an event with squads, players, and matches
+         When the coach exports the event
+         Then no sheet must contain database IDs
 
-      Scenario: Export uses friendly goalkeeper ability labels
-        Given an event squad player with goalkeeperAbility YES
-        When the coach exports the event
-        Then goalkeeper ability must appear as "Yes" not "YES"
-        And a player with null goalkeeper ability must appear as "Not rated"
-
-    Rule: Export does not expose internal data
-
-      Scenario: Export does not expose player ratings
-        Given an event with players who have numeric ratings
-        When the coach exports the event
-        Then the Squads sheet must not contain any rating columns
-
-      Scenario: Export does not expose internal IDs
-        Given an event with squads, players, and matches
-        When the coach exports the event
-        Then no sheet must contain database IDs
-
-      Scenario: Export does not expose internal selection reasons
-        Given an event with auto-generated squads
-        When the coach exports the event
-        Then the Squads sheet must not contain selection reason or generation metadata
+       Scenario: Export does not expose internal selection reasons
+         Given an event with auto-generated squads
+         When the coach exports the event
+         Then the Squads sheet must not contain selection reason or generation metadata
 
   Feature: Event match support planning
     As a coach
