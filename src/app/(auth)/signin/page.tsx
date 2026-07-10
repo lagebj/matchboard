@@ -1,10 +1,14 @@
 import { signIn } from "@/auth";
+import { MatchboardLogo } from "@/components/shell/matchboard-logo";
 
 export default function SignInPage() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
+          <div className="mx-auto mb-4 flex items-center justify-center gap-2">
+            <MatchboardLogo className="h-9 w-9 text-[var(--accent-strong)]" ariaHidden />
+          </div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em] text-zinc-50">
             Sign in to Matchboard
           </h1>

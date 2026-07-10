@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
+import { MatchboardLogo } from "@/components/shell/matchboard-logo";
 
 type NavItem = {
   href: string;
@@ -60,17 +61,7 @@ export function SidebarNav() {
     >
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--accent)]/20 bg-[var(--accent-subtle)]">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="h-4 w-4 text-[var(--accent-strong)]"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="12" cy="12" r="2.2" fill="currentColor" />
-          </svg>
-        </div>
+        <MatchboardLogo className="h-7 w-7 text-[var(--accent-strong)]" ariaHidden />
         <div className="min-w-0">
           <p className="text-sm font-semibold tracking-tight text-zinc-50">Matchboard</p>
           <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--text-muted)]">Squad planning</p>
