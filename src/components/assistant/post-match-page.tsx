@@ -274,6 +274,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
         <EmptyState
           title="No post-match report yet"
           description={hasFinalizedSelections ? "Seed from planned selections to begin recording actuals." : "No finalised squad was available. Add the players who actually played."}
+          illustration="emptyStats"
           action={
             <Button variant="primary" size="md" disabled={isPending} onClick={handleSeed}>
               {isPending ? "Creating..." : "Start after-match report"}

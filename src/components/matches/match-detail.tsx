@@ -443,6 +443,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
               <EmptyState
                 title="No squad selections yet."
                 description="Generate or edit the squad in the round board to plan this match."
+                illustration="emptyLineup"
                 action={
                   <Button
                     as={Link}

@@ -30,6 +30,7 @@ import { EventMatchesTab } from './event-matches-tab';
 import { Button } from '@/components/ui/button';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { DecisionBanner } from '@/components/ui/decision-banner';
+import { EmptyState } from '@/components/ui/empty-state';
 import { RatingBadge } from '@/components/ratings/rating-badge';
 
 type FormationSlotDisplay = { id: string; roleType: FormationSlotRoleType; label: string; shortLabel: string; acceptedPositionIds: string[]; gridX: number; gridY: number; sortOrder: number };
@@ -532,9 +533,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
       {activeTab === 'squads' && (
         <div className="space-y-4">
           {data.squads.length === 0 ? (
-            <Surface variant="default" padding="md">
-              <p className="text-sm text-[var(--text-muted)]">No squads configured. Add squads to start planning.</p>
-            </Surface>
+            <EmptyState
+              title="No squads configured"
+              description="Add squads to start planning."
+              illustration="emptyEvents"
+            />
           ) : (
             <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
               <div className="space-y-2">

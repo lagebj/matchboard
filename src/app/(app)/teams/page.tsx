@@ -150,6 +150,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
         <EmptyState
           title="No teams yet"
           description="Create a team to start planning squads."
+          illustration="emptyPlayers"
           action={
             <Button variant="primary" size="sm" as="a" href="/teams/new">
               Create a team

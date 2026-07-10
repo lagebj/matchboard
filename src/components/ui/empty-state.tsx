@@ -1,4 +1,9 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
+import { BrandIllustration } from "@/components/ui/brand-illustration";
+import type { brandIllustrations } from "@/lib/brand-illustrations";
+
+type BrandIllustrationKey = keyof typeof brandIllustrations;
 
 /**
  * EmptyState — explains why an area is empty and what to do next.
@@ -14,6 +19,7 @@ type EmptyStateProps = {
   description?: string;
   action?: ReactNode;
   tone?: EmptyStateTone;
+  illustration?: BrandIllustrationKey;
   className?: string;
 };
 
@@ -28,6 +34,7 @@ export function EmptyState({
   description,
   action,
   tone = "neutral",
+  illustration,
   className = "",
 }: EmptyStateProps) {
   return (
@@ -41,6 +48,12 @@ export function EmptyState({
         .filter(Boolean)
         .join(" ")}
     >
+      {illustration && (
+        <BrandIllustration
+          name={illustration}
+          className="h-32 md:h-40 lg:h-48 w-auto opacity-85 dark:opacity-75"
+        />
+      )}
       <p className="text-sm font-medium text-zinc-100">{title}</p>
       {description && (
         <p className="text-xs text-[var(--text-muted)] max-w-sm">

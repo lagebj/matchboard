@@ -1,10 +1,12 @@
 import { signIn } from "@/auth";
 import { MatchboardLogo } from "@/components/shell/matchboard-logo";
+import { BrandIllustrationBackground } from "@/components/ui/brand-illustration";
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-4">
+      <BrandIllustrationBackground name="subtleReportSketch" className="bg-cover opacity-[0.35] dark:opacity-[0.25]" />
+      <div className="relative w-full max-w-sm space-y-8">
         <div className="text-center">
           <div className="mx-auto mb-4 flex items-center justify-center gap-2">
             <MatchboardLogo className="h-9 w-9 text-[var(--accent-strong)]" ariaHidden />
@@ -50,7 +52,7 @@ export default function SignInPage() {
         <p className="text-center text-xs text-zinc-500">
           Access is limited to approved coach accounts.
         </p>
-      </div>
+        </div>
     </div>
   );
 }
