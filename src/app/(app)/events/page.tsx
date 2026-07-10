@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getEvents } from './actions';
 import { RatingBadge } from '@/components/ratings/rating-badge';
+import { EmptyState } from '@/components/ui/empty-state';
 
 import { formatGameFormat } from "@/lib/formatters/game-format";
 
@@ -27,15 +28,19 @@ export default async function EventsPage() {
       </div>
 
       {events.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <p className="text-muted-foreground">No events yet. Create an event to start planning.</p>
-          <Link
-            href="/events/new"
-            className="mt-4 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Create event
-          </Link>
-        </div>
+        <EmptyState
+          title="No events yet"
+          description="Create an event to start planning cups, tournaments, and friendly days."
+          illustration="emptyEvents"
+          action={
+            <Link
+              href="/events/new"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Create event
+            </Link>
+          }
+        />
       ) : (
         <div className="grid gap-4">
           {events.map((event) => {

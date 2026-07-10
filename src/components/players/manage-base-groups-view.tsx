@@ -4,6 +4,7 @@ import { useTransition, useState } from "react";
 import Link from "next/link";
 import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 import { RatingBadge } from "@/components/ratings/rating-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { RatingSummary } from "@/lib/ratings/player-rating";
 
 type ManageBaseGroupsViewProps = {
@@ -39,25 +40,33 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
       </p>
 
       {teams.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No teams yet.</p>
-          <Link
-            href="/teams/new"
-            className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
-          >
-            Create a team first
-          </Link>
-        </div>
+        <EmptyState
+          title="No teams yet"
+          description="Create a team first before assigning players to base groups."
+          illustration="emptyPlayers"
+          action={
+            <Link
+              href="/teams/new"
+              className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
+            >
+              Create a team
+            </Link>
+          }
+        />
       ) : players.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-sm text-zinc-400">No players yet.</p>
-          <Link
-            href="/players/new"
-            className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
-          >
-            Add player
-          </Link>
-        </div>
+        <EmptyState
+          title="No players yet"
+          description="Add a player to start building base groups."
+          illustration="emptyPlayers"
+          action={
+            <Link
+              href="/players/new"
+              className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
+            >
+              Add player
+            </Link>
+          }
+        />
       ) : (
         <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] overflow-hidden">
           <table className="w-full text-sm">

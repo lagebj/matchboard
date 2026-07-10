@@ -350,6 +350,7 @@ export function FixturesPage() {
         <EmptyState
           title="No league seasons found."
           description="Create a season and league season to start planning rounds."
+          illustration="emptyMatches"
         />
       ) : (
         <div className="flex flex-col gap-8">

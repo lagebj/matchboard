@@ -56,6 +56,7 @@ export default async function FormationsPage({ searchParams }: FormationsPagePro
         <EmptyState
           title="No formations for this format"
           description={`Create a ${formatGameFormatShort(selectedFormat)} formation to define pitch positions and roles.`}
+          illustration="emptyLineup"
           action={
             <Button variant="primary" size="sm" as="a" href={`/formations/new?gameFormat=${selectedFormat}`}>
               Create formation

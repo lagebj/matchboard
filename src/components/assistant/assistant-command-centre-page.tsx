@@ -321,6 +321,7 @@ export function AssistantCommandCentrePage({
           tone="info"
           title="Nothing urgent right now."
           description="Upcoming rounds are under control. Open Fixtures to plan ahead."
+          illustration="matchdayPrepSketch"
           action={
             <Button
               as={Link}
