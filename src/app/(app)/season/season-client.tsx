@@ -17,6 +17,8 @@ type LeagueSeasonOption = {
   name: string;
   startDate: Date;
   endDate: Date;
+  status: string;
+  finalizedAt: Date | null;
 };
 
 type SeasonClientProps = {
@@ -147,7 +149,7 @@ export function SeasonOverviewClient({
         >
           {leagueSeasons.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}
+              {p.name}{p.status === "FINALIZED" ? " · Finalized" : ""}
             </option>
           ))}
         </select>

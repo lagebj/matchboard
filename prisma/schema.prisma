@@ -32,6 +32,7 @@ model Team {
   corePlayers              Player[]         @relation("CoreTeam")
   fromRotationPaths        RotationPath[]   @relation("FromTeam")
   toRotationPaths          RotationPath[]   @relation("ToTeam")
+  teamSeasonSnapshots     TeamSeasonSnapshot[]
 
   @@index([archivedAt, name])
 }
@@ -97,6 +98,7 @@ model Player {
   eventAssistEvents      EventAssistEvent[]       @relation("EventAssistProvider")
   eventSupportAssignments EventMatchSupportAssignment[]
   eventLineupAssignments EventMatchLineupAssignment[]
+  playerSeasonSnapshots TeamSeasonSnapshotPlayer[]
 
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
@@ -951,16 +953,20 @@ model EventMatchLineupAssignment {
 }
 
 model LeagueSeason {
-  id        String          @id @default(cuid())
-  name      String
-  seasonId  String
-  part      LeagueSeasonPart
-  startDate DateTime
-  endDate   DateTime
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  matchRounds MatchRound[]
-  season    Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  id           String            @id @default(cuid())
+  name         String
+  seasonId     String
+  part         LeagueSeasonPart
+  startDate    DateTime
+  endDate      DateTime
+  status       LeagueSeasonStatus @default(OPEN)
+  finalizedAt  DateTime?
+  finalizedBy  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  matchRounds  MatchRound[]
+  season       Season             @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  periodSnapshot SeasonPeriodSnapshot?
 
   @@index([seasonId])
   @@map("LeagueSeason")
@@ -969,6 +975,55 @@ model LeagueSeason {
 enum LeagueSeasonPart {
   SPRING
   FALL
+}
+
+enum LeagueSeasonStatus {
+  OPEN
+  FINALIZED
+}
+
+model SeasonPeriodSnapshot {
+  id             String   @id @default(cuid())
+  leagueSeasonId String   @unique
+  leagueSeason   LeagueSeason @relation(fields: [leagueSeasonId], references: [id], onDelete: Cascade)
+  finalizedAt    DateTime
+  finalizedBy    String?
+  teamSnapshots  TeamSeasonSnapshot[]
+
+  @@index([leagueSeasonId])
+  @@map("SeasonPeriodSnapshot")
+}
+
+model TeamSeasonSnapshot {
+  id                     String   @id @default(cuid())
+  seasonPeriodSnapshotId String
+  seasonPeriodSnapshot   SeasonPeriodSnapshot @relation(fields: [seasonPeriodSnapshotId], references: [id], onDelete: Cascade)
+  teamId                 String
+  team                   Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  teamNameSnapshot       String
+  playerSnapshots        TeamSeasonSnapshotPlayer[]
+
+  @@index([seasonPeriodSnapshotId])
+  @@index([teamId])
+  @@map("TeamSeasonSnapshot")
+}
+
+model TeamSeasonSnapshotPlayer {
+  id                      String   @id @default(cuid())
+  teamSeasonSnapshotId    String
+  teamSeasonSnapshot      TeamSeasonSnapshot @relation(fields: [teamSeasonSnapshotId], references: [id], onDelete: Cascade)
+  playerId                String
+  player                  Player @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  playerNameSnapshot      String
+  primaryPositionSnapshot String?
+  secondaryPositionSnapshot String?
+  tertiaryPositionSnapshot String?
+  shirtNumberSnapshot     Int?
+  activeAtSnapshot        Boolean
+
+  @@index([teamSeasonSnapshotId])
+  @@index([playerId])
+  @@map("TeamSeasonSnapshotPlayer")
 }
 
 enum FootPreference {
