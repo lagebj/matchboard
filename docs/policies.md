@@ -365,6 +365,7 @@ low_recent_match_adjustments := [adj |
 | `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact (do not edit) |
 | `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm |
 | `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
+| `docs/adr/0019-generation-drafts-and-league-event-policy-contexts.md` | ADR: Generation drafts and league/event policy contexts |
 
 ## Decision logging
 
@@ -459,3 +460,74 @@ All policy output visible to coaches must follow Matchboard's child-safe languag
 | Blocked reason | "Unavailable for this match", "Core team assignment conflict" | "Banned", "Punished" |
 
 Raw Rego internals, policy codes, and internal severity levels must not appear in coach-facing UI.
+
+## Policy decision types
+
+The policy pipeline uses `PolicyDecisionType` and `PolicyFairnessScope` to identify what kind of decision is being evaluated and what scope fairness applies to. These fields are available in `SelectionPolicyInput.context` and allow both the default TypeScript policy and custom Rego policies to branch their logic by decision context.
+
+### PolicyDecisionType values
+
+| Value | When used |
+|-------|-----------|
+| `league_match_selection` | League match per-match selection generation |
+| `league_round_fairness` | League round-level fairness evaluation |
+| `event_squad_generation` | Event squad generation (all modes) |
+| `event_helper_selection` | Event match helper/support selection |
+| `event_lineup_planning` | Event match lineup planning |
+| `post_match_report_availability` | Post-match report availability checks |
+
+### PolicyFairnessScope values
+
+| Value | What it scopes |
+|-------|----------------|
+| `match` | Fairness within a single league match |
+| `round` | Fairness across a league match round |
+| `period` | Fairness across a league season part (spring/fall) |
+| `season` | Fairness across the full season year |
+| `event` | Fairness within a complete event |
+| `event_match` | Fairness within a single event match |
+
+The `fairnessScope` field is optional. It is populated when the policy is evaluated in a context where fairness scope is meaningful (league round fairness, event fairness). It may be absent for pre-selection checks that do not involve fairness scoring.
+
+### Default TypeScript policy branching by mode
+
+The default Matchboard policy (`src/lib/policies/default-matchboard-policy.ts`) branches on `input.context.mode`:
+
+- **League mode** (`mode === "league"`): Applies fairness score adjustments for low match opportunity (`low_recent_match_count`, `low_period_match_count`, `low_season_match_count`). These adjustments give eligible players with fewer recent matches a higher selection priority.
+- **Event mode** (`mode === "event"`): Does not apply fairness score adjustments. Event selection prioritizes formation/role fit and balance rather than historical match opportunity. Event mode does emit a `squad_below_target_but_playable` info warning when a squad has players but is below target size.
+
+Both modes apply core invariants, goalkeeper coverage warnings, and squad minimum size warnings. The mode distinction only affects whether historical fairness scoring adjustments are included.
+
+### `squad_below_target_but_playable` info warning
+
+The `squad_below_target_but_playable` warning (severity: `info`) is emitted in event mode when a squad has at least one player but fewer than the target squad size. This is a planning note, not a blocker — it informs the coach that the squad is below target but still viable. In league mode, below-target conditions are handled separately by the solver and plan integrity signal model.
+
+### Rego policy conditional logic
+
+Custom Rego policies should use `input.context.mode` and `input.context.decisionType` to conditionally apply rules:
+
+```rego
+# Example: Only apply fairness adjustments in league mode
+league_fairness_adjustments := [adj |
+    input.context.mode == "league"
+    some p in input.players
+    p.available_for_context == true
+    recent_count := object.get(p, "recent_match_count", 0)
+    recent_count <= 1
+    adj := {
+        "player_id": p.id,
+        "delta": 5,
+        "reason": "Player has had fewer recent match opportunities.",
+        "code": "rego_league_low_recent_match_count",
+    }
+]
+
+# Example: Only warn about goalkeeper coverage in event squad generation
+event_gk_warning := [{"code": "rego_event_no_gk", "severity": "warning", "message": "Event squad has no goalkeeper.", "team_id": s.team_id}] {
+    input.context.decisionType == "event_squad_generation"
+    some s in input.squads
+    s.primary_goalkeeper_count == 0
+}
+```
+
+Core invariants apply in all modes and cannot be bypassed by conditional Rego logic.

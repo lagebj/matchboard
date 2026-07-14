@@ -21,6 +21,7 @@ const mockInput: SelectionPolicyInput = {
   context: {
     phase: "pre_selection",
     mode: "event",
+    decisionType: "event_squad_generation",
     nowIso: "2026-01-01T00:00:00Z",
     gameFormat: "7v7",
   },

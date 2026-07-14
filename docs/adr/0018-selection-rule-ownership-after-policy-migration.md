@@ -149,3 +149,7 @@ These remain in solver code for now because they require context (squad state, t
 - **Duplicating rules in assistant/UI**: The assistant derives work items from signals produced by other layers. It does not define new rules. UI components display engine output and record coach decisions. Duplicating rule logic in either would create divergent truth.
 
 - **Putting all rules in the policy pipeline**: Rules that require rich context (match relationships, rotation path graphs, historical data) cannot be expressed through the current flat `SelectionPolicyInput`. Forcing them into the policy pipeline would bloat the input schema and make the pipeline fragile. Solver-embedded rules with rich context stay in the solver; their output (warnings, explanations) feeds into the signal model.
+
+## Stage 5 addendum
+
+Stage 5 added `PolicyDecisionType` and `PolicyFairnessScope` to the policy context (`SelectionPolicyInput.context`). The default TypeScript policy now branches by `context.mode` — league mode applies fairness score adjustments, event mode does not. Custom Rego policies should use `input.context.mode` and `input.context.decisionType` for conditional logic. Core invariants continue to apply in all modes. See ADR 0019 for full details on the generation-drafts and league-event policy context separation.

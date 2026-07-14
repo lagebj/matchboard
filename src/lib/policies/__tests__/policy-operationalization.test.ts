@@ -20,7 +20,7 @@ import {
 import type { SelectionPolicyInput, PolicyWarning } from "../types";
 
 const baseInput: SelectionPolicyInput = {
-  context: { phase: "pre_selection", mode: "event", nowIso: "2026-01-01T00:00:00Z" },
+  context: { phase: "pre_selection", mode: "event", decisionType: "event_squad_generation", nowIso: "2026-01-01T00:00:00Z" },
   players: [
     { id: "p1", displayName: "Active", status: "ACTIVE", availableForContext: true, currentTeamIds: ["t1"] },
     { id: "p2", displayName: "Removed", status: "REMOVED", availableForContext: false, currentTeamIds: [] },

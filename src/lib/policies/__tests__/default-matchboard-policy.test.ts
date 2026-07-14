@@ -7,6 +7,7 @@ function makeInput(overrides?: Partial<SelectionPolicyInput>): SelectionPolicyIn
     context: {
       phase: "pre_selection",
       mode: "event",
+      decisionType: "event_squad_generation",
       nowIso: "2026-01-01T00:00:00Z",
     },
     players: [],
@@ -105,9 +106,10 @@ describe("evaluateDefaultMatchboardPolicy", () => {
     expect(gkWarning!.severity).toBe("warning");
   });
 
-  it("produces score adjustments for low match counts", () => {
+  it("produces score adjustments for low match counts in league mode", () => {
     const result = evaluateDefaultMatchboardPolicy(
       makeInput({
+        context: { ...makeInput().context, mode: "league", decisionType: "league_match_selection" },
         players: [
           { id: "p1", displayName: "Low Recent", status: "ACTIVE", availableForContext: true, recentMatchCount: 0, seasonMatchCount: 1, periodMatchCount: 1, currentTeamIds: [] },
         ],
@@ -116,6 +118,37 @@ describe("evaluateDefaultMatchboardPolicy", () => {
     const recentAdj = result.scoreAdjustments.find((a) => a.code === "low_recent_match_count");
     expect(recentAdj).toBeDefined();
     expect(recentAdj!.delta).toBe(5);
+  });
+
+  it("does not produce league score adjustments in event mode", () => {
+    const result = evaluateDefaultMatchboardPolicy(
+      makeInput({
+        context: { ...makeInput().context, mode: "event", decisionType: "event_squad_generation" },
+        players: [
+          { id: "p1", displayName: "Low Recent", status: "ACTIVE", availableForContext: true, recentMatchCount: 0, seasonMatchCount: 1, periodMatchCount: 1, currentTeamIds: [] },
+        ],
+      }),
+    );
+    const recentAdj = result.scoreAdjustments.find((a) => a.code === "low_recent_match_count");
+    expect(recentAdj).toBeUndefined();
+    const periodAdj = result.scoreAdjustments.find((a) => a.code === "low_period_match_count");
+    expect(periodAdj).toBeUndefined();
+    const seasonAdj = result.scoreAdjustments.find((a) => a.code === "low_season_match_count");
+    expect(seasonAdj).toBeUndefined();
+  });
+
+  it("warns on event squad below target size", () => {
+    const result = evaluateDefaultMatchboardPolicy(
+      makeInput({
+        context: { ...makeInput().context, mode: "event", decisionType: "event_squad_generation" },
+        players: [],
+        teams: [{ id: "t1", name: "Team A", targetSquadSize: 7, minSquadSize: 5 }],
+        squads: [{ id: "s1", teamId: "t1", playerIdList: ["p1", "p2", "p3", "p4", "p5"], primaryGoalkeeperCount: 0, secondaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 }],
+      }),
+    );
+    const belowTarget = result.warnings.find((w) => w.code === "squad_below_target_but_playable");
+    expect(belowTarget).toBeDefined();
+    expect(belowTarget!.severity).toBe("info");
   });
 
   it("produces explanations for eligible players", () => {

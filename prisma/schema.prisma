@@ -740,6 +740,7 @@ model EventSquad {
   eventId            String
   name               String
   intent             EventSquadIntent
+  status             EventSquadStatus    @default(DRAFT)
   targetSize         Int
   minSize            Int?
   maxSize            Int?
@@ -1318,6 +1319,11 @@ enum EventSquadIntent {
   COMPETITIVE
   BALANCED
   MANUAL
+}
+
+enum EventSquadStatus {
+  DRAFT
+  CONFIRMED
 }
 
 enum EventSelectionPattern {

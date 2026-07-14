@@ -1,5 +1,7 @@
 export type {
   PolicyMode,
+  PolicyDecisionType,
+  PolicyFairnessScope,
   PolicyPeriod,
   PolicyDecisionPhase,
   PolicyPlayerStatus,

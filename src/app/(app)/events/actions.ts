@@ -750,6 +750,8 @@ export async function generateEventSquadsAction(eventId: string) {
     const policyInput = buildPolicyInput({
       mode: 'event',
       phase: 'pre_selection',
+      decisionType: 'event_squad_generation',
+      fairnessScope: 'event',
       players: eligiblePlayers.map((ep) => ({
         id: ep.playerId,
         firstName: ep.player.firstName,
