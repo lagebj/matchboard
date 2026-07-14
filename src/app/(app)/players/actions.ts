@@ -393,12 +393,6 @@ export async function removePlayerAction(playerId: string) {
       },
       select: {
         id: true,
-        selections: {
-          select: {
-            id: true,
-          },
-          take: 1,
-        },
       },
     });
 
@@ -406,21 +400,13 @@ export async function removePlayerAction(playerId: string) {
       throw new Error("Player not found.");
     }
 
-    if (player.selections.length === 0) {
-      await db.player.delete({
-        where: {
-          id: player.id,
-        },
-      });
-    } else {
-      await db.player.update({
-        where: { id: player.id },
-        data: {
-          active: false,
-          removedAt: new Date(),
-        },
-      });
-    }
+    await db.player.update({
+      where: { id: player.id },
+      data: {
+        active: false,
+        removedAt: new Date(),
+      },
+    });
   } catch (error) {
     redirect(
       buildPathWithSearch("/players", {
@@ -434,6 +420,47 @@ export async function removePlayerAction(playerId: string) {
   redirect(
     buildPathWithSearch("/players", {
       saved: "removed",
+    }),
+  );
+}
+
+export async function restorePlayerAction(playerId: string) {
+  await requireCoachAccess();
+  try {
+    const player = await db.player.findFirst({
+      where: {
+        id: playerId,
+        removedAt: { not: null },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!player) {
+      throw new Error("Player not found or not removed.");
+    }
+
+    await db.player.update({
+      where: { id: player.id },
+      data: {
+        active: true,
+        removedAt: null,
+      },
+    });
+  } catch (error) {
+    redirect(
+      buildPathWithSearch("/players", {
+        error: getPlayerActionErrorMessage(error),
+      }),
+    );
+  }
+
+  revalidatePath("/players");
+  revalidatePath("/teams");
+  redirect(
+    buildPathWithSearch("/players", {
+      saved: "restored",
     }),
   );
 }

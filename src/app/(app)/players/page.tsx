@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
@@ -10,20 +11,27 @@ type PlayersPageProps = {
     mode?: string;
     periodId?: string;
     roundId?: string;
+    showRemoved?: string;
     error?: string;
     saved?: string;
   }>;
 };
 
 export default async function PlayersPage({ searchParams }: PlayersPageProps) {
-  const { mode, periodId, roundId, error, saved } = await searchParams;
+  const { mode, periodId, roundId, showRemoved, error, saved } = await searchParams;
+  const includeRemoved = showRemoved === "1";
 
-  const [players, teams, leagueSeasons, matchRounds] = await Promise.all([
+  const playerFilter = includeRemoved
+    ? { removedAt: { not: null } satisfies Prisma.DateTimeNullableFilter<"Player"> }
+    : { removedAt: null, active: true };
+
+  const [players, removedPlayerCount, teams, leagueSeasons, matchRounds] = await Promise.all([
     db.player.findMany({
-      where: { removedAt: null, active: true },
+      where: playerFilter,
       include: { coreTeam: { select: { id: true, name: true } } },
       orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
     }),
+    db.player.count({ where: { removedAt: { not: null } } }),
     db.team.findMany({
       where: { archivedAt: null },
       select: { id: true, name: true },
@@ -82,6 +90,7 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
         nonRotatable: p.nonRotatable,
         reducedMatchLoadAllowed: p.reducedMatchLoadAllowed,
         overallRating: playerRatings.get(p.id)!,
+        removed: p.removedAt !== null,
       }))}
       teams={teams}
       leagueSeasons={leagueSeasons}
@@ -90,6 +99,8 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       currentRoundRows={currentRoundRows}
       selectedPeriodId={selectedPeriodId}
       selectedRoundId={selectedRoundId}
+      includeRemoved={includeRemoved}
+      removedPlayerCount={removedPlayerCount}
       initialMode={mode}
       error={error}
       saved={saved}

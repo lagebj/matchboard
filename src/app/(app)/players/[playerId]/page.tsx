@@ -32,6 +32,7 @@ type PlayerPageProps = {
 function formatSavedMessage(saved?: string): string | null {
   if (saved === "updated") return "Player updated.";
   if (saved === "status") return "Player status updated.";
+  if (saved === "restored") return "Player restored.";
   return null;
 }
 
@@ -40,7 +41,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([
     db.player.findFirst({
-      where: { id: playerId, removedAt: null },
+      where: { id: playerId },
       include: { coreTeam: { select: { id: true, name: true } } },
     }),
     db.team.findMany({
