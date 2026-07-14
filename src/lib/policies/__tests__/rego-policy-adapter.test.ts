@@ -60,6 +60,7 @@ const mockInput: SelectionPolicyInput = {
       name: "Squad 1",
       playerIdList: ["p1"],
       primaryGoalkeeperCount: 0,
+      secondaryGoalkeeperCount: 0,
       anyGoalkeeperCount: 0,
     },
   ],

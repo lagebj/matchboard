@@ -6,9 +6,7 @@ Accepted
 
 ## Context
 
-Stage 1 (ADR 0015) created the policy boundary: core invariants, default policy, and JSON DSL. Stage 2 (ADR 0016) added the OPA/Rego Wasm adapter. The policy module exists but zero production code calls any policy function. The entire module is an island not wired into any flow.
-
-Inline eligibility logic in `generate-selection.ts`, `compute-plan-integrity.ts`, `event-squad-generation.ts`, and `event-validation.ts` duplicates what the policy pipeline should provide. Policy warnings have no bridge to Matchboard's plan integrity signal model. There is no coach-facing visibility into policy results.
+Stage 1 (ADR 0015) created the policy boundary: core invariants, default policy, and JSON DSL. Stage 2 (ADR 0016) added the OPA/Rego Wasm adapter. Stage 4 removed the JSON DSL (see ADR 0018). The policy pipeline is now wired into production flows: league match generation, plan integrity computation, event squad generation, event pool validation, and the assistant.
 
 ## Decision
 

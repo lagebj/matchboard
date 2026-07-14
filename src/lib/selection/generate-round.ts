@@ -219,6 +219,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
         teamId: r.teamId,
         playerIdList: r.selectedPlayers.map((p) => p.playerId),
         primaryGoalkeeperCount: r.selectedPlayers.filter((p) => p.selectionCategory === "CORE" && p.playerPosition === "GK").length,
+        secondaryGoalkeeperCount: r.selectedPlayers.filter((p) => p.selectionCategory !== "CORE" && p.playerPosition === "GK").length,
         anyGoalkeeperCount: r.selectedPlayers.filter((p) => p.playerPosition === "GK").length,
       })),
       matches: sortedMatches.map((m) => ({

@@ -11,9 +11,7 @@ Stage 1 (ADR 0015) implemented a policy-capable selection engine with:
 - Default Matchboard policy (TypeScript)
 - JSON policy DSL (proprietary, for custom instance policies)
 
-The JSON DSL was a stepping stone. The task now requires a real OPA/Rego adapter that can run inside Next.js on Vercel without an OPA server, sidecar, or custom server.
-
-The JSON DSL has limited expressiveness and is proprietary to Matchboard. Rego is a standard policy language with broad ecosystem support, tooling, and community knowledge. This ADR documents Stage 2: replacing the proprietary DSL with OPA/Rego compiled to WebAssembly.
+The JSON DSL was a stepping stone. This ADR documents Stage 2: replacing the proprietary DSL with OPA/Rego compiled to WebAssembly. The JSON DSL adapter was removed in Stage 4.
 
 ## Decision
 
@@ -37,7 +35,7 @@ Rego policy source (policies/rego/)
 - No sidecar containers
 - No runtime Rego compilation
 - No browser/client-side evaluation
-- No proprietary policy DSL (JSON DSL retained as legacy, not extended)
+- No proprietary policy DSL (JSON DSL removed in Stage 4)
 
 ### Policy layering
 
@@ -96,8 +94,6 @@ In `fail_closed` mode, selection-generation, manual-edit, and finalization flows
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
-| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation (legacy, internal use only) |
-| `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
 | `policies/rego/matchboard_selection.rego` | Rego policy source |
 | `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
 | `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact |
@@ -155,7 +151,7 @@ The Rego adapter module uses `server-only` to prevent client-side leakage of pol
 
 ## Rejected alternatives
 
-- **Custom JSON DSL as primary policy language**: Proprietary, limited expressiveness, no ecosystem tooling
+- **Custom JSON DSL as primary policy language**: Removed in Stage 4. Proprietary, limited expressiveness, no ecosystem tooling. Rego provides a standard, well-supported alternative.
 - **OPA daemon/server**: Deployment complexity, not Vercel-compatible
 - **Sidecar container**: Not Vercel-compatible
 - **Runtime Rego compilation**: Security and performance risk — Rego compiler should not run in production

@@ -850,10 +850,6 @@ Rego may not:
 
 See `docs/policies.md` and `docs/admin/policy-management.md` for full documentation.
 
-### JSON policy DSL (legacy)
-
-The JSON DSL (`src/lib/policies/json-policy-dsl.ts`) is retained for backward compatibility and internal default policy expression. New custom policies should use Rego compiled to Wasm. Do not add proprietary policy DSL extensions.
-
 ### Integration points
 
 - Event squad generation: pre-filter blocked players, apply score adjustments, surface warnings
@@ -878,8 +874,6 @@ The JSON DSL (`src/lib/policies/json-policy-dsl.ts`) is retained for backward co
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
-| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation (legacy, internal use) |
-| `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
 | `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
@@ -1717,11 +1711,9 @@ Avoid:
 | `src/lib/policies/types.ts` | Policy input/result type definitions |
 | `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
-| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation engine |
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
-| `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
 | `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
@@ -1776,6 +1768,11 @@ Avoid:
 - `docs/domain.md` — deleted, do not reference
 - `docs/spec-ux-overhaul.md` — superseded by `docs/specs/ux-overhaul.md`
 - `src/lib/formations.ts` — deleted, legacy row/col model; use `src/lib/formations/index.ts` barrel or direct `@/lib/formations/types` imports
+- `src/lib/policies/json-policy-dsl.ts` — deleted, proprietary JSON policy DSL runtime (removed in Stage 4)
+- `src/lib/policies/json-policy-loader.ts` — deleted, JSON policy file loader (removed in Stage 4)
+- `policies/default/matchboard.default.policy.json` — deleted, default policy rules now in `default-matchboard-policy.ts`
+- `policies/examples/stricter-goalkeeper-coverage.policy.json` — deleted, superseded by Rego examples
+- `policies/examples/equal-opportunity.policy.json` — deleted, superseded by Rego examples
 
 ## Assistant Manager Workflow Rules
 

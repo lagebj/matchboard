@@ -14,7 +14,7 @@ The policy pipeline runs three layers in order. Each layer adds to the result; n
 
 3. **Optional custom Rego policy** — compiled to WebAssembly and evaluated server-side via `@open-policy-agent/opa-wasm`. May make rules stricter, add warnings, adjust scoring (bounded ±20), or add explanations. Cannot override core invariants. No OPA server, no sidecar, no runtime Rego compilation, no browser-side evaluation.
 
-The optional JSON DSL policy (Stage 1) is retained for backward compatibility and internal default policy expression. New custom policies should use Rego compiled to Wasm. Do not add proprietary JSON DSL extensions.
+The JSON DSL adapter was removed in Stage 4. Custom policies should use Rego compiled to Wasm. Do not reintroduce a proprietary JSON DSL.
 
 ## Core invariants (non-overridable)
 
@@ -185,123 +185,9 @@ The compiled artifact must be committed to version control alongside the Rego so
 - Linux: Download from https://openpolicyagent.org and place in `$PATH`
 - Verify: `opa version`
 
-## JSON policy format (legacy)
-
-The JSON DSL (`src/lib/policies/json-policy-dsl.ts`) is retained for backward compatibility and internal default policy expression. New custom policies should use Rego compiled to Wasm. Do not add proprietary policy DSL extensions.
-
-Custom policies are defined as JSON files with rules that evaluate over normalized policy input.
-
-### Supported effects
-
-| Effect | Description |
-|--------|-------------|
-| `deny` | Block the player from selection |
-| `warning` | Add a warning with code, severity, and message |
-| `score_adjustment` | Adjust the player's selection score by a delta |
-| `tag` | Tag the player with a label for tracking |
-
-### Supported operators
-
-| Operator | Description |
-|----------|-------------|
-| `eq` | Equal to value |
-| `neq` | Not equal to value |
-| `lt` | Less than value |
-| `lte` | Less than or equal to value |
-| `gt` | Greater than value |
-| `gte` | Greater than or equal to value |
-| `in` | Value is in the list |
-| `not_in` | Value is not in the list |
-| `exists` | Field exists (is not null/undefined) |
-| `not_exists` | Field does not exist (is null/undefined) |
-| `contains` | String field contains value |
-
-### Supported field paths
-
-Rules evaluate over these contexts:
-
-- `player.*` — player properties (status, availableForContext, primaryPosition, recentMatchCount, etc.)
-- `squad.*` — squad properties (playerCount, primaryGoalkeeperCount, anyGoalkeeperCount)
-- `team.*` — team properties (targetSquadSize, minSquadSize, maxSquadSize)
-- `context.*` — selection context (phase, mode, matchDate, etc.)
-- `constraints.*` — constraints (maxSquadSize, minSquadSize, etc.)
-
-### Condition groups
-
-- `all` — all conditions must be true (AND)
-- `any` — at least one condition must be true (OR)
-
-### Example policies (JSON DSL)
-
-#### Deny removed players
-
-```json
-{
-  "id": "deny-removed-players",
-  "effect": "deny",
-  "when": {
-    "all": [
-      { "field": "player.status", "op": "eq", "value": "REMOVED" }
-    ]
-  },
-  "reason": "Removed players cannot be selected."
-}
-```
-
-#### Warn on weak goalkeeper coverage
-
-```json
-{
-  "id": "warn-no-primary-goalkeeper",
-  "effect": "warning",
-  "when": {
-    "all": [
-      { "field": "squad.primaryGoalkeeperCount", "op": "eq", "value": 0 }
-    ]
-  },
-  "warning": {
-    "code": "no_primary_goalkeeper",
-    "severity": "warning",
-    "message": "Squad has no primary goalkeeper."
-  }
-}
-```
-
-#### Adjust score for low match opportunity
-
-```json
-{
-  "id": "prioritize-low-recent-match-count",
-  "effect": "score_adjustment",
-  "when": {
-    "all": [
-      { "field": "player.recentMatchCount", "op": "lte", "value": 1 }
-    ]
-  },
-  "scoreAdjustment": 5,
-  "reason": "Player has had fewer recent match opportunities."
-}
-```
-
-#### Tag low-activity players
-
-```json
-{
-  "id": "tag-low-activity",
-  "effect": "tag",
-  "when": {
-    "all": [
-      { "field": "player.seasonMatchCount", "op": "lte", "value": 2 }
-    ]
-  },
-  "tag": "low_activity",
-  "reason": "Player has had few season matches."
-}
-```
-
 ## How to use custom policies
 
-### Rego custom policies (recommended)
+### Rego custom policies
 
 1. Place Rego policy files in `policies/rego/custom/` using the `matchboard.selection` package
 2. Run `npm run policy:test` to run Rego unit tests
@@ -310,37 +196,20 @@ Rules evaluate over these contexts:
 5. Commit both the Rego source and the compiled Wasm artifact
 6. Set `MATCHBOARD_POLICY_REGO_ENABLED=true` to enable in production
 
-### JSON custom policies (legacy)
-
-#### Where to place custom policy files
-
-```
-policies/custom/custom.policy.json
-```
-
-#### How custom policies are loaded
+### How custom policies are loaded
 
 1. The default Matchboard policy always runs
 2. If `MATCHBOARD_POLICY_REGO_ENABLED=true`, the Rego policy runs after the default policy
-3. If a custom JSON policy file exists at `policies/custom/custom.policy.json`, it is loaded and evaluated after Rego
-4. Custom policy results are merged: denials are additive, warnings and score adjustments are collected
-5. Core invariants are always enforced regardless of custom policy content
+3. Custom Rego policy results are merged: denials are additive, warnings and score adjustments are collected
+4. Core invariants are always enforced regardless of custom policy content
 
-#### How invalid policies fail
+### How to disable a custom policy
 
-If a custom JSON policy file contains invalid JSON or invalid rule structures, the load fails closed. The application continues with the default policy only. The error is logged clearly.
+Set `MATCHBOARD_POLICY_REGO_ENABLED=false` or unset the variable. The Wasm artifact is not loaded.
 
-If a Rego policy fails to load or evaluate, behavior depends on `MATCHBOARD_POLICY_REGO_FAILURE_MODE` (see Failure behavior).
+### How to test a policy
 
-#### How to disable a custom policy
-
-- **Rego**: Set `MATCHBOARD_POLICY_REGO_ENABLED=false` or unset the variable. The Wasm artifact is not loaded.
-- **JSON**: Remove or rename the `policies/custom/custom.policy.json` file. The application falls back to default-only policy.
-
-#### How to test a policy
-
-- **Rego**: Write tests in `policies/rego/matchboard_selection_test.rego` and run `npm run policy:test`. Use `npm run policy:dry-run` for end-to-end verification against a fixture.
-- **JSON**: Use the `JsonPolicyAdapter` with any `PolicyPack` object for unit testing.
+Write tests in `policies/rego/matchboard_selection_test.rego` and run `npm run policy:test`. Use `npm run policy:dry-run` for end-to-end verification against a fixture.
 
 ## Policy input/output contract
 
@@ -413,7 +282,6 @@ type SelectionPolicyResult = {
 1. Core invariants run first and produce blocked entries that cannot be overridden
 2. Default Matchboard policy runs second
 3. Rego policy runs third (if `MATCHBOARD_POLICY_REGO_ENABLED=true`)
-4. JSON custom policy runs fourth (if a custom policy file exists)
 
 All blocked entries are merged additively across layers. A player blocked by any layer cannot be allowed by a later layer. Warnings, score adjustments, explanations, and tags are collected from all layers.
 
@@ -474,25 +342,6 @@ low_recent_match_adjustments := [adj |
 ]
 ```
 
-### Example: JSON DSL policy that warns on weak goalkeeper coverage
-
-```json
-{
-  "id": "warn-no-primary-goalkeeper",
-  "effect": "warning",
-  "when": {
-    "all": [
-      { "field": "squad.primaryGoalkeeperCount", "op": "eq", "value": 0 }
-    ]
-  },
-  "warning": {
-    "code": "no_primary_goalkeeper",
-    "severity": "warning",
-    "message": "Squad has no primary goalkeeper."
-  }
-}
-```
-
 ## Key files
 
 | File | Purpose |
@@ -507,8 +356,6 @@ low_recent_match_adjustments := [adj |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
 | `src/lib/policies/policy-decision-log.ts` | Policy decision summary builder for logging |
-| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation (legacy, internal use) |
-| `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON |
 | `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime, version, Rego status |
 | `policies/rego/matchboard_selection.rego` | Rego policy source |
 | `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
@@ -516,9 +363,6 @@ low_recent_match_adjustments := [adj |
 | `policies/rego/examples/goalkeeper_coverage.rego` | Example: stricter GK coverage |
 | `policies/rego/examples/equal_opportunity.rego` | Example: equal opportunity scoring |
 | `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact (do not edit) |
-| `policies/default/matchboard.default.policy.json` | Default policy as JSON DSL example |
-| `policies/examples/stricter-goalkeeper-coverage.policy.json` | Example: stricter GK coverage (JSON) |
-| `policies/examples/equal-opportunity.policy.json` | Example: equal opportunity scoring (JSON) |
 | `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm |
 | `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
 

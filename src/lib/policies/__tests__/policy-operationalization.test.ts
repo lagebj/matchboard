@@ -27,7 +27,7 @@ const baseInput: SelectionPolicyInput = {
     { id: "p3", displayName: "Inactive", status: "INACTIVE", availableForContext: false, currentTeamIds: ["t1"] },
   ],
   teams: [{ id: "t1", name: "Team 1", targetSquadSize: 7, minSquadSize: 5, maxSquadSize: 9 }],
-  squads: [{ id: "s1", teamId: "t1", name: "Squad 1", playerIdList: ["p1"], primaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 }],
+  squads: [{ id: "s1", teamId: "t1", name: "Squad 1", playerIdList: ["p1"], primaryGoalkeeperCount: 0, secondaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 }],
   matches: [{ id: "m1", isCancelled: false }],
   history: { playerMatchCountMap: {}, playerRoleMap: {}, playerRecentSupportCount: {} },
   constraints: { maxSquadSize: 9, minSquadSize: 5, targetSquadSize: 7 },
