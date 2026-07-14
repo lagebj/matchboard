@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 import type {
   AssistantCommandCentre,
   AssistantWorkCategory,
   AssistantWorkItem,
 } from "./types";
 import { CATEGORY_PRIORITY } from "./types";
+import { getEventWorkItems } from "./get-event-work-items";
 
 export async function getAssistantCommandCentre(): Promise<AssistantCommandCentre> {
   const leagueSeason = await db.leagueSeason.findFirst({
@@ -87,6 +89,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
           id: true,
           teamId: true,
           status: true,
+          startsAt: true,
         },
       },
     },
@@ -233,6 +236,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     if (round.status === "FINALIZED") {
       for (const match of round.matches) {
         if (match.status === "CANCELLED") continue;
+        if (!hasLeagueMatchPassed({ startsAt: match.startsAt, status: match.status })) continue;
         if (!existingReports.has(match.id)) {
           items.push(
             makeItem({
@@ -252,6 +256,9 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
       continue;
     }
   }
+
+  const eventItems = await getEventWorkItems();
+  items.push(...eventItems);
 
   items.sort((a, b) => {
     const priDiff = a.priority - b.priority;
@@ -276,7 +283,9 @@ function makeItem(
   const id =
     rest.matchId && category === "post_match_report"
       ? `${category}|${rest.matchRoundId}|${rest.matchId}`
-      : `${category}|${rest.matchRoundId}`;
+      : rest.eventId
+        ? `${category}|${rest.eventId}`
+        : `${category}|${rest.matchRoundId}`;
   return {
     id,
     category,
