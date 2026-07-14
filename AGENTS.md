@@ -1330,12 +1330,40 @@ Event squad generation is separate from league round generation:
 Events use separate Prisma models:
 - `Event`: top-level container with name, type (CUP/TOURNAMENT/FRIENDLY_DAY/OTHER), date range, game format, independent of league season, default formation, selection pattern
 - `EventPlayerAvailability`: per-player availability for this event (AVAILABLE/UNAVAILABLE/UNKNOWN/RESERVE/LATE_ADDITION/WITHDRAWN)
-- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary
+- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary, status (DRAFT/CONFIRM)
 - `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason
 - `EventMatchLineup`: per-match lineup with formation reference, status (DRAFT/CONFIRMED), cascade delete with EventMatch
 - `EventMatchLineupAssignment`: per-slot player assignment within a lineup, with slot position (slotId, slotIndex, slotLabel, roleType, x, y), source (BASE_SQUAD/HELPER), unique on [lineupId, playerId]
 
 Event squads are NOT normal `Team` rows. They are temporary event artifacts with no league identity.
+
+### Event squad draft/commit lifecycle
+
+Event squads have a status field: DRAFT or CONFIRMED.
+
+- Generated squads start as DRAFT
+- The coach reviews DRAFT squads, may make manual adjustments
+- When satisfied, the coach commits squads via `confirmEventSquadsAction`, which runs validation first
+- Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
+- Blocking issues prevent commit; warning and info issues do not
+- Committed squads can be reverted to DRAFT via `unconfirmEventSquadsAction`
+- The Assistant surfaces `event_squads_draft_review` work items when all event squads are DRAFT
+- Aggregate status (DRAFT/CONFIRMED/MIXED) is available via `getEventSquadsStatusAction`
+
+### Policy decision types
+
+The policy pipeline uses context-aware decision types to branch policy behavior by mode:
+
+- `league_match_selection` — per-match selection in league rounds
+- `league_round_fairness` — round-level fairness adjustments
+- `event_squad_generation` — event squad construction
+- `event_helper_selection` — event match support helpers
+- `event_lineup_planning` — event match lineup
+- `post_match_report_availability` — post-match report availability checks
+
+Fairness scope values: `match`, `round`, `period`, `season`, `event`, `event_match`.
+
+League mode applies fairness score adjustments (low recent/period/season match count). Event mode does NOT apply fairness adjustments — event fairness is construction feasibility, not longitudinal load balancing.
 
 ### Player attribute ratings
 
@@ -1470,6 +1498,7 @@ Rules:
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
@@ -1739,6 +1768,7 @@ Avoid:
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 

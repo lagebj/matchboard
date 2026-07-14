@@ -335,6 +335,124 @@ describe("getEventWorkItems", () => {
     await cleanEventTables(db);
   });
 
+  it("returns event_squads_draft_review when all squads are DRAFT", async () => {
+    const event = await db.event.create({
+      data: {
+        name: "Draft Review Cup",
+        eventType: "CUP",
+        startsAt: new Date("2028-09-01T09:00:00Z"),
+        endsAt: new Date("2028-09-01T17:00:00Z"),
+        gameFormat: "SEVEN_A_SIDE",
+      },
+    });
+    const squad = await db.eventSquad.create({
+      data: {
+        eventId: event.id,
+        name: "Draft Squad",
+        intent: "COMPETITIVE",
+        targetSize: 7,
+        status: "DRAFT",
+      },
+    });
+    await db.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        category: "CUP",
+        opponentName: "Draft Opponent",
+        opponentTeamId: opponentTeamId,
+        startsAt: new Date("2028-09-01T10:00:00Z"),
+      },
+    });
+
+    const items = await getEventWorkItems();
+    const draftItems = items.filter(
+      (i) => i.category === "event_squads_draft_review" && i.eventId === event.id,
+    );
+    expect(draftItems.length).toBe(1);
+    expect(draftItems[0]!.title).toContain("Draft Review Cup");
+    expect(draftItems[0]!.primaryActionLabel).toBe("Review squads");
+
+    await cleanEventTables(db);
+  });
+
+  it("does not return event_squads_draft_review when all squads are CONFIRMED", async () => {
+    const event = await db.event.create({
+      data: {
+        name: "Confirmed Cup",
+        eventType: "CUP",
+        startsAt: new Date("2028-10-01T09:00:00Z"),
+        endsAt: new Date("2028-10-01T17:00:00Z"),
+        gameFormat: "SEVEN_A_SIDE",
+      },
+    });
+    const squad = await db.eventSquad.create({
+      data: {
+        eventId: event.id,
+        name: "Confirmed Squad",
+        intent: "COMPETITIVE",
+        targetSize: 7,
+        status: "CONFIRMED",
+      },
+    });
+    await db.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        category: "CUP",
+        opponentName: "Confirmed Opponent",
+        opponentTeamId: opponentTeamId,
+        startsAt: new Date("2028-10-01T10:00:00Z"),
+      },
+    });
+
+    const items = await getEventWorkItems();
+    const draftItems = items.filter(
+      (i) => i.category === "event_squads_draft_review" && i.eventId === event.id,
+    );
+    expect(draftItems.length).toBe(0);
+
+    await cleanEventTables(db);
+  });
+
+  it("does not return event_squads_draft_review when some squads are CONFIRMED", async () => {
+    const event = await db.event.create({
+      data: {
+        name: "Mixed Cup",
+        eventType: "CUP",
+        startsAt: new Date("2028-11-01T09:00:00Z"),
+        endsAt: new Date("2028-11-01T17:00:00Z"),
+        gameFormat: "SEVEN_A_SIDE",
+      },
+    });
+    await db.eventSquad.create({
+      data: {
+        eventId: event.id,
+        name: "Draft Squad",
+        intent: "BALANCED",
+        targetSize: 7,
+        status: "DRAFT",
+      },
+    });
+    await db.eventSquad.create({
+      data: {
+        eventId: event.id,
+        name: "Confirmed Squad",
+        intent: "COMPETITIVE",
+        targetSize: 7,
+        status: "CONFIRMED",
+      },
+    });
+
+    const items = await getEventWorkItems();
+    const draftItems = items.filter(
+      (i) => i.category === "event_squads_draft_review" && i.eventId === event.id,
+    );
+    expect(draftItems.length).toBe(0);
+
+    await cleanEventTables(db);
+  });
+
   it("still surfaces report items for past events", async () => {
     const pastEvent = await db.event.create({
       data: {
