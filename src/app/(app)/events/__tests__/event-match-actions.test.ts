@@ -103,6 +103,54 @@ describe('Event match CRUD actions', () => {
       const match = await createEventMatchAction(formData);
       expect(match.category).toBe('CUP');
     });
+
+    it('creates opponent team from name when no opponentTeamId provided', async () => {
+      const formData = new FormData();
+      formData.set('eventId', eventId);
+      formData.set('eventSquadId', squadId);
+      formData.set('opponentName', 'New Opponent Team');
+      formData.set('startsAt', '2026-08-05T10:00');
+      formData.set('category', 'CUP');
+
+      const match = await createEventMatchAction(formData);
+      expect(match.opponentName).toBe('New Opponent Team');
+      expect(match.opponentTeamId).toBeDefined();
+
+      const opponent = await testDb.opponentTeam.findUnique({ where: { id: match.opponentTeamId! } });
+      expect(opponent).toBeDefined();
+      expect(opponent!.displayName).toBe('New Opponent Team');
+      expect(opponent!.normalizedName).toBe('new opponent team');
+    });
+
+    it('links to existing opponent team when opponentTeamId is provided', async () => {
+      const existing = await testDb.opponentTeam.create({
+        data: { displayName: 'Existing FC', normalizedName: 'existing fc' },
+      });
+
+      const formData = new FormData();
+      formData.set('eventId', eventId);
+      formData.set('eventSquadId', squadId);
+      formData.set('opponentName', 'Existing FC');
+      formData.set('opponentTeamId', existing.id);
+      formData.set('startsAt', '2026-08-06T10:00');
+      formData.set('category', 'CUP');
+
+      const match = await createEventMatchAction(formData);
+      expect(match.opponentName).toBe('Existing FC');
+      expect(match.opponentTeamId).toBe(existing.id);
+    });
+
+    it('rejects nonexistent opponentTeamId', async () => {
+      const formData = new FormData();
+      formData.set('eventId', eventId);
+      formData.set('eventSquadId', squadId);
+      formData.set('opponentName', 'Ghost');
+      formData.set('opponentTeamId', 'nonexistent-id');
+      formData.set('startsAt', '2026-08-07T10:00');
+      formData.set('category', 'CUP');
+
+      await expect(createEventMatchAction(formData)).rejects.toThrow('Opponent team not found');
+    });
   });
 
   describe('cancel and reopen', () => {
@@ -264,6 +312,39 @@ describe('Event match CRUD actions', () => {
       await expect(
         updateEventMatchAction('nonexistent-id', { opponentName: 'Test' }),
       ).rejects.toThrow('not found');
+    });
+
+    it('resolves opponentTeamId when updating opponent name', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        opponentName: 'Brand New Opponent FC',
+      });
+      expect(updated.opponentName).toBe('Brand New Opponent FC');
+      expect(updated.opponentTeamId).toBeDefined();
+
+      const opponent = await testDb.opponentTeam.findUnique({ where: { id: updated.opponentTeamId! } });
+      expect(opponent!.displayName).toBe('Brand New Opponent FC');
+    });
+
+    it('links to existing opponent team when updating with opponentTeamId', async () => {
+      const existing = await testDb.opponentTeam.create({
+        data: { displayName: 'Linked FC', normalizedName: 'linked fc' },
+      });
+
+      const updated = await updateEventMatchAction(updateMatchId, {
+        opponentName: 'Linked FC',
+        opponentTeamId: existing.id,
+      });
+      expect(updated.opponentName).toBe('Linked FC');
+      expect(updated.opponentTeamId).toBe(existing.id);
+    });
+
+    it('clears opponentTeamId when updating with null opponentTeamId', async () => {
+      const updated = await updateEventMatchAction(updateMatchId, {
+        opponentName: 'Unlinked Opponent',
+        opponentTeamId: null,
+      });
+      expect(updated.opponentName).toBe('Unlinked Opponent');
+      expect(updated.opponentTeamId).toBeNull();
     });
   });
 });

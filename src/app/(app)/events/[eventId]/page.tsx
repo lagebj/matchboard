@@ -6,6 +6,7 @@ import { validateEventPool } from '@/lib/events/event-validation';
 import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
 import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
+import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,10 +20,15 @@ function toGameFormat(gf: string): GameFormat {
 
 export default async function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
-  const [event, allActivePlayers, compatibleFormations] = await Promise.all([
+  const [event, allActivePlayers, compatibleFormations, opponentTeams] = await Promise.all([
     getEventById(eventId),
     getAvailablePlayersForEvent(),
     getCompatibleFormationsForEvent(eventId),
+    db.opponentTeam.findMany({
+      where: { archivedAt: null },
+      orderBy: { displayName: 'asc' },
+      select: { id: true, displayName: true },
+    }),
   ]);
 
   if (!event) notFound();
@@ -229,6 +235,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
     validation,
     compatibleFormations,
     formationMap,
+    opponentTeams,
   };
 
   return <EventDetail data={data} />;

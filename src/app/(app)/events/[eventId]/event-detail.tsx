@@ -152,6 +152,7 @@ type EventDetailData = {
   validation: EventPoolValidation;
   compatibleFormations: { id: string; name: string; gameFormat: string }[];
   formationMap: Map<string, { id: string; name: string; gameFormat: string }>;
+  opponentTeams: Array<{ id: string; displayName: string }>;
 };
 
 type TabKey = 'overview' | 'squads' | 'pool' | 'matches';
@@ -962,6 +963,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             playerId: p.playerId,
             status: p.status,
           }))}
+          opponentTeams={data.opponentTeams}
         />
       )}
     </div>
