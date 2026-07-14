@@ -1,0 +1,92 @@
+{
+  "context": {
+    "phase": "pre_selection",
+    "mode": "league",
+    "seasonYear": 2026,
+    "period": "spring",
+    "teamId": "team-home",
+    "matchDate": "2026-04-20",
+    "nowIso": "2026-04-18T10:00:00Z"
+  },
+  "players": [
+    {
+      "id": "p-home-gk",
+      "displayName": "Home GK",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "GOALKEEPER",
+      "goalkeeperAbility": "YES",
+      "recentMatchCount": 4,
+      "seasonMatchCount": 8,
+      "periodMatchCount": 3,
+      "currentTeamIds": ["team-home"]
+    },
+    {
+      "id": "p-home-field",
+      "displayName": "Home Field",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 3,
+      "seasonMatchCount": 6,
+      "periodMatchCount": 2,
+      "currentTeamIds": ["team-home"]
+    },
+    {
+      "id": "p-home-low",
+      "displayName": "Home Low Activity",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "DEFENDER",
+      "goalkeeperAbility": "EMERGENCY",
+      "recentMatchCount": 0,
+      "seasonMatchCount": 1,
+      "periodMatchCount": 0,
+      "currentTeamIds": ["team-home"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-home",
+      "name": "Home Team",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    },
+    {
+      "id": "team-away",
+      "name": "Away Team",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    }
+  ],
+  "squads": [
+    {
+      "id": "squad-home",
+      "teamId": "team-home",
+      "playerIdList": ["p-home-gk", "p-home-field", "p-home-low"],
+      "primaryGoalkeeperCount": 1,
+      "anyGoalkeeperCount": 2
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-1",
+      "isCancelled": false,
+      "opponentName": "Rivals"
+    }
+  ],
+  "history": {
+    "playerMatchCountMap": {},
+    "playerRoleMap": {},
+    "playerRecentSupportCount": {}
+  },
+  "constraints": {
+    "maxSquadSize": 9,
+    "minSquadSize": 5,
+    "targetSquadSize": 7,
+    "requireGoalkeeper": true
+  }
+}

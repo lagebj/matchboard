@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
   serverExternalPackages: ["pg", "@prisma/adapter-pg", "@prisma/adapter-neon"],
+  outputFileTracingIncludes: {
+    "/**/*": ["./policies/compiled/matchboard_selection.wasm"],
+  },
   async redirects() {
     return [
       { source: "/today", destination: "/assistant", permanent: true },

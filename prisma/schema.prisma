@@ -1341,6 +1341,8 @@ enum MatchCategory {
 model PolicyDecisionLog {
   id                  String   @id @default(cuid())
   decisionType        String
+  policyRuntime       String?  @default("default")
+  policyVersionHash   String?
   policyPackId        String?
   inputHash           String?
   resultSummaryJson   String?
@@ -1352,6 +1354,8 @@ model PolicyDecisionLog {
   warningCount        Int      @default(0)
   scoreAdjustmentCount Int     @default(0)
   explanationCount    Int      @default(0)
+  regoEnabled         Boolean  @default(false)
+  regoFailureMode     String?  @default("fail_closed")
   createdAt           DateTime @default(now())
 
   @@index([decisionType])
