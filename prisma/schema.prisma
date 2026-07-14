@@ -1337,3 +1337,25 @@ enum MatchCategory {
   CUP
   OTHER
 }
+
+model PolicyDecisionLog {
+  id                  String   @id @default(cuid())
+  decisionType        String
+  policyPackId        String?
+  inputHash           String?
+  resultSummaryJson   String?
+  relatedEventId      String?
+  relatedEventMatchId String?
+  relatedLeagueMatchId String?
+  relatedTeamId       String?
+  blockedCount        Int      @default(0)
+  warningCount        Int      @default(0)
+  scoreAdjustmentCount Int     @default(0)
+  explanationCount    Int      @default(0)
+  createdAt           DateTime @default(now())
+
+  @@index([decisionType])
+  @@index([relatedEventId])
+  @@index([relatedLeagueMatchId])
+  @@index([createdAt])
+}

@@ -822,6 +822,94 @@ The orchestrator should be thin.
 
 Rules must be testable without React.
 
+## Policy-capable selection engine
+
+Matchboard separates deterministic squad/lineup solving from configurable policy evaluation.
+
+### Policy layers
+
+1. **Core invariants** — non-overridable safety rules enforced in TypeScript (`src/lib/policies/core-invariants.ts`). Removed players, inactive players, unavailable players, duplicate lineup assignments — these cannot be overridden by custom policies.
+2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations (`src/lib/policies/default-matchboard-policy.ts`). Always runs.
+3. **Optional custom instance policy** — JSON DSL rules that may make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants.
+
+### JSON policy DSL
+
+Custom policies are defined as JSON files in `policies/custom/`. The DSL supports four effects: `deny`, `warning`, `score_adjustment`, `tag`. Rules evaluate over normalized policy input (player, team, squad, match, context). Operators: `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in`, `not_in`, `exists`, `not_exists`, `contains`. Conditions combine with `all` (AND) or `any` (OR).
+
+No arbitrary code execution. No eval. The JSON DSL is OPA-compatible in design but uses a TypeScript adapter, not a Rego runtime.
+
+### Integration points
+
+- Event squad generation: pre-filter blocked players, apply score adjustments, surface warnings
+- Event helper selection: block overlapping helpers via core invariant
+- Event match lineup: filter blocked players, warn on weak position coverage
+- League match selection: apply pre/post policy evaluation
+- Assistant: surface policy warnings and explanations
+
+### Custom policy usage
+
+Place `policies/custom/custom.policy.json` to enable a custom policy. Invalid policies fail closed and log an error. Remove the file to disable.
+
+See `docs/policies.md` for full documentation and `policies/examples/` for example policies.
+
+### Policy key files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/policies/types.ts` | Policy input/result type definitions |
+| `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
+| `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
+| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation engine |
+| `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
+| `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
+| `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
+
+Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Documentation, tests, and lint cleanup are mandatory for every change.
+
+## Policy-capable selection engine
+
+Matchboard separates deterministic squad/lineup solving from configurable policy evaluation.
+
+### Policy layers
+
+1. **Core invariants** — non-overridable safety rules enforced in TypeScript (). Removed players, inactive players, unavailable players, duplicate lineup assignments — these cannot be overridden by custom policies.
+2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations (). Always runs.
+3. **Optional custom instance policy** — JSON DSL rules that may make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants.
+
+### JSON policy DSL
+
+Custom policies are defined as JSON files in . The DSL supports four effects: , , , . Rules evaluate over normalized policy input (player, team, squad, match, context). Operators: , , , , , , , , , , . Conditions combine with  (AND) or  (OR).
+
+No arbitrary code execution. No eval. The JSON DSL is OPA-compatible in design but uses a TypeScript adapter, not a Rego runtime.
+
+### Integration points
+
+- Event squad generation: pre-filter blocked players, apply score adjustments, surface warnings
+- Event helper selection: block overlapping helpers via core invariant
+- Event match lineup: filter blocked players, warn on weak position coverage
+- League match selection: apply pre/post policy evaluation
+- Assistant: surface policy warnings and explanations
+
+### Custom policy usage
+
+Place  to enable a custom policy. Invalid policies fail closed and log an error. Remove the file to disable.
+
+See  for full documentation and  for example policies.
+
+### Policy key files
+
+| File | Purpose |
+|------|---------|
+|  | Policy input/result type definitions |
+|  | Non-overridable core invariant checks |
+|  | Build normalized policy input from app data |
+|  | JSON DSL rule evaluation engine |
+|  | Default Matchboard eligibility/warning/scoring policy |
+|  | Policy adapter interface, composite pipeline, factory |
+|  | Load and validate policy packs from JSON files |
+
+Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Documentation, tests, and lint cleanup are mandatory for every change.
+
 ## Populate all
 
 Populate all is a convenience workflow that generates drafts for all non-finalized rounds in the active league season.
@@ -1643,6 +1731,13 @@ Avoid:
 | `src/lib/selection/selection-fairness.ts` | Fairness scoring logic |
 | `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
 | `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking |
+| `src/lib/policies/types.ts` | Policy input/result type definitions |
+| `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
+| `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
+| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation engine |
+| `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
+| `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
+| `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering |
 | `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state |
