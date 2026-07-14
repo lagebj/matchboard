@@ -1,0 +1,37 @@
+{
+  "id": "league-round-fairness",
+  "label": "League: Round fairness",
+  "description": "League round fairness context with players having varying match counts. Tests fairness score adjustments in league mode.",
+  "decisionType": "league_round_fairness",
+  "mode": "league",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "league",
+      "decisionType": "league_round_fairness",
+      "fairnessScope": "round",
+      "nowIso": "2026-05-15T10:00:00Z",
+      "seasonYear": 2026,
+      "period": "spring"
+    },
+    "players": [
+      { "id": "player-high-load", "displayName": "High Load Player", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 5, "seasonMatchCount": 10, "periodMatchCount": 5, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-low-load", "displayName": "Low Load Player", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 1, "seasonMatchCount": 2, "periodMatchCount": 1, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-zero-load", "displayName": "Zero Load Player", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 0, "periodMatchCount": 0, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-gk", "displayName": "GK Player", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 3, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-alpha"] }
+    ],
+    "teams": [
+      { "id": "team-alpha", "name": "Team Alpha", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-beta", "name": "Team Beta", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 }
+    ],
+    "squads": [
+      { "id": "squad-alpha", "teamId": "team-alpha", "playerIdList": ["player-high-load", "player-low-load", "player-zero-load", "player-gk"], "primaryGoalkeeperCount": 1, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 1 }
+    ],
+    "matches": [
+      { "id": "match-round-1", "isCancelled": false, "opponentName": "Opponent Alpha" },
+      { "id": "match-round-2", "isCancelled": false, "opponentName": "Opponent Beta" }
+    ],
+    "history": { "playerMatchCountMap": { "player-high-load": 10, "player-low-load": 2, "player-zero-load": 0, "player-gk": 6 }, "playerRoleMap": {}, "playerRecentSupportCount": { "player-high-load": 2 } },
+    "constraints": { "requireGoalkeeper": true }
+  }
+}

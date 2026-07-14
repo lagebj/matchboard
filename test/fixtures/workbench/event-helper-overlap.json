@@ -1,0 +1,36 @@
+{
+  "id": "event-helper-overlap",
+  "label": "Event: Helper overlap",
+  "description": "Two matches with overlapping time windows. Tests event helper selection and conflict detection.",
+  "decisionType": "event_helper_selection",
+  "mode": "event",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "event",
+      "decisionType": "event_helper_selection",
+      "fairnessScope": "event_match",
+      "nowIso": "2026-07-15T10:00:00Z",
+      "gameFormat": "SEVEN_A_SIDE",
+      "eventId": "event-fixture-helper"
+    },
+    "players": [
+      { "id": "player-a", "displayName": "Player A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 7, "periodMatchCount": 3, "currentTeamIds": ["team-blue"] },
+      { "id": "player-b", "displayName": "Player B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-blue"] }
+    ],
+    "teams": [
+      { "id": "team-blue", "name": "Team Blue", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-red", "name": "Team Red", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 }
+    ],
+    "squads": [
+      { "id": "squad-blue", "teamId": "team-blue", "playerIdList": ["player-a", "player-b"], "primaryGoalkeeperCount": 0, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 0 },
+      { "id": "squad-red", "teamId": "team-red", "playerIdList": [], "primaryGoalkeeperCount": 0, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 0 }
+    ],
+    "matches": [
+      { "id": "match-blue", "isCancelled": false, "opponentName": "Blue Opponent", "startsAt": "2026-07-15T10:00:00Z", "endsAt": "2026-07-15T10:25:00Z" },
+      { "id": "match-red", "isCancelled": false, "opponentName": "Red Opponent", "startsAt": "2026-07-15T10:15:00Z", "endsAt": "2026-07-15T10:40:00Z" }
+    ],
+    "history": { "playerMatchCountMap": {}, "playerRoleMap": {}, "playerRecentSupportCount": {} },
+    "constraints": {}
+  }
+}

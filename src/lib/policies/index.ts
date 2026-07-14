@@ -14,6 +14,7 @@ export type {
   PolicyCandidateSelection,
   SelectionPolicyInput,
   PolicyWarningSeverity,
+  PolicySource,
   PolicyWarning,
   PolicyScoreAdjustment,
   PolicyExplanation,
