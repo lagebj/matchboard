@@ -18,6 +18,7 @@ type ManageBaseGroupsViewProps = {
     nonRotatable: boolean;
     reducedMatchLoadAllowed: boolean;
     overallRating: RatingSummary;
+    removed?: boolean;
   }>;
   teams: Array<{ id: string; name: string }>;
 };
@@ -91,12 +92,16 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
             <tbody className="divide-y divide-[var(--border-soft)]">
               {players.map((player) => {
                 const isUnavailable = player.currentAvailability !== "AVAILABLE";
+                const isRemoved = player.removed === true;
                 return (
-                  <tr key={player.id} className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors ${isUnavailable ? "bg-amber-950/5" : ""}`}>
+                  <tr key={player.id} className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors ${isUnavailable ? "bg-amber-950/5" : ""} ${isRemoved ? "opacity-60" : ""}`}>
                     <td className="px-4 py-2">
-                      <Link href={`/players/${player.id}`} className="font-medium text-zinc-200 hover:text-zinc-50">
+                      <Link href={`/players/${player.id}`} className={`font-medium hover:text-zinc-50 ${isRemoved ? "line-through text-zinc-500" : "text-zinc-200"}`}>
                         {player.firstName}{player.lastName ? ` ${player.lastName}` : ""}
                       </Link>
+                      {isRemoved && (
+                        <span className="ml-1.5 inline-flex items-center rounded border border-red-800/50 bg-red-950/30 px-1 py-px text-[9px] font-medium text-red-400">Removed</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {editingPlayerId === player.id ? (

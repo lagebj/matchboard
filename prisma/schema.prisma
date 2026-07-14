@@ -200,7 +200,7 @@ model Availability {
   note         String?
   createdAt    DateTime   @default(now())
   matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player       Player     @relation(fields: [playerId], references: [id])
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
 }
 
 model Selection {
@@ -221,7 +221,7 @@ model Selection {
   matchdayResponsibility MatchdayResponsibilityType?
   match                  Match                       @relation(fields: [matchId], references: [id], onDelete: Cascade)
   matchRound             MatchRound                  @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player                 Player                      @relation(fields: [playerId], references: [id])
+  player                 Player                      @relation(fields: [playerId], references: [id], onDelete: Restrict)
   audits                 SelectionAudit[]
 }
 
@@ -262,7 +262,7 @@ model MovementLedger {
   fromTeam             Team          @relation("LedgerFromTeam", fields: [fromTeamId], references: [id])
   match                Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
   matchRound           MatchRound    @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player               Player        @relation(fields: [playerId], references: [id])
+  player               Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
   toTeam               Team          @relation("LedgerToTeam", fields: [toTeamId], references: [id])
 
   @@index([matchRoundId, matchId])
@@ -355,7 +355,7 @@ model PlayerPosition {
   priority   PlayerPositionPriority @default(PRIMARY)
   createdAt  DateTime               @default(now())
   updatedAt  DateTime               @updatedAt
-  player     Player                 @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player     Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([playerId, positionId])
   @@index([playerId])
@@ -385,7 +385,7 @@ model PlayerLock {
   lockedBy     String?
   createdAt    DateTime   @default(now())
   matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player       Player     @relation(fields: [playerId], references: [id])
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([matchRoundId, playerId])
 }
@@ -510,7 +510,7 @@ model PostMatchPlayerActual {
   reportId                  String
   source                    String                     @default("PLANNED")
   unplannedAppearanceReason UnplannedAppearanceReason?
-  player                    Player                     @relation(fields: [playerId], references: [id])
+  player                    Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
   report                    PostMatchReport            @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([matchId])
@@ -526,7 +526,7 @@ model Goal {
   type      String          @default("NORMAL")
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
-  player    Player?         @relation(fields: [playerId], references: [id])
+  player    Player?         @relation(fields: [playerId], references: [id], onDelete: SetNull)
   report    PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
@@ -540,7 +540,7 @@ model Assist {
   type      String          @default("NORMAL")
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
-  player    Player          @relation(fields: [playerId], references: [id])
+  player    Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
   report    PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
@@ -557,7 +557,7 @@ model MatchReportAbsence {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   report        PostMatchReport      @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
-  player        Player               @relation(fields: [playerId], references: [id])
+  player        Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([matchReportId, playerId])
   @@index([matchId])
@@ -573,7 +573,7 @@ model MatchReportPlayerStat {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   report        PostMatchReport @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
-  player        Player          @relation(fields: [playerId], references: [id])
+  player        Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([matchReportId, playerId])
   @@index([playerId])
@@ -588,7 +588,7 @@ model PlayerReadinessSignal {
   recordedBy String?
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
-  player     Player               @relation(fields: [playerId], references: [id])
+  player     Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([playerId, signalType])
   @@index([playerId])
@@ -608,7 +608,7 @@ model MatchExecutionFeedback {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   match              Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  player             Player             @relation(fields: [playerId], references: [id])
+  player             Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([matchId, playerId, category])
   @@index([matchId])
@@ -687,7 +687,7 @@ model MovementCandidate {
   rationaleNote     String?
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
-  player            Player                     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player            Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
   rotationPath      RotationPath               @relation(fields: [rotationPathId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, rotationPathId, role])
@@ -726,7 +726,7 @@ model EventPlayerAvailability {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  player    Player            @relation(fields: [playerId], references: [id])
+  player    Player            @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([eventId, playerId])
   @@index([eventId, status])
@@ -774,7 +774,7 @@ model EventSquadPlayer {
   updatedAt          DateTime               @updatedAt
   positionFitTier    String?
   eventSquad         EventSquad             @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
-  player             Player                 @relation(fields: [playerId], references: [id])
+  player             Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([eventSquadId, playerId])
   @@index([playerId])

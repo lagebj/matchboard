@@ -26,6 +26,7 @@ type PlayersPageClientProps = {
     nonRotatable: boolean;
     reducedMatchLoadAllowed: boolean;
     overallRating: RatingSummary;
+    removed?: boolean;
   }>;
   teams: Array<{ id: string; name: string }>;
   leagueSeasons: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
@@ -34,6 +35,8 @@ type PlayersPageClientProps = {
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   selectedPeriodId: string;
   selectedRoundId?: string;
+  includeRemoved?: boolean;
+  removedPlayerCount?: number;
   initialMode?: string;
   error?: string;
   saved?: string;
@@ -48,6 +51,8 @@ export function PlayersPageClient({
   currentRoundRows,
   selectedPeriodId,
   selectedRoundId,
+  includeRemoved,
+  removedPlayerCount = 0,
   initialMode,
   error,
   saved,
@@ -97,6 +102,7 @@ export function PlayersPageClient({
       {error && <DecisionBanner variant="blocked" title={error} />}
       {saved === "created" && <DecisionBanner variant="success" title="Player created." />}
       {saved === "removed" && <DecisionBanner variant="success" title="Player removed." />}
+      {saved === "restored" && <DecisionBanner variant="success" title="Player restored." />}
 
       <div className="flex flex-wrap items-center gap-2">
         <MetricTile
@@ -104,6 +110,19 @@ export function PlayersPageClient({
           label="Players"
           value={players.length}
         />
+        {removedPlayerCount > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate({ showRemoved: includeRemoved ? undefined : "1" })}
+            className={`ml-2 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+              includeRemoved
+                ? "border-amber-700/50 bg-amber-950/30 text-amber-300"
+                : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50"
+            }`}
+          >
+            {includeRemoved ? "Hide removed" : `Show removed (${removedPlayerCount})`}
+          </button>
+        )}
       </div>
 
       <PlayersModeTabs mode={mode} onModeChange={setMode} />
@@ -184,6 +203,7 @@ export function PlayersPageClient({
             nonRotatable: p.nonRotatable,
             reducedMatchLoadAllowed: p.reducedMatchLoadAllowed,
             overallRating: p.overallRating,
+            removed: p.removed,
           }))}
           teams={teams}
         />

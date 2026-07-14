@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTransition, useState, useRef, useEffect } from "react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatAvailabilityStatus, formatPlayerName, getPlayerAttributeAverages, getOverallStarRating } from "@/lib/player-metrics";
-import { togglePlayerActiveAction, removePlayerAction } from "@/app/(app)/players/actions";
+import { togglePlayerActiveAction, removePlayerAction, restorePlayerAction } from "@/app/(app)/players/actions";
 
 type AvailabilityStatus = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
@@ -24,6 +24,7 @@ type PlayerWithTeamAndAttributes = {
   supportNoShowCount: number;
   supportSuitability: string | null;
   developmentReadiness: string | null;
+  removedAt: Date | null;
   coreTeam: { id: string; name: string } | null;
   ballControl: number | null;
   passing: number | null;
@@ -100,9 +101,16 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
   };
 
   const handleRemove = () => {
-    if (!confirm(`Remove ${formatPlayerName(player)}? This cannot be undone.`)) return;
+    if (!confirm(`Remove ${formatPlayerName(player)}? They can be restored later.`)) return;
     startTransition(async () => {
       await removePlayerAction(player.id);
+    });
+    setMenuOpen(false);
+  };
+
+  const handleRestore = () => {
+    startTransition(async () => {
+      await restorePlayerAction(player.id);
     });
     setMenuOpen(false);
   };
@@ -142,6 +150,9 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
           </StatusPill>
           {!player.active && (
             <StatusPill variant="neutral" size="sm">Inactive</StatusPill>
+          )}
+          {player.removedAt && (
+            <StatusPill variant="danger" size="sm">Removed</StatusPill>
           )}
         </div>
 
@@ -231,14 +242,25 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
               >
                 {player.active ? "Set inactive" : "Set active"}
               </button>
-              <button
-                type="button"
-                onClick={handleRemove}
-                disabled={isPending}
-                className="rounded px-2 py-1 text-[11px] text-[var(--danger)] hover:bg-[var(--danger-subtle)] transition-colors text-left disabled:opacity-50"
-              >
-                Remove player
-              </button>
+              {player.removedAt ? (
+                <button
+                  type="button"
+                  onClick={handleRestore}
+                  disabled={isPending}
+                  className="rounded px-2 py-1 text-[11px] text-emerald-400 hover:bg-emerald-950/30 transition-colors text-left disabled:opacity-50"
+                >
+                  Restore player
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  disabled={isPending}
+                  className="rounded px-2 py-1 text-[11px] text-[var(--danger)] hover:bg-[var(--danger-subtle)] transition-colors text-left disabled:opacity-50"
+                >
+                  Remove player
+                </button>
+              )}
             </div>
           )}
         </div>
