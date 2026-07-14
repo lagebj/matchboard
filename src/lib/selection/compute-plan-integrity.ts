@@ -1,4 +1,7 @@
 import { db } from "@/lib/db";
+import { buildPolicyInput } from "@/lib/policies/build-policy-input";
+import { evaluateSelectionPolicy } from "@/lib/policies/policy-evaluation";
+import { policyBlockedToSignals, policyWarningsToSignals, mergePolicySignals } from "@/lib/policies/policy-signal-mapper";
 
 export type PlanIntegritySignalKind = "BLOCKED" | "DECISION_REQUIRED";
 
@@ -325,6 +328,98 @@ export async function computeRoundPlanIntegrity(
       primaryActionTarget: `/rounds/${matchRoundId}`,
       repeatedContext,
     });
+  }
+
+  // 5. Policy-derived signals: evaluate policy and add to canonical signals
+  try {
+    const policyInput = buildPolicyInput({
+      mode: "league",
+      phase: "post_selection",
+      players: activePlayers.map((p) => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        active: true,
+        removedAt: p.removedAt,
+        primaryPosition: "",
+        secondaryPosition: null,
+        tertiaryPosition: null,
+        goalkeeperAbility: "NO",
+        nonRotatable: false,
+        shirtNumber: null,
+        coreTeamId: p.coreTeamId,
+        availabilities: p.availabilities?.map((a) => ({
+          status: a.status,
+          matchRoundId,
+        })),
+      })),
+      teams: round.matches.map((m) => ({
+        id: m.teamId,
+        name: m.team.name,
+        targetSquadSize: m.team.targetSquadSize,
+        minSquadSize: m.team.minAcceptedSquadSize,
+        maxSquadSize: m.team.maxSquadSize,
+      })),
+      squads: round.matches.map((m) => ({
+        id: m.id,
+        name: m.team.name,
+        teamId: m.teamId,
+        playerIdList: m.selections.map((s) => s.playerId),
+        primaryGoalkeeperCount: m.selections.filter((s) => s.role === "CORE" && s.player?.goalkeeperAbility === "YES").length,
+        anyGoalkeeperCount: m.selections.filter((s) => ["YES", "EMERGENCY"].includes(s.player?.goalkeeperAbility ?? "NO")).length,
+      })),
+      matches: round.matches.map((m) => ({
+        id: m.id,
+        startsAt: m.startsAt,
+        matchStatus: m.status,
+      })),
+      nowIso: new Date().toISOString(),
+      leagueMatchId: matchRoundId,
+    });
+    const policyResult = await evaluateSelectionPolicy(policyInput);
+    const blockedSignals = policyBlockedToSignals(policyResult.result, matchRoundId);
+    const warningSignals = policyWarningsToSignals(policyResult.result, matchRoundId);
+    const allPolicySignals = mergePolicySignals(blockedSignals, warningSignals);
+
+    for (const ps of allPolicySignals) {
+      if (ps.kind === "BLOCKED" || ps.kind === "DECISION_REQUIRED") {
+        const alreadyExists = signals.some((s) => s.idempotencyKey === ps.idempotencyKey);
+        if (!alreadyExists) {
+          signals.push({
+            idempotencyKey: ps.idempotencyKey,
+            kind: ps.kind as PlanIntegritySignalKind,
+            ruleCode: ps.ruleCode as PlanIntegrityRuleCode,
+            matchRoundId,
+            matchId: ps.matchId,
+            teamId: ps.teamId,
+            playerId: ps.playerId,
+            title: ps.title,
+            currentState: ps.detail,
+            consequence: ps.kind === "BLOCKED" ? "Resolve this condition before finalising." : "Review and decide before finalising.",
+            classificationReason: `Policy: ${ps.ruleCode}`,
+            primaryActionLabel: "Review",
+            primaryActionTarget: `/rounds/${matchRoundId}`,
+          });
+        }
+      } else if (ps.kind === "PLANNING_NOTE") {
+        const alreadyExists = planningNotes.some((n) => n.idempotencyKey === ps.idempotencyKey);
+        if (!alreadyExists) {
+          planningNotes.push({
+            idempotencyKey: ps.idempotencyKey,
+            code: ps.ruleCode as PlanningNoteCode,
+            matchRoundId,
+            matchId: ps.matchId,
+            teamId: ps.teamId,
+            playerId: ps.playerId,
+            title: ps.title,
+            detail: ps.detail,
+          });
+        }
+      }
+    }
+  } catch {
+    // Policy evaluation failure must not block plan integrity computation.
+    // Canonical signals are always computed; policy signals are additive.
   }
 
   const blockerCount = signals.filter((s) => s.kind === "BLOCKED").length;

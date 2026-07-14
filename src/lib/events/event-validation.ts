@@ -10,6 +10,25 @@ import {
   getPlayerBroadPositions,
   computeCompositeRatings,
 } from './event-types';
+import type { SelectionPolicyResult } from '@/lib/policies/types';
+import { coachFacingWarningMessage } from '@/lib/policies/policy-evaluation';
+
+export function applyPolicyWarnings(
+  policyResult: SelectionPolicyResult | null,
+  warnings: string[],
+): string[] {
+  if (!policyResult) return warnings;
+  const merged = [...warnings];
+  for (const warning of policyResult.warnings) {
+    merged.push(coachFacingWarningMessage(warning));
+  }
+  for (const [playerId, reasons] of Object.entries(policyResult.blocked)) {
+    for (const reason of reasons) {
+      merged.push(`Policy blocked ${playerId}: ${reason}`);
+    }
+  }
+  return merged;
+}
 
 export function validateEventPool(
   players: PlayerAttributeProfile[],

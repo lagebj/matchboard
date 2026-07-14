@@ -1,0 +1,86 @@
+{
+  "context": {
+    "phase": "pre_selection",
+    "mode": "league",
+    "seasonYear": 2026,
+    "period": "spring",
+    "teamId": "team-purple",
+    "nowIso": "2026-04-20T10:00:00Z"
+  },
+  "players": [
+    {
+      "id": "player-removed",
+      "displayName": "Removed Player",
+      "status": "REMOVED",
+      "availableForContext": false,
+      "primaryPosition": "FORWARD",
+      "goalkeeperAbility": "NO",
+      "currentTeamIds": []
+    },
+    {
+      "id": "player-inactive",
+      "displayName": "Inactive Player",
+      "status": "INACTIVE",
+      "availableForContext": false,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "currentTeamIds": ["team-purple"]
+    },
+    {
+      "id": "player-unavailable",
+      "displayName": "Unavailable Player",
+      "status": "ACTIVE",
+      "availableForContext": false,
+      "unavailableReason": "Injured",
+      "primaryPosition": "DEFENDER",
+      "goalkeeperAbility": "NO",
+      "currentTeamIds": ["team-purple"]
+    },
+    {
+      "id": "player-active",
+      "displayName": "Active Player",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 5,
+      "seasonMatchCount": 10,
+      "currentTeamIds": ["team-purple"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-purple",
+      "name": "Purple Team",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    }
+  ],
+  "squads": [
+    {
+      "id": "squad-purple",
+      "teamId": "team-purple",
+      "playerIdList": ["player-active"],
+      "primaryGoalkeeperCount": 0,
+      "anyGoalkeeperCount": 0
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-purple-1",
+      "isCancelled": false
+    }
+  ],
+  "history": {
+    "playerMatchCountMap": {},
+    "playerRoleMap": {},
+    "playerRecentSupportCount": {}
+  },
+  "constraints": {
+    "maxSquadSize": 9,
+    "minSquadSize": 5,
+    "targetSquadSize": 7,
+    "requireGoalkeeper": true
+  }
+}

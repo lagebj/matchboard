@@ -1,0 +1,57 @@
+{
+  "context": {
+    "phase": "pre_selection",
+    "mode": "event",
+    "nowIso": "2026-06-15T10:00:00Z",
+    "gameFormat": "7v7",
+    "eventId": "event-fixture-2"
+  },
+  "players": [
+    {
+      "id": "player-duplicate-1",
+      "displayName": "Duplicate Player",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 4,
+      "seasonMatchCount": 8,
+      "currentTeamIds": ["team-green"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-green",
+      "name": "Green Team",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    }
+  ],
+  "squads": [
+    {
+      "id": "squad-green-a",
+      "teamId": "team-green",
+      "playerIdList": ["player-duplicate-1", "player-duplicate-1"],
+      "primaryGoalkeeperCount": 0,
+      "anyGoalkeeperCount": 0
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-green-1",
+      "isCancelled": false
+    }
+  ],
+  "history": {
+    "playerMatchCountMap": {},
+    "playerRoleMap": {},
+    "playerRecentSupportCount": {}
+  },
+  "constraints": {
+    "maxSquadSize": 9,
+    "minSquadSize": 5,
+    "targetSquadSize": 7,
+    "requireGoalkeeper": true
+  }
+}
