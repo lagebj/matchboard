@@ -830,13 +830,29 @@ Matchboard separates deterministic squad/lineup solving from configurable policy
 
 1. **Core invariants** — non-overridable safety rules enforced in TypeScript (`src/lib/policies/core-invariants.ts`). Removed players, inactive players, unavailable players, duplicate lineup assignments — these cannot be overridden by custom policies.
 2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations (`src/lib/policies/default-matchboard-policy.ts`). Always runs.
-3. **Optional custom instance policy** — JSON DSL rules that may make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants.
+3. **Optional custom OPA/Rego policy** — compiled to WebAssembly and evaluated server-side via `@open-policy-agent/opa-wasm`. May make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants. No OPA server, no sidecar, no runtime Rego compilation, no browser-side evaluation.
 
-### JSON policy DSL
+### Rego/Wasm policy adapter
 
-Custom policies are defined as JSON files in `policies/custom/`. The DSL supports four effects: `deny`, `warning`, `score_adjustment`, `tag`. Rules evaluate over normalized policy input (player, team, squad, match, context). Operators: `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in`, `not_in`, `exists`, `not_exists`, `contains`. Conditions combine with `all` (AND) or `any` (OR).
+Custom policies are written in Rego, compiled to Wasm before deployment, and evaluated inside the Next.js server runtime using `@open-policy-agent/opa-wasm`.
 
-No arbitrary code execution. No eval. The JSON DSL is OPA-compatible in design but uses a TypeScript adapter, not a Rego runtime.
+Rego may:
+- add blocked player reasons
+- add warnings
+- add score adjustments (bounded ±20)
+- add explanations
+- add tags
+
+Rego may not:
+- override core invariants
+- allow players blocked by core invariants
+- mutate data, access the database, access secrets, make network calls, depend on `http.send`, read files, perform side effects, replace squad generation, replace lineup generation, or alter historical snapshots
+
+See `docs/policies.md` and `docs/admin/policy-management.md` for full documentation.
+
+### JSON policy DSL (legacy)
+
+The JSON DSL (`src/lib/policies/json-policy-dsl.ts`) is retained for backward compatibility and internal default policy expression. New custom policies should use Rego compiled to Wasm. Do not add proprietary policy DSL extensions.
 
 ### Integration points
 
@@ -846,11 +862,11 @@ No arbitrary code execution. No eval. The JSON DSL is OPA-compatible in design b
 - League match selection: apply pre/post policy evaluation
 - Assistant: surface policy warnings and explanations
 
-### Custom policy usage
+### Policy configuration
 
-Place `policies/custom/custom.policy.json` to enable a custom policy. Invalid policies fail closed and log an error. Remove the file to disable.
-
-See `docs/policies.md` for full documentation and `policies/examples/` for example policies.
+- `MATCHBOARD_POLICY_REGO_ENABLED` — enable Rego adapter (default: `false`)
+- `MATCHBOARD_POLICY_WASM_PATH` — path to compiled Wasm artifact (default: `policies/compiled/matchboard_selection.wasm`)
+- `MATCHBOARD_POLICY_REGO_FAILURE_MODE` — `fail_closed` (default) or `fail_open`
 
 ### Policy key files
 
@@ -859,56 +875,18 @@ See `docs/policies.md` for full documentation and `policies/examples/` for examp
 | `src/lib/policies/types.ts` | Policy input/result type definitions |
 | `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
-| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation engine |
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
+| `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
+| `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation (legacy, internal use) |
 | `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
+| `policies/rego/matchboard_selection.rego` | Rego policy source |
+| `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
+| `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact |
+| `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm |
+| `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
 
-Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Documentation, tests, and lint cleanup are mandatory for every change.
-
-## Policy-capable selection engine
-
-Matchboard separates deterministic squad/lineup solving from configurable policy evaluation.
-
-### Policy layers
-
-1. **Core invariants** — non-overridable safety rules enforced in TypeScript (). Removed players, inactive players, unavailable players, duplicate lineup assignments — these cannot be overridden by custom policies.
-2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations (). Always runs.
-3. **Optional custom instance policy** — JSON DSL rules that may make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants.
-
-### JSON policy DSL
-
-Custom policies are defined as JSON files in . The DSL supports four effects: , , , . Rules evaluate over normalized policy input (player, team, squad, match, context). Operators: , , , , , , , , , , . Conditions combine with  (AND) or  (OR).
-
-No arbitrary code execution. No eval. The JSON DSL is OPA-compatible in design but uses a TypeScript adapter, not a Rego runtime.
-
-### Integration points
-
-- Event squad generation: pre-filter blocked players, apply score adjustments, surface warnings
-- Event helper selection: block overlapping helpers via core invariant
-- Event match lineup: filter blocked players, warn on weak position coverage
-- League match selection: apply pre/post policy evaluation
-- Assistant: surface policy warnings and explanations
-
-### Custom policy usage
-
-Place  to enable a custom policy. Invalid policies fail closed and log an error. Remove the file to disable.
-
-See  for full documentation and  for example policies.
-
-### Policy key files
-
-| File | Purpose |
-|------|---------|
-|  | Policy input/result type definitions |
-|  | Non-overridable core invariant checks |
-|  | Build normalized policy input from app data |
-|  | JSON DSL rule evaluation engine |
-|  | Default Matchboard eligibility/warning/scoring policy |
-|  | Policy adapter interface, composite pipeline, factory |
-|  | Load and validate policy packs from JSON files |
-
-Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Documentation, tests, and lint cleanup are mandatory for every change.
+Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Never add proprietary policy DSL. Never let Rego override historical integrity or youth-safe defaults. Update policy docs and tests with every policy change. Run policy tests and build before completion.
 
 ## Populate all
 
@@ -1737,6 +1715,7 @@ Avoid:
 | `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation engine |
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
+| `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
 | `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering |

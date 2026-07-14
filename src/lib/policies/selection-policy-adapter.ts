@@ -2,6 +2,7 @@ import type { SelectionPolicyInput, SelectionPolicyResult, PolicyPack } from "./
 import { evaluatePolicyPack } from "./json-policy-dsl";
 import { evaluateDefaultMatchboardPolicy } from "./default-matchboard-policy";
 import { checkCoreInvariants } from "./core-invariants";
+import { RegoPolicyAdapter, isRegoEnabled } from "./rego-policy-adapter";
 
 export interface SelectionPolicyAdapter {
   id: string;
@@ -107,10 +108,21 @@ export function createPolicyPipeline(
 ): SelectionPolicyAdapter {
   const defaultAdapter = new DefaultMatchboardPolicyAdapter();
 
-  if (!customPack) {
+  const adapters: SelectionPolicyAdapter[] = [defaultAdapter];
+
+  if (isRegoEnabled()) {
+    const regoAdapter = new RegoPolicyAdapter();
+    adapters.push(regoAdapter);
+  }
+
+  if (customPack) {
+    const jsonAdapter = new JsonPolicyAdapter(customPack);
+    adapters.push(jsonAdapter);
+  }
+
+  if (adapters.length === 1) {
     return defaultAdapter;
   }
 
-  const jsonAdapter = new JsonPolicyAdapter(customPack);
-  return new CompositePolicyAdapter([defaultAdapter, jsonAdapter]);
+  return new CompositePolicyAdapter(adapters);
 }

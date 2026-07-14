@@ -53,6 +53,14 @@ export {
 export type { SelectionPolicyAdapter } from "./selection-policy-adapter";
 
 export {
+  RegoPolicyAdapter,
+  RegoPolicyError,
+  isRegoEnabled,
+  getRegoFailureMode,
+  clearRegoPolicyCache,
+} from "./rego-policy-adapter";
+
+export {
   parsePolicyPack,
   PolicyLoadError,
   loadPolicyPackFromJson,

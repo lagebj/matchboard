@@ -30,6 +30,7 @@ export type PolicyPlayer = {
   periodMatchCount?: number;
   goalkeeperAbility?: string | null;
   nonRotatable?: boolean;
+  policyTags?: string[];
 };
 
 export type PolicyTeam = {
