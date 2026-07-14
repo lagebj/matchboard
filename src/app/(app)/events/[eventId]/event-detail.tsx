@@ -332,8 +332,18 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         }
       />
 
-      {data.squads.length === 0 && (
+      {data.squads.length === 0 ? (
         <BrandIllustration name="eventHeaderSketch" className="h-24 md:h-32 w-auto opacity-70 dark:opacity-60" />
+      ) : (
+        <div className="relative overflow-hidden rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 md:w-32 flex items-center justify-end pr-3 opacity-50 dark:opacity-40" aria-hidden="true">
+            <BrandIllustration name="eventHeaderSketch" decorative className="h-full max-h-24 w-auto object-contain object-right" />
+          </div>
+          <div className="relative">
+            <h2 className="text-sm font-medium text-[var(--text-soft)]">Event squads created</h2>
+            <p className="text-lg font-semibold text-zinc-50">{data.squads.length} squad{data.squads.length !== 1 ? 's' : ''} · {totalAssigned} player{totalAssigned !== 1 ? 's' : ''} assigned</p>
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

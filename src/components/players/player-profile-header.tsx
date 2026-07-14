@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTransition, useState, useRef, useEffect } from "react";
 import { StatusPill } from "@/components/ui/status-pill";
+import { BrandIllustration } from "@/components/ui/brand-illustration";
 import { formatAvailabilityStatus, formatPlayerName, getPlayerAttributeAverages, getOverallStarRating } from "@/lib/player-metrics";
 import { togglePlayerActiveAction, removePlayerAction, restorePlayerAction } from "@/app/(app)/players/actions";
 
@@ -125,7 +126,15 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
   const hasRatings = averages.overall !== null;
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
+    <div className="relative flex items-center gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3 overflow-hidden">
+      {/* Subtle player illustration — desktop only, positioned to the right */}
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 md:w-32 flex items-center justify-end pr-3 opacity-40 dark:opacity-30" aria-hidden="true">
+        <BrandIllustration
+          name="playerPlaceholder"
+          decorative
+          className="h-full max-h-24 w-auto object-contain object-right"
+        />
+      </div>
       {/* Identity badge */}
       <div className="relative flex flex-col items-center justify-center shrink-0">
         <div className={`flex items-center justify-center w-12 h-12 rounded-lg text-base font-bold ${isGK ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-[var(--surface-muted)] text-zinc-100 border border-[var(--border-soft)]"}`}>
