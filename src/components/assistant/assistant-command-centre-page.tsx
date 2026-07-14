@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   ClipboardList,
   CalendarRange,
+  CalendarDays,
   ArrowRight,
   ShieldAlert,
 } from "lucide-react";
@@ -35,7 +36,7 @@ import {
 
 type WorkCategory = AssistantWorkItem["category"];
 
-type GroupKey = "blockers" | "decisions" | "ready" | "reports" | "setup";
+type GroupKey = "blockers" | "decisions" | "setup" | "events" | "ready" | "reports";
 
 type GroupConfig = {
   key: GroupKey;
@@ -70,6 +71,14 @@ const groups: GroupConfig[] = [
     categories: ["setup_missing", "availability_missing", "populate_needed"],
     icon: ClipboardList,
     variant: "neutral",
+  },
+  {
+    key: "events",
+    label: "Events",
+    description: "Event setup, lineups, helpers, and reports.",
+    categories: ["event_setup_missing", "event_squads_missing", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
+    icon: CalendarDays,
+    variant: "info",
   },
   {
     key: "ready",
