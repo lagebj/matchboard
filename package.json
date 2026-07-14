@@ -26,7 +26,8 @@
     "docker:reset": "docker compose down -v && docker compose up -d",
     "policy:test": "opa test policies/rego",
     "policy:build": "node scripts/build-opa-policy.mjs",
-    "policy:dry-run": "node scripts/policy-dry-run.mjs"
+    "policy:dry-run": "node scripts/policy-dry-run.mjs",
+    "workbench:dry-run": "node scripts/workbench-dry-run.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
