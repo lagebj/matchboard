@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { DecisionBanner } from '@/components/ui/decision-banner';
 import { EmptyState } from '@/components/ui/empty-state';
+import { BrandIllustration } from '@/components/ui/brand-illustration';
 import { RatingBadge } from '@/components/ratings/rating-badge';
 
 type FormationSlotDisplay = { id: string; roleType: FormationSlotRoleType; label: string; shortLabel: string; acceptedPositionIds: string[]; gridX: number; gridY: number; sortOrder: number };
@@ -330,6 +331,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           </div>
         }
       />
+
+      {data.squads.length === 0 && (
+        <BrandIllustration name="eventHeaderSketch" className="h-24 md:h-32 w-auto opacity-70 dark:opacity-60" />
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MetricTile label="Squads" value={data.squads.length} />

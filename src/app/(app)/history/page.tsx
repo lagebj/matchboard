@@ -13,6 +13,7 @@ import { isSelectionMovementRow } from "@/lib/selection/get-selection-movement";
 import { Surface } from "@/components/ui/surface";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -287,9 +288,12 @@ export default async function HistoryPage() {
                 <p className="mt-3 text-sm text-[var(--text-soft)]">Use the table below for the deeper load check.</p>
               </Surface>
             ) : (
-              <Surface variant="subtle" padding="md" className="mt-4">
-                <p className="text-sm text-[var(--text-soft)]">No finalized history yet.</p>
-              </Surface>
+              <EmptyState
+                title="No finalized history yet"
+                description="Finalized match selections will appear here once rounds are locked."
+                illustration="emptyStats"
+                className="mt-4"
+              />
             )}
           </Surface>
         </aside>
@@ -360,9 +364,12 @@ export default async function HistoryPage() {
               </Surface>
             ))
           ) : (
-            <Surface variant="subtle" padding="md" className="lg:col-span-2">
-              <p className="text-sm text-[var(--text-soft)]">No visible movement feed yet. Once support, development, or floating appearances are saved in the latest match state, they surface here as reviewable cards.</p>
-            </Surface>
+            <EmptyState
+              title="No visible movement yet"
+              description="Support, development, or floating appearances will surface here once saved in the latest match state."
+              illustration="emptyStats"
+              className="lg:col-span-2"
+            />
           )}
         </div>
       </Surface>
