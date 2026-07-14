@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
+import { BrandIllustration } from "@/components/ui/brand-illustration";
 import {
   OctagonAlert,
   AlertTriangle,
@@ -288,11 +289,22 @@ export function AssistantCommandCentrePage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Assistant"
-        description="What needs attention before the next matches."
-        context={leagueSeasonName ? <span>{leagueSeasonName}</span> : null}
-      />
+      <div className="flex items-start gap-4">
+        <div className="flex-1 min-w-0">
+          <PageHeader
+            title="Assistant"
+            description="What needs attention before the next matches."
+            context={leagueSeasonName ? <span>{leagueSeasonName}</span> : null}
+          />
+        </div>
+        {actionable.length > 0 && (
+          <BrandIllustration
+            name="matchdayPrepSketch"
+            decorative
+            className="hidden md:block h-16 lg:h-20 w-auto opacity-60 dark:opacity-50 shrink-0"
+          />
+        )}
+      </div>
 
       {/* Metric strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
