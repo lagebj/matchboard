@@ -1616,7 +1616,7 @@ Avoid:
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
 | `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
-| `src/lib/selection/get-league-season-fairness.ts` | Fairness calculation (FINALIZED only) |
+| `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
 | `src/lib/seasons/league-season.ts` | Date-derived SPRING/FALL assignment, labels, date ranges |
 | `src/lib/rounds/round-engagement.ts` | Round engagement enforcement and override validation |
 | `src/lib/selection/get-consecutive-support-count.ts` | Consecutive support round tracking |
@@ -1625,6 +1625,28 @@ Avoid:
 | `src/lib/selection/persist-warnings.ts` | Persist plan integrity signals after generation |
 | `src/lib/selection/movement-candidate.ts` | Movement candidate CRUD, validation, queries |
 | `src/lib/selection/movement-candidate-drift.ts` | Movement candidate drift and review detection |
+| `src/lib/selection/compute-plan-integrity.ts` | Compute plan integrity signals for a round |
+| `src/lib/selection/signal-category.ts` | Plan integrity signal category definitions (Blocked, Decision required, Planning note) |
+| `src/lib/selection/reconcile-integrity.ts` | Reconcile stale integrity signals from canonical state |
+| `src/lib/selection/rebuild-plan-integrity.ts` | Rebuild plan integrity signals from scratch |
+| `src/lib/selection/explanation-generation.ts` | Generate selection explanations |
+| `src/lib/selection/explanation-enrichment.ts` | Enrich explanations with coaching intent and context |
+| `src/lib/selection/selection-eligibility.ts` | Selection eligibility checks (rotation path, availability, non-rotatable) |
+| `src/lib/selection/selection-types.ts` | Selection engine type definitions |
+| `src/lib/selection/selection-warnings.ts` | Warning/signal generation for plan integrity |
+| `src/lib/selection/repair-dropout.ts` | Dropout repair after support/development movement |
+| `src/lib/selection/override-reason-utils.ts` | Override reason category utilities |
+| `src/lib/selection/get-season-overview.ts` | Season overview data for matrix view |
+| `src/lib/selection/get-weekly-player-coverage.ts` | Weekly player coverage data |
+| `src/lib/selection/get-floating-history.ts` | Floating (non-core) history data |
+| `src/lib/selection/get-core-match-drop-history.ts` | Core match drop history data |
+| `src/lib/selection/selection-fairness.ts` | Fairness scoring logic |
+| `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
+| `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking |
+| `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
+| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering |
+| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state |
+| `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |
 | `src/lib/data-integrity/types.ts` | Audit and reconciliation types |

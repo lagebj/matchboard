@@ -3887,7 +3887,7 @@ Feature: Matchboard football operations workspace
 
     Coach-facing language may include:
     - movement direction and source/target team
-    - selection role (CORE, SUPPORT, DEVELOPMENT, SQUAD_REPAIR)
+    - selection role (CORE, SUPPORT, DEVELOPMENT, with squad repair as a SUPPORT explanation code)
     - matchday responsibility
     - support burden and fairness impact
     - readiness signals
@@ -4855,10 +4855,11 @@ Feature: Matchboard football operations workspace
     And aggregate player-stat goals must not override Goal-event truth
     And contradictory aggregate values must be reported by integrity audit
 
-  Scenario: Assists remain aggregate recorded facts
-    Given reported report "PM1" has player-stat assists for player "p1"
+  Scenario: Assist events are the canonical source for assist counts
+    Given reported report "PM1" has Assist events for player "p1"
     When assists are calculated
-    Then the assist total must use the player-stat assist record
+    Then the assist total must use the Assist event records
+    And MatchReportPlayerStat.assists is a compatibility field that must not be independently written
     And Goal events must not imply assists
 
   Scenario: Final score does not invent player scorers
@@ -6548,3 +6549,75 @@ Feature: Matchboard football operations workspace
         Then a support overview section must show per-player load
         And conflict count must be visible
         And the add-helper control must not appear in the support overview
+
+  # --- Player lifecycle: soft-delete with onDelete Restrict ---
+
+  Feature: Player lifecycle preservation
+
+    Players are soft-deleted (removedAt timestamp set) rather than hard-deleted.
+    Foreign keys with onDelete: Restrict prevent accidental data loss.
+    Players can be restored from soft-delete.
+
+    Scenario: Soft-delete a player with no references
+      Given a player with no selections, movement ledger entries, or availability records
+      When the coach removes the player
+      Then the player must have removedAt set to the current timestamp
+      And the player must not appear in active player lists
+      And the player must be restorable
+
+    Scenario: Soft-delete a player with selection references
+      Given a player with finalized selections
+      When the coach removes the player
+      Then the removal must succeed (soft-delete only)
+      And the player must have removedAt set
+      And existing selections must remain intact
+
+    Scenario: Restore a soft-deleted player
+      Given a soft-deleted player
+      When the coach restores the player
+      Then removedAt must be cleared
+      And the player must appear in active player lists again
+
+    Scenario: Hard-delete is prevented by Restrict
+      Given a player with movement ledger entries
+      When a hard-delete is attempted
+      Then the database must reject the deletion with a foreign key constraint error
+
+  # --- Cancelled matches ---
+
+  Feature: Cancelled match handling
+
+    Cancelled matches are excluded from draft generation, plan integrity,
+    finalization, and statistics. They do not require post-match reports.
+
+    Scenario: Cancel a scheduled match
+      Given a match with DRAFT selections
+      When the coach cancels the match
+      Then the match status must be CANCELLED
+      And cancelledAt must be set
+      And the match must display a "Cancelled" pill on the Fixtures page
+      And the match must be excluded from draft generation
+
+    Scenario: Cancelled match is excluded from plan integrity
+      Given a cancelled match in a round
+      When plan integrity is computed
+      Then the cancelled match must not generate Blocked or Decision required conditions
+      And the cancelled match must not count toward squad size checks
+
+    Scenario: Cancelled match does not require post-match report
+      Given a cancelled match
+      Then the assistant must not suggest a post-match report for the cancelled match
+      And the match must not count as a played appearance in season statistics
+
+    Scenario: Reopen a cancelled match
+      Given a cancelled match with cancelledAt and cancelledReason set
+      When the coach reopens the match
+      Then cancelledAt and cancelledReason must be cleared
+      And the match status must return to SCHEDULED
+      And the match must be available for draft generation again
+
+    Scenario: Match with completed report cannot be cancelled
+      Given a match with a LOCKED post-match report
+      When the coach attempts to cancel the match
+      Then the cancellation must be rejected
+      And the match status must remain unchanged

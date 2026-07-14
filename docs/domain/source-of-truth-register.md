@@ -32,6 +32,12 @@ Matchboard distinguishes canonical facts, derived projections, historical snapsh
 | `MatchReportPlayerStat.goals` | Compatibility field — derived projection from `Goal` events | No display reads must use this as truth | No independent UI writes; may be rebuilt from Goal events as a cache if needed | Must equal sum of Goal events for the same report/player; mismatches reported by integrity audit | Compatibility |
 | `MatchReportPlayerStat.assists` | Compatibility field — derived projection from `Assist` events | No display reads must use this as truth | No independent UI writes; may be rebuilt from Assist events as a cache if needed | Must equal sum of Assist events for the same report/player; mismatches reported by integrity audit | Compatibility |
 | Availability status | `Availability` table for current round planning | Round board player availability | Coach via availability form | Applies to draft planning; does not count as actual participation | Active |
+| Opponent team identity | `OpponentTeam` model with `displayName` and `normalizedName` | Match creation, event match creation, fixture display | Coach via opponent search/create | One persisted opponent identity reused across matches and events | Active |
+| Opponent encounter observation | `OpponentEncounterObservation` linked to OpponentTeam and Match | Match detail, fixture context | Coach via post-match observation form | Observations are per-encounter, not permanent opponent traits; must not alter selection engine | Active |
+| Event match category | `MatchCategory` enum (LEAGUE, CUP, TOURNAMENT, FRIENDLY_DAY, OTHER) | Match display, statistics grouping | System default + coach via match/event forms | LEAGUE category reserved for league matches; events use other categories | Active |
+| Event squad assignment | `EventSquadPlayer` rows with source (AUTO/MANUAL/LOCKED) | Event detail, squad display | Generation engine + manual edits | One assignment per player per event; no duplicates | Active |
+| Event match lineup | `EventMatchLineup` with `EventMatchLineupAssignment` rows | Event match detail, lineup display | Coach via lineup panel | Lineup is separate from squad assignment; CONFIRMED status locks lineup | Active |
+| Event post-match report | `EventPostMatchReport` with `EventGoalEvent`, `EventAssistEvent`, `EventPostMatchPlayer` | Event match detail, event stats | Coach via post-match report form | Separate from league `PostMatchReport`; uses different model | Active |
 | Movement candidate preference | `MovementCandidate` rows with ACTIVE status | Team detail movement candidates tab, selection engine scoring | Coach via team detail movement candidate tab | Candidate is a soft preference; does not bypass hard eligibility rules (RotationPath, nonRotatable, same-round conflict) | Active |
 
 ## Confirmed decisions
@@ -53,6 +59,7 @@ Matchboard distinguishes canonical facts, derived projections, historical snapsh
 - `MatchReportPlayerStat.assists` is a compatibility field, not independent truth
 - Players overview, effective participation, and player profile must read assists from Assist events
 - Never manufacture Assist events from historical aggregate values automatically
+- Event assists use `EventAssistEvent` as canonical source (separate model from league assists)
 
 ### Actual appearances
 - Only `attendanceStatus = PRESENT` in REPORTED/LOCKED reports counts as played
@@ -96,7 +103,7 @@ Fields and structures identified as potential duplicate or legacy sources. These
 | Candidate | Concern | Read paths | Write paths | Measurable divergence | Changed now? | Follow-up |
 |---|---|---|---|---|---|---|
 | `Team.minSupportCount` / `Team.minSupportPlayers` | Two fields for same concept; may diverge | Selection engine, team config | Team config UI | Count vs player-list disagreement | No | Follow-up: unify or derive |
-| `Match.opponent` / `Match.opponentTeamId` → `OpponentTeam.displayName` | Free-text snapshot vs persisted entity | Match display, fixture list | Match creation form | Free text differs from persisted display name | No | Follow-up: migration to OpponentTeam only |
+| `Match.opponent` / `Match.opponentTeamId` → `OpponentTeam.displayName` | Free-text snapshot vs persisted entity | Match display, fixture list | Match creation form | Free text differs from persisted display name | Yes (PR #97) | Follow-up: migration to OpponentTeam only |
 | `Selection.explanation` / `SelectionExplanation` table | Two storage locations for selection rationale | Round board, explanations | Generation engine | Content divergence | No | Follow-up: determine canonical and deprecate other |
 | `Player.currentAvailability` / `Availability.status` | Snapshot vs per-round actual | Round board player availability | Availability form | Stale snapshot vs current round reality | No | Follow-up: derive from Availability only |
 | `Player.supportNoShowCount` | Counter vs factual derivation from reports | Fairness, selection | Report completion | Counter drift from actual report counts | No | Follow-up: derive or reconcile |
@@ -116,7 +123,7 @@ Fields and structures identified as potential duplicate or legacy sources. These
 8. Factual corrections require human review
 9. Derived projections may be rebuilt from canonical sources
 
-## Implementation status (2026-05-27)
+## Implementation status (2026-07-14)
 
 ### Completed
 
@@ -137,6 +144,15 @@ Fields and structures identified as potential duplicate or legacy sources. These
 | Assist truth: reconciliation | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Committed: reconcilePlayerAssistsDerivedProjection |
 | Opponent snapshot: audit | `src/lib/data-integrity/audit-data-integrity.ts` | Committed: checkCandidateOpponentIdentityDivergence |
 | Opponent snapshot: reconciliation | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Committed: reconcileOpponentSnapshotDerivedProjection |
+| OpponentTeam model and registry | `prisma/schema.prisma`, `src/app/(app)/matches/opponent-actions.ts` | Committed (PR #97) |
+| OpponentEncounterObservation model | `prisma/schema.prisma`, match detail UI | Committed (PR #97) |
+| Event match lineup | `prisma/schema.prisma`, `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Committed |
+| Event post-match report | `prisma/schema.prisma`, event match report UI | Committed |
+| Player lifecycle onDelete Restrict | `prisma/schema.prisma` — all Player FKs now Restrict or SetNull | Committed (PR #98) |
+| League season finalization and snapshots | `prisma/schema.prisma`, `src/lib/seasons/finalize-league-season.ts` | Committed (PR #99) |
+| Per-match finalization | `src/lib/selection/finalize-single-match.ts`, `src/lib/selection/unfinalize-single-match.ts` | Committed |
+| Date-aware report availability | `src/lib/match-date-utils.ts` | Committed (PR #100) |
+| Assistant event work items | `src/lib/assistant/get-event-work-items.ts`, types | Committed (PR #100) |
 | Admin audit API | `src/app/api/admin/audit/route.ts` | Committed: GET endpoint |
 | Admin reconcile API | `src/app/api/admin/reconcile/route.ts` | Committed: POST endpoint |
 | UNKNOWN attendance blocks submission | `actions.ts` (submit + lock) | Committed: server-side validation |
