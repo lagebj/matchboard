@@ -16,11 +16,15 @@ Wire the policy pipeline into real application flows and add coach-facing visibi
 
 ### Integration points
 
-1. **League match generation** (`generate-round.ts`) — pre-filter blocked players, apply score adjustments, merge policy signals
-2. **Plan integrity computation** (`compute-plan-integrity.ts`) — merge policy warnings into plan integrity signals
-3. **Event squad generation** (`event-squad-generation.ts`) — filter blocked players, apply score adjustments
-4. **Event pool validation** (`event-validation.ts`) — add policy warnings to validation notes
-5. **Assistant** (`get-assistant-command-centre.ts`) — surface policy explanations in work items
+1. **League match generation** (`generate-round.ts`) — Phase 7 adds policy evaluation after pipeline validation. Policy warnings are appended to `roundWarnings`. Policy blocked players are surfaced as warnings. Generation always completes; policy is additive.
+
+2. **Plan integrity computation** (`compute-plan-integrity.ts`) — After canonical signal computation (Phase 1-4), policy evaluation runs with `mode: "league"` and `phase: "post_selection"`. Policy-derived BLOCKED and DECISION_REQUIRED signals are merged into the canonical `PlanIntegritySignal[]`. Policy-derived PLANNING_NOTE signals are merged into `PlanningNote[]`. Policy evaluation failure is caught and does not block integrity computation.
+
+3. **Event squad generation** (`actions.ts`) — Before calling `generateEventSquads()`, the server action evaluates policy with `mode: "event"` and `phase: "pre_selection"`. Blocked players are filtered from the eligible pool. Policy warnings are appended to the generation result warnings.
+
+4. **Event pool validation** (`event-validation.ts`) — An exported `applyPolicyWarnings()` helper merges policy warnings into validation output. The caller evaluates policy and passes the result; `validateEventPool()` itself remains synchronous and policy-agnostic.
+
+5. **Assistant** (`get-assistant-command-centre.ts`) — The assistant consumes `computeRoundPlanIntegrity()` which now includes policy-derived signals. No direct policy import is needed; policy signals flow through the existing integrity computation path.
 
 ### New files
 

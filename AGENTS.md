@@ -1671,7 +1671,7 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
-| `src/lib/selection/generate-round.ts` | Round-level orchestrator |
+| `src/lib/selection/generate-round.ts` | Round-level orchestrator (includes Phase 7: policy evaluation) |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
 | `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |
 | `src/lib/selection/resolve-round-conflicts.ts` | Same-round player conflicts |
@@ -1696,7 +1696,7 @@ Avoid:
 | `src/lib/selection/persist-warnings.ts` | Persist plan integrity signals after generation |
 | `src/lib/selection/movement-candidate.ts` | Movement candidate CRUD, validation, queries |
 | `src/lib/selection/movement-candidate-drift.ts` | Movement candidate drift and review detection |
-| `src/lib/selection/compute-plan-integrity.ts` | Compute plan integrity signals for a round |
+| `src/lib/selection/compute-plan-integrity.ts` | Compute plan integrity signals for a round (includes policy-derived signals) |
 | `src/lib/selection/signal-category.ts` | Plan integrity signal category definitions (Blocked, Decision required, Planning note) |
 | `src/lib/selection/reconcile-integrity.ts` | Reconcile stale integrity signals from canonical state |
 | `src/lib/selection/rebuild-plan-integrity.ts` | Rebuild plan integrity signals from scratch |
@@ -1722,6 +1722,11 @@ Avoid:
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
 | `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
+| `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
+| `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
+| `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
+| `src/lib/policies/policy-decision-log.ts` | Policy decision summary builder for logging |
+| `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering |
 | `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state |
@@ -1734,7 +1739,7 @@ Avoid:
 | `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
-| `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
+| `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |

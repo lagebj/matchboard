@@ -13,6 +13,9 @@ import type {
   SelectionWarning,
 } from "@/lib/selection/types";
 import { type ReadinessSignalEntry } from "@/lib/selection/readiness-scoring";
+import { buildPolicyInput } from "@/lib/policies/build-policy-input";
+import { evaluateSelectionPolicy } from "@/lib/policies/policy-evaluation";
+import { coachFacingBlockedReason, coachFacingWarningMessage } from "@/lib/policies/policy-evaluation";
 
 export async function generateMatchRound(matchRoundId: string): Promise<GeneratedRound> {
   const matchRound = await db.matchRound.findUnique({
@@ -181,6 +184,76 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
         }
       }
     }
+  }
+
+  // Phase 7: Policy-derived warnings (additive, non-blocking)
+  try {
+    const matchTeamIds = sortedMatches.map((m) => m.teamId);
+    const teams = await db.team.findMany({
+      where: { id: { in: matchTeamIds } },
+      select: { id: true, name: true, targetSquadSize: true, minAcceptedSquadSize: true, maxSquadSize: true },
+    });
+
+    const policyInput = buildPolicyInput({
+      mode: "league",
+      phase: "post_selection",
+      players: await db.player.findMany({
+        where: { removedAt: null },
+        select: {
+          id: true, firstName: true, lastName: true, active: true, removedAt: true,
+          primaryPosition: true, secondaryPosition: true, tertiaryPosition: true,
+          goalkeeperAbility: true, nonRotatable: true, shirtNumber: true, coreTeamId: true,
+          availabilities: { where: { matchRoundId }, select: { status: true, matchRoundId: true } },
+        },
+      }),
+      teams: teams.map((t) => ({
+        id: t.id,
+        name: t.name,
+        targetSquadSize: t.targetSquadSize,
+        minSquadSize: t.minAcceptedSquadSize,
+        maxSquadSize: t.maxSquadSize,
+      })),
+      squads: finalResults.map((r) => ({
+        id: r.matchId,
+        name: r.teamName,
+        teamId: r.teamId,
+        playerIdList: r.selectedPlayers.map((p) => p.playerId),
+        primaryGoalkeeperCount: r.selectedPlayers.filter((p) => p.selectionCategory === "CORE" && p.playerPosition === "GK").length,
+        anyGoalkeeperCount: r.selectedPlayers.filter((p) => p.playerPosition === "GK").length,
+      })),
+      matches: sortedMatches.map((m) => ({
+        id: m.id,
+        startsAt: m.startsAt,
+        matchStatus: m.status,
+      })),
+      nowIso: new Date().toISOString(),
+      leagueMatchId: matchRoundId,
+    });
+
+    const policyResult = await evaluateSelectionPolicy(policyInput);
+
+    for (const [playerId, reasons] of Object.entries(policyResult.result.blocked)) {
+      for (const reason of reasons) {
+        roundWarnings.push({
+          code: `policy_blocked_${reason}`,
+          message: coachFacingBlockedReason(reason),
+          playerId,
+        });
+      }
+    }
+
+    for (const warning of policyResult.result.warnings) {
+      roundWarnings.push({
+        code: warning.code,
+        message: coachFacingWarningMessage(warning),
+        playerId: warning.playerId,
+        teamId: warning.teamId,
+        matchId: warning.matchId,
+      });
+    }
+  } catch {
+    // Policy evaluation failure must not block generation.
+    // Generation results are always produced; policy warnings are additive.
   }
 
   return {

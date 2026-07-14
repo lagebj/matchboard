@@ -739,9 +739,65 @@ export async function generateEventSquadsAction(eventId: string) {
     formationSlots,
   );
 
+  // Pre-generation policy evaluation: filter blocked players and collect policy warnings
+  const policyWarnings: string[] = [];
+  let filteredPlayers = playersWithAttrs;
+
+  try {
+    const { buildPolicyInput } = await import('@/lib/policies/build-policy-input');
+    const { evaluateSelectionPolicy, coachFacingWarningMessage } = await import('@/lib/policies/policy-evaluation');
+
+    const policyInput = buildPolicyInput({
+      mode: 'event',
+      phase: 'pre_selection',
+      players: eligiblePlayers.map((ep) => ({
+        id: ep.playerId,
+        firstName: ep.player.firstName,
+        lastName: ep.player.lastName,
+        active: true,
+        removedAt: null,
+        primaryPosition: ep.player.primaryPosition ?? '',
+        secondaryPosition: ep.player.secondaryPosition,
+        tertiaryPosition: ep.player.tertiaryPosition,
+        goalkeeperAbility: ep.player.goalkeeperAbility ?? 'NO',
+        nonRotatable: ep.player.nonRotatable,
+        shirtNumber: null,
+        coreTeamId: ep.player.coreTeamId,
+        availabilities: [{ status: ep.status, matchRoundId: eventId }],
+      })),
+      teams: event.squads.map((s) => ({
+        id: s.id,
+        name: s.name,
+        targetSquadSize: s.targetSize,
+        minSquadSize: s.minSize,
+        maxSquadSize: s.maxSize,
+      })),
+      nowIso: new Date().toISOString(),
+      eventId,
+    });
+
+    const policyResult = await evaluateSelectionPolicy(policyInput);
+    const blockedIds = Object.keys(policyResult.result.blocked);
+
+    if (blockedIds.length > 0) {
+      const blockedSet = new Set(blockedIds);
+      filteredPlayers = playersWithAttrs.filter((p) => !blockedSet.has(p.playerId));
+      for (const [playerId, reasons] of Object.entries(policyResult.result.blocked)) {
+        policyWarnings.push(`Policy blocked ${playerId}: ${reasons.join(', ')}`);
+      }
+    }
+
+    for (const warning of policyResult.result.warnings) {
+      policyWarnings.push(coachFacingWarningMessage(warning));
+    }
+  } catch {
+    // Policy evaluation failure must not block event generation.
+    // Use all players if policy evaluation fails.
+  }
+
   const result = generateEventSquads({
     eventId: event.id,
-    players: playersWithAttrs,
+    players: filteredPlayers,
     formations: defaultFormation ? [defaultFormation] : [],
     defaultFormationId: event.defaultFormationId,
     squads,
@@ -751,6 +807,9 @@ export async function generateEventSquadsAction(eventId: string) {
     includeLateAdditions: includeLate,
     gameFormat: typeGameFormat,
   });
+
+  // Append policy warnings to generation result warnings
+  const mergedWarnings = [...result.warnings, ...policyWarnings];
 
   await db.$transaction(async (tx) => {
     for (const squad of event.squads) {
@@ -786,6 +845,6 @@ export async function generateEventSquadsAction(eventId: string) {
     validation,
     balanceSummaries: result.balanceSummaries,
     validationNotes: result.validationNotes,
-    warnings: result.warnings,
+    warnings: mergedWarnings,
   };
 }

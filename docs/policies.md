@@ -541,11 +541,11 @@ Stage 3 wires the policy pipeline into real application flows and provides coach
 
 | Flow | Where policy runs | What it does |
 |------|-------------------|-------------|
-| League match generation (`generate-round.ts`) | Pre/post | Filter blocked players, apply score adjustments, merge policy signals |
-| Plan integrity computation (`compute-plan-integrity.ts`) | Post | Merge policy warnings into plan integrity signals |
-| Event squad generation (`event-squad-generation.ts`) | Pre | Filter blocked players, apply score adjustments |
-| Event pool validation (`event-validation.ts`) | Pre | Add policy warnings to validation notes |
-| Assistant (`get-assistant-command-centre.ts`) | Read | Surface policy explanations in work items |
+| League match generation (`generate-round.ts`) | Post-Phase 7 | Filters blocked players, adds policy warnings to `roundWarnings` |
+| Plan integrity computation (`compute-plan-integrity.ts`) | Post-computation | Merges policy-derived signals with canonical signals |
+| Event squad generation (`actions.ts`) | Pre-generation | Filters blocked players from eligible pool, appends policy warnings |
+| Event pool validation (`event-validation.ts`) | Exported helper | `applyPolicyWarnings()` merges policy warnings into validation output |
+| Assistant (`get-assistant-command-centre.ts`) | Indirect | Consumes policy signals through `computeRoundPlanIntegrity` |
 
 ### Evaluation helpers (`policy-evaluation.ts`)
 
