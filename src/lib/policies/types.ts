@@ -127,6 +127,8 @@ export type SelectionPolicyInput = {
   candidateSelection?: PolicyCandidateSelection;
 };
 
+export type PolicySource = "core" | "default_policy" | "rego" | "solver" | "validation";
+
 export type PolicyWarningSeverity = "info" | "warning" | "blocking";
 
 export type PolicyWarning = {
@@ -137,6 +139,7 @@ export type PolicyWarning = {
   teamId?: string;
   matchId?: string;
   eventId?: string;
+  source?: PolicySource;
 };
 
 export type PolicyScoreAdjustment = {
@@ -144,6 +147,7 @@ export type PolicyScoreAdjustment = {
   delta: number;
   reason: string;
   code: string;
+  source?: PolicySource;
 };
 
 export type PolicyExplanation = {
@@ -151,12 +155,14 @@ export type PolicyExplanation = {
   code: string;
   summary: string;
   hardRule?: boolean;
+  source?: PolicySource;
 };
 
 export type PolicyTag = {
   playerId: string;
   tag: string;
   reason: string;
+  source?: PolicySource;
 };
 
 export type SelectionPolicyResult = {

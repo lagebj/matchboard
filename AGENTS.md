@@ -878,6 +878,15 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
 | `src/lib/policies/policy-decision-log.ts` | Policy decision summary builder for logging |
+| `src/lib/workbench/workbench-types.ts` | Workbench request/result/fixture/diagnostics types |
+| `src/lib/workbench/workbench-service.ts` | Workbench service: load fixtures, run policy evaluation, compare default vs Rego |
+| `src/lib/workbench/policy-diff.ts` | Diff policy results (default vs Rego), summarize workbench input |
+| `src/app/api/workbench/diagnostics/route.ts` | GET workbench diagnostics (policy version, Rego status) |
+| `src/app/api/workbench/run/route.ts` | POST workbench dry-run policy evaluation |
+| `src/app/api/workbench/fixtures/route.ts` | GET available workbench fixtures |
+| `src/app/(app)/workbench/page.tsx` | Workbench UI page |
+| `test/fixtures/workbench/*.json` | Workbench fixture data (anonymized) |
+| `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime, version, Rego status |
 | `policies/rego/matchboard_selection.rego` | Rego policy source |
 | `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
@@ -931,6 +940,7 @@ Other canonical routes:
 | `/formations` | Formation management — list, filter by game format, create, duplicate, edit, archive |
 | `/formations/new` | Create new custom formation (supports `?gameFormat=X&returnTo=Y`) |
 | `/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
+| `/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
 
 Setup registry create routes (no top-level nav):
 - `/teams/new` — create team form
@@ -1747,6 +1757,15 @@ Avoid:
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
 | `src/lib/policies/policy-decision-log.ts` | Policy decision summary builder for logging |
+| `src/lib/workbench/workbench-types.ts` | Workbench request/result/fixture/diagnostics types |
+| `src/lib/workbench/workbench-service.ts` | Workbench service: load fixtures, run policy evaluation, compare default vs Rego |
+| `src/lib/workbench/policy-diff.ts` | Diff policy results (default vs Rego), summarize workbench input |
+| `src/app/api/workbench/diagnostics/route.ts` | GET workbench diagnostics (policy version, Rego status) |
+| `src/app/api/workbench/run/route.ts` | POST workbench dry-run policy evaluation |
+| `src/app/api/workbench/fixtures/route.ts` | GET available workbench fixtures |
+| `src/app/(app)/workbench/page.tsx` | Workbench UI page |
+| `test/fixtures/workbench/*.json` | Workbench fixture data (anonymized) |
+| `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering |

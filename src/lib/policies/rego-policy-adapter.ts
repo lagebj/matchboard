@@ -113,6 +113,7 @@ function normalizeRegoResult(raw: unknown, input: SelectionPolicyInput): Selecti
         teamId: warning.team_id != null ? String(warning.team_id) : undefined,
         matchId: warning.match_id != null ? String(warning.match_id) : undefined,
         eventId: warning.event_id != null ? String(warning.event_id) : undefined,
+        source: "rego",
       });
     }
   }
@@ -128,6 +129,7 @@ function normalizeRegoResult(raw: unknown, input: SelectionPolicyInput): Selecti
         delta: clampedDelta,
         reason: String(a.reason ?? "Score adjustment from Rego policy."),
         code: String(a.code ?? "rego_score_adjustment"),
+        source: "rego",
       });
     }
   }
@@ -141,6 +143,7 @@ function normalizeRegoResult(raw: unknown, input: SelectionPolicyInput): Selecti
         code: String(e.code ?? "rego_explanation"),
         summary: String(e.summary ?? "Explanation from Rego policy."),
         hardRule: e.hard_rule === true || e.hardRule === true,
+        source: "rego",
       });
     }
   }
@@ -153,6 +156,7 @@ function normalizeRegoResult(raw: unknown, input: SelectionPolicyInput): Selecti
         playerId: String(tag.player_id ?? tag.playerId ?? ""),
         tag: String(tag.tag ?? tag.code ?? "rego_tag"),
         reason: String(tag.reason ?? "Tag from Rego policy."),
+        source: "rego",
       });
     }
   }

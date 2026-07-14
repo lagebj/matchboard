@@ -1,0 +1,43 @@
+{
+  "id": "event-competitive-topped-plus-balanced",
+  "label": "Event: Competitive + balanced remainder",
+  "description": "One competitive squad built from formation needs, remaining players distributed balanced. Tests competitive-first generation.",
+  "decisionType": "event_squad_generation",
+  "mode": "event",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "event",
+      "decisionType": "event_squad_generation",
+      "fairnessScope": "event",
+      "generationMode": "competitive",
+      "nowIso": "2026-07-01T10:00:00Z",
+      "gameFormat": "SEVEN_A_SIDE"
+    },
+    "players": [
+      { "id": "player-gk-1", "displayName": "Keeper A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 4, "seasonMatchCount": 8, "periodMatchCount": 4, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-def-1", "displayName": "Defender A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 5, "seasonMatchCount": 9, "periodMatchCount": 4, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-mid-1", "displayName": "Midfielder A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 7, "periodMatchCount": 3, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-fwd-1", "displayName": "Forward A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-alpha"] },
+      { "id": "player-def-2", "displayName": "Defender B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "EMERGENCY", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-beta"] },
+      { "id": "player-mid-2", "displayName": "Midfielder B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 5, "periodMatchCount": 2, "currentTeamIds": ["team-beta"] },
+      { "id": "player-fwd-2", "displayName": "Forward B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 1, "seasonMatchCount": 3, "periodMatchCount": 1, "currentTeamIds": ["team-beta"] },
+      { "id": "player-gk-2", "displayName": "Keeper B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-gamma"] },
+      { "id": "player-def-3", "displayName": "Defender C", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 5, "periodMatchCount": 3, "currentTeamIds": ["team-gamma"] },
+      { "id": "player-mid-3", "displayName": "Midfielder C", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 7, "periodMatchCount": 3, "currentTeamIds": ["team-gamma"] },
+      { "id": "player-unavail", "displayName": "Unavailable Player", "status": "ACTIVE", "availableForContext": false, "unavailableReason": "Injured", "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 2, "periodMatchCount": 0, "currentTeamIds": ["team-alpha"] }
+    ],
+    "teams": [
+      { "id": "team-alpha", "name": "Team Alpha", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-beta", "name": "Team Beta", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-gamma", "name": "Team Gamma", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 }
+    ],
+    "squads": [],
+    "matches": [
+      { "id": "match-comp", "isCancelled": false, "opponentName": "Top Opponent" },
+      { "id": "match-bal-1", "isCancelled": false, "opponentName": "Balanced Opponent A" }
+    ],
+    "history": { "playerMatchCountMap": {}, "playerRoleMap": {}, "playerRecentSupportCount": {} },
+    "constraints": { "requireGoalkeeper": true }
+  }
+}

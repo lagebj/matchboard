@@ -1,0 +1,39 @@
+{
+  "id": "league-match-selection",
+  "label": "League: Match selection",
+  "description": "League match selection with low-activity players. Tests fairness score adjustments and core invariant blocking.",
+  "decisionType": "league_match_selection",
+  "mode": "league",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "league",
+      "decisionType": "league_match_selection",
+      "fairnessScope": "match",
+      "nowIso": "2026-05-01T10:00:00Z",
+      "leagueMatchId": "match-league-1",
+      "teamId": "team-home"
+    },
+    "players": [
+      { "id": "player-gk", "displayName": "Keeper", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 4, "seasonMatchCount": 8, "periodMatchCount": 4, "currentTeamIds": ["team-home"] },
+      { "id": "player-def", "displayName": "Defender", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-home"] },
+      { "id": "player-mid", "displayName": "Midfielder", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 1, "seasonMatchCount": 2, "periodMatchCount": 1, "currentTeamIds": ["team-home"] },
+      { "id": "player-fwd", "displayName": "Forward", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 5, "seasonMatchCount": 9, "periodMatchCount": 5, "currentTeamIds": ["team-home"] },
+      { "id": "player-unavail", "displayName": "Unavailable", "status": "ACTIVE", "availableForContext": false, "unavailableReason": "Injured", "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 1, "periodMatchCount": 0, "currentTeamIds": ["team-home"] },
+      { "id": "player-removed", "displayName": "Removed Player", "status": "REMOVED", "availableForContext": false, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 0, "periodMatchCount": 0, "currentTeamIds": ["team-home"] }
+    ],
+    "teams": [
+      { "id": "team-home", "name": "Home Team", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-away", "name": "Away Team", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 }
+    ],
+    "squads": [
+      { "id": "squad-home", "teamId": "team-home", "playerIdList": ["player-gk", "player-def", "player-mid", "player-fwd"], "primaryGoalkeeperCount": 1, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 1 },
+      { "id": "squad-away", "teamId": "team-away", "playerIdList": [], "primaryGoalkeeperCount": 0, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 0 }
+    ],
+    "matches": [
+      { "id": "match-league-1", "isCancelled": false, "opponentName": "Rivals FC", "startsAt": "2026-05-01T10:00:00Z" }
+    ],
+    "history": { "playerMatchCountMap": {}, "playerRoleMap": {}, "playerRecentSupportCount": {} },
+    "constraints": { "maxSquadSize": 9, "minSquadSize": 5, "targetSquadSize": 7, "requireGoalkeeper": true }
+  }
+}

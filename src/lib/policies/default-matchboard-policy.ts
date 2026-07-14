@@ -27,6 +27,7 @@ export function evaluateDefaultMatchboardPolicy(
         code: "eligible_active_available",
         summary: "Eligible: active, available, and no conflicts.",
         hardRule: false,
+        source: "default_policy",
       });
     }
   }
@@ -59,6 +60,7 @@ export function evaluateDefaultMatchboardPolicy(
         severity,
         message,
         teamId: squad.teamId ?? undefined,
+        source: "default_policy",
       });
     }
 
@@ -69,16 +71,18 @@ export function evaluateDefaultMatchboardPolicy(
         severity: "blocking",
         message: `Squad has ${squad.playerIdList.length} players but minimum is ${team.minSquadSize}.`,
         teamId: squad.teamId ?? undefined,
+        source: "default_policy",
       });
     }
 
     if (isEvent && team?.targetSquadSize && squad.playerIdList.length > 0 && squad.playerIdList.length < team.targetSquadSize) {
-      warnings.push({
-        code: "squad_below_target_but_playable",
-        severity: "info",
-        message: `Squad has ${squad.playerIdList.length} players; target is ${team.targetSquadSize}.`,
-        teamId: squad.teamId ?? undefined,
-      });
+        warnings.push({
+          code: "squad_below_target_but_playable",
+          severity: "info",
+          message: `Squad has ${squad.playerIdList.length} players; target is ${team.targetSquadSize}.`,
+          teamId: squad.teamId ?? undefined,
+          source: "default_policy",
+        });
     }
   }
 
@@ -95,6 +99,7 @@ export function evaluateDefaultMatchboardPolicy(
             delta: 5,
             reason: "Player has had fewer recent match opportunities.",
             code: "low_recent_match_count",
+            source: "default_policy",
           });
         }
 
@@ -104,6 +109,7 @@ export function evaluateDefaultMatchboardPolicy(
             delta: 3,
             reason: "Player has had fewer period match opportunities.",
             code: "low_period_match_count",
+            source: "default_policy",
           });
         }
 
@@ -113,6 +119,7 @@ export function evaluateDefaultMatchboardPolicy(
             delta: 2,
             reason: "Player has had fewer season match opportunities.",
             code: "low_season_match_count",
+            source: "default_policy",
           });
         }
       }
@@ -126,6 +133,7 @@ export function evaluateDefaultMatchboardPolicy(
         severity: "info",
         message: "Match is cancelled and excluded from planning.",
         matchId: match.id,
+        source: "default_policy",
       });
     }
   }

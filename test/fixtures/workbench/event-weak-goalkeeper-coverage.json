@@ -1,0 +1,34 @@
+{
+  "id": "event-weak-goalkeeper-coverage",
+  "label": "Event: Weak goalkeeper coverage",
+  "description": "Squad with no primary GK, only emergency coverage. Tests GK coverage warnings.",
+  "decisionType": "event_squad_generation",
+  "mode": "event",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "event",
+      "decisionType": "event_squad_generation",
+      "fairnessScope": "event",
+      "nowIso": "2026-06-15T10:00:00Z",
+      "gameFormat": "SEVEN_A_SIDE",
+      "eventId": "event-fixture-3"
+    },
+    "players": [
+      { "id": "player-field-1", "displayName": "Player A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-orange"] },
+      { "id": "player-field-2", "displayName": "Player B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 7, "periodMatchCount": 4, "currentTeamIds": ["team-orange"] },
+      { "id": "player-emergency-gk", "displayName": "Player C", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "EMERGENCY", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-orange"] }
+    ],
+    "teams": [
+      { "id": "team-orange", "name": "Orange Team", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 }
+    ],
+    "squads": [
+      { "id": "squad-orange", "teamId": "team-orange", "playerIdList": ["player-field-1", "player-field-2", "player-emergency-gk"], "primaryGoalkeeperCount": 0, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 1 }
+    ],
+    "matches": [
+      { "id": "match-orange-1", "isCancelled": false }
+    ],
+    "history": { "playerMatchCountMap": {}, "playerRoleMap": {}, "playerRecentSupportCount": {} },
+    "constraints": { "maxSquadSize": 9, "minSquadSize": 5, "targetSquadSize": 7, "requireGoalkeeper": true }
+  }
+}

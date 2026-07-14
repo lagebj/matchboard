@@ -79,6 +79,7 @@ export function applyCoreInvariants(
       code: v.rule,
       summary: v.reason,
       hardRule: true,
+      source: "core",
     });
   }
 

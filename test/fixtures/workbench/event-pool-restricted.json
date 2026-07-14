@@ -1,0 +1,36 @@
+{
+  "id": "event-pool-restricted",
+  "label": "Event: Restricted pool",
+  "description": "Small available player pool with unavailable and inactive players. Tests core invariant blocking and pool validation.",
+  "decisionType": "event_squad_generation",
+  "mode": "event",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "event",
+      "decisionType": "event_squad_generation",
+      "fairnessScope": "event",
+      "nowIso": "2026-08-01T10:00:00Z",
+      "gameFormat": "FIVE_A_SIDE"
+    },
+    "players": [
+      { "id": "player-avail-1", "displayName": "Player A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-1"] },
+      { "id": "player-avail-2", "displayName": "Player B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 5, "periodMatchCount": 2, "currentTeamIds": ["team-1"] },
+      { "id": "player-avail-3", "displayName": "Player C", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 1, "seasonMatchCount": 3, "periodMatchCount": 1, "currentTeamIds": ["team-1"] },
+      { "id": "player-unavail", "displayName": "Player D", "status": "ACTIVE", "availableForContext": false, "unavailableReason": "Sick", "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 2, "periodMatchCount": 0, "currentTeamIds": ["team-1"] },
+      { "id": "player-inactive", "displayName": "Player E", "status": "INACTIVE", "availableForContext": false, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 0, "periodMatchCount": 0, "currentTeamIds": ["team-1"] },
+      { "id": "player-removed", "displayName": "Player F", "status": "REMOVED", "availableForContext": false, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 0, "periodMatchCount": 0, "currentTeamIds": ["team-1"] }
+    ],
+    "teams": [
+      { "id": "team-1", "name": "Team 1", "targetSquadSize": 5, "minSquadSize": 4, "maxSquadSize": 7 }
+    ],
+    "squads": [
+      { "id": "squad-1", "teamId": "team-1", "playerIdList": ["player-avail-1", "player-avail-2", "player-avail-3"], "primaryGoalkeeperCount": 1, "secondaryGoalkeeperCount": 0, "anyGoalkeeperCount": 1 }
+    ],
+    "matches": [
+      { "id": "match-1", "isCancelled": false, "opponentName": "Opponent A" }
+    ],
+    "history": { "playerMatchCountMap": {}, "playerRoleMap": {}, "playerRecentSupportCount": {} },
+    "constraints": { "maxSquadSize": 7, "minSquadSize": 4, "targetSquadSize": 5, "requireGoalkeeper": true }
+  }
+}

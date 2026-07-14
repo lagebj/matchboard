@@ -1,0 +1,51 @@
+{
+  "id": "event-balanced-three-squads",
+  "label": "Event: Balanced three squads",
+  "description": "All-balanced mode with 18 available players, full GK coverage, balanced distribution.",
+  "decisionType": "event_squad_generation",
+  "mode": "event",
+  "input": {
+    "context": {
+      "phase": "pre_selection",
+      "mode": "event",
+      "decisionType": "event_squad_generation",
+      "fairnessScope": "event",
+      "generationMode": "balanced",
+      "nowIso": "2026-06-15T10:00:00Z",
+      "gameFormat": "SEVEN_A_SIDE"
+    },
+    "players": [
+      { "id": "player-a", "displayName": "Player A", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 3, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-blue"] },
+      { "id": "player-b", "displayName": "Player B", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 7, "periodMatchCount": 3, "currentTeamIds": ["team-blue"] },
+      { "id": "player-c", "displayName": "Player C", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 2, "seasonMatchCount": 5, "periodMatchCount": 2, "currentTeamIds": ["team-blue"] },
+      { "id": "player-d", "displayName": "Player D", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 5, "seasonMatchCount": 8, "periodMatchCount": 4, "currentTeamIds": ["team-blue"] },
+      { "id": "player-e", "displayName": "Player E", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "EMERGENCY", "recentMatchCount": 3, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-blue"] },
+      { "id": "player-f", "displayName": "Player F", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 7, "periodMatchCount": 3, "currentTeamIds": ["team-blue"] },
+      { "id": "player-g", "displayName": "Player G", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-blue"] },
+      { "id": "player-h", "displayName": "Player H", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "YES", "recentMatchCount": 3, "seasonMatchCount": 5, "periodMatchCount": 3, "currentTeamIds": ["team-red"] },
+      { "id": "player-i", "displayName": "Player I", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-red"] },
+      { "id": "player-j", "displayName": "Player J", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 5, "periodMatchCount": 2, "currentTeamIds": ["team-red"] },
+      { "id": "player-k", "displayName": "Player K", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 5, "seasonMatchCount": 9, "periodMatchCount": 4, "currentTeamIds": ["team-red"] },
+      { "id": "player-l", "displayName": "Player L", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-red"] },
+      { "id": "player-m", "displayName": "Player M", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 6, "periodMatchCount": 3, "currentTeamIds": ["team-red"] },
+      { "id": "player-n", "displayName": "Player N", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 4, "seasonMatchCount": 7, "periodMatchCount": 3, "currentTeamIds": ["team-red"] },
+      { "id": "player-o", "displayName": "Player O", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "GOALKEEPER", "goalkeeperAbility": "EMERGENCY", "recentMatchCount": 1, "seasonMatchCount": 3, "periodMatchCount": 1, "currentTeamIds": ["team-green"] },
+      { "id": "player-p", "displayName": "Player P", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "DEFENDER", "goalkeeperAbility": "NO", "recentMatchCount": 3, "seasonMatchCount": 5, "periodMatchCount": 2, "currentTeamIds": ["team-green"] },
+      { "id": "player-q", "displayName": "Player Q", "status": "ACTIVE", "availableForContext": true, "primaryPosition": "MIDFIELDER", "goalkeeperAbility": "NO", "recentMatchCount": 2, "seasonMatchCount": 4, "periodMatchCount": 2, "currentTeamIds": ["team-green"] },
+      { "id": "player-r", "displayName": "Player R", "status": "INACTIVE", "availableForContext": false, "primaryPosition": "FORWARD", "goalkeeperAbility": "NO", "recentMatchCount": 0, "seasonMatchCount": 1, "periodMatchCount": 0, "currentTeamIds": ["team-green"] }
+    ],
+    "teams": [
+      { "id": "team-blue", "name": "Team Blue", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-red", "name": "Team Red", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 },
+      { "id": "team-green", "name": "Team Green", "targetSquadSize": 7, "minSquadSize": 5, "maxSquadSize": 9 }
+    ],
+    "squads": [],
+    "matches": [
+      { "id": "match-1", "isCancelled": false, "opponentName": "Rivals A" },
+      { "id": "match-2", "isCancelled": false, "opponentName": "Rivals B" },
+      { "id": "match-3", "isCancelled": false, "opponentName": "Rivals C" }
+    ],
+    "history": { "playerMatchCountMap": {}, "playerRoleMap": {}, "playerRecentSupportCount": {} },
+    "constraints": { "requireGoalkeeper": true }
+  }
+}
