@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { SeasonOverviewClient } from "./season-client";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
+import { SeasonFinalizeControls } from "./season-finalize-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ const READINESS_LABELS: Record<string, string> = {
 export default async function SeasonPage() {
   const leagueSeasons = await db.leagueSeason.findMany({
     orderBy: { startDate: "desc" },
-    select: { id: true, name: true, startDate: true, endDate: true },
+    select: { id: true, name: true, startDate: true, endDate: true, status: true, finalizedAt: true },
   });
 
   const activeLeagueSeason = leagueSeasons[0] ?? null;
@@ -63,6 +64,14 @@ export default async function SeasonPage() {
   return (
     <div className="flex flex-col gap-3">
       {activeLeagueSeason && (
+        <SeasonFinalizeControls
+          leagueSeasonId={activeLeagueSeason.id}
+          leagueSeasonName={activeLeagueSeason.name}
+          status={activeLeagueSeason.status}
+          finalizedAt={activeLeagueSeason.finalizedAt}
+        />
+      )}
+      {activeLeagueSeason && (
         <CoachingIntentSelector
           scopeType="PLANNING_PERIOD"
           scopeId={activeLeagueSeason.id}
@@ -84,7 +93,14 @@ export default async function SeasonPage() {
         </div>
       )}
       <SeasonOverviewClient
-        leagueSeasons={leagueSeasons}
+        leagueSeasons={leagueSeasons.map((ls) => ({
+          id: ls.id,
+          name: ls.name,
+          startDate: ls.startDate,
+          endDate: ls.endDate,
+          status: ls.status,
+          finalizedAt: ls.finalizedAt,
+        }))}
         activeLeagueSeasonId={activeLeagueSeason?.id ?? null}
       />
     </div>
