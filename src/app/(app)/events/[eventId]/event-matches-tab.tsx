@@ -28,6 +28,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
 import { EventMatchReportPanel } from './event-match-report-panel';
 import { EventMatchLineupPanel } from './event-match-lineup-panel';
+import { OpponentTeamSelect } from '@/components/opponents/opponent-team-select';
 
 const PLANNED_ROLE_OPTIONS = ['', 'GK cover', 'Defender cover', 'Midfield cover', 'Forward cover', 'General cover'];
 
@@ -48,6 +49,7 @@ interface EventMatchWithReport {
   eventSquadId: string;
   category: string;
   opponentName: string;
+  opponentTeamId: string | null;
   startsAt: Date | string;
   location: string | null;
   notes: string | null;
@@ -100,6 +102,7 @@ interface EventMatchesTabProps {
     overallLevel: number | null;
   }>;
   playerAvailability: Array<{ playerId: string; status: string }>;
+  opponentTeams: Array<{ id: string; displayName: string }>;
 }
 
 function formatTime(date: Date | string): string {
@@ -113,7 +116,7 @@ function formatEndTime(startsAt: Date | string, durationMinutes: number | null):
   return formatTime(end);
 }
 
-export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, playerProfiles, playerAvailability }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, playerProfiles, playerAvailability, opponentTeams }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -123,6 +126,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createSquadId, setCreateSquadId] = useState(squads[0]?.id ?? '');
   const [createOpponent, setCreateOpponent] = useState('');
+  const [createOpponentTeamId, setCreateOpponentTeamId] = useState<string | null>(null);
   const [createDate, setCreateDate] = useState('');
   const [createCategory, setCreateCategory] = useState<string>(
     getDefaultEventMatchCategory(eventType),
@@ -132,6 +136,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [editOpponent, setEditOpponent] = useState('');
+  const [editOpponentTeamId, setEditOpponentTeamId] = useState<string | null>(null);
   const [editSquadId, setEditSquadId] = useState('');
   const [editStartsAt, setEditStartsAt] = useState('');
   const [editCategory, setEditCategory] = useState('CUP');
@@ -168,6 +173,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
     formData.set('eventId', eventId);
     formData.set('eventSquadId', createSquadId);
     formData.set('opponentName', createOpponent);
+    if (createOpponentTeamId) formData.set('opponentTeamId', createOpponentTeamId);
     formData.set('startsAt', createDate ? new Date(createDate).toISOString() : '');
     formData.set('category', createCategory);
     formData.set('location', createLocation);
@@ -177,6 +183,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
       await createEventMatchAction(formData);
       setShowCreateForm(false);
       setCreateOpponent('');
+      setCreateOpponentTeamId(null);
       setCreateDate('');
       setCreateLocation('');
       setCreateNotes('');
@@ -212,6 +219,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
   function startEditMatch(m: EventMatchWithReport) {
     setEditingMatchId(m.id);
     setEditOpponent(m.opponentName);
+    setEditOpponentTeamId(m.opponentTeamId ?? null);
     setEditSquadId(m.eventSquadId);
     const dateStr = new Date(m.startsAt).toISOString().slice(0, 16);
     setEditStartsAt(dateStr);
@@ -223,6 +231,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
   function cancelEdit() {
     setEditingMatchId(null);
     setEditOpponent('');
+    setEditOpponentTeamId(null);
     setEditSquadId('');
     setEditStartsAt('');
     setEditCategory('CUP');
@@ -235,6 +244,8 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
       try {
         const data: Parameters<typeof updateEventMatchAction>[1] = {};
         if (editOpponent.trim()) data.opponentName = editOpponent.trim();
+        if (editOpponentTeamId) data.opponentTeamId = editOpponentTeamId;
+        else data.opponentTeamId = null;
         if (editStartsAt) data.startsAt = editStartsAt;
         data.category = editCategory;
         data.location = editLocation.trim() || null;
@@ -390,16 +401,18 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Opponent name</label>
-              <input
-                type="text"
-                value={createOpponent}
-                onChange={(e) => setCreateOpponent(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
-                required
-              />
-            </div>
+            <OpponentTeamSelect
+              opponentTeams={opponentTeams}
+              selectedId={createOpponentTeamId}
+              onSelectionChange={(id, name) => {
+                setCreateOpponentTeamId(id);
+                setCreateOpponent(name);
+              }}
+              onCreateNew={(name) => {
+                setCreateOpponentTeamId(null);
+                setCreateOpponent(name);
+              }}
+            />
             <div>
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Date and time</label>
               <input
@@ -508,6 +521,8 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                   editingMatchId={editingMatchId}
                   editOpponent={editOpponent}
                   setEditOpponent={setEditOpponent}
+                  editOpponentTeamId={editOpponentTeamId}
+                  setEditOpponentTeamId={setEditOpponentTeamId}
                   editSquadId={editSquadId}
                   setEditSquadId={setEditSquadId}
                   editStartsAt={editStartsAt}
@@ -521,6 +536,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                     onSaveEdit={handleEditSave}
                     cancelEdit={cancelEdit}
                     squads={squads}
+                    opponentTeams={opponentTeams}
                     refreshReport={refreshReport}
                     lineupMatchId={lineupMatchId}
                     onToggleLineup={(matchId) => setLineupMatchId(prev => prev === matchId ? null : matchId)}
@@ -605,6 +621,8 @@ function EventMatchCard({
   editingMatchId,
   editOpponent,
   setEditOpponent,
+  editOpponentTeamId,
+  setEditOpponentTeamId,
   editSquadId,
   setEditSquadId,
   editStartsAt,
@@ -618,6 +636,7 @@ function EventMatchCard({
   onSaveEdit,
   cancelEdit,
   squads,
+  opponentTeams,
   refreshReport,
   lineupMatchId,
   onToggleLineup,
@@ -648,6 +667,8 @@ function EventMatchCard({
   editingMatchId: string | null;
   editOpponent: string;
   setEditOpponent: (v: string) => void;
+  editOpponentTeamId: string | null;
+  setEditOpponentTeamId: (v: string | null) => void;
   editSquadId: string;
   setEditSquadId: (v: string) => void;
   editStartsAt: string;
@@ -661,6 +682,7 @@ function EventMatchCard({
   onSaveEdit: (matchId: string) => void;
   cancelEdit: () => void;
   squads: Array<{ id: string; name: string; intent: string; players: Array<{ playerId: string }> }>;
+  opponentTeams: Array<{ id: string; displayName: string }>;
   refreshReport: () => void;
   lineupMatchId: string | null;
   onToggleLineup: (matchId: string) => void;
@@ -968,16 +990,18 @@ function EventMatchCard({
       {editingMatchId === match.id && (
         <div className="mt-3 border-t border-[var(--border-soft)] pt-3 space-y-2">
           <h4 className="text-xs font-semibold text-zinc-100">Edit match</h4>
-          <div>
-            <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Opponent name</label>
-            <input
-              type="text"
-              value={editOpponent}
-              onChange={(e) => setEditOpponent(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
-              required
-            />
-          </div>
+          <OpponentTeamSelect
+            opponentTeams={opponentTeams}
+            selectedId={editOpponentTeamId}
+            onSelectionChange={(id, name) => {
+              setEditOpponentTeamId(id);
+              setEditOpponent(name);
+            }}
+            onCreateNew={(name) => {
+              setEditOpponentTeamId(null);
+              setEditOpponent(name);
+            }}
+          />
           <div>
             <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-1">Squad</label>
             <select

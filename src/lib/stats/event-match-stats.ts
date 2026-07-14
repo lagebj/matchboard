@@ -6,6 +6,7 @@ export interface EventMatchWithReport {
   eventSquadId: string;
   category: MatchCategory;
   opponentName: string;
+  opponentTeamId: string | null;
   startsAt: Date;
   location: string | null;
   notes: string | null;
@@ -41,6 +42,7 @@ export async function getEventMatchesForSquad(eventSquadId: string): Promise<Eve
     eventSquadId: m.eventSquadId,
     category: m.category as MatchCategory,
     opponentName: m.opponentName,
+    opponentTeamId: m.opponentTeamId,
     startsAt: m.startsAt,
     location: m.location,
     notes: m.notes,
@@ -79,6 +81,7 @@ export async function getEventMatchesForEvent(eventId: string): Promise<EventMat
     eventSquadId: m.eventSquadId,
     category: m.category as MatchCategory,
     opponentName: m.opponentName,
+    opponentTeamId: m.opponentTeamId,
     startsAt: m.startsAt,
     location: m.location,
     notes: m.notes,

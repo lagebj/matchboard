@@ -146,6 +146,7 @@ model OpponentTeam {
   createdAt      DateTime                       @default(now())
   updatedAt      DateTime                       @updatedAt
   matches        Match[]
+  eventMatches   EventMatch[]
   observations   OpponentEncounterObservation[]
 
   @@index([archivedAt, displayName])
@@ -785,6 +786,7 @@ model EventMatch {
   eventSquadId    String
   category        MatchCategory @default(CUP)
   opponentName    String
+  opponentTeamId  String?
   startsAt        DateTime
   location        String?
   notes           String?
@@ -796,6 +798,7 @@ model EventMatch {
 
   event              Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventSquad         EventSquad                @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  opponentTeam       OpponentTeam?             @relation(fields: [opponentTeamId], references: [id])
   postMatchReport    EventPostMatchReport?
   supportAssignments EventMatchSupportAssignment[]
   lineup             EventMatchLineup?
@@ -805,6 +808,7 @@ model EventMatch {
   @@index([category])
   @@index([startsAt])
   @@index([status])
+  @@index([opponentTeamId])
 }
 
 model EventPostMatchReport {

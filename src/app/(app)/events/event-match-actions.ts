@@ -5,23 +5,46 @@ import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import { MatchCategory } from '@/generated/prisma/client';
 import { getDefaultEventMatchCategory } from '@/lib/stats/event-match-stats';
+import { normalizeOpponentName, cleanOpponentDisplayName } from '@/lib/opponents/opponent-team';
 
 const VALID_CATEGORIES: MatchCategory[] = ['CUP', 'OTHER'];
+
+async function resolveOpponent(opponentName: string, opponentTeamIdInput?: string | null): Promise<{ opponentTeamId: string; opponentName: string }> {
+  if (opponentTeamIdInput) {
+    const existing = await db.opponentTeam.findUnique({
+      where: { id: opponentTeamIdInput },
+      select: { id: true, displayName: true },
+    });
+    if (!existing) throw new Error('Opponent team not found.');
+    return { opponentTeamId: existing.id, opponentName: existing.displayName };
+  }
+  const displayName = cleanOpponentDisplayName(opponentName);
+  const normalizedName = normalizeOpponentName(opponentName);
+  const upserted = await db.opponentTeam.upsert({
+    where: { normalizedName },
+    create: { displayName, normalizedName },
+    update: {},
+  });
+  return { opponentTeamId: upserted.id, opponentName: displayName };
+}
 
 export async function createEventMatchAction(formData: FormData) {
   await requireCoachAccess();
 
   const eventId = formData.get('eventId') as string;
   const eventSquadId = formData.get('eventSquadId') as string;
-  const opponentName = (formData.get('opponentName') as string)?.trim();
+  const opponentNameInput = (formData.get('opponentName') as string)?.trim();
+  const opponentTeamIdInput = (formData.get('opponentTeamId') as string)?.trim() || null;
   const startsAt = formData.get('startsAt') as string;
   const location = (formData.get('location') as string)?.trim() || null;
   const notes = (formData.get('notes') as string)?.trim() || null;
   const categoryRaw = formData.get('category') as string;
 
-  if (!eventId || !eventSquadId || !opponentName || !startsAt) {
+  if (!eventId || !eventSquadId || !opponentNameInput || !startsAt) {
     throw new Error('Event, squad, opponent name, and date/time are required.');
   }
+
+  const { opponentTeamId, opponentName } = await resolveOpponent(opponentNameInput, opponentTeamIdInput);
 
   const event = await db.event.findUnique({ where: { id: eventId } });
   if (!event) throw new Error('Event not found.');
@@ -45,6 +68,7 @@ export async function createEventMatchAction(formData: FormData) {
       eventSquadId,
       category,
       opponentName,
+      opponentTeamId,
       startsAt: new Date(startsAt),
       location,
       notes,
@@ -58,6 +82,7 @@ export async function createEventMatchAction(formData: FormData) {
 
 export async function updateEventMatchAction(eventMatchId: string, data: {
   opponentName?: string;
+  opponentTeamId?: string | null;
   startsAt?: string;
   location?: string | null;
   notes?: string | null;
@@ -98,7 +123,16 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
 
   const updateData: Record<string, unknown> = {};
 
-  if (data.opponentName !== undefined) updateData.opponentName = data.opponentName.trim();
+  if (data.opponentName !== undefined) {
+    if (data.opponentTeamId === null) {
+      updateData.opponentName = data.opponentName.trim();
+      updateData.opponentTeamId = null;
+    } else {
+      const { opponentTeamId, opponentName } = await resolveOpponent(data.opponentName, data.opponentTeamId);
+      updateData.opponentName = opponentName;
+      updateData.opponentTeamId = opponentTeamId;
+    }
+  }
   if (data.startsAt !== undefined) updateData.startsAt = new Date(data.startsAt);
   if (data.location !== undefined) updateData.location = data.location?.trim() || null;
   if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null;
