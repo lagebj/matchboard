@@ -156,7 +156,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   redirect("/fixtures?saved=created");
 }
 
-async function createFullHierarchy(startsAt: Date, weekStart: Date, _weekEnd: Date): Promise<string> {
+async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: Date): Promise<string> {
   const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
 
   const part = getLeagueSeasonPartForDate(startsAt);

@@ -3,7 +3,6 @@ import ExcelJS from 'exceljs';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import {
-  formatEventMatchStatus,
   formatGoalkeeperAbility,
   formatPlayerName,
 } from '@/lib/formatters/event-labels';
@@ -55,18 +54,6 @@ type EventMatchData = {
   cancelledAt: Date | null;
   eventSquad: { id: string; name: string };
   supportAssignments: SupportAssignment[];
-};
-
-const ROLE_ORDER = ['GOALKEEPER', 'DEFENDER', 'DEFENSIVE_MIDFIELDER', 'MIDFIELDER', 'ATTACKING_MIDFIELDER', 'FORWARD', 'FREE'] as const;
-
-const ROLE_SHORT: Record<string, string> = {
-  GOALKEEPER: 'GK',
-  DEFENDER: 'DEF',
-  DEFENSIVE_MIDFIELDER: 'DM',
-  MIDFIELDER: 'MID',
-  ATTACKING_MIDFIELDER: 'AM',
-  FORWARD: 'ATT',
-  FREE: 'Flex',
 };
 
 function roleGroup(roleType: string | null): string {
@@ -314,10 +301,6 @@ function formatDate(date: Date): string {
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatPlayerList(players: { firstName: string; lastName: string | null }[]): string {
-  return players.map((p) => formatPlayerName(p.firstName, p.lastName)).join(' · ') || 'None';
 }
 
 function buildSquadsSheet(
@@ -676,10 +659,8 @@ function buildLineupsSheet(
     const starterIds = new Set(assignedSlots.map((a) => a.playerId).filter(Boolean));
 
     const matchHelpers = matchHelperMap.get(match.id) ?? [];
-    const helperIdsInSquad = new Set(matchHelpers.map((h) => h.playerId));
 
     const squad = squadMap.get(match.eventSquadId);
-    const squadPlayerIds = new Set((squad?.players ?? []).map((p) => p.playerId));
 
     const subPlayers: string[] = [];
     const processedSubIds = new Set<string>();

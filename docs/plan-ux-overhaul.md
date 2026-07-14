@@ -43,7 +43,7 @@
 - Setup routes: `/teams/new`, `/players/new`, `/matches/new`
 - Redirects: `/` → `/assistant`, `/today` → `/assistant`, `/matches` → `/fixtures`
 - Prohibited copy: command center, decision inbox, decision debt, structured review room, workspace, optimization output, entity, resource
-- Domain language: use "sent as support", "received backfill", "development movement", "dropped" — never "demoted", "benched", "punished", "weak player", "B-team"
+- Domain language: use "sent as support", "received squad repair", "development movement", "dropped" — never "demoted", "benched", "punished", "weak player", "B-team"
 
 ## Teams UX model
 

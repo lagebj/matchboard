@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/cn";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
 import type { brandIllustrations } from "@/lib/brand-illustrations";
 

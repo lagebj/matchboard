@@ -70,7 +70,7 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
 
   const now = new Date();
 
-  const result = await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     await tx.leagueSeason.update({
       where: { id: leagueSeasonId },
       data: {

@@ -4,7 +4,7 @@ import { CreateEventForm } from '@/components/events/create-event-form';
 export const metadata = { title: 'Create Event' };
 
 export default async function CreateEventPage() {
-  const [leagueSeasons, formations] = await Promise.all([
+  const [_leagueSeasons, formations] = await Promise.all([
     getLeagueSeasons(),
     getFormations(),
   ]);

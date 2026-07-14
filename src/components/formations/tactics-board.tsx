@@ -11,7 +11,6 @@ import {
 } from "@/lib/formations/types";
 import {
   getBoardPositionPercent,
-  getBoardAspectRatio,
   getBoardViewBox,
   PITCH_WIDTH,
   PITCH_HEIGHT,
@@ -222,9 +221,6 @@ function pctToViewBox(pctX: number, pctY: number, orientation: BoardOrientation)
   }
   return { x: pctX / 100 * PITCH_WIDTH, y: pctY / 100 * PITCH_HEIGHT };
 }
-
-const H_SCALE = PITCH_HEIGHT / 100;
-const V_SCALE = PITCH_WIDTH / 100;
 
 const DOT_SIZE_SCALED: Record<TacticsBoardSize, number> = {
   compact: 4,

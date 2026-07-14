@@ -1,24 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { getSupportCandidatesForEventMatch, checkSupportConflicts } from '../event-match-support';
-import type { EventSupportCandidate } from '../event-match-support';
-
-function makePlayer(overrides: Partial<EventSupportCandidate> & { playerId: string }): EventSupportCandidate {
-  return {
-    firstName: 'Test',
-    lastName: 'Player',
-    sourceEventSquadId: 'squadA',
-    sourceEventSquadName: 'Squad A',
-    primaryPosition: null,
-    secondaryPosition: null,
-    tertiaryPosition: null,
-    goalkeeperAbility: null,
-    overallLevel: null,
-    isGK: false,
-    available: true,
-    unavailableReason: null,
-    ...overrides,
-  };
-}
 
 describe('getSupportCandidatesForEventMatch', () => {
   const baseTargetMatch = {

@@ -1707,3 +1707,71 @@ Key rules:
 - Selection-affecting actions must create an auditable DecisionRecord.
 - Use the `git-branch-commit-pr` workflow.
 - Do not commit internal work logs, scratch notes, or handover documents.
+
+## Standing engineering policy
+
+Every change request in this repository must satisfy these requirements, even when not explicitly requested.
+
+### Documentation alignment is mandatory
+
+Every product/code change must update relevant supporting documents when affected. This includes, where applicable: README, feature files, architecture notes, ADRs, agent instructions, setup/development docs, domain model docs, workflow docs, migration docs, and brand/assets docs.
+
+A request does not need to mention documentation. Documentation alignment is part of the task.
+
+Rules:
+- Implemented behavior: document as current.
+- Partial behavior: document as partial.
+- Future idea: document as future/roadmap only if the repo has a deliberate place for it.
+- Removed behavior: remove or rewrite stale docs.
+
+### Quality checks must pass before completion
+
+Every change must leave the repo in a clean state. Pre-existing failures are not acceptable just because the current change did not introduce them.
+
+Required before completion:
+- `npm run lint` passes
+- `npm run typecheck` passes
+- `npm test` passes
+- `npm run build` passes
+
+If a check cannot run, document why.
+
+### Cleanup is mandatory
+
+Every change must include a small cleanup pass. Remove or update:
+- dead code
+- stale components
+- unused functions
+- unused imports
+- obsolete docs
+- stale feature notes
+- obsolete ADR references
+- stale generated files
+- unused assets
+- unused test fixtures
+- obsolete local scripts
+- stale DB seed data or migration references where safe
+
+Do not remove runtime-needed files. Do not delete data/migrations blindly. If cleanup is unsafe, leave a short note explaining why.
+
+### Repository hygiene
+
+Before finalizing any change, run:
+- `git status --short`
+- `git ls-files --others --exclude-standard`
+- `git ls-files --ignored --exclude-standard`
+
+Check for: meaningful files not tracked, generated junk accidentally tracked, local files that should be ignored, runtime assets missing from git, docs/assets that should not be committed. Update `.gitignore` when appropriate.
+
+### For every Matchboard change
+
+1. Inspect current app/repo state before editing.
+2. Implement the requested behavior.
+3. Update supporting docs affected by the behavior.
+4. Update or add ADRs only for meaningful architecture decisions.
+5. Remove dead/stale code, docs, assets, fixtures, and references.
+6. Fix lint/type/test/build failures, including pre-existing ones.
+7. Verify git tracked/untracked/ignored files.
+8. Ensure no local/generated junk is committed.
+9. Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
+10. Report what changed and what was cleaned up.

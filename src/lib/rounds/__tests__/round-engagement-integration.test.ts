@@ -17,10 +17,10 @@ describe("computeRoundEngagement", () => {
   });
 
   it("returns full engagement when all available players are selected", async () => {
-    const round = await db.matchRound.findUnique({ where: { id: fx.matchRoundId } });
+    await db.matchRound.findUnique({ where: { id: fx.matchRoundId } });
     const matchIds = Object.values(fx.matches);
     const teamIds = Object.values(fx.teams);
-    const playerIds = fx.players.map((p) => p.id);
+    fx.players.map((p) => p.id);
 
     for (let i = 0; i < matchIds.length; i++) {
       const matchId = matchIds[i];

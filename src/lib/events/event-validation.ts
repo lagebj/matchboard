@@ -31,7 +31,6 @@ export function validateEventPool(
       missingRatingsCount++;
     } else {
       ratedPlayerCount++;
-      const totalAttrs = 12;
       if (ratings.overallLevel !== null && p.ballControl === null && p.effort === null && p.passing === null) {
         partialRatingsCount++;
       }

@@ -20,7 +20,7 @@ import {
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
 import type { FormationSlotRoleType } from '@/lib/formations/types';
-import type { GameFormat } from '@/lib/events/event-types';
+
 import { PageHeader } from '@/components/ui/page-header';
 import { TabRail } from '@/components/ui/tab-rail';
 import { Surface } from '@/components/ui/surface';
@@ -199,7 +199,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
   const [addFilter, setAddFilter] = useState<string>('');
   const [selectedToAdd, setSelectedToAdd] = useState<Set<string>>(new Set());
-  const [assignDropdownSquad, setAssignDropdownSquad] = useState<string | null>(null);
+  const [, setAssignDropdownSquad] = useState<string | null>(null);
   const [editingSquadName, setEditingSquadName] = useState<string | null>(null);
   const [editingSquadNameValue, setEditingSquadNameValue] = useState('');
   const [editingDuration, setEditingDuration] = useState(false);
@@ -973,10 +973,6 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             goalkeeperAbility: p.goalkeeperAbility,
             coreTeamId: p.coreTeamId,
             overallLevel: p.overallLevel ?? null,
-          }))}
-          playerAvailability={data.players.map((p) => ({
-            playerId: p.playerId,
-            status: p.status,
           }))}
           opponentTeams={data.opponentTeams}
         />

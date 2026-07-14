@@ -3,7 +3,7 @@ type MatchboardLogoProps = {
   ariaHidden?: boolean;
 };
 
-export function MatchboardLogo({ className, ariaHidden, ...props }: MatchboardLogoProps) {
+export function MatchboardLogo({ className, ariaHidden }: MatchboardLogoProps) {
   return (
     <span
       className={[
@@ -12,9 +12,9 @@ export function MatchboardLogo({ className, ariaHidden, ...props }: MatchboardLo
         "[mask-position:center]",
         "[mask-repeat:no-repeat]",
         "[mask-size:contain]",
-      ].join(" ")}
+        className,
+      ].filter(Boolean).join(" ")}
       aria-hidden={ariaHidden}
-      {...props}
     />
   );
 }

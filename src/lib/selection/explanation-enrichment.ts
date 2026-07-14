@@ -52,7 +52,7 @@ export async function getMatchIntentMap(matchIds: string[]): Promise<Map<string,
       }
     }
 
-    const matchIdsStillWithoutIntent = matchRounds
+    const _matchIdsStillWithoutIntent = matchRounds
       .filter((m) => !intentMap.has(m.id))
       .map((m) => m.matchRoundId);
 

@@ -137,3 +137,13 @@ Do not leave:
 - fake editability
 - UI-only persistence
 - stale docs contradicting implementation
+
+## Mandatory standing engineering policy
+
+These rules apply to every change, even when not explicitly requested.
+
+1. **Documentation alignment is mandatory.** Every product/code change must update relevant supporting documents when affected. A request does not need to mention documentation.
+2. **Quality checks must pass.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` must all pass before completion. Pre-existing failures must be fixed even if not introduced by the current change.
+3. **Cleanup is mandatory.** Every change must include a small cleanup pass: remove dead code, unused imports, stale docs, obsolete references, unused assets.
+4. **Repository hygiene is mandatory.** Before finalizing: check `git status --short`, `git ls-files --others --exclude-standard`, `git ls-files --ignored --exclude-standard`. Ensure no generated junk, stale assets, or untracked meaningful files.
+5. **Report what changed and what was cleaned up.**

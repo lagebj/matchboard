@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { getEvents } from './actions';
-import { RatingBadge } from '@/components/ratings/rating-badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BrandedSurface } from '@/components/ui/branded-surface';
 
@@ -55,9 +54,6 @@ export default async function EventsPage() {
               (sum, s) => sum + s.players.length,
               0,
             );
-            const availableCount = event.players.filter(
-              (p) => p.status === 'AVAILABLE',
-            ).length;
 
             return (
               <Link
