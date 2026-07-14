@@ -8,6 +8,8 @@ import type {
   PolicyConstraints,
   PolicyMode,
   PolicyDecisionPhase,
+  PolicyDecisionType,
+  PolicyFairnessScope,
 } from "./types";
 
 type PrismaPlayer = {
@@ -56,6 +58,9 @@ export function mapPlayerStatus(
 export function buildPolicyInput(args: {
   mode: PolicyMode;
   phase: PolicyDecisionPhase;
+  decisionType: PolicyDecisionType;
+  fairnessScope?: PolicyFairnessScope;
+  generationMode?: "balanced" | "competitive";
   players: PrismaPlayer[];
   teams: PrismaTeam[];
   squads?: Array<{
@@ -79,6 +84,7 @@ export function buildPolicyInput(args: {
   matchTime?: string | null;
   gameFormat?: string | null;
   teamId?: string;
+  squadId?: string;
   eventId?: string;
   eventMatchId?: string;
   leagueMatchId?: string;
@@ -164,12 +170,16 @@ export function buildPolicyInput(args: {
     context: {
       phase: args.phase,
       mode: args.mode,
+      decisionType: args.decisionType,
+      fairnessScope: args.fairnessScope,
+      generationMode: args.generationMode,
       seasonYear: args.seasonYear,
       period: args.period,
       eventId: args.eventId,
       eventMatchId: args.eventMatchId,
       leagueMatchId: args.leagueMatchId,
       teamId: args.teamId,
+      squadId: args.squadId,
       opponentId: args.opponentId,
       matchDate: args.matchDate,
       matchTime: args.matchTime,

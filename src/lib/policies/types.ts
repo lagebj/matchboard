@@ -1,5 +1,21 @@
 export type PolicyMode = "league" | "event";
 
+export type PolicyDecisionType =
+  | "league_match_selection"
+  | "league_round_fairness"
+  | "event_squad_generation"
+  | "event_helper_selection"
+  | "event_lineup_planning"
+  | "post_match_report_availability";
+
+export type PolicyFairnessScope =
+  | "match"
+  | "round"
+  | "period"
+  | "season"
+  | "event"
+  | "event_match";
+
 export type PolicyPeriod = "spring" | "fall" | "full_year";
 
 export type PolicyDecisionPhase =
@@ -85,12 +101,16 @@ export type SelectionPolicyInput = {
   context: {
     phase: PolicyDecisionPhase;
     mode: PolicyMode;
+    decisionType: PolicyDecisionType;
+    fairnessScope?: PolicyFairnessScope;
+    generationMode?: "balanced" | "competitive";
     seasonYear?: number;
     period?: PolicyPeriod;
     eventId?: string;
     eventMatchId?: string;
     leagueMatchId?: string;
     teamId?: string;
+    squadId?: string;
     opponentId?: string;
     matchDate?: string | null;
     matchTime?: string | null;

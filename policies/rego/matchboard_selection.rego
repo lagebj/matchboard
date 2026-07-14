@@ -18,6 +18,7 @@ decision = result if {
   }
 }
 
+# Blocked players: applies in both league and event contexts
 blocked_players := [{
   "player_id": p.id,
   "reasons": ["blocked_by_custom_policy_tag"],
@@ -28,9 +29,18 @@ blocked_players := [{
   "custom_blocked" in object.get(p, "policy_tags", [])
 }
 
+# Goalkeeper warnings: applies in both league and event contexts
 all_warnings := squad_goalkeeper_warnings
 
-all_score_adjustments := low_recent_match_adjustments
+# Score adjustments: league-only by default
+# Event contexts do not apply fairness score adjustments
+all_score_adjustments := league_score_adjustments if {
+  input.context.mode == "league"
+}
+
+all_score_adjustments := [] if {
+  input.context.mode != "league"
+}
 
 all_explanations := []
 
@@ -64,6 +74,12 @@ tertiary_gk_only_warning(squad) := {
   squad.primary_goalkeeper_count == 0
   squad.any_goalkeeper_count > 0
 }
+
+# League-only score adjustments: prioritise players with fewer match opportunities
+# These adjustments are meaningful only in league contexts where fairness
+# is measured across rounds, periods, and seasons.
+# Event contexts use pool-based construction, not longitudinal fairness.
+league_score_adjustments := low_recent_match_adjustments
 
 low_recent_match_adjustments := [adj |
   some p in input.players

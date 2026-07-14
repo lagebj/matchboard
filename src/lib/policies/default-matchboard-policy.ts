@@ -17,7 +17,8 @@ export function evaluateDefaultMatchboardPolicy(
     ...coreResult.scoreAdjustments,
   ];
   const explanations: PolicyExplanation[] = [...coreResult.explanations];
-  // allowedSet used for reference; core invariants already computed allowed list
+  const isLeague = input.context.mode === "league";
+  const isEvent = input.context.mode === "event";
 
   for (const player of input.players) {
     if (player.availableForContext && player.status === "ACTIVE" && !blocked[player.id]) {
@@ -70,39 +71,50 @@ export function evaluateDefaultMatchboardPolicy(
         teamId: squad.teamId ?? undefined,
       });
     }
+
+    if (isEvent && team?.targetSquadSize && squad.playerIdList.length > 0 && squad.playerIdList.length < team.targetSquadSize) {
+      warnings.push({
+        code: "squad_below_target_but_playable",
+        severity: "info",
+        message: `Squad has ${squad.playerIdList.length} players; target is ${team.targetSquadSize}.`,
+        teamId: squad.teamId ?? undefined,
+      });
+    }
   }
 
-  for (const player of input.players) {
-    if (player.availableForContext && !blocked[player.id]) {
-      const recent = player.recentMatchCount ?? 0;
-      const period = player.periodMatchCount ?? 0;
-      const season = player.seasonMatchCount ?? 0;
+  if (isLeague) {
+    for (const player of input.players) {
+      if (player.availableForContext && !blocked[player.id]) {
+        const recent = player.recentMatchCount ?? 0;
+        const period = player.periodMatchCount ?? 0;
+        const season = player.seasonMatchCount ?? 0;
 
-      if (recent <= 1) {
-        scoreAdjustments.push({
-          playerId: player.id,
-          delta: 5,
-          reason: "Player has had fewer recent match opportunities.",
-          code: "low_recent_match_count",
-        });
-      }
+        if (recent <= 1) {
+          scoreAdjustments.push({
+            playerId: player.id,
+            delta: 5,
+            reason: "Player has had fewer recent match opportunities.",
+            code: "low_recent_match_count",
+          });
+        }
 
-      if (period <= 1) {
-        scoreAdjustments.push({
-          playerId: player.id,
-          delta: 3,
-          reason: "Player has had fewer period match opportunities.",
-          code: "low_period_match_count",
-        });
-      }
+        if (period <= 1) {
+          scoreAdjustments.push({
+            playerId: player.id,
+            delta: 3,
+            reason: "Player has had fewer period match opportunities.",
+            code: "low_period_match_count",
+          });
+        }
 
-      if (season <= 2) {
-        scoreAdjustments.push({
-          playerId: player.id,
-          delta: 2,
-          reason: "Player has had fewer season match opportunities.",
-          code: "low_season_match_count",
-        });
+        if (season <= 2) {
+          scoreAdjustments.push({
+            playerId: player.id,
+            delta: 2,
+            reason: "Player has had fewer season match opportunities.",
+            code: "low_season_match_count",
+          });
+        }
       }
     }
   }

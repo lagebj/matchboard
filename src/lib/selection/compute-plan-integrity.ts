@@ -335,6 +335,8 @@ export async function computeRoundPlanIntegrity(
     const policyInput = buildPolicyInput({
       mode: "league",
       phase: "post_selection",
+      decisionType: "league_round_fairness",
+      fairnessScope: "round",
       players: activePlayers.map((p) => ({
         id: p.id,
         firstName: p.firstName,

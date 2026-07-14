@@ -197,6 +197,8 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
     const policyInput = buildPolicyInput({
       mode: "league",
       phase: "post_selection",
+      decisionType: "league_match_selection",
+      fairnessScope: "round",
       players: await db.player.findMany({
         where: { removedAt: null },
         select: {

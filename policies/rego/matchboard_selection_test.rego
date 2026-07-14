@@ -56,8 +56,9 @@ test_no_primary_gk_creates_warning if {
       "id": "s1",
       "team_id": "t1",
       "player_id_list": [],
-      "primary_goalkeeper_count": 0,
-      "any_goalkeeper_count": 0,
+       "primary_goalkeeper_count": 0,
+       "secondary_goalkeeper_count": 0,
+       "any_goalkeeper_count": 0,
     }],
     "matches": [],
     "history": {"player_match_count_map": {}, "player_role_map": {}, "player_recent_support_count": {}},
@@ -78,8 +79,9 @@ test_tertiary_gk_only_creates_warning if {
       "id": "s1",
       "team_id": "t1",
       "player_id_list": [],
-      "primary_goalkeeper_count": 0,
-      "any_goalkeeper_count": 1,
+       "primary_goalkeeper_count": 0,
+       "secondary_goalkeeper_count": 0,
+       "any_goalkeeper_count": 1,
     }],
     "matches": [],
     "history": {"player_match_count_map": {}, "player_role_map": {}, "player_recent_support_count": {}},
@@ -175,4 +177,54 @@ test_result_is_json_shaped if {
   is_array(result.score_adjustments)
   is_array(result.explanations)
   is_array(result.tags)
+}
+
+test_league_mode_produces_score_adjustments if {
+  input := {
+    "players": [{
+      "id": "p1",
+      "display_name": "Player One",
+      "status": "ACTIVE",
+      "available_for_context": true,
+      "recent_match_count": 0,
+      "season_match_count": 0,
+      "period_match_count": 0,
+      "current_team_ids": [],
+      "policy_tags": [],
+    }],
+    "teams": [],
+    "squads": [],
+    "matches": [],
+    "history": {"player_match_count_map": {}, "player_role_map": {}, "player_recent_support_count": {}},
+    "constraints": {},
+    "context": {"phase": "pre_selection", "mode": "league", "decision_type": "league_match_selection", "now_iso": "2026-01-01T00:00:00Z"},
+  }
+
+  result := selection.decision with input as input
+  count(result.score_adjustments) > 0
+}
+
+test_event_mode_no_score_adjustments if {
+  input := {
+    "players": [{
+      "id": "p1",
+      "display_name": "Player One",
+      "status": "ACTIVE",
+      "available_for_context": true,
+      "recent_match_count": 0,
+      "season_match_count": 0,
+      "period_match_count": 0,
+      "current_team_ids": [],
+      "policy_tags": [],
+    }],
+    "teams": [],
+    "squads": [],
+    "matches": [],
+    "history": {"player_match_count_map": {}, "player_role_map": {}, "player_recent_support_count": {}},
+    "constraints": {},
+    "context": {"phase": "pre_selection", "mode": "event", "decision_type": "event_squad_generation", "now_iso": "2026-01-01T00:00:00Z"},
+  }
+
+  result := selection.decision with input as input
+  count(result.score_adjustments) == 0
 }
