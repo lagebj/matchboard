@@ -6,9 +6,6 @@ import {
   formatEventMatchStatus,
   formatGoalkeeperAbility,
   formatPlayerName,
-  EVENT_TYPE_LABELS,
-  EVENT_SQUAD_INTENT_LABELS,
-  EVENT_MATCH_STATUS_LABELS,
 } from '../event-labels';
 import { formatGameFormat } from '../game-format';
 import { MATCH_CATEGORY_LABELS } from '@/lib/stats/match-category';

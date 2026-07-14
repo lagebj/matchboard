@@ -101,22 +101,10 @@ interface EventMatchesTabProps {
     coreTeamId: string | null;
     overallLevel: number | null;
   }>;
-  playerAvailability: Array<{ playerId: string; status: string }>;
   opponentTeams: Array<{ id: string; displayName: string }>;
 }
 
-function formatTime(date: Date | string): string {
-  return new Date(date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatEndTime(startsAt: Date | string, durationMinutes: number | null): string {
-  if (!durationMinutes) return '?';
-  const start = new Date(startsAt);
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
-  return formatTime(end);
-}
-
-export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, playerProfiles, playerAvailability, opponentTeams }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, playerProfiles, opponentTeams }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -147,9 +135,9 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
   const [lineupMatchId, setLineupMatchId] = useState<string | null>(null);
 
   const loadMatches = useCallback(() => {
-    setLoadError(null);
     startTransition(async () => {
       try {
+        setLoadError(null);
         const [matchResult, supportResult] = await Promise.all([
           listEventMatchesAction(eventId),
           getEventMatchSupportAssignmentsAction(eventId),
@@ -316,8 +304,6 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
       });
     }
   }
-
-  const squadNames = new Map(squads.map((s) => [s.id, s.name]));
 
   const assignmentsByMatch = new Map<string, SupportAssignment[]>();
   for (const a of supportAssignments) {
@@ -494,13 +480,11 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                 <EventMatchCard
                   key={m.id}
                   match={m}
-                  squadName={squadNames.get(m.eventSquadId) ?? 'Unknown'}
                   matchDurationMinutes={matchDurationMinutes}
                   isPending={isPending}
                   assignmentsForMatch={assignmentsByMatch.get(m.id) ?? []}
                   conflictCount={conflictCount}
                   supportLoadByPlayer={supportLoadByPlayer}
-                  supportAssignments={supportAssignments}
                   expandedMatchId={expandedMatchId}
                   reportData={reportData}
                   onToggleReport={handleToggleReport}
@@ -519,7 +503,6 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                   }}
                   onRefresh={loadMatches}
                   editingMatchId={editingMatchId}
-                  editOpponent={editOpponent}
                   setEditOpponent={setEditOpponent}
                   editOpponentTeamId={editOpponentTeamId}
                   setEditOpponentTeamId={setEditOpponentTeamId}
@@ -601,11 +584,9 @@ function SupportLoadSummary({
 
 function EventMatchCard({
   match,
-  squadName,
   matchDurationMinutes,
   isPending,
   assignmentsForMatch,
-  supportAssignments,
   expandedMatchId,
   reportData,
   onToggleReport,
@@ -619,7 +600,6 @@ function EventMatchCard({
   onRemoveHelper,
   onRefresh,
   editingMatchId,
-  editOpponent,
   setEditOpponent,
   editOpponentTeamId,
   setEditOpponentTeamId,
@@ -644,11 +624,9 @@ function EventMatchCard({
   playerProfiles,
 }: {
   match: EventMatchWithReport;
-  squadName: string;
   matchDurationMinutes: number | null;
   isPending: boolean;
   assignmentsForMatch: SupportAssignment[];
-  supportAssignments: SupportAssignment[];
   conflictCount: number;
   supportLoadByPlayer: Map<string, number>;
   expandedMatchId: string | null;
@@ -665,7 +643,6 @@ function EventMatchCard({
   onRemoveHelper: (assignmentId: string) => void;
   onRefresh: () => void;
   editingMatchId: string | null;
-  editOpponent: string;
   setEditOpponent: (v: string) => void;
   editOpponentTeamId: string | null;
   setEditOpponentTeamId: (v: string | null) => void;
@@ -705,7 +682,7 @@ function EventMatchCard({
   const [candidates, setCandidates] = useState<EventSupportCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [helperError, setHelperError] = useState<string | null>(null);
-  const [helperPending, startHelperTransition] = useTransition();
+  const [, startHelperTransition] = useTransition();
 
   function handleAddClick() {
     if (addingHelper) {

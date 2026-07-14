@@ -11,7 +11,7 @@ import {
   changeEventMatchLineupFormation,
   getAvailableFormations,
 } from './event-lineup-actions';
-import { getPlayerSlotCompatibility } from '@/lib/formations/lineup-compatibility';
+
 import type { FormationSlotRoleType, BroadPosition, FormationSlotData } from '@/lib/formations/types';
 import { ROLE_TYPE_LABELS } from '@/lib/formations/types';
 import { PitchLineupView } from '@/components/formations/pitch-formation';
@@ -119,10 +119,10 @@ export function EventMatchLineupPanel({
   }, [squadPlayers, helperPlayers]);
 
   const loadLineup = useCallback(() => {
-    setLoading(true);
-    setError(null);
     startTransition(async () => {
       try {
+        setLoading(true);
+        setError(null);
         const [lineupData, formationsData] = await Promise.all([
           getEventMatchLineup(eventMatchId),
           getAvailableFormations(gameFormat),

@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   validateEngagementOverride,
   ENGAGEMENT_OVERRIDE_REASONS,
-  type EngagementOverrideReason,
 } from "../round-engagement";
 
 describe("round-engagement", () => {

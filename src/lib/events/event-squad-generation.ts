@@ -11,7 +11,7 @@ import type {
 } from './event-types';
 import type { Formation, FormationSlot } from '@/generated/prisma/client';
 import { computeCompositeRatings, isGoalkeeperCapable, getPlayerBroadPositions } from './event-types';
-import { getPositionFitTier, FIT_TIER_PRIORITY, computePositionScarcity } from '@/lib/players/player-position-resolver';
+import { getPositionFitTier, computePositionScarcity } from '@/lib/players/player-position-resolver';
 import type { PositionFitTier } from '@/lib/players/player-position-resolver';
 import { computeSquadBalance } from './event-balance';
 
@@ -379,7 +379,7 @@ function distributeByRoleAcrossSquads(
   gameFormat: GameFormat,
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
-  notes: string[],
+  _notes: string[],
 ): void {
   const slotsPerSquad = squads.map((squad) => {
     const formation = getFormationForSquad(squad, formations, defaultFormationId);
@@ -424,7 +424,7 @@ function distributeByRoleAcrossSquads(
     const slotsForRole = roleSlots.get(role);
     if (!slotsForRole || slotsForRole.length === 0) continue;
 
-    const availableForRole = players.filter(
+    const _availableForRole = players.filter(
       (p) => !assignedGlobal.has(p.playerId),
     );
 
@@ -436,7 +436,7 @@ function distributeByRoleAcrossSquads(
         ? Array.from({ length: squads.length }, (_, i) => i)
         : Array.from({ length: squads.length }, (_, i) => squads.length - 1 - i);
 
-      let assignedAny = false;
+      let _assignedAny = false;
       for (const squadIdx of indices) {
         const squadSlots = slotsForRole.filter((s) => s.squadIdx === squadIdx);
         const squadSlot = squadSlots[slotIdx];
@@ -461,7 +461,7 @@ function distributeByRoleAcrossSquads(
             selectionReason: buildSlotReason(result.player, squadSlot.slot, fitTier, false),
             positionFitTier: fitTier,
           });
-          assignedAny = true;
+          _assignedAny = true;
         }
       }
 
@@ -737,7 +737,7 @@ function distributeAllBalanced(
 
   distributeGoalkeepers(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId);
 
-  const protectedRoles = new Set(
+  const _protectedRoles = new Set(
     scarcityInfo.filter((s) => s.isScarce).map((s) => s.position),
   );
 

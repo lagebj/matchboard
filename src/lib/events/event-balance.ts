@@ -3,11 +3,9 @@ import type {
   SquadBalanceSummary,
   EventSquadIntent,
   BroadPosition,
-  GoalkeeperCoverageTier,
 } from './event-types';
 import {
   computeCompositeRatings,
-  isGoalkeeperCapable,
   getGoalkeeperCoverageTier,
   getPlayerBroadPositions,
 } from './event-types';

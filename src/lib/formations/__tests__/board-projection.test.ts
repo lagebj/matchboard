@@ -3,7 +3,6 @@ import {
   getBoardPositionPercent,
   getBoardAspectRatio,
   getBoardViewBox,
-  type BoardProjectionOptions,
 } from "../board-projection";
 import { GRID_X_PERCENT, GRID_Y_PERCENT } from "../types";
 

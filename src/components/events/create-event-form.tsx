@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createEventAction } from "@/app/(app)/events/actions";
 
@@ -22,7 +21,6 @@ const GAME_FORMAT_OPTIONS = [
 import { formatGameFormat } from "@/lib/formatters/game-format";
 
 export function CreateEventForm({ formations }: { formations: Formation[] }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 

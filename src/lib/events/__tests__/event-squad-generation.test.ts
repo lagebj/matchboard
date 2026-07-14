@@ -20,7 +20,6 @@ import type {
 } from '../event-types';
 import { getPositionFitTier, FIT_TIER_PRIORITY, computePositionScarcity, mapAnyPositionToBroad } from '@/lib/players/player-position-resolver';
 import { computeLineupAssignment } from '../event-lineup-assignment';
-import type { LineupAssignment } from '../event-lineup-assignment';
 
 function makePlayer(overrides: Partial<PlayerAttributeProfile> = {}): PlayerAttributeProfile {
   const defaults: PlayerAttributeProfile = {
