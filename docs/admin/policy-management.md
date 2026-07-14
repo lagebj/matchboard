@@ -27,7 +27,7 @@ Core invariants are enforced in TypeScript (`src/lib/policies/core-invariants.ts
 - Unavailable players cannot be selected (unless context allows override)
 - Duplicate player assignments in the same squad are blocked
 
-Core invariants always apply. No Rego policy or JSON policy pack can allow something that a core invariant blocks.
+Core invariants always apply. No Rego policy can allow something that a core invariant blocks.
 
 ### 2. Default Matchboard policy (built-in)
 
@@ -69,7 +69,6 @@ The composite pipeline merges results from all layers. Core invariants take abso
 | `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm |
 | `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
 | `test/fixtures/policies/` | Anonymized test fixtures for dry-run validation |
-| `policies/default/matchboard.default.policy.json` | Default JSON policy pack (internal, not for admin editing) |
 | `src/lib/policies/policy-evaluation.ts` | Evaluation helpers: filter, adjust, format coach-facing reasons |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking |

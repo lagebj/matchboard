@@ -64,6 +64,7 @@ export function buildPolicyInput(args: {
     teamId?: string | null;
     playerIdList: string[];
     primaryGoalkeeperCount: number;
+    secondaryGoalkeeperCount: number;
     anyGoalkeeperCount: number;
   }>;
   matches?: Array<{
@@ -131,6 +132,7 @@ export function buildPolicyInput(args: {
     teamId: s.teamId ?? null,
     playerIdList: s.playerIdList,
     primaryGoalkeeperCount: s.primaryGoalkeeperCount,
+    secondaryGoalkeeperCount: s.secondaryGoalkeeperCount,
     anyGoalkeeperCount: s.anyGoalkeeperCount,
   }));
 

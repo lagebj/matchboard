@@ -47,6 +47,7 @@ export type PolicySquad = {
   teamId?: string | null;
   playerIdList: string[];
   primaryGoalkeeperCount: number;
+  secondaryGoalkeeperCount: number;
   anyGoalkeeperCount: number;
 };
 
@@ -145,53 +146,4 @@ export type SelectionPolicyResult = {
   scoreAdjustments: PolicyScoreAdjustment[];
   explanations: PolicyExplanation[];
   tags: PolicyTag[];
-};
-
-export type PolicyRuleCondition = {
-  field: string;
-  op: PolicyConditionOp;
-  value?: string | number | boolean | null;
-  values?: (string | number)[];
-};
-
-export type PolicyConditionGroup = {
-  all?: PolicyRuleCondition[];
-  any?: PolicyRuleCondition[];
-};
-
-export type PolicyConditionOp =
-  | "eq"
-  | "neq"
-  | "lt"
-  | "lte"
-  | "gt"
-  | "gte"
-  | "in"
-  | "not_in"
-  | "exists"
-  | "not_exists"
-  | "contains";
-
-export type PolicyRuleEffect = "deny" | "warning" | "score_adjustment" | "tag";
-
-export type PolicyRule = {
-  id: string;
-  effect: PolicyRuleEffect;
-  when: PolicyConditionGroup;
-  reason?: string;
-  scoreAdjustment?: number;
-  warning?: {
-    code: string;
-    severity: PolicyWarningSeverity;
-    message: string;
-  };
-  tag?: string;
-};
-
-export type PolicyPack = {
-  id: string;
-  name: string;
-  version: string;
-  description?: string;
-  rules: PolicyRule[];
 };

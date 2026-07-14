@@ -32,14 +32,26 @@ export function evaluateDefaultMatchboardPolicy(
 
   for (const squad of input.squads) {
     if (squad.primaryGoalkeeperCount === 0) {
-      const anyGK = squad.anyGoalkeeperCount > 0;
-      const code = anyGK
-        ? "no_primary_goalkeeper_tertiary_only"
-        : "no_goalkeeper_coverage";
-      const severity: PolicyWarning["severity"] = anyGK ? "warning" : "blocking";
-      const message = anyGK
-        ? "Squad has no primary goalkeeper; only emergency or tertiary coverage."
-        : "Squad has no goalkeeper coverage at all.";
+      const hasSecondary = squad.secondaryGoalkeeperCount > 0;
+      const hasAny = squad.anyGoalkeeperCount > 0;
+
+      let code: string;
+      let severity: PolicyWarning["severity"];
+      let message: string;
+
+      if (hasSecondary) {
+        code = "no_primary_goalkeeper_secondary_only";
+        severity = "warning";
+        message = "Squad has no primary goalkeeper; secondary goalkeeper coverage available.";
+      } else if (hasAny) {
+        code = "no_primary_goalkeeper_tertiary_only";
+        severity = "warning";
+        message = "Squad has no primary goalkeeper; only emergency or tertiary coverage.";
+      } else {
+        code = "no_goalkeeper_coverage";
+        severity = "blocking";
+        message = "Squad has no goalkeeper coverage at all.";
+      }
 
       warnings.push({
         code,

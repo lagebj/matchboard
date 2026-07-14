@@ -360,14 +360,29 @@ export async function computeRoundPlanIntegrity(
         minSquadSize: m.team.minAcceptedSquadSize,
         maxSquadSize: m.team.maxSquadSize,
       })),
-      squads: round.matches.map((m) => ({
-        id: m.id,
-        name: m.team.name,
-        teamId: m.teamId,
-        playerIdList: m.selections.map((s) => s.playerId),
-        primaryGoalkeeperCount: m.selections.filter((s) => s.role === "CORE" && s.player?.goalkeeperAbility === "YES").length,
-        anyGoalkeeperCount: m.selections.filter((s) => ["YES", "EMERGENCY"].includes(s.player?.goalkeeperAbility ?? "NO")).length,
-      })),
+      squads: round.matches.map((m) => {
+        const isStrongGK = (s: typeof m.selections[number]) => {
+          const gkAbility = s.player?.goalkeeperAbility ?? "NO";
+          const primaryPos = s.player?.primaryPosition;
+          return gkAbility === "YES" || primaryPos === "GK";
+        };
+        const isAcceptableGK = (s: typeof m.selections[number]) => {
+          const secondaryPos = s.player?.secondaryPosition;
+          return secondaryPos === "GK" && !isStrongGK(s);
+        };
+        return {
+          id: m.id,
+          name: m.team.name,
+          teamId: m.teamId,
+          playerIdList: m.selections.map((s) => s.playerId),
+          primaryGoalkeeperCount: m.selections.filter(isStrongGK).length,
+          secondaryGoalkeeperCount: m.selections.filter(isAcceptableGK).length,
+          anyGoalkeeperCount: m.selections.filter((s) => {
+            const gkAbility = s.player?.goalkeeperAbility ?? "NO";
+            return isStrongGK(s) || isAcceptableGK(s) || gkAbility === "EMERGENCY";
+          }).length,
+        };
+      }),
       matches: round.matches.map((m) => ({
         id: m.id,
         startsAt: m.startsAt,

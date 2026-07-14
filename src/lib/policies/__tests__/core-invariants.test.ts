@@ -81,7 +81,7 @@ describe("checkCoreInvariants", () => {
           { id: "p1", displayName: "Player 1", status: "ACTIVE", availableForContext: true, currentTeamIds: [] },
         ],
         squads: [
-          { id: "s1", playerIdList: ["p1", "p1"], primaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 },
+          { id: "s1", playerIdList: ["p1", "p1"], primaryGoalkeeperCount: 0, secondaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 },
         ],
       }),
     );

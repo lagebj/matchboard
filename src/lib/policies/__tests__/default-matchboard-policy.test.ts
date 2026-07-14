@@ -66,12 +66,12 @@ describe("evaluateDefaultMatchboardPolicy", () => {
     expect(result.blocked["p4"]).toBeUndefined();
   });
 
-  it("warns when squad has no primary goalkeeper", () => {
+  it("warns when squad has no goalkeeper coverage", () => {
     const result = evaluateDefaultMatchboardPolicy(
       makeInput({
         players: [],
         teams: [{ id: "t1", name: "Team A" }],
-        squads: [{ id: "s1", teamId: "t1", playerIdList: [], primaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 }],
+        squads: [{ id: "s1", teamId: "t1", playerIdList: [], primaryGoalkeeperCount: 0, secondaryGoalkeeperCount: 0, anyGoalkeeperCount: 0 }],
       }),
     );
     const gkWarning = result.warnings.find((w) => w.code === "no_goalkeeper_coverage");
@@ -84,10 +84,23 @@ describe("evaluateDefaultMatchboardPolicy", () => {
       makeInput({
         players: [],
         teams: [{ id: "t1", name: "Team A" }],
-        squads: [{ id: "s1", teamId: "t1", playerIdList: ["p1"], primaryGoalkeeperCount: 0, anyGoalkeeperCount: 1 }],
+        squads: [{ id: "s1", teamId: "t1", playerIdList: ["p1"], primaryGoalkeeperCount: 0, secondaryGoalkeeperCount: 0, anyGoalkeeperCount: 1 }],
       }),
     );
     const gkWarning = result.warnings.find((w) => w.code === "no_primary_goalkeeper_tertiary_only");
+    expect(gkWarning).toBeDefined();
+    expect(gkWarning!.severity).toBe("warning");
+  });
+
+  it("warns with secondary-only goalkeeper coverage", () => {
+    const result = evaluateDefaultMatchboardPolicy(
+      makeInput({
+        players: [],
+        teams: [{ id: "t1", name: "Team A" }],
+        squads: [{ id: "s1", teamId: "t1", playerIdList: ["p1"], primaryGoalkeeperCount: 0, secondaryGoalkeeperCount: 1, anyGoalkeeperCount: 1 }],
+      }),
+    );
+    const gkWarning = result.warnings.find((w) => w.code === "no_primary_goalkeeper_secondary_only");
     expect(gkWarning).toBeDefined();
     expect(gkWarning!.severity).toBe("warning");
   });

@@ -17,12 +17,6 @@ export type {
   PolicyExplanation,
   PolicyTag,
   SelectionPolicyResult,
-  PolicyRuleCondition,
-  PolicyConditionGroup,
-  PolicyConditionOp,
-  PolicyRuleEffect,
-  PolicyRule,
-  PolicyPack,
 } from "./types";
 
 export {
@@ -32,20 +26,11 @@ export {
 } from "./core-invariants";
 
 export {
-  evaluatePolicyPack,
-  evaluateConditionGroup,
-  evaluateCondition,
-  evaluateRuleForEntity,
-  type RuleEvaluationResult,
-} from "./json-policy-dsl";
-
-export {
   evaluateDefaultMatchboardPolicy,
 } from "./default-matchboard-policy";
 
 export {
   DefaultMatchboardPolicyAdapter,
-  JsonPolicyAdapter,
   CompositePolicyAdapter,
   createPolicyPipeline,
 } from "./selection-policy-adapter";
@@ -59,14 +44,6 @@ export {
   getRegoFailureMode,
   clearRegoPolicyCache,
 } from "./rego-policy-adapter";
-
-export {
-  parsePolicyPack,
-  PolicyLoadError,
-  loadPolicyPackFromJson,
-  loadCustomPolicyPack,
-  clearPolicyCache,
-} from "./json-policy-loader";
 
 export { buildPolicyInput, mapPlayerStatus } from "./build-policy-input";
 

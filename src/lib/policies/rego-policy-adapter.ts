@@ -293,6 +293,7 @@ export class RegoPolicyAdapter implements SelectionPolicyAdapter {
         team_id: s.teamId ?? null,
         player_id_list: s.playerIdList,
         primary_goalkeeper_count: s.primaryGoalkeeperCount,
+        secondary_goalkeeper_count: s.secondaryGoalkeeperCount,
         any_goalkeeper_count: s.anyGoalkeeperCount,
       })),
       matches: input.matches.map((m) => ({

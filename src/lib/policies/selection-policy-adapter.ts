@@ -1,5 +1,4 @@
-import type { SelectionPolicyInput, SelectionPolicyResult, PolicyPack } from "./types";
-import { evaluatePolicyPack } from "./json-policy-dsl";
+import type { SelectionPolicyInput, SelectionPolicyResult } from "./types";
 import { evaluateDefaultMatchboardPolicy } from "./default-matchboard-policy";
 import { checkCoreInvariants } from "./core-invariants";
 import { RegoPolicyAdapter, isRegoEnabled } from "./rego-policy-adapter";
@@ -16,22 +15,6 @@ export class DefaultMatchboardPolicyAdapter implements SelectionPolicyAdapter {
 
   async evaluate(input: SelectionPolicyInput): Promise<SelectionPolicyResult> {
     return evaluateDefaultMatchboardPolicy(input);
-  }
-}
-
-export class JsonPolicyAdapter implements SelectionPolicyAdapter {
-  id: string;
-  name: string;
-  private pack: PolicyPack;
-
-  constructor(pack: PolicyPack) {
-    this.id = pack.id;
-    this.name = pack.name;
-    this.pack = pack;
-  }
-
-  async evaluate(input: SelectionPolicyInput): Promise<SelectionPolicyResult> {
-    return evaluatePolicyPack(this.pack, input);
   }
 }
 
@@ -103,9 +86,7 @@ export class CompositePolicyAdapter implements SelectionPolicyAdapter {
   }
 }
 
-export function createPolicyPipeline(
-  customPack?: PolicyPack | null,
-): SelectionPolicyAdapter {
+export function createPolicyPipeline(): SelectionPolicyAdapter {
   const defaultAdapter = new DefaultMatchboardPolicyAdapter();
 
   const adapters: SelectionPolicyAdapter[] = [defaultAdapter];
@@ -113,11 +94,6 @@ export function createPolicyPipeline(
   if (isRegoEnabled()) {
     const regoAdapter = new RegoPolicyAdapter();
     adapters.push(regoAdapter);
-  }
-
-  if (customPack) {
-    const jsonAdapter = new JsonPolicyAdapter(customPack);
-    adapters.push(jsonAdapter);
   }
 
   if (adapters.length === 1) {

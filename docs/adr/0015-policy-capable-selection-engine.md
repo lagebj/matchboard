@@ -34,13 +34,9 @@ The policy layer decides what is allowed, blocked, warned, adjusted, and explain
 
 1. **Core invariants** — non-overridable safety rules enforced in TypeScript (removed players cannot be selected, unavailable players are blocked, no duplicate lineup assignments, no overlapping helpers, etc.)
 2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations that run for all instances
-3. **Optional custom instance policy** — JSON DSL rules that may make rules stricter, add warnings, adjust scoring, or add explanations, but cannot override core invariants
+3. **Optional custom instance policy** — Rego policies compiled to Wasm that may make rules stricter, add warnings, adjust scoring, or add explanations, but cannot override core invariants
 
-### JSON policy DSL
-
-The first implementation uses a safe JSON DSL with these effects: `deny`, `warning`, `score_adjustment`, `tag`. Rules evaluate over normalized policy input (player, team, squad, match, context). Operators: `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in`, `not_in`, `exists`, `not_exists`, `contains`. Conditions combine with `all` (AND) or `any` (OR).
-
-No arbitrary code execution. No eval. No Rego runtime in this version.
+> **Note:** The original Stage 1 implementation used a proprietary JSON policy DSL (`json-policy-dsl.ts`, `json-policy-loader.ts`). This was rejected and removed in Stage 4. Custom policies should use Rego compiled to Wasm. Do not reintroduce a proprietary JSON DSL.
 
 ### Integration points
 
@@ -59,7 +55,7 @@ A `PolicyDecisionLog` Prisma model stores decision type, policy pack ID, warning
 - Selection rules become visible, configurable, and explainable
 - Custom instances can add stricter rules without forking the engine
 - Core invariants are guaranteed non-overridable
-- JSON policy files are a stepping stone to OPA/Rego adapter later
+- Rego (OPA/Wasm) is the only supported custom policy mechanism
 - Existing engine behavior is preserved — default policy encodes current rules
 - Policy evaluation adds a step to generation pipelines (negligible performance impact)
 
@@ -68,3 +64,4 @@ A `PolicyDecisionLog` Prisma model stores decision type, policy pack ID, warning
 - **Hardcode all rules forever**: Current state, leads to scattered unmaintainable logic
 - **Implement the whole solver in OPA/Rego**: Over-engineered for current needs, complex deployment, hard to debug
 - **Database-only rule storage**: Too rigid for self-hosted customization, requires admin UI that doesn't exist yet
+- **Proprietary JSON policy DSL**: Removed in Stage 4. Limited expressiveness, no ecosystem tooling, proprietary to Matchboard. Rego provides a standard, well-supported alternative.
