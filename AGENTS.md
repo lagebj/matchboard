@@ -880,6 +880,11 @@ The JSON DSL (`src/lib/policies/json-policy-dsl.ts`) is retained for backward co
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
 | `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation (legacy, internal use) |
 | `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON files |
+| `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
+| `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
+| `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
+| `src/lib/policies/policy-decision-log.ts` | Policy decision summary builder for logging |
+| `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime, version, Rego status |
 | `policies/rego/matchboard_selection.rego` | Rego policy source |
 | `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
 | `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact |

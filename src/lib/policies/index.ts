@@ -69,3 +69,40 @@ export {
 } from "./json-policy-loader";
 
 export { buildPolicyInput, mapPlayerStatus } from "./build-policy-input";
+
+export {
+  evaluateSelectionPolicy,
+  filterBlockedPlayerIds,
+  applyScoreAdjustments,
+  policyExplanationToCoachFacing,
+  policyBlockedReasonsForPlayer,
+  policyWarningsForPlayer,
+  policyWarningsForTeam,
+  policyWarningsForMatch,
+  mapPolicyWarningToCategory,
+  coachFacingBlockedReason,
+  coachFacingWarningMessage,
+  summarizePolicyResult,
+  type PolicyEvaluationResult,
+  type PolicyWarningSummary,
+} from "./policy-evaluation";
+
+export {
+  policyWarningToSignal,
+  policyExplanationToSignal,
+  policyBlockedToSignals,
+  policyWarningsToSignals,
+  mergePolicySignals,
+  type PolicyDerivedSignal,
+} from "./policy-signal-mapper";
+
+export {
+  getPolicyArtifactHash,
+  getPolicyVersion,
+  clearPolicyHashCache,
+} from "./policy-version";
+
+export {
+  buildDecisionSummary,
+  type PolicyDecisionSummary,
+} from "./policy-decision-log";

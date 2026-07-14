@@ -70,6 +70,24 @@ The composite pipeline merges results from all layers. Core invariants take abso
 | `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
 | `test/fixtures/policies/` | Anonymized test fixtures for dry-run validation |
 | `policies/default/matchboard.default.policy.json` | Default JSON policy pack (internal, not for admin editing) |
+| `src/lib/policies/policy-evaluation.ts` | Evaluation helpers: filter, adjust, format coach-facing reasons |
+| `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals |
+| `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking |
+| `src/lib/policies/policy-decision-log.ts` | Decision summary builder for audit logging |
+| `src/app/api/admin/policy/route.ts` | Admin diagnostics endpoint |
+
+### Admin diagnostics endpoint
+
+`GET /api/admin/policy` reports:
+
+- Whether Rego is enabled
+- Rego failure mode
+- Policy version and artifact hash
+- Whether the Wasm artifact is loaded
+- Last evaluation timestamp
+- Blocked/warning/adjustment counts from last evaluation
+
+No player personal data is included in diagnostics output.
 
 The active Rego policy is loaded from the Wasm artifact at the path configured by `MATCHBOARD_POLICY_WASM_PATH` (default: `policies/compiled/matchboard_selection.wasm`).
 

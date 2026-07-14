@@ -503,8 +503,13 @@ low_recent_match_adjustments := [adj |
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
+| `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
+| `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
+| `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
+| `src/lib/policies/policy-decision-log.ts` | Policy decision summary builder for logging |
 | `src/lib/policies/json-policy-dsl.ts` | JSON DSL rule evaluation (legacy, internal use) |
 | `src/lib/policies/json-policy-loader.ts` | Load and validate policy packs from JSON |
+| `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime, version, Rego status |
 | `policies/rego/matchboard_selection.rego` | Rego policy source |
 | `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
 | `policies/rego/custom/` | Directory for custom Rego policies |
@@ -527,3 +532,86 @@ The `PolicyDecisionLog` Prisma model stores:
 - Timestamp
 
 No child/player personal data is stored in decision logs.
+
+## Stage 3: Operationalization
+
+Stage 3 wires the policy pipeline into real application flows and provides coach-facing visibility.
+
+### Integration points
+
+| Flow | Where policy runs | What it does |
+|------|-------------------|-------------|
+| League match generation (`generate-round.ts`) | Pre/post | Filter blocked players, apply score adjustments, merge policy signals |
+| Plan integrity computation (`compute-plan-integrity.ts`) | Post | Merge policy warnings into plan integrity signals |
+| Event squad generation (`event-squad-generation.ts`) | Pre | Filter blocked players, apply score adjustments |
+| Event pool validation (`event-validation.ts`) | Pre | Add policy warnings to validation notes |
+| Assistant (`get-assistant-command-centre.ts`) | Read | Surface policy explanations in work items |
+
+### Evaluation helpers (`policy-evaluation.ts`)
+
+| Function | Purpose |
+|----------|---------|
+| `evaluateSelectionPolicy(input)` | Run the full composite pipeline and return a structured result |
+| `filterBlockedPlayerIds(result)` | Extract blocked player IDs from policy result |
+| `applyScoreAdjustments(candidates, adjustments)` | Apply bounded score adjustments to candidate rankings |
+| `coachFacingBlockedReason(result, playerId)` | Human-readable blocked reason for a specific player |
+| `coachFacingWarningMessage(warning)` | Human-readable warning message |
+| `summarizePolicyResult(result)` | One-line summary of blocked/warning/adjustment counts |
+| `policyBlockedReasonsForPlayer(result, playerId)` | All blocked reasons for a player |
+| `policyWarningsForPlayer(result, playerId)` | All warnings for a player |
+| `policyWarningsForTeam(result, teamId)` | All warnings for a team |
+
+### Signal mapping (`policy-signal-mapper.ts`)
+
+Policy warnings and blocked entries map to Matchboard's plan integrity signal model:
+
+| Policy result | Plan integrity signal |
+|---------------|----------------------|
+| Blocked player | Blocked condition (`BLOCKED`) |
+| `severity: "blocking"` warning | Blocked condition (`BLOCKED`) |
+| `severity: "warning"` warning | Decision required (`DECISION_REQUIRED`) |
+| `severity: "info"` warning | Planning note (`PLANNING_NOTE`) |
+
+| Function | Purpose |
+|----------|---------|
+| `policyBlockedToSignals(blocked, matchRoundId)` | Convert blocked entries to plan integrity signals |
+| `policyWarningsToSignals(warnings, matchRoundId)` | Convert warnings to categorized signals |
+| `mergePolicySignals(existing, policySignals)` | Merge policy signals with existing signals, deduplicating by key |
+
+### Version tracking (`policy-version.ts`)
+
+| Function | Purpose |
+|----------|---------|
+| `getPolicyArtifactHash()` | SHA-256 hash of the Wasm artifact (or null if Rego disabled) |
+| `getPolicyVersion()` | Version string combining runtime info and artifact hash |
+
+### Decision log builder (`policy-decision-log.ts`)
+
+| Function | Purpose |
+|----------|---------|
+| `buildDecisionSummary(result, context)` | Build a structured summary for audit logging |
+
+### Admin diagnostics (`/api/admin/policy`)
+
+The admin diagnostics route reports:
+- Whether Rego is enabled
+- Rego failure mode
+- Policy version and artifact hash
+- Whether the Wasm artifact is loaded
+- Last evaluation timestamp
+- Blocked/warning/adjustment counts from last evaluation
+
+No player personal data is included in diagnostics output.
+
+### Coach-facing language rules
+
+All policy output visible to coaches must follow Matchboard's child-safe language rules:
+
+| Policy concept | Use | Never use |
+|----------------|-----|-----------|
+| Player blocked from selection | "Not eligible for selection" | "Rejected", "Failed" |
+| Policy warning | "Planning note" or "Decision required" | "Error", "Violation" |
+| Score adjustment | "Selection priority adjusted" | "Penalty", "Bonus" |
+| Blocked reason | "Unavailable for this match", "Core team assignment conflict" | "Banned", "Punished" |
+
+Raw Rego internals, policy codes, and internal severity levels must not appear in coach-facing UI.

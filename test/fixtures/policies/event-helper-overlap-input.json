@@ -1,0 +1,92 @@
+{
+  "context": {
+    "phase": "pre_selection",
+    "mode": "event",
+    "nowIso": "2026-06-15T10:00:00Z",
+    "gameFormat": "7v7",
+    "eventId": "event-fixture-1"
+  },
+  "players": [
+    {
+      "id": "helper-a1",
+      "displayName": "Helper A1",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 3,
+      "seasonMatchCount": 6,
+      "periodMatchCount": 2,
+      "currentTeamIds": ["team-blue"]
+    },
+    {
+      "id": "helper-b1",
+      "displayName": "Helper B1",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "DEFENDER",
+      "goalkeeperAbility": "EMERGENCY",
+      "recentMatchCount": 2,
+      "seasonMatchCount": 4,
+      "periodMatchCount": 1,
+      "currentTeamIds": ["team-red"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-blue",
+      "name": "Blue Team",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    },
+    {
+      "id": "team-red",
+      "name": "Red Team",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    }
+  ],
+  "squads": [
+    {
+      "id": "squad-blue",
+      "teamId": "team-blue",
+      "playerIdList": ["helper-a1"],
+      "primaryGoalkeeperCount": 0,
+      "anyGoalkeeperCount": 0
+    },
+    {
+      "id": "squad-red",
+      "teamId": "team-red",
+      "playerIdList": ["helper-b1"],
+      "primaryGoalkeeperCount": 1,
+      "anyGoalkeeperCount": 1
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-blue-1",
+      "startsAt": "2026-06-15T10:00:00Z",
+      "endsAt": "2026-06-15T10:30:00Z",
+      "isCancelled": false
+    },
+    {
+      "id": "match-red-1",
+      "startsAt": "2026-06-15T10:00:00Z",
+      "endsAt": "2026-06-15T10:30:00Z",
+      "isCancelled": false
+    }
+  ],
+  "history": {
+    "playerMatchCountMap": {},
+    "playerRoleMap": {},
+    "playerRecentSupportCount": {}
+  },
+  "constraints": {
+    "maxSquadSize": 9,
+    "minSquadSize": 5,
+    "targetSquadSize": 7,
+    "requireGoalkeeper": true
+  }
+}
