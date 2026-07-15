@@ -2,9 +2,8 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { LeagueSeasonPart } from "@/lib/seasons/league-season";
-import {
-  buildLeagueSimulationContext,
-} from "./simulation-context-builder";
+import { generateMatchRound } from "@/lib/selection/generate-round";
+import type { GeneratedRound, GeneratedSelection } from "@/lib/selection/types";
 import {
   computeSimulationFairness,
   detectGkCoverageGaps,
@@ -78,9 +77,21 @@ async function simulateLeague(
   request: SeasonSimulationRequest,
 ): Promise<LeagueSimulationResult> {
   const leagueSeasonId = await resolveLeagueSeasonId(request);
-  const context = await buildLeagueSimulationContext(leagueSeasonId, {
-    roundIds: request.roundIds,
-    includeFinalizedHistory: request.includeCommittedPlans,
+
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
+    include: { season: true },
+  });
+  if (!leagueSeason) {
+    throw new Error(`League season not found: ${leagueSeasonId}`);
+  }
+
+  const rounds = await db.matchRound.findMany({
+    where: {
+      leagueSeasonId,
+      ...(request.roundIds?.length ? { id: { in: request.roundIds } } : {}),
+    },
+    orderBy: { createdAt: "asc" },
   });
 
   const roundResults: SimulatedRoundResult[] = [];
@@ -100,179 +111,81 @@ async function simulateLeague(
     }
   >();
 
-  for (const player of context.players) {
-    playerParticipationMap.set(player.id, {
-      plannedRounds: 0,
-      coreAssignments: 0,
-      supportAssignments: 0,
-      developmentAssignments: 0,
-      squadRepairAssignments: 0,
-      notSelectedRounds: 0,
-      unavailableRounds: 0,
-    });
-  }
-
-  const selectedPlayersPerRound = new Map<string, Set<string>>();
-
-  for (const round of context.rounds) {
+  for (const round of rounds) {
     if (round.status === "FINALIZED" && !request.includeCommittedPlans) {
       continue;
     }
 
-    const roundMatches = context.matches.filter(
-      (m) => m.matchRoundId === round.id,
-    );
+    let generatedRound: GeneratedRound | null = null;
+    let generationError: string | null = null;
 
-    const roundSelections: SimulatedPlayerRound[] = [];
-    const roundBlockedPlayers: Record<string, string[]> = {};
-    const roundValid = true;
-
-    selectedPlayersPerRound.set(round.id, new Set());
-
-    for (const match of roundMatches) {
-      const team = context.teams.find((t) => t.id === match.teamId);
-      if (!team) continue;
-
-      const availabilitiesForRound = context.availabilities.filter(
-        (a) => a.matchRoundId === round.id,
-      );
-
-      const availablePlayerIds = new Set(
-        availabilitiesForRound
-          .filter((a) => a.status === "AVAILABLE")
-          .map((a) => a.playerId),
-      );
-
-      const corePlayers = context.players.filter(
-        (p) =>
-          p.coreTeamId === match.teamId &&
-          p.active &&
-          availablePlayerIds.has(p.id),
-      );
-
-      const matchSelections: SimulatedPlayerRound[] = corePlayers.map((p) => ({
-        playerId: p.id,
-        roundId: round.id,
-        matchId: match.id,
-        teamId: match.teamId,
-        role: "CORE" as SelectionRole,
-        isSimulation: true,
-      }));
-
-      roundSelections.push(...matchSelections);
-      const roundSelectedSet = selectedPlayersPerRound.get(round.id)!;
-      for (const p of corePlayers) {
-        roundSelectedSet.add(p.id);
+    if (round.status !== "FINALIZED") {
+      try {
+        generatedRound = await generateMatchRound(round.id);
+      } catch (err) {
+        generationError = err instanceof Error ? err.message : "Unknown generation error";
       }
-
-      const _matchResult: SimulatedMatchResult = {
-        matchId: match.id,
-        teamId: match.teamId,
-        teamName: team.name,
-        opponentName: match.opponentName,
-        selections: matchSelections,
-        blockedPlayers: {},
-        gkCoverage: {
-          primary: corePlayers.filter(
-            (p) => p.goalkeeperAbility === "YES",
-          ).length,
-          secondary: corePlayers.filter(
-            (p) => p.goalkeeperAbility === "EMERGENCY",
-          ).length,
-          any: corePlayers.filter(
-            (p) => p.goalkeeperAbility === "YES" || p.goalkeeperAbility === "EMERGENCY",
-          ).length,
-        },
-        selectionCount: matchSelections.length,
-      };
-
-      roundBlockedPlayers[match.id] = [];
     }
 
-    const gkCount = roundSelections.filter(
-      (s) => {
-        const player = context.players.find((p) => p.id === s.playerId);
-        return player?.goalkeeperAbility === "YES";
-      },
-    ).length;
-    goalkeepersPerRound[round.id] = gkCount;
+    if (generatedRound) {
+      const simulatedRound = transformGeneratedRound(generatedRound);
+      roundResults.push(simulatedRound);
 
-    roundResults.push({
-      roundId: round.id,
-      roundName: round.name,
-      matches: roundMatches.map((m) => {
-        const team = context.teams.find((t) => t.id === m.teamId);
-        return {
-          matchId: m.id,
-          teamId: m.teamId,
-          teamName: team?.name ?? "Unknown",
-          opponentName: m.opponentName,
-          selections: roundSelections.filter((s) => s.matchId === m.id),
-          blockedPlayers: roundBlockedPlayers,
-          gkCoverage: {
-            primary: roundSelections.filter(
-              (s) =>
-                s.matchId === m.id &&
-                context.players.find((p) => p.id === s.playerId)?.goalkeeperAbility === "YES",
-            ).length,
-            secondary: 0,
-            any: roundSelections.filter(
-              (s) =>
-                s.matchId === m.id &&
-                context.players.find((p) => p.id === s.playerId)?.goalkeeperAbility !== "NO",
-            ).length,
-          },
-          selectionCount: roundSelections.filter((s) => s.matchId === m.id).length,
-        };
-      }),
-      planIntegritySignals: [],
-      warnings: [],
-      valid: roundValid,
-    });
-
-    const selectedInRound = selectedPlayersPerRound.get(round.id) ?? new Set();
-
-    for (const player of context.players) {
-      const stats = playerParticipationMap.get(player.id);
-      if (!stats) continue;
-
-      const isAvailable = context.availabilities.some(
-        (a) =>
-          a.playerId === player.id &&
-          a.matchRoundId === round.id &&
-          a.status === "AVAILABLE",
-      );
-
-      if (!isAvailable) {
-        stats.unavailableRounds++;
-      } else if (selectedInRound.has(player.id)) {
-        stats.plannedRounds++;
-        const selection = roundSelections.find((s) => s.playerId === player.id);
-        if (selection) {
-          switch (selection.role) {
-            case "CORE":
-              stats.coreAssignments++;
-              break;
-            case "SUPPORT":
-              stats.supportAssignments++;
-              break;
-            case "DEVELOPMENT":
-              stats.developmentAssignments++;
-              break;
-            case "BACKFILL":
-              stats.squadRepairAssignments++;
-              break;
+      for (const match of generatedRound.matchResults) {
+        for (const player of match.selectedPlayers) {
+          let stats = playerParticipationMap.get(player.playerId);
+          if (!stats) {
+            stats = {
+              plannedRounds: 0,
+              coreAssignments: 0,
+              supportAssignments: 0,
+              developmentAssignments: 0,
+              squadRepairAssignments: 0,
+              notSelectedRounds: 0,
+              unavailableRounds: 0,
+            };
+            playerParticipationMap.set(player.playerId, stats);
           }
+          stats.plannedRounds++;
+          const cat = player.selectionCategory;
+          if (cat === "CORE") stats.coreAssignments++;
+          else if (cat === "SUPPORT") stats.supportAssignments++;
+          else if (cat === "DEVELOPMENT") stats.developmentAssignments++;
+          else if (cat === "BACKFILL" || cat === "CONFIDENCE_REBUILD") stats.squadRepairAssignments++;
         }
-      } else if (isAvailable) {
-        stats.notSelectedRounds++;
+
+        const gkInMatch = match.selectedPlayers.filter(
+          (p) => p.selectionCategory === "CORE" && p.playerPosition?.toLowerCase().includes("gk"),
+        ).length;
+        goalkeepersPerRound[round.id] = (goalkeepersPerRound[round.id] ?? 0) + gkInMatch;
       }
+    } else {
+      roundResults.push({
+        roundId: round.id,
+        roundName: round.name,
+        matches: [],
+        planIntegritySignals: [],
+        warnings: generationError
+          ? [{ code: "generation_failed", message: generationError, severity: "blocked" as const }]
+          : [],
+        valid: false,
+      });
     }
   }
 
-  const participation: PlayerSimulationParticipation[] = context.players.map(
-    (player) => {
-      const stats = playerParticipationMap.get(player.id) ?? {
+  const allPlayers = await db.player.findMany({
+    where: { active: true, removedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      coreTeamId: true,
+    },
+  });
+
+  for (const player of allPlayers) {
+    if (!playerParticipationMap.has(player.id)) {
+      playerParticipationMap.set(player.id, {
         plannedRounds: 0,
         coreAssignments: 0,
         supportAssignments: 0,
@@ -280,44 +193,51 @@ async function simulateLeague(
         squadRepairAssignments: 0,
         notSelectedRounds: 0,
         unavailableRounds: 0,
-      };
-      return {
-        playerId: player.id,
-        playerName: player.firstName + (player.lastName ? ` ${player.lastName}` : ""),
-        coreTeamId: player.coreTeamId ?? "",
-        ...stats,
-        roundsWithOpportunity: stats.plannedRounds,
-      };
-    },
-  );
+      });
+    }
+  }
+
+  const participation: PlayerSimulationParticipation[] = allPlayers.map((player) => {
+    const stats = playerParticipationMap.get(player.id) ?? {
+      plannedRounds: 0,
+      coreAssignments: 0,
+      supportAssignments: 0,
+      developmentAssignments: 0,
+      squadRepairAssignments: 0,
+      notSelectedRounds: 0,
+      unavailableRounds: 0,
+    };
+    return {
+      playerId: player.id,
+      playerName: player.firstName + (player.lastName ? ` ${player.lastName}` : ""),
+      coreTeamId: player.coreTeamId ?? "",
+      ...stats,
+      roundsWithOpportunity: stats.plannedRounds,
+    };
+  });
 
   const fairnessSummary = computeSimulationFairness(
     participation,
-    context.rounds.length,
+    rounds.length,
   );
 
   const gkFlags = detectGkCoverageGaps(participation, goalkeepersPerRound);
   fairnessSummary.flags.push(...gkFlags);
 
-  const roundCoverage: RoundCoverageSummary[] = context.rounds.map((round) => {
-    const selectedInRound = selectedPlayersPerRound.get(round.id) ?? new Set();
+  const roundCoverage: RoundCoverageSummary[] = rounds.map((round) => {
+    const simulatedRound = roundResults.find((r) => r.roundId === round.id);
+    const totalSelected = simulatedRound?.matches.reduce(
+      (sum, m) => sum + m.selectionCount,
+      0,
+    ) ?? 0;
+
     return {
       roundId: round.id,
       roundName: round.name,
-      totalPlayers: context.players.length,
-      selectedPlayers: selectedInRound.size,
+      totalPlayers: allPlayers.length,
+      selectedPlayers: totalSelected,
       blockedPlayers: 0,
-      notSelectedPlayers:
-        context.players.length -
-        selectedInRound.size -
-        context.players.filter((p) =>
-          context.availabilities.some(
-            (a) =>
-              a.playerId === p.id &&
-              a.matchRoundId === round.id &&
-              a.status !== "AVAILABLE",
-          ),
-        ).length,
+      notSelectedPlayers: allPlayers.length - totalSelected,
       gkCoverageStatus:
         (goalkeepersPerRound[round.id] ?? 0) >= 1 ? "adequate" : "gap",
     };
@@ -329,6 +249,60 @@ async function simulateLeague(
     fairnessSignals: fairnessSummary.flags,
     conflicts: allConflicts,
     roundCoverage,
+  };
+}
+
+function transformGeneratedRound(generated: GeneratedRound): SimulatedRoundResult {
+  return {
+    roundId: generated.matchRoundId,
+    roundName: `Round ${generated.matchRoundId}`,
+    matches: generated.matchResults.map(transformMatchResult),
+    planIntegritySignals: [],
+    warnings: generated.roundWarnings.map((w) => ({
+      code: w.code,
+      severity: w.severity === "HARD_BLOCK"
+        ? "blocked" as const
+        : w.severity === "REQUIRES_OVERRIDE"
+          ? "decision_required" as const
+          : "planning_note" as const,
+      message: w.message,
+      playerId: w.playerId,
+      teamId: w.teamId,
+      matchId: w.matchId,
+    })),
+    valid: true,
+  };
+}
+
+function transformMatchResult(match: GeneratedSelection): SimulatedMatchResult {
+  const selections: SimulatedPlayerRound[] = match.selectedPlayers.map((p) => ({
+    playerId: p.playerId,
+    roundId: match.matchRoundId,
+    matchId: match.matchId,
+    teamId: match.teamId,
+    role: (p.selectionCategory === "BACKFILL" || p.selectionCategory === "CONFIDENCE_REBUILD"
+      ? "SUPPORT"
+      : p.selectionCategory) as SelectionRole,
+    isSimulation: true,
+  }));
+
+  const primaryGk = match.selectedPlayers.filter(
+    (p) => p.playerPosition?.toLowerCase().includes("gk"),
+  ).length;
+
+  return {
+    matchId: match.matchId,
+    teamId: match.teamId,
+    teamName: match.teamName,
+    opponentName: match.opponent,
+    selections,
+    blockedPlayers: {},
+    gkCoverage: {
+      primary: primaryGk,
+      secondary: 0,
+      any: primaryGk,
+    },
+    selectionCount: match.selectedPlayers.length,
   };
 }
 
