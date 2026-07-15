@@ -12,6 +12,7 @@ import {
   Trophy,
   Users,
   ClipboardList,
+  ClipboardCheck,
   ShieldCheck,
   Eye,
   LayoutGrid,
@@ -101,7 +102,7 @@ const roleOrder = [
   "UNAVAILABLE",
 ];
 
-type MatchTab = "squad" | "tactics" | "after-match" | "opponent";
+type MatchTab = "squad" | "tactics" | "after-match" | "opponent" | "review";
 
 function formatMatchType(type: string): string {
   const map: Record<string, string> = {
@@ -173,6 +174,7 @@ const tabs: TabItem<MatchTab>[] = [
     icon: <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />,
   },
   { key: "opponent", label: "Opponent context", icon: <Eye className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { key: "review", label: "Review", icon: <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" /> },
 ];
 
 function severityToBannerVariant(
@@ -375,6 +377,10 @@ export function MatchDetail({ match }: { match: MatchData }) {
         onSelect={(key) => {
           if (key === "after-match") {
             router.push(`/matches/${match.id}/post-match`);
+            return;
+          }
+          if (key === "review") {
+            router.push(`/matches/${match.id}/review`);
             return;
           }
           setActiveTab(key);
