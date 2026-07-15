@@ -4,7 +4,11 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   serverExternalPackages: ["pg", "@prisma/adapter-pg", "@prisma/adapter-neon"],
   outputFileTracingIncludes: {
-    "/**/*": ["./policies/compiled/matchboard_selection.wasm"],
+    "/**/*": [
+      "./policies/compiled/matchboard_selection.wasm",
+      "./policies/packs/matchboard-default/compiled/matchboard_selection.wasm",
+      "./policies/packs/custom-example/compiled/custom_selection.wasm",
+    ],
   },
   async redirects() {
     return [

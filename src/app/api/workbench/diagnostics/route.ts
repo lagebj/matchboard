@@ -18,6 +18,8 @@ export async function GET() {
     regoWasmLoaded: diagnostics.regoWasmLoaded,
     policyVersion: diagnostics.policyVersion,
     artifactHash: diagnostics.artifactHash,
+    packId: diagnostics.packId,
+    packVersion: diagnostics.packVersion,
     failureMode: diagnostics.failureMode,
   });
 }

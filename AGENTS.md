@@ -890,11 +890,15 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 | `test/fixtures/workbench/*.json` | Workbench fixture data (anonymized) |
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime, version, Rego status |
-| `policies/rego/matchboard_selection.rego` | Rego policy source |
-| `policies/rego/matchboard_selection_test.rego` | Rego policy tests |
-| `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact |
-| `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm |
-| `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
+| `policies/packs/matchboard-default/` | Default policy pack (primary) |
+| `policies/packs/custom-example/` | Example custom policy pack |
+| `policies/rego/matchboard_selection.rego` | Legacy Rego policy source (backward-compatible) |
+| `policies/rego/matchboard_selection_test.rego` | Legacy Rego policy tests |
+| `policies/compiled/matchboard_selection.wasm` | Legacy compiled Wasm artifact (backward-compatible) |
+| `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm (supports `--pack <id>`) |
+| `scripts/policy-dry-run.mjs` | Dry-run utility (supports `--pack <id>`) |
+| `scripts/policy-validate.mjs` | Pack metadata and structure validation |
+| `scripts/policy-list.mjs` | List discovered policy packs |
 
 Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Never add proprietary policy DSL. Never let Rego override historical integrity or youth-safe defaults. Update policy docs and tests with every policy change. Run policy tests and build before completion.
 

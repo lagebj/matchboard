@@ -27,7 +27,7 @@ async function loadWasmBuffer(): Promise<Buffer> {
     if (!existsSync(explicitPath)) {
       throw new RegoPolicyError(
         `Compiled Wasm policy not found at ${explicitPath}. ` +
-        `Run 'npm run policy:build' to compile Rego source, or set MATCHBOARD_POLICY_WASM_PATH.`
+        `Run 'npm run policy:build' to compile Rego source, or 'npm run policy:build -- --pack <id>' for a pack, or set MATCHBOARD_POLICY_WASM_PATH.`
       );
     }
     return readFileSync(explicitPath);

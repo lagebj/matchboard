@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getPolicyVersion } from "@/lib/policies/policy-version";
 import { isRegoEnabled, getRegoFailureMode } from "@/lib/policies/rego-policy-adapter";
+import { getActivePackId, loadPackMetadata } from "@/lib/policies/policy-pack";
 
 describe("Workbench diagnostics (pure functions)", () => {
   it("policy version is a non-empty string", () => {
@@ -20,11 +21,17 @@ describe("Workbench diagnostics (pure functions)", () => {
   });
 
   it("diagnostics snapshot structure is correct", () => {
+    const regoEnabled = isRegoEnabled();
+    const packId = regoEnabled ? getActivePackId() : null;
+    const packMetadata = packId ? loadPackMetadata(packId) : null;
+
     const diagnostics = {
-      regoEnabled: isRegoEnabled(),
-      regoWasmLoaded: isRegoEnabled(),
+      regoEnabled,
+      regoWasmLoaded: regoEnabled,
       policyVersion: getPolicyVersion(),
       artifactHash: null as string | null,
+      packId,
+      packVersion: packMetadata?.version ?? null,
       failureMode: getRegoFailureMode(),
       evaluationTimestamp: new Date().toISOString(),
     };
@@ -33,6 +40,8 @@ describe("Workbench diagnostics (pure functions)", () => {
     expect(diagnostics).toHaveProperty("regoWasmLoaded");
     expect(diagnostics).toHaveProperty("policyVersion");
     expect(diagnostics).toHaveProperty("artifactHash");
+    expect(diagnostics).toHaveProperty("packId");
+    expect(diagnostics).toHaveProperty("packVersion");
     expect(diagnostics).toHaveProperty("failureMode");
     expect(diagnostics).toHaveProperty("evaluationTimestamp");
 
