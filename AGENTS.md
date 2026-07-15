@@ -1857,6 +1857,8 @@ Avoid:
 | `src/lib/insights/policy-warning-review-helpers.ts` | Pure helper functions for warning severity classification and display labels |
 | `src/lib/insights/planned-vs-actual-delta.ts` | `getPlannedVsActualDeltas()` — planned vs actual comparison per match |
 | `src/lib/insights/planned-vs-actual-helpers.ts` | Pure helper functions for delta type classification and display labels |
+| `src/lib/insights/conflict-review.ts` | `getConflictReview()` — overlapping selections, helper conflicts, double-planned players |
+| `src/lib/insights/conflict-review-helpers.ts` | Pure helper functions for conflict severity classification and display labels |
 | `src/lib/insights/insights-overview.ts` | `getInsightOverview()` — aggregate insight summary counts |
 | `src/app/api/insights/opportunity/route.ts` | GET `/api/insights/opportunity` — opportunity matrix API |
 | `src/app/api/insights/overview/route.ts` | GET `/api/insights/overview` — insight overview API |
@@ -1864,6 +1866,7 @@ Avoid:
 | `src/app/api/insights/coverage/route.ts` | GET `/api/insights/coverage` — squad coverage API |
 | `src/app/api/insights/policy-warnings/route.ts` | GET `/api/insights/policy-warnings` — policy warning review API |
 | `src/app/api/insights/planned-vs-actual/route.ts` | GET `/api/insights/planned-vs-actual` — planned vs actual delta API |
+| `src/app/api/insights/conflicts/route.ts` | GET `/api/insights/conflicts` — conflict review API |
 | `src/app/(app)/insights/page.tsx` | Insights overview page |
 | `src/app/(app)/insights/insights-client.tsx` | Insights overview client component |
 | `src/app/(app)/insights/opportunity/page.tsx` | Opportunity Matrix page |
@@ -1876,6 +1879,8 @@ Avoid:
 | `src/app/(app)/insights/policy-warnings/policy-warning-review-client.tsx` | Policy Warning Review interactive client component |
 | `src/app/(app)/insights/planned-vs-actual/page.tsx` | Planned vs Actual page |
 | `src/app/(app)/insights/planned-vs-actual/planned-vs-actual-client.tsx` | Planned vs Actual interactive client component |
+| `src/app/(app)/insights/conflicts/page.tsx` | Conflict Review page |
+| `src/app/(app)/insights/conflicts/conflict-review-client.tsx` | Conflict Review interactive client component |
 
 ## Stale references removed
 
