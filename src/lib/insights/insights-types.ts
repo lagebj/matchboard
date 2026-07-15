@@ -105,7 +105,7 @@ export interface OpportunityMatrixCell {
   matchId?: string;
   status: OpportunityCellStatus;
   teamName?: string;
-  role?: SelectionRole | "UNPLANNED";
+  role?: string;
   explanation?: string;
 }
 

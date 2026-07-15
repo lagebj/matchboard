@@ -1842,6 +1842,21 @@ Avoid:
 | `src/lib/audit/opponent-history.ts` | `getOpponentHistory()` — per-opponent match history with results |
 | `docs/adr/0022-historical-audit-and-planned-vs-actual.md` | ADR: historical audit architecture decisions |
 
+### Visual Decision Review (Insights) files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/insights/insights-types.ts` | Insight surface type definitions (cell statuses, filters, rows, deltas, conflicts) |
+| `src/lib/insights/opportunity-matrix.ts` | `getOpportunityMatrix()` — player × round participation matrix with planned vs actual statuses |
+| `src/lib/insights/opportunity-matrix-helpers.ts` | Pure helper functions for role-to-status mapping (testable without server-only) |
+| `src/lib/insights/insights-overview.ts` | `getInsightOverview()` — aggregate insight summary counts |
+| `src/app/api/insights/opportunity/route.ts` | GET `/api/insights/opportunity` — opportunity matrix API |
+| `src/app/api/insights/overview/route.ts` | GET `/api/insights/overview` — insight overview API |
+| `src/app/(app)/insights/page.tsx` | Insights overview page |
+| `src/app/(app)/insights/insights-client.tsx` | Insights overview client component |
+| `src/app/(app)/insights/opportunity/page.tsx` | Opportunity Matrix page |
+| `src/app/(app)/insights/opportunity/opportunity-matrix-client.tsx` | Opportunity Matrix interactive client component |
+
 ## Stale references removed
 
 - `docs/domain.md` — deleted, do not reference
