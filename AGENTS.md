@@ -861,8 +861,9 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 ### Policy configuration
 
 - `MATCHBOARD_POLICY_REGO_ENABLED` — enable Rego adapter (default: `false`)
-- `MATCHBOARD_POLICY_WASM_PATH` — path to compiled Wasm artifact (default: `policies/compiled/matchboard_selection.wasm`)
+- `MATCHBOARD_POLICY_WASM_PATH` — path to compiled Wasm artifact (overrides pack-resolved path when set)
 - `MATCHBOARD_POLICY_REGO_FAILURE_MODE` — `fail_closed` (default) or `fail_open`
+- `MATCHBOARD_POLICY_PACK_ID` — which policy pack to load (default: `matchboard-default`)
 
 ### Policy key files
 
@@ -874,6 +875,7 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
+| `src/lib/policies/policy-pack.ts` | Policy pack metadata validation, resolution, diagnostics, and artifact hashing |
 | `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
@@ -1753,6 +1755,7 @@ Avoid:
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
 | `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
+| `src/lib/policies/policy-pack.ts` | Policy pack metadata validation, resolution, diagnostics, and artifact hashing |
 | `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |

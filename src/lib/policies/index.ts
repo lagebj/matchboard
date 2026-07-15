@@ -43,10 +43,13 @@ export type { SelectionPolicyAdapter } from "./selection-policy-adapter";
 export {
   RegoPolicyAdapter,
   RegoPolicyError,
-  isRegoEnabled,
-  getRegoFailureMode,
   clearRegoPolicyCache,
 } from "./rego-policy-adapter";
+
+export {
+  isRegoEnabled,
+  getRegoFailureMode,
+} from "./policy-pack";
 
 export { buildPolicyInput, mapPlayerStatus } from "./build-policy-input";
 

@@ -1,0 +1,12 @@
+{
+  "id": "matchboard-default",
+  "name": "Matchboard Default Rego Policy",
+  "version": "1.0.0",
+  "description": "Default optional Rego policy examples for Matchboard. Provides coach-safe custom rules for selection, blocking, warnings, score adjustments, and explanations.",
+  "entrypoint": "matchboard/selection/decision",
+  "regoDirectory": "rego",
+  "compiledWasm": "compiled/matchboard_selection.wasm",
+  "fixturesDirectory": "fixtures",
+  "runtime": "opa-wasm",
+  "schemaVersion": 1
+}

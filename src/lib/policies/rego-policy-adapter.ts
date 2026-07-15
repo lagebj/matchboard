@@ -1,22 +1,18 @@
 import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
 import type { SelectionPolicyInput, SelectionPolicyResult, PolicyWarning, PolicyScoreAdjustment, PolicyExplanation, PolicyTag } from "./types";
 import { SelectionPolicyAdapter } from "./selection-policy-adapter";
+import {
+  getActivePackId,
+  loadPackMetadata,
+  resolveWasmPath,
+  clearPackCaches as clearPackCachesFromPack,
+} from "./policy-pack";
+import { isRegoEnabled, getRegoFailureMode } from "./policy-pack";
+
+export { isRegoEnabled, getRegoFailureMode };
 
 const SCORE_ADJUSTMENT_MIN = -20;
 const SCORE_ADJUSTMENT_MAX = 20;
-
-function getWasmPath(): string {
-  return process.env.MATCHBOARD_POLICY_WASM_PATH ?? join(process.cwd(), "policies", "compiled", "matchboard_selection.wasm");
-}
-
-function readRegoEnabled(): boolean {
-  return (process.env.MATCHBOARD_POLICY_REGO_ENABLED ?? "false") === "true";
-}
-
-function readRegoFailureMode(): "fail_closed" | "fail_open" {
-  return (process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE ?? "fail_closed") === "fail_open" ? "fail_open" : "fail_closed";
-}
 
 type OpaPolicy = {
   evaluate: (input: unknown, options?: { entrypoint?: string | number }) => unknown[];
@@ -25,12 +21,34 @@ type OpaPolicy = {
 let cachedWasmBufferPromise: Promise<Buffer> | null = null;
 
 async function loadWasmBuffer(): Promise<Buffer> {
-  const wasmPath = getWasmPath();
+  const explicitPath = process.env.MATCHBOARD_POLICY_WASM_PATH;
+
+  if (explicitPath) {
+    if (!existsSync(explicitPath)) {
+      throw new RegoPolicyError(
+        `Compiled Wasm policy not found at ${explicitPath}. ` +
+        `Run 'npm run policy:build' to compile Rego source, or set MATCHBOARD_POLICY_WASM_PATH.`
+      );
+    }
+    return readFileSync(explicitPath);
+  }
+
+  const packId = getActivePackId();
+  const metadata = loadPackMetadata(packId);
+
+  if (!metadata) {
+    throw new RegoPolicyError(
+      `Policy pack '${packId}' not found or metadata invalid. ` +
+      `Check MATCHBOARD_POLICY_PACK_ID and ensure the pack directory exists.`
+    );
+  }
+
+  const wasmPath = resolveWasmPath(packId, metadata);
 
   if (!existsSync(wasmPath)) {
     throw new RegoPolicyError(
       `Compiled Wasm policy not found at ${wasmPath}. ` +
-      `Run 'npm run policy:build' to compile Rego source, or set MATCHBOARD_POLICY_WASM_PATH.`
+      `Run 'npm run policy:build -- --pack ${packId}' to compile Rego source.`
     );
   }
 
@@ -67,6 +85,7 @@ function getPolicy(): Promise<OpaPolicy> {
 export function clearRegoPolicyCache(): void {
   cachedPolicy = null;
   cachedWasmBufferPromise = null;
+  clearPackCachesFromPack();
 }
 
 export class RegoPolicyError extends Error {
@@ -191,7 +210,7 @@ export class RegoPolicyAdapter implements SelectionPolicyAdapter {
   constructor(private options?: { wasmPath?: string }) {}
 
   async evaluate(input: SelectionPolicyInput): Promise<SelectionPolicyResult> {
-    if (!readRegoEnabled()) {
+    if (!isRegoEnabled()) {
       return {
         allowedPlayerIds: input.players.map((p) => p.id),
         blocked: {},
@@ -232,7 +251,7 @@ export class RegoPolicyAdapter implements SelectionPolicyAdapter {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[Policy/Rego] Evaluation failed:", message);
 
-      if (readRegoFailureMode() === "fail_open") {
+      if (getRegoFailureMode() === "fail_open") {
         console.warn("[Policy/Rego] fail_open mode: returning empty result (default policy still applies).");
         return {
           allowedPlayerIds: input.players.map((p) => p.id),
@@ -323,12 +342,4 @@ export class RegoPolicyAdapter implements SelectionPolicyAdapter {
       },
     };
   }
-}
-
-export function isRegoEnabled(): boolean {
-  return readRegoEnabled();
-}
-
-export function getRegoFailureMode(): string {
-  return readRegoFailureMode();
 }
