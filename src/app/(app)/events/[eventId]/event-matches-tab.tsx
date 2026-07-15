@@ -394,7 +394,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                 setCreateOpponentTeamId(id);
                 setCreateOpponent(name);
               }}
-              onCreateNew={(name) => {
+              onTextChange={(name) => {
                 setCreateOpponentTeamId(null);
                 setCreateOpponent(name);
               }}
@@ -974,7 +974,7 @@ function EventMatchCard({
               setEditOpponentTeamId(id);
               setEditOpponent(name);
             }}
-            onCreateNew={(name) => {
+            onTextChange={(name) => {
               setEditOpponentTeamId(null);
               setEditOpponent(name);
             }}

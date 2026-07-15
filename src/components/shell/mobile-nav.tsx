@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Users,
   Shield,
+  Swords,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ const mobileNavItems: MobileNavItem[] = [
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/players", label: "Players", icon: Users },
+  { href: "/opponents", label: "Opponents", icon: Swords },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -30,7 +32,10 @@ function isActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
   if (href === "/fixtures") {
-    return ["/rounds", "/matches", "/opponents"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    return ["/rounds", "/matches"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  }
+  if (href === "/opponents") {
+    return pathname === "/opponents" || pathname.startsWith("/opponents/");
   }
   return true;
 }

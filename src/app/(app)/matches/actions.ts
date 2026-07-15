@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getWeekRange } from "@/lib/date-utils";
-import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
+import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import {
   resolveOrCreateMatchRoundForDate,
@@ -87,7 +87,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     });
     if (!team) throw new Error("Team not found.");
 
-    let opponentTeamId: string;
+    let opponentTeamId: string | null;
     let opponent: string;
 
     if (opponentTeamIdInput) {
@@ -99,15 +99,8 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       opponentTeamId = existing.id;
       opponent = existing.displayName;
     } else if (opponentText) {
-      const displayName = cleanOpponentDisplayName(opponentText);
-      const normalizedName = normalizeOpponentName(opponentText);
-      const upserted = await db.opponentTeam.upsert({
-        where: { normalizedName },
-        create: { displayName, normalizedName },
-        update: {},
-      });
-      opponentTeamId = upserted.id;
-      opponent = displayName;
+      opponentTeamId = null;
+      opponent = cleanOpponentDisplayName(opponentText);
     } else {
       throw new Error("Opponent team is required.");
     }

@@ -700,8 +700,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
             </Surface>
           ) : (
             <EmptyState
-              title="No opponent profile linked."
-              description="Observations and encounter history need an opponent profile attached to this match."
+              title="No opponent profile linked yet."
+              description="A canonical opponent profile is linked when the post-match report is completed."
             />
           )}
         </div>

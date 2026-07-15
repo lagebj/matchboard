@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Users,
   Shield,
+  Swords,
   LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/teams", label: "Teams", icon: Shield },
   { href: "/players", label: "Players", icon: Users },
+  { href: "/opponents", label: "Opponents", icon: Swords },
   { href: "/formations", label: "Formations", icon: LayoutGrid },
 ];
 
@@ -34,9 +36,12 @@ function isActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
   if (href === "/fixtures") {
-    return ["/rounds", "/matches", "/opponents"].some(
+    return ["/rounds", "/matches"].some(
       (p) => pathname === p || pathname.startsWith(`${p}/`),
     );
+  }
+  if (href === "/opponents") {
+    return pathname === "/opponents" || pathname.startsWith("/opponents/");
   }
   if (href === "/formations") {
     return pathname.startsWith("/formations/");

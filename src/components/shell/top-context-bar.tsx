@@ -31,6 +31,7 @@ const pageTitles: Record<string, string> = {
   "/events": "Events",
   "/players": "Players",
   "/teams": "Teams",
+  "/opponents": "Opponents",
   "/rules": "Rules",
   "/history": "History",
   "/season": "Season",
