@@ -277,6 +277,9 @@ export async function completeEventMatchReportAction(reportId: string) {
     },
   });
 
+  const { resolveEventOpponentOnReportCompletion } = await import('@/lib/opponents/resolve-opponent');
+  await resolveEventOpponentOnReportCompletion(report.eventMatchId);
+
   const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);

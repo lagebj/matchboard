@@ -351,14 +351,15 @@ async function checkCandidateOpponentIdentityDivergence(
 
   if (matchesWithOpponent.length === 0) return;
 
-  const opponentTeamIds = [...new Set(matchesWithOpponent.map((m) => m.opponentTeamId))];
-  const opponentTeams = await db.opponentTeam.findMany({
+  const opponentTeamIds = [...new Set(matchesWithOpponent.map((m) => m.opponentTeamId).filter((id): id is string => id !== null))];
+  const opponentTeams = opponentTeamIds.length > 0 ? await db.opponentTeam.findMany({
     where: { id: { in: opponentTeamIds } },
     select: { id: true, displayName: true },
-  });
+  }) : [];
   const opponentTeamById = new Map(opponentTeams.map((ot) => [ot.id, ot]));
 
   for (const match of matchesWithOpponent) {
+    if (!match.opponentTeamId) continue;
     const opponentTeam = opponentTeamById.get(match.opponentTeamId);
     if (opponentTeam && match.opponent !== opponentTeam.displayName) {
       findings.push({

@@ -104,7 +104,7 @@ describe('Event match CRUD actions', () => {
       expect(match.category).toBe('CUP');
     });
 
-    it('creates opponent team from name when no opponentTeamId provided', async () => {
+    it('stores opponent name snapshot without creating entity when no opponentTeamId provided', async () => {
       const formData = new FormData();
       formData.set('eventId', eventId);
       formData.set('eventSquadId', squadId);
@@ -114,12 +114,7 @@ describe('Event match CRUD actions', () => {
 
       const match = await createEventMatchAction(formData);
       expect(match.opponentName).toBe('New Opponent Team');
-      expect(match.opponentTeamId).toBeDefined();
-
-      const opponent = await testDb.opponentTeam.findUnique({ where: { id: match.opponentTeamId! } });
-      expect(opponent).toBeDefined();
-      expect(opponent!.displayName).toBe('New Opponent Team');
-      expect(opponent!.normalizedName).toBe('new opponent team');
+      expect(match.opponentTeamId).toBeNull();
     });
 
     it('links to existing opponent team when opponentTeamId is provided', async () => {
@@ -314,15 +309,12 @@ describe('Event match CRUD actions', () => {
       ).rejects.toThrow('not found');
     });
 
-    it('resolves opponentTeamId when updating opponent name', async () => {
+    it('stores opponent name snapshot without creating entity when updating opponent name', async () => {
       const updated = await updateEventMatchAction(updateMatchId, {
         opponentName: 'Brand New Opponent FC',
       });
       expect(updated.opponentName).toBe('Brand New Opponent FC');
-      expect(updated.opponentTeamId).toBeDefined();
-
-      const opponent = await testDb.opponentTeam.findUnique({ where: { id: updated.opponentTeamId! } });
-      expect(opponent!.displayName).toBe('Brand New Opponent FC');
+      expect(updated.opponentTeamId).toBeNull();
     });
 
     it('links to existing opponent team when updating with opponentTeamId', async () => {

@@ -603,6 +603,9 @@ export async function completeMatchReport(reportId: string): Promise<{ success: 
       },
     });
 
+    const { resolveOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
+    await resolveOpponentOnReportCompletion(report.matchId);
+
     revalidatePath(`/matches/${report.matchId}`);
     revalidatePath(`/matches/${report.matchId}/post-match`);
     revalidatePath("/rounds");

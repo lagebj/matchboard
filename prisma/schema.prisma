@@ -120,13 +120,13 @@ model Match {
   notes                       String?
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
-  opponentTeamId              String
+  opponentTeamId              String?
   status                      MatchStatus                   @default(SCHEDULED)
   cancelledAt                 DateTime?
   cancelledReason             String?
   category                    MatchCategory                 @default(LEAGUE)
   matchRound                  MatchRound                    @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  opponentTeam                OpponentTeam                  @relation(fields: [opponentTeamId], references: [id])
+  opponentTeam                OpponentTeam?                 @relation(fields: [opponentTeamId], references: [id])
   team                        Team                          @relation(fields: [teamId], references: [id])
   executionFeedback           MatchExecutionFeedback[]
   lineups                     MatchLineup[]

@@ -62,7 +62,7 @@ export type SimulationMatch = {
   id: string;
   matchRoundId: string;
   teamId: string;
-  opponentTeamId: string;
+  opponentTeamId: string | null;
   opponentName: string;
   homeAway: string;
   startsAt: Date | null;

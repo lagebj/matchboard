@@ -1,0 +1,83 @@
+import { db } from "@/lib/db";
+import { normalizeOpponentName, cleanOpponentDisplayName } from "./opponent-team";
+
+/**
+ * Resolve or create a canonical OpponentTeam when a report is completed.
+ *
+ * This is the single place where OpponentTeam entities are created.
+ * Fixture creation stores only a display name snapshot; the canonical
+ * entity is linked here when the encounter becomes historical reality.
+ *
+ * Rules:
+ * - If the match/event already has opponentTeamId set, keep it (already linked).
+ * - If no opponentTeamId, resolve by normalised name:
+ *   - Exact normalised match → reuse existing OpponentTeam
+ *   - No exact match → create new OpponentTeam
+ * - Always preserve the fixture's opponent/opponentName snapshot text.
+ * - Exact normalised matching only — no fuzzy merging.
+ * - This function is idempotent; calling it multiple times is safe.
+ */
+export async function resolveOpponentOnReportCompletion(
+  matchId: string,
+): Promise<string | null> {
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, opponent: true, opponentTeamId: true },
+  });
+  if (!match) return null;
+
+  if (match.opponentTeamId) return match.opponentTeamId;
+
+  const snapshotName = match.opponent;
+  if (!snapshotName || snapshotName.trim().length === 0) return null;
+
+  const normalizedName = normalizeOpponentName(snapshotName);
+  const displayName = cleanOpponentDisplayName(snapshotName);
+
+  const opponentTeam = await db.opponentTeam.upsert({
+    where: { normalizedName },
+    create: { displayName, normalizedName },
+    update: { displayName },
+  });
+
+  await db.match.update({
+    where: { id: matchId },
+    data: { opponentTeamId: opponentTeam.id },
+  });
+
+  return opponentTeam.id;
+}
+
+/**
+ * Resolve or create a canonical OpponentTeam for an event match report completion.
+ */
+export async function resolveEventOpponentOnReportCompletion(
+  eventMatchId: string,
+): Promise<string | null> {
+  const eventMatch = await db.eventMatch.findUnique({
+    where: { id: eventMatchId },
+    select: { id: true, opponentName: true, opponentTeamId: true },
+  });
+  if (!eventMatch) return null;
+
+  if (eventMatch.opponentTeamId) return eventMatch.opponentTeamId;
+
+  const snapshotName = eventMatch.opponentName;
+  if (!snapshotName || snapshotName.trim().length === 0) return null;
+
+  const normalizedName = normalizeOpponentName(snapshotName);
+  const displayName = cleanOpponentDisplayName(snapshotName);
+
+  const opponentTeam = await db.opponentTeam.upsert({
+    where: { normalizedName },
+    create: { displayName, normalizedName },
+    update: { displayName },
+  });
+
+  await db.eventMatch.update({
+    where: { id: eventMatchId },
+    data: { opponentTeamId: opponentTeam.id },
+  });
+
+  return opponentTeam.id;
+}

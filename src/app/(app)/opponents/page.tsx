@@ -30,12 +30,12 @@ export default async function OpponentsPage() {
     <main className="flex min-h-full flex-col gap-6 text-foreground">
       <PageHeader
         title="Opponent teams"
-        description="Reusable opponent teams linked across matches and events."
+        description="Encountered opponents created from completed post-match reports."
       />
 
       {opponentTeams.length === 0 ? (
         <Surface variant="default" padding="lg">
-          <p className="text-sm text-zinc-400">No opponent teams yet. They are created automatically when you add matches or event matches.</p>
+          <p className="text-sm text-zinc-400">No opponent teams yet. Opponent profiles are created automatically when post-match reports are completed.</p>
         </Surface>
       ) : (
         <Surface variant="default" padding="none">

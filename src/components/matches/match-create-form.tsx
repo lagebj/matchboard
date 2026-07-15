@@ -76,7 +76,7 @@ export function MatchCreateForm({
         onSelectionChange={(id, _name) => {
           setSelectedOpponentTeamId(id);
         }}
-        onCreateNew={(_name) => {
+        onTextChange={(_text) => {
           setSelectedOpponentTeamId(null);
         }}
       />

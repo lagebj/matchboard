@@ -5,11 +5,11 @@ import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
 import { MatchCategory } from '@/generated/prisma/client';
 import { getDefaultEventMatchCategory } from '@/lib/stats/event-match-stats';
-import { normalizeOpponentName, cleanOpponentDisplayName } from '@/lib/opponents/opponent-team';
+import { cleanOpponentDisplayName } from '@/lib/opponents/opponent-team';
 
 const VALID_CATEGORIES: MatchCategory[] = ['CUP', 'OTHER'];
 
-async function resolveOpponent(opponentName: string, opponentTeamIdInput?: string | null): Promise<{ opponentTeamId: string; opponentName: string }> {
+async function resolveOpponent(opponentName: string, opponentTeamIdInput?: string | null): Promise<{ opponentTeamId: string | null; opponentName: string }> {
   if (opponentTeamIdInput) {
     const existing = await db.opponentTeam.findUnique({
       where: { id: opponentTeamIdInput },
@@ -19,13 +19,7 @@ async function resolveOpponent(opponentName: string, opponentTeamIdInput?: strin
     return { opponentTeamId: existing.id, opponentName: existing.displayName };
   }
   const displayName = cleanOpponentDisplayName(opponentName);
-  const normalizedName = normalizeOpponentName(opponentName);
-  const upserted = await db.opponentTeam.upsert({
-    where: { normalizedName },
-    create: { displayName, normalizedName },
-    update: {},
-  });
-  return { opponentTeamId: upserted.id, opponentName: displayName };
+  return { opponentTeamId: null, opponentName: displayName };
 }
 
 export async function createEventMatchAction(formData: FormData) {

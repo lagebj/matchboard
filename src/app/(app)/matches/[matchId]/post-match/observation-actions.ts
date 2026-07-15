@@ -30,6 +30,7 @@ export async function saveObservationAction(
     select: { id: true, opponentTeamId: true },
   });
   if (!match) return { success: false, error: "Match not found." };
+  if (!match.opponentTeamId) return { success: false, error: "No opponent profile linked yet. Complete the post-match report to link a canonical opponent." };
 
   const existingObservation = await db.opponentEncounterObservation.findUnique({
     where: { matchId },
