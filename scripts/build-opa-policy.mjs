@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, rmSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { resolveOpaPath, REPO_ROOT } from "./policy-utils.mjs";
 
 const args = process.argv.slice(2);
 let packId = null;
@@ -15,27 +17,45 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-const LEGACY_REGO_DIR = join(process.cwd(), "policies", "rego");
-const LEGACY_COMPILED_DIR = join(process.cwd(), "policies", "compiled");
-const PACKS_DIR = join(process.cwd(), "policies", "packs");
+const LEGACY_REGO_DIR = join(REPO_ROOT, "policies", "rego");
+const LEGACY_COMPILED_DIR = join(REPO_ROOT, "policies", "compiled");
+const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 
-function checkOpaCli() {
+function listPackIds() {
+  if (!existsSync(PACKS_DIR)) return [];
+  return readdirSync(PACKS_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(join(PACKS_DIR, d.name, "policy-pack.json")))
+    .map((d) => d.name);
+}
+
+function isDeployablePack(packId) {
+  const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
+  if (!existsSync(metadataPath)) return false;
   try {
-    execFileSync("opa", ["version"], { stdio: "pipe" });
-    return true;
+    const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
+    return metadata.deployable === true;
   } catch {
     return false;
   }
 }
 
+function computeFileHash(filePath) {
+  const data = readFileSync(filePath);
+  return createHash("sha256").update(data).digest("hex");
+}
+
+function updatePackHash(packId, wasmPath) {
+  const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
+  const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
+  const hash = computeFileHash(wasmPath);
+  metadata.wasmHash = hash;
+  writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+  console.log(`  Updated wasmHash in policy-pack.json: ${hash}`);
+}
+
 function buildLegacy() {
-  if (!checkOpaCli()) {
-    console.error("OPA CLI not found. Install it from https://www.openpolicyagent.org/docs/latest/#running-opa");
-    console.error("  macOS: brew install opa");
-    console.error("  Linux: curl -L -o /usr/local/bin/opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static");
-    console.error("  Then: chmod +x /usr/local/bin/opa");
-    process.exit(1);
-  }
+  const opaPath = resolveOpaPath();
+  if (!opaPath) process.exit(1);
 
   if (!existsSync(LEGACY_REGO_DIR)) {
     console.error(`Legacy Rego source directory not found: ${LEGACY_REGO_DIR}`);
@@ -51,7 +71,7 @@ function buildLegacy() {
 
   try {
     console.log("Building legacy Rego policy...");
-    execFileSync("opa", [
+    execFileSync(opaPath, [
       "build",
       LEGACY_REGO_DIR,
       "-t", "wasm",
@@ -82,10 +102,8 @@ function buildLegacy() {
 }
 
 function buildPack(targetPackId) {
-  if (!checkOpaCli()) {
-    console.error("OPA CLI not found. Install it from https://www.openpolicyagent.org/docs/latest/#running-opa");
-    process.exit(1);
-  }
+  const opaPath = resolveOpaPath();
+  if (!opaPath) process.exit(1);
 
   const packDir = join(PACKS_DIR, targetPackId);
   const metadataPath = join(packDir, "policy-pack.json");
@@ -133,7 +151,7 @@ function buildPack(targetPackId) {
     console.log(`  Entrypoint: ${entrypoint}`);
     console.log(`  Rego source: ${regoDir}`);
 
-    execFileSync("opa", [
+    execFileSync(opaPath, [
       "build",
       regoDir,
       "-t", "wasm",
@@ -157,8 +175,7 @@ function buildPack(targetPackId) {
     writeFileSync(wasmOutput, readFileSync(extractedWasm));
     console.log(`Compiled Wasm artifact written to: ${wasmOutput}`);
 
-    const hash = createHash("sha256").update(readFileSync(wasmOutput)).digest("hex").slice(0, 16);
-    console.log(`Artifact hash: ${hash}`);
+    updatePackHash(targetPackId, wasmOutput);
 
     console.log(`Pack '${targetPackId}' build complete.`);
   } catch (error) {
@@ -169,15 +186,6 @@ function buildPack(targetPackId) {
     try { rmSync(tempExtractDir, { recursive: true, force: true }); } catch {}
   }
 }
-
-function listPackIds() {
-  if (!existsSync(PACKS_DIR)) return [];
-  return readdirSync(PACKS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && existsSync(join(PACKS_DIR, d.name, "policy-pack.json")))
-    .map((d) => d.name);
-}
-
-import { createHash } from "node:crypto";
 
 if (packId) {
   buildPack(packId);

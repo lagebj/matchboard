@@ -1,5 +1,7 @@
 package matchboard_selection_test
 
+import future.keywords.in
+import future.keywords.if
 import data.matchboard.selection
 
 test_decision_object_shape if {
@@ -13,11 +15,11 @@ test_decision_object_shape if {
     "context": {"phase": "pre_selection", "mode": "league", "now_iso": "2026-01-01T00:00:00Z"},
   }
 
-  object.has_key(result, "blocked")
-  object.has_key(result, "warnings")
-  object.has_key(result, "score_adjustments")
-  object.has_key(result, "explanations")
-  object.has_key(result, "tags")
+  _ = result.blocked
+  _ = result.warnings
+  _ = result.score_adjustments
+  _ = result.explanations
+  _ = result.tags
 }
 
 test_low_recent_match_creates_adjustment if {

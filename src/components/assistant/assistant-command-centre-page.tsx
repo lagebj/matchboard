@@ -52,7 +52,7 @@ const groups: GroupConfig[] = [
   {
     key: "blockers",
     label: "Blockers",
-    description: "Hard problems preventing finalize.",
+    description: "Hard problems preventing finalise.",
     categories: ["blocked_round"],
     icon: OctagonAlert,
     variant: "danger",
@@ -60,7 +60,7 @@ const groups: GroupConfig[] = [
   {
     key: "decisions",
     label: "Decisions",
-    description: "Coach judgement required before finalize.",
+    description: "Coach judgement required before finalise.",
     categories: ["decision_required"],
     icon: AlertTriangle,
     variant: "warning",
@@ -83,7 +83,7 @@ const groups: GroupConfig[] = [
   },
   {
     key: "ready",
-    label: "Ready to finalize",
+    label: "Ready to finalise",
     description: "Drafts that meet plan checks.",
     categories: ["ready_to_finalize"],
     icon: CheckCircle2,

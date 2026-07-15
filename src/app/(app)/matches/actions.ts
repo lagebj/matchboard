@@ -202,7 +202,7 @@ export async function deleteMatchAction(matchId: string) {
     });
     if (!match) throw new Error("Match not found.");
     if (match.selections.length > 0) {
-      throw new Error("This match has finalized selections and cannot be removed without explicit confirmation.");
+      throw new Error("This match has finalised selections and cannot be removed without explicit confirmation.");
     }
 
     await db.match.delete({ where: { id: match.id } });
@@ -418,9 +418,9 @@ export async function finalizeMatchAction(formData: FormData) {
   if (!result.success) {
     const queryParams: Record<string, string> = {};
     if (result.needsOverride) {
-      queryParams.error = "Override reason required: provide a reason to finalize despite warnings.";
+      queryParams.error = "Override reason required: provide a reason to finalise despite warnings.";
     } else {
-      queryParams.error = "Finalization failed.";
+      queryParams.error = "Finalisation failed.";
     }
     redirect(buildPathWithSearch(`/matches/${matchId}`, queryParams));
   }

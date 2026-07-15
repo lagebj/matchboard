@@ -3,9 +3,10 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const PACKS_DIR = join(process.cwd(), "policies", "packs");
-const FIXTURES_DIR = join(process.cwd(), "test", "fixtures", "workbench");
-const LEGACY_WASM_PATH = join(process.cwd(), "policies", "compiled", "matchboard_selection.wasm");
+const REPO_ROOT = join(import.meta.dirname, "..");
+const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
+const FIXTURES_DIR = join(REPO_ROOT, "test", "fixtures", "workbench");
+const LEGACY_WASM_PATH = join(REPO_ROOT, "policies", "compiled", "matchboard_selection.wasm");
 const REGO_ENABLED = (process.env.MATCHBOARD_POLICY_REGO_ENABLED ?? "false") === "true";
 
 function parseArgs() {

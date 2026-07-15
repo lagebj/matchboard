@@ -1,5 +1,8 @@
 package matchboard.selection
 
+import future.keywords.in
+import future.keywords.if
+
 default decision = {
   "blocked": [],
   "warnings": [],

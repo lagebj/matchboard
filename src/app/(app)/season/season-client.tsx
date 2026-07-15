@@ -149,7 +149,7 @@ export function SeasonOverviewClient({
         >
           {leagueSeasons.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}{p.status === "FINALIZED" ? " · Finalized" : ""}
+              {p.name}{p.status === "FINALIZED" ? " · Finalised" : ""}
             </option>
           ))}
         </select>
@@ -163,7 +163,7 @@ export function SeasonOverviewClient({
           onClick={() => setIncludeDrafts(false)}
           type="button"
         >
-          Finalized only
+          Finalised only
         </button>
         <button
           className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${

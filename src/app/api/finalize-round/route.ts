@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const result = await finalizeMatchRound(matchRoundId, category, detail);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Finalization failed";
+    const message = error instanceof Error ? error.message : "Finalisation failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

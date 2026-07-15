@@ -242,7 +242,7 @@ export default async function HistoryPage() {
         <Surface variant="raised" padding="lg">
           <PageHeader
             title="History"
-            description="Finalized rounds, movement, and fairness over time."
+            description="Finalised rounds, movement, and fairness over time."
             eyebrow="History"
           />
 
@@ -252,7 +252,7 @@ export default async function HistoryPage() {
               <SectionHeader title="Summary" />
               <div className="mt-4 grid gap-3">
                 <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalized appearance(s)</p>
+                  <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalised appearance(s)</p>
                   <p className="text-sm text-[var(--text-soft)]">Latest saved snapshot per match.</p>
                 </Surface>
                 <Surface variant="default" padding="md">
@@ -264,8 +264,8 @@ export default async function HistoryPage() {
                   <p className="mt-1 text-sm text-[var(--text-soft)]">Players with recorded movement in saved history.</p>
                 </Surface>
                 <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalized match(es)</p>
-                  <p className="mt-1 text-sm text-[var(--text-soft)]">Current match state: draft vs. finalized.</p>
+                  <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalised match(es)</p>
+                  <p className="mt-1 text-sm text-[var(--text-soft)]">Current match state: draft vs. finalised.</p>
                 </Surface>
               </div>
             </Surface>
@@ -283,14 +283,14 @@ export default async function HistoryPage() {
                     : mostUsedPlayer.firstName}
                 </p>
                 <p className="mt-1 text-sm text-[var(--text-soft)]">
-                  {mostUsedPlayer.totalFinalizedAppearances} finalized appearance(s) · {mostUsedPlayer.floatCount} floating appearance(s)
+                  {mostUsedPlayer.totalFinalizedAppearances} finalised appearance(s) · {mostUsedPlayer.floatCount} floating appearance(s)
                 </p>
                 <p className="mt-3 text-sm text-[var(--text-soft)]">Use the table below for the deeper load check.</p>
               </Surface>
             ) : (
               <EmptyState
-                title="No finalized history yet"
-                description="Finalized match selections will appear here once rounds are locked."
+                title="No finalised history yet"
+                description="Finalised match selections will appear here once rounds are locked."
                 illustration="emptyStats"
                 className="mt-4"
               />
@@ -308,7 +308,7 @@ export default async function HistoryPage() {
             <Surface variant="subtle" padding="md">
               <p className="text-sm font-semibold text-zinc-100">1. Check the summary</p>
               <p className="mt-2 text-sm text-[var(--text-soft)]">
-                {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalized.
+                {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalised.
               </p>
             </Surface>
             <Surface variant="subtle" padding="md">

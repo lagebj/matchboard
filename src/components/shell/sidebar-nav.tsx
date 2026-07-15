@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { MatchboardLogo } from "@/components/shell/matchboard-logo";
+import { APP_VERSION } from "@/lib/version";
 
 type NavItem = {
   href: string;
@@ -64,7 +65,6 @@ export function SidebarNav() {
         <MatchboardLogo className="h-7 w-7 text-[var(--accent-strong)]" ariaHidden />
         <div className="min-w-0">
           <p className="text-sm font-semibold tracking-tight text-zinc-50">Matchboard</p>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--text-muted)]">Squad planning</p>
         </div>
       </div>
 
@@ -100,7 +100,7 @@ export function SidebarNav() {
 
       {/* Pitch-line subtle texture hint at bottom */}
       <div className="border-t border-[var(--border-soft)] px-4 py-3">
-        <p className="text-[9px] uppercase tracking-[0.18em] text-[var(--text-disabled)]">v0.1</p>
+        <p className="text-[9px] uppercase tracking-[0.18em] text-[var(--text-disabled)]">v{APP_VERSION}</p>
       </div>
     </nav>
   );

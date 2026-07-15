@@ -57,3 +57,6 @@ npm-debug.log*
 .idea/
 .vscode/
 .codex
+
+# OPA binary cache
+.opa-cache/

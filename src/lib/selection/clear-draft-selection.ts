@@ -64,7 +64,7 @@ export async function clearRoundDraftSelection(
   }
 
   if (matchRound.status === "FINALIZED") {
-    throw new Error("Cannot clear draft for a finalized round.");
+    throw new Error("Cannot clear draft for a finalised round.");
   }
 
   const [selections, warnings, ledger] = await db.$transaction([
@@ -107,7 +107,7 @@ export async function clearMatchDraftSelection(
   }
 
   if (match.matchRound.status === "FINALIZED") {
-    throw new Error("Cannot clear draft for a match in a finalized round.");
+    throw new Error("Cannot clear draft for a match in a finalised round.");
   }
 
   const [selections, ledger] = await db.$transaction([

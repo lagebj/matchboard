@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import { APP_VERSION } from "./src/lib/version/index";
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+  },
   reactCompiler: true,
   serverExternalPackages: ["pg", "@prisma/adapter-pg", "@prisma/adapter-neon"],
   outputFileTracingIncludes: {

@@ -544,7 +544,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
             <span className="text-sm font-medium text-zinc-100 group-hover:text-[var(--accent-strong)]">
               {round.roundLabel}
             </span>
-            <StatusPill variant="finalized" size="sm">Finalized</StatusPill>
+            <StatusPill variant="finalized" size="sm">Finalised</StatusPill>
           </div>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--text-soft)]">
             <span>{round.coreCount} core</span>

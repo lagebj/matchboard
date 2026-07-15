@@ -35,7 +35,7 @@ export async function movePlannedSelectionWithinRound(input: {
   }
 
   if (round.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot move a player in a finalized round."] };
+    return { success: false, errors: ["Cannot move a player in a finalised round."] };
   }
 
   const sourceSelection = await db.selection.findFirst({
@@ -62,7 +62,7 @@ export async function movePlannedSelectionWithinRound(input: {
   }
 
   if (sourceSelection.match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot move a player in a finalized round."] };
+    return { success: false, errors: ["Cannot move a player in a finalised round."] };
   }
 
   const targetMatch = await db.match.findUnique({

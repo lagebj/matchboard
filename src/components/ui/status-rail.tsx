@@ -31,7 +31,7 @@ const statusConfig: Record<
     textClass: "text-[var(--warning)]",
   },
   finalized: {
-    text: "Finalized",
+    text: "Finalised",
     dotClass: "bg-[var(--accent)]",
     textClass: "text-[var(--accent-strong)]",
   },

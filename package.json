@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "postinstall": "cp -n .env.example .env 2>/dev/null; prisma generate",
@@ -24,16 +24,25 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d",
-    "policy:test": "opa test policies/rego",
-    "policy:test:pack": "opa test policies/packs/matchboard-default/rego && opa test policies/packs/custom-example/rego",
+    "policy:test": "node scripts/policy-test-deployable.mjs",
+    "policy:test:examples": "node scripts/policy-test-examples.mjs",
     "policy:build": "node scripts/build-opa-policy.mjs",
     "policy:build:pack": "node scripts/build-opa-policy.mjs --pack matchboard-default",
+    "policy:sync": "node scripts/policy-sync.mjs",
+    "policy:verify": "node scripts/policy-verify.mjs",
     "policy:validate": "node scripts/policy-validate.mjs",
     "policy:validate:pack": "node scripts/policy-validate.mjs --pack matchboard-default",
     "policy:list": "node scripts/policy-list.mjs",
     "policy:dry-run": "node scripts/policy-dry-run.mjs",
     "policy:dry-run:pack": "node scripts/policy-dry-run.mjs --pack matchboard-default",
-    "workbench:dry-run": "node scripts/workbench-dry-run.mjs"
+    "workbench:dry-run": "node scripts/workbench-dry-run.mjs",
+    "version:sync": "node scripts/version-sync.mjs && node scripts/sync-version-module.mjs",
+    "version:verify": "node scripts/verify-version.mjs",
+    "version:dry-run": "node scripts/version-sync.mjs --dry-run",
+    "prebuild": "node scripts/sync-version-module.mjs",
+    "terminology:check": "node scripts/check-terminology.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
+    "validate": "npm run lint && npm run typecheck && npm test && npm run build && npm run policy:verify && npm run version:verify && npm run terminology:check && npm run docs:check"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

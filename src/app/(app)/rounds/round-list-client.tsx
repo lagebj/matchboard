@@ -35,7 +35,7 @@ const filterConfig: Array<{ key: FilterState; label: string }> = [
   { key: "needs_action", label: "Needs action" },
   { key: "draft", label: "Draft" },
   { key: "ready", label: "Ready" },
-  { key: "finalized", label: "Finalized" },
+  { key: "finalized", label: "Finalised" },
 ];
 
 function filterRounds(rounds: RoundListItem[], filter: FilterState): RoundListItem[] {
@@ -235,7 +235,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                       className="h-8 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-3 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition-colors disabled:opacity-50"
                       disabled={isPending}
                       onClick={() => {
-                        if (!confirm("Un-finalize this round? Selections will revert to draft and can be recalculated.")) return;
+                        if (!confirm("Un-finalise this round? Selections will revert to draft and can be recalculated.")) return;
                         startTransition(async () => {
                            const fd = new FormData();
                            fd.set("matchRoundId", round.id);
@@ -246,7 +246,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                       type="button"
                     >
                       <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
-                      {isPending ? "Un-finalizing..." : "Un-finalize"}
+                      {isPending ? "Un-finalising..." : "Un-finalise"}
                     </button>
                   </div>
                 )}
@@ -289,7 +289,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                 This will remove all non-finalized draft selections, plan integrity signals, and explanations across all rounds.
               </p>
               <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
-                <p className="text-sm text-amber-300">Finalized rounds and setup data will not be affected. This action cannot be undone.</p>
+                <p className="text-sm text-amber-300">Finalised rounds and setup data will not be affected. This action cannot be undone.</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">

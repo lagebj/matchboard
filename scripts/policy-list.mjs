@@ -2,28 +2,28 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { REPO_ROOT } from "./policy-utils.mjs";
 
-const PACKS_DIR = join(process.cwd(), "policies", "packs");
+const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
+const EXAMPLES_PACKS_DIR = join(REPO_ROOT, "policies", "examples", "packs");
 
-function listPacks() {
-  if (!existsSync(PACKS_DIR)) {
-    console.log("No packs directory found.");
-    return;
-  }
+function listPacksInDir(baseDir, label) {
+  if (!existsSync(baseDir)) return [];
 
-  const entries = readdirSync(PACKS_DIR, { withFileTypes: true });
+  const entries = readdirSync(baseDir, { withFileTypes: true });
   const packs = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
 
-    const metadataPath = join(PACKS_DIR, entry.name, "policy-pack.json");
+    const metadataPath = join(baseDir, entry.name, "policy-pack.json");
     if (!existsSync(metadataPath)) continue;
 
     try {
       const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
-      const wasmPath = resolve(join(PACKS_DIR, entry.name), metadata.compiledWasm);
+      const wasmPath = resolve(join(baseDir, entry.name), metadata.compiledWasm);
       const hasCompiled = existsSync(wasmPath);
+      const isDeployable = metadata.deployable === true;
 
       packs.push({
         id: metadata.id,
@@ -33,14 +33,25 @@ function listPacks() {
         entrypoint: metadata.entrypoint,
         runtime: metadata.runtime,
         hasCompiled,
-        directory: join(PACKS_DIR, entry.name),
+        deployable: isDeployable,
+        directory: join(baseDir, entry.name),
+        category: label,
+        wasmHash: metadata.wasmHash ?? null,
       });
     } catch (err) {
       console.error(`Error reading pack '${entry.name}': ${err.message}`);
     }
   }
 
-  if (packs.length === 0) {
+  return packs;
+}
+
+function listPacks() {
+  const deployablePacks = listPacksInDir(PACKS_DIR, "deployable");
+  const examplePacks = listPacksInDir(EXAMPLES_PACKS_DIR, "example");
+  const allPacks = [...deployablePacks, ...examplePacks];
+
+  if (allPacks.length === 0) {
     console.log("No policy packs found.");
     return;
   }
@@ -48,13 +59,17 @@ function listPacks() {
   console.log("\n=== Policy Packs ===\n");
   console.log(`MATCHBOARD_POLICY_PACK_ID=${process.env.MATCHBOARD_POLICY_PACK_ID ?? "(not set, defaults to matchboard-default)"}`);
 
-  for (const pack of packs) {
-    console.log(`\n  ${pack.id} (v${pack.version})`);
+  for (const pack of allPacks) {
+    console.log(`\n  ${pack.id} (v${pack.version}) [${pack.category}]`);
     console.log(`    Name: ${pack.name}`);
     console.log(`    Description: ${pack.description}`);
     console.log(`    Entrypoint: ${pack.entrypoint}`);
     console.log(`    Runtime: ${pack.runtime}`);
-    console.log(`    Compiled: ${pack.hasCompiled ? "YES" : "NO — run 'npm run policy:build -- --pack " + pack.id + "'"}`);
+    console.log(`    Deployable: ${pack.deployable ? "YES" : "NO"}`);
+    console.log(`    Compiled: ${pack.hasCompiled ? "YES" : "NO — run 'npm run policy:sync' to compile deployable packs"}`);
+    if (pack.wasmHash) {
+      console.log(`    Wasm Hash: ${pack.wasmHash}`);
+    }
     console.log(`    Directory: ${pack.directory}`);
   }
 

@@ -60,7 +60,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
         </Surface>
         <Surface variant="default" padding="md">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
-            Finalized Moves
+            Finalised Moves
           </p>
           <p className="mt-2 text-2xl font-semibold text-zinc-50">{finalizedMovementEvents}</p>
         </Surface>
@@ -92,7 +92,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
                     {row.draftMovementCount} draft
                   </span>
                   <span className="inline-flex items-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/50 px-3 py-1 text-xs font-medium text-[var(--text-soft)]">
-                    {row.finalizedMovementCount} finalized
+                    {row.finalizedMovementCount} finalised
                   </span>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
                   <Surface key={movement.key} variant="subtle" padding="md">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusPill variant={movementStatusVariant(movement.status)} size="sm">
-                        {movement.status === SelectionStatus.FINALIZED ? "Finalized" : "Draft"}
+                        {movement.status === SelectionStatus.FINALIZED ? "Finalised" : "Draft"}
                       </StatusPill>
                       <StatusPill variant="neutral" size="sm">
                         {formatSelectionRole(movement.roleType)}
@@ -126,7 +126,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
         ) : (
           <Surface variant="subtle" padding="md" className="lg:col-span-2">
             <p className="text-sm text-[var(--text-soft)]">
-              No saved movement yet. Once draft or finalized selections include support, development,
+              No saved movement yet. Once draft or finalised selections include support, development,
               or other floating work, it will show here.
             </p>
           </Surface>

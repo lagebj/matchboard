@@ -368,7 +368,7 @@ export function EventMatchLineupPanel({
           <p className="mt-2 text-sm text-[var(--text-muted)]">No formations available for this game format. Create a formation first.</p>
         )}
         {formations.length > 0 && (
-          <p className="mt-2 text-sm text-[var(--text-muted)]">No starting lineup planned yet. Select a formation to begin.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">No starting line-up planned yet. Select a formation to begin.</p>
         )}
         {formations.length > 0 && (
           <div className="mt-3">

@@ -100,7 +100,7 @@ export async function refreshDraftSelection(matchId: string) {
   const latestSelection = match.selections[0] ?? null;
 
   if (latestSelection?.status === SelectionStatus.FINALIZED) {
-    throw new Error("Finalized matches cannot be recalculated.");
+    throw new Error("Finalised matches cannot be recalculated.");
   }
 
   const allDraftSelections = await db.selection.findMany({
@@ -237,7 +237,7 @@ export async function refreshDraftRound(matchRoundId: string) {
   );
 
   if (hasFinalizedMatch) {
-    throw new Error("Finalized matches cannot be recalculated.");
+    throw new Error("Finalised matches cannot be recalculated.");
   }
 
   const allDraftSelections = await db.selection.findMany({

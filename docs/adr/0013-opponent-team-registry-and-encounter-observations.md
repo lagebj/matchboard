@@ -4,7 +4,7 @@ Date: 2026-07-14
 
 ## Status
 
-Accepted
+Accepted — partially superseded by ADR 0026 (opponent sporting-level assessment and planning guidance; encounter observations and Fair Play unchanged)
 
 ## Context
 

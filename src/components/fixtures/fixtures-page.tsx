@@ -45,7 +45,7 @@ function roundPrimaryAction(
     case "BLOCKED":
       return { label: "Resolve blockers", href: `/rounds/${round.id}` };
     case "READY":
-      return { label: "Finalize in board", href: `/rounds/${round.id}` };
+      return { label: "Finalise in board", href: `/rounds/${round.id}` };
     case "FINALIZED":
       return { label: "View finalised board", href: `/rounds/${round.id}` };
     default:
@@ -299,7 +299,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
         )}
         {counts.finalized > 0 && (
           <MetricTile
-            label="Finalized"
+            label="Finalised"
             value={counts.finalized}
             tone="success"
             icon={<CheckCircle2 className="h-4 w-4" />}

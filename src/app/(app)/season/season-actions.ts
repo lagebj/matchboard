@@ -20,7 +20,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
   }
 
   if (leagueSeason.status === "FINALIZED") {
-    return { success: false, error: "League season is already finalized." };
+    return { success: false, error: "League season is already finalised." };
   }
 
   if (leagueSeason.periodSnapshot) {
@@ -102,7 +102,7 @@ export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Prom
   }
 
   if (leagueSeason.status !== "FINALIZED") {
-    return { success: false, error: "League season is not finalized." };
+    return { success: false, error: "League season is not finalised." };
   }
 
   await db.leagueSeason.update({

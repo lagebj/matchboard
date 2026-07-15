@@ -34,13 +34,13 @@ export function SeasonFinalizeControls({
         setCurrentStatus("FINALIZED");
         setCurrentFinalizedAt(new Date());
       } else {
-        setError(result.error ?? "Failed to finalize.");
+        setError(result.error ?? "Failed to finalise.");
       }
     });
   };
 
   const handleUnfinalize = () => {
-    if (!confirm(`Unfinalize ${leagueSeasonName}? The snapshot will be preserved, but the league season will be reopened for planning.`)) {
+    if (!confirm(`Unfinalise ${leagueSeasonName}? The snapshot will be preserved, but the league season will be reopened for planning.`)) {
       return;
     }
     setError(null);
@@ -50,7 +50,7 @@ export function SeasonFinalizeControls({
         setCurrentStatus("OPEN");
         setCurrentFinalizedAt(null);
       } else {
-        setError(result.error ?? "Failed to unfinalize.");
+        setError(result.error ?? "Failed to unfinalise.");
       }
     });
   };
@@ -63,7 +63,7 @@ export function SeasonFinalizeControls({
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
-            Finalized
+            Finalised
             {currentFinalizedAt && (
               <span className="text-emerald-400/60">
                 {new Date(currentFinalizedAt).toLocaleDateString()}
@@ -76,7 +76,7 @@ export function SeasonFinalizeControls({
             disabled={isPending}
             className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors disabled:opacity-50"
           >
-            Unfinalize
+            Unfinalise
           </button>
         </>
       ) : (
@@ -86,7 +86,7 @@ export function SeasonFinalizeControls({
           disabled={isPending}
           className="rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 py-1 text-xs font-medium text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors disabled:opacity-50"
         >
-          Finalize league season
+          Finalise league season
         </button>
       )}
       {error && (

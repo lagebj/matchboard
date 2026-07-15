@@ -351,8 +351,8 @@ function MatchColumnComponent({
                   router.refresh();
                 });
               }}
-              title="Un-finalize this match"
-              aria-label="Un-finalize this match"
+              title="Un-finalise this match"
+              aria-label="Un-finalise this match"
               className="!px-1.5"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -363,8 +363,8 @@ function MatchColumnComponent({
               size="sm"
               disabled={isFinalizing || isPending}
               onClick={() => showFinalizeMatch(match.matchId)}
-              title="Finalize this match"
-              aria-label="Finalize this match"
+              title="Finalise this match"
+              aria-label="Finalise this match"
               className="!px-1.5 hover:!text-[var(--accent-strong)]"
             >
               <Lock className="h-3.5 w-3.5" />
@@ -797,7 +797,7 @@ export function RoundBoard({
           variant="finalized"
           title={
             <>
-              Finalized · <span className="font-normal">{roundLabel}</span>
+              Finalised · <span className="font-normal">{roundLabel}</span>
             </>
           }
           description="Selections are locked. Reopen to make changes."
@@ -809,7 +809,7 @@ export function RoundBoard({
               leadingIcon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
               onClick={() => setShowUnfinalizeConfirm(true)}
             >
-              Un-finalize round
+              Un-finalise round
             </Button>
           }
         />
@@ -824,7 +824,7 @@ export function RoundBoard({
               {blockedCount === 1 ? "condition" : "conditions"}
             </>
           }
-          description="Resolve or record an override reason before finalize."
+           description="Resolve or record an override reason before finalise."
         />
       )}
 
@@ -839,7 +839,7 @@ export function RoundBoard({
                 : `${decisionRequiredCount} decisions need review`}
             </>
           }
-          description="Coach judgement required before finalize."
+           description="Coach judgement required before finalise."
         />
       )}
 
@@ -1015,7 +1015,7 @@ export function RoundBoard({
         isOpen={showClearRoundDialog}
         onClose={() => setShowClearRoundDialog(false)}
         title="Clear round draft"
-        description="Remove all draft selections and plan check signals for this round. Finalized data will not be affected."
+        description="Remove all draft selections and plan check signals for this round. Finalised data will not be affected."
         footer={
           <>
             <Button
@@ -1046,7 +1046,7 @@ export function RoundBoard({
       <Dialog
         isOpen={!!finalizingMatchId}
         onClose={() => setFinalizingMatchId(null)}
-        title="Finalize match"
+        title="Finalise match"
         footer={
           <>
             <Button
@@ -1083,7 +1083,7 @@ export function RoundBoard({
                 });
               }}
             >
-              {isPending ? "Finalizing…" : "Finalize match"}
+              {isPending ? "Finalising…" : "Finalise match"}
             </Button>
           </>
         }
@@ -1140,8 +1140,8 @@ export function RoundBoard({
       <Dialog
         isOpen={showUnfinalizeConfirm}
         onClose={() => setShowUnfinalizeConfirm(false)}
-        title="Un-finalize round"
-        description="All selections will revert to draft and can be recalculated. Finalized history will be affected."
+        title="Un-finalise round"
+        description="All selections will revert to draft and can be recalculated. Finalised history will be affected."
         footer={
           <>
             <Button
@@ -1163,7 +1163,7 @@ export function RoundBoard({
                 });
               }}
             >
-              {isPending ? "Un-finalizing…" : "Un-finalize round"}
+              {isPending ? "Un-finalising…" : "Un-finalise round"}
             </Button>
           </>
         }

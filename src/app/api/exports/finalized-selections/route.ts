@@ -23,7 +23,7 @@ function getVisibilityMode(value: string | null): VisibilityMode {
 
 function buildFilename(format: ExportFormat) {
   const today = new Date().toISOString().slice(0, 10);
-  return `finalized-match-selections-${today}.${format}`;
+  return `finalised-match-selections-${today}.${format}`;
 }
 
 function escapeCsv(value: string): string {
@@ -234,7 +234,7 @@ export async function GET(request: Request) {
             ).join("\n");
             return `${header}\n${players}`;
           }).join("\n\n")
-        : "No finalized selections available.";
+        : "No finalised selections available.";
 
       return new Response(body, {
         headers: {
@@ -252,7 +252,7 @@ export async function GET(request: Request) {
           const explanation = s.explanation ? `\n  Explanation: ${typeof s.explanation === "string" ? s.explanation : JSON.stringify(s.explanation)}` : "";
           return `${header}\n${player}${override}${explanation}`;
         }).join("\n\n")
-      : "No finalized selections available.";
+      : "No finalised selections available.";
 
     return new Response(body, {
       headers: {
@@ -282,7 +282,7 @@ export async function GET(request: Request) {
           ].join("\n");
           return `${heading}\n\n${meta}\n\n${table}`;
         }).join("\n\n")
-      : "No finalized selections available.";
+      : "No finalised selections available.";
 
     return new Response(body, {
       headers: {
@@ -303,7 +303,7 @@ export async function GET(request: Request) {
         ].join("\n");
         return `${heading}\n\n${meta}\n\n${table}`;
       }).join("\n\n")
-    : "No finalized selections available.";
+    : "No finalised selections available.";
 
   return new Response(body, {
     headers: {

@@ -35,30 +35,49 @@ export type PolicyPackDiagnostics = {
 };
 
 const PACKS_DIR = join(process.cwd(), "policies", "packs");
+const EXAMPLES_PACKS_DIR = join(process.cwd(), "policies", "examples", "packs");
 
 function getPacksDirectory(): string {
   return process.env.MATCHBOARD_POLICY_PACKS_DIR ?? PACKS_DIR;
+}
+
+function getExamplesPacksDirectory(): string {
+  return process.env.MATCHBOARD_EXAMPLES_PACKS_DIR ?? EXAMPLES_PACKS_DIR;
 }
 
 export function getActivePackId(): string {
   return process.env.MATCHBOARD_POLICY_PACK_ID ?? "matchboard-default";
 }
 
-export function loadPackMetadata(packId: string): PolicyPackMetadata | null {
+export function loadPackMetadata(packId: string, includeExamples = false): PolicyPackMetadata | null {
   const packsDir = getPacksDirectory();
   const metadataPath = join(packsDir, packId, "policy-pack.json");
 
-  if (!existsSync(metadataPath)) {
-    return null;
+  if (existsSync(metadataPath)) {
+    try {
+      const raw = readFileSync(metadataPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      return validatePackMetadataShape(parsed, packId);
+    } catch {
+      return null;
+    }
   }
 
-  try {
-    const raw = readFileSync(metadataPath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return validatePackMetadataShape(parsed, packId);
-  } catch {
-    return null;
+  if (includeExamples) {
+    const examplesDir = getExamplesPacksDirectory();
+    const examplePath = join(examplesDir, packId, "policy-pack.json");
+    if (existsSync(examplePath)) {
+      try {
+        const raw = readFileSync(examplePath, "utf-8");
+        const parsed = JSON.parse(raw);
+        return validatePackMetadataShape(parsed, packId);
+      } catch {
+        return null;
+      }
+    }
   }
+
+  return null;
 }
 
 export function validatePackMetadataShape(
@@ -127,32 +146,40 @@ export function validatePackMetadataShape(
   };
 }
 
-export function resolvePackDirectory(packId: string): string {
+export function resolvePackDirectory(packId: string, includeExamples = false): string {
   const packsDir = getPacksDirectory();
-  return join(packsDir, packId);
+  const deployDir = join(packsDir, packId);
+  if (existsSync(deployDir)) return deployDir;
+
+  if (includeExamples) {
+    const examplesDir = getExamplesPacksDirectory();
+    const exampleDir = join(examplesDir, packId);
+    if (existsSync(exampleDir)) return exampleDir;
+  }
+
+  return deployDir;
 }
 
-export function resolveRegoDirectory(packId: string, metadata: PolicyPackMetadata): string {
-  const packDir = resolvePackDirectory(packId);
+export function resolveRegoDirectory(packId: string, metadata: PolicyPackMetadata, includeExamples = false): string {
+  const packDir = resolvePackDirectory(packId, includeExamples);
   return resolve(packDir, metadata.regoDirectory);
 }
 
-export function resolveWasmPath(packId: string, metadata: PolicyPackMetadata): string {
-  const packDir = resolvePackDirectory(packId);
+export function resolveWasmPath(packId: string, metadata: PolicyPackMetadata, includeExamples = false): string {
+  const packDir = resolvePackDirectory(packId, includeExamples);
   return resolve(packDir, metadata.compiledWasm);
 }
 
-export function resolveFixturesDirectory(packId: string, metadata: PolicyPackMetadata): string {
-  const packDir = resolvePackDirectory(packId);
+export function resolveFixturesDirectory(packId: string, metadata: PolicyPackMetadata, includeExamples = false): string {
+  const packDir = resolvePackDirectory(packId, includeExamples);
   return resolve(packDir, metadata.fixturesDirectory);
 }
 
-export function validatePack(packId: string): PolicyPackValidationResult {
+export function validatePack(packId: string, includeExamples = false): PolicyPackValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const packsDir = getPacksDirectory();
-  const packDir = join(packsDir, packId);
+  const packDir = resolvePackDirectory(packId, includeExamples);
 
   if (!existsSync(packDir)) {
     return { valid: false, packId, errors: [`Pack directory not found: ${packDir}`], warnings: [] };
@@ -172,7 +199,7 @@ export function validatePack(packId: string): PolicyPackValidationResult {
     return { valid: false, packId, errors: [`Invalid metadata: ${message}`], warnings: [] };
   }
 
-  const regoDir = resolveRegoDirectory(packId, metadata);
+  const regoDir = resolveRegoDirectory(packId, metadata, includeExamples);
   if (!existsSync(regoDir)) {
     errors.push(`Rego directory not found: ${regoDir}`);
   } else {
@@ -182,12 +209,12 @@ export function validatePack(packId: string): PolicyPackValidationResult {
     }
   }
 
-  const wasmPath = resolveWasmPath(packId, metadata);
+  const wasmPath = resolveWasmPath(packId, metadata, includeExamples);
   if (!existsSync(wasmPath)) {
     warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:build -- --pack ${packId}' to compile.`);
   }
 
-  const fixturesDir = resolveFixturesDirectory(packId, metadata);
+  const fixturesDir = resolveFixturesDirectory(packId, metadata, includeExamples);
   if (!existsSync(fixturesDir)) {
     warnings.push(`Fixtures directory not found: ${fixturesDir}`);
   } else {
@@ -218,6 +245,7 @@ export function listPacks(): Array<{
   version: string;
   entrypoint: string;
   compiledPresent: boolean;
+  deployable: boolean;
 }> {
   const packsDir = getPacksDirectory();
 
@@ -232,6 +260,7 @@ export function listPacks(): Array<{
     version: string;
     entrypoint: string;
     compiledPresent: boolean;
+    deployable: boolean;
   }> = [];
 
   for (const entry of entries) {
@@ -244,6 +273,55 @@ export function listPacks(): Array<{
       const raw = JSON.parse(readFileSync(metadataPath, "utf-8"));
       const metadata = validatePackMetadataShape(raw, entry.name);
       const wasmPath = resolveWasmPath(entry.name, metadata);
+
+      packs.push({
+        id: metadata.id,
+        name: metadata.name,
+        version: metadata.version,
+        entrypoint: metadata.entrypoint,
+        compiledPresent: existsSync(wasmPath),
+        deployable: raw.deployable !== false,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return packs;
+}
+
+export function listExamplePacks(): Array<{
+  id: string;
+  name: string;
+  version: string;
+  entrypoint: string;
+  compiledPresent: boolean;
+}> {
+  const examplesDir = getExamplesPacksDirectory();
+
+  if (!existsSync(examplesDir)) {
+    return [];
+  }
+
+  const entries = readdirSync(examplesDir, { withFileTypes: true });
+  const packs: Array<{
+    id: string;
+    name: string;
+    version: string;
+    entrypoint: string;
+    compiledPresent: boolean;
+  }> = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+
+    const metadataPath = join(examplesDir, entry.name, "policy-pack.json");
+    if (!existsSync(metadataPath)) continue;
+
+    try {
+      const raw = JSON.parse(readFileSync(metadataPath, "utf-8"));
+      const metadata = validatePackMetadataShape(raw, entry.name);
+      const wasmPath = join(examplesDir, entry.name, metadata.compiledWasm);
 
       packs.push({
         id: metadata.id,
