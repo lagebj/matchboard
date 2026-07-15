@@ -12,6 +12,8 @@ export type AssistantWorkCategory =
   | "ready_to_finalize"
   | "event_report_needed"
   | "post_match_report"
+  | "incomplete_report"
+  | "unknown_attendance"
   | "event_report_incomplete"
   | "upcoming_round";
 
@@ -53,6 +55,8 @@ export const CATEGORY_PRIORITY: Record<AssistantWorkCategory, number> = {
   event_helpers_missing: 10,
   event_report_needed: 11,
   post_match_report: 12,
-  event_report_incomplete: 13,
-  upcoming_round: 14,
+  incomplete_report: 13,
+  unknown_attendance: 14,
+  event_report_incomplete: 15,
+  upcoming_round: 16,
 };

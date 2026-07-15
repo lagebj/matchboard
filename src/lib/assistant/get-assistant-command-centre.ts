@@ -108,6 +108,15 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
       )
     : new Set<string>();
 
+  const reportStatuses = finalizedMatchIds.length > 0
+    ? new Map(
+        (await db.postMatchReport.findMany({
+          where: { matchId: { in: finalizedMatchIds } },
+          select: { matchId: true, status: true, playerActuals: { select: { attendanceStatus: true } } },
+        })).map((r) => [r.matchId, r]),
+      )
+    : new Map<string, { matchId: string; status: string; playerActuals: { attendanceStatus: string }[] }>();
+
   const items: AssistantWorkItem[] = [];
   let hasUngenerated = false;
 
@@ -251,6 +260,58 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
               affectedPlayerIds: [],
             }),
           );
+        } else {
+          const reportData = reportStatuses.get(match.id);
+          if (reportData) {
+            if (reportData.status === "DRAFT") {
+              const hasUnknown = reportData.playerActuals.some(
+                (a) => a.attendanceStatus === "UNKNOWN",
+              );
+              if (hasUnknown) {
+                items.push(
+                  makeItem({
+                    category: "unknown_attendance",
+                    matchRoundId: round.id,
+                    matchId: match.id,
+                    title: `${round.name} — Confirm attendance`,
+                    summary: "Post-match report has unknown attendance that must be confirmed.",
+                    primaryActionLabel: "Complete report",
+                    primaryActionHref: `/matches/${match.id}`,
+                    affectedTeamIds: match.teamId ? [match.teamId] : [],
+                    affectedPlayerIds: [],
+                  }),
+                );
+              } else {
+                items.push(
+                  makeItem({
+                    category: "incomplete_report",
+                    matchRoundId: round.id,
+                    matchId: match.id,
+                    title: `${round.name} — Complete post-match report`,
+                    summary: "Post-match report is draft and has not been completed.",
+                    primaryActionLabel: "Complete report",
+                    primaryActionHref: `/matches/${match.id}`,
+                    affectedTeamIds: match.teamId ? [match.teamId] : [],
+                    affectedPlayerIds: [],
+                  }),
+                );
+              }
+            } else if (reportData.status === "REPORTED") {
+              items.push(
+                makeItem({
+                  category: "incomplete_report",
+                  matchRoundId: round.id,
+                  matchId: match.id,
+                  title: `${round.name} — Lock post-match report`,
+                  summary: "Post-match report has been submitted but not locked.",
+                  primaryActionLabel: "Lock report",
+                  primaryActionHref: `/matches/${match.id}`,
+                  affectedTeamIds: match.teamId ? [match.teamId] : [],
+                  affectedPlayerIds: [],
+                }),
+              );
+            }
+          }
         }
       }
       continue;

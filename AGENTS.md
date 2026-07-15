@@ -1768,8 +1768,8 @@ Avoid:
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
-| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering |
-| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state |
+| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes incomplete_report, unknown_attendance) |
+| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state (includes audit work items) |
 | `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |
@@ -1824,6 +1824,16 @@ Avoid:
 | `src/lib/simulation/simulation-conflicts.ts` | `detectSimulationConflicts()`, `detectGkConflicts()`, `detectUnavailablePlayerConflicts()` |
 | `src/app/api/simulation/run/route.ts` | POST `/api/simulation/run` — simulation API endpoint |
 | `src/app/(app)/simulation/page.tsx` | Simulation UI page |
+
+### Historical audit and planned-vs-actual files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/audit/audit-types.ts` | Audit types: planned-vs-actual, participation summary, season review, audit work items |
+| `src/lib/audit/planned-vs-actual.ts` | `getPlannedVsActualForMatch()`, `getPlannedVsActualForRound()`, `getAuditWorkItems()`, `getSeasonReview()` — planned vs actual comparison and season review |
+| `src/lib/audit/player-history.ts` | `getPlayerHistory()` — per-player timeline across rounds with planned vs actual |
+| `src/lib/audit/opponent-history.ts` | `getOpponentHistory()` — per-opponent match history with results |
+| `docs/adr/0022-historical-audit-and-planned-vs-actual.md` | ADR: historical audit architecture decisions |
 
 ## Stale references removed
 
