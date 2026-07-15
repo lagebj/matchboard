@@ -1,0 +1,9 @@
+{
+  "scope": "event",
+  "includeLeague": false,
+  "includeEvents": true,
+  "includeCommittedPlans": true,
+  "includeDraftPlans": true,
+  "policyMode": "default_only",
+  "description": "Event: Squad generation with overlapping matches. Tests event squad feasibility, helper conflicts, and GK coverage."
+}

@@ -1,0 +1,9 @@
+{
+  "scope": "combined_date_range",
+  "includeLeague": true,
+  "includeEvents": true,
+  "includeCommittedPlans": true,
+  "includeDraftPlans": true,
+  "policyMode": "default_only",
+  "description": "Combined: Weekend with league matches and an event. Tests league/event overlap conflicts, helper conflicts, and player overuse."
+}
