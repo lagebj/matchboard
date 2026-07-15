@@ -3,6 +3,9 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import type { InsightOverview } from "@/lib/insights/insights-types";
+import { toNumber, validateOverviewField, type CountRow } from "@/lib/insights/insights-overview-helpers";
+
+export { toNumber, validateOverviewField } from "@/lib/insights/insights-overview-helpers";
 
 export async function getInsightOverview(
   leagueSeasonId: string,
@@ -39,8 +42,8 @@ export async function getInsightOverview(
     },
   });
 
-  const playersWithHighLoad = await db.$queryRaw<number[]>`
-    SELECT COUNT(*)::int FROM (
+  const highLoadRows = await db.$queryRaw<CountRow[]>`
+    SELECT COUNT(*)::bigint AS "count" FROM (
       SELECT p.id, COUNT(s.id) as sel_count
       FROM "Player" p
       INNER JOIN "Selection" s ON s."playerId" = p.id
@@ -53,6 +56,8 @@ export async function getInsightOverview(
       HAVING COUNT(s.id) >= 4
     ) sub
   `;
+
+  const playersWithHighLoad = toNumber(highLoadRows[0]?.count);
 
   const completedReports = await db.postMatchReport.count({
     where: {
@@ -70,14 +75,20 @@ export async function getInsightOverview(
     },
   });
 
-  return {
+  const result: InsightOverview = {
     totalPlayers: activePlayers,
     playersWithNoOpportunity: playersWithoutOpportunity,
-    playersWithHighLoad: playersWithHighLoad[0] ?? 0,
+    playersWithHighLoad,
     matchesWithMissingReports,
     matchesWithCoverageWarnings: 0,
     policyWarningsCount: planIntegrityCount,
     plannedActualDeltasCount: 0,
     conflictsCount: 0,
   };
+
+  for (const [key, value] of Object.entries(result)) {
+    validateOverviewField(value, key);
+  }
+
+  return result;
 }

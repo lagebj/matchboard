@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -23,6 +23,12 @@ type InsightsOverviewClientProps = {
   leagueSeasons: LeagueSeasonOption[];
   activeLeagueSeasonId: string | null;
 };
+
+type OverviewState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: InsightOverview }
+  | { status: "error"; message: string };
 
 const SURFACE_CARDS = [
   {
@@ -63,6 +69,22 @@ const SURFACE_CARDS = [
   },
 ];
 
+function isNumericOverview(data: unknown): data is InsightOverview {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  const numericFields: (keyof InsightOverview)[] = [
+    "totalPlayers",
+    "playersWithNoOpportunity",
+    "playersWithHighLoad",
+    "matchesWithMissingReports",
+    "matchesWithCoverageWarnings",
+    "policyWarningsCount",
+    "plannedActualDeltasCount",
+    "conflictsCount",
+  ];
+  return numericFields.every((field) => typeof obj[field] === "number" && Number.isFinite(obj[field] as number));
+}
+
 export function InsightsOverviewClient({
   leagueSeasons,
   activeLeagueSeasonId,
@@ -70,21 +92,70 @@ export function InsightsOverviewClient({
   const [selectedPeriodId, setSelectedPeriodId] = useState(
     activeLeagueSeasonId ?? leagueSeasons[0]?.id ?? "",
   );
-  const [overview, setOverview] = useState<InsightOverview | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [overviewState, setOverviewState] = useState<OverviewState>({ status: "idle" });
+  const [retryKey, setRetryKey] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!selectedPeriodId) return;
-    startTransition(async () => {
-      const res = await fetch(
-        `/api/insights/overview?leagueSeasonId=${selectedPeriodId}`,
-      );
-      if (res.ok) {
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    let cancelled = false;
+
+    const loadOverview = async () => {
+      setOverviewState({ status: "loading" });
+
+      try {
+        const res = await fetch(
+          `/api/insights/overview?leagueSeasonId=${selectedPeriodId}`,
+          { signal: controller.signal },
+        );
+
+        if (cancelled) return;
+
+        if (res.status === 401) {
+          setOverviewState({ status: "error", message: "You are not authorized to view insights." });
+          return;
+        }
+
+        if (!res.ok) {
+          setOverviewState({ status: "error", message: "Failed to load insights overview. Try again." });
+          return;
+        }
+
         const data = await res.json();
-        setOverview(data);
+
+        if (cancelled) return;
+
+        if (!isNumericOverview(data)) {
+          setOverviewState({
+            status: "error",
+            message: "Received an invalid response from the server. Please try again.",
+          });
+          return;
+        }
+
+        setOverviewState({ status: "success", data });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (cancelled) return;
+        setOverviewState({ status: "error", message: "Failed to load insights overview. Try again." });
       }
-    });
-  }, [selectedPeriodId]);
+    };
+
+    void loadOverview();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [selectedPeriodId, retryKey]);
+
+  const handleRetry = () => {
+    setRetryKey((k) => k + 1);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -115,33 +186,45 @@ export function InsightsOverviewClient({
         </div>
       )}
 
-      {overview && (
+      {overviewState.status === "success" && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <SummaryCard
             label="Players with no opportunity"
-            value={overview.playersWithNoOpportunity}
-            accent={overview.playersWithNoOpportunity > 0}
+            value={overviewState.data.playersWithNoOpportunity}
+            accent={overviewState.data.playersWithNoOpportunity > 0}
           />
           <SummaryCard
             label="Players with high load"
-            value={overview.playersWithHighLoad}
-            accent={overview.playersWithHighLoad > 0}
+            value={overviewState.data.playersWithHighLoad}
+            accent={overviewState.data.playersWithHighLoad > 0}
           />
           <SummaryCard
             label="Missing reports"
-            value={overview.matchesWithMissingReports}
-            accent={overview.matchesWithMissingReports > 0}
+            value={overviewState.data.matchesWithMissingReports}
+            accent={overviewState.data.matchesWithMissingReports > 0}
           />
           <SummaryCard
             label="Policy warnings"
-            value={overview.policyWarningsCount}
-            accent={overview.policyWarningsCount > 0}
+            value={overviewState.data.policyWarningsCount}
+            accent={overviewState.data.policyWarningsCount > 0}
           />
         </div>
       )}
 
-      {isPending && !overview && (
+      {overviewState.status === "loading" && (
         <p className="text-sm text-zinc-500">Loading insights...</p>
+      )}
+
+      {overviewState.status === "error" && (
+        <div className="rounded-xl border border-red-800/30 bg-red-900/10 px-4 py-3">
+          <p className="text-sm text-red-300">{overviewState.message}</p>
+          <button
+            onClick={handleRetry}
+            className="mt-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 hover:bg-zinc-800"
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
