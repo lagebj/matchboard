@@ -1,0 +1,121 @@
+{
+  "context": {
+    "phase": "pre_selection",
+    "mode": "event",
+    "nowIso": "2026-06-15T10:00:00Z",
+    "gameFormat": "7v7"
+  },
+  "players": [
+    {
+      "id": "player-active-1",
+      "displayName": "Alex",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 0,
+      "seasonMatchCount": 2,
+      "periodMatchCount": 1,
+      "currentTeamIds": ["team-a"]
+    },
+    {
+      "id": "player-active-2",
+      "displayName": "Blake",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "GOALKEEPER",
+      "goalkeeperAbility": "YES",
+      "recentMatchCount": 5,
+      "seasonMatchCount": 8,
+      "periodMatchCount": 4,
+      "currentTeamIds": ["team-a"]
+    },
+    {
+      "id": "player-inactive",
+      "displayName": "Casey",
+      "status": "INACTIVE",
+      "availableForContext": false,
+      "primaryPosition": "DEFENDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 0,
+      "seasonMatchCount": 0,
+      "periodMatchCount": 0,
+      "currentTeamIds": ["team-a"]
+    },
+    {
+      "id": "player-unavailable",
+      "displayName": "Drew",
+      "status": "ACTIVE",
+      "availableForContext": false,
+      "unavailableReason": "Injured",
+      "primaryPosition": "FORWARD",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 3,
+      "seasonMatchCount": 5,
+      "periodMatchCount": 2,
+      "currentTeamIds": ["team-a"]
+    },
+    {
+      "id": "player-removed",
+      "displayName": "Former Player",
+      "status": "REMOVED",
+      "availableForContext": false,
+      "primaryPosition": "MIDFIELDER",
+      "goalkeeperAbility": "NO",
+      "currentTeamIds": []
+    },
+    {
+      "id": "player-tagged-blocked",
+      "displayName": "Custom Blocked",
+      "status": "ACTIVE",
+      "availableForContext": true,
+      "primaryPosition": "DEFENDER",
+      "goalkeeperAbility": "NO",
+      "recentMatchCount": 10,
+      "currentTeamIds": ["team-a"],
+      "policyTags": ["custom_blocked"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-a",
+      "name": "Team A",
+      "targetSquadSize": 7,
+      "minSquadSize": 5,
+      "maxSquadSize": 9
+    }
+  ],
+  "squads": [
+    {
+      "id": "squad-1",
+      "teamId": "team-a",
+      "playerIdList": ["player-active-1", "player-active-2"],
+      "primaryGoalkeeperCount": 1,
+      "anyGoalkeeperCount": 1
+    },
+    {
+      "id": "squad-2",
+      "teamId": "team-a",
+      "playerIdList": ["player-active-1"],
+      "primaryGoalkeeperCount": 0,
+      "anyGoalkeeperCount": 0
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-1",
+      "isCancelled": false
+    }
+  ],
+  "history": {
+    "playerMatchCountMap": {},
+    "playerRoleMap": {},
+    "playerRecentSupportCount": {}
+  },
+  "constraints": {
+    "maxSquadSize": 9,
+    "minSquadSize": 5,
+    "targetSquadSize": 7,
+    "requireGoalkeeper": true
+  }
+}

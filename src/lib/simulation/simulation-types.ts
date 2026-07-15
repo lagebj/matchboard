@@ -207,6 +207,9 @@ export type SimulationFairnessSummary = {
 
 export type SimulationPolicySummary = {
   policyVersion: string;
+  policyPackId: string | null;
+  policyPackVersion: string | null;
+  artifactHash: string | null;
   regoEnabled: boolean;
   regoAvailable: boolean;
   decisionTypes: PolicyDecisionType[];

@@ -73,6 +73,8 @@ export type WorkbenchDiagnostics = {
   regoWasmLoaded: boolean;
   policyVersion: string;
   artifactHash: string | null;
+  packId: string | null;
+  packVersion: string | null;
   failureMode: string;
   evaluationTimestamp: string;
 };

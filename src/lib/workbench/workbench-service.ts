@@ -10,6 +10,7 @@ import {
   getPolicyArtifactHash,
 } from "@/lib/policies/policy-version";
 import { isRegoEnabled, getRegoFailureMode, clearRegoPolicyCache } from "@/lib/policies/rego-policy-adapter";
+import { getActivePackId, loadPackMetadata } from "@/lib/policies/policy-pack";
 import { evaluateDefaultMatchboardPolicy } from "@/lib/policies/default-matchboard-policy";
 import { diffPolicyResults, summarizeInput, type PolicyDiff } from "./policy-diff";
 import type {
@@ -148,11 +149,17 @@ async function runRegoEnabledPolicy(
 }
 
 export function getWorkbenchDiagnostics(): WorkbenchDiagnostics {
+  const regoEnabled = isRegoEnabled();
+  const packId = regoEnabled ? getActivePackId() : null;
+  const packMetadata = packId ? loadPackMetadata(packId) : null;
+
   return {
-    regoEnabled: isRegoEnabled(),
-    regoWasmLoaded: isRegoEnabled(),
+    regoEnabled,
+    regoWasmLoaded: regoEnabled,
     policyVersion: getPolicyVersion(),
     artifactHash: getPolicyArtifactHash(),
+    packId,
+    packVersion: packMetadata?.version ?? null,
     failureMode: getRegoFailureMode(),
     evaluationTimestamp: new Date().toISOString(),
   };

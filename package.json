@@ -25,8 +25,14 @@
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d",
     "policy:test": "opa test policies/rego",
+    "policy:test:pack": "opa test policies/packs/matchboard-default/rego && opa test policies/packs/custom-example/rego",
     "policy:build": "node scripts/build-opa-policy.mjs",
+    "policy:build:pack": "node scripts/build-opa-policy.mjs --pack matchboard-default",
+    "policy:validate": "node scripts/policy-validate.mjs",
+    "policy:validate:pack": "node scripts/policy-validate.mjs --pack matchboard-default",
+    "policy:list": "node scripts/policy-list.mjs",
     "policy:dry-run": "node scripts/policy-dry-run.mjs",
+    "policy:dry-run:pack": "node scripts/policy-dry-run.mjs --pack matchboard-default",
     "workbench:dry-run": "node scripts/workbench-dry-run.mjs"
   },
   "dependencies": {

@@ -1,0 +1,12 @@
+{
+  "id": "custom-example",
+  "name": "Custom Example Rego Policy",
+  "version": "0.1.0",
+  "description": "Example custom policy pack demonstrating equal opportunity weighting, goalkeeper coverage, event pool exclusion, and league period fairness rules.",
+  "entrypoint": "custom/selection/decision",
+  "regoDirectory": "rego",
+  "compiledWasm": "compiled/custom_selection.wasm",
+  "fixturesDirectory": "fixtures",
+  "runtime": "opa-wasm",
+  "schemaVersion": 1
+}

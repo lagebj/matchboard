@@ -23,7 +23,8 @@ import type {
   PlayerSimulationParticipation,
   RoundCoverageSummary,
 } from "./simulation-types";
-import { getPolicyVersion } from "@/lib/policies/policy-version";
+import { getPolicyVersion, getPolicyArtifactHash } from "@/lib/policies/policy-version";
+import { getActivePackId, loadPackMetadata } from "@/lib/policies/policy-pack";
 import { isRegoEnabled } from "@/lib/policies/rego-policy-adapter";
 import type { SelectionRole } from "@/generated/prisma/client";
 
@@ -49,10 +50,17 @@ export async function runSeasonSimulation(
     flags: [] as SimulationFairnessSignal[],
   };
 
+  const regoEnabledFlag = isRegoEnabled();
+  const activePackId = regoEnabledFlag ? getActivePackId() : null;
+  const activePackMetadata = activePackId ? loadPackMetadata(activePackId) : null;
+
   const policySummary: SimulationPolicySummary = {
     policyVersion: getPolicyVersion(),
-    regoEnabled: request.policyMode === "default_plus_rego" && isRegoEnabled(),
-    regoAvailable: isRegoEnabled(),
+    policyPackId: activePackId,
+    policyPackVersion: activePackMetadata?.version ?? null,
+    artifactHash: getPolicyArtifactHash(),
+    regoEnabled: request.policyMode === "default_plus_rego" && regoEnabledFlag,
+    regoAvailable: regoEnabledFlag,
     decisionTypes: request.includeLeague
       ? ["league_match_selection", "league_round_fairness"]
       : [],

@@ -59,19 +59,40 @@ The composite pipeline merges results from all layers. Core invariants take abso
 
 ## Files and directories
 
+### Policy packs (primary)
+
+Policy packs are the primary way to manage Rego policies. Each pack is a self-contained directory with metadata, source, compiled Wasm, and test fixtures.
+
 | Path | Purpose |
 |------|---------|
-| `policies/rego/matchboard_selection.rego` | Main Rego policy source (the active custom policy) |
-| `policies/rego/matchboard_selection_test.rego` | Rego tests for the active custom policy |
+| `policies/packs/matchboard-default/policy-pack.json` | Default pack metadata |
+| `policies/packs/matchboard-default/rego/matchboard_selection.rego` | Default Rego policy source |
+| `policies/packs/matchboard-default/rego/matchboard_selection_test.rego` | Default Rego policy tests |
+| `policies/packs/matchboard-default/compiled/matchboard_selection.wasm` | Default compiled Wasm artifact |
+| `policies/packs/matchboard-default/fixtures/` | Default pack test fixtures |
+| `policies/packs/custom-example/` | Example custom policy pack |
+| `src/lib/policies/policy-pack.ts` | Pack discovery, validation, resolution, diagnostics |
+| `scripts/build-opa-policy.mjs` | Build script (supports `--pack <id>`) |
+| `scripts/policy-validate.mjs` | Pack metadata and structure validation |
+| `scripts/policy-list.mjs` | List discovered packs |
+
+### Legacy flat structure (backward-compatible)
+
+| Path | Purpose |
+|------|---------|
+| `policies/rego/matchboard_selection.rego` | Legacy Rego policy source (still supported) |
+| `policies/rego/matchboard_selection_test.rego` | Legacy Rego tests |
 | `policies/rego/examples/` | Example policies for admins to copy and adapt |
 | `policies/rego/custom/` | Directory for custom instance policies |
-| `policies/compiled/matchboard_selection.wasm` | Compiled Wasm artifact (deployed alongside the app) |
-| `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm |
-| `scripts/policy-dry-run.mjs` | Dry-run utility for policy evaluation |
-| `test/fixtures/policies/` | Anonymized test fixtures for dry-run validation |
+| `policies/compiled/matchboard_selection.wasm` | Legacy compiled Wasm artifact (fallback when no pack is active) |
+
+### Runtime and evaluation
+
+| Path | Purpose |
+|------|---------|
 | `src/lib/policies/policy-evaluation.ts` | Evaluation helpers: filter, adjust, format coach-facing reasons |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals |
-| `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking |
+| `src/lib/policies/policy-version.ts` | Policy version tracking (delegates to pack system) |
 | `src/lib/policies/policy-decision-log.ts` | Decision summary builder for audit logging |
 | `src/app/api/admin/policy/route.ts` | Admin diagnostics endpoint |
 
@@ -82,17 +103,81 @@ The composite pipeline merges results from all layers. Core invariants take abso
 - Whether Rego is enabled
 - Rego failure mode
 - Policy version and artifact hash
+- Active policy pack id, version, and name (when Rego is enabled)
+- Pack validation errors and warnings
 - Whether the Wasm artifact is loaded
-- Last evaluation timestamp
-- Blocked/warning/adjustment counts from last evaluation
 
 No player personal data is included in diagnostics output.
 
-The active Rego policy is loaded from the Wasm artifact at the path configured by `MATCHBOARD_POLICY_WASM_PATH` (default: `policies/compiled/matchboard_selection.wasm`).
+When `MATCHBOARD_POLICY_REGO_ENABLED=true`, the active policy pack is resolved from `MATCHBOARD_POLICY_PACK_ID` (default: `matchboard-default`). The Wasm path is resolved from the pack's `policy-pack.json` unless `MATCHBOARD_POLICY_WASM_PATH` explicitly overrides it.
 
 ## Creating a custom policy
 
-### Step-by-step workflow
+### Using a policy pack (recommended)
+
+1. **Create a pack directory** under `policies/packs/<your-pack-id>/`
+
+2. **Add `policy-pack.json`** with required metadata:
+
+   ```json
+   {
+     "id": "my-custom-policy",
+     "name": "My Custom Policy",
+     "version": "1.0.0",
+     "description": "Custom policy for my instance",
+     "entrypoint": "my_custom/selection/decision",
+     "regoDirectory": "rego",
+     "compiledWasm": "compiled/my_custom_selection.wasm",
+     "fixturesDirectory": "fixtures",
+     "runtime": "opa-wasm",
+     "schemaVersion": 1
+   }
+   ```
+
+   The `id` must match the directory name. Forbidden keys: `rules`, `conditions`, `effects`, `operators`.
+
+3. **Place Rego policy files** in `policies/packs/<your-pack-id>/rego/`
+
+   The policy must use a unique package name and export a `decision` rule.
+
+4. **Validate pack metadata**:
+
+   ```bash
+   npm run policy:validate -- --pack <your-pack-id>
+   ```
+
+5. **Write tests** alongside your Rego source (e.g., `rego/my_custom_selection_test.rego`)
+
+6. **Run Rego tests**:
+
+   ```bash
+   npm run policy:test:pack
+   ```
+
+7. **Compile policy to Wasm**:
+
+   ```bash
+   npm run policy:build -- --pack <your-pack-id>
+   ```
+
+8. **Dry-run the policy** against a fixture:
+
+   ```bash
+   npm run policy:dry-run -- --pack <your-pack-id> <fixture-name>
+   ```
+
+9. **Enable and select the pack** by setting environment variables:
+
+   ```bash
+   MATCHBOARD_POLICY_REGO_ENABLED=true
+   MATCHBOARD_POLICY_PACK_ID=<your-pack-id>
+   ```
+
+10. **Run the full test suite and build**, then commit source and compiled artifact.
+
+### Legacy workflow (backward-compatible)
+
+The legacy flat structure is still supported for existing deployments.
 
 1. **Copy an example policy** from `policies/rego/examples/` to `policies/rego/matchboard_selection.rego`
 
@@ -174,8 +259,10 @@ No OPA server, custom server, or sidecar is needed.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MATCHBOARD_POLICY_REGO_ENABLED` | `false` | Set to `true` to enable custom Rego policy evaluation |
-| `MATCHBOARD_POLICY_WASM_PATH` | `policies/compiled/matchboard_selection.wasm` | Path to the compiled Wasm artifact |
+| `MATCHBOARD_POLICY_PACK_ID` | `matchboard-default` | Which policy pack to load. Must match a directory under `policies/packs/`. |
+| `MATCHBOARD_POLICY_WASM_PATH` | *(pack-resolved)* | Path to the compiled Wasm artifact. When set, overrides the pack-resolved path. When not set, the Wasm path is resolved from the active pack's `policy-pack.json`. |
 | `MATCHBOARD_POLICY_REGO_FAILURE_MODE` | `fail_closed` | `fail_closed` (error on failure) or `fail_open` (continue with default policy only) |
+| `MATCHBOARD_POLICY_PACKS_DIR` | `policies/packs` | Override the packs directory (advanced, usually not needed) |
 
 Set these in your Vercel project environment variables or your local `.env` file.
 
@@ -184,9 +271,26 @@ Set these in your Vercel project environment variables or your local `.env` file
 Required checks before deployment:
 
 ```bash
-npm run policy:test
-npm run policy:build
-npm run policy:dry-run -- test/fixtures/policies/event-selection-input.json
+# Rego tests
+npm run policy:test           # Legacy Rego tests
+npm run policy:test:pack     # Pack-based Rego tests
+
+# Build
+npm run policy:build                      # Legacy build (no --pack flag)
+npm run policy:build:pack                 # Build matchboard-default pack
+
+# Validate
+npm run policy:validate -- --pack <pack-id>  # Validate a specific pack
+npm run policy:validate                     # Validate all packs
+
+# Dry-run
+npm run policy:dry-run -- <fixture-path>                      # Legacy dry-run
+npm run policy:dry-run -- --pack <pack-id> <fixture-name>     # Pack dry-run
+
+# List packs
+npm run policy:list
+
+# Full validation
 npm run lint
 npm run typecheck
 npm test
