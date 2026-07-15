@@ -187,38 +187,53 @@ function main() {
   }
 
   const messages = getCommitMessagesSinceBase();
+
+  // Find the base version from main
+  const base = getMergeBase();
+  let baseVersion = "0.1.0";
+  if (base) {
+    try {
+      const basePkgContent = execSync(`git show ${base}:package.json`, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+      const basePkg = JSON.parse(basePkgContent);
+      baseVersion = basePkg.version || "0.1.0";
+    } catch {
+      baseVersion = "0.1.0";
+    }
+  }
+
   const bumpType = calculateBump(messages, majorLock);
-  const newVersion = applyBump(currentVersion, bumpType, majorLock);
+  const expectedVersion = applyBump(baseVersion, bumpType, majorLock);
 
   if (isDryRun) {
+    console.log(`[dry-run] Base version: ${baseVersion}`);
     console.log(`[dry-run] Current version: ${currentVersion}`);
     console.log(`[dry-run] Calculated bump: ${bumpType}`);
-    console.log(`[dry-run] New version would be: ${newVersion}`);
+    console.log(`[dry-run] Expected version: ${expectedVersion}`);
     console.log(`[dry-run] Major lock: ${majorLock}`);
     console.log(`[dry-run] Commits analyzed: ${messages.length}`);
     return;
   }
 
   if (isVerify) {
-    if (currentVersion === newVersion) {
-      console.log(`Version ${currentVersion} is correct (bump: ${bumpType}).`);
+    if (currentVersion === expectedVersion) {
+      console.log(`Version ${currentVersion} is correct (expected: ${expectedVersion}, bump: ${bumpType}).`);
       return;
     }
-    console.error(`Version mismatch: current=${currentVersion}, expected=${newVersion} (bump: ${bumpType}).`);
+    console.error(`Version mismatch: current=${currentVersion}, expected=${expectedVersion} (bump: ${bumpType}).`);
     console.error(`Run scripts/version-sync.mjs to update.`);
     process.exit(1);
   }
 
-  if (currentVersion === newVersion) {
+  if (currentVersion === expectedVersion) {
     console.log(`Version ${currentVersion} is already up to date. No changes.`);
     syncVersionModule(currentVersion);
     return;
   }
 
-  pkg.version = newVersion;
+  pkg.version = expectedVersion;
   writeJson(PKG_PATH, pkg);
-  syncVersionModule(newVersion);
-  console.log(`Version updated: ${currentVersion} → ${newVersion} (bump: ${bumpType})`);
+  syncVersionModule(expectedVersion);
+  console.log(`Version updated: ${currentVersion} → ${expectedVersion} (bump: ${bumpType})`);
 
   syncPackageLock();
   console.log("package-lock.json synced.");
