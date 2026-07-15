@@ -1851,16 +1851,21 @@ Avoid:
 | `src/lib/insights/opportunity-matrix-helpers.ts` | Pure helper functions for role-to-status mapping (testable without server-only) |
 | `src/lib/insights/load-timeline.ts` | `getLoadTimeline()` — player × round load timeline with actual/helper/planned statuses |
 | `src/lib/insights/load-timeline-helpers.ts` | Pure helper functions for load cell classification and attention flags |
+| `src/lib/insights/squad-coverage.ts` | `getSquadCoverage()` — goalkeeper and position coverage per squad with warnings |
+| `src/lib/insights/squad-coverage-helpers.ts` | Pure helper functions for GK classification, position classification, coverage warnings |
 | `src/lib/insights/insights-overview.ts` | `getInsightOverview()` — aggregate insight summary counts |
 | `src/app/api/insights/opportunity/route.ts` | GET `/api/insights/opportunity` — opportunity matrix API |
 | `src/app/api/insights/overview/route.ts` | GET `/api/insights/overview` — insight overview API |
 | `src/app/api/insights/load/route.ts` | GET `/api/insights/load` — load timeline API |
+| `src/app/api/insights/coverage/route.ts` | GET `/api/insights/coverage` — squad coverage API |
 | `src/app/(app)/insights/page.tsx` | Insights overview page |
 | `src/app/(app)/insights/insights-client.tsx` | Insights overview client component |
 | `src/app/(app)/insights/opportunity/page.tsx` | Opportunity Matrix page |
 | `src/app/(app)/insights/opportunity/opportunity-matrix-client.tsx` | Opportunity Matrix interactive client component |
 | `src/app/(app)/insights/load/page.tsx` | Load Timeline page |
 | `src/app/(app)/insights/load/load-timeline-client.tsx` | Load Timeline interactive client component |
+| `src/app/(app)/insights/coverage/page.tsx` | Squad Coverage page |
+| `src/app/(app)/insights/coverage/squad-coverage-client.tsx` | Squad Coverage interactive client component |
 
 ## Stale references removed
 
