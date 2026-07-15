@@ -1812,6 +1812,19 @@ Avoid:
 | `src/app/(app)/matches/lineup-actions.ts` | Server actions: create lineup, assign/remove player, toggle lock, confirm, archive, revert, bench |
 | `src/app/(app)/matches/suggest-actions.ts` | Server actions: suggest formation, suggest lineup, apply, clear, fill |
 
+### Simulation files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/simulation/simulation-types.ts` | Simulation request/result types, fairness signals, conflict types, participation types |
+| `src/lib/simulation/simulation-service.ts` | `runSeasonSimulation()` — dry-run league simulation using real generation engine |
+| `src/lib/simulation/simulation-event-service.ts` | `simulateEvent()` — dry-run event squad simulation using `generateEventSquads` |
+| `src/lib/simulation/simulation-context-builder.ts` | `buildLeagueSimulationContext()` — load DB data for league simulation |
+| `src/lib/simulation/simulation-fairness.ts` | `computeSimulationFairness()`, `detectGkCoverageGaps()` — fairness flag detection |
+| `src/lib/simulation/simulation-conflicts.ts` | `detectSimulationConflicts()`, `detectGkConflicts()`, `detectUnavailablePlayerConflicts()` |
+| `src/app/api/simulation/run/route.ts` | POST `/api/simulation/run` — simulation API endpoint |
+| `src/app/(app)/simulation/page.tsx` | Simulation UI page |
+
 ## Stale references removed
 
 - `docs/domain.md` — deleted, do not reference

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -38,8 +38,8 @@ Create Season Planning Simulation — a dry-run planning service that simulates 
 
 - `simulation-types.ts` — Request/result types, fairness flags, conflict types
 - `simulation-context-builder.ts` — Assembles league season context (teams, players, availabilities, rotation paths, history, matches) for simulation input
-- `simulate-league-rounds.ts` — Simulates league round generation across a horizon using `generateMatchRound` logic in dry-run mode
-- `simulate-event.ts` — Simulates event squad generation and helper feasibility
+- `simulation-service.ts` — `runSeasonSimulation()` — calls `generateMatchRound` for each non-finalized round in dry-run mode, assembles fairness/conflict/participation results
+- `simulation-event-service.ts` — `simulateEvent()` — calls `generateEventSquads` for dry-run event squad simulation
 - `simulation-fairness.ts` — Computes longitudinal fairness signals from simulated results + committed history
 - `simulation-conflicts.ts` — Detects player overlaps, GK conflicts, position coverage gaps, and event/league time conflicts
 - `simulation-service.ts` — Orchestrates simulation scope, calls appropriate sub-services, assembles result
