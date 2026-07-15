@@ -67,7 +67,7 @@ export async function addPlayerToDraftMatch(
   }
 
   if (match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot edit a match in a finalized round."], warnings };
+    return { success: false, errors: ["Cannot edit a match in a finalised round."], warnings };
   }
 
   const player = await db.player.findUnique({
@@ -251,7 +251,7 @@ export async function removePlayerFromDraftMatch(
   }
 
   if (selection.match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot remove a player from a match in a finalized round."], warnings };
+    return { success: false, errors: ["Cannot remove a player from a match in a finalised round."], warnings };
   }
 
   await db.selection.delete({
@@ -303,7 +303,7 @@ export async function changeDraftPlayerRole(
   }
 
   if (selection.match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot change role in a finalized round."], warnings };
+    return { success: false, errors: ["Cannot change role in a finalised round."], warnings };
   }
 
   if (selection.role === newRole) {

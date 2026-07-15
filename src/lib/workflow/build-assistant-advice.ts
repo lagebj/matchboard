@@ -61,10 +61,10 @@ export function buildAssistantAdvice(
     canFinalize: draftMatches.length > 0 && unresolvedWarnings.length === 0,
     reason:
       draftMatches.length === 0
-        ? "No draft matches to finalize"
+        ? "No draft matches to finalise"
         : unresolvedWarnings.length > 0
           ? `${unresolvedWarnings.length} unresolved blocker warning${unresolvedWarnings.length === 1 ? "" : "s"}`
-          : "Ready to finalize",
+          : "Ready to finalise",
     draftMatchCount: draftMatches.length,
     finalizedMatchCount: finalizedMatches.length,
     totalMatchCount: matches.length,
@@ -162,7 +162,7 @@ export function buildAssistantAdvice(
     cards.push({
       category: "decisions_needed",
       title: `${draftMatches.length} draft match${draftMatches.length === 1 ? "" : "es"} need review`,
-      recommendation: "Review the draft selection, check warnings, and finalize when ready.",
+      recommendation: "Review the draft selection, check warnings, and finalise when ready.",
       risk: "Leaving drafts unresolved blocks downstream planning for subsequent rounds.",
       alternative: "Regenerate drafts if availability has changed since the last generation.",
       consequence: "Drafts left in limbo delay match preparation and communication to families.",
@@ -192,7 +192,7 @@ export function buildAssistantAdvice(
         cat === "decisions_needed" ? "Decisions needed" :
         cat === "fairness_flags" ? "Fairness flags" :
         cat === "team_burden" ? "Team burden" :
-        "Finalization status";
+        "Finalisation status";
 
       cards.push({
         category: cat,

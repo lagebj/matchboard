@@ -641,6 +641,8 @@ model OpponentEncounterObservation {
   opponentStaffContext     MatchEnvironmentObservation @default(NOT_ASSESSED)
   spectatorSidelineContext MatchEnvironmentObservation @default(NOT_ASSESSED)
   concernCategories        OpponentConcernCategory[]
+  sportingLevel            Decimal?                    @db.Decimal(3, 1)
+  sportingLevelNote        String?
   factualSummary           String?
   followUp                 OpponentObservationFollowUp @default(NONE)
   recordedBy               String?

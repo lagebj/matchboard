@@ -23,7 +23,7 @@ export async function editFinalizedSelection(
   if (!changeReason || changeReason.trim().length === 0) {
     return {
       success: false,
-      error: "A reason is required when editing a finalized selection.",
+      error: "A reason is required when editing a finalised selection.",
     };
   }
 
@@ -52,7 +52,7 @@ export async function editFinalizedSelection(
   if (selection.status !== SelectionStatus.FINALIZED) {
     return {
       success: false,
-      error: "Only finalized selections require an audit reason for editing.",
+      error: "Only finalised selections require an audit reason for editing.",
     };
   }
 

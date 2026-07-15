@@ -50,9 +50,9 @@ export async function finalizeRoundAction(formData: FormData) {
   if (!result.success) {
     const queryParams: Record<string, string> = {};
     if (result.needsOverride) {
-      queryParams.error = "Override reason required: provide a reason to finalize despite Blocked conditions.";
+      queryParams.error = "Override reason required: provide a reason to finalise despite Blocked conditions.";
     } else {
-      queryParams.error = "Finalization failed.";
+      queryParams.error = "Finalisation failed.";
     }
     redirect(buildPathWithSearch(`/rounds/${matchRoundId}`, queryParams));
   }
@@ -147,12 +147,12 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
     revalidatePath(`/matches/${matchId}`);
 
     if (!result.success) {
-      return { error: result.needsOverride ? "Override reason required" : "Finalization failed" };
+      return { error: result.needsOverride ? "Override reason required" : "Finalisation failed" };
     }
 
     return { error: "" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Finalization failed." };
+    return { error: error instanceof Error ? error.message : "Finalisation failed." };
   }
 }
 
@@ -175,7 +175,7 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
 
     return { error: "" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+    return { error: error instanceof Error ? error.message : "Un-finalise failed." };
   }
 }
 
@@ -206,7 +206,7 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
 
     return { error: "" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+    return { error: error instanceof Error ? error.message : "Un-finalise failed." };
   }
 }
 

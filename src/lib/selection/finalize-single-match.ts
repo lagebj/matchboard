@@ -55,7 +55,7 @@ export async function finalizeSingleMatch(
   if (match.matchRound.status === "FINALIZED") {
     return {
       success: false,
-      warnings: ["This match is already in a finalized round."],
+      warnings: ["This match is already in a finalised round."],
       hardBlocked: true,
       needsOverride: false,
       finalizedSelectionCount: 0,
@@ -67,7 +67,7 @@ export async function finalizeSingleMatch(
   if (match.status === "CANCELLED") {
     return {
       success: false,
-      warnings: ["Cancelled matches cannot be finalized. Reopen the match first."],
+      warnings: ["Cancelled matches cannot be finalised. Reopen the match first."],
       hardBlocked: true,
       needsOverride: false,
       finalizedSelectionCount: 0,

@@ -34,7 +34,7 @@ const statusConfig: Record<RoundStatus, StatusConfig> = {
   DRAFT: { label: "Draft", icon: FilePenLine, variant: "warning" },
   BLOCKED: { label: "Blocked", icon: OctagonAlert, variant: "danger" },
   READY: { label: "Ready", icon: CheckCircle2, variant: "success" },
-  FINALIZED: { label: "Finalized", icon: FileCheck, variant: "finalized" },
+  FINALIZED: { label: "Finalised", icon: FileCheck, variant: "finalized" },
 };
 
 export function StatusBadge({ status }: { status: RoundStatus }) {

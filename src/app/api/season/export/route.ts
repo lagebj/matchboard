@@ -266,7 +266,7 @@ export async function GET(request: NextRequest) {
 
     sections.push(`# ${leagueSeason.name} — Season Export`);
     sections.push(`Period: ${formatDate(leagueSeason.startDate)} — ${formatDate(leagueSeason.endDate)}`);
-    sections.push(`Finalized rounds: ${roundIds.length}`);
+    sections.push(`Finalised rounds: ${roundIds.length}`);
     sections.push("");
 
     sections.push("## Selections");
@@ -322,7 +322,7 @@ export async function GET(request: NextRequest) {
     const lines: string[] = [];
     lines.push(`${leagueSeason.name}`);
     lines.push(`Period: ${formatDate(leagueSeason.startDate)} — ${formatDate(leagueSeason.endDate)}`);
-    lines.push(`Finalized rounds: ${roundIds.length}`);
+    lines.push(`Finalised rounds: ${roundIds.length}`);
     lines.push("");
     lines.push("=== SQUADS ===");
     lines.push("");
@@ -389,7 +389,7 @@ export async function GET(request: NextRequest) {
   const md: string[] = [];
   md.push(`# ${leagueSeason.name} — Season Export`);
   md.push(`**Period:** ${formatDate(leagueSeason.startDate)} — ${formatDate(leagueSeason.endDate)}`);
-  md.push(`**Finalized rounds:** ${roundIds.length}`);
+  md.push(`**Finalised rounds:** ${roundIds.length}`);
   md.push("");
 
   md.push("## Squads");

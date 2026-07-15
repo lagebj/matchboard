@@ -17,7 +17,7 @@ export function ExportPanel() {
   return (
     <div className="rounded-[1.75rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-        Export Finalized Selections
+        Export Finalised Selections
       </p>
       <h3 className="mt-2 text-lg font-semibold text-zinc-50">Download history</h3>
 

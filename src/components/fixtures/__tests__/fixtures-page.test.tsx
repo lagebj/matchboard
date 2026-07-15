@@ -168,7 +168,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Finalize in board")).toBeInTheDocument();
+      expect(screen.getByText("Finalise in board")).toBeInTheDocument();
     });
   });
 

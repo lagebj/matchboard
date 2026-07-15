@@ -652,7 +652,7 @@ function buildLineupsSheet(
         });
       }
     } else if (!formation) {
-      const noLineupRow = ws.addRow(['', 'No starting lineup planned']);
+      const noLineupRow = ws.addRow(['', 'No starting line-up planned']);
       noLineupRow.getCell(2).font = { size: 10, italic: true, color: { argb: 'FF9CA3AF' } };
     }
 

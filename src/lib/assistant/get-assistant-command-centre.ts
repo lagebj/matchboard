@@ -253,7 +253,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
               matchRoundId: round.id,
               matchId: match.id,
               title: `${round.name} — Post-match report missing`,
-              summary: "This finalized match has no post-match report recorded.",
+              summary: "This finalised match has no post-match report recorded.",
               primaryActionLabel: "Record report",
               primaryActionHref: `/matches/${match.id}`,
               affectedTeamIds: match.teamId ? [match.teamId] : [],

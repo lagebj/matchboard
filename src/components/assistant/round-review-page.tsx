@@ -80,8 +80,8 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
         </div>
         <p className="text-[11px] text-zinc-400 mt-1">
           {review.finalizeable
-            ? "This round is ready to finalize."
-            : "Finalization requires override reason for unresolved conditions."}
+            ? "This round is ready to finalise."
+            : "Finalisation requires override reason for unresolved conditions."}
         </p>
       </div>
 
@@ -116,7 +116,7 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
           entityType="ROUND"
           entityId={review.roundId}
           action="FINALIZE"
-          actionLabel="Finalize round"
+          actionLabel="Finalise round"
           reasonRequired={false}
         />
       ) : (

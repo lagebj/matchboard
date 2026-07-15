@@ -40,7 +40,7 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
   }
 
   if (leagueSeason.status === "FINALIZED") {
-    return { success: false, error: "League season is already finalized." };
+    return { success: false, error: "League season is already finalised." };
   }
 
   if (leagueSeason.periodSnapshot) {
@@ -130,7 +130,7 @@ export async function unfinalizeLeagueSeason(leagueSeasonId: string): Promise<{ 
   }
 
   if (leagueSeason.status !== "FINALIZED") {
-    return { success: false, error: "League season is not finalized." };
+    return { success: false, error: "League season is not finalised." };
   }
 
   await db.leagueSeason.update({

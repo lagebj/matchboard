@@ -69,7 +69,7 @@ export function ConfirmFinalizeDialog({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Finalize round"
+      title="Finalise round"
       size="lg"
       footer={
         <>
@@ -82,7 +82,7 @@ export function ConfirmFinalizeDialog({
             onClick={handleConfirm}
             disabled={!overrideValid || isSubmitting}
           >
-            {isSubmitting ? "Finalizing…" : "Finalize round"}
+            {isSubmitting ? "Finalising…" : "Finalise round"}
           </Button>
         </>
       }
@@ -114,7 +114,7 @@ export function ConfirmFinalizeDialog({
               {blockedCount === 1 ? "condition" : "conditions"}
             </>
           }
-          description="An override reason is required to finalize."
+          description="An override reason is required to finalise."
         />
       )}
 
@@ -137,7 +137,7 @@ export function ConfirmFinalizeDialog({
                 : "decisions need review"}
             </>
           }
-          description="An override reason is required to finalize."
+          description="An override reason is required to finalise."
         />
       )}
 

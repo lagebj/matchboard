@@ -65,11 +65,11 @@ export function RulesForm({
 
       <RuleSection
         title="Match Spacing"
-        description="Minimum spacing between finalized appearances for the same player."
+        description="Minimum spacing between finalised appearances for the same player."
       >
         <NumberField
           defaultValue={rules.minDaysBetweenAnyMatches}
-          description="Minimum full-day gap required between any finalized matches for the same player."
+          description="Minimum full-day gap required between any finalised matches for the same player."
           label="Min days between matches"
           name="minDaysBetweenAnyMatches"
         />

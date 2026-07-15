@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Matchboard",
-  description: "Squad planning and rotation planning for youth football.",
+  description: "Squad selection and match-round planning for youth football.",
   manifest: "/brand/site.webmanifest",
 };
 

@@ -207,12 +207,12 @@ export async function fixtureFinalizeRoundAction(prevState: { error: string; nee
     revalidatePath(`/rounds/${roundId}`);
 
     if (!result.success) {
-      return { error: result.needsOverride ? "Override reason required" : "Finalization failed", needsOverride: result.needsOverride };
+      return { error: result.needsOverride ? "Override reason required" : "Finalisation failed", needsOverride: result.needsOverride };
     }
 
     return { error: "" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Finalization failed." };
+    return { error: error instanceof Error ? error.message : "Finalisation failed." };
   }
 }
 
@@ -238,7 +238,7 @@ export async function fixtureUnfinalizeRoundAction(prevState: { error: string },
 
     return { error: "" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+    return { error: error instanceof Error ? error.message : "Un-finalise failed." };
   }
 }
 

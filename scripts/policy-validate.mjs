@@ -3,14 +3,16 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const PACKS_DIR = join(process.cwd(), "policies", "packs");
+const REPO_ROOT = join(import.meta.dirname, "..");
+const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
+const EXAMPLES_PACKS_DIR = join(REPO_ROOT, "policies", "examples", "packs");
 
 const FORBIDDEN_KEYS = ["rules", "conditions", "effects", "operators"];
 const REQUIRED_STRING_FIELDS = ["id", "name", "version", "entrypoint", "regoDirectory", "compiledWasm", "fixturesDirectory"];
 const REQUIRED_FIELDS = [...REQUIRED_STRING_FIELDS, "description", "runtime", "schemaVersion"];
 
-function validatePack(packId) {
-  const packDir = join(PACKS_DIR, packId);
+function validatePack(packId, baseDir) {
+  const packDir = join(baseDir, packId);
   const metadataPath = join(packDir, "policy-pack.json");
   const errors = [];
   const warnings = [];
@@ -58,6 +60,8 @@ function validatePack(packId) {
     }
   }
 
+  const isDeployable = metadata.deployable === true;
+
   if (errors.length > 0) {
     return { valid: false, packId, errors, warnings };
   }
@@ -74,7 +78,13 @@ function validatePack(packId) {
 
   const wasmPath = resolve(packDir, metadata.compiledWasm);
   if (!existsSync(wasmPath)) {
-    warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:build -- --pack ${packId}' to compile.`);
+    if (isDeployable) {
+      warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:sync' to compile deployable packs.`);
+    } else {
+      warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Example packs do not need compiled Wasm.`);
+    }
+  } else if (isDeployable && !metadata.wasmHash) {
+    warnings.push("Deployable pack has compiled Wasm but no wasmHash. Run 'npm run policy:sync' to update hashes.");
   }
 
   const fixturesDir = resolve(packDir, metadata.fixturesDirectory);
@@ -94,54 +104,60 @@ function validatePack(packId) {
     }
   }
 
-  return { valid: errors.length === 0, packId, errors, warnings };
+  return { valid: errors.length === 0, packId, deployable: isDeployable, errors, warnings };
+}
+
+function validatePacksInDir(baseDir, label) {
+  if (!existsSync(baseDir)) return [];
+
+  const entries = readdirSync(baseDir, { withFileTypes: true });
+  return entries
+    .filter((d) => d.isDirectory() && existsSync(join(baseDir, d.name, "policy-pack.json")))
+    .map((d) => d.name);
 }
 
 function validateAll() {
-  if (!existsSync(PACKS_DIR)) {
-    console.log("No packs directory found.");
-    return;
+  const args = process.argv.slice(2);
+  let targetPackId = null;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--pack" && args[i + 1]) {
+      targetPackId = args[i + 1];
+      break;
+    }
   }
 
-  const entries = readdirSync(PACKS_DIR, { withFileTypes: true });
-  const packIds = entries
-    .filter((d) => d.isDirectory() && existsSync(join(PACKS_DIR, d.name, "policy-pack.json")))
-    .map((d) => d.name);
-
-  if (packIds.length === 0) {
-    console.log("No policy packs found.");
-    return;
-  }
-
-  const targetPackId = process.argv[2] === "--pack" ? process.argv[3] : null;
-  const targets = targetPackId ? [targetPackId] : packIds;
+  const deployablePackIds = validatePacksInDir(PACKS_DIR, "deployable");
+  const examplePackIds = validatePacksInDir(EXAMPLES_PACKS_DIR, "example");
 
   let allValid = true;
 
-  for (const packId of targets) {
-    console.log(`\nValidating pack: ${packId}`);
-    const result = validatePack(packId);
-
-    if (result.errors.length > 0) {
-      console.error("  ERRORS:");
-      for (const e of result.errors) {
-        console.error(`    ✗ ${e}`);
-      }
-      allValid = false;
+  if (targetPackId) {
+    console.log(`\nValidating pack: ${targetPackId}`);
+    const baseDir = existsSync(join(PACKS_DIR, targetPackId)) ? PACKS_DIR :
+                    existsSync(join(EXAMPLES_PACKS_DIR, targetPackId)) ? EXAMPLES_PACKS_DIR : null;
+    if (!baseDir) {
+      console.error(`Pack '${targetPackId}' not found in deployable or example packs.`);
+      process.exit(1);
     }
+    const result = validatePack(targetPackId, baseDir);
+    reportResult(result);
+    if (!result.valid) process.exit(1);
+    return;
+  }
 
-    if (result.warnings.length > 0) {
-      console.log("  WARNINGS:");
-      for (const w of result.warnings) {
-        console.log(`    ⚠ ${w}`);
-      }
-    }
+  for (const packId of deployablePackIds) {
+    console.log(`\nValidating deployable pack: ${packId}`);
+    const result = validatePack(packId, PACKS_DIR);
+    reportResult(result);
+    if (!result.valid) allValid = false;
+  }
 
-    if (result.valid) {
-      console.log(`  ✓ Pack '${packId}' is valid.`);
-    } else {
-      console.error(`  ✗ Pack '${packId}' has validation errors.`);
-    }
+  for (const packId of examplePackIds) {
+    console.log(`\nValidating example pack: ${packId}`);
+    const result = validatePack(packId, EXAMPLES_PACKS_DIR);
+    reportResult(result);
+    if (!result.valid) allValid = false;
   }
 
   if (!allValid) {
@@ -149,6 +165,32 @@ function validateAll() {
   }
 
   console.log("\nAll validated packs passed.");
+}
+
+function reportResult(result) {
+  if (result.errors.length > 0) {
+    console.error("  ERRORS:");
+    for (const e of result.errors) {
+      console.error(`    ✗ ${e}`);
+    }
+  }
+
+  if (result.warnings.length > 0) {
+    console.log("  WARNINGS:");
+    for (const w of result.warnings) {
+      console.log(`    ⚠ ${w}`);
+    }
+  }
+
+  if (result.deployable !== undefined) {
+    console.log(`  Deployable: ${result.deployable ? "YES" : "NO"}`);
+  }
+
+  if (result.valid) {
+    console.log(`  ✓ Pack '${result.packId}' is valid.`);
+  } else {
+    console.error(`  ✗ Pack '${result.packId}' has validation errors.`);
+  }
 }
 
 validateAll();

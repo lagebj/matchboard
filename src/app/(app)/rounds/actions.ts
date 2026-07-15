@@ -36,7 +36,7 @@ export async function finalizeRoundFromListAction(formData: FormData) {
   revalidatePath("/fixtures");
 
   if (!result.success) {
-    return { error: result.needsOverride ? "Override reason required" : "Finalization failed" };
+    return { error: result.needsOverride ? "Override reason required" : "Finalisation failed" };
   }
 
   return { error: "" };
@@ -215,7 +215,7 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 
     return { error: "" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Un-finalize failed." };
+    return { error: error instanceof Error ? error.message : "Un-finalise failed." };
   }
 }
 

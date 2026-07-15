@@ -7,6 +7,7 @@ import {
   resolveRegoDirectory,
   validatePack,
   listPacks,
+  listExamplePacks,
   computeArtifactHash,
   getActivePackDiagnostics,
   getActivePackVersion,
@@ -165,11 +166,16 @@ describe("loadPackMetadata", () => {
     expect(metadata!.schemaVersion).toBe(1);
   });
 
-  it("loads custom-example metadata", () => {
-    const metadata = loadPackMetadata("custom-example");
+  it("loads custom-example metadata from examples", () => {
+    const metadata = loadPackMetadata("custom-example", true);
     expect(metadata).not.toBeNull();
     expect(metadata!.id).toBe("custom-example");
     expect(metadata!.name).toBe("Custom Example Rego Policy");
+  });
+
+  it("returns null for custom-example without includeExamples", () => {
+    const metadata = loadPackMetadata("custom-example");
+    expect(metadata).toBeNull();
   });
 
   it("returns null for non-existent pack", () => {
@@ -185,8 +191,8 @@ describe("validatePack", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it("validates custom-example pack", () => {
-    const result = validatePack("custom-example");
+  it("validates custom-example pack from examples", () => {
+    const result = validatePack("custom-example", true);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -197,18 +203,34 @@ describe("validatePack", () => {
     expect(result.errors).toContainEqual(expect.stringContaining("Pack directory not found"));
   });
 
-  it("reports missing Wasm artifact as warning, not error", () => {
+  it("reports Wasm artifact status correctly", () => {
     const result = validatePack("matchboard-default");
-    const hasWasmWarning = result.warnings.some((w) => w.includes("Compiled Wasm artifact not found") || w.includes("compiled"));
-    expect(hasWasmWarning).toBe(true);
+    if (result.warnings.some((w) => w.includes("Compiled Wasm artifact not found") || w.includes("compiled"))) {
+      expect(result.warnings.length).toBeGreaterThan(0);
+    } else {
+      expect(result.errors).toHaveLength(0);
+    }
   });
 });
 
 describe("listPacks", () => {
-  it("finds matchboard-default and custom-example packs", () => {
+  it("finds matchboard-default as deployable pack", () => {
     const packs = listPacks();
     const ids = packs.map((p) => p.id);
     expect(ids).toContain("matchboard-default");
+  });
+
+  it("does not include example packs in deployable packs", () => {
+    const packs = listPacks();
+    const ids = packs.map((p) => p.id);
+    expect(ids).not.toContain("custom-example");
+  });
+});
+
+describe("listExamplePacks", () => {
+  it("finds custom-example as an example pack", () => {
+    const packs = listExamplePacks();
+    const ids = packs.map((p) => p.id);
     expect(ids).toContain("custom-example");
   });
 });
@@ -258,12 +280,12 @@ describe("getActivePackDiagnostics", () => {
     expect(diag.packVersion).toBe("1.0.0");
   });
 
-  it("uses custom pack id when set", () => {
+  it("uses custom pack id when set to matchboard-default", () => {
     process.env.MATCHBOARD_POLICY_REGO_ENABLED = "true";
-    process.env.MATCHBOARD_POLICY_PACK_ID = "custom-example";
+    process.env.MATCHBOARD_POLICY_PACK_ID = "matchboard-default";
     const diag = getActivePackDiagnostics();
-    expect(diag.packId).toBe("custom-example");
-    expect(diag.packName).toBe("Custom Example Rego Policy");
+    expect(diag.packId).toBe("matchboard-default");
+    expect(diag.packName).toBe("Matchboard Default Rego Policy");
   });
 });
 

@@ -1,0 +1,15 @@
+{
+  "version": "0.70.0",
+  "platforms": {
+    "darwin-arm64": "opa_darwin_arm64_static",
+    "darwin-x64": "opa_darwin_amd64",
+    "linux-arm64": "opa_linux_arm64_static",
+    "linux-x64": "opa_linux_amd64"
+  },
+  "checksums": {
+    "opa_darwin_arm64_static": "267608fe41dba91fb23e2a69a439cb2a39710b3a069a828c744bd99bb3f94508",
+    "opa_darwin_amd64": "7827172827c6c7763fd36dd72052c318a6beb18f7b907c5e67d847bb557af1a1",
+    "opa_linux_arm64_static": "48061407a2d7b0b59440fc3a257e7bb251e9ec62f6ce7b1e45c142263ae24413",
+    "opa_linux_amd64": "2879c01f1e5762f28e27c9f81b4035bd5f532753f18c2c6dcbc2943347cc6ea5"
+  }
+}

@@ -27,7 +27,7 @@ export async function setMatchdayResponsibility(
   }
 
   if (selection.status === "FINALIZED") {
-    throw new Error("Cannot modify matchday responsibility on a finalized selection");
+    throw new Error("Cannot modify matchday responsibility on a finalised selection");
   }
 
   return db.selection.update({

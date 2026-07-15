@@ -147,7 +147,7 @@ const STATUS_PILL_CONFIG: Record<string, { label: string; variant: StatusPillVar
   DRAFT: { label: "Draft", variant: "warning" },
   BLOCKED: { label: "Blocked", variant: "danger" },
   READY: { label: "Ready", variant: "success" },
-  FINALIZED: { label: "Finalized", variant: "finalized" },
+  FINALIZED: { label: "Finalised", variant: "finalized" },
 };
 
 const POST_MATCH_PILL: Record<string, { label: string; variant: StatusPillVariant }> = {
@@ -472,22 +472,22 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {finalized && (
               <DecisionBanner
                 variant="finalized"
-                title="Match finalized"
-                description={roundFinalized ? "Entire round finalized." : undefined}
+                 title="Match finalised"
+                 description={roundFinalized ? "Entire round finalised." : undefined}
               />
             )}
 
             {matchFinalized && !finalized && (
               <DecisionBanner
                 variant="finalized"
-                title="This match is finalized."
+                 title="This match is finalised."
               />
             )}
 
             {roundFinalizedFlag && !finalized && !matchFinalized && (
               <DecisionBanner
                 variant="finalized"
-                title="This round is finalized."
+                 title="This round is finalised."
                 action={
                   <Button as={Link} href={`/rounds/${match.matchRoundId}`} variant="ghost" size="sm">
                     View round
@@ -499,7 +499,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {canFinalize && (
               <Surface padding="md">
                 <SectionHeader
-                  title="Finalize match"
+                   title="Finalise match"
                   description={`Lock selections. ${match.selections.length} of ${match.squadSize} players selected.`}
                 />
                 {hasOverrideWarnings && (
@@ -546,13 +546,13 @@ export function MatchDetail({ match }: { match: MatchData }) {
                       });
                     }}
                   >
-                    {isPending ? "Finalizing…" : "Finalize this match"}
+                    {isPending ? "Finalising…" : "Finalise this match"}
                   </Button>
                   <Link
                     href={`/rounds/${match.matchRoundId}`}
                     className="text-center text-xs text-[var(--accent-strong)] hover:underline"
                   >
-                    Finalize entire round instead
+                    Finalise entire round instead
                   </Link>
                 </div>
               </Surface>

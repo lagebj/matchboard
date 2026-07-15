@@ -192,7 +192,7 @@ describe("Matchday Responsibility Actions", () => {
 
       const result = await setMatchdayResponsibilityAction(selection.id, "STABILIZER");
       expect(result.success).toBe(false);
-      expect(result.error).toContain("finalized");
+      expect(result.error).toContain("finalised");
     });
   });
 
