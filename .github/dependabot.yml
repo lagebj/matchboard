@@ -17,6 +17,14 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
 
+    ignore:
+    # TypeScript 7 uses the new native compiler and is not yet supported by
+    # Next.js' compiler integration or the current typescript-eslint toolchain.
+    # Remove this restriction once both officially support TypeScript 7.
+      - dependency-name: "typescript"
+        versions:
+          - ">=7" 
+
     groups:
       # Keep the tightly coupled Next.js and React packages aligned.
       next-react:
