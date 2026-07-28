@@ -1,0 +1,105 @@
+version: 2
+
+updates:
+  # Application dependencies from package.json/package-lock.json
+  - package-ecosystem: "npm"
+    directory: "/"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+
+    open-pull-requests-limit: 6
+
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+    groups:
+      # Keep the tightly coupled Next.js and React packages aligned.
+      next-react:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "babel-plugin-react-compiler"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Prisma packages should normally move together.
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Auth.js packages are coupled, particularly while next-auth is beta.
+      authentication:
+        patterns:
+          - "next-auth"
+          - "@auth/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Consolidate remaining routine production updates.
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Consolidate linting, testing and build-tool updates.
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Images referenced by docker-compose.yml
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:15"
+      timezone: "Europe/Oslo"
+
+    open-pull-requests-limit: 2
+
+    commit-message:
+      prefix: "chore(deps)"
+
+    groups:
+      container-images:
+        patterns:
+          - "*"
+
+  # Actions referenced from .github/workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:30"
+      timezone: "Europe/Oslo"
+
+    open-pull-requests-limit: 3
+
+    commit-message:
+      prefix: "chore(deps)"
+
+    groups:
+      github-actions:
+        patterns:
+          - "*"
