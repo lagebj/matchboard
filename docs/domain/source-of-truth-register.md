@@ -233,5 +233,5 @@ Fields and structures identified as potential duplicate or legacy sources. These
 | `Team.minSupportCount` / `minSupportPlayers` divergence | Audit detects | No unification yet | Low |
 | `PlayerPosition` table vs `Player.primaryPosition` | Table never read, sync logic writes both | Remove table writes or make table canonical | Medium |
 | `CoachingIntentScopeType.PLANNING_PERIOD` | Legacy enum value | Rename to `LEAGUE_SEASON` | Medium |
-| Missing unique constraint on Selection (playerId, matchRoundId) | Application enforces but DB does not | Add partial unique index | Critical |
+| Missing unique constraint on Selection (playerId, matchRoundId) | Application enforced but DB did not | Partial unique index added (2026-07-29) | Critical — **Resolved** |
 | String-typed enum fields | No DB constraint on valid values | Migrate to proper enums | Medium |

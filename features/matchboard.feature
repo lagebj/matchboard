@@ -6621,3 +6621,198 @@ Feature: Matchboard football operations workspace
       When the coach attempts to cancel the match
       Then the cancellation must be rejected
       And the match status must remain unchanged
+
+  # --- Security baseline ---
+
+  Feature: Security baseline
+
+    Matchboard is a private coaching app. Auth is mandatory. Every operation is denied by default.
+    IDs, slugs, hidden form fields, URLs, and client-supplied values are never authority.
+
+    Rule: Authentication is mandatory
+
+      Scenario: Unauthenticated user cannot access app data
+        Given a user has not signed in
+        When the user attempts to access any protected route or server action
+        Then the app must redirect to sign-in
+        And no protected data must be returned
+
+      Scenario: Authenticated but non-allowlisted user sees access denied
+        Given a user is authenticated with Google OAuth
+        And the user's email is not on the coach allowlist
+        When the user attempts to access any protected route or server action
+        Then the app must deny access with a 403 error
+        And no protected data must be returned
+
+      Scenario: Coach access requires verified membership
+        Given a user is authenticated and on the allowlist
+        When the user calls a data-reading or data-writing server action
+        Then the action must call requireCoachAccess() before accessing data
+        And actions that skip requireCoachAccess() must fail closed
+
+    Rule: Deny by default
+
+      Scenario: Server actions deny access without explicit authorisation
+        Given any server action that reads or writes protected data
+        When the action is invoked
+        Then the action must verify the caller has coach access
+        And the action must not rely on client-side checks alone
+
+      Scenario: API routes deny access without explicit authorisation
+        Given any API route that serves protected data
+        When the route is called
+        Then the route must verify the caller has coach access
+        And the route must not rely on URL obscurity or hidden fields
+
+    Rule: Input validation
+
+      Scenario: Critical mutation routes validate input with Zod schemas
+        Given a coach sends a request to finalize-round, populate-all, clear-match, clear-round, or generate-round
+        When the request body contains invalid or unexpected fields
+        Then the route must reject the request with a 400 error
+        And must not process the invalid input
+
+      Scenario: Input schemas reject unknown fields
+        Given a coach sends a request with extra unknown fields
+        When the input validation schema processes the request
+        Then unknown fields must be stripped or rejected
+
+    Rule: Safe error handling
+
+      Scenario: Error responses do not expose internal details
+        Given an authenticated coach triggers a server error
+        When the error response is returned
+        Then the response must not include raw error messages or stack traces
+        And must use safeErrorResponse to hide internal details from non-coach users
+
+      Scenario: Authentication errors use structured types
+        Given a user without coach access calls a protected action
+        When the action checks authorisation
+        Then the action must throw AuthenticationError for 401 cases
+        And must throw AuthorizationError for 403 cases
+        And these errors must integrate with safeErrorResponse
+
+    Rule: Rate limiting
+
+      Scenario: Critical API routes enforce rate limits
+        Given a coach makes requests to finalize-round, populate-all, clear-match, clear-round, or generate-round
+        When the rate limit is exceeded
+        Then the route must return a 429 status
+        And must not process further requests until the limit resets
+
+    Rule: Security headers
+
+      Scenario: All responses include security headers
+        Given any HTTP response from the app
+        When the response is returned
+        Then the response must include X-Frame-Options DENY
+        And X-Content-Type-Options nosniff
+        And Referrer-Policy strict-origin-when-cross-origin
+        And Permissions-Policy restricting camera, microphone, and geolocation
+
+      Scenario: CSP is deployed in report-only mode
+        Given any HTML response from the app
+        When the Content-Security-Policy-Report-Only header is present
+        Then violations must be logged to /api/csp-report
+        And enforcement must not be active unless CSP_ENFORCE is set to true
+
+    Rule: Session security
+
+      Scenario: JWT session lifetime is limited
+        Given a coach has an authenticated session
+        Then the session must expire after 24 hours
+        And the session must be updated after 4 hours of inactivity
+        And sessions must not persist indefinitely
+
+  # --- Data integrity constraints ---
+
+  Feature: Data integrity constraints
+
+    The database enforces business rules at the data layer to prevent corruption.
+
+    Rule: Player availability is unique per player per match round
+
+      Scenario: Duplicate availability record is rejected by database
+        Given player "p1" has an availability record for match round "R1"
+        When a second availability record is created for the same player and round
+        Then the database must reject the duplicate with a unique constraint violation
+
+    Rule: Rotation path is unique per direction and role
+
+      Scenario: Duplicate rotation path is rejected by database
+        Given Team A has an active SUPPORT rotation path to Team B
+        When a second SUPPORT rotation path from Team A to Team B is created
+        Then the database must reject the duplicate with a unique constraint violation
+
+    Rule: Draft selection uniqueness
+
+      Scenario: A player cannot have two active draft selections in the same match round
+        Given player "p1" has a DRAFT selection for match round "R1"
+        When a second DRAFT selection is created for "p1" in "R1"
+        Then the database must reject the duplicate with a unique constraint violation
+        And this must be treated as an integrity blocker, not a normal planning option
+
+    Rule: Team squad size constraints
+
+      Scenario: Minimum squad size cannot exceed maximum
+        Given a team is created with minimum accepted squad size 12
+        And maximum squad size 10
+        Then the database must reject the team configuration
+
+      Scenario: Target squad size must be between minimum and maximum
+        Given a team is created with target squad size 8
+        And minimum accepted squad size 9
+        Then the database must reject the team configuration
+
+    Rule: League season date constraints
+
+      Scenario: League season end date must be after start date
+        Given a league season with startDate January 1, 2026
+        And endDate December 31, 2025
+        Then the database must reject the league season
+
+    Rule: Player rating constraints
+
+      Scenario: Player rating must be between 1 and 10 or null
+        Given a player exists
+        When the coach sets a player attribute rating to 0
+        Then the database must reject the value
+        When the coach sets a player attribute rating to 11
+        Then the database must reject the value
+        When the coach sets a player attribute rating to null
+        Then the database must accept null as "not rated"
+
+  # --- Finalization transaction integrity ---
+
+  Feature: Finalization transaction integrity
+
+    Critical mutations must be atomic. Warning creation during finalization must not create orphaned data if the transaction fails.
+
+    Rule: Warning creation is atomic with finalization
+
+      Scenario: Warning creation during round finalization is inside the transaction
+        Given match round "R1" has draft selections with non-core movement
+        And some non-core selections lack movement ledger entries
+        When the coach finalizes round "R1"
+        Then missing ledger warnings must be created inside the same transaction as the selection status change
+        And if the finalization transaction fails, the warnings must not be persisted
+
+      Scenario: Warning creation during match finalization is inside the transaction
+        Given match "M1" has draft selections with non-core movement
+        And some non-core selections lack movement ledger entries
+        When the coach finalizes match "M1"
+        Then missing ledger warnings must be created inside the same transaction as the selection status change
+        And if the finalization transaction fails, the warnings must not be persisted
+
+    Rule: Finalization is idempotent
+
+      Scenario: Finalizing an already-finalized round is a no-op
+        Given match round "R1" has been finalized
+        When the coach attempts to finalize round "R1" again
+        Then the app must return a result indicating no draft selections found
+        And must not create duplicate warnings or ledger entries
+
+      Scenario: Finalizing an already-finalized match is rejected
+        Given match "M1" is in a finalized round
+        When the coach attempts to finalize match "M1"
+        Then the app must reject the finalization with a message that the match is already finalized

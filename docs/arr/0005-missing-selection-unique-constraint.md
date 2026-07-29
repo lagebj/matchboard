@@ -2,9 +2,13 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
+
+2026-07-29
+
+## Resolved
 
 2026-07-29
 
@@ -74,3 +78,7 @@ None
 ### 2026-07-29
 
 Record created from IMPROVE-0A database assessment.
+
+### 2026-07-29
+
+Resolved. Partial unique index `Selection_playerId_matchRoundId_draft_key` added via migration `20260729120000_add_critical_unique_constraints`. Also added unique constraints on `Availability(playerId, matchRoundId)` and `RotationPath(fromTeamId, toTeamId, role)`, and CHECK constraints on Team squad sizes, LeagueSeason dates, and Player rating fields.

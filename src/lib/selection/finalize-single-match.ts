@@ -171,6 +171,7 @@ export async function finalizeSingleMatch(
     allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
   }
 
+  const ledgerKeys = new Set<string>();
   if (allNonCorePlayerKeys.size > 0) {
     const existingLedgerEntries = await db.movementLedger.findMany({
       where: {
@@ -182,13 +183,21 @@ export async function finalizeSingleMatch(
         matchId: true,
       },
     });
+    for (const e of existingLedgerEntries) {
+      ledgerKeys.add(`${e.playerId}:${e.matchId}`);
+    }
+  }
 
-    const ledgerKeys = new Set(existingLedgerEntries.map((e) => `${e.playerId}:${e.matchId}`));
+  const currentRuleConfigVersion = rules.version;
+  const matchRoundId = match.matchRoundId;
 
+  let roundAutoFinalized = false;
+
+  await db.$transaction(async (tx) => {
     for (const key of allNonCorePlayerKeys) {
       if (!ledgerKeys.has(key)) {
         const [playerId, mId] = key.split(":");
-        await db.warning.create({
+        await tx.warning.create({
           data: {
             matchRoundId: match.matchRoundId,
             matchId: mId,
@@ -201,14 +210,7 @@ export async function finalizeSingleMatch(
         });
       }
     }
-  }
 
-  const currentRuleConfigVersion = rules.version;
-  const matchRoundId = match.matchRoundId;
-
-  let roundAutoFinalized = false;
-
-  await db.$transaction(async (tx) => {
     await tx.selection.updateMany({
       where: {
         matchId,

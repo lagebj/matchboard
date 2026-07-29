@@ -227,6 +227,11 @@ model Selection {
   matchRound             MatchRound                  @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   player                 Player                      @relation(fields: [playerId], references: [id], onDelete: Restrict)
   audits                 SelectionAudit[]
+
+  @@index([matchRoundId, status])
+  @@index([matchId, status])
+  @@index([playerId, matchRoundId])
+  @@index([playerId])
 }
 
 model RotationPath {
