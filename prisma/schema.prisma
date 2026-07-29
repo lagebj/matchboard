@@ -203,6 +203,8 @@ model Availability {
   createdAt    DateTime   @default(now())
   matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([playerId, matchRoundId])
 }
 
 model Selection {
@@ -245,6 +247,8 @@ model RotationPath {
   movementCandidates      MovementCandidate[]
   fromTeam                Team                @relation("FromTeam", fields: [fromTeamId], references: [id])
   toTeam                  Team                @relation("ToTeam", fields: [toTeamId], references: [id])
+
+  @@unique([fromTeamId, toTeamId, role])
 }
 
 model MovementLedger {
