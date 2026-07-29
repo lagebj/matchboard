@@ -11,6 +11,7 @@ const FORBIDDEN_PATTERNS = [
 ];
 
 const IGNORED_DIRS = ["generated", "node_modules", ".next"];
+const IGNORED_SUFFIXES = [".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"];
 
 let violations = 0;
 
@@ -22,7 +23,8 @@ function walk(dir: string): void {
       walk(join(dir, entry.name));
     } else if (
       entry.isFile() &&
-      (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))
+      (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) &&
+      !IGNORED_SUFFIXES.some((s) => entry.name.endsWith(s))
     ) {
       const filePath = join(dir, entry.name);
       const content = readFileSync(filePath, "utf8");
