@@ -6,6 +6,22 @@ cd "$workspace"
 
 chmod +x .devcontainer/*.sh
 
+# Local containers load the repository's ignored .env into every interactive
+# shell. Codespaces uses GitHub Codespaces secrets instead.
+if [[ "${CODESPACES:-false}" != "true" ]]; then
+  shell_init="$HOME/.bashrc"
+  marker='# Matchboard local development environment'
+
+  if ! grep -Fq "$marker" "$shell_init" 2>/dev/null; then
+    {
+      echo
+      echo "$marker"
+      printf 'export MATCHBOARD_WORKSPACE=%q\n' "$workspace"
+      echo 'source "$MATCHBOARD_WORKSPACE/.devcontainer/load-local-env.sh"'
+    } >> "$shell_init"
+  fi
+fi
+
 echo "[devcontainer] Synchronising OpenCode agent skills..."
 bash .devcontainer/sync-agent-skills.sh --required
 
