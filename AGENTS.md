@@ -31,6 +31,68 @@ All coding-agent work must follow the working-session contract.
 
 For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the domain rules in this AGENTS.md are mandatory.
 
+## Security rules
+
+Every operation is denied by default and receives only the verified actor, tenant, input, data, network and dependency capabilities it needs.
+
+### Invariant
+
+One business operation, one owning implementation, multiple adapters.
+
+Routes, server actions, API handlers, Assistant actions, exports, jobs and simulation runners may adapt input and output. They must not independently implement common domain behaviour.
+
+### Mandatory security assessment for every change
+
+Before adding or changing an operation, determine and verify:
+
+1. who may call it
+2. which organisation and resource it may affect
+3. which input is trusted and which is hostile
+4. which data may leave the process
+5. which external systems it may contact
+6. which secrets it needs
+7. what must be logged without exposing sensitive data
+8. what negative and abuse cases must fail
+9. whether the change affects the threat model, ASVS mapping, ADRs or ARRs
+
+### Security rules
+
+- Authentication is not authorisation. IDs, slugs, hidden form fields, URLs and client-supplied organisation values are never authority.
+- Authorisation is server-side and deny-by-default.
+- Tenant-owned operations require trusted context.
+- Sensitive operations re-check current membership and role.
+- Input schemas and bounds are required on every server mutation.
+- Output is minimised and encoded for its destination.
+- Unsafe raw SQL methods (`$queryRawUnsafe`, `$executeRawUnsafe`) and SQL string concatenation are forbidden in application code.
+- Outbound HTTP is centralised and destination-allowlisted.
+- External AI payloads are centrally projected and sanitised.
+- Secrets never enter Git, logs, fixtures, reports or public environment variables.
+- Caches, jobs, exports and files are tenant-aware.
+- Audit logs exclude sensitive payloads.
+- New dependencies and GitHub Actions require security review.
+- Security tests include negative and abuse cases.
+- Controls cannot be weakened to make tests pass.
+- Ordinary users cannot be restricted by IP, VPN or country as a normal access model.
+- Visible friction is reserved for high-risk privileged operations.
+
+### Security finding, ARR and ADR boundaries
+
+- Security finding: a specific vulnerability or failed control.
+- ARR: a verified structural mismatch between intended architecture and current implementation.
+- ADR: a decision, including deliberate deferral or accepted risk.
+
+Do not create an ARR for every vulnerability. Do not use an ADR as a backlog item.
+
+### Provider configuration workflow
+
+When code changes require Vercel, Neon, GitHub or other provider settings:
+
+- automate only through existing safe authenticated tooling
+- otherwise create or update durable provider desired-state documentation in the repository
+- record an exact external action in the programme state while active
+- never claim completion without evidence
+- never document secret values
+
 Supporting documentation must be updated before implementation whenever behavior, UX, routes, schema, domain contracts, or workflow changes.
 
 Every branch must remove stale/dead/unused artifacts related to the change.
