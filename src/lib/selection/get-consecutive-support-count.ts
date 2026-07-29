@@ -11,43 +11,47 @@ export async function getConsecutiveSupportCount(
   playerId: string,
   currentMatchDate: Date,
 ): Promise<ConsecutiveSupportResult> {
-  const [allSelections, reportedReports] = await Promise.all([
-    db.selection.findMany({
-      where: {
-        playerId,
-        status: SelectionStatus.FINALIZED,
-        match: {
-          startsAt: {
-            lt: currentMatchDate,
-          },
+  const allSelections = await db.selection.findMany({
+    where: {
+      playerId,
+      status: SelectionStatus.FINALIZED,
+      match: {
+        startsAt: {
+          lt: currentMatchDate,
         },
       },
-      select: {
-        matchRoundId: true,
-        matchId: true,
-        role: true,
-        match: {
-          select: {
-            startsAt: true,
-          },
+    },
+    select: {
+      matchRoundId: true,
+      matchId: true,
+      role: true,
+      match: {
+        select: {
+          startsAt: true,
         },
       },
-      orderBy: {
-        match: {
-          startsAt: "desc",
+    },
+    orderBy: {
+      match: {
+        startsAt: "desc",
+      },
+    },
+  });
+
+  const matchIds = allSelections.map((s) => s.matchId);
+
+  const reportedReports = matchIds.length > 0
+    ? await db.postMatchReport.findMany({
+        where: {
+          matchId: { in: matchIds },
+          status: { in: ["REPORTED", "LOCKED"] },
         },
-      },
-    }),
-    db.postMatchReport.findMany({
-      where: {
-        status: { in: ["REPORTED", "LOCKED"] },
-      },
-      select: {
-        id: true,
-        matchId: true,
-      },
-    }),
-  ]);
+        select: {
+          id: true,
+          matchId: true,
+        },
+      })
+    : [];
 
   const reportedMatchRoundMap = new Map<string, string>();
   const reportedReportIds: string[] = [];

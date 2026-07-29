@@ -99,15 +99,6 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     .filter((r) => r.status === "FINALIZED")
     .flatMap((r) => r.matches.map((m) => m.id));
 
-  const existingReports = finalizedMatchIds.length > 0
-    ? new Set(
-        (await db.postMatchReport.findMany({
-          where: { matchId: { in: finalizedMatchIds } },
-          select: { matchId: true },
-        })).map((r) => r.matchId),
-      )
-    : new Set<string>();
-
   const reportStatuses = finalizedMatchIds.length > 0
     ? new Map(
         (await db.postMatchReport.findMany({
@@ -116,6 +107,8 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
         })).map((r) => [r.matchId, r]),
       )
     : new Map<string, { matchId: string; status: string; playerActuals: { attendanceStatus: string }[] }>();
+
+  const existingReports = new Set(reportStatuses.keys());
 
   const items: AssistantWorkItem[] = [];
   let hasUngenerated = false;

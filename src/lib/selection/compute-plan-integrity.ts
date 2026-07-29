@@ -129,20 +129,14 @@ export async function computeRoundPlanIntegrity(
   const selectedPlayerIds = new Set(allSelections.map((s) => s.playerId));
 
   const playerAvailabilityMap = new Map<string, string>();
-  const playerActiveMap = new Map<string, boolean>();
 
   const activePlayers = await db.player.findMany({
     where: { removedAt: null },
     select: { id: true, firstName: true, lastName: true, coreTeamId: true, availabilities: true, removedAt: true },
   });
 
+  const playerActiveMap = new Map<string, boolean>();
   for (const p of activePlayers) {
-    const latestAvailability = await db.availability.findFirst({
-      where: { playerId: p.id, matchRoundId },
-      orderBy: { createdAt: "desc" },
-      select: { status: true },
-    });
-    playerAvailabilityMap.set(p.id, latestAvailability?.status ?? "UNKNOWN");
     playerActiveMap.set(p.id, true);
   }
 
@@ -154,7 +148,7 @@ export async function computeRoundPlanIntegrity(
     );
   }
 
-  // Per-team availability for this round
+  // Bulk availability for this round — replaces per-player N+1 loop
   const roundAvailabilities = await db.availability.findMany({
     where: { matchRoundId },
     select: { playerId: true, status: true },
@@ -162,6 +156,11 @@ export async function computeRoundPlanIntegrity(
   const availabilityMap = new Map<string, string>();
   for (const a of roundAvailabilities) {
     availabilityMap.set(a.playerId, a.status);
+  }
+
+  // Build player availability map from bulk query instead of per-player findFirst
+  for (const p of activePlayers) {
+    playerAvailabilityMap.set(p.id, availabilityMap.get(p.id) ?? "UNKNOWN");
   }
 
   // 1. SQUAD_BELOW_MINIMUM: one signal per affected match
@@ -287,20 +286,42 @@ export async function computeRoundPlanIntegrity(
         select: { id: true, name: true },
       });
 
+      // Batch fetch earlier round selections and availabilities instead of per-player per-round queries
+      const earlierRoundIds = earlierRounds.map((er) => er.id);
+      const [earlierSelections, earlierAvailabilities] = await Promise.all([
+        db.selection.findMany({
+          where: {
+            playerId: { in: unassignedEligibleAvailable },
+            matchRoundId: { in: earlierRoundIds },
+            status: { in: ["DRAFT", "FINALIZED"] },
+          },
+          select: { playerId: true, matchRoundId: true },
+        }),
+        db.availability.findMany({
+          where: {
+            playerId: { in: unassignedEligibleAvailable },
+            matchRoundId: { in: earlierRoundIds },
+          },
+          select: { playerId: true, matchRoundId: true, status: true },
+        }),
+      ]);
+
+      const earlierSelectionSet = new Set(
+        earlierSelections.map((s) => `${s.playerId}|${s.matchRoundId}`),
+      );
+      const earlierAvailabilityMap = new Map<string, string>();
+      for (const a of earlierAvailabilities) {
+        earlierAvailabilityMap.set(`${a.playerId}|${a.matchRoundId}`, a.status);
+      }
+
       let missedEarlierCount = 0;
       const missedLabels: string[] = [];
 
       for (const er of earlierRounds) {
-        const earlierSelection = await db.selection.findFirst({
-          where: { playerId: player.id, matchRoundId: er.id, status: { in: ["DRAFT", "FINALIZED"] } },
-          select: { id: true },
-        });
-        const earlierAvail = await db.availability.findFirst({
-          where: { playerId: player.id, matchRoundId: er.id },
-          select: { status: true },
-        });
+        const hadSelection = earlierSelectionSet.has(`${player.id}|${er.id}`);
+        const earlierAvail = earlierAvailabilityMap.get(`${player.id}|${er.id}`);
 
-        if (!earlierSelection && earlierAvail?.status === "AVAILABLE") {
+        if (!hadSelection && earlierAvail === "AVAILABLE") {
           missedEarlierCount++;
           missedLabels.push(er.name);
         }
