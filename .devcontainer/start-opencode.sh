@@ -63,6 +63,20 @@ echo "Starting OpenCode Web"
 echo "Workspace: $workspace"
 echo "Model: $model"
 
+# OpenCode Web always attempts to launch a local browser.
+# Codespaces is headless, so provide a harmless xdg-open implementation.
+headless_bin="${XDG_RUNTIME_DIR:-/tmp}/matchboard-headless-bin"
+mkdir -p "$headless_bin"
+
+cat > "$headless_bin/xdg-open" <<'EOF'
+#!/usr/bin/env bash
+echo "Browser launch suppressed in headless environment: $*" >&2
+exit 0
+EOF
+
+chmod +x "$headless_bin/xdg-open"
+export PATH="$headless_bin:$PATH"
+
 exec opencode web \
   --hostname 0.0.0.0 \
   --port 4096
