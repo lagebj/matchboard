@@ -30,13 +30,13 @@ install_dependencies() {
 
   if [[ -f package-lock.json ]]; then
     echo "Installing dependencies with npm ci..."
-    npm ci
+    npm ci --include=dev
     return
   fi
 
   if [[ -f package.json ]]; then
     echo "No supported lockfile found; running npm install..."
-    npm install
+    npm install --include=dev
     return
   fi
 
