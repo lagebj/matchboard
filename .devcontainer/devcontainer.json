@@ -3,8 +3,8 @@
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "NODE_VARIANT": "22-bookworm",
-      "OPENCODE_VERSION": "1.18.7"
+      "NODE_VARIANT": "24-bookworm",
+      "OPENCODE_VERSION": "1.18.8"
     }
   },
   "features": {
@@ -33,9 +33,9 @@
     }
   },
   "containerEnv": {
-    "OPENCODE_SERVER_USERNAME": "lage",
-    "OLLAMA_MODEL": "qwen3-coder:480b",
-    "OPENCODE_MODEL_CONTEXT": "262144",
+    "OPENCODE_SERVER_USERNAME": "lagebj",
+    "OLLAMA_MODEL": "glm-5.1:cloud",
+    "OPENCODE_MODEL_CONTEXT": "202752",
     "OPENCODE_MODEL_OUTPUT": "32768",
     "ADDY_AGENT_SKILLS_REF": "main",
     "LAGE_AGENT_SKILLS_REF": "main"
