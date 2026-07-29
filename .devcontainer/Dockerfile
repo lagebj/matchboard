@@ -1,5 +1,5 @@
-ARG NODE_VARIANT=22-bookworm
-FROM mcr.microsoft.com/devcontainers/javascript-node:1-${NODE_VARIANT}
+ARG NODE_VARIANT=24-bookworm
+FROM mcr.microsoft.com/devcontainers/javascript-node:${NODE_VARIANT}
 
 ARG OPENCODE_VERSION=1.18.8
 
