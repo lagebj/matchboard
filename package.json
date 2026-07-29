@@ -2,6 +2,9 @@
   "name": "matchboard",
   "version": "0.2.0",
   "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "postinstall": "cp -n .env.example .env 2>/dev/null; prisma generate",
     "dev": "next dev -p 3333",

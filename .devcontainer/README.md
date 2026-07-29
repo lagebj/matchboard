@@ -2,11 +2,11 @@
 
 This configuration provides:
 
-- Node.js 22 on Debian Bookworm.
+- Node.js 24 on Debian Bookworm.
 - Repository dependency installation using the committed npm, pnpm, or Yarn lockfile.
 - GitHub CLI, PostgreSQL client, `jq`, `ripgrep`, `lsof`, and process tools.
 - OpenCode Web on private forwarded port `4096`.
-- Matchboard development preview on private forwarded port `3000`.
+- Matchboard development preview on private forwarded port `3333`.
 - Direct Ollama Cloud access through the OpenAI-compatible API.
 - Automatic OpenCode startup whenever the Codespace starts and both required secrets exist.
 - Automatic installation and discovery of skills from:
@@ -63,14 +63,14 @@ Create these under **GitHub account settings → Codespaces → Secrets** and gr
 | `OLLAMA_API_KEY` | Authenticates OpenCode against Ollama Cloud. |
 | `OPENCODE_SERVER_PASSWORD` | Adds OpenCode authentication behind GitHub's private port authentication. |
 
-`OPENCODE_SERVER_USERNAME` defaults to `lage` and is not secret.
+`OPENCODE_SERVER_USERNAME` is not secret.
 
 Optional environment overrides:
 
 | Variable | Default |
 |---|---|
-| `OLLAMA_MODEL` | `qwen3-coder:480b` |
-| `OPENCODE_MODEL_CONTEXT` | `262144` |
+| `OLLAMA_MODEL` | `glm5.1:cloud` |
+| `OPENCODE_MODEL_CONTEXT` | `202752` |
 | `OPENCODE_MODEL_OUTPUT` | `32768` |
 
 Do not commit any secret value or put it in `devcontainer.json`.
@@ -81,8 +81,8 @@ Do not commit any secret value or put it in `devcontainer.json`.
 2. Create a new Codespace from the commit containing it, or rebuild an existing Codespace.
 3. Authorise the dev-container configuration when GitHub asks.
 4. Wait for `post-create.sh` to install skills and repository dependencies.
-5. Open the **Ports** panel and verify ports `3000` and `4096` remain **Private**.
-6. Open port `4096` from the Pixel and authenticate with the OpenCode username and password.
+5. Open the **Ports** panel and verify ports `3333` and `4096` remain **Private**.
+6. Open port `4096` from smart phone and authenticate with the OpenCode username and password.
 
 The skill repositories require no setup after the container has been created. OpenCode discovers and invokes matching skills automatically.
 
