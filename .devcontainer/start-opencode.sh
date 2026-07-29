@@ -60,31 +60,4 @@ cd "${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pw
 
 exec opencode web \
   --hostname 0.0.0.0 \
-  --port 4096        "external_directory": {($skills_root): "allow"},
-        "edit": {($skills_root): "deny"}
-      },
-      "provider": {
-        "ollama-cloud": {
-          "npm": "@ai-sdk/openai-compatible",
-          "name": "Ollama Cloud",
-          "options": {
-            "baseURL": "https://ollama.com/v1/",
-            "apiKey": "{env:OLLAMA_API_KEY}"
-          },
-          "models": {
-            ($model): {
-              "name": ("Ollama Cloud · " + $model),
-              "limit": {
-                "context": $context,
-                "output": $output
-              }
-            }
-          }
-        }
-      }
-    }'
-)"
-
-cd "${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-
-exec opencode web --hostname 0.0.0.0 --port 4096
+  --port 4096
