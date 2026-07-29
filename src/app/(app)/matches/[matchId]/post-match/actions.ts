@@ -4,6 +4,15 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason } from "@/generated/prisma/client";
+import {
+  VALID_UNPLANNED_APPEARANCE_REASONS,
+  DEFAULT_GOAL_TYPE,
+  DEFAULT_ASSIST_TYPE,
+  VALID_PLANNED_ABSENCE_REASONS,
+  isReportEditable,
+  isReportLocked,
+  hasUnknownAttendance,
+} from "@/lib/reports/report-domain";
 
 export type MatchReportDetail = {
   id: string;
