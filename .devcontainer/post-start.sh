@@ -20,21 +20,75 @@ if [[ -f "$pid_file" ]]; then
   rm -f "$pid_file"
 fi
 
-if [[ -z "${OLLAMA_API_KEY:-}" || -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
+if [[ -z "${OLLAMA_API_KEY:-}" ]]; then
   cat <<'MESSAGE'
-OpenCode Web was not started because required Codespaces secrets are missing.
-Add OLLAMA_API_KEY and OPENCODE_SERVER_PASSWORD, then restart the Codespace or run:
+OpenCode Web was not started because OLLAMA_API_KEY is missing.
+
+Add OLLAMA_API_KEY as a GitHub Codespaces secret, then restart the
+Codespace or run:
 
   bash .devcontainer/post-start.sh
 MESSAGE
   exit 0
 fi
 
-nohup bash .devcontainer/start-opencode.sh >"$log_file" 2>&1 </dev/null &
+nohup bash .devcontainer/start-opencode.sh \
+  >"$log_file" 2>&1 </dev/null &
 
 pid=$!
 echo "$pid" >"$pid_file"
 
+for _ in {1..30}; do
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "OpenCode Web failed to start. Inspect $log_file" >&2
+    rm -f "$pid_file"
+    exit 1
+  fi
+
+  if lsof -nP -iTCP:4096 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "OpenCode Web started on port 4096 with PID $pid."
+    echo "Log: $log_file"
+
+    workspace="${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel)}"
+
+    echo "Registering OpenCode project: $workspace"
+
+    projects="$(
+      curl \
+        --fail-with-body \
+        --silent \
+        --show-error \
+        http://127.0.0.1:4096/project
+    )"
+
+    if jq -e \
+      --arg worktree "$workspace" \
+      '.[] | select(.worktree == $worktree)' \
+      <<<"$projects" >/dev/null; then
+
+      echo "Matchboard is already registered with OpenCode."
+    else
+      curl \
+        --fail-with-body \
+        --silent \
+        --show-error \
+        -H "Content-Type: application/json" \
+        -H "x-opencode-directory: ${workspace}" \
+        -X POST \
+        http://127.0.0.1:4096/session \
+        -d '{"title":"Matchboard"}' \
+        >/dev/null
+
+      echo "Registered Matchboard with OpenCode."
+    fi
+
+    exit 0
+  fi
+
+  sleep 1
+done
+
+echo "OpenCode Web is still starting. Inspect $log_file if port 4096 does not appear."
 for _ in {1..30}; do
   if ! kill -0 "$pid" 2>/dev/null; then
     echo "OpenCode Web failed to start. Inspect $log_file" >&2
