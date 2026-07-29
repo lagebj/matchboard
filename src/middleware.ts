@@ -10,6 +10,8 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "on",
 };
 
+const PREVIEW_ALLOWLIST_ENV = process.env.PREVIEW_ALLOWLIST_EMAILS;
+
 function withSecurityHeaders(response: NextResponse): NextResponse {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
@@ -17,6 +19,10 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
   const csp = getContentSecurityPolicy();
   response.headers.set(csp.header, csp.value);
   return response;
+}
+
+function isPreviewDeployment(): boolean {
+  return process.env.VERCEL_ENV === "preview";
 }
 
 export default edgeAuth((req) => {
@@ -28,11 +34,27 @@ export default edgeAuth((req) => {
     path === "/favicon.ico" ||
     path === "/robots.txt" ||
     path === "/signin" ||
-    path === "/error";
+    path === "/error" ||
+    path.startsWith("/api/health");
 
   if (isPublic) {
     const response = NextResponse.next();
     return withSecurityHeaders(response);
+  }
+
+  if (isPreviewDeployment() && path.startsWith("/api/")) {
+    const previewAllowlist = (PREVIEW_ALLOWLIST_ENV || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const email = req.auth?.user?.email?.trim().toLowerCase();
+
+    if (!email || (previewAllowlist.length > 0 && !previewAllowlist.includes(email))) {
+      return withSecurityHeaders(
+        NextResponse.json({ error: "Preview deployment access restricted" }, { status: 403 }),
+      );
+    }
   }
 
   const email = req.auth?.user?.email;
