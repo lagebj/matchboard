@@ -56,7 +56,12 @@ OPENCODE_CONFIG_CONTENT="$(
     }'
 )"
 
-cd "${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+workspace="${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+cd "$workspace"
+
+echo "Starting OpenCode Web"
+echo "Workspace: $workspace"
+echo "Model: $model"
 
 exec opencode web \
   --hostname 0.0.0.0 \

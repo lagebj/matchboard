@@ -40,7 +40,9 @@ echo "$pid" >"$pid_file"
 
 for _ in {1..30}; do
   if ! kill -0 "$pid" 2>/dev/null; then
-    echo "OpenCode Web failed to start. Inspect $log_file" >&2
+    echo "OpenCode Web failed to start." >&2
+    echo "Log: $log_file" >&2
+    cat "$log_file" >&2
     rm -f "$pid_file"
     exit 1
   fi
@@ -88,58 +90,7 @@ for _ in {1..30}; do
   sleep 1
 done
 
-echo "OpenCode Web is still starting. Inspect $log_file if port 4096 does not appear."
-for _ in {1..30}; do
-  if ! kill -0 "$pid" 2>/dev/null; then
-    echo "OpenCode Web failed to start. Inspect $log_file" >&2
-    rm -f "$pid_file"
-    exit 1
-  fi
-
-  if lsof -nP -iTCP:4096 -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "OpenCode Web started on port 4096 with PID $pid."
-    echo "Log: $log_file"
-
-    workspace="${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel)}"
-    username="${OPENCODE_SERVER_USERNAME:-lagebj}"
-
-    echo "Registering OpenCode project: $workspace"
-
-    projects="$(
-      curl \
-        --fail-with-body \
-        --silent \
-        --show-error \
-        --user "${username}:${OPENCODE_SERVER_PASSWORD}" \
-        http://127.0.0.1:4096/project
-    )"
-
-    if jq -e \
-      --arg worktree "$workspace" \
-      '.[] | select(.worktree == $worktree)' \
-      <<<"$projects" >/dev/null; then
-
-      echo "Matchboard is already registered with OpenCode."
-    else
-      curl \
-        --fail-with-body \
-        --silent \
-        --show-error \
-        --user "${username}:${OPENCODE_SERVER_PASSWORD}" \
-        -H "Content-Type: application/json" \
-        -H "x-opencode-directory: ${workspace}" \
-        -X POST \
-        http://127.0.0.1:4096/session \
-        -d '{"title":"Matchboard"}' \
-        >/dev/null
-
-      echo "Registered Matchboard with OpenCode."
-    fi
-
-    exit 0
-  fi
-
-  sleep 1
-done
-
-echo "OpenCode Web is still starting. Inspect $log_file if port 4096 does not appear."
+echo "OpenCode Web did not start listening on port 4096." >&2
+echo "Log: $log_file" >&2
+cat "$log_file" >&2
+exit 1
