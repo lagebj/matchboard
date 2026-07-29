@@ -44,8 +44,9 @@
     "version:dry-run": "node scripts/version-sync.mjs --dry-run",
     "prebuild": "node scripts/sync-version-module.mjs",
     "terminology:check": "node scripts/check-terminology.mjs",
+    "security:check-sql": "npx tsx scripts/check-forbidden-sql.ts",
     "docs:check": "node scripts/check-docs.mjs",
-    "validate": "npm run lint && npm run typecheck && npm test && npm run build && npm run policy:verify && npm run version:verify && npm run terminology:check && npm run docs:check"
+    "validate": "npm run lint && npm run typecheck && npm test && npm run build && npm run policy:verify && npm run version:verify && npm run terminology:check && npm run security:check-sql && npm run docs:check"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
