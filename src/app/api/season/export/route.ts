@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole, formatReadinessSignalType } from "@/lib/match-utils";
 import { READINESS_VALUE_LABELS, type ReadinessSignalValue } from "@/lib/coaching/types";
@@ -39,6 +40,10 @@ function buildFilename(format: ExportFormat) {
 
 export async function GET(request: NextRequest) {
   await requireCoachAccess();
+  const rl = rateLimit("season:export", 5, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
+  }
   const { searchParams } = request.nextUrl;
   const leagueSeasonId = searchParams.get("leagueSeasonId");
   const format = getExportFormat(searchParams.get("format"));

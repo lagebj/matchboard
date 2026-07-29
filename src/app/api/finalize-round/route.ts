@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { rateLimit } from "@/lib/rate-limit";
 import { requireCoachAccess } from "@/lib/auth";
+import { finalizeRoundSchema } from "@/lib/security/validation";
+import { safeErrorResponse } from "@/lib/security/errors";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
-import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 
 export async function POST(request: Request) {
   await requireCoachAccess();
@@ -19,27 +20,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { matchRoundId, overrideReasonCategory, overrideReasonDetail } = (body ?? {}) as Record<string, unknown>;
-
-  if (!matchRoundId || typeof matchRoundId !== "string") {
-    return NextResponse.json(
-      { error: "matchRoundId is required." },
-      { status: 400 },
-    );
+  const parsed = finalizeRoundSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
   }
 
-  const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
-    ? overrideReasonCategory as OverrideReasonCategory
-    : undefined;
-  const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
-    ? overrideReasonDetail.trim()
-    : undefined;
+  const { matchRoundId, overrideReasonCategory, overrideReasonDetail } = parsed.data;
 
   try {
-    const result = await finalizeMatchRound(matchRoundId, category, detail);
+    const result = await finalizeMatchRound(
+      matchRoundId,
+      overrideReasonCategory as OverrideReasonCategory | undefined,
+      overrideReasonDetail,
+    );
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Finalisation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { error: message, statusCode } = safeErrorResponse(error);
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

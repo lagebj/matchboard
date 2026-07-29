@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   await requireCoachAccess();
+  const rl = rateLimit("season:path-detail", 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
+  }
   const { searchParams } = request.nextUrl;
   const fromTeamId = searchParams.get("fromTeamId");
   const toTeamId = searchParams.get("toTeamId");

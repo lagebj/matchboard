@@ -2,6 +2,8 @@ import { clearAllDraftSelections, clearRoundDraftSelection, clearMatchDraftSelec
 import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import { clearDraftSchema } from "@/lib/security/validation";
+import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
   await requireCoachAccess();
@@ -10,43 +12,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }
 
-  let body: { level: string; leagueSeasonId?: string; matchRoundId?: string; matchId?: string };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { level } = body;
+  const parsed = clearDraftSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
+  }
 
   try {
-    if (level === "all") {
-      if (!body.leagueSeasonId || typeof body.leagueSeasonId !== "string") {
-        return NextResponse.json({ error: "leagueSeasonId is required for clear all" }, { status: 400 });
-      }
-      const result = await clearAllDraftSelections(body.leagueSeasonId);
+    const data = parsed.data;
+    if (data.level === "all") {
+      const result = await clearAllDraftSelections(data.leagueSeasonId);
       return NextResponse.json({ level: "all", ...result });
     }
-
-    if (level === "round") {
-      if (!body.matchRoundId || typeof body.matchRoundId !== "string") {
-        return NextResponse.json({ error: "matchRoundId is required for clear round" }, { status: 400 });
-      }
-      const result = await clearRoundDraftSelection(body.matchRoundId);
+    if (data.level === "round") {
+      const result = await clearRoundDraftSelection(data.matchRoundId);
       return NextResponse.json({ level: "round", ...result });
     }
-
-    if (level === "match") {
-      if (!body.matchId || typeof body.matchId !== "string") {
-        return NextResponse.json({ error: "matchId is required for clear match" }, { status: 400 });
-      }
-      const result = await clearMatchDraftSelection(body.matchId);
+    if (data.level === "match") {
+      const result = await clearMatchDraftSelection(data.matchId);
       return NextResponse.json({ level: "match", ...result });
     }
-
     return NextResponse.json({ error: "Invalid level. Use 'all', 'round', or 'match'." }, { status: 400 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Clear draft failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { error: message, statusCode } = safeErrorResponse(error);
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

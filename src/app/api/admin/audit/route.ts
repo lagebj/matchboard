@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { auditDataIntegrity } from "@/lib/data-integrity/audit-data-integrity";
+import { auditQuerySchema } from "@/lib/security/validation";
+import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function GET(request: Request) {
   await requireCoachAccess();
@@ -14,14 +16,21 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const leagueSeasonId = url.searchParams.get("leagueSeasonId") ?? undefined;
-  const matchId = url.searchParams.get("matchId") ?? undefined;
+  const parsed = auditQuerySchema.safeParse({
+    leagueSeasonId: url.searchParams.get("leagueSeasonId") || undefined,
+    matchId: url.searchParams.get("matchId") || undefined,
+  });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
+  }
+
+  const { leagueSeasonId, matchId } = parsed.data;
 
   try {
     const result = await auditDataIntegrity({ leagueSeasonId, matchId });
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Audit failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { error: message, statusCode } = safeErrorResponse(error);
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

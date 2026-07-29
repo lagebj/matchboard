@@ -1,3 +1,5 @@
+"use server";
+
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 

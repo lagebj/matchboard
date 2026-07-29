@@ -1,6 +1,7 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
 
@@ -56,6 +57,10 @@ type ParentRow = {
 
 export async function GET(request: Request) {
   await requireCoachAccess();
+  const rl = rateLimit("exports:finalized-selections", 5, 60_000);
+  if (!rl.allowed) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please wait." }), { status: 429, headers: { "Content-Type": "application/json" } });
+  }
   const url = new URL(request.url);
   const format = getExportFormat(url.searchParams.get("format"));
   const visibility = getVisibilityMode(url.searchParams.get("visibility"));

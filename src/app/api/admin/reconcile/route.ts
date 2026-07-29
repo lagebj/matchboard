@@ -2,15 +2,8 @@ import { NextResponse } from "next/server";
 import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { reconcileCanonicalDerivedData } from "@/lib/data-integrity/reconcile-canonical-derived-data";
-
-const VALID_DOMAINS = [
-  "PLAYER_GOALS_DERIVED_PROJECTION",
-  "PLAYER_ASSISTS_DERIVED_PROJECTION",
-  "OPPONENT_SNAPSHOT_DERIVED_PROJECTION",
-  "ACTIVE_PLAN_INTEGRITY_PROJECTION",
-] as const;
-
-type ValidDomain = (typeof VALID_DOMAINS)[number];
+import { reconcileSchema } from "@/lib/security/validation";
+import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
   await requireCoachAccess();
@@ -22,38 +15,19 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: Record<string, unknown>;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const dryRun = body.dryRun === true;
-  const leagueSeasonId = typeof body.leagueSeasonId === "string" ? body.leagueSeasonId : undefined;
-  const matchId = typeof body.matchId === "string" ? body.matchId : undefined;
-  const rawDomains = body.domains;
-
-  if (!Array.isArray(rawDomains) || rawDomains.length === 0) {
-    return NextResponse.json(
-      { error: `domains field is required and must be a non-empty array. Valid options: ${VALID_DOMAINS.join(", ")}` },
-      { status: 400 },
-    );
+  const parsed = reconcileSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
   }
 
-  const domains: ValidDomain[] = [];
-  for (const d of rawDomains) {
-    if (typeof d === "string" && (VALID_DOMAINS as readonly string[]).includes(d)) {
-      domains.push(d as ValidDomain);
-    }
-  }
-
-  if (domains.length === 0) {
-    return NextResponse.json(
-      { error: `No valid domains provided. Valid options: ${VALID_DOMAINS.join(", ")}` },
-      { status: 400 },
-    );
-  }
+  const { dryRun, leagueSeasonId, matchId, domains } = parsed.data;
 
   try {
     const result = await reconcileCanonicalDerivedData({
@@ -64,7 +38,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Reconciliation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { error: message, statusCode } = safeErrorResponse(error);
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

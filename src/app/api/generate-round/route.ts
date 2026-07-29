@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import { generateRoundSchema } from "@/lib/security/validation";
+import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
   await requireCoachAccess();
@@ -14,17 +16,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many generation requests. Please wait a moment and try again." }, { status: 429 });
   }
 
-  let roundId: unknown;
+  let body: unknown;
   try {
-    const body = await request.json();
-    roundId = body.roundId;
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!roundId || typeof roundId !== "string") {
-    return NextResponse.json({ error: "roundId is required" }, { status: 400 });
+  const parsed = generateRoundSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
   }
+
+  const { roundId } = parsed.data;
 
   const matchRound = await db.matchRound.findUnique({
     where: { id: roundId },
@@ -83,7 +87,7 @@ export async function POST(request: Request) {
       })),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Generation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { error: message, statusCode } = safeErrorResponse(error);
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }
