@@ -1,0 +1,141 @@
+# Matchboard Codespaces environment
+
+This configuration provides:
+
+- Node.js 22 on Debian Bookworm.
+- Repository dependency installation using the committed npm, pnpm, or Yarn lockfile.
+- GitHub CLI, PostgreSQL client, `jq`, `ripgrep`, `lsof`, and process tools.
+- OpenCode Web on private forwarded port `4096`.
+- Matchboard development preview on private forwarded port `3000`.
+- Direct Ollama Cloud access through the OpenAI-compatible API.
+- Automatic OpenCode startup whenever the Codespace starts and both required secrets exist.
+- Automatic installation and discovery of skills from:
+  - `https://github.com/addyosmani/agent-skills`
+  - `https://github.com/lagebj/agent-skills`
+
+## Agent skills
+
+`.devcontainer/sync-agent-skills.sh` clones both repositories into:
+
+```text
+~/.local/share/matchboard-agent-skills/repositories/
+```
+
+It exposes every valid `skills/<name>/SKILL.md` through OpenCode's global discovery directory:
+
+```text
+~/.config/opencode/skills/
+```
+
+The upstream `addyosmani/agent-skills` collection is installed first. The `lagebj/agent-skills` collection is installed second and overrides an identically named upstream skill. Unmanaged files already present in the OpenCode skills directory are not overwritten.
+
+The installer also creates a dedicated OpenCode instruction file that requires automatic skill selection. OpenCode receives only skill names and descriptions initially, then loads the complete matching skill through its native `skill` tool. No user activation or command is required.
+
+Skills are installed during container creation and refreshed on every Codespace start. A failed refresh uses the existing cached copy, so a temporary GitHub outage does not block OpenCode startup.
+
+Optional version controls:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ADDY_AGENT_SKILLS_REF` | `main` | Branch, tag, or commit fetched from `addyosmani/agent-skills`. |
+| `LAGE_AGENT_SKILLS_REF` | `main` | Branch, tag, or commit fetched from `lagebj/agent-skills`. |
+| `ADDY_AGENT_SKILLS_REPOSITORY` | Official HTTPS URL | Override the upstream clone URL. |
+| `LAGE_AGENT_SKILLS_REPOSITORY` | Official HTTPS URL | Override the personal clone URL. |
+
+To refresh manually:
+
+```bash
+bash .devcontainer/sync-agent-skills.sh --required
+```
+
+To inspect installed skills:
+
+```bash
+find ~/.config/opencode/skills -mindepth 1 -maxdepth 1 -type l -printf '%f -> %l\n' | sort
+```
+
+## Required GitHub Codespaces secrets
+
+Create these under **GitHub account settings → Codespaces → Secrets** and grant them only to the Matchboard repository:
+
+| Secret | Purpose |
+|---|---|
+| `OLLAMA_API_KEY` | Authenticates OpenCode against Ollama Cloud. |
+| `OPENCODE_SERVER_PASSWORD` | Adds OpenCode authentication behind GitHub's private port authentication. |
+
+`OPENCODE_SERVER_USERNAME` defaults to `lage` and is not secret.
+
+Optional environment overrides:
+
+| Variable | Default |
+|---|---|
+| `OLLAMA_MODEL` | `qwen3-coder:480b` |
+| `OPENCODE_MODEL_CONTEXT` | `262144` |
+| `OPENCODE_MODEL_OUTPUT` | `32768` |
+
+Do not commit any secret value or put it in `devcontainer.json`.
+
+## First use
+
+1. Commit this directory to the repository.
+2. Create a new Codespace from the commit containing it, or rebuild an existing Codespace.
+3. Authorise the dev-container configuration when GitHub asks.
+4. Wait for `post-create.sh` to install skills and repository dependencies.
+5. Open the **Ports** panel and verify ports `3000` and `4096` remain **Private**.
+6. Open port `4096` from the Pixel and authenticate with the OpenCode username and password.
+
+The skill repositories require no setup after the container has been created. OpenCode discovers and invokes matching skills automatically.
+
+Both configured skill repositories are public, so no additional GitHub credential is required for installation.
+
+## Commands
+
+Start or restart OpenCode Web:
+
+```bash
+bash .devcontainer/post-start.sh
+```
+
+Inspect its log:
+
+```bash
+tail -f "${XDG_STATE_HOME:-$HOME/.local/state}/matchboard-codespace/opencode-web.log"
+```
+
+Stop it:
+
+```bash
+bash .devcontainer/stop-opencode.sh
+```
+
+Start Matchboard:
+
+```bash
+bash .devcontainer/start-matchboard.sh
+```
+
+Run OpenCode in the terminal instead of the browser:
+
+```bash
+bash .devcontainer/stop-opencode.sh
+bash .devcontainer/start-opencode.sh
+```
+
+## Version maintenance
+
+The OpenCode version is pinned in `devcontainer.json` and `Dockerfile`. Update both values together and rebuild the container.
+
+The Node version is controlled by `NODE_VARIANT` in `devcontainer.json`. Change it if Matchboard's committed Node requirement differs from Node 22.
+
+Pin `ADDY_AGENT_SKILLS_REF` and `LAGE_AGENT_SKILLS_REF` to reviewed commit hashes when deterministic, supply-chain-controlled skill versions are required.
+
+## Security boundaries
+
+- Keep both forwarded ports private.
+- Skill loading is automatically allowed, but external filesystem access is limited to the managed skill repository directory.
+- Agent edits to the managed skill repositories are denied by OpenCode configuration.
+- The skill repositories are trusted operational instructions. Review changes before moving a pinned reference.
+- Use development or preview credentials, not unrestricted production credentials.
+- Use a dedicated Neon development branch where database access is required.
+- Rotate the Ollama API key and OpenCode password if either appears in logs, shell history, screenshots, or repository content.
+- Do not place secrets in `.env.example`, `devcontainer.json`, shell scripts, or OpenCode configuration committed to Git.

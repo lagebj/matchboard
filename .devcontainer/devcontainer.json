@@ -1,0 +1,60 @@
+{
+  "name": "Matchboard Codespace",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "NODE_VARIANT": "24-bookworm",
+      "OPENCODE_VERSION": "1.18.8"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    }
+  },
+  "remoteUser": "node",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "forwardPorts": [
+    3000,
+    4096
+  ],
+  "portsAttributes": {
+    "3000": {
+      "label": "Matchboard",
+      "onAutoForward": "silent"
+    },
+    "4096": {
+      "label": "OpenCode",
+      "onAutoForward": "silent"
+    }
+  },
+  "containerEnv": {
+    "OPENCODE_SERVER_USERNAME": "lagebj",
+    "OLLAMA_MODEL": "glm-5.1:cloud",
+    "OPENCODE_MODEL_CONTEXT": "202752",
+    "OPENCODE_MODEL_OUTPUT": "32768",
+    "ADDY_AGENT_SKILLS_REF": "main",
+    "LAGE_AGENT_SKILLS_REF": "main"
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "files.eol": "\n",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "Prisma.prisma",
+        "bradlc.vscode-tailwindcss",
+        "github.vscode-github-actions"
+      ]
+    }
+  }
+}
