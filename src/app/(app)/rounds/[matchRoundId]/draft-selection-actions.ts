@@ -12,6 +12,7 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { movePlannedSelectionWithinRound } from "@/lib/selection/move-planned-selection";
+import { logManualOverride } from "@/lib/security/audit-log";
 
 async function reconcileAndRevalidate(matchRoundId: string) {
   try {
@@ -44,6 +45,11 @@ export async function addPlayerToMatchAction(formData: FormData) {
   const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim() ? overrideReasonDetail.trim() : undefined;
 
   const result = await addPlayerToDraftMatch(matchId, playerId, role as SelectionRole, category, detail);
+
+  if (result.success && category) {
+    const coach = await requireCoachAccess();
+    logManualOverride(coach.email ?? "unknown", "selection", `${matchId}:${playerId}`, category);
+  }
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
   if (roundId) await reconcileAndRevalidate(roundId);
@@ -87,6 +93,11 @@ export async function changePlayerRoleAction(formData: FormData) {
   const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim() ? overrideReasonDetail.trim() : undefined;
 
   const result = await changeDraftPlayerRole(matchId, playerId, role as SelectionRole, category, detail);
+
+  if (result.success && category) {
+    const coach = await requireCoachAccess();
+    logManualOverride(coach.email ?? "unknown", "selection_role", `${matchId}:${playerId}`, category);
+  }
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
   if (roundId) await reconcileAndRevalidate(roundId);

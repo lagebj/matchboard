@@ -11,6 +11,7 @@ import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
+import { logFinalization, logManualOverride } from "@/lib/security/audit-log";
 
 async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: string[] = []) {
   try {
@@ -47,7 +48,12 @@ export async function finalizeRoundAction(formData: FormData) {
 
   const result = await finalizeMatchRound(matchRoundId, category, detail);
 
+  const coach = await requireCoachAccess();
+
   if (!result.success) {
+    if (category && result.needsOverride) {
+      logManualOverride(coach.email ?? "unknown", "round", matchRoundId, category);
+    }
     const queryParams: Record<string, string> = {};
     if (result.needsOverride) {
       queryParams.error = "Override reason required: provide a reason to finalise despite Blocked conditions.";
@@ -56,6 +62,8 @@ export async function finalizeRoundAction(formData: FormData) {
     }
     redirect(buildPathWithSearch(`/rounds/${matchRoundId}`, queryParams));
   }
+
+  logFinalization(coach.email ?? "unknown", "round", matchRoundId, "success", category ? `override: ${category}` : undefined);
 
   revalidatePath("/");
   revalidatePath("/fixtures");
@@ -139,6 +147,13 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
       : undefined;
 
     const result = await finalizeSingleMatch(matchId, category, detail);
+
+    const coach = await requireCoachAccess();
+    if (result.success) {
+      logFinalization(coach.email ?? "unknown", "match", matchId, "success", category ? `override: ${category}` : undefined);
+    } else if (category && result.needsOverride) {
+      logManualOverride(coach.email ?? "unknown", "match", matchId, category);
+    }
 
     revalidatePath("/");
     revalidatePath("/rounds");
