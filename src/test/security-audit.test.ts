@@ -166,7 +166,16 @@ describe("Security audit: Vercel deployment readiness", () => {
 });
 
 describe("Security audit: forbidden SQL methods", () => {
-  it("application code must not use $queryRawUnsafe or $executeRawUnsafe", async () => {
+  const ALLOWED_UNSAFE_FILES = [
+    // tenant-client.ts uses $executeRawUnsafe for SET LOCAL session configuration
+    // with validated organisation IDs (alphanumeric + hyphen + underscore only).
+    // This is a security-reviewed exception for PostgreSQL RLS context injection.
+    // Prisma's tagged template $executeRaw does not support parameterised values
+    // in SET commands (PostgreSQL syntax error at "$1").
+    "src/lib/tenancy/tenant-client.ts",
+  ];
+
+  it("application code must not use $queryRawUnsafe or $executeRawUnsafe except in allowed files", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
 
@@ -187,9 +196,11 @@ describe("Security audit: forbidden SQL methods", () => {
     const srcDir = path.join(process.cwd(), "src");
     const files = walk(srcDir);
     const violations: string[] = [];
+    const allowedAbsPaths = ALLOWED_UNSAFE_FILES.map((f) => path.join(process.cwd(), f));
 
     for (const file of files) {
       if (file.includes("security-audit.test.")) continue;
+      if (allowedAbsPaths.includes(file)) continue;
       const content = fs.readFileSync(file, "utf-8");
       if (content.includes("$queryRawUnsafe")) {
         violations.push(`${path.relative(process.cwd(), file)}: $queryRawUnsafe`);

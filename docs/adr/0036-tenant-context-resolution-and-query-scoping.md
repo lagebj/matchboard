@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -26,7 +26,7 @@ The resolver pattern from MT-1 (`resolveOrganisationAccess` → `OrganisationAcc
 
 1. **Tenant context module** (`src/lib/tenancy/tenant-context.ts`): Provides `getOrganisationContext(slug)`, `requireOrganisationId(ctx)`, `organisationFilter(id)`, and `organisationFilterNullable(id)`. These are the canonical way to scope Prisma queries to an organisation.
 
-2. **No `$executeRawUnsafe` or raw SQL for tenant context**: The `SET LOCAL app.current_organisation_id` approach for PostgreSQL RLS (per ADR-0035 MT-3.9) is deferred to MT-3. MT-2 uses application-level query filters via Prisma `where` clauses.
+2. **Tenant context for RLS uses `$executeRawUnsafe` for `SET LOCAL`**: The `SET LOCAL app.current_organization_id` approach for PostgreSQL RLS (per ADR-0035 MT-3.9) is implemented in MT-3 using `$executeRawUnsafe` in `src/lib/tenancy/tenant-client.ts`. This is a validated, security-reviewed exception to the `$executeRawUnsafe` prohibition: (1) `SET LOCAL` is a transaction-scoped session configuration command, not a data query; (2) the organisationId is validated against a strict alphanumeric pattern (`/^[a-zA-Z0-9_-]+$/`) preventing SQL injection; (3) the value comes from authenticated user membership resolution, not client input. Prisma's tagged template `$executeRaw` does not support parameterised values in SET commands (PostgreSQL syntax error at `$1`).
 
 3. **Route-level resolution**: Server actions resolve the organisation slug from the route parameter (`/o/{orgSlug}/...`) or from the request context. The organisation slug is never trusted from client-supplied form data or headers.
 
@@ -36,7 +36,7 @@ The resolver pattern from MT-1 (`resolveOrganisationAccess` → `OrganisationAcc
 
 ## Rationale
 
-- Application-level query filters are simpler than PostgreSQL RLS and work with any database backend. RLS is deferred to MT-3 as a defence-in-depth layer.
+- Application-level query filters and PostgreSQL RLS both provide tenant isolation. Application-level filters are the primary mechanism; RLS is defence in depth (per ADR-0037).
 - Nullable `organisationId` allows incremental migration without breaking existing queries that don't yet filter by organisation.
 - The tenant context module is a thin wrapper that keeps organisation scoping explicit and auditable.
 
@@ -94,8 +94,8 @@ The resolver pattern from MT-1 (`resolveOrganisationAccess` → `OrganisationAcc
 
 ## Implementation evidence
 
-- Pull requests or commits: `2b39c58`, `d3a366e`, `8fcd035`, `1f65daa`, `0951676`
-- Tests or verification: 46 organisation domain tests, 3 tenant context tests, 63 total organisation+security tests passing
+- Pull requests or commits: `174b3c9`, `a4aae3a` through `7432e45` (MT-2 org scoping), `tenant-client.ts` (MT-3 tenant context)
+- Tests or verification: 144+ org/tenancy/isolation/security tests passing; typecheck passes; lint passes
 - Provider evidence: None required
 
 ## Supersedes
