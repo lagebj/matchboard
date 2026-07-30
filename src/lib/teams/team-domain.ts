@@ -47,7 +47,7 @@ export async function createOrRestoreTeam(data: {
   developmentSlots: number;
   supportPriority: number;
 }): Promise<TeamMutationResult> {
-  const existingTeam = await db.team.findUnique({
+  const existingTeam = await db.team.findFirst({
     where: { name: data.name },
     select: { archivedAt: true, id: true },
   });

@@ -9,7 +9,8 @@ datasource db {
 
 model Team {
   id                       String           @id @default(cuid())
-  name                     String           @unique
+  name                     String
+  organisationId           String?
   targetSquadSize          Int              @default(11)
   minAcceptedSquadSize     Int              @default(9)
   maxSquadSize             Int              @default(14)
@@ -33,8 +34,12 @@ model Team {
   fromRotationPaths        RotationPath[]   @relation("FromTeam")
   toRotationPaths          RotationPath[]   @relation("ToTeam")
   teamSeasonSnapshots     TeamSeasonSnapshot[]
+  organisation             Organisation?    @relation(fields: [organisationId], references: [id])
+  teamAccesses             TeamAccess[]
 
+  @@unique([organisationId, name])
   @@index([archivedAt, name])
+  @@index([organisationId])
 }
 
 model Player {
@@ -421,6 +426,8 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  memberships   OrganisationMembership[]
+  sentInvitations OrganisationInvitation[]
 }
 
 model Account {
@@ -1353,6 +1360,117 @@ enum MatchCategory {
   LEAGUE
   CUP
   OTHER
+}
+
+enum OrganisationRole {
+  OWNER
+  ADMIN
+  COACH
+  VIEWER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum MachinePrincipalStatus {
+  ACTIVE
+  REVOKED
+}
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships  OrganisationMembership[]
+  invitations   OrganisationInvitation[]
+  teams         Team[]
+  machinePrincipals MachinePrincipal[]
+
+  @@index([slug])
+  @@index([name])
+}
+
+model OrganisationMembership {
+  id             String          @id @default(cuid())
+  userId         String
+  organisationId String
+  role           OrganisationRole @default(COACH)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation  Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  teamAccesses  TeamAccess[]
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+  @@index([userId])
+  @@index([role])
+}
+
+model OrganisationInvitation {
+  id                String          @id @default(cuid())
+  organisationId    String
+  invitedEmail      String
+  intendedRole      OrganisationRole @default(COACH)
+  token             String          @unique
+  expiresAt         DateTime
+  acceptedAt        DateTime?
+  revokedAt         DateTime?
+  status            InvitationStatus @default(PENDING)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  invitedByUserId   String
+  invitedBy         User            @relation(fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  organisation      Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, invitedEmail, status])
+  @@index([token])
+  @@index([organisationId])
+  @@index([invitedEmail])
+  @@index([expiresAt])
+}
+
+model TeamAccess {
+  id               String   @id @default(cuid())
+  membershipId     String
+  teamId           String
+  createdAt        DateTime @default(now())
+
+  membership       OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  team             Team                   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, teamId])
+  @@index([teamId])
+  @@index([membershipId])
+}
+
+model MachinePrincipal {
+  id               String                  @id @default(cuid())
+  organisationId   String
+  name             String
+  description      String?
+  status           MachinePrincipalStatus   @default(ACTIVE)
+  clientCredentialHash String?
+  clientCredentialPrefix String?
+  scopes           String[]
+  lastUsedAt       DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  organisation     Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
+  @@index([status])
+  @@index([clientCredentialPrefix])
 }
 
 model PolicyDecisionLog {
