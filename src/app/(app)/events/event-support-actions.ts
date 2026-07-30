@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import { logMutationEvent } from '@/lib/security/audit-log';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
 import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
@@ -28,7 +29,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   plannedRole?: string;
   note?: string;
 }) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const { eventMatchId, playerId, plannedRole, note } = input;
 
@@ -138,12 +139,14 @@ export async function addEventMatchSupportAssignmentAction(input: {
     },
   });
 
+  logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignment.id, "success");
+
   revalidatePath(`/events/${event.id}`);
   return assignment;
 }
 
 export async function removeEventMatchSupportAssignmentAction(assignmentId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const assignment = await db.eventMatchSupportAssignment.findUnique({
     where: { id: assignmentId },
@@ -153,6 +156,8 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
 
   await db.eventMatchSupportAssignment.delete({ where: { id: assignmentId } });
 
+  logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignmentId, "success");
+
   revalidatePath(`/events/${assignment.eventMatch.eventId}`);
 }
 
@@ -161,7 +166,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   plannedRole?: string;
   note?: string;
 }) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const { assignmentId, plannedRole, note } = input;
 
@@ -182,6 +187,8 @@ export async function updateEventMatchSupportAssignmentAction(input: {
       note: note ?? null,
     },
   });
+
+  logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignmentId, "success");
 
   revalidatePath(`/events/${assignment.eventMatch.eventId}`);
   return updated;

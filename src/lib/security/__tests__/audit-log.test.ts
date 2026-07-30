@@ -8,6 +8,15 @@ import {
   logFinalization,
   logManualOverride,
   logDataExport,
+  logReportComplete,
+  logReportReopen,
+  logMatchCancel,
+  logMatchReopen,
+  logMatchDelete,
+  logPlayerRemove,
+  logPlayerRestore,
+  logEventSquadConfirm,
+  logEventSquadUnconfirm,
 } from "../audit-log";
 
 describe("audit-log", () => {
@@ -77,6 +86,69 @@ describe("audit-log", () => {
     logMutationEvent("finalization", "coach@example.com", "round", "round_123", "failure", "blocked_conditions");
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining("result=failure"),
+    );
+  });
+
+  it("logs report complete event", () => {
+    logReportComplete("coach@example.com", "report_123", "success");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] report_complete result=success actor=coach@example.com resource=post_match_report id=report_123"),
+    );
+  });
+
+  it("logs report reopen event with failure", () => {
+    logReportReopen("coach@example.com", "report_456", "failure", "already_locked");
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] report_reopen result=failure actor=coach@example.com resource=post_match_report id=report_456 reason=already_locked"),
+    );
+  });
+
+  it("logs match cancel event", () => {
+    logMatchCancel("coach@example.com", "match_789", "success", "weather");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] match_cancel result=success actor=coach@example.com resource=match id=match_789 reason=weather"),
+    );
+  });
+
+  it("logs match reopen event", () => {
+    logMatchReopen("coach@example.com", "match_789", "success");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] match_reopen result=success actor=coach@example.com resource=match id=match_789"),
+    );
+  });
+
+  it("logs match delete event", () => {
+    logMatchDelete("coach@example.com", "match_001", "success");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] match_delete result=success actor=coach@example.com resource=match id=match_001"),
+    );
+  });
+
+  it("logs player remove event", () => {
+    logPlayerRemove("coach@example.com", "player_1", "success", "left_club");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] player_remove result=success actor=coach@example.com resource=player id=player_1 reason=left_club"),
+    );
+  });
+
+  it("logs player restore event", () => {
+    logPlayerRestore("coach@example.com", "player_1", "success");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] player_restore result=success actor=coach@example.com resource=player id=player_1"),
+    );
+  });
+
+  it("logs event squad confirm event", () => {
+    logEventSquadConfirm("coach@example.com", "event_1", "success");
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] event_squad_confirm result=success actor=coach@example.com resource=event id=event_1"),
+    );
+  });
+
+  it("logs event squad unconfirm event with failure", () => {
+    logEventSquadUnconfirm("coach@example.com", "event_1", "failure");
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[security:mutation] event_squad_unconfirm result=failure actor=coach@example.com resource=event id=event_1"),
     );
   });
 });

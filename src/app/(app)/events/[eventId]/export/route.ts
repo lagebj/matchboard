@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import { logDataExport } from '@/lib/security/audit-log';
 import {
   formatGoalkeeperAbility,
   formatPlayerName,
@@ -73,8 +74,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   const { eventId } = await params;
+
+  logDataExport(coach.email ?? "unknown", "xlsx", "coach", "success");
 
   const event = await db.event.findUnique({
     where: { id: eventId },

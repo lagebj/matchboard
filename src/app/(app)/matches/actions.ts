@@ -26,6 +26,7 @@ import {
   reopenMatchDomain,
   checkMatchDeletionGuard,
 } from "@/lib/matches/match-domain";
+import { logMatchCancel, logMatchReopen, logMatchDelete } from "@/lib/security/audit-log";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -192,13 +193,15 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 }
 
 export async function deleteMatchAction(matchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   try {
     const guard = await checkMatchDeletionGuard(matchId);
     if (!guard.success) throw new Error(guard.error);
 
     await db.match.delete({ where: { id: guard.matchId } });
+    logMatchDelete(coach.email ?? "unknown", matchId, "success");
   } catch (error) {
+    logMatchDelete(coach.email ?? "unknown", matchId, "failure");
     const message = error instanceof Error ? error.message : "Could not delete the match.";
     redirect(`/fixtures?error=${encodeURIComponent(message)}`);
   }
@@ -430,12 +433,15 @@ export async function finalizeMatchAction(formData: FormData) {
 }
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const result = await cancelMatchDomain(matchId, cancelledReason);
   if (!result.success) {
+    logMatchCancel(coach.email ?? "unknown", matchId, "failure", result.error);
     throw new Error(result.error);
   }
+
+  logMatchCancel(coach.email ?? "unknown", matchId, "success", cancelledReason);
 
   await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
@@ -446,12 +452,15 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 }
 
 export async function reopenMatchAction(matchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const result = await reopenMatchDomain(matchId);
   if (!result.success) {
+    logMatchReopen(coach.email ?? "unknown", matchId, "failure");
     throw new Error(result.error);
   }
+
+  logMatchReopen(coach.email ?? "unknown", matchId, "success");
 
   await reconcileRoundAfterDraftMutation(result.matchRoundId);
 

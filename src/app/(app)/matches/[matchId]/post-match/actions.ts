@@ -22,6 +22,7 @@ import {
   addAssistToReportMutation,
   removeAssistFromReportMutation,
 } from "@/lib/reports/report-mutations";
+import { logReportComplete, logReportReopen } from "@/lib/security/audit-log";
 
 export type MatchReportDetail = {
   id: string;
@@ -417,7 +418,12 @@ export async function completeMatchReport(reportId: string): Promise<{ success: 
     const coach = await requireCoachAccess();
 
     const result = await completeReport(reportId, coach.email ?? "unknown");
-    if (!result.success) return { success: false, error: result.error };
+    if (!result.success) {
+      logReportComplete(coach.email ?? "unknown", reportId, "failure", result.error);
+      return { success: false, error: result.error };
+    }
+
+    logReportComplete(coach.email ?? "unknown", reportId, "success");
 
     revalidatePath(`/matches/${result.matchId}`);
     revalidatePath(`/matches/${result.matchId}/post-match`);
@@ -430,6 +436,7 @@ export async function completeMatchReport(reportId: string): Promise<{ success: 
 
     return { success: true };
   } catch (error) {
+    logReportComplete("unknown", reportId, "failure", error instanceof Error ? error.message : "Unknown error");
     return { success: false, error: error instanceof Error ? error.message : "Failed to complete report." };
   }
 }
@@ -441,8 +448,14 @@ export async function reopenMatchReport(
   await requireCoachAccess();
 
   try {
+    const coach = await requireCoachAccess();
     const result = await reopenReport(reportId, targetStatus);
-    if (!result.success) return { success: false, error: result.error };
+    if (!result.success) {
+      logReportReopen(coach.email ?? "unknown", reportId, "failure", result.error);
+      return { success: false, error: result.error };
+    }
+
+    logReportReopen(coach.email ?? "unknown", reportId, "success");
 
     revalidatePath(`/matches/${result.matchId}`);
     revalidatePath(`/matches/${result.matchId}/post-match`);
@@ -454,6 +467,7 @@ export async function reopenMatchReport(
 
     return { success: true };
   } catch (error) {
+    logReportReopen("unknown", reportId, "failure", error instanceof Error ? error.message : "Unknown error");
     return { success: false, error: error instanceof Error ? error.message : "Failed to reopen report." };
   }
 }

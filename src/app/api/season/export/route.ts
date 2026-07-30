@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole, formatReadinessSignalType } from "@/lib/match-utils";
 import { READINESS_VALUE_LABELS, type ReadinessSignalValue } from "@/lib/coaching/types";
 import { sanitizeSelectionForParent as _sanitizeSelection, sanitizeMovementForParent as _sanitizeMovement, sanitizePlayerStatsForParent as _sanitizeStats } from "@/lib/export/parent-safe-filter";
+import { logDataExport } from "@/lib/security/audit-log";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
 type VisibilityMode = "coach" | "parent";
@@ -39,7 +40,7 @@ function buildFilename(format: ExportFormat) {
 // parent visibility mode entirely.
 
 export async function GET(request: NextRequest) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   const rl = rateLimit("season:export", 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
@@ -61,6 +62,8 @@ export async function GET(request: NextRequest) {
   if (!leagueSeason) {
     return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
+
+  logDataExport(coach.email ?? "unknown", format, visibility, "success");
 
   const matchRounds = await db.matchRound.findMany({
     where: { leagueSeasonId, status: "FINALIZED" },

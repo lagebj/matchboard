@@ -2,6 +2,7 @@
 
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logEventSquadConfirm, logEventSquadUnconfirm } from "@/lib/security/audit-log";
 
 export type EventSquadValidationIssue = {
   code: string;
@@ -161,7 +162,7 @@ export async function validateEventSquadsBeforeCommit(
 }
 
 export async function confirmEventSquadsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const validation = await validateEventSquadsBeforeCommit(eventId);
 
@@ -169,6 +170,7 @@ export async function confirmEventSquadsAction(eventId: string) {
     const blockingIssues = validation.issues.filter(
       (i) => i.severity === "blocking",
     );
+    logEventSquadConfirm(coach.email ?? "unknown", eventId, "failure", "Blocking validation issues");
     return {
       success: false as const,
       error: "Cannot commit squads: blocking issues found.",
@@ -182,6 +184,8 @@ export async function confirmEventSquadsAction(eventId: string) {
     data: { status: "CONFIRMED" },
   });
 
+  logEventSquadConfirm(coach.email ?? "unknown", eventId, "success");
+
   return {
     success: true as const,
     confirmedCount: result.count,
@@ -190,13 +194,14 @@ export async function confirmEventSquadsAction(eventId: string) {
 }
 
 export async function unconfirmEventSquadsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
 
   const confirmedCount = await db.eventSquad.count({
     where: { eventId, status: "CONFIRMED" },
   });
 
   if (confirmedCount === 0) {
+    logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "failure");
     return {
       success: false as const,
       error: "No confirmed squads to unconfirm.",
@@ -207,6 +212,8 @@ export async function unconfirmEventSquadsAction(eventId: string) {
     where: { eventId, status: "CONFIRMED" },
     data: { status: "DRAFT" },
   });
+
+  logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "success");
 
   return {
     success: true as const,

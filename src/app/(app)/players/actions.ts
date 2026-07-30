@@ -22,6 +22,7 @@ import {
   setPlayerAvailability as setPlayerAvailabilityDomain,
   updatePlayerCoreTeam as updatePlayerCoreTeamDomain,
 } from "@/lib/players/player-domain";
+import { logPlayerRemove, logPlayerRestore } from "@/lib/security/audit-log";
 
 type PlayerInput = {
   active: boolean;
@@ -362,11 +363,14 @@ export async function togglePlayerActiveAction(playerId: string) {
 }
 
 export async function removePlayerAction(playerId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   const result = await removePlayerDomain(playerId);
   if (!result.success) {
+    logPlayerRemove(coach.email ?? "unknown", playerId, "failure", result.error);
     redirect(buildPathWithSearch("/players", { error: result.error }));
   }
+
+  logPlayerRemove(coach.email ?? "unknown", playerId, "success");
 
   revalidatePath("/players");
   revalidatePath("/teams");
@@ -374,11 +378,14 @@ export async function removePlayerAction(playerId: string) {
 }
 
 export async function restorePlayerAction(playerId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   const result = await restorePlayerDomain(playerId);
   if (!result.success) {
+    logPlayerRestore(coach.email ?? "unknown", playerId, "failure");
     redirect(buildPathWithSearch("/players", { error: result.error }));
   }
+
+  logPlayerRestore(coach.email ?? "unknown", playerId, "success");
 
   revalidatePath("/players");
   revalidatePath("/teams");
