@@ -57,13 +57,13 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
   const selectedPeriodId = periodId ?? leagueSeasons[0]?.id ?? "";
 
   const seasonData = selectedPeriodId
-    ? await getPlayersSeasonOverview(selectedPeriodId)
+    ? await getPlayersSeasonOverview(selectedPeriodId, { orgFilter })
     : { leagueSeason: { id: "", label: "No phase" }, seasonRows: [] as PlayerSeasonOverviewRow[] };
 
   const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
 
   const currentRoundRows = selectedRoundId
-    ? await getPlayersCurrentRoundAttention(selectedRoundId)
+    ? await getPlayersCurrentRoundAttention(selectedRoundId, orgFilter)
     : [];
 
   const playerRatings = new Map<string, RatingSummary>();
