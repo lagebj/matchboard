@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  security-check-sql:
+    name: Forbidden SQL Methods
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run security:check-sql
+
+  test:
+    name: Tests
+    runs-on: ubuntu-24.04
+    env:
+      TEST_DATABASE_URL: "postgresql://matchboard:matchboard@localhost:5432/matchboard_test?schema=public"
+      DATABASE_URL: "postgresql://matchboard:matchboard@localhost:5432/matchboard_test?schema=public"
+      AUTH_SECRET: "test-secret-for-ci-only"
+      ALLOWED_COACH_EMAILS: "test@example.com"
+      BYPASS_AUTH: "true"
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: matchboard
+          POSTGRES_PASSWORD: matchboard
+          POSTGRES_DB: matchboard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+        env:
+          DIRECT_URL: "postgresql://matchboard:matchboard@localhost:5432/matchboard_test?schema=public"
+      - run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    needs: [typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
