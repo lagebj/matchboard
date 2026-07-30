@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type OperationalContext = {
   season: { id: string; name: string } | null;
@@ -6,11 +7,13 @@ export type OperationalContext = {
   matchRound: { id: string; name: string; status: string; hasDraftSelections: boolean; hasMatches: boolean; blockedSignalCount: number } | null;
 };
 
-export async function getOperationalContext(): Promise<OperationalContext> {
+export async function getOperationalContext(orgFilter?: OrgFilterMode): Promise<OperationalContext> {
+  const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
   const activePeriods = await db.leagueSeason.findMany({
     where: {
       startDate: { lte: new Date() },
       endDate: { gte: new Date() },
+      ...orgWhere,
     },
     include: {
       season: { select: { id: true, name: true } },
@@ -25,9 +28,9 @@ export async function getOperationalContext(): Promise<OperationalContext> {
 
   const period = activePeriods[0];
   if (!period) {
-    const anySeason = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
-    const anyPeriod = await db.leagueSeason.findFirst({ orderBy: { createdAt: "desc" } });
-    const anyRound = await db.matchRound.findFirst({ orderBy: { createdAt: "desc" } });
+    const anySeason = await db.season.findFirst({ where: orgWhere, orderBy: { createdAt: "desc" } });
+    const anyPeriod = await db.leagueSeason.findFirst({ where: orgWhere, orderBy: { createdAt: "desc" } });
+    const anyRound = await db.matchRound.findFirst({ where: orgFilter?.type === "org" ? orgFilter.filter : {}, orderBy: { createdAt: "desc" } });
 
     return {
       season: anySeason ? { id: anySeason.id, name: anySeason.name } : null,
@@ -69,13 +72,15 @@ async function enrichMatchRound(id: string, name: string, status: string): Promi
   return { id, name, status, hasDraftSelections: draftCount > 0, hasMatches: matchCount > 0, blockedSignalCount: blockingCount };
 }
 
-export async function searchEntities(query: string) {
+export async function searchEntities(query: string, orgFilter?: OrgFilterMode) {
   if (!query || query.trim().length < 2) return { players: [] as { id: string; name: string; coreTeamName: string }[], teams: [] as { id: string; name: string }[] };
 
+  const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
   const q = query.trim();
   const players = await db.player.findMany({
     where: {
       removedAt: null,
+      ...orgWhere,
       OR: [
         { firstName: { contains: q } },
         { lastName: { contains: q } },
@@ -94,6 +99,7 @@ export async function searchEntities(query: string) {
     where: {
       archivedAt: null,
       name: { contains: q },
+      ...orgWhere,
     },
     select: { id: true, name: true },
     take: 5,

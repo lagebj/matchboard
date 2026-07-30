@@ -1,18 +1,20 @@
 import { getOperationalContext, searchEntities } from "@/lib/context/get-operational-context";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 
 export async function GET(request: Request) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const url = new URL(request.url);
   const query = url.searchParams.get("q");
 
   if (query) {
-    const results = await searchEntities(query);
+    const results = await searchEntities(query, orgFilter);
     return Response.json(results);
   }
 
-  const ctx = await getOperationalContext();
+  const ctx = await getOperationalContext(orgFilter);
   const phaseDisplay = ctx.leagueSeason
     ? formatPhaseDisplay({
         seasonName: ctx.season?.name ?? "",
