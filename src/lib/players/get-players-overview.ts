@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { classifyRole } from "../selection/effective-participation";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 // --- Types ---
 
@@ -110,10 +111,12 @@ export type SeasonOverviewResult = {
 
 export async function getPlayersSeasonOverview(
   leagueSeasonId: string,
-  options?: { teamId?: string },
+  options?: { teamId?: string; orgFilter?: OrgFilterMode },
 ): Promise<SeasonOverviewResult> {
-  const leagueSeason = await db.leagueSeason.findUnique({
-    where: { id: leagueSeasonId },
+  const orgWhere = options?.orgFilter && options.orgFilter.type === 'org' ? options.orgFilter.filter : {};
+
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...orgWhere },
     select: { id: true, name: true },
   });
 
@@ -131,6 +134,7 @@ export async function getPlayersSeasonOverview(
     where: {
       active: true,
       removedAt: null,
+      ...orgWhere,
       ...(options?.teamId ? { coreTeamId: options.teamId } : {}),
     },
     select: {
@@ -156,7 +160,7 @@ export async function getPlayersSeasonOverview(
   const playerIds = players.map((p) => p.id);
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId },
+    where: { leagueSeasonId, ...orgWhere },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -164,7 +168,7 @@ export async function getPlayersSeasonOverview(
 
   const matches = roundIds.length > 0
     ? await db.match.findMany({
-        where: { matchRoundId: { in: roundIds }, status: { not: "CANCELLED" } },
+        where: { matchRoundId: { in: roundIds }, status: { not: "CANCELLED" }, ...orgWhere },
         select: {
           id: true,
           matchRoundId: true,
@@ -187,6 +191,7 @@ export async function getPlayersSeasonOverview(
         where: {
           matchId: { in: matchIds },
           status: { in: ["REPORTED", "LOCKED"] },
+          ...orgWhere,
         },
         select: {
           matchId: true,
@@ -271,6 +276,7 @@ export async function getPlayersSeasonOverview(
           matchId: { in: matchIds },
           playerId: { in: playerIds },
           status: { in: ["DRAFT", "FINALIZED"] },
+          ...orgWhere,
         },
         select: {
           playerId: true,
@@ -325,6 +331,7 @@ export async function getPlayersSeasonOverview(
         where: {
           matchRoundId: { in: roundIds },
           playerId: { in: playerIds },
+          ...orgWhere,
         },
         select: { playerId: true, matchRoundId: true, status: true },
       })
@@ -733,7 +740,7 @@ export async function getPlayersSeasonOverview(
 
   // expected_support_path_unused: rotation paths not used in movementPaths
   const configuredPaths = await db.rotationPath.findMany({
-    where: { active: true },
+    where: { active: true, ...orgWhere },
     select: { id: true, fromTeamId: true, toTeamId: true, role: true, fromTeam: { select: { name: true } }, toTeam: { select: { name: true } } },
   });
   for (const path of configuredPaths) {
@@ -766,9 +773,12 @@ export async function getPlayersSeasonOverview(
 
 export async function getPlayersCurrentRoundAttention(
   matchRoundId: string,
+  orgFilter?: OrgFilterMode,
 ): Promise<Array<PlayerCurrentRoundAttentionRow>> {
-  const round = await db.matchRound.findUnique({
-    where: { id: matchRoundId },
+  const orgWhere = orgFilter && orgFilter.type === 'org' ? orgFilter.filter : {};
+
+  const round = await db.matchRound.findFirst({
+    where: { id: matchRoundId, ...orgWhere },
     select: {
       id: true,
       name: true,
@@ -779,7 +789,7 @@ export async function getPlayersCurrentRoundAttention(
   if (!round) return [];
 
   const players = await db.player.findMany({
-    where: { active: true, removedAt: null },
+    where: { active: true, removedAt: null, ...orgWhere },
     select: {
       id: true,
       firstName: true,
@@ -792,7 +802,7 @@ export async function getPlayersCurrentRoundAttention(
   });
 
   const matches = await db.match.findMany({
-    where: { matchRoundId, status: { not: "CANCELLED" } },
+    where: { matchRoundId, status: { not: "CANCELLED" }, ...orgWhere },
     select: {
       id: true,
       opponent: true,
@@ -805,6 +815,7 @@ export async function getPlayersCurrentRoundAttention(
     where: {
       matchRoundId,
       status: { in: ["DRAFT", "FINALIZED"] },
+      ...orgWhere,
     },
     select: {
       playerId: true,
@@ -847,6 +858,7 @@ export async function getPlayersCurrentRoundAttention(
     where: {
       matchRoundId,
       playerId: { in: players.map((p) => p.id) },
+      ...orgWhere,
     },
     select: { playerId: true, status: true },
     orderBy: { createdAt: "desc" },

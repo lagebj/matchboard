@@ -2,20 +2,62 @@
 
 import { requireCoachAccess } from "@/lib/auth";
 import { getFixturesOverview } from "@/domain/fixtures/service";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId: string } | {}) {
+  if ("organisationId" in orgFilter) {
+    const round = await db.matchRound.findUnique({
+      where: { id: roundId },
+      select: { organisationId: true },
+    });
+    if (!round || round.organisationId !== orgFilter.organisationId) {
+      throw new Error("Round not found or access denied.");
+    }
+  }
+}
+
+async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId: string } | {}) {
+  if ("organisationId" in orgFilter) {
+    const match = await db.match.findUnique({
+      where: { id: matchId },
+      select: { organisationId: true },
+    });
+    if (!match || match.organisationId !== orgFilter.organisationId) {
+      throw new Error("Match not found or access denied.");
+    }
+  }
+}
+
+async function verifyLeagueSeasonOrgAccess(leagueSeasonId: string, orgFilter: { organisationId: string } | {}) {
+  if ("organisationId" in orgFilter) {
+    const leagueSeason = await db.leagueSeason.findUnique({
+      where: { id: leagueSeasonId },
+      select: { organisationId: true },
+    });
+    if (!leagueSeason || leagueSeason.organisationId !== orgFilter.organisationId) {
+      throw new Error("League season not found or access denied.");
+    }
+  }
+}
+
 export async function fetchFixturesOverview() {
-  await requireCoachAccess();
-  return getFixturesOverview();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  return getFixturesOverview(orgFilter);
 }
 
 export async function fixturePopulateAllAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const leagueSeasonId = formData.get("leagueSeasonId");
     if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
       throw new Error("League season ID is required.");
     }
+
+    await verifyLeagueSeasonOrgAccess(leagueSeasonId, orgFilter.filter);
 
     const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
     await populateAllDrafts(leagueSeasonId);
@@ -32,18 +74,20 @@ export async function fixturePopulateAllAction(prevState: { error: string; resul
 }
 
 export async function fixtureRegenerateAllAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const leagueSeasonId = formData.get("leagueSeasonId");
     if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
       throw new Error("League season ID is required.");
     }
 
+    await verifyLeagueSeasonOrgAccess(leagueSeasonId, orgFilter.filter);
+
     const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
-    const db = (await import("@/lib/db")).db;
 
     const rounds = await db.matchRound.findMany({
-      where: { leagueSeasonId, status: "DRAFT" },
+      where: { leagueSeasonId, status: "DRAFT", ...orgFilter.filter },
       select: { id: true, name: true },
     });
 
@@ -76,11 +120,14 @@ export async function fixtureRegenerateAllAction(prevState: { error: string; res
 }
 
 export async function fixtureClearAllDraftsAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const leagueSeasonId = formData.get("leagueSeasonId");
   if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
     throw new Error("League season ID is required.");
   }
+
+  await verifyLeagueSeasonOrgAccess(leagueSeasonId, orgFilter.filter);
 
   const { clearAllDraftSelections } = await import("@/lib/selection/clear-draft-selection");
   await clearAllDraftSelections(leagueSeasonId);
@@ -91,17 +138,19 @@ export async function fixtureClearAllDraftsAction(formData: FormData) {
 }
 
 export async function fixtureGenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const roundId = formData.get("roundId");
   if (typeof roundId !== "string" || !roundId) {
     return { error: "Round ID is required." };
   }
 
+  await verifyRoundOrgAccess(roundId, orgFilter.filter);
+
   const { generateMatchRound } = await import("@/lib/selection/generate-round");
   const { createGeneratedDraftRound } = await import("@/lib/selection/save-generated-draft");
   const { buildPersistableWarnings, persistRoundWarnings } = await import("@/lib/selection/persist-warnings");
   const { persistRoundExplanations } = await import("@/lib/selection/persist-explanations");
-  const db = (await import("@/lib/db")).db;
 
   const generatedRound = await generateMatchRound(roundId);
   await createGeneratedDraftRound(generatedRound);
@@ -139,12 +188,15 @@ export async function fixtureGenerateRoundAction(prevState: { error: string }, f
 }
 
 export async function fixtureRegenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const roundId = formData.get("roundId");
     if (typeof roundId !== "string" || !roundId) {
       throw new Error("Round ID is required.");
     }
+
+    await verifyRoundOrgAccess(roundId, orgFilter.filter);
 
     const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
     const result = await refreshDraftRound(roundId);
@@ -165,11 +217,14 @@ export async function fixtureRegenerateRoundAction(prevState: { error: string },
 }
 
 export async function fixtureClearRoundDraftAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const roundId = formData.get("roundId");
   if (typeof roundId !== "string" || !roundId) {
     throw new Error("Round ID is required.");
   }
+
+  await verifyRoundOrgAccess(roundId, orgFilter.filter);
 
   const { clearRoundDraftSelection } = await import("@/lib/selection/clear-draft-selection");
   await clearRoundDraftSelection(roundId);
@@ -181,12 +236,15 @@ export async function fixtureClearRoundDraftAction(formData: FormData) {
 }
 
 export async function fixtureFinalizeRoundAction(prevState: { error: string; needsOverride?: boolean }, formData: FormData): Promise<{ error: string; needsOverride?: boolean }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const roundId = formData.get("roundId");
     if (typeof roundId !== "string" || !roundId) {
       throw new Error("Round ID is required.");
     }
+
+    await verifyRoundOrgAccess(roundId, orgFilter.filter);
 
     const overrideReasonCategory = formData.get("overrideReasonCategory") as string | null;
     const overrideReasonDetail = formData.get("overrideReasonDetail") as string | null;
@@ -217,12 +275,15 @@ export async function fixtureFinalizeRoundAction(prevState: { error: string; nee
 }
 
 export async function fixtureUnfinalizeRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const roundId = formData.get("roundId");
     if (typeof roundId !== "string" || !roundId) {
       throw new Error("Round ID is required.");
     }
+
+    await verifyRoundOrgAccess(roundId, orgFilter.filter);
 
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
     const result = await unfinalizeMatchRound(roundId);
@@ -243,12 +304,15 @@ export async function fixtureUnfinalizeRoundAction(prevState: { error: string },
 }
 
 export async function fixtureRegenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
       throw new Error("Match ID is required.");
     }
+
+    await verifyMatchOrgAccess(matchId, orgFilter.filter);
 
     const { refreshDraftSelection } = await import("@/lib/selection/refresh-draft-selection");
     const result = await refreshDraftSelection(matchId);
@@ -268,11 +332,14 @@ export async function fixtureRegenerateMatchAction(prevState: { error: string },
 }
 
 export async function fixtureClearMatchDraftAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
   }
+
+  await verifyMatchOrgAccess(matchId, orgFilter.filter);
 
   const { clearMatchDraftSelection } = await import("@/lib/selection/clear-draft-selection");
   await clearMatchDraftSelection(matchId);
@@ -283,12 +350,15 @@ export async function fixtureClearMatchDraftAction(formData: FormData) {
 }
 
 export async function fixtureFinalizeMatchAction(prevState: { error: string; needsOverride?: boolean }, formData: FormData): Promise<{ error: string; needsOverride?: boolean }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
       throw new Error("Match ID is required.");
     }
+
+    await verifyMatchOrgAccess(matchId, orgFilter.filter);
 
     const overrideReasonCategory = formData.get("overrideReasonCategory") as string | null;
     const overrideReasonDetail = formData.get("overrideReasonDetail") as string | null;

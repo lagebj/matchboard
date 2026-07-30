@@ -1,12 +1,15 @@
 import { db } from "@/lib/db";
 import { hasMatchPassed } from "@/lib/match-date-utils";
 import type { AssistantWorkItem } from "@/lib/assistant/types";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-export async function getEventWorkItems(): Promise<AssistantWorkItem[]> {
+export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<AssistantWorkItem[]> {
+  const orgWhere = orgFilter && orgFilter.type === "org" ? orgFilter.filter : {};
   const now = new Date();
   const items: AssistantWorkItem[] = [];
 
   const events = await db.event.findMany({
+    where: { ...orgWhere },
     orderBy: { startsAt: "asc" },
   });
 

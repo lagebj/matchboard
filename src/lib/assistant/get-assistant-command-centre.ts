@@ -315,7 +315,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     }
   }
 
-  const eventItems = await getEventWorkItems();
+  const eventItems = await getEventWorkItems(orgFilter);
   items.push(...eventItems);
 
   items.sort((a, b) => {
