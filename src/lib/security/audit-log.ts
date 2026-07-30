@@ -27,7 +27,14 @@ type SecurityEventAction =
   | "event_squad_unconfirm"
   | "data_export"
   | "policy_evaluation"
-  | "session_revoked";
+  | "session_revoked"
+  | "organisation_create"
+  | "organisation_invitation_create"
+  | "organisation_invitation_accept"
+  | "organisation_invitation_revoke"
+  | "organisation_membership_update"
+  | "organisation_team_access_add"
+  | "organisation_team_access_remove";
 
 interface SecurityEvent {
   category: SecurityEventCategory;
@@ -252,6 +259,86 @@ export function logEventSquadUnconfirm(actor: string, eventId: string, result: "
     actor,
     resource: "event",
     resourceId: eventId,
+    result,
+  });
+}
+
+export function logOrganisationCreate(actor: string, organisationId: string, result: "success" | "failure"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_create",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+  });
+}
+
+export function logOrganisationInvitationCreate(actor: string, organisationId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_invitation_create",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+    reason,
+  });
+}
+
+export function logOrganisationInvitationAccept(actor: string, organisationId: string, result: "success" | "failure"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_invitation_accept",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+  });
+}
+
+export function logOrganisationInvitationRevoke(actor: string, organisationId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_invitation_revoke",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+    reason,
+  });
+}
+
+export function logOrganisationMembershipUpdate(actor: string, organisationId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_membership_update",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+    reason,
+  });
+}
+
+export function logOrganisationTeamAccessAdd(actor: string, organisationId: string, result: "success" | "failure"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_team_access_add",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+  });
+}
+
+export function logOrganisationTeamAccessRemove(actor: string, organisationId: string, result: "success" | "failure"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_team_access_remove",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
     result,
   });
 }
