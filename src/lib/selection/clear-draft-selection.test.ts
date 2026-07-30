@@ -132,6 +132,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
   }
 
   return {
+    organisationId: null,
     seasonId: season.id,
     leagueSeasonId: period.id,
     matchRoundId: round.id,
