@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import { resolveOrgFilterForUser } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
   VALID_EVENT_TYPES,
@@ -16,8 +17,12 @@ import {
 import type { BroadPosition } from '@/lib/events/event-types';
 
 export async function getEvents() {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   return db.event.findMany({
+    where: {
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
     orderBy: { startsAt: 'desc' },
     include: {
       squads: {
@@ -58,7 +63,8 @@ export async function getEventById(id: string) {
 }
 
 export async function createEventAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -105,6 +111,7 @@ export async function createEventAction(formData: FormData) {
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
       notes,
+      ...(orgFilter.type === 'org' ? { organisationId: orgFilter.organisationId } : {}),
       squads: {
         create: Array.from({ length: squadCount }, (_, i) => ({
           name: i === 0 ? 'Squad 1' : `Squad ${i + 1}`,
@@ -178,11 +185,20 @@ export async function updateEventAction(id: string, formData: FormData) {
 }
 
 export async function deleteEventAction(id: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
-  await db.event.delete({
-    where: { id },
+  const event = await db.event.findFirst({
+    where: {
+      id,
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
+    select: { id: true },
   });
+
+  if (!event) {
+    throw new Error('Event not found or access denied.');
+  }
 
   revalidatePath('/events');
 }
