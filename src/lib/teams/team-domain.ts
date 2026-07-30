@@ -8,7 +8,7 @@ export async function checkTeamDeletionGuard(teamId: string): Promise<TeamMutati
   const [team, activeCorePlayerCount, rotationPathCount, matchCount] = await Promise.all([
     db.team.findUnique({
       where: { id: teamId },
-      select: { id: true },
+      select: { id: true, organisationId: true },
     }),
     db.player.count({
       where: { coreTeamId: teamId, removedAt: null },
@@ -46,9 +46,14 @@ export async function createOrRestoreTeam(data: {
   minSupportPlayers: number;
   developmentSlots: number;
   supportPriority: number;
+  organisationId?: string;
 }): Promise<TeamMutationResult> {
+  const nameFilter = data.organisationId
+    ? { name: data.name, organisationId: data.organisationId }
+    : { name: data.name };
+
   const existingTeam = await db.team.findFirst({
-    where: { name: data.name },
+    where: nameFilter,
     select: { archivedAt: true, id: true },
   });
 
@@ -85,6 +90,7 @@ export async function createOrRestoreTeam(data: {
       name: data.name,
       supportPriority: data.supportPriority,
       targetSquadSize: data.targetSquadSize,
+      ...(data.organisationId ? { organisationId: data.organisationId } : {}),
     },
   });
 

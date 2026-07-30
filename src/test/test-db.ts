@@ -98,6 +98,10 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.organisationMembership.deleteMany().catch(() => {});
   await db.machinePrincipal.deleteMany().catch(() => {});
   await db.organisation.deleteMany().catch(() => {});
+  await db.account.deleteMany().catch(() => {});
+  await db.session.deleteMany().catch(() => {});
+  await db.verificationToken.deleteMany().catch(() => {});
+  await db.user.deleteMany().catch(() => {});
 }
 
 export type TestFixtureIds = {
