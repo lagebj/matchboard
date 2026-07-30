@@ -26,8 +26,10 @@ describe("Season fairness warnings — new warnings", () => {
     const rodTeamId = fixtureIds.teams["Rod"]!;
     const hvitTeamId = fixtureIds.teams["Hvit"]!;
 
-    await testDb.rotationPath.create({
-      data: {
+    await testDb.rotationPath.upsert({
+      where: { fromTeamId_toTeamId_role: { fromTeamId: blaTeamId, toTeamId: rodTeamId, role: "SUPPORT" } },
+      update: { active: true, purpose: "Blå → Rød support" },
+      create: {
         fromTeamId: blaTeamId,
         toTeamId: rodTeamId,
         role: "SUPPORT",
@@ -36,8 +38,10 @@ describe("Season fairness warnings — new warnings", () => {
       },
     });
 
-    await testDb.rotationPath.create({
-      data: {
+    await testDb.rotationPath.upsert({
+      where: { fromTeamId_toTeamId_role: { fromTeamId: hvitTeamId, toTeamId: blaTeamId, role: "SUPPORT" } },
+      update: { active: true, purpose: "Hvit → Blå support" },
+      create: {
         fromTeamId: hvitTeamId,
         toTeamId: blaTeamId,
         role: "SUPPORT",
