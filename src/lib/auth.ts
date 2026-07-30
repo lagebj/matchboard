@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { isAllowedCoach } from "@/lib/allowlist";
 import { AppError } from "@/lib/security/errors";
+import { logAuthSuccess, logAuthFailure, logAccessDenied } from "@/lib/security/audit-log";
 
 export { isAllowedCoach };
 
@@ -35,6 +36,7 @@ export async function getCurrentCoach() {
 export async function requireCoachAccess() {
   const coach = await getCurrentCoach();
   if (!coach) {
+    logAuthFailure("unknown", "no_session_or_allowlist");
     throw new AuthenticationError("Coach access required");
   }
   return coach;

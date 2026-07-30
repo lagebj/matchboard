@@ -1,0 +1,148 @@
+type SecurityEventCategory =
+  | "auth"
+  | "access"
+  | "mutation"
+  | "data_integrity"
+  | "policy"
+  | "session";
+
+type SecurityEventAction =
+  | "login_success"
+  | "login_failure"
+  | "access_denied"
+  | "access_granted"
+  | "finalization"
+  | "unfinalization"
+  | "manual_override"
+  | "draft_clear"
+  | "draft_regeneration"
+  | "report_complete"
+  | "report_reopen"
+  | "match_cancel"
+  | "match_reopen"
+  | "data_export"
+  | "policy_evaluation"
+  | "session_revoked";
+
+interface SecurityEvent {
+  category: SecurityEventCategory;
+  action: SecurityEventAction;
+  actor?: string;
+  tenant?: string;
+  resource?: string;
+  resourceId?: string;
+  result: "success" | "failure" | "denied";
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+
+function formatSecurityEvent(event: SecurityEvent): string {
+  const parts = [
+    `[security:${event.category}]`,
+    event.action,
+    `result=${event.result}`,
+  ];
+
+  if (event.actor) parts.push(`actor=${event.actor}`);
+  if (event.tenant) parts.push(`tenant=${event.tenant}`);
+  if (event.resource) parts.push(`resource=${event.resource}`);
+  if (event.resourceId) parts.push(`id=${event.resourceId}`);
+  if (event.reason) parts.push(`reason=${event.reason}`);
+
+  return parts.join(" ");
+}
+
+export function logSecurityEvent(event: SecurityEvent): void {
+  const formatted = formatSecurityEvent(event);
+
+  if (event.result === "denied" || event.result === "failure") {
+    console.warn(formatted);
+  } else {
+    console.info(formatted);
+  }
+}
+
+export function logAuthSuccess(actor: string, resource?: string): void {
+  logSecurityEvent({
+    category: "auth",
+    action: "login_success",
+    actor,
+    result: "success",
+    resource: resource ?? "session",
+  });
+}
+
+export function logAuthFailure(actor: string, reason: string): void {
+  logSecurityEvent({
+    category: "auth",
+    action: "login_failure",
+    actor,
+    result: "failure",
+    reason,
+  });
+}
+
+export function logAccessDenied(actor: string, resource: string, reason: string): void {
+  logSecurityEvent({
+    category: "access",
+    action: "access_denied",
+    actor,
+    result: "denied",
+    resource,
+    reason,
+  });
+}
+
+export function logMutationEvent(
+  action: SecurityEventAction,
+  actor: string,
+  resource: string,
+  resourceId: string,
+  result: "success" | "failure",
+  reason?: string,
+): void {
+  logSecurityEvent({
+    category: "mutation",
+    action,
+    actor,
+    resource,
+    resourceId,
+    result,
+    reason,
+  });
+}
+
+export function logFinalization(actor: string, resource: string, resourceId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "finalization",
+    actor,
+    resource,
+    resourceId,
+    result,
+    reason,
+  });
+}
+
+export function logManualOverride(actor: string, resource: string, resourceId: string, reason: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "manual_override",
+    actor,
+    resource,
+    resourceId,
+    result: "success",
+    reason,
+  });
+}
+
+export function logDataExport(actor: string, format: string, visibility: string, result: "success" | "failure"): void {
+  logSecurityEvent({
+    category: "data_integrity",
+    action: "data_export",
+    actor,
+    resource: "season_export",
+    result,
+    metadata: { format, visibility },
+  });
+}
