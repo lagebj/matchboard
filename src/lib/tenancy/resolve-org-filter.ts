@@ -26,6 +26,32 @@ export async function resolveOrgFilterForUser(userId: string, client: PrismaClie
   };
 }
 
+export async function resolveOrgFilterForMachine(
+  principalId: string,
+  organisationId: string,
+  client: PrismaClient = db,
+): Promise<OrgFilterMode> {
+  const principal = await client.machinePrincipal.findUnique({
+    where: { id: principalId },
+    select: { id: true, organisationId: true, status: true },
+  });
+
+  if (!principal) {
+    return { type: "unscoped", filter: {}, filterNullable: {} };
+  }
+
+  if (principal.organisationId !== organisationId) {
+    return { type: "unscoped", filter: {}, filterNullable: {} };
+  }
+
+  return {
+    type: "org",
+    filter: organisationFilter(organisationId),
+    filterNullable: organisationFilterNullable(organisationId),
+    organisationId,
+  };
+}
+
 export function orgFilterFromContext(ctx: OrganisationAccessContext): OrgFilterMode {
   return {
     type: "org",
