@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import { resolveOrgFilterForUser } from '@/lib/tenancy/resolve-org-filter';
 import { logDataExport } from '@/lib/security/audit-log';
 import {
   formatGoalkeeperAbility,
@@ -75,12 +76,13 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> },
 ) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const { eventId } = await params;
 
   logDataExport(coach.email ?? "unknown", "xlsx", "coach", "success");
 
   const event = await db.event.findUnique({
-    where: { id: eventId },
+    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
     include: {
       squads: {
         include: {

@@ -1,10 +1,11 @@
 import type { PlayerAssignmentBoard, PlayerAssignmentBoardPlayer, MovePlayerToTeamInput } from "./types";
 import { db } from "@/lib/db";
 import { recordDecision } from "@/domain/assistant-manager/service";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-export async function getPlayerAssignmentBoard(): Promise<PlayerAssignmentBoard> {
+export async function getPlayerAssignmentBoard(orgFilter: OrgFilterMode): Promise<PlayerAssignmentBoard> {
   const teams = await db.team.findMany({
-    where: { archivedAt: null },
+    where: { archivedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     orderBy: { name: "asc" },
     include: {
       corePlayers: {
@@ -30,7 +31,7 @@ export async function getPlayerAssignmentBoard(): Promise<PlayerAssignmentBoard>
   }
 
   const allActivePlayers = await db.player.findMany({
-    where: { active: true },
+    where: { active: true, ...(orgFilter.type === "org" ? orgFilter.filterNullable : {}) },
     select: {
       id: true,
       firstName: true,
