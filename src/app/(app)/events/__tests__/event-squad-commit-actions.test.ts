@@ -13,7 +13,7 @@ import {
 } from "../event-squad-commit-actions";
 
 vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue(undefined),
+  requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach-id", email: "test@matchboard.test", name: "Test Coach" }),
 }));
 
 vi.mock("@/lib/db", () => {
