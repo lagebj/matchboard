@@ -1,5 +1,5 @@
 'use server'
- 
+
 import { revalidatePath } from "next/cache";
 import {
   addPlayerToDraftMatch,
@@ -13,6 +13,32 @@ import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { movePlannedSelectionWithinRound } from "@/lib/selection/move-planned-selection";
 import { logManualOverride } from "@/lib/security/audit-log";
+import { db } from "@/lib/db";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+
+async function verifyMatchOrgAccess(matchId: string): Promise<void> {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  if (orgFilter.type === "org") {
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) throw new Error("Match not found or access denied.");
+  }
+}
+
+async function verifyRoundOrgAccess(matchRoundId: string): Promise<void> {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  if (orgFilter.type === "org") {
+    const round = await db.matchRound.findFirst({
+      where: { id: matchRoundId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!round) throw new Error("Round not found or access denied.");
+  }
+}
 
 async function reconcileAndRevalidate(matchRoundId: string) {
   try {
@@ -27,7 +53,6 @@ async function reconcileAndRevalidate(matchRoundId: string) {
 }
 
 export async function addPlayerToMatchAction(formData: FormData) {
-  await requireCoachAccess();
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const role = formData.get("role");
@@ -38,6 +63,8 @@ export async function addPlayerToMatchAction(formData: FormData) {
   if (typeof matchId !== "string" || !matchId) throw new Error("Match ID is required.");
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof role !== "string" || !role) throw new Error("Role is required.");
+
+  await verifyMatchOrgAccess(matchId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -58,13 +85,14 @@ export async function addPlayerToMatchAction(formData: FormData) {
 }
 
 export async function removePlayerFromMatchAction(formData: FormData) {
-  await requireCoachAccess();
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const matchRoundId = formData.get("matchRoundId");
 
   if (typeof matchId !== "string" || !matchId) throw new Error("Match ID is required.");
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
+
+  await verifyMatchOrgAccess(matchId);
 
   const result = await removePlayerFromDraftMatch(matchId, playerId);
 
@@ -75,7 +103,6 @@ export async function removePlayerFromMatchAction(formData: FormData) {
 }
 
 export async function changePlayerRoleAction(formData: FormData) {
-  await requireCoachAccess();
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const role = formData.get("role");
@@ -86,6 +113,8 @@ export async function changePlayerRoleAction(formData: FormData) {
   if (typeof matchId !== "string" || !matchId) throw new Error("Match ID is required.");
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof role !== "string" || !role) throw new Error("Role is required.");
+
+  await verifyMatchOrgAccess(matchId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -106,7 +135,6 @@ export async function changePlayerRoleAction(formData: FormData) {
 }
 
 export async function movePlayerWithinRoundAction(formData: FormData) {
-  await requireCoachAccess();
   const matchRoundId = formData.get("matchRoundId");
   const playerId = formData.get("playerId");
   const fromMatchId = formData.get("fromMatchId");
@@ -120,6 +148,8 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
   if (typeof fromMatchId !== "string" || !fromMatchId) throw new Error("Source match ID is required.");
   if (typeof toMatchId !== "string" || !toMatchId) throw new Error("Target match ID is required.");
   if (typeof targetRole !== "string" || !targetRole) throw new Error("Target role is required.");
+
+  await verifyRoundOrgAccess(matchRoundId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
