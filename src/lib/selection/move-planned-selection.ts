@@ -98,6 +98,7 @@ export async function movePlannedSelectionWithinRound(input: {
       status: { in: [SelectionStatus.DRAFT, SelectionStatus.FINALIZED] },
       matchId: { not: fromMatchId },
     },
+    select: { id: true, matchId: true },
   });
 
   if (sameRoundOtherMatch && sameRoundOtherMatch.matchId !== toMatchId) {

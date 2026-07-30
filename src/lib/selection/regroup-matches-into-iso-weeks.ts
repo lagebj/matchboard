@@ -66,6 +66,7 @@ export async function regroupMatchesIntoIsoWeekRounds(): Promise<RegroupResult> 
 
         const hasFinalizedSelections = await db.selection.findFirst({
           where: { matchRoundId: redundantRoundId, status: "FINALIZED" },
+          select: { id: true },
         });
 
         if (hasFinalizedSelections) {
