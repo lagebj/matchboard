@@ -3,10 +3,20 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { logMutationEvent } from '@/lib/security/audit-log';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
 import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
+
+async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== 'org') return;
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!event) throw new Error('Event not found or access denied.');
+}
 
 const VALID_PLANNED_ROLES = [
   'GK cover',
@@ -30,6 +40,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   note?: string;
 }) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const { eventMatchId, playerId, plannedRole, note } = input;
 
@@ -46,6 +57,8 @@ export async function addEventMatchSupportAssignmentAction(input: {
     include: { event: true },
   });
   if (!eventMatch) throw new Error('Event match not found.');
+
+  await requireEventOrgAccess(eventMatch.eventId, orgFilter);
 
   if (eventMatch.status === 'CANCELLED') {
     throw new Error('Cannot add support to a cancelled match.');
@@ -147,12 +160,15 @@ export async function addEventMatchSupportAssignmentAction(input: {
 
 export async function removeEventMatchSupportAssignmentAction(assignmentId: string) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const assignment = await db.eventMatchSupportAssignment.findUnique({
     where: { id: assignmentId },
     include: { eventMatch: { select: { eventId: true } } },
   });
   if (!assignment) throw new Error('Support assignment not found.');
+
+  await requireEventOrgAccess(assignment.eventMatch.eventId, orgFilter);
 
   await db.eventMatchSupportAssignment.delete({ where: { id: assignmentId } });
 
@@ -167,6 +183,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   note?: string;
 }) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const { assignmentId, plannedRole, note } = input;
 
@@ -179,6 +196,8 @@ export async function updateEventMatchSupportAssignmentAction(input: {
     include: { eventMatch: { select: { eventId: true } } },
   });
   if (!assignment) throw new Error('Support assignment not found.');
+
+  await requireEventOrgAccess(assignment.eventMatch.eventId, orgFilter);
 
   const updated = await db.eventMatchSupportAssignment.update({
     where: { id: assignmentId },
@@ -195,10 +214,11 @@ export async function updateEventMatchSupportAssignmentAction(input: {
 }
 
 export async function getEventMatchSupportAssignmentsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
-  const event = await db.event.findUnique({
-    where: { id: eventId },
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
     select: { matchDurationMinutes: true },
   });
   if (!event) throw new Error('Event not found.');
@@ -266,13 +286,16 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 }
 
 export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const eventMatch = await db.eventMatch.findUnique({
     where: { id: eventMatchId },
     include: { event: true },
   });
   if (!eventMatch) throw new Error('Event match not found.');
+
+  await requireEventOrgAccess(eventMatch.eventId, orgFilter);
 
   const event = eventMatch.event;
   const matchDurationMinutes = event.matchDurationMinutes;
