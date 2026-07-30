@@ -12,6 +12,8 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { logFinalization, logManualOverride } from "@/lib/security/audit-log";
+import { db } from "@/lib/db";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: string[] = []) {
   try {
@@ -29,12 +31,24 @@ async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: str
   }
 }
 
+async function verifyRoundAccess(matchRoundId: string, orgFilter: { type: "org"; organisationId: string } | { type: "unscoped"; filter: {}; filterNullable: {} }): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const round = await db.matchRound.findFirst({
+    where: { id: matchRoundId, organisationId: orgFilter.organisationId },
+    select: { id: true },
+  });
+  if (!round) throw new Error("Round not found or access denied.");
+}
+
 export async function finalizeRoundAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     redirect(buildPathWithSearch(`/rounds/${matchRoundId ?? ""}`, { error: "Match round ID is required." }));
   }
+
+  await verifyRoundAccess(matchRoundId, orgFilter);
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -47,8 +61,6 @@ export async function finalizeRoundAction(formData: FormData) {
     : undefined;
 
   const result = await finalizeMatchRound(matchRoundId, category, detail);
-
-  const coach = await requireCoachAccess();
 
   if (!result.success) {
     if (category && result.needsOverride) {
@@ -78,22 +90,36 @@ export async function finalizeRoundAction(formData: FormData) {
 }
 
 export async function clearRoundDraftAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     throw new Error("Match round ID is required.");
   }
+
+  await verifyRoundAccess(matchRoundId, orgFilter);
 
   await clearRoundDraftSelection(matchRoundId);
   await reconcileAndRevalidatePaths(matchRoundId);
 }
 
 export async function clearMatchDraftAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const matchId = formData.get("matchId");
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
+  }
+
+  if (orgFilter.type === "org") {
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) {
+      throw new Error("Match not found or access denied.");
+    }
   }
 
   await clearMatchDraftSelection(matchId);
@@ -107,12 +133,15 @@ export async function clearMatchDraftAction(formData: FormData) {
 }
 
 export async function regenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
       throw new Error("Match round ID is required.");
     }
+
+    await verifyRoundAccess(matchRoundId, orgFilter);
 
     const result = await refreshDraftRound(matchRoundId);
 
@@ -129,11 +158,22 @@ export async function regenerateRoundAction(prevState: { error: string }, formDa
 }
 
 export async function finalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
       throw new Error("Match ID is required.");
+    }
+
+    if (orgFilter.type === "org") {
+      const match = await db.match.findFirst({
+        where: { id: matchId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!match) {
+        throw new Error("Match not found or access denied.");
+      }
     }
 
     const overrideReasonCategory = formData.get("overrideReasonCategory");
@@ -148,7 +188,6 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
 
     const result = await finalizeSingleMatch(matchId, category, detail);
 
-    const coach = await requireCoachAccess();
     if (result.success) {
       logFinalization(coach.email ?? "unknown", "match", matchId, "success", category ? `override: ${category}` : undefined);
     } else if (category && result.needsOverride) {
@@ -172,12 +211,15 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
 }
 
 export async function unfinalizeRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
       throw new Error("Match round ID is required.");
     }
+
+    await verifyRoundAccess(matchRoundId, orgFilter);
 
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
     const result = await unfinalizeMatchRound(matchRoundId);
@@ -195,11 +237,22 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
 }
 
 export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
       throw new Error("Match ID is required.");
+    }
+
+    if (orgFilter.type === "org") {
+      const match = await db.match.findFirst({
+        where: { id: matchId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!match) {
+        throw new Error("Match not found or access denied.");
+      }
     }
 
     const { unfinalizeSingleMatch } = await import("@/lib/selection/unfinalize-single-match");
@@ -226,11 +279,22 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
 }
 
 export async function regenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const matchId = formData.get("matchId");
     if (typeof matchId !== "string" || !matchId) {
       throw new Error("Match ID is required.");
+    }
+
+    if (orgFilter.type === "org") {
+      const match = await db.match.findFirst({
+        where: { id: matchId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!match) {
+        throw new Error("Match not found or access denied.");
+      }
     }
 
     const { refreshDraftSelection } = await import("@/lib/selection/refresh-draft-selection");
