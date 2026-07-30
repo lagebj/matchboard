@@ -23,6 +23,7 @@ import {
   removeAssistFromReportMutation,
 } from "@/lib/reports/report-mutations";
 import { logReportComplete, logReportReopen } from "@/lib/security/audit-log";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 export type MatchReportDetail = {
   id: string;
@@ -82,10 +83,11 @@ export type MatchReportDetail = {
 };
 
 export async function getMatchReport(matchId: string): Promise<MatchReportDetail> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const match = await db.match.findUnique({
-    where: { id: matchId },
+    where: { id: matchId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     select: {
       id: true,
       teamId: true,
@@ -224,7 +226,15 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
 }
 
 export async function seedMatchReport(matchId: string): Promise<{ success: boolean; error?: string; reportId?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  if (orgFilter.type === "org") {
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) return { success: false, error: "Match not found or access denied." };
+  }
 
   try {
     const result = await seedReportFromFinalizedSquad(matchId);
@@ -412,11 +422,17 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
 }
 
 export async function completeMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  if (orgFilter.type === "org") {
+    const report = await db.postMatchReport.findFirst({
+      where: { id: reportId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!report) return { success: false, error: "Report not found or access denied." };
+  }
 
   try {
-    const coach = await requireCoachAccess();
-
     const result = await completeReport(reportId, coach.email ?? "unknown");
     if (!result.success) {
       logReportComplete(coach.email ?? "unknown", reportId, "failure", result.error);
@@ -445,10 +461,17 @@ export async function reopenMatchReport(
   reportId: string,
   targetStatus?: "DRAFT" | "REPORTED",
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  if (orgFilter.type === "org") {
+    const report = await db.postMatchReport.findFirst({
+      where: { id: reportId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!report) return { success: false, error: "Report not found or access denied." };
+  }
 
   try {
-    const coach = await requireCoachAccess();
     const result = await reopenReport(reportId, targetStatus);
     if (!result.success) {
       logReportReopen(coach.email ?? "unknown", reportId, "failure", result.error);
