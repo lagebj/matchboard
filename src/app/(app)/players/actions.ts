@@ -23,6 +23,7 @@ import {
   updatePlayerCoreTeam as updatePlayerCoreTeamDomain,
 } from "@/lib/players/player-domain";
 import { logPlayerRemove, logPlayerRestore } from "@/lib/security/audit-log";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 type PlayerInput = {
   active: boolean;
@@ -165,7 +166,7 @@ function readAvailabilityStatus(formData: FormData): AvailabilityStatus {
   throw new Error("Availability must be Available, Injured, Sick, Away, Tentative, or Unknown.");
 }
 
-async function readCoreTeamId(formData: FormData): Promise<string | null> {
+async function readCoreTeamId(formData: FormData, organisationId?: string): Promise<string | null> {
   const coreTeamId = readText(formData, "coreTeamId");
 
   if (!coreTeamId) {
@@ -176,6 +177,7 @@ async function readCoreTeamId(formData: FormData): Promise<string | null> {
     where: {
       id: coreTeamId,
       archivedAt: null,
+      ...(organisationId ? { organisationId } : {}),
     },
     select: {
       id: true,
@@ -189,10 +191,10 @@ async function readCoreTeamId(formData: FormData): Promise<string | null> {
   return team.id;
 }
 
-async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
+async function readPlayerInput(formData: FormData, organisationId?: string): Promise<PlayerInput> {
   const firstName = readText(formData, "firstName");
   const primaryPosition = readRequiredPosition(formData, "primaryPosition");
-  const coreTeamId = await readCoreTeamId(formData);
+  const coreTeamId = await readCoreTeamId(formData, organisationId);
 
   if (!firstName) {
     throw new Error("First name and primary position are required.");
@@ -243,9 +245,11 @@ function getPlayerActionErrorMessage(error: unknown): string {
 }
 
 export async function createPlayerAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
-    const playerInput = await readPlayerInput(formData);
+    const playerInput = await readPlayerInput(formData, organisationId);
 
     let createdPlayerId: string | null = null;
     let attempts = 0;
@@ -260,6 +264,7 @@ export async function createPlayerAction(formData: FormData) {
           data: {
             ...playerInput,
             playerCode,
+            ...(organisationId ? { organisationId } : {}),
           },
           select: { id: true },
         });
@@ -302,14 +307,17 @@ export async function createPlayerAction(formData: FormData) {
 }
 
 export async function updatePlayerAction(playerId: string, formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
-    const playerInput = await readPlayerInput(formData);
+    const playerInput = await readPlayerInput(formData, organisationId);
 
     const player = await db.player.findFirst({
       where: {
         id: playerId,
         removedAt: null,
+        ...(organisationId ? { organisationId } : {}),
       },
       select: {
         id: true,
@@ -351,8 +359,10 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
 }
 
 export async function togglePlayerActiveAction(playerId: string) {
-  await requireCoachAccess();
-  const result = await togglePlayerActiveDomain(playerId);
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await togglePlayerActiveDomain(playerId, organisationId);
   if (!result.success) {
     redirect(buildPathWithSearch("/players", { error: result.error }));
   }
@@ -364,7 +374,9 @@ export async function togglePlayerActiveAction(playerId: string) {
 
 export async function removePlayerAction(playerId: string) {
   const coach = await requireCoachAccess();
-  const result = await removePlayerDomain(playerId);
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await removePlayerDomain(playerId, organisationId);
   if (!result.success) {
     logPlayerRemove(coach.email ?? "unknown", playerId, "failure", result.error);
     redirect(buildPathWithSearch("/players", { error: result.error }));
@@ -379,7 +391,9 @@ export async function removePlayerAction(playerId: string) {
 
 export async function restorePlayerAction(playerId: string) {
   const coach = await requireCoachAccess();
-  const result = await restorePlayerDomain(playerId);
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await restorePlayerDomain(playerId, organisationId);
   if (!result.success) {
     logPlayerRestore(coach.email ?? "unknown", playerId, "failure");
     redirect(buildPathWithSearch("/players", { error: result.error }));
@@ -393,14 +407,16 @@ export async function restorePlayerAction(playerId: string) {
 }
 
 export async function setPlayerAvailabilityAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   const playerId = formData.get("playerId");
   const availability = formData.get("availability");
 
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof availability !== "string" || !availability) throw new Error("Availability is required.");
 
-  const result = await setPlayerAvailabilityDomain(playerId, availability as AvailabilityStatus);
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await setPlayerAvailabilityDomain(playerId, availability as AvailabilityStatus, organisationId);
   if (!result.success) throw new Error(result.error);
 
   revalidatePath("/players");
@@ -409,9 +425,10 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
 }
 
 export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: string | null) {
-  await requireCoachAccess();
-
-  const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId);
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId, organisationId);
   if (!result.success) throw new Error(result.error);
 
   revalidatePath("/players");

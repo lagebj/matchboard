@@ -4,7 +4,8 @@ export type TeamMutationResult =
   | { success: true; teamId: string }
   | { success: false; error: string };
 
-export async function checkTeamDeletionGuard(teamId: string): Promise<TeamMutationResult> {
+export async function checkTeamDeletionGuard(teamId: string, organisationId?: string): Promise<TeamMutationResult> {
+  const orgFilter = organisationId ? { organisationId } : {};
   const [team, activeCorePlayerCount, rotationPathCount, matchCount] = await Promise.all([
     db.team.findUnique({
       where: { id: teamId },
@@ -25,6 +26,10 @@ export async function checkTeamDeletionGuard(teamId: string): Promise<TeamMutati
 
   if (!team) {
     return { success: false, error: "Team not found." };
+  }
+
+  if (organisationId && team.organisationId !== organisationId) {
+    return { success: false, error: "Team not found in your organisation." };
   }
 
   if (activeCorePlayerCount > 0 || rotationPathCount > 0 || matchCount > 0) {
@@ -97,8 +102,8 @@ export async function createOrRestoreTeam(data: {
   return { success: true, teamId: team.id };
 }
 
-export async function archiveTeam(teamId: string): Promise<TeamMutationResult> {
-  const guard = await checkTeamDeletionGuard(teamId);
+export async function archiveTeam(teamId: string, organisationId?: string): Promise<TeamMutationResult> {
+  const guard = await checkTeamDeletionGuard(teamId, organisationId);
   if (!guard.success) return guard;
 
   await db.team.update({

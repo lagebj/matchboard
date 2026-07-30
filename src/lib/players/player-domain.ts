@@ -18,9 +18,13 @@ export function isValidAvailabilityStatus(status: string): status is Availabilit
   return (VALID_AVAILABILITY_STATUSES as readonly string[]).includes(status);
 }
 
-export async function togglePlayerActive(playerId: string): Promise<PlayerMutationResult> {
+function playerOrgScope(organisationId?: string) {
+  return organisationId ? { organisationId } : {};
+}
+
+export async function togglePlayerActive(playerId: string, organisationId?: string): Promise<PlayerMutationResult> {
   const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: null },
+    where: { id: playerId, removedAt: null, ...playerOrgScope(organisationId) },
     select: { id: true, active: true },
   });
 
@@ -36,9 +40,9 @@ export async function togglePlayerActive(playerId: string): Promise<PlayerMutati
   return { success: true, playerId: player.id };
 }
 
-export async function removePlayer(playerId: string): Promise<PlayerMutationResult> {
+export async function removePlayer(playerId: string, organisationId?: string): Promise<PlayerMutationResult> {
   const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: null },
+    where: { id: playerId, removedAt: null, ...playerOrgScope(organisationId) },
     select: { id: true },
   });
 
@@ -54,9 +58,9 @@ export async function removePlayer(playerId: string): Promise<PlayerMutationResu
   return { success: true, playerId: player.id };
 }
 
-export async function restorePlayer(playerId: string): Promise<PlayerMutationResult> {
+export async function restorePlayer(playerId: string, organisationId?: string): Promise<PlayerMutationResult> {
   const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: { not: null } },
+    where: { id: playerId, removedAt: { not: null }, ...playerOrgScope(organisationId) },
     select: { id: true },
   });
 
@@ -75,13 +79,14 @@ export async function restorePlayer(playerId: string): Promise<PlayerMutationRes
 export async function setPlayerAvailability(
   playerId: string,
   availability: AvailabilityStatus,
+  organisationId?: string,
 ): Promise<PlayerMutationResult> {
   if (!isValidAvailabilityStatus(availability)) {
     return { success: false, error: `Invalid availability status: ${availability}` };
   }
 
   const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: null },
+    where: { id: playerId, removedAt: null, ...playerOrgScope(organisationId) },
     select: { id: true },
   });
 
@@ -100,9 +105,10 @@ export async function setPlayerAvailability(
 export async function updatePlayerCoreTeam(
   playerId: string,
   coreTeamId: string | null,
+  organisationId?: string,
 ): Promise<PlayerMutationResult> {
   const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: null },
+    where: { id: playerId, removedAt: null, ...playerOrgScope(organisationId) },
     select: { id: true },
   });
 
@@ -112,7 +118,7 @@ export async function updatePlayerCoreTeam(
 
   if (coreTeamId !== null) {
     const team = await db.team.findFirst({
-      where: { id: coreTeamId, archivedAt: null },
+      where: { id: coreTeamId, archivedAt: null, ...(organisationId ? { organisationId } : {}) },
       select: { id: true },
     });
     if (!team) {
