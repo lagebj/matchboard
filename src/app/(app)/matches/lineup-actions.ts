@@ -3,9 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
-import { createFormationSnapshot } from "@/lib/formations/snapshot";
-import type { GameFormat } from "@/generated/prisma/client";
-import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
+import {
+  canModifyLineup,
+  requireAssignmentExists,
+  requireAllSlotsAssigned,
+  requireLineupExists,
+  createLineupFromFormation,
+} from "@/lib/lineups/lineup-domain";
 
 export async function getMatchLineup(matchId: string, teamId: string) {
   await requireCoachAccess();
@@ -25,58 +29,7 @@ export async function createMatchLineup(data: {
 }) {
   await requireCoachAccess();
 
-  const formation = await db.formation.findUnique({
-    where: { id: data.formationId },
-    include: { slots: { orderBy: { sortOrder: "asc" } } },
-  });
-
-  if (!formation) throw new Error("Formation not found");
-  if (formation.isArchived) throw new Error("Cannot use an archived formation");
-
-  const existing = await db.matchLineup.findFirst({
-    where: { matchId: data.matchId, teamId: data.teamId },
-  });
-
-  if (existing) throw new Error("A lineup already exists for this match and team");
-
-  const snapshot = createFormationSnapshot(
-    formation.id,
-    formation.name,
-    formation.gameFormat as GameFormat,
-    formation.slots.map((s) => ({
-      id: s.id,
-      gridX: s.gridX,
-      gridY: s.gridY,
-      label: s.label,
-      shortLabel: s.shortLabel,
-      roleType: s.roleType as FormationSlotRoleType,
-      acceptedPositionIds: s.acceptedPositionIds as BroadPosition[],
-      sortOrder: s.sortOrder,
-    })),
-  );
-
-  const lineup = await db.matchLineup.create({
-    data: {
-      matchId: data.matchId,
-      teamId: data.teamId,
-      formationId: data.formationId,
-      status: "DRAFT",
-      formationSnapshot: snapshot,
-      benchPlayerIds: [],
-      assignments: {
-        create: formation.slots.map((slot) => ({
-          slotId: slot.id,
-          playerId: null,
-          locked: false,
-          source: "MANUAL" as const,
-        })),
-      },
-    },
-    include: {
-      formation: { include: { slots: { orderBy: { sortOrder: "asc" } } } },
-      assignments: true,
-    },
-  });
+  const lineup = await createLineupFromFormation(data);
 
   revalidatePath(`/matches/${data.matchId}`);
   return lineup;
@@ -89,13 +42,8 @@ export async function assignPlayerToSlot(
 ) {
   await requireCoachAccess();
 
-  const assignment = await db.matchLineupAssignment.findUnique({
-    where: { id: assignmentId },
-    include: { matchLineup: true },
-  });
-
-  if (!assignment) throw new Error("Assignment not found");
-  if (assignment.matchLineup.status === "CONFIRMED") {
+  const assignment = await requireAssignmentExists(assignmentId);
+  if (!canModifyLineup(assignment.matchLineup.status)) {
     throw new Error("Cannot modify a confirmed lineup");
   }
 
@@ -140,13 +88,8 @@ export async function assignPlayerToSlot(
 export async function removePlayerFromSlot(assignmentId: string) {
   await requireCoachAccess();
 
-  const assignment = await db.matchLineupAssignment.findUnique({
-    where: { id: assignmentId },
-    include: { matchLineup: true },
-  });
-
-  if (!assignment) throw new Error("Assignment not found");
-  if (assignment.matchLineup.status === "CONFIRMED") {
+  const assignment = await requireAssignmentExists(assignmentId);
+  if (!canModifyLineup(assignment.matchLineup.status)) {
     throw new Error("Cannot modify a confirmed lineup");
   }
 
@@ -162,13 +105,8 @@ export async function removePlayerFromSlot(assignmentId: string) {
 export async function toggleSlotLock(assignmentId: string) {
   await requireCoachAccess();
 
-  const assignment = await db.matchLineupAssignment.findUnique({
-    where: { id: assignmentId },
-    include: { matchLineup: true },
-  });
-
-  if (!assignment) throw new Error("Assignment not found");
-  if (assignment.matchLineup.status === "CONFIRMED") {
+  const assignment = await requireAssignmentExists(assignmentId);
+  if (!canModifyLineup(assignment.matchLineup.status)) {
     throw new Error("Cannot modify a confirmed lineup");
   }
 
@@ -184,17 +122,8 @@ export async function toggleSlotLock(assignmentId: string) {
 export async function confirmLineup(lineupId: string) {
   await requireCoachAccess();
 
-  const lineup = await db.matchLineup.findUnique({
-    where: { id: lineupId },
-    include: { assignments: true },
-  });
-
-  if (!lineup) throw new Error("Lineup not found");
-
-  const unassigned = lineup.assignments.filter((a) => !a.playerId);
-  if (unassigned.length > 0) {
-    throw new Error(`Cannot confirm: ${unassigned.length} slot(s) have no player assigned`);
-  }
+  const lineup = await requireLineupExists(lineupId);
+  requireAllSlotsAssigned(lineup.assignments);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
