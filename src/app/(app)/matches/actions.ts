@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -77,7 +78,9 @@ export type MatchFormState = { error: string };
 const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
     const opponentText = readText(formData, "opponent");
@@ -88,7 +91,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");
 
     const team = await db.team.findFirst({
-      where: { id: teamId, archivedAt: null },
+      where: { id: teamId, archivedAt: null, ...(orgId ? { organisationId: orgId } : {}) },
       select: { id: true },
     });
     if (!team) throw new Error("Team not found.");
@@ -143,6 +146,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
         matchType,
         gameFormat,
         matchRoundId,
+        ...(orgId ? { organisationId: orgId } : {}),
       },
     });
   } catch (error) {
@@ -194,8 +198,10 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 
 export async function deleteMatchAction(matchId: string) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
-    const guard = await checkMatchDeletionGuard(matchId);
+    const guard = await checkMatchDeletionGuard(matchId, orgId);
     if (!guard.success) throw new Error(guard.error);
 
     await db.match.delete({ where: { id: guard.matchId } });

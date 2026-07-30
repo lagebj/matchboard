@@ -49,14 +49,18 @@ export async function checkMatchCancellationGuard(matchId: string): Promise<Matc
   return { success: true, matchId: match.id };
 }
 
-export async function checkMatchDeletionGuard(matchId: string): Promise<MatchGuardResult> {
+export async function checkMatchDeletionGuard(matchId: string, organisationId?: string): Promise<MatchGuardResult> {
   const match = await db.match.findUnique({
     where: { id: matchId },
-    select: { id: true, selections: { where: { status: "FINALIZED" }, select: { id: true } } },
+    select: { id: true, organisationId: true, selections: { where: { status: "FINALIZED" }, select: { id: true } } },
   });
 
   if (!match) {
     return { success: false, error: "Match not found." };
+  }
+
+  if (organisationId && match.organisationId !== organisationId) {
+    return { success: false, error: "Match not found in your organisation." };
   }
 
   if (match.selections.length > 0) {
