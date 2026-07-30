@@ -4,27 +4,16 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
-import type { FormationSlotRoleType } from '@/generated/prisma/client';
+import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
-  type EventType,
-  type GameFormat,
-  type EventPlayerStatus,
-  type EventSquadIntent,
-  type EventSelectionPattern,
-} from '@/generated/prisma/client';
+  VALID_EVENT_TYPES,
+  VALID_GAME_FORMATS,
+  VALID_EVENT_PLAYER_STATUSES,
+  VALID_SQUAD_INTENTS,
+  VALID_SELECTION_PATTERNS,
+  parseEnum,
+} from '@/lib/events/event-validation-constants';
 import type { BroadPosition } from '@/lib/events/event-types';
-
-const VALID_EVENT_TYPES: EventType[] = ['CUP', 'TOURNAMENT', 'FRIENDLY_DAY', 'OTHER'];
-const VALID_GAME_FORMATS: GameFormat[] = ['THREE_A_SIDE', 'FIVE_A_SIDE', 'SEVEN_A_SIDE', 'NINE_A_SIDE', 'ELEVEN_A_SIDE'];
-const VALID_STATUSES: EventPlayerStatus[] = ['AVAILABLE', 'UNAVAILABLE', 'UNKNOWN', 'RESERVE', 'LATE_ADDITION', 'WITHDRAWN'];
-const VALID_INTENTS: EventSquadIntent[] = ['COMPETITIVE', 'BALANCED', 'MANUAL'];
-const VALID_PATTERNS: EventSelectionPattern[] = ['ALL_BALANCED', 'ONE_COMPETITIVE_BALANCED_REMAINDER', 'MANUAL_SEED_AUTO_BALANCE'];
-
-function parseEnum<T extends string>(value: string | null | undefined, validValues: readonly T[], defaultValue: T): T {
-  if (!value) return defaultValue;
-  if (validValues.includes(value as T)) return value as T;
-  return defaultValue;
-}
 
 export async function getEvents() {
   await requireCoachAccess();
@@ -85,7 +74,7 @@ export async function createEventAction(formData: FormData) {
 
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
-  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_SELECTION_PATTERNS, 'ALL_BALANCED') : null;
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
@@ -151,7 +140,7 @@ export async function updateEventAction(id: string, formData: FormData) {
 
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
-  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_SELECTION_PATTERNS, 'ALL_BALANCED') : null;
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
@@ -205,7 +194,7 @@ export async function updateEventPlayerAvailability(
 ) {
   await requireCoachAccess();
 
-  if (!VALID_STATUSES.includes(status)) {
+  if (!VALID_EVENT_PLAYER_STATUSES.includes(status)) {
     throw new Error(`Invalid availability status: ${status}`);
   }
 
@@ -233,7 +222,7 @@ export async function setEventPlayerPool(
 ) {
   await requireCoachAccess();
 
-  if (!VALID_STATUSES.includes(defaultStatus)) {
+  if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
     throw new Error(`Invalid availability status: ${defaultStatus}`);
   }
 
@@ -265,7 +254,7 @@ export async function addPlayersToEventPoolAction(
 
   if (playerIds.length === 0) return;
 
-  if (!VALID_STATUSES.includes(defaultStatus)) {
+  if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
     throw new Error(`Invalid availability status: ${defaultStatus}`);
   }
 
@@ -396,7 +385,7 @@ export async function addEventSquadAction(
 ) {
   await requireCoachAccess();
 
-  if (!VALID_INTENTS.includes(intent)) {
+  if (!VALID_SQUAD_INTENTS.includes(intent)) {
     throw new Error(`Invalid squad intent: ${intent}`);
   }
 
@@ -438,7 +427,7 @@ export async function updateEventSquadAction(
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.intent !== undefined) {
-    if (!VALID_INTENTS.includes(data.intent)) {
+    if (!VALID_SQUAD_INTENTS.includes(data.intent)) {
       throw new Error(`Invalid squad intent: ${data.intent}`);
     }
     updateData.intent = data.intent;
