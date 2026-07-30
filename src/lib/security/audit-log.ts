@@ -34,7 +34,14 @@ type SecurityEventAction =
   | "organisation_invitation_revoke"
   | "organisation_membership_update"
   | "organisation_team_access_add"
-  | "organisation_team_access_remove";
+  | "organisation_team_access_add"
+  | "organisation_team_access_remove"
+  | "machine_principal_create"
+  | "machine_principal_revoke"
+  | "machine_principal_reactivate"
+  | "machine_principal_secret_rotate"
+  | "machine_token_issued"
+  | "machine_token_auth_failure";
 
 interface SecurityEvent {
   category: SecurityEventCategory;
@@ -340,5 +347,70 @@ export function logOrganisationTeamAccessRemove(actor: string, organisationId: s
     resource: "organisation",
     resourceId: organisationId,
     result,
+  });
+}
+export function logMachinePrincipalCreate(actor: string, principalId: string, result: "success" | "failure" = "success"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "machine_principal_create",
+    actor,
+    resource: "machine_principal",
+    resourceId: principalId,
+    result,
+  });
+}
+
+export function logMachinePrincipalRevoke(actor: string, principalId: string, result: "success" | "failure" = "success"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "machine_principal_revoke",
+    actor,
+    resource: "machine_principal",
+    resourceId: principalId,
+    result,
+  });
+}
+
+export function logMachinePrincipalReactivate(actor: string, principalId: string, result: "success" | "failure" = "success"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "machine_principal_reactivate",
+    actor,
+    resource: "machine_principal",
+    resourceId: principalId,
+    result,
+  });
+}
+
+export function logMachinePrincipalSecretRotate(actor: string, principalId: string, result: "success" | "failure" = "success"): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "machine_principal_secret_rotate",
+    actor,
+    resource: "machine_principal",
+    resourceId: principalId,
+    result,
+  });
+}
+
+export function logMachineTokenIssued(actor: string, detail: string, result: "success" | "failure" = "success"): void {
+  logSecurityEvent({
+    category: "auth",
+    action: "machine_token_issued",
+    actor,
+    resource: "machine_token",
+    resourceId: detail,
+    result,
+  });
+}
+
+export function logMachineTokenAuthFailure(actor: string, reason: string): void {
+  logSecurityEvent({
+    category: "auth",
+    action: "machine_token_auth_failure",
+    actor,
+    resource: "machine_token",
+    resourceId: reason,
+    result: "failure",
   });
 }

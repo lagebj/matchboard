@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateMachinePrincipal, validateScopes } from "@/lib/machine-principal/machine-principal";
 import { signMachineToken } from "@/lib/machine-principal/machine-token";
 import { rateLimit } from "@/lib/rate-limit";
-import { logAuthSuccess, logAuthFailure } from "@/lib/security/audit-log";
+import { logMachineTokenIssued, logMachineTokenAuthFailure } from "@/lib/security/audit-log";
 
 export async function POST(request: NextRequest) {
   const rl = rateLimit("machine:token", 10, 60_000);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const requestedScopesStr = body.scope ?? "";
 
   if (grantType !== "client_credentials") {
-    logAuthFailure(clientId ?? "unknown", "machine_token_unsupported_grant");
+    logMachineTokenAuthFailure(clientId ?? "unknown", `unsupported_grant:${grantType}`);
     return NextResponse.json(
       { error: "unsupported_grant_type", error_description: "Only client_credentials grant type is supported" },
       { status: 400 },
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!clientId || !clientSecret) {
-    logAuthFailure(clientId ?? "unknown", "machine_token_missing_credentials");
+    logMachineTokenAuthFailure(clientId ?? "unknown", "missing_credentials");
     return NextResponse.json(
       { error: "invalid_client", error_description: "client_id and client_secret are required" },
       { status: 401 },
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   );
 
   if (!result.authenticated) {
-    logAuthFailure(clientId, `machine_token_auth_failure:${result.reason}`);
+    logMachineTokenAuthFailure(clientId, result.reason ?? "unknown");
     return NextResponse.json(
       { error: "invalid_client", error_description: result.reason },
       { status: 401 },
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!result.grantedScopes || result.grantedScopes.length === 0) {
-    logAuthFailure(clientId, "machine_token_no_scopes_granted");
+    logMachineTokenAuthFailure(clientId, "no_scopes_granted");
     return NextResponse.json(
       { error: "invalid_scope", error_description: "No requested scopes are allowed for this principal" },
       { status: 403 },
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       scopes: result.grantedScopes as any[],
     });
 
-    logAuthSuccess(clientId, `machine_token_issued:scopes=${result.grantedScopes.join(",")}`);
+    logMachineTokenIssued(clientId, `scopes=${result.grantedScopes.join(",")}`);
 
     return NextResponse.json({
       access_token: token,
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       scope: result.grantedScopes.join(" "),
     });
   } catch (error) {
-    logAuthFailure(clientId, "machine_token_signing_failure");
+    logMachineTokenAuthFailure(clientId, "token_signing_failure");
     return NextResponse.json(
       { error: "server_error", error_description: "Failed to sign token" },
       { status: 500 },
