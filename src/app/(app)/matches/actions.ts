@@ -21,6 +21,11 @@ import {
   formatLeagueSeasonLabel,
 } from "@/lib/seasons/league-season";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
+import {
+  cancelMatchDomain,
+  reopenMatchDomain,
+  checkMatchDeletionGuard,
+} from "@/lib/matches/match-domain";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -189,16 +194,10 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 export async function deleteMatchAction(matchId: string) {
   await requireCoachAccess();
   try {
-    const match = await db.match.findUnique({
-      where: { id: matchId },
-      select: { id: true, selections: { where: { status: "FINALIZED" }, select: { id: true } } },
-    });
-    if (!match) throw new Error("Match not found.");
-    if (match.selections.length > 0) {
-      throw new Error("This match has finalised selections and cannot be removed without explicit confirmation.");
-    }
+    const guard = await checkMatchDeletionGuard(matchId);
+    if (!guard.success) throw new Error(guard.error);
 
-    await db.match.delete({ where: { id: match.id } });
+    await db.match.delete({ where: { id: guard.matchId } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not delete the match.";
     redirect(`/fixtures?error=${encodeURIComponent(message)}`);
@@ -433,41 +432,12 @@ export async function finalizeMatchAction(formData: FormData) {
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
   await requireCoachAccess();
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
-    select: { id: true, status: true, matchRoundId: true },
-  });
-
-  if (!match) {
-    throw new Error("Match not found.");
+  const result = await cancelMatchDomain(matchId, cancelledReason);
+  if (!result.success) {
+    throw new Error(result.error);
   }
 
-  if (match.status === "CANCELLED") {
-    throw new Error("Match is already cancelled.");
-  }
-
-  const existingReport = await db.postMatchReport.findFirst({
-    where: {
-      matchId,
-      status: { in: ["REPORTED", "LOCKED"] },
-    },
-    select: { id: true },
-  });
-
-  if (existingReport) {
-    throw new Error("Cannot cancel a match that has a completed post-match report. Resolve the report data conflict first.");
-  }
-
-  await db.match.update({
-    where: { id: matchId },
-    data: {
-      status: "CANCELLED",
-      cancelledAt: new Date(),
-      cancelledReason: cancelledReason?.trim() || null,
-    },
-  });
-
-  await reconcileRoundAfterDraftMutation(match.matchRoundId);
+  await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
   revalidatePath("/fixtures");
   revalidatePath(`/matches/${matchId}`);
@@ -478,29 +448,12 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 export async function reopenMatchAction(matchId: string) {
   await requireCoachAccess();
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
-    select: { id: true, status: true, matchRoundId: true },
-  });
-
-  if (!match) {
-    throw new Error("Match not found.");
+  const result = await reopenMatchDomain(matchId);
+  if (!result.success) {
+    throw new Error(result.error);
   }
 
-  if (match.status !== "CANCELLED") {
-    throw new Error("Match is not cancelled.");
-  }
-
-  await db.match.update({
-    where: { id: matchId },
-    data: {
-      status: "SCHEDULED",
-      cancelledAt: null,
-      cancelledReason: null,
-    },
-  });
-
-  await reconcileRoundAfterDraftMutation(match.matchRoundId);
+  await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
   revalidatePath("/fixtures");
   revalidatePath(`/matches/${matchId}`);
