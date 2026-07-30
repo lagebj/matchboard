@@ -1,5 +1,6 @@
 import type { TeamConfiguration, TeamRuleConfiguration } from "./types";
 import { db } from "@/lib/db";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export const KNOWN_RULES: TeamRuleConfiguration[] = [
   {
@@ -62,9 +63,10 @@ export const KNOWN_RULES: TeamRuleConfiguration[] = [
   },
 ];
 
-export async function getTeamConfiguration(teamId: string): Promise<TeamConfiguration | null> {
+export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilterMode): Promise<TeamConfiguration | null> {
+  const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
   const team = await db.team.findUnique({
-    where: { id: teamId },
+    where: { id: teamId, ...orgWhere },
     include: {
       corePlayers: {
         where: { active: true },
@@ -115,7 +117,10 @@ export async function updateTeamConfiguration(
     maxSquadSize?: number;
     supportPriority?: number;
   },
+  orgFilter?: OrgFilterMode,
 ): Promise<TeamConfiguration> {
+  const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
+
   if (input.targetSquadSize !== undefined && input.targetSquadSize <= 0) {
     throw new Error("Target squad size must be greater than 0.");
   }
@@ -123,7 +128,8 @@ export async function updateTeamConfiguration(
     throw new Error("Max squad size must be >= target squad size.");
   }
   if (input.maxSquadSize !== undefined && input.targetSquadSize === undefined) {
-    const team = await db.team.findUniqueOrThrow({ where: { id: teamId }, select: { targetSquadSize: true } });
+    const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
+    const team = await db.team.findUniqueOrThrow({ where: { id: teamId, ...orgWhere }, select: { targetSquadSize: true } });
     if (input.maxSquadSize < team.targetSquadSize) {
       throw new Error("Max squad size must be >= target squad size.");
     }
@@ -137,9 +143,9 @@ export async function updateTeamConfiguration(
   if (input.maxSquadSize !== undefined) data.maxSquadSize = input.maxSquadSize;
   if (input.supportPriority !== undefined) data.supportPriority = input.supportPriority;
 
-  await db.team.update({ where: { id: teamId }, data });
+  await db.team.update({ where: { id: teamId, ...orgWhere }, data });
 
-  const result = await getTeamConfiguration(teamId);
+  const result = await getTeamConfiguration(teamId, orgFilter);
   if (!result) throw new Error("Team not found after update.");
   return result;
 }

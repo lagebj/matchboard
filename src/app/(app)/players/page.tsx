@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
@@ -18,12 +20,15 @@ type PlayersPageProps = {
 };
 
 export default async function PlayersPage({ searchParams }: PlayersPageProps) {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const { mode, periodId, roundId, showRemoved, error, saved } = await searchParams;
   const includeRemoved = showRemoved === "1";
 
+  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
   const playerFilter = includeRemoved
-    ? { removedAt: { not: null } satisfies Prisma.DateTimeNullableFilter<"Player"> }
-    : { removedAt: null, active: true };
+    ? { removedAt: { not: null } satisfies Prisma.DateTimeNullableFilter<"Player">, ...orgWhere }
+    : { removedAt: null, active: true, ...orgWhere };
 
   const [players, removedPlayerCount, teams, leagueSeasons, matchRounds] = await Promise.all([
     db.player.findMany({
@@ -31,17 +36,19 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
       include: { coreTeam: { select: { id: true, name: true } } },
       orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
     }),
-    db.player.count({ where: { removedAt: { not: null } } }),
+    db.player.count({ where: { removedAt: { not: null }, ...orgWhere } }),
     db.team.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...orgWhere },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     db.leagueSeason.findMany({
+      where: orgWhere,
       orderBy: { startDate: "desc" },
       select: { id: true, name: true, startDate: true, endDate: true },
     }),
     db.matchRound.findMany({
+      where: orgWhere,
       orderBy: { name: "asc" },
       select: { id: true, name: true, leagueSeasonId: true },
     }),
