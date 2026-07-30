@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type FeedbackCategory,
   type FeedbackNextAction,
@@ -11,6 +12,15 @@ import {
   getReadinessSuggestionForFeedback,
 } from "@/lib/coaching/types";
 import { checkDisallowedLanguage } from "@/lib/coaching/match-execution-feedback";
+
+async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+}
 
 type ReadinessSuggestionFromFeedback = {
   signalType: string;
@@ -28,7 +38,10 @@ export async function createMatchFeedbackAction(
   nextAction: string | null,
   note: string | null,
 ): Promise<{ success: boolean; error?: string; readinessSuggestion?: ReadinessSuggestionFromFeedback | null }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   if (!FEEDBACK_CATEGORIES.includes(category as FeedbackCategory)) {
     return { success: false, error: `Invalid feedback category: ${category}` };
@@ -57,6 +70,7 @@ export async function createMatchFeedbackAction(
         observableBehavior: observableBehavior ?? null,
         nextAction: (nextAction as FeedbackNextAction) ?? "NO_ACTION",
         note: note ?? null,
+        ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
       },
     });
 
@@ -84,7 +98,8 @@ export async function updateMatchFeedbackAction(
     note?: string | null;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   if (data.nextAction && !FEEDBACK_NEXT_ACTIONS.includes(data.nextAction as FeedbackNextAction)) {
     return { success: false, error: `Invalid next action: ${data.nextAction}` };
@@ -93,6 +108,14 @@ export async function updateMatchFeedbackAction(
   try {
     const existing = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!existing) return { success: false, error: "Feedback not found." };
+
+    if (orgFilter.type === "org") {
+      const match = await db.match.findFirst({
+        where: { id: existing.matchId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!match) return { success: false, error: "Feedback not found or access denied." };
+    }
 
     const allText = [data.value ?? existing.value, data.observableBehavior ?? existing.observableBehavior, data.note ?? existing.note].filter(Boolean).join(" ");
     const disallowedTerms = checkDisallowedLanguage(allText);
@@ -126,11 +149,20 @@ export async function updateMatchFeedbackAction(
 export async function deleteMatchFeedbackAction(
   feedbackId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   try {
     const feedback = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!feedback) return { success: false, error: "Feedback not found." };
+
+    if (orgFilter.type === "org") {
+      const match = await db.match.findFirst({
+        where: { id: feedback.matchId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!match) return { success: false, error: "Feedback not found or access denied." };
+    }
 
     await db.matchExecutionFeedback.delete({ where: { id: feedbackId } });
 
@@ -147,11 +179,14 @@ export async function deleteMatchFeedbackAction(
 export async function getMatchFeedbackAction(
   matchId: string,
 ): Promise<{ success: boolean; feedback?: Array<{ id: string; playerId: string; category: string; value: string; observableBehavior: string | null; nextAction: string; note: string | null }>; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({
-      where: { matchId },
+      where: { matchId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
     });
 
@@ -175,11 +210,12 @@ export async function getMatchFeedbackAction(
 export async function getPlayerFeedbackAction(
   playerId: string,
 ): Promise<{ success: boolean; feedback?: Array<{ id: string; matchId: string; category: string; value: string; observableBehavior: string | null; nextAction: string; note: string | null }>; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({
-      where: { playerId },
+      where: { playerId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
       orderBy: [{ matchId: "asc" }, { category: "asc" }],
     });
 

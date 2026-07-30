@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { playerPositionValues } from "@/lib/player-form-options";
 import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
 
@@ -13,7 +14,8 @@ export async function updatePlayerFieldAction(
   field: string,
   value: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const allowedFields = new Set([
     "firstName",
@@ -51,7 +53,7 @@ export async function updatePlayerFieldAction(
 
   try {
     const player = await db.player.findFirst({
-      where: { id: playerId, removedAt: null },
+      where: { id: playerId, removedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
       select: { id: true, primaryPosition: true, secondaryPosition: true, tertiaryPosition: true },
     });
 

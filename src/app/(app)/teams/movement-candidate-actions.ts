@@ -10,6 +10,8 @@ import {
   type UpdateMovementCandidateInput,
 } from "@/lib/selection/movement-candidate";
 import type { MovementCandidateRole, MovementCandidateRationale } from "@/generated/prisma/client";
+import { db } from "@/lib/db";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 const VALID_ROLES = new Set<string>(["SUPPORT", "DEVELOPMENT"]);
 const VALID_RATIONALES = new Set<string>([
@@ -23,8 +25,27 @@ const VALID_RATIONALES = new Set<string>([
 ]);
 const VALID_STATUSES = new Set<string>(["ACTIVE", "PAUSED"]);
 
+async function requireRotationPathOrgAccess(rotationPathId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const path = await db.rotationPath.findFirst({
+    where: { id: rotationPathId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!path) throw new Error("Rotation path not found or access denied.");
+}
+
+async function requireCandidateOrgAccess(candidateId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const candidate = await db.movementCandidate.findFirst({
+    where: { id: candidateId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!candidate) throw new Error("Movement candidate not found or access denied.");
+}
+
 export async function createMovementCandidateAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const playerId = (formData.get("playerId") as string)?.trim() ?? "";
   const rotationPathId = (formData.get("rotationPathId") as string)?.trim() ?? "";
@@ -37,6 +58,8 @@ export async function createMovementCandidateAction(formData: FormData) {
   if (!rotationPathId) throw new Error("Rotation path is required.");
   if (!role || !VALID_ROLES.has(role)) throw new Error("Valid role is required (SUPPORT or DEVELOPMENT).");
   if (!rationaleCategory || !VALID_RATIONALES.has(rationaleCategory)) throw new Error("Valid rationale category is required.");
+
+  await requireRotationPathOrgAccess(rotationPathId, orgFilter);
 
   let reviewBy: Date | null = null;
   if (reviewByStr) {
@@ -52,6 +75,7 @@ export async function createMovementCandidateAction(formData: FormData) {
     rationaleCategory: rationaleCategory as MovementCandidateRationale,
     rationaleNote,
     reviewBy,
+    ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
   };
 
   const result = await createMovementCandidate(input);
@@ -64,7 +88,10 @@ export async function createMovementCandidateAction(formData: FormData) {
 }
 
 export async function updateMovementCandidateAction(candidateId: string, formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireCandidateOrgAccess(candidateId, orgFilter);
 
   const status = (formData.get("status") as string)?.trim() || undefined;
   const rationaleCategory = (formData.get("rationaleCategory") as string)?.trim() || undefined;
@@ -99,7 +126,10 @@ export async function updateMovementCandidateAction(candidateId: string, formDat
 }
 
 export async function toggleMovementCandidateStatusAction(candidateId: string, targetStatus: "ACTIVE" | "PAUSED") {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireCandidateOrgAccess(candidateId, orgFilter);
 
   if (!VALID_STATUSES.has(targetStatus)) throw new Error("Invalid status.");
 
@@ -113,7 +143,10 @@ export async function toggleMovementCandidateStatusAction(candidateId: string, t
 }
 
 export async function deleteMovementCandidateAction(candidateId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireCandidateOrgAccess(candidateId, orgFilter);
 
   const result = await deleteMovementCandidate(candidateId);
 

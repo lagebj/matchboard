@@ -283,7 +283,8 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 }
 
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
     const result = await regroupMatchesIntoIsoWeekRounds();

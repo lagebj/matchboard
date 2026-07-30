@@ -8,6 +8,7 @@ export type CreateMovementCandidateInput = {
   rationaleCategory: MovementCandidateRationale;
   rationaleNote?: string | null;
   reviewBy?: Date | null;
+  organisationId?: string;
 };
 
 export type UpdateMovementCandidateInput = {
@@ -135,6 +136,7 @@ export async function createMovementCandidate(input: CreateMovementCandidateInpu
         rationaleCategory: input.rationaleCategory,
         rationaleNote: input.rationaleNote ?? null,
         reviewBy: input.reviewBy ?? null,
+        ...(input.organisationId ? { organisationId: input.organisationId } : {}),
       },
     });
 

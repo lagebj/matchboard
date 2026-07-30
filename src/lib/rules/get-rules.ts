@@ -13,12 +13,21 @@ export type MatchboardRuleConfig = {
   name: string;
   version: number;
   warningThreshold: number;
+  organisationId?: string | null;
 };
 
 export async function getRules(): Promise<MatchboardRuleConfig> {
   const existingRules = await db.ruleConfig.findFirst({
     orderBy: {
       createdAt: "asc",
+    },
+    select: {
+      id: true,
+      minDaysBetweenAnyMatches: true,
+      name: true,
+      version: true,
+      warningThreshold: true,
+      organisationId: true,
     },
   });
 
@@ -28,5 +37,13 @@ export async function getRules(): Promise<MatchboardRuleConfig> {
 
   return db.ruleConfig.create({
     data: defaultRuleConfigData,
+    select: {
+      id: true,
+      minDaysBetweenAnyMatches: true,
+      name: true,
+      version: true,
+      warningThreshold: true,
+      organisationId: true,
+    },
   });
 }

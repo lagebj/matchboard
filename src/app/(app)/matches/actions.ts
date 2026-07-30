@@ -28,6 +28,16 @@ import {
   checkMatchDeletionGuard,
 } from "@/lib/matches/match-domain";
 import { logMatchCancel, logMatchReopen, logMatchDelete } from "@/lib/security/audit-log";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+
+async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+}
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -231,11 +241,12 @@ export async function updateMatchAction(
     }
   | { success: false; error: string }
 > {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   try {
-    const match = await db.match.findUnique({
-      where: { id: matchId },
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
       select: {
         id: true,
         startsAt: true,
@@ -395,11 +406,14 @@ export async function updateMatchAction(
 }
 
 export async function finalizeMatchAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
   }
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -440,6 +454,9 @@ export async function finalizeMatchAction(formData: FormData) {
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   const result = await cancelMatchDomain(matchId, cancelledReason);
   if (!result.success) {
@@ -459,6 +476,9 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 
 export async function reopenMatchAction(matchId: string) {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   const result = await reopenMatchDomain(matchId);
   if (!result.success) {
