@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
+import { createOrRestoreTeam, archiveTeam } from "@/lib/teams/team-domain";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -56,46 +57,19 @@ export async function createTeamAction(formData: FormData) {
       throw new Error("Team name is required.");
     }
 
-    const existingTeam = await db.team.findUnique({
-      where: {
-        name,
-      },
-      select: {
-        archivedAt: true,
-        id: true,
-      },
+    const result = await createOrRestoreTeam({
+      name,
+      targetSquadSize,
+      minAcceptedSquadSize,
+      maxSquadSize,
+      minCorePlayers,
+      minSupportPlayers,
+      developmentSlots,
+      supportPriority,
     });
 
-    if (existingTeam?.archivedAt) {
-      await db.team.update({
-        where: {
-          id: existingTeam.id,
-        },
-        data: {
-          archivedAt: null,
-          developmentSlots,
-          maxSquadSize,
-          minAcceptedSquadSize,
-          minCorePlayers,
-          minSupportPlayers,
-          name,
-          supportPriority,
-          targetSquadSize,
-        },
-      });
-    } else {
-      await db.team.create({
-        data: {
-          developmentSlots,
-          maxSquadSize,
-          minAcceptedSquadSize,
-          minCorePlayers,
-          minSupportPlayers,
-          name,
-          supportPriority,
-          targetSquadSize,
-        },
-      });
+    if (!result.success) {
+      throw new Error(result.error);
     }
   } catch (error) {
     redirect(
@@ -223,63 +197,10 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 export async function deleteTeamAction(teamId: string) {
   await requireCoachAccess();
   try {
-    const [
-      team,
-      activeCorePlayerCount,
-      rotationPathCount,
-      matchCount,
-    ] = await Promise.all([
-      db.team.findUnique({
-        where: {
-          id: teamId,
-        },
-        select: {
-          id: true,
-        },
-      }),
-      db.player.count({
-        where: {
-          coreTeamId: teamId,
-          removedAt: null,
-        },
-      }),
-      db.rotationPath.count({
-        where: {
-          OR: [
-            { toTeamId: teamId },
-            { fromTeamId: teamId },
-          ],
-        },
-      }),
-      db.match.count({
-        where: {
-          teamId: teamId,
-        },
-      }),
-    ]);
-
-    if (!team) {
-      throw new Error("Team not found.");
+    const result = await archiveTeam(teamId);
+    if (!result.success) {
+      throw new Error(result.error);
     }
-
-    if (
-      activeCorePlayerCount > 0 ||
-      rotationPathCount > 0 ||
-      matchCount > 0
-    ) {
-      throw new Error(
-        "This team is still referenced by active players, rotation paths, or matches. Remove those references first.",
-      );
-    }
-
-    await db.team.update({
-      where: {
-        id: team.id,
-      },
-      data: {
-        archivedAt: new Date(),
-      },
-    });
   } catch (error) {
     redirect(
       buildPathWithSearch("/teams", {
