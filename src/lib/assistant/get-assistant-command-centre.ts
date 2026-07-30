@@ -8,9 +8,13 @@ import type {
 } from "./types";
 import { CATEGORY_PRIORITY } from "./types";
 import { getEventWorkItems } from "./get-event-work-items";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-export async function getAssistantCommandCentre(): Promise<AssistantCommandCentre> {
+export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Promise<AssistantCommandCentre> {
+  const orgWhere = orgFilter && orgFilter.type === "org" ? orgFilter.filter : {};
+
   const leagueSeason = await db.leagueSeason.findFirst({
+    where: { ...orgWhere },
     orderBy: { startDate: "desc" },
     select: { id: true, name: true },
   });
@@ -30,7 +34,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     ]);
   }
 
-  const teamCount = await db.team.count();
+  const teamCount = await db.team.count({ where: { ...orgWhere } });
   if (teamCount === 0) {
     return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
@@ -46,7 +50,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     ]);
   }
 
-  const playerCount = await db.player.count({ where: { removedAt: null } });
+  const playerCount = await db.player.count({ where: { removedAt: null, ...orgWhere } });
   if (playerCount === 0) {
     return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
@@ -63,7 +67,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   }
 
   const matchCount = await db.match.count({
-    where: { matchRound: { leagueSeasonId: leagueSeason.id } },
+    where: { matchRound: { leagueSeasonId: leagueSeason.id }, ...orgWhere },
   });
   if (matchCount === 0) {
     return emptyResult(leagueSeason.id, leagueSeason.name, [
@@ -81,7 +85,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   }
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId: leagueSeason.id },
+    where: { leagueSeasonId: leagueSeason.id, ...orgWhere },
     orderBy: { name: "asc" },
     include: {
       matches: {

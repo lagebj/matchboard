@@ -4,13 +4,15 @@ import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { generateRoundSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const { allowed } = rateLimit("generate-round", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many generation requests. Please wait a moment and try again." }, { status: 429 });
@@ -43,6 +45,10 @@ export async function POST(request: Request) {
 
   if (!matchRound) {
     return NextResponse.json({ error: "Match round not found" }, { status: 404 });
+  }
+
+  if (orgFilter.type === "org" && matchRound.organisationId !== orgFilter.organisationId) {
+    return NextResponse.json({ error: "Match round not found or access denied." }, { status: 404 });
   }
 
   try {

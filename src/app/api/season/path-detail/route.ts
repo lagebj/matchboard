@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const rl = rateLimit("season:path-detail", 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
     role: role as "CORE" | "SUPPORT" | "DEVELOPMENT" | "BACKFILL",
     matchRound: { leagueSeasonId },
     ...(includeDrafts ? {} : { isDraft: false }),
+    ...(orgFilter.type === "org" ? orgFilter.filter : {}),
   };
 
   const movements = await db.movementLedger.findMany({

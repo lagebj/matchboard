@@ -1,6 +1,7 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { rateLimit } from "@/lib/rate-limit";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
@@ -56,7 +57,8 @@ type ParentRow = {
 };
 
 export async function GET(request: Request) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const rl = rateLimit("exports:finalized-selections", 5, 60_000);
   if (!rl.allowed) {
     return new Response(JSON.stringify({ error: "Too many requests. Please wait." }), { status: 429, headers: { "Content-Type": "application/json" } });
@@ -66,7 +68,10 @@ export async function GET(request: Request) {
   const visibility = getVisibilityMode(url.searchParams.get("visibility"));
 
   const finalizedSelections = await db.selection.findMany({
-    where: { status: SelectionStatus.FINALIZED },
+    where: {
+      status: SelectionStatus.FINALIZED,
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+    },
     include: {
       match: {
         include: {
