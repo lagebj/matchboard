@@ -18,7 +18,7 @@ import {
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
 import type { OrganisationRole } from "@/generated/prisma/client";
 
-const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER"]);
+const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER", "SUPPORT"]);
 
 export async function createOrganisationAction(name: string) {
   const coach = await requireCoachAccess();

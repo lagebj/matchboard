@@ -9,7 +9,7 @@ export type MembershipResult =
   | { success: true; membershipId: string }
   | { success: false; error: string };
 
-const VALID_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH", "VIEWER"];
+const VALID_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH", "VIEWER", "SUPPORT"];
 
 export function isValidOrganisationRole(role: string): role is OrganisationRole {
   return VALID_ROLES.includes(role as OrganisationRole);
@@ -23,34 +23,41 @@ export function requireValidOrganisationRole(role: string): OrganisationRole {
 }
 
 export function canInviteRole(actorRole: OrganisationRole, targetRole: OrganisationRole): boolean {
+  if (targetRole === "SUPPORT") return false;
   if (actorRole === "OWNER") return true;
   if (actorRole === "ADMIN") return targetRole === "COACH" || targetRole === "VIEWER";
   return false;
 }
 
 export function canManageRole(actorRole: OrganisationRole, targetRole: OrganisationRole): boolean {
+  if (targetRole === "SUPPORT") return actorRole === "OWNER";
   if (actorRole === "OWNER") return true;
   if (actorRole === "ADMIN") return targetRole !== "OWNER" && targetRole !== "ADMIN";
   return false;
 }
 
 export function canCreateTeam(role: OrganisationRole): boolean {
+  if (role === "SUPPORT") return false;
   return role === "OWNER" || role === "ADMIN";
 }
 
 export function canManageMemberships(role: OrganisationRole): boolean {
+  if (role === "SUPPORT") return false;
   return role === "OWNER" || role === "ADMIN";
 }
 
 export function canDeleteOrganisation(role: OrganisationRole): boolean {
+  if (role === "SUPPORT") return false;
   return role === "OWNER";
 }
 
 export function canTransferOwnership(role: OrganisationRole): boolean {
+  if (role === "SUPPORT") return false;
   return role === "OWNER";
 }
 
 export function canAccessAllTeams(role: OrganisationRole): boolean {
+  if (role === "SUPPORT") return false;
   return role === "OWNER" || role === "ADMIN";
 }
 
