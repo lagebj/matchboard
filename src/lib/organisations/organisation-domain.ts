@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationRole } from "@/generated/prisma/client";
 
 export type OrganisationMutationResult =
@@ -65,8 +66,8 @@ export async function createOrganisation(data: {
   name: string;
   slug: string;
   ownerUserId: string;
-}): Promise<OrganisationMutationResult> {
-  const existingSlug = await db.organisation.findUnique({
+}, client: PrismaClient = db): Promise<OrganisationMutationResult> {
+  const existingSlug = await client.organisation.findUnique({
     where: { slug: data.slug },
     select: { id: true },
   });
@@ -75,7 +76,7 @@ export async function createOrganisation(data: {
     return { success: false, error: "An organisation with this slug already exists." };
   }
 
-  const organisation = await db.organisation.create({
+  const organisation = await client.organisation.create({
     data: {
       name: data.name,
       slug: data.slug,
@@ -171,7 +172,7 @@ export async function removeTeamAccess(
   return { success: true, membershipId };
 }
 
-export async function generateOrganisationSlug(name: string): Promise<string> {
+export async function generateOrganisationSlug(name: string, client: PrismaClient = db): Promise<string> {
   const baseSlug = name
     .toLowerCase()
     .trim()
@@ -184,7 +185,7 @@ export async function generateOrganisationSlug(name: string): Promise<string> {
   let suffix = 1;
 
   while (true) {
-    const existing = await db.organisation.findUnique({
+    const existing = await client.organisation.findUnique({
       where: { slug },
       select: { id: true },
     });

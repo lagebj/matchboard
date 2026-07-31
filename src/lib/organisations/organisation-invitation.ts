@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
+import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireValidOrganisationRole, canInviteRole } from "@/lib/organisations/organisation-domain";
 
 export type InvitationResult =
-  | { success: true; invitationId: string }
+  | { success: true; invitationId: string; token?: string }
   | { success: false; error: string };
 
 const TOKEN_LENGTH = 32;
@@ -26,14 +27,14 @@ export async function createInvitation(data: {
   intendedRole: OrganisationRole;
   invitedByUserId: string;
   inviterRole: OrganisationRole;
-}): Promise<InvitationResult> {
+}, client: PrismaClient = db): Promise<InvitationResult> {
   requireValidOrganisationRole(data.intendedRole);
 
   if (!canInviteRole(data.inviterRole, data.intendedRole)) {
     return { success: false, error: `Role ${data.inviterRole} cannot invite ${data.intendedRole}.` };
   }
 
-  const existingMembership = await db.organisationMembership.findUnique({
+  const existingMembership = await client.organisationMembership.findUnique({
     where: {
       userId_organisationId: {
         userId: data.invitedByUserId,
@@ -47,7 +48,7 @@ export async function createInvitation(data: {
     return { success: false, error: "Inviter is not a member of this organisation." };
   }
 
-  const existingActiveInvitation = await db.organisationInvitation.findFirst({
+  const existingActiveInvitation = await client.organisationInvitation.findFirst({
     where: {
       organisationId: data.organisationId,
       invitedEmail: data.invitedEmail.toLowerCase(),
@@ -60,7 +61,7 @@ export async function createInvitation(data: {
     return { success: false, error: "An active invitation already exists for this email." };
   }
 
-  const existingMember = await db.organisationMembership.findFirst({
+  const existingMember = await client.organisationMembership.findFirst({
     where: {
       organisationId: data.organisationId,
       user: { email: data.invitedEmail.toLowerCase() },
@@ -76,7 +77,7 @@ export async function createInvitation(data: {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + DEFAULT_EXPIRY_DAYS);
 
-  const invitation = await db.organisationInvitation.create({
+  const invitation = await client.organisationInvitation.create({
     data: {
       organisationId: data.organisationId,
       invitedEmail: data.invitedEmail.toLowerCase(),
@@ -87,15 +88,15 @@ export async function createInvitation(data: {
     },
   });
 
-  return { success: true, invitationId: invitation.id };
+  return { success: true, invitationId: invitation.id, token };
 }
 
 export async function acceptInvitation(data: {
   token: string;
   userId: string;
   userEmail: string;
-}): Promise<InvitationResult> {
-  const invitation = await db.organisationInvitation.findUnique({
+}, client: PrismaClient = db): Promise<InvitationResult> {
+  const invitation = await client.organisationInvitation.findUnique({
     where: { token: data.token },
     select: {
       id: true,
@@ -116,7 +117,7 @@ export async function acceptInvitation(data: {
   }
 
   if (invitation.expiresAt < new Date()) {
-    await db.organisationInvitation.update({
+    await client.organisationInvitation.update({
       where: { id: invitation.id },
       data: { status: "EXPIRED" },
     });
@@ -127,7 +128,7 @@ export async function acceptInvitation(data: {
     return { success: false, error: "This invitation was sent to a different email address." };
   }
 
-  const existingMembership = await db.organisationMembership.findUnique({
+  const existingMembership = await client.organisationMembership.findUnique({
     where: {
       userId_organisationId: {
         userId: data.userId,
@@ -141,15 +142,15 @@ export async function acceptInvitation(data: {
     return { success: false, error: "You are already a member of this organisation." };
   }
 
-  await db.$transaction([
-    db.organisationMembership.create({
+  await client.$transaction([
+    client.organisationMembership.create({
       data: {
         userId: data.userId,
         organisationId: invitation.organisationId,
         role: invitation.intendedRole,
       },
     }),
-    db.organisationInvitation.update({
+    client.organisationInvitation.update({
       where: { id: invitation.id },
       data: { status: "ACCEPTED", acceptedAt: new Date() },
     }),
