@@ -9,7 +9,8 @@ datasource db {
 
 model Team {
   id                       String           @id @default(cuid())
-  name                     String           @unique
+  name                     String
+  organisationId           String?
   targetSquadSize          Int              @default(11)
   minAcceptedSquadSize     Int              @default(9)
   maxSquadSize             Int              @default(14)
@@ -33,12 +34,17 @@ model Team {
   fromRotationPaths        RotationPath[]   @relation("FromTeam")
   toRotationPaths          RotationPath[]   @relation("ToTeam")
   teamSeasonSnapshots     TeamSeasonSnapshot[]
+  organisation             Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  teamAccesses             TeamAccess[]
 
+  @@unique([organisationId, name])
   @@index([archivedAt, name])
+  @@index([organisationId])
 }
 
 model Player {
   id                      String                    @id @default(cuid())
+  organisationId          String?
   playerCode              Int                       @unique
   shirtNumber             Int?
   firstName               String
@@ -87,7 +93,8 @@ model Player {
   matchReportStats        MatchReportPlayerStat[]
   movementCandidates      MovementCandidate[]
   ledgerEntries           MovementLedger[]
-  coreTeam                Team?                     @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
+  organisation             Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  coreTeam                 Team?                     @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
   locks                   PlayerLock[]
   positions               PlayerPosition[]
   readinessSignals        PlayerReadinessSignal[]
@@ -102,10 +109,13 @@ model Player {
 
   @@index([coreTeamId, active, removedAt])
   @@index([removedAt, firstName, lastName])
+  @@index([organisationId])
+  @@unique([organisationId, playerCode])
 }
 
 model Match {
   id                          String                        @id @default(cuid())
+  organisationId              String?
   matchRoundId                String
   teamId                      String
   opponent                    String
@@ -128,6 +138,7 @@ model Match {
   matchRound                  MatchRound                    @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   opponentTeam                OpponentTeam?                 @relation(fields: [opponentTeamId], references: [id])
   team                        Team                          @relation(fields: [teamId], references: [id])
+  organisation                Organisation?                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   executionFeedback           MatchExecutionFeedback[]
   lineups                     MatchLineup[]
   movementLedger              MovementLedger[]
@@ -138,10 +149,12 @@ model Match {
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
   @@index([category])
+  @@index([organisationId])
 }
 
 model OpponentTeam {
   id             String                         @id @default(cuid())
+  organisationId String?
   displayName    String
   normalizedName String                         @unique
   archivedAt     DateTime?
@@ -150,33 +163,44 @@ model OpponentTeam {
   matches        Match[]
   eventMatches   EventMatch[]
   observations   OpponentEncounterObservation[]
+  organisation   Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([archivedAt, displayName])
+  @@index([organisationId])
+  @@unique([organisationId, normalizedName])
 }
 
 model RuleConfig {
   id                       String   @id @default(cuid())
+  organisationId          String?
   version                  Int      @default(1)
   name                     String   @default("Default ruleset")
   minDaysBetweenAnyMatches Int      @default(3)
   warningThreshold         Int      @default(5)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+  organisation             Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
 }
 
 model Season {
   id            String         @id @default(cuid())
+  organisationId String?
   name          String
   year          Int
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   leagueSeasons LeagueSeason[]
+  organisation  Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  @@index([organisationId])
   @@map("Season")
 }
 
 model MatchRound {
   id              String           @id @default(cuid())
+  organisationId  String?
   name            String
   leagueSeasonId  String
   status          String           @default("DRAFT")
@@ -185,17 +209,20 @@ model MatchRound {
   availabilities  Availability[]
   matches         Match[]
   leagueSeason    LeagueSeason     @relation(fields: [leagueSeasonId], references: [id])
+  organisation    Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   movementLedger   MovementLedger[]
   playerLocks      PlayerLock[]
   selections       Selection[]
   warnings         Warning[]
 
   @@index([leagueSeasonId])
+  @@index([organisationId])
   @@map("MatchRound")
 }
 
 model Availability {
   id           String     @id @default(cuid())
+  organisationId String?
   playerId     String
   matchRoundId String
   status       String
@@ -203,10 +230,15 @@ model Availability {
   createdAt    DateTime   @default(now())
   matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, matchRoundId])
+  @@index([organisationId])
 }
 
 model Selection {
   id                     String                      @id @default(cuid())
+  organisationId         String?
   matchId                String
   matchRoundId           String
   playerId               String
@@ -224,11 +256,19 @@ model Selection {
   match                  Match                       @relation(fields: [matchId], references: [id], onDelete: Cascade)
   matchRound             MatchRound                  @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   player                 Player                      @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation           Organisation?               @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   audits                 SelectionAudit[]
+
+  @@index([matchRoundId, status])
+  @@index([matchId, status])
+  @@index([playerId, matchRoundId])
+  @@index([playerId])
+  @@index([organisationId])
 }
 
 model RotationPath {
   id                      String              @id @default(cuid())
+  organisationId          String?
   fromTeamId              String
   toTeamId                String
   role                    SelectionRole
@@ -245,10 +285,15 @@ model RotationPath {
   movementCandidates      MovementCandidate[]
   fromTeam                Team                @relation("FromTeam", fields: [fromTeamId], references: [id])
   toTeam                  Team                @relation("ToTeam", fields: [toTeamId], references: [id])
+  organisation            Organisation?       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([fromTeamId, toTeamId, role])
+  @@index([organisationId])
 }
 
 model MovementLedger {
   id                   String        @id @default(cuid())
+  organisationId        String?
   matchRoundId         String
   matchId              String
   playerId             String
@@ -266,13 +311,16 @@ model MovementLedger {
   matchRound           MatchRound    @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   player               Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
   toTeam               Team          @relation("LedgerToTeam", fields: [toTeamId], references: [id])
+  organisation         Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([matchRoundId, matchId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model Formation {
   id              String          @id @default(cuid())
+  organisationId  String?
   name            String
   gameFormat      GameFormat
   source          FormationSource @default(SYSTEM)
@@ -287,14 +335,17 @@ model Formation {
   slots           FormationSlot[]
   lineups         MatchLineup[]
   eventLineups    EventMatchLineup[]
+  organisation    Organisation?   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([gameFormat])
   @@index([teamId])
   @@index([source, isArchived])
+  @@index([organisationId])
 }
 
 model FormationSlot {
   id                  String                @id @default(cuid())
+  organisationId      String?
   formationId         String
   gridX               Int
   gridY               Int
@@ -306,14 +357,17 @@ model FormationSlot {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   formation           Formation             @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  organisation        Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([formationId, gridX, gridY])
   @@index([formationId])
   @@index([formationId, sortOrder])
+  @@index([organisationId])
 }
 
 model MatchLineup {
   id                String                  @id @default(cuid())
+  organisationId    String?
   matchId           String
   teamId            String
   formationId       String?
@@ -326,15 +380,18 @@ model MatchLineup {
   formation         Formation?              @relation(fields: [formationId], references: [id])
   match             Match                   @relation(fields: [matchId], references: [id], onDelete: Cascade)
   team              Team                    @relation(fields: [teamId], references: [id])
+  organisation      Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   assignments       MatchLineupAssignment[]
 
   @@index([matchId])
   @@index([teamId])
   @@index([status])
+  @@index([organisationId])
 }
 
 model MatchLineupAssignment {
   id            String                      @id @default(cuid())
+  organisationId String?
   matchLineupId String
   slotId        String
   playerId      String?
@@ -343,29 +400,35 @@ model MatchLineupAssignment {
   createdAt     DateTime                    @default(now())
   updatedAt     DateTime                    @updatedAt
   matchLineup   MatchLineup                 @relation(fields: [matchLineupId], references: [id], onDelete: Cascade)
+  organisation Organisation?               @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([matchLineupId, slotId])
   @@unique([matchLineupId, playerId])
   @@index([matchLineupId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model PlayerPosition {
   id         String                 @id @default(cuid())
+  organisationId String?
   playerId   String
   positionId String
   priority   PlayerPositionPriority @default(PRIMARY)
   createdAt  DateTime               @default(now())
   updatedAt  DateTime               @updatedAt
   player     Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, positionId])
   @@index([playerId])
   @@index([positionId])
+  @@index([organisationId])
 }
 
 model Warning {
   id           String          @id @default(cuid())
+  organisationId String?
   matchRoundId String
   matchId      String?
   playerId     String?
@@ -376,32 +439,41 @@ model Warning {
   resolved     Boolean         @default(false)
   createdAt    DateTime        @default(now())
   matchRound   MatchRound      @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
+  organisation Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
 }
 
 model PlayerLock {
-  id           String     @id @default(cuid())
-  matchRoundId String
-  playerId     String
-  lockType     String
-  reason       String?
-  lockedBy     String?
-  createdAt    DateTime   @default(now())
-  matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  id              String     @id @default(cuid())
+  organisationId  String?
+  matchRoundId    String
+  playerId        String
+  lockType        String
+  reason          String?
+  lockedBy        String?
+  createdAt       DateTime   @default(now())
+  matchRound      MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
+  player          Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation    Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([matchRoundId, playerId])
+  @@index([organisationId])
 }
 
 model SelectionAudit {
   id             String    @id @default(cuid())
+  organisationId String?
   selectionId    String
   changeReason   String
   previousRole   String?
   previousStatus String?
   changedAt      DateTime  @default(now())
   selection      Selection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([selectionId])
+  @@index([organisationId])
 }
 
 model User {
@@ -412,6 +484,8 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  memberships   OrganisationMembership[]
+  sentInvitations OrganisationInvitation[]
 }
 
 model Account {
@@ -450,6 +524,7 @@ model VerificationToken {
 
 model DecisionRecord {
   id               String   @id @default(cuid())
+  organisationId   String?
   decisionType     String
   entityType       String
   entityId         String
@@ -460,14 +535,17 @@ model DecisionRecord {
   createdAt        DateTime @default(now())
   beforeSnapshot   Json?
   afterSnapshot    Json?
+  organisation     Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([entityType, entityId])
   @@index([createdAt])
   @@index([action])
+  @@index([organisationId])
 }
 
 model CoachingIntent {
   id        String                  @id @default(cuid())
+  organisationId String?
   scopeType CoachingIntentScopeType
   scopeId   String
   category  CoachingIntentCategory
@@ -475,13 +553,16 @@ model CoachingIntent {
   createdBy String?
   createdAt DateTime                @default(now())
   updatedAt DateTime                @updatedAt
+  organisation Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([scopeType, scopeId])
   @@index([category])
+  @@index([organisationId])
 }
 
 model PostMatchReport {
   id            String                  @id @default(cuid())
+  organisationId String?
   matchId       String                  @unique
   teamNote      String?
   completedBy   String?
@@ -496,12 +577,15 @@ model PostMatchReport {
   absences      MatchReportAbsence[]
   playerStats   MatchReportPlayerStat[]
   playerActuals PostMatchPlayerActual[]
+  organisation Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([organisationId])
 }
 
 model PostMatchPlayerActual {
   id                        String                     @id @default(cuid())
+  organisationId            String?
   matchId                   String
   playerId                  String
   attendanceStatus          String                     @default("UNKNOWN")
@@ -514,15 +598,18 @@ model PostMatchPlayerActual {
   unplannedAppearanceReason UnplannedAppearanceReason?
   player                    Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
   report                    PostMatchReport            @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  organisation              Organisation?              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([matchId])
   @@index([playerId])
   @@index([attendanceStatus])
+  @@index([organisationId])
 }
 
 model Goal {
-  id        String          @id @default(cuid())
-  reportId  String
+  id               String   @id @default(cuid())
+  organisationId   String?
+  reportId         String
   playerId  String?
   minute    Int?
   type      String          @default("NORMAL")
@@ -530,27 +617,33 @@ model Goal {
   updatedAt DateTime        @updatedAt
   player    Player?         @relation(fields: [playerId], references: [id], onDelete: SetNull)
   report    PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model Assist {
-  id        String          @id @default(cuid())
-  reportId  String
-  playerId  String
-  type      String          @default("NORMAL")
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  player    Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  report    PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  organisationId String?
+  reportId       String
+  playerId       String
+  type           String          @default("NORMAL")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  player         Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  report         PostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  organisation   Organisation?   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model MatchReportAbsence {
   id            String               @id @default(cuid())
+  organisationId String?
   matchReportId String
   matchId       String
   playerId      String
@@ -560,29 +653,35 @@ model MatchReportAbsence {
   updatedAt     DateTime             @updatedAt
   report        PostMatchReport      @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
   player        Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation  Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([matchReportId, playerId])
   @@index([matchId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model MatchReportPlayerStat {
-  id            String          @id @default(cuid())
-  matchReportId String
-  playerId      String
-  goals         Int             @default(0)
-  assists       Int             @default(0)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  report        PostMatchReport @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
-  player        Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  id             String          @id @default(cuid())
+  organisationId String?
+  matchReportId  String
+  playerId       String
+  goals          Int             @default(0)
+  assists        Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  report         PostMatchReport @relation(fields: [matchReportId], references: [id], onDelete: Cascade)
+  player         Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation   Organisation?   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([matchReportId, playerId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model PlayerReadinessSignal {
   id         String               @id @default(cuid())
+  organisationId String?
   playerId   String
   signalType ReadinessSignalType
   value      ReadinessSignalValue
@@ -591,14 +690,17 @@ model PlayerReadinessSignal {
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   player     Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation?      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, signalType])
   @@index([playerId])
   @@index([signalType])
+  @@index([organisationId])
 }
 
 model MatchExecutionFeedback {
   id                 String             @id @default(cuid())
+  organisationId     String?
   matchId            String
   playerId           String
   category           FeedbackCategory
@@ -611,15 +713,18 @@ model MatchExecutionFeedback {
   updatedAt          DateTime           @updatedAt
   match              Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
   player             Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation       Organisation?      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([matchId, playerId, category])
   @@index([matchId])
   @@index([playerId])
   @@index([category])
+  @@index([organisationId])
 }
 
 model TeamReflection {
   id               String   @id @default(cuid())
+  organisationId   String?
   matchId          String   @unique
   effort           String?
   teamCohesion     String?
@@ -630,10 +735,12 @@ model TeamReflection {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   match            Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  organisation     Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 }
 
 model OpponentEncounterObservation {
   id                       String                      @id @default(cuid())
+  organisationId           String?
   matchId                  String                      @unique
   opponentTeamId           String
   overallEnvironment       MatchEnvironmentObservation @default(NOT_ASSESSED)
@@ -650,13 +757,16 @@ model OpponentEncounterObservation {
   updatedAt                DateTime                    @updatedAt
   match                    Match                       @relation(fields: [matchId], references: [id], onDelete: Cascade)
   opponentTeam             OpponentTeam                @relation(fields: [opponentTeamId], references: [id])
+  organisation             Organisation?               @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([opponentTeamId, createdAt])
   @@index([overallEnvironment])
+  @@index([organisationId])
 }
 
 model SelectionExplanation {
   id                     String                      @id @default(cuid())
+  organisationId         String?
   scopeType              String
   scopeId                String
   matchId                String?
@@ -671,16 +781,19 @@ model SelectionExplanation {
   createdAt              DateTime                    @default(now())
   coachingIntentCategory CoachingIntentCategory?
   matchdayResponsibility MatchdayResponsibilityType?
+  organisation           Organisation?              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([scopeType, scopeId])
   @@index([matchId])
   @@index([teamId])
   @@index([playerId])
   @@index([createdAt])
+  @@index([organisationId])
 }
 
 model MovementCandidate {
   id                String                     @id @default(cuid())
+  organisationId    String?
   playerId          String
   rotationPathId    String
   role              MovementCandidateRole
@@ -693,15 +806,18 @@ model MovementCandidate {
   updatedAt         DateTime                   @updatedAt
   player            Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
   rotationPath      RotationPath               @relation(fields: [rotationPathId], references: [id], onDelete: Cascade)
+  organisation       Organisation?              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, rotationPathId, role])
   @@index([playerId])
   @@index([rotationPathId])
   @@index([status])
+  @@index([organisationId])
 }
 
 model Event {
   id                     String                    @id @default(cuid())
+  organisationId         String?
   name                   String
   eventType              EventType                 @default(CUP)
   startsAt               DateTime
@@ -716,13 +832,16 @@ model Event {
   players                EventPlayerAvailability[]
   squads                 EventSquad[]
   eventMatches           EventMatch[]
+  organisation           Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([startsAt])
   @@index([eventType])
+  @@index([organisationId])
 }
 
 model EventPlayerAvailability {
   id        String            @id @default(cuid())
+  organisationId String?
   eventId   String
   playerId  String
   status    EventPlayerStatus @default(UNKNOWN)
@@ -731,14 +850,17 @@ model EventPlayerAvailability {
   updatedAt DateTime          @updatedAt
   event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   player    Player            @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, playerId])
   @@index([eventId, status])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model EventSquad {
   id                 String             @id @default(cuid())
+  organisationId     String?
   eventId            String
   name               String
   intent             EventSquadIntent
@@ -758,13 +880,16 @@ model EventSquad {
   eventMatches       EventMatch[]
   supportSourceAssignments EventMatchSupportAssignment[] @relation("SupportSourceSquad")
   supportTargetAssignments  EventMatchSupportAssignment[] @relation("SupportTargetSquad")
+  organisation             Organisation?                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([intent])
+  @@index([organisationId])
 }
 
 model EventSquadPlayer {
   id                 String                 @id @default(cuid())
+  organisationId     String?
   eventSquadId       String
   playerId           String
   assignedRoleType   FormationSlotRoleType?
@@ -780,13 +905,16 @@ model EventSquadPlayer {
   positionFitTier    String?
   eventSquad         EventSquad             @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
   player             Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation       Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([eventSquadId, playerId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model EventMatch {
   id              String        @id @default(cuid())
+  organisationId  String?
   eventId         String
   eventSquadId    String
   category        MatchCategory @default(CUP)
@@ -807,6 +935,7 @@ model EventMatch {
   postMatchReport    EventPostMatchReport?
   supportAssignments EventMatchSupportAssignment[]
   lineup             EventMatchLineup?
+  organisation       Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([eventSquadId])
@@ -814,10 +943,12 @@ model EventMatch {
   @@index([startsAt])
   @@index([status])
   @@index([opponentTeamId])
+  @@index([organisationId])
 }
 
 model EventPostMatchReport {
   id                String              @id @default(cuid())
+  organisationId    String?
   eventMatchId      String              @unique
   status            MatchReportStatus   @default(DRAFT)
   ourScore          Int?
@@ -834,13 +965,16 @@ model EventPostMatchReport {
   playerReports     EventPostMatchPlayer[]
   goalEvents        EventGoalEvent[]
   assistEvents      EventAssistEvent[]
+  organisation      Organisation?       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([organisationId])
 }
 
 model EventPostMatchPlayer {
-  id               String   @id @default(cuid())
-  reportId         String
+  id        String          @id @default(cuid())
+  organisationId String?
+  reportId  String
   playerId         String
   attendanceStatus String   @default("UNKNOWN")
   minutesPlayed    Int?
@@ -851,46 +985,55 @@ model EventPostMatchPlayer {
 
   report           EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   player           Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation     Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([reportId, playerId])
   @@index([playerId])
   @@index([attendanceStatus])
+  @@index([organisationId])
 }
 
 model EventGoalEvent {
-  id        String   @id @default(cuid())
-  reportId  String
-  playerId  String?
-  minute    Int?
-  type      String   @default("NORMAL")
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organisationId String?
+  reportId       String
+  playerId       String?
+  minute         Int?
+  type           String   @default("NORMAL")
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  report    EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  scorer    Player?              @relation("EventGoalScorer", fields: [playerId], references: [id], onDelete: SetNull)
+  report         EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  scorer         Player?              @relation("EventGoalScorer", fields: [playerId], references: [id], onDelete: SetNull)
+  organisation   Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model EventAssistEvent {
-  id        String   @id @default(cuid())
-  reportId  String
-  playerId  String
-  type      String   @default("NORMAL")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organisationId String?
+  reportId       String
+  playerId       String
+  type           String   @default("NORMAL")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  report    EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  assist    Player               @relation("EventAssistProvider", fields: [playerId], references: [id], onDelete: SetNull)
+  report         EventPostMatchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  assist         Player               @relation("EventAssistProvider", fields: [playerId], references: [id], onDelete: SetNull)
+  organisation   Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model EventMatchSupportAssignment {
   id                 String   @id @default(cuid())
+  organisationId     String?
   eventMatchId       String
   playerId           String
   sourceEventSquadId String
@@ -904,12 +1047,14 @@ model EventMatchSupportAssignment {
   player           Player      @relation(fields: [playerId], references: [id], onDelete: Restrict)
   sourceEventSquad EventSquad  @relation("SupportSourceSquad", fields: [sourceEventSquadId], references: [id], onDelete: Restrict)
   targetEventSquad EventSquad  @relation("SupportTargetSquad", fields: [targetEventSquadId], references: [id], onDelete: Cascade)
+  organisation     Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([eventMatchId, playerId])
   @@index([eventMatchId])
   @@index([playerId])
   @@index([sourceEventSquadId])
   @@index([targetEventSquadId])
+  @@index([organisationId])
 }
 
 enum EventMatchLineupPlayerSource {
@@ -919,6 +1064,7 @@ enum EventMatchLineupPlayerSource {
 
 model EventMatchLineup {
   id            String   @id @default(cuid())
+  organisationId String?
   eventMatchId  String   @unique
   formationId   String?
   status        MatchLineupStatus @default(DRAFT)
@@ -929,12 +1075,15 @@ model EventMatchLineup {
   eventMatch    EventMatch                  @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   formation     Formation?                  @relation(fields: [formationId], references: [id], onDelete: SetNull)
   assignments   EventMatchLineupAssignment[]
+  organisation Organisation?               @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([organisationId])
 }
 
 model EventMatchLineupAssignment {
   id          String   @id @default(cuid())
+  organisationId String?
   lineupId    String
   playerId    String?
   slotId      String?
@@ -949,14 +1098,17 @@ model EventMatchLineupAssignment {
 
   lineup      EventMatchLineup @relation(fields: [lineupId], references: [id], onDelete: Cascade)
   player      Player?          @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation?   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([lineupId, playerId])
   @@index([lineupId])
   @@index([playerId])
+  @@index([organisationId])
 }
 
 model LeagueSeason {
   id           String            @id @default(cuid())
+  organisationId String?
   name         String
   seasonId     String
   part         LeagueSeasonPart
@@ -970,8 +1122,11 @@ model LeagueSeason {
   matchRounds  MatchRound[]
   season       Season             @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   periodSnapshot SeasonPeriodSnapshot?
+  organisation   Organisation?     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([seasonId])
+  @@index([organisationId])
+  @@unique([organisationId, name])
   @@map("LeagueSeason")
 }
 
@@ -987,32 +1142,39 @@ enum LeagueSeasonStatus {
 
 model SeasonPeriodSnapshot {
   id             String   @id @default(cuid())
+  organisationId String?
   leagueSeasonId String   @unique
   leagueSeason   LeagueSeason @relation(fields: [leagueSeasonId], references: [id], onDelete: Cascade)
   finalizedAt    DateTime
   finalizedBy    String?
   teamSnapshots  TeamSeasonSnapshot[]
+  organisation   Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([leagueSeasonId])
+  @@index([organisationId])
   @@map("SeasonPeriodSnapshot")
 }
 
 model TeamSeasonSnapshot {
   id                     String   @id @default(cuid())
+  organisationId         String?
   seasonPeriodSnapshotId String
   seasonPeriodSnapshot   SeasonPeriodSnapshot @relation(fields: [seasonPeriodSnapshotId], references: [id], onDelete: Cascade)
   teamId                 String
   team                   Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
   teamNameSnapshot       String
   playerSnapshots        TeamSeasonSnapshotPlayer[]
+  organisation            Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([seasonPeriodSnapshotId])
   @@index([teamId])
+  @@index([organisationId])
   @@map("TeamSeasonSnapshot")
 }
 
 model TeamSeasonSnapshotPlayer {
   id                      String   @id @default(cuid())
+  organisationId          String?
   teamSeasonSnapshotId    String
   teamSeasonSnapshot      TeamSeasonSnapshot @relation(fields: [teamSeasonSnapshotId], references: [id], onDelete: Cascade)
   playerId                String
@@ -1023,9 +1185,11 @@ model TeamSeasonSnapshotPlayer {
   tertiaryPositionSnapshot String?
   shirtNumberSnapshot     Int?
   activeAtSnapshot        Boolean
+  organisation            Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([teamSeasonSnapshotId])
   @@index([playerId])
+  @@index([organisationId])
   @@map("TeamSeasonSnapshotPlayer")
 }
 
@@ -1346,8 +1510,173 @@ enum MatchCategory {
   OTHER
 }
 
+enum OrganisationRole {
+  OWNER
+  ADMIN
+  COACH
+  VIEWER
+  SUPPORT
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum MachinePrincipalStatus {
+  ACTIVE
+  REVOKED
+}
+
+model Organisation {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  isSynthetic     Boolean   @default(false)
+  suspendedAt     DateTime?
+  suspendedReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  memberships                     OrganisationMembership[]
+  invitations                      OrganisationInvitation[]
+  teams                            Team[]
+  machinePrincipals                MachinePrincipal[]
+  players                          Player[]
+  opponentTeams                    OpponentTeam[]
+  leagueSeasons                   LeagueSeason[]
+  seasons                         Season[]
+  matches                         Match[]
+  matchRounds                     MatchRound[]
+  availabilities                  Availability[]
+  selections                      Selection[]
+  rotationPaths                   RotationPath[]
+  movementLedgers                 MovementLedger[]
+  formations                      Formation[]
+  formationSlots                  FormationSlot[]
+  matchLineups                    MatchLineup[]
+  matchLineupAssignments          MatchLineupAssignment[]
+  playerPositions                 PlayerPosition[]
+  warnings                        Warning[]
+  playerLocks                     PlayerLock[]
+  selectionAudits                 SelectionAudit[]
+  decisionRecords                 DecisionRecord[]
+  coachingIntents                 CoachingIntent[]
+  postMatchReports                PostMatchReport[]
+  postMatchPlayerActuals          PostMatchPlayerActual[]
+  goals                           Goal[]
+  assists                         Assist[]
+  matchReportAbsences             MatchReportAbsence[]
+  matchReportPlayerStats          MatchReportPlayerStat[]
+  playerReadinessSignals          PlayerReadinessSignal[]
+  matchExecutionFeedbacks         MatchExecutionFeedback[]
+  teamReflections                 TeamReflection[]
+  opponentEncounterObservations   OpponentEncounterObservation[]
+  selectionExplanations           SelectionExplanation[]
+  movementCandidates              MovementCandidate[]
+  events                          Event[]
+  eventPlayerAvailabilities       EventPlayerAvailability[]
+  eventSquads                     EventSquad[]
+  eventSquadPlayers               EventSquadPlayer[]
+  eventMatches                    EventMatch[]
+  eventPostMatchReports           EventPostMatchReport[]
+  eventPostMatchPlayers           EventPostMatchPlayer[]
+  eventGoalEvents                 EventGoalEvent[]
+  eventAssistEvents               EventAssistEvent[]
+  eventMatchSupportAssignments    EventMatchSupportAssignment[]
+  eventMatchLineups               EventMatchLineup[]
+  eventMatchLineupAssignments     EventMatchLineupAssignment[]
+  seasonPeriodSnapshots           SeasonPeriodSnapshot[]
+  teamSeasonSnapshots             TeamSeasonSnapshot[]
+  teamSeasonSnapshotPlayers       TeamSeasonSnapshotPlayer[]
+  policyDecisionLogs              PolicyDecisionLog[]
+  ruleConfigs                     RuleConfig[]
+
+  @@index([slug])
+  @@index([name])
+}
+
+model OrganisationMembership {
+  id             String          @id @default(cuid())
+  userId         String
+  organisationId String
+  role           OrganisationRole @default(COACH)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation  Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  teamAccesses  TeamAccess[]
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+  @@index([userId])
+  @@index([role])
+}
+
+model OrganisationInvitation {
+  id                String          @id @default(cuid())
+  organisationId    String
+  invitedEmail      String
+  intendedRole      OrganisationRole @default(COACH)
+  token             String          @unique
+  expiresAt         DateTime
+  acceptedAt        DateTime?
+  revokedAt         DateTime?
+  status            InvitationStatus @default(PENDING)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  invitedByUserId   String
+  invitedBy         User            @relation(fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  organisation      Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, invitedEmail, status])
+  @@index([token])
+  @@index([organisationId])
+  @@index([invitedEmail])
+  @@index([expiresAt])
+}
+
+model TeamAccess {
+  id               String   @id @default(cuid())
+  membershipId     String
+  teamId           String
+  createdAt        DateTime @default(now())
+
+  membership       OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  team             Team                   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, teamId])
+  @@index([teamId])
+  @@index([membershipId])
+}
+
+model MachinePrincipal {
+  id               String                  @id @default(cuid())
+  organisationId   String
+  name             String
+  description      String?
+  status           MachinePrincipalStatus   @default(ACTIVE)
+  clientCredentialHash String?
+  clientCredentialPrefix String?
+  scopes           String[]
+  lastUsedAt       DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  organisation     Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
+  @@index([status])
+  @@index([clientCredentialPrefix])
+}
+
 model PolicyDecisionLog {
   id                  String   @id @default(cuid())
+  organisationId      String?
   decisionType        String
   policyRuntime       String?  @default("default")
   policyVersionHash   String?
@@ -1365,9 +1694,11 @@ model PolicyDecisionLog {
   regoEnabled         Boolean  @default(false)
   regoFailureMode     String?  @default("fail_closed")
   createdAt           DateTime @default(now())
+  organisation        Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([decisionType])
   @@index([relatedEventId])
   @@index([relatedLeagueMatchId])
   @@index([createdAt])
+  @@index([organisationId])
 }

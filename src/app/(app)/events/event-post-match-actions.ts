@@ -3,10 +3,43 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
+import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchReportStatus } from '@/generated/prisma/client';
 
+async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== 'org') return;
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!event) throw new Error('Event not found or access denied.');
+}
+
+async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== 'org') return;
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId },
+    select: { eventId: true },
+  });
+  if (!eventMatch) throw new Error('Event match not found or access denied.');
+  await requireEventOrgAccess(eventMatch.eventId, orgFilter);
+}
+
+async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== 'org') return;
+  const report = await db.eventPostMatchReport.findUnique({
+    where: { id: reportId },
+    select: { eventMatchId: true },
+  });
+  if (!report) throw new Error('Report not found or access denied.');
+  await requireEventMatchOrgAccess(report.eventMatchId, orgFilter);
+}
+
 export async function seedEventMatchReportAction(eventMatchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireEventMatchOrgAccess(eventMatchId, orgFilter);
 
   const eventMatch = await db.eventMatch.findUnique({
     where: { id: eventMatchId },
@@ -72,7 +105,10 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
 }
 
 export async function getEventMatchReport(eventMatchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireEventMatchOrgAccess(eventMatchId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({
     where: { eventMatchId },
@@ -90,7 +126,10 @@ export async function updateEventMatchResultAction(
   reportId: string,
   data: { ourScore?: number; opponentScore?: number; teamReflection?: string; opponentObservation?: string; notes?: string },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireReportOrgAccess(reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
   if (!report) throw new Error('Report not found.');
@@ -121,7 +160,8 @@ export async function updateEventPlayerAttendanceAction(
   playerReportId: string,
   attendanceStatus: string,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const playerReport = await db.eventPostMatchPlayer.findUnique({
     where: { id: playerReportId },
@@ -129,6 +169,9 @@ export async function updateEventPlayerAttendanceAction(
   });
 
   if (!playerReport) throw new Error('Player report not found.');
+
+  await requireReportOrgAccess(playerReport.reportId, orgFilter);
+
   if (playerReport.report.status === 'LOCKED') {
     throw new Error('Cannot update attendance on a locked report.');
   }
@@ -151,7 +194,10 @@ export async function addEventGoalAction(
   reportId: string,
   data: { playerId?: string; minute?: number; type?: string; note?: string },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireReportOrgAccess(reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
   if (!report) throw new Error('Report not found.');
@@ -177,10 +223,13 @@ export async function addEventGoalAction(
 }
 
 export async function removeEventGoalAction(goalId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const goal = await db.eventGoalEvent.findUnique({ where: { id: goalId } });
   if (!goal) throw new Error('Goal not found.');
+
+  await requireReportOrgAccess(goal.reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({ where: { id: goal.reportId } });
   if (report?.status === 'LOCKED') {
@@ -202,7 +251,10 @@ export async function addEventAssistAction(
   reportId: string,
   data: { playerId: string; type?: string },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireReportOrgAccess(reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
   if (!report) throw new Error('Report not found.');
@@ -226,10 +278,13 @@ export async function addEventAssistAction(
 }
 
 export async function removeEventAssistAction(assistId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const assist = await db.eventAssistEvent.findUnique({ where: { id: assistId } });
   if (!assist) throw new Error('Assist not found.');
+
+  await requireReportOrgAccess(assist.reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({ where: { id: assist.reportId } });
   if (report?.status === 'LOCKED') {
@@ -248,7 +303,10 @@ export async function removeEventAssistAction(assistId: string) {
 }
 
 export async function completeEventMatchReportAction(reportId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireReportOrgAccess(reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({
     where: { id: reportId },
@@ -288,7 +346,10 @@ export async function completeEventMatchReportAction(reportId: string) {
 }
 
 export async function reopenEventMatchReportAction(reportId: string, targetStatus?: 'DRAFT' | 'REPORTED') {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+
+  await requireReportOrgAccess(reportId, orgFilter);
 
   const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
   if (!report) throw new Error('Report not found.');

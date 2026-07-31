@@ -7,6 +7,8 @@ import { RotationPathCard } from "@/components/rules/rotation-path-card";
 import { getRules } from "@/lib/rules/get-rules";
 import { validateRuleConfig } from "@/lib/rules/validate-rules";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 type RulesPageProps = {
   searchParams: Promise<{
@@ -17,13 +19,16 @@ type RulesPageProps = {
 };
 
 export default async function RulesPage({ searchParams }: RulesPageProps) {
-  const rules = await getRules();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+  const rules = await getRules(orgFilter);
   const { error, imported, saved } = await searchParams;
   const validation = validateRuleConfig(rules);
 
   const [rotationPaths, teams] = await Promise.all([
     db.rotationPath.findMany({
-      where: { active: true },
+      where: { active: true, ...orgWhere },
       include: {
         fromTeam: { select: { id: true, name: true } },
         toTeam: { select: { id: true, name: true } },
@@ -31,7 +36,7 @@ export default async function RulesPage({ searchParams }: RulesPageProps) {
       orderBy: [{ priority: "asc" }],
     }),
     db.team.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...orgWhere },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),

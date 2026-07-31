@@ -8,9 +8,13 @@ import type {
 } from "./types";
 import { CATEGORY_PRIORITY } from "./types";
 import { getEventWorkItems } from "./get-event-work-items";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-export async function getAssistantCommandCentre(): Promise<AssistantCommandCentre> {
+export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Promise<AssistantCommandCentre> {
+  const orgWhere = orgFilter && orgFilter.type === "org" ? orgFilter.filter : {};
+
   const leagueSeason = await db.leagueSeason.findFirst({
+    where: { ...orgWhere },
     orderBy: { startDate: "desc" },
     select: { id: true, name: true },
   });
@@ -30,7 +34,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     ]);
   }
 
-  const teamCount = await db.team.count();
+  const teamCount = await db.team.count({ where: { ...orgWhere } });
   if (teamCount === 0) {
     return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
@@ -46,7 +50,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     ]);
   }
 
-  const playerCount = await db.player.count({ where: { removedAt: null } });
+  const playerCount = await db.player.count({ where: { removedAt: null, ...orgWhere } });
   if (playerCount === 0) {
     return emptyResult(leagueSeason.id, leagueSeason.name, [
       makeItem({
@@ -63,7 +67,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   }
 
   const matchCount = await db.match.count({
-    where: { matchRound: { leagueSeasonId: leagueSeason.id } },
+    where: { matchRound: { leagueSeasonId: leagueSeason.id }, ...orgWhere },
   });
   if (matchCount === 0) {
     return emptyResult(leagueSeason.id, leagueSeason.name, [
@@ -81,7 +85,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
   }
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId: leagueSeason.id },
+    where: { leagueSeasonId: leagueSeason.id, ...orgWhere },
     orderBy: { name: "asc" },
     include: {
       matches: {
@@ -99,15 +103,6 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     .filter((r) => r.status === "FINALIZED")
     .flatMap((r) => r.matches.map((m) => m.id));
 
-  const existingReports = finalizedMatchIds.length > 0
-    ? new Set(
-        (await db.postMatchReport.findMany({
-          where: { matchId: { in: finalizedMatchIds } },
-          select: { matchId: true },
-        })).map((r) => r.matchId),
-      )
-    : new Set<string>();
-
   const reportStatuses = finalizedMatchIds.length > 0
     ? new Map(
         (await db.postMatchReport.findMany({
@@ -116,6 +111,8 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
         })).map((r) => [r.matchId, r]),
       )
     : new Map<string, { matchId: string; status: string; playerActuals: { attendanceStatus: string }[] }>();
+
+  const existingReports = new Set(reportStatuses.keys());
 
   const items: AssistantWorkItem[] = [];
   let hasUngenerated = false;
@@ -318,7 +315,7 @@ export async function getAssistantCommandCentre(): Promise<AssistantCommandCentr
     }
   }
 
-  const eventItems = await getEventWorkItems();
+  const eventItems = await getEventWorkItems(orgFilter);
   items.push(...eventItems);
 
   items.sort((a, b) => {

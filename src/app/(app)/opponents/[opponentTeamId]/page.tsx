@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import Link from "next/link";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
@@ -12,22 +13,29 @@ type PageProps = {
 };
 
 export default async function OpponentDetailPage({ params }: PageProps) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const { opponentTeamId } = await params;
 
-  const opponentTeam = await db.opponentTeam.findUnique({
-    where: { id: opponentTeamId },
+  const opponentTeam = await db.opponentTeam.findFirst({
+    where: {
+      id: opponentTeamId,
+      archivedAt: null,
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+    },
     select: {
       id: true,
       displayName: true,
-      archivedAt: true,
     },
   });
 
-  if (!opponentTeam || opponentTeam.archivedAt) notFound();
+  if (!opponentTeam) notFound();
 
   const matches = await db.match.findMany({
-    where: { opponentTeamId },
+    where: {
+      opponentTeamId,
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+    },
     orderBy: { startsAt: "desc" },
     select: {
       id: true,

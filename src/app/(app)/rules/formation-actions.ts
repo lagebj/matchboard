@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   validateFormationForMatchUse,
   isValidRoleType,
@@ -19,17 +20,29 @@ function revalidateFormationPaths() {
   revalidatePath("/formations");
 }
 
+async function requireFormationOrgAccess(formationId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const formation = await db.formation.findFirst({
+    where: { id: formationId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!formation) throw new Error("Formation not found or access denied.");
+}
+
 export async function getFormationsForFormat(gameFormat: GameFormat) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   return db.formation.findMany({
-    where: { gameFormat, isArchived: false },
+    where: { gameFormat, isArchived: false, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
     orderBy: [{ source: "asc" }, { name: "asc" }],
   });
 }
 
 export async function getFormationById(formationId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  await requireFormationOrgAccess(formationId, orgFilter);
   return db.formation.findUnique({
     where: { id: formationId },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
@@ -51,7 +64,8 @@ export async function createCustomFormation(data: {
     sortOrder: number;
   }[];
 }) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   if (!data.name.trim()) throw new Error("Formation name is required");
   if (!data.slots || data.slots.length === 0) throw new Error("Formation must have at least one slot");
@@ -90,6 +104,7 @@ export async function createCustomFormation(data: {
       teamId: data.teamId ?? null,
       description: data.description ?? null,
       isArchived: false,
+      ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
       slots: { create: slots },
     },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
@@ -100,7 +115,8 @@ export async function createCustomFormation(data: {
 }
 
 export async function duplicateFormation(formationId: string, newName?: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const source = await db.formation.findUnique({
     where: { id: formationId },
@@ -108,6 +124,10 @@ export async function duplicateFormation(formationId: string, newName?: string) 
   });
 
   if (!source) throw new Error("Formation not found");
+
+  if (orgFilter.type === "org" && source.organisationId !== orgFilter.organisationId) {
+    throw new Error("Formation not found or access denied.");
+  }
 
   const name = newName?.trim() ?? `${source.name} (copy)`;
 
@@ -118,6 +138,7 @@ export async function duplicateFormation(formationId: string, newName?: string) 
       source: "CUSTOM",
       description: source.description,
       isArchived: false,
+      ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
       slots: {
         create: source.slots.map((s) => ({
           gridX: s.gridX,
@@ -153,7 +174,8 @@ export async function updateCustomFormation(
     }[];
   },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -162,6 +184,10 @@ export async function updateCustomFormation(
 
   if (!formation) throw new Error("Formation not found");
   if (formation.source === "SYSTEM") throw new Error("System formations cannot be edited");
+
+  if (orgFilter.type === "org" && formation.organisationId !== orgFilter.organisationId) {
+    throw new Error("Formation not found or access denied.");
+  }
 
   const lineupUsage = await db.matchLineup.count({
     where: { formationId },
@@ -230,7 +256,8 @@ export async function updateCustomFormation(
 }
 
 export async function archiveFormation(formationId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -238,6 +265,10 @@ export async function archiveFormation(formationId: string) {
 
   if (!formation) throw new Error("Formation not found");
   if (formation.source === "SYSTEM") throw new Error("System formations cannot be archived");
+
+  if (orgFilter.type === "org" && formation.organisationId !== orgFilter.organisationId) {
+    throw new Error("Formation not found or access denied.");
+  }
 
   await db.formation.update({
     where: { id: formationId },
@@ -248,7 +279,8 @@ export async function archiveFormation(formationId: string) {
 }
 
 export async function deleteCustomFormation(formationId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -256,6 +288,10 @@ export async function deleteCustomFormation(formationId: string) {
 
   if (!formation) throw new Error("Formation not found");
   if (formation.source === "SYSTEM") throw new Error("System formations cannot be deleted");
+
+  if (orgFilter.type === "org" && formation.organisationId !== orgFilter.organisationId) {
+    throw new Error("Formation not found or access denied.");
+  }
 
   const lineupUsage = await db.matchLineup.count({
     where: { formationId },
@@ -277,7 +313,9 @@ export async function addFormationSlot(
   gridX: number,
   gridY: number,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  await requireFormationOrgAccess(formationId, orgFilter);
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -324,11 +362,16 @@ export async function updateFormationSlot(
     acceptedPositionIds?: string[];
   },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   if (data.roleType && !isValidRoleType(data.roleType)) {
     throw new Error(`Invalid role type: ${data.roleType}`);
   }
+
+  const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
+  if (!existingSlot) throw new Error("Slot not found");
+  await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
 
   const updateData: Record<string, unknown> = {};
   if (data.label !== undefined) updateData.label = data.label;
@@ -346,7 +389,12 @@ export async function updateFormationSlot(
 }
 
 export async function removeFormationSlot(slotId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
+  if (!existingSlot) throw new Error("Slot not found");
+  await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
 
   await db.formationSlot.delete({ where: { id: slotId } });
   revalidateFormationPaths();

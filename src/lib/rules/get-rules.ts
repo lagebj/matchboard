@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 const defaultRuleConfigData = {
   minDaysBetweenAnyMatches: 3,
@@ -13,12 +14,23 @@ export type MatchboardRuleConfig = {
   name: string;
   version: number;
   warningThreshold: number;
+  organisationId?: string | null;
 };
 
-export async function getRules(): Promise<MatchboardRuleConfig> {
+export async function getRules(orgFilter?: OrgFilterMode): Promise<MatchboardRuleConfig> {
+  const orgWhere = orgFilter?.type === 'org' ? orgFilter.filter : {};
   const existingRules = await db.ruleConfig.findFirst({
+    where: orgWhere,
     orderBy: {
       createdAt: "asc",
+    },
+    select: {
+      id: true,
+      minDaysBetweenAnyMatches: true,
+      name: true,
+      version: true,
+      warningThreshold: true,
+      organisationId: true,
     },
   });
 
@@ -28,5 +40,13 @@ export async function getRules(): Promise<MatchboardRuleConfig> {
 
   return db.ruleConfig.create({
     data: defaultRuleConfigData,
+    select: {
+      id: true,
+      minDaysBetweenAnyMatches: true,
+      name: true,
+      version: true,
+      warningThreshold: true,
+      organisationId: true,
+    },
   });
 }

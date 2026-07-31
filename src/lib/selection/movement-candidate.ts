@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { MovementCandidateRole, MovementCandidateStatus, MovementCandidateRationale } from "@/generated/prisma/client";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type CreateMovementCandidateInput = {
   playerId: string;
@@ -8,6 +9,7 @@ export type CreateMovementCandidateInput = {
   rationaleCategory: MovementCandidateRationale;
   rationaleNote?: string | null;
   reviewBy?: Date | null;
+  organisationId?: string;
 };
 
 export type UpdateMovementCandidateInput = {
@@ -135,6 +137,7 @@ export async function createMovementCandidate(input: CreateMovementCandidateInpu
         rationaleCategory: input.rationaleCategory,
         rationaleNote: input.rationaleNote ?? null,
         reviewBy: input.reviewBy ?? null,
+        ...(input.organisationId ? { organisationId: input.organisationId } : {}),
       },
     });
 
@@ -196,9 +199,10 @@ export async function deleteMovementCandidate(candidateId: string) {
   return { success: true };
 }
 
-export async function getIncomingCandidatesForTeam(teamId: string): Promise<MovementCandidateSummary[]> {
+export async function getIncomingCandidatesForTeam(teamId: string, orgFilter?: OrgFilterMode): Promise<MovementCandidateSummary[]> {
+  const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
   const paths = await db.rotationPath.findMany({
-    where: { toTeamId: teamId, active: true },
+    where: { toTeamId: teamId, active: true, ...orgWhere },
     select: { id: true },
   });
 
@@ -209,6 +213,7 @@ export async function getIncomingCandidatesForTeam(teamId: string): Promise<Move
   const candidates = await db.movementCandidate.findMany({
     where: {
       rotationPathId: { in: pathIds },
+      ...orgWhere,
     },
     include: {
       player: {
@@ -235,9 +240,10 @@ export async function getIncomingCandidatesForTeam(teamId: string): Promise<Move
   return candidates.map(formatCandidateSummary);
 }
 
-export async function getOutgoingCandidatesForTeam(teamId: string): Promise<MovementCandidateSummary[]> {
+export async function getOutgoingCandidatesForTeam(teamId: string, orgFilter?: OrgFilterMode): Promise<MovementCandidateSummary[]> {
+  const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
   const paths = await db.rotationPath.findMany({
-    where: { fromTeamId: teamId, active: true },
+    where: { fromTeamId: teamId, active: true, ...orgWhere },
     select: { id: true },
   });
 
@@ -248,6 +254,7 @@ export async function getOutgoingCandidatesForTeam(teamId: string): Promise<Move
   const candidates = await db.movementCandidate.findMany({
     where: {
       rotationPathId: { in: pathIds },
+      ...orgWhere,
     },
     include: {
       player: {

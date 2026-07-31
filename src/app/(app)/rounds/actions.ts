@@ -10,12 +10,24 @@ import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-inte
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 export async function finalizeRoundFromListAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     throw new Error("Match round ID is required.");
+  }
+
+  if (orgFilter.type === "org") {
+    const round = await db.matchRound.findFirst({
+      where: { id: matchRoundId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!round) {
+      throw new Error("Round not found or access denied.");
+    }
   }
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
@@ -43,10 +55,21 @@ export async function finalizeRoundFromListAction(formData: FormData) {
 }
 
 export async function clearAllDraftsAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const leagueSeasonId = formData.get("leagueSeasonId");
   if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
     throw new Error("League season ID is required.");
+  }
+
+  if (orgFilter.type === "org") {
+    const leagueSeason = await db.leagueSeason.findFirst({
+      where: { id: leagueSeasonId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!leagueSeason) {
+      throw new Error("League season not found or access denied.");
+    }
   }
 
   await clearAllDraftSelections(leagueSeasonId);
@@ -70,15 +93,23 @@ export async function clearAllDraftsAction(formData: FormData) {
 }
 
 export async function generateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const roundId = formData.get("roundId");
     if (typeof roundId !== "string" || !roundId) {
       throw new Error("Round ID is required.");
     }
 
-    const matchRound = await db.matchRound.findUnique({ where: { id: roundId } });
+    const matchRound = await db.matchRound.findUnique({
+      where: { id: roundId },
+      select: { id: true, organisationId: true },
+    });
     if (!matchRound) throw new Error("Round not found.");
+
+    if (orgFilter.type === "org" && matchRound.organisationId !== orgFilter.organisationId) {
+      throw new Error("Round not found or access denied.");
+    }
 
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const { createGeneratedDraftRound } = await import("@/lib/selection/save-generated-draft");
@@ -119,11 +150,22 @@ export async function generateRoundAction(prevState: { error: string }, formData
 }
 
 export async function populateAllAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const leagueSeasonId = formData.get("leagueSeasonId");
     if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
       throw new Error("League season ID is required.");
+    }
+
+    if (orgFilter.type === "org") {
+      const leagueSeason = await db.leagueSeason.findFirst({
+        where: { id: leagueSeasonId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!leagueSeason) {
+        throw new Error("League season not found or access denied.");
+      }
     }
 
     const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
@@ -140,15 +182,25 @@ export async function populateAllAction(prevState: { error: string }, formData: 
 }
 
 export async function regenerateAllDraftsAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const leagueSeasonId = formData.get("leagueSeasonId");
     if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
       throw new Error("League season ID is required.");
     }
 
+    if (orgFilter.type === "org") {
+      const leagueSeason = await db.leagueSeason.findFirst({
+        where: { id: leagueSeasonId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!leagueSeason) {
+        throw new Error("League season not found or access denied.");
+      }
+    }
+
     const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
-    const db = (await import("@/lib/db")).db;
 
     const rounds = await db.matchRound.findMany({
       where: { leagueSeasonId, status: "DRAFT" },
@@ -188,11 +240,22 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
 }
 
 export async function unfinalizeRoundFromListAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
       throw new Error("Match round ID is required.");
+    }
+
+    if (orgFilter.type === "org") {
+      const round = await db.matchRound.findFirst({
+        where: { id: matchRoundId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!round) {
+        throw new Error("Round not found or access denied.");
+      }
     }
 
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
@@ -220,7 +283,8 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 }
 
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
     const result = await regroupMatchesIntoIsoWeekRounds();

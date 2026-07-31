@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -12,7 +12,15 @@ import type {
   SimulationConflict,
   PlayerSimulationParticipation,
   RoundCoverageSummary,
+  EventSimulationResult,
 } from "@/lib/simulation/simulation-types";
+
+interface LeagueSeasonOption {
+  id: string;
+  name: string;
+  seasonYear: number;
+  part: string;
+}
 
 const SCOPE_OPTIONS: { value: SimulationScope; label: string }[] = [
   { value: "league_round", label: "League: Selected rounds" },
@@ -52,9 +60,29 @@ export default function SimulationPage() {
   const [policyMode, setPolicyMode] = useState<SimulationPolicyMode>("default_only");
   const [includeLeague, setIncludeLeague] = useState(true);
   const [includeEvents, setIncludeEvents] = useState(false);
+  const [leagueSeasonId, setLeagueSeasonId] = useState<string>("");
+  const [leagueSeasons, setLeagueSeasons] = useState<LeagueSeasonOption[]>([]);
   const [result, setResult] = useState<SeasonSimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchLeagueSeasons() {
+      try {
+        const res = await fetch("/api/league-seasons");
+        if (res.ok) {
+          const data = await res.json();
+          setLeagueSeasons(data);
+          if (data.length > 0 && !leagueSeasonId) {
+            setLeagueSeasonId(data[0].id);
+          }
+        }
+      } catch {
+        // Ignore — league season selector will be empty
+      }
+    }
+    fetchLeagueSeasons();
+  }, []);
 
   async function handleRun() {
     setLoading(true);
@@ -68,6 +96,7 @@ export default function SimulationPage() {
       includeEvents,
       includeCommittedPlans: true,
       includeDraftPlans: true,
+      ...(leagueSeasonId ? { leagueSeasonId } : {}),
     };
 
     try {
@@ -96,12 +125,27 @@ export default function SimulationPage() {
         description="Dry-run planning across league rounds and events without committing changes."
       />
       <p className="text-xs text-[var(--text-muted)] border border-[var(--border-subtle)] rounded px-2 py-1 bg-[var(--surface-muted)]">
-        Simulation is dry-run only. It does not change committed squads, lineups, reports, or snapshots.
+        Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.
+        {" "}
+        <a href="/workbench" className="text-[var(--accent)] hover:underline">Policy Workbench →</a>
       </p>
 
       <Surface variant="default" padding="md">
         <h3 className="text-sm font-semibold text-zinc-100 mb-3">Simulation Scope</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm text-[var(--text-muted)]">League season</label>
+            <select
+              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+              value={leagueSeasonId}
+              onChange={(e) => setLeagueSeasonId(e.target.value)}
+            >
+              <option value="">Auto-detect</option>
+              {leagueSeasons.map((ls) => (
+                <option key={ls.id} value={ls.id}>{ls.name} ({ls.seasonYear} {ls.part})</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="text-sm text-[var(--text-muted)]">Scope</label>
             <select
@@ -160,6 +204,12 @@ export default function SimulationPage() {
         </Surface>
       )}
 
+      {result?.dryRunWarning && (
+        <Surface variant="warning" padding="md">
+          <p className="text-sm">{result.dryRunWarning}</p>
+        </Surface>
+      )}
+
       {result && (
         <>
           <FairnessSummary fairness={result.fairness} />
@@ -170,6 +220,10 @@ export default function SimulationPage() {
               roundCoverage={result.league.roundCoverage}
               conflicts={result.league.conflicts}
             />
+          )}
+
+          {result.events && result.events.length > 0 && (
+            <EventResults events={result.events} />
           )}
 
           {result.conflicts.length > 0 && (
@@ -377,6 +431,46 @@ function ConflictList({ conflicts }: { conflicts: SimulationConflict[] }) {
         {conflicts.length > 20 && (
           <p className="text-xs text-[var(--text-muted)]">+{conflicts.length - 20} more conflicts</p>
         )}
+      </div>
+    </Surface>
+  );
+}
+
+function EventResults({ events }: { events: EventSimulationResult[] }) {
+  return (
+    <Surface variant="default" padding="md">
+      <h3 className="text-sm font-semibold text-zinc-100 mb-3">Event Simulation</h3>
+      <div className="space-y-4">
+        {events.map((event) => (
+          <div key={event.eventId} className="border border-[var(--border-soft)] rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-zinc-100">{event.eventName}</h4>
+              <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                event.valid ? "bg-[var(--success-subtle)] text-[var(--success)]" : "bg-[var(--danger-subtle)] text-[var(--danger)]"
+              }`}>
+                {event.valid ? "Valid" : "Issues found"}
+              </span>
+            </div>
+            {event.poolValidation && (
+              <div className="text-xs text-[var(--text-muted)] mb-2">
+                Pool: {event.poolValidation.availablePlayers} available | {event.poolValidation.missingRatingsCount} missing ratings | GK: {event.poolValidation.gkCoverageStatus}
+              </div>
+            )}
+            <div className="space-y-1">
+              {event.squads.map((squad) => (
+                <div key={squad.squadId} className="flex items-center justify-between text-sm">
+                  <span>{squad.squadName} ({squad.intent})</span>
+                  <span className="text-[var(--text-muted)]">{squad.playerCount} players</span>
+                </div>
+              ))}
+            </div>
+            {event.warnings.length > 0 && (
+              <div className="mt-2 text-xs text-[var(--text-muted)]">
+                {event.warnings.length} warning(s)
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </Surface>
   );

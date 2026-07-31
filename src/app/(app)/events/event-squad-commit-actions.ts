@@ -1,5 +1,18 @@
+"use server";
+
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { logEventSquadConfirm, logEventSquadUnconfirm } from "@/lib/security/audit-log";
+
+async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!event) throw new Error("Event not found or access denied.");
+}
 
 export type EventSquadValidationIssue = {
   code: string;
@@ -17,12 +30,13 @@ export type EventSquadValidationResult = {
 export async function validateEventSquadsBeforeCommit(
   eventId: string,
 ): Promise<EventSquadValidationResult> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const issues: EventSquadValidationIssue[] = [];
 
-  const event = await db.event.findUnique({
-    where: { id: eventId },
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     select: { id: true },
   });
 
@@ -36,13 +50,13 @@ export async function validateEventSquadsBeforeCommit(
   }
 
   const unavailablePlayers = await db.eventPlayerAvailability.findMany({
-    where: { eventId, status: "UNAVAILABLE" },
+    where: { eventId, status: "UNAVAILABLE", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     select: { playerId: true },
   });
   const unavailablePlayerIds = new Set(unavailablePlayers.map((pa) => pa.playerId));
 
   const squads = await db.eventSquad.findMany({
-    where: { eventId },
+    where: { eventId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     include: {
       players: {
         include: {
@@ -159,7 +173,10 @@ export async function validateEventSquadsBeforeCommit(
 }
 
 export async function confirmEventSquadsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireEventOrgAccess(eventId, orgFilter);
 
   const validation = await validateEventSquadsBeforeCommit(eventId);
 
@@ -167,6 +184,7 @@ export async function confirmEventSquadsAction(eventId: string) {
     const blockingIssues = validation.issues.filter(
       (i) => i.severity === "blocking",
     );
+    logEventSquadConfirm(coach.email ?? "unknown", eventId, "failure", "Blocking validation issues");
     return {
       success: false as const,
       error: "Cannot commit squads: blocking issues found.",
@@ -176,9 +194,11 @@ export async function confirmEventSquadsAction(eventId: string) {
   }
 
   const result = await db.eventSquad.updateMany({
-    where: { eventId, status: "DRAFT" },
+    where: { eventId, status: "DRAFT", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     data: { status: "CONFIRMED" },
   });
+
+  logEventSquadConfirm(coach.email ?? "unknown", eventId, "success");
 
   return {
     success: true as const,
@@ -188,13 +208,17 @@ export async function confirmEventSquadsAction(eventId: string) {
 }
 
 export async function unconfirmEventSquadsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  await requireEventOrgAccess(eventId, orgFilter);
 
   const confirmedCount = await db.eventSquad.count({
-    where: { eventId, status: "CONFIRMED" },
+    where: { eventId, status: "CONFIRMED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
   });
 
   if (confirmedCount === 0) {
+    logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "failure");
     return {
       success: false as const,
       error: "No confirmed squads to unconfirm.",
@@ -202,9 +226,11 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   }
 
   const result = await db.eventSquad.updateMany({
-    where: { eventId, status: "CONFIRMED" },
+    where: { eventId, status: "CONFIRMED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     data: { status: "DRAFT" },
   });
+
+  logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "success");
 
   return {
     success: true as const,
@@ -213,10 +239,11 @@ export async function unconfirmEventSquadsAction(eventId: string) {
 }
 
 export async function getEventSquadsStatusAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const squads = await db.eventSquad.findMany({
-    where: { eventId },
+    where: { eventId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     select: { id: true, name: true, status: true },
   });
 

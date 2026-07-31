@@ -7,6 +7,8 @@ import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
 import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
 import { db } from '@/lib/db';
+import { requireCoachAccess } from '@/lib/auth';
+import { resolveOrgFilterForUser } from '@/lib/tenancy/resolve-org-filter';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,13 +21,16 @@ function toGameFormat(gf: string): GameFormat {
 }
 
 export default async function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const { eventId } = await params;
+  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
   const [event, allActivePlayers, compatibleFormations, opponentTeams] = await Promise.all([
     getEventById(eventId),
     getAvailablePlayersForEvent(),
     getCompatibleFormationsForEvent(eventId),
     db.opponentTeam.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...orgWhere },
       orderBy: { displayName: 'asc' },
       select: { id: true, displayName: true },
     }),

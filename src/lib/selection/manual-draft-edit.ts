@@ -155,6 +155,7 @@ export async function addPlayerToDraftMatch(
       playerId,
       status: { in: [SelectionStatus.DRAFT, SelectionStatus.FINALIZED] },
     },
+    select: { id: true, matchId: true, status: true },
   });
   if (sameRoundSelection && sameRoundSelection.matchId !== matchId && !overrideReasonCategory) {
     return { success: false, errors: ["Player already selected for another match in this round. Override reason required."], warnings };

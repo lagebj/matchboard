@@ -4,27 +4,33 @@ import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import { generateRoundSchema } from "@/lib/security/validation";
+import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const { allowed } = rateLimit("generate-round", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many generation requests. Please wait a moment and try again." }, { status: 429 });
   }
 
-  let roundId: unknown;
+  let body: unknown;
   try {
-    const body = await request.json();
-    roundId = body.roundId;
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!roundId || typeof roundId !== "string") {
-    return NextResponse.json({ error: "roundId is required" }, { status: 400 });
+  const parsed = generateRoundSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
   }
+
+  const { roundId } = parsed.data;
 
   const matchRound = await db.matchRound.findUnique({
     where: { id: roundId },
@@ -39,6 +45,10 @@ export async function POST(request: Request) {
 
   if (!matchRound) {
     return NextResponse.json({ error: "Match round not found" }, { status: 404 });
+  }
+
+  if (orgFilter.type === "org" && matchRound.organisationId !== orgFilter.organisationId) {
+    return NextResponse.json({ error: "Match round not found or access denied." }, { status: 404 });
   }
 
   try {
@@ -83,7 +93,7 @@ export async function POST(request: Request) {
       })),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Generation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { error: message, statusCode } = safeErrorResponse(error);
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -21,6 +22,22 @@ import {
   formatLeagueSeasonLabel,
 } from "@/lib/seasons/league-season";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
+import {
+  cancelMatchDomain,
+  reopenMatchDomain,
+  checkMatchDeletionGuard,
+} from "@/lib/matches/match-domain";
+import { logMatchCancel, logMatchReopen, logMatchDelete } from "@/lib/security/audit-log";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+
+async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+}
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -71,7 +88,9 @@ export type MatchFormState = { error: string };
 const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
     const opponentText = readText(formData, "opponent");
@@ -82,7 +101,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");
 
     const team = await db.team.findFirst({
-      where: { id: teamId, archivedAt: null },
+      where: { id: teamId, archivedAt: null, ...(orgId ? { organisationId: orgId } : {}) },
       select: { id: true },
     });
     if (!team) throw new Error("Team not found.");
@@ -137,6 +156,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
         matchType,
         gameFormat,
         matchRoundId,
+        ...(orgId ? { organisationId: orgId } : {}),
       },
     });
   } catch (error) {
@@ -187,19 +207,17 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 }
 
 export async function deleteMatchAction(matchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
-    const match = await db.match.findUnique({
-      where: { id: matchId },
-      select: { id: true, selections: { where: { status: "FINALIZED" }, select: { id: true } } },
-    });
-    if (!match) throw new Error("Match not found.");
-    if (match.selections.length > 0) {
-      throw new Error("This match has finalised selections and cannot be removed without explicit confirmation.");
-    }
+    const guard = await checkMatchDeletionGuard(matchId, orgId);
+    if (!guard.success) throw new Error(guard.error);
 
-    await db.match.delete({ where: { id: match.id } });
+    await db.match.delete({ where: { id: guard.matchId } });
+    logMatchDelete(coach.email ?? "unknown", matchId, "success");
   } catch (error) {
+    logMatchDelete(coach.email ?? "unknown", matchId, "failure");
     const message = error instanceof Error ? error.message : "Could not delete the match.";
     redirect(`/fixtures?error=${encodeURIComponent(message)}`);
   }
@@ -223,11 +241,12 @@ export async function updateMatchAction(
     }
   | { success: false; error: string }
 > {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   try {
-    const match = await db.match.findUnique({
-      where: { id: matchId },
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
       select: {
         id: true,
         startsAt: true,
@@ -387,11 +406,14 @@ export async function updateMatchAction(
 }
 
 export async function finalizeMatchAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
   }
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -431,43 +453,20 @@ export async function finalizeMatchAction(formData: FormData) {
 }
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
-    select: { id: true, status: true, matchRoundId: true },
-  });
+  await requireMatchOrgAccess(matchId, orgFilter);
 
-  if (!match) {
-    throw new Error("Match not found.");
+  const result = await cancelMatchDomain(matchId, cancelledReason);
+  if (!result.success) {
+    logMatchCancel(coach.email ?? "unknown", matchId, "failure", result.error);
+    throw new Error(result.error);
   }
 
-  if (match.status === "CANCELLED") {
-    throw new Error("Match is already cancelled.");
-  }
+  logMatchCancel(coach.email ?? "unknown", matchId, "success", cancelledReason);
 
-  const existingReport = await db.postMatchReport.findFirst({
-    where: {
-      matchId,
-      status: { in: ["REPORTED", "LOCKED"] },
-    },
-    select: { id: true },
-  });
-
-  if (existingReport) {
-    throw new Error("Cannot cancel a match that has a completed post-match report. Resolve the report data conflict first.");
-  }
-
-  await db.match.update({
-    where: { id: matchId },
-    data: {
-      status: "CANCELLED",
-      cancelledAt: new Date(),
-      cancelledReason: cancelledReason?.trim() || null,
-    },
-  });
-
-  await reconcileRoundAfterDraftMutation(match.matchRoundId);
+  await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
   revalidatePath("/fixtures");
   revalidatePath(`/matches/${matchId}`);
@@ -476,31 +475,20 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 }
 
 export async function reopenMatchAction(matchId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
-    select: { id: true, status: true, matchRoundId: true },
-  });
+  await requireMatchOrgAccess(matchId, orgFilter);
 
-  if (!match) {
-    throw new Error("Match not found.");
+  const result = await reopenMatchDomain(matchId);
+  if (!result.success) {
+    logMatchReopen(coach.email ?? "unknown", matchId, "failure");
+    throw new Error(result.error);
   }
 
-  if (match.status !== "CANCELLED") {
-    throw new Error("Match is not cancelled.");
-  }
+  logMatchReopen(coach.email ?? "unknown", matchId, "success");
 
-  await db.match.update({
-    where: { id: matchId },
-    data: {
-      status: "SCHEDULED",
-      cancelledAt: null,
-      cancelledReason: null,
-    },
-  });
-
-  await reconcileRoundAfterDraftMutation(match.matchRoundId);
+  await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
   revalidatePath("/fixtures");
   revalidatePath(`/matches/${matchId}`);

@@ -1,9 +1,11 @@
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { revalidatePath } from "next/cache";
 
 export async function PATCH(request: Request) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   try {
     const body = await request.json();
@@ -21,9 +23,15 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "League season name must be 100 characters or fewer." }, { status: 400 });
     }
 
-    const existing = await db.leagueSeason.findUnique({ where: { id } });
+    const existing = await db.leagueSeason.findUnique({
+      where: { id },
+    });
     if (!existing) {
       return Response.json({ error: "League season not found." }, { status: 404 });
+    }
+
+    if (orgFilter.type === "org" && existing.organisationId !== orgFilter.organisationId) {
+      return Response.json({ error: "League season not found or access denied." }, { status: 404 });
     }
 
     await db.leagueSeason.update({

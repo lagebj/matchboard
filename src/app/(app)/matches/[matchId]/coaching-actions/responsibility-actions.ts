@@ -4,17 +4,43 @@ import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type MatchdayResponsibilityType,
   MATCHDAY_RESPONSIBILITIES,
 } from "@/lib/coaching/types";
 import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
 
+async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
+  if (orgFilter.type !== "org") {
+    const selection = await db.selection.findUnique({ where: { id: selectionId }, select: { matchId: true } });
+    if (!selection) throw new Error("Selection not found.");
+    return { matchId: selection.matchId };
+  }
+  const selection = await db.selection.findFirst({
+    where: { id: selectionId, ...orgFilter.filter },
+    select: { matchId: true },
+  });
+  if (!selection) throw new Error("Selection not found or access denied.");
+  return { matchId: selection.matchId };
+}
+
+async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+}
+
 export async function setMatchdayResponsibilityAction(
   selectionId: string,
   responsibility: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireSelectionOrgAccess(selectionId, orgFilter);
 
   if (responsibility !== null && !MATCHDAY_RESPONSIBILITIES.includes(responsibility as MatchdayResponsibilityType)) {
     return { success: false, error: `Invalid matchday responsibility: ${responsibility}` };
@@ -79,10 +105,15 @@ export async function setTeamReflectionAction(
     note?: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   try {
-    const match = await db.match.findUnique({ where: { id: matchId } });
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    });
     if (!match) return { success: false, error: "Match not found." };
 
     await db.teamReflection.upsert({
@@ -94,6 +125,7 @@ export async function setTeamReflectionAction(
         positionalShape: data.positionalShape ?? null,
         recoveryBehavior: data.recoveryBehavior ?? null,
         note: data.note ?? null,
+        ...(orgId ? { organisationId: orgId } : {}),
       },
       update: {
         ...(data.effort !== undefined && { effort: data.effort }),
@@ -116,11 +148,13 @@ export async function setTeamReflectionAction(
 export async function getTeamReflectionAction(
   matchId: string,
 ): Promise<{ success: boolean; reflection?: { id: string; effort: string | null; teamCohesion: string | null; positionalShape: string | null; recoveryBehavior: string | null; note: string | null } | null; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   try {
-    const reflection = await db.teamReflection.findUnique({
-      where: { matchId },
+    const reflection = await db.teamReflection.findFirst({
+      where: { matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
     });
 
     return {

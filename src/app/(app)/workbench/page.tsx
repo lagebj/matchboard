@@ -167,6 +167,8 @@ export default function WorkbenchPage() {
       />
       <p className="text-xs text-[var(--text-muted)] border border-[var(--border-subtle)] rounded px-2 py-1 bg-[var(--surface-muted)]">
         Currently available to all logged-in users. Intended to move behind an admin permission when admin roles exist.
+        {" "}
+        <a href="/simulation" className="text-[var(--accent)] hover:underline">Season Planning Simulation →</a>
       </p>
 
       {diagnostics && (

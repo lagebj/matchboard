@@ -1,4 +1,6 @@
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { MatchCreateForm } from "@/components/matches/match-create-form";
 import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
@@ -6,14 +8,17 @@ import { DecisionBanner } from "@/components/ui/decision-banner";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default async function NewMatchPage() {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
   const [teams, opponentTeams] = await Promise.all([
     db.team.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     db.opponentTeam.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
       orderBy: { displayName: "asc" },
       select: { id: true, displayName: true },
     }),

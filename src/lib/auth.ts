@@ -1,7 +1,23 @@
 import { auth } from "@/auth";
 import { isAllowedCoach } from "@/lib/allowlist";
+import { AppError } from "@/lib/security/errors";
+import { logAuthSuccess, logAuthFailure, logAccessDenied } from "@/lib/security/audit-log";
 
 export { isAllowedCoach };
+
+export class AuthenticationError extends AppError {
+  constructor(message = "Authentication required") {
+    super("UNAUTHORIZED", 401, message);
+    this.name = "AuthenticationError";
+  }
+}
+
+export class AuthorizationError extends AppError {
+  constructor(message = "Access denied") {
+    super("FORBIDDEN", 403, message);
+    this.name = "AuthorizationError";
+  }
+}
 
 export async function getCurrentCoach() {
   if (process.env.NODE_ENV === "test" && process.env.BYPASS_AUTH === "true") {
@@ -20,7 +36,8 @@ export async function getCurrentCoach() {
 export async function requireCoachAccess() {
   const coach = await getCurrentCoach();
   if (!coach) {
-    throw new Error("Unauthorized: coach access required");
+    logAuthFailure("unknown", "no_session_or_allowlist");
+    throw new AuthenticationError("Coach access required");
   }
   return coach;
 }

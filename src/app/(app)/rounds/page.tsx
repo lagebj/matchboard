@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "./round-list-client";
 import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
@@ -17,11 +19,17 @@ type RoundItem = {
 };
 
 export default async function RoundsPage() {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+
   const activeLeagueSeason = await db.leagueSeason.findFirst({
+    where: orgWhere,
     orderBy: { startDate: "desc" },
   });
 
   const matchRounds = await db.matchRound.findMany({
+    where: orgWhere,
     include: {
       matches: {
         select: {

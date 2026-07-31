@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { rateLimit } from "@/lib/rate-limit";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole, formatReadinessSignalType } from "@/lib/match-utils";
 import { READINESS_VALUE_LABELS, type ReadinessSignalValue } from "@/lib/coaching/types";
 import { sanitizeSelectionForParent as _sanitizeSelection, sanitizeMovementForParent as _sanitizeMovement, sanitizePlayerStatsForParent as _sanitizeStats } from "@/lib/export/parent-safe-filter";
+import { logDataExport } from "@/lib/security/audit-log";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
 type VisibilityMode = "coach" | "parent";
@@ -38,7 +41,12 @@ function buildFilename(format: ExportFormat) {
 // parent visibility mode entirely.
 
 export async function GET(request: NextRequest) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const rl = rateLimit("season:export", 5, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
+  }
   const { searchParams } = request.nextUrl;
   const leagueSeasonId = searchParams.get("leagueSeasonId");
   const format = getExportFormat(searchParams.get("format"));
@@ -50,15 +58,21 @@ export async function GET(request: NextRequest) {
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
-    select: { name: true, startDate: true, endDate: true },
+    select: { name: true, startDate: true, endDate: true, organisationId: true },
   });
 
   if (!leagueSeason) {
     return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
 
+  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+    return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
+  }
+
+  logDataExport(coach.email ?? "unknown", format, visibility, "success");
+
   const matchRounds = await db.matchRound.findMany({
-    where: { leagueSeasonId, status: "FINALIZED" },
+    where: { leagueSeasonId, status: "FINALIZED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -70,6 +84,7 @@ export async function GET(request: NextRequest) {
       matchRoundId: { in: roundIds },
       status: SelectionStatus.FINALIZED,
       player: { removedAt: null, active: true },
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
     },
     select: {
       matchRoundId: true,
@@ -105,6 +120,7 @@ export async function GET(request: NextRequest) {
     where: {
       matchRoundId: { in: roundIds },
       isDraft: false,
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
     },
     select: {
       matchRoundId: true,
@@ -124,6 +140,7 @@ export async function GET(request: NextRequest) {
   const readinessSignals = await db.playerReadinessSignal.findMany({
     where: {
       playerId: { in: [...new Set(selections.map((s) => s.playerId))] },
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
     },
     select: {
       playerId: true,

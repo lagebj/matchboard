@@ -58,6 +58,7 @@ export async function migrateDoubleLoadRoles(): Promise<MigrateDoubleLoadRolesRe
         matchId: { not: dlSel.matchId },
         role: { not: "DOUBLE_LOAD" as unknown as never },
       },
+      select: { id: true },
     });
 
     if (otherSelection) {

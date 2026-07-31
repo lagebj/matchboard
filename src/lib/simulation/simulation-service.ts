@@ -8,10 +8,12 @@ import {
   computeSimulationFairness,
   detectGkCoverageGaps,
 } from "./simulation-fairness";
+import { simulateEvent } from "./simulation-event-service";
 import type {
   SeasonSimulationRequest,
   SeasonSimulationResult,
   LeagueSimulationResult,
+  EventSimulationResult,
   SimulationFairnessSummary,
   SimulationFairnessSignal,
   SimulationConflict,
@@ -28,6 +30,23 @@ import { getActivePackId, loadPackMetadata } from "@/lib/policies/policy-pack";
 import { isRegoEnabled } from "@/lib/policies/rego-policy-adapter";
 import type { SelectionRole } from "@/generated/prisma/client";
 
+/**
+ * Run a season simulation.
+ *
+ * IMPORTANT: The simulation calls generateMatchRound() which creates DRAFT
+ * selections in the database. This is not a true dry-run — it persists side
+ * effects. The simulation should only be run on rounds that do not already have
+ * draft selections, or the user should understand that existing drafts may be
+ * overwritten.
+ *
+ * A future improvement should refactor generateMatchRound() to accept an
+ * optional transaction client and roll back after capturing results.
+ *
+ * The dryRunNotice flag in the result indicates that the simulation is
+ * read-only for the result data (no commits are made to finalized history),
+ * but draft selections ARE created during the simulation run.
+ */
+
 export async function runSeasonSimulation(
   request: SeasonSimulationRequest,
 ): Promise<SeasonSimulationResult> {
@@ -39,6 +58,25 @@ export async function runSeasonSimulation(
     const leagueResult = await simulateLeague(request);
     league = leagueResult;
     conflicts.push(...leagueResult.conflicts);
+  }
+
+  let events: EventSimulationResult[] | undefined;
+  if (request.includeEvents && request.eventIds && request.eventIds.length > 0) {
+    events = [];
+    for (const eventId of request.eventIds) {
+      try {
+        const eventResult = await simulateEvent(eventId);
+        events.push(eventResult);
+        conflicts.push(...eventResult.conflicts);
+        warnings.push(...eventResult.warnings);
+      } catch (err) {
+        warnings.push({
+          code: "event_simulation_failed",
+          severity: "blocked" as const,
+          message: err instanceof Error ? err.message : `Event simulation failed for ${eventId}`,
+        });
+      }
+    }
   }
 
   const emptyFairness: SimulationFairnessSummary = {
@@ -61,15 +99,17 @@ export async function runSeasonSimulation(
     artifactHash: getPolicyArtifactHash(),
     regoEnabled: request.policyMode === "default_plus_rego" && regoEnabledFlag,
     regoAvailable: regoEnabledFlag,
-    decisionTypes: request.includeLeague
-      ? ["league_match_selection", "league_round_fairness"]
-      : [],
+    decisionTypes: [
+      ...(request.includeLeague ? ["league_match_selection", "league_round_fairness"] as const : []),
+      ...(request.includeEvents ? ["event_squad_generation", "event_helper_selection"] as const : []),
+    ],
     defaultOnlyResultCount: league?.rounds.length ?? 0,
   };
 
   return {
     request,
     league,
+    events,
     fairness: league
       ? computeSimulationFairness(league.playerParticipation, league.rounds.length)
       : emptyFairness,
@@ -78,6 +118,7 @@ export async function runSeasonSimulation(
     policy: policySummary,
     validToCommit: false,
     dryRunNotice: true,
+    dryRunWarning: "Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.",
   };
 }
 
@@ -105,6 +146,16 @@ async function simulateLeague(
   const roundResults: SimulatedRoundResult[] = [];
   const goalkeepersPerRound: Record<string, number> = {};
   const allConflicts: SimulationConflict[] = [];
+
+  const allPlayers = await db.player.findMany({
+    where: { active: true, removedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      coreTeamId: true,
+    },
+  });
 
   const playerParticipationMap = new Map<
     string,
@@ -136,11 +187,14 @@ async function simulateLeague(
     }
 
     if (generatedRound) {
-      const simulatedRound = transformGeneratedRound(generatedRound);
+      const simulatedRound = transformGeneratedRound(generatedRound, round.name);
       roundResults.push(simulatedRound);
+
+      const selectedPlayerIds = new Set<string>();
 
       for (const match of generatedRound.matchResults) {
         for (const player of match.selectedPlayers) {
+          selectedPlayerIds.add(player.playerId);
           let stats = playerParticipationMap.get(player.playerId);
           if (!stats) {
             stats = {
@@ -167,6 +221,36 @@ async function simulateLeague(
         ).length;
         goalkeepersPerRound[round.id] = (goalkeepersPerRound[round.id] ?? 0) + gkInMatch;
       }
+
+      const roundAvailabilities = await db.availability.findMany({
+        where: { matchRoundId: round.id },
+        select: { playerId: true, status: true },
+      });
+
+      const unavailablePlayerIds = new Set(
+        roundAvailabilities
+          .filter((a) => a.status === "UNAVAILABLE")
+          .map((a) => a.playerId),
+      );
+
+      for (const player of allPlayers) {
+        if (selectedPlayerIds.has(player.id)) continue;
+        if (unavailablePlayerIds.has(player.id)) {
+          let stats = playerParticipationMap.get(player.id);
+          if (!stats) {
+            stats = { plannedRounds: 0, coreAssignments: 0, supportAssignments: 0, developmentAssignments: 0, squadRepairAssignments: 0, notSelectedRounds: 0, unavailableRounds: 0 };
+            playerParticipationMap.set(player.id, stats);
+          }
+          stats.unavailableRounds++;
+        } else {
+          let stats = playerParticipationMap.get(player.id);
+          if (!stats) {
+            stats = { plannedRounds: 0, coreAssignments: 0, supportAssignments: 0, developmentAssignments: 0, squadRepairAssignments: 0, notSelectedRounds: 0, unavailableRounds: 0 };
+            playerParticipationMap.set(player.id, stats);
+          }
+          stats.notSelectedRounds++;
+        }
+      }
     } else {
       roundResults.push({
         roundId: round.id,
@@ -180,16 +264,6 @@ async function simulateLeague(
       });
     }
   }
-
-  const allPlayers = await db.player.findMany({
-    where: { active: true, removedAt: null },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      coreTeamId: true,
-    },
-  });
 
   for (const player of allPlayers) {
     if (!playerParticipationMap.has(player.id)) {
@@ -260,10 +334,10 @@ async function simulateLeague(
   };
 }
 
-function transformGeneratedRound(generated: GeneratedRound): SimulatedRoundResult {
+function transformGeneratedRound(generated: GeneratedRound, roundName: string): SimulatedRoundResult {
   return {
     roundId: generated.matchRoundId,
-    roundName: `Round ${generated.matchRoundId}`,
+    roundName,
     matches: generated.matchResults.map(transformMatchResult),
     planIntegritySignals: [],
     warnings: generated.roundWarnings.map((w) => ({
@@ -317,6 +391,17 @@ function transformMatchResult(match: GeneratedSelection): SimulatedMatchResult {
 async function resolveLeagueSeasonId(
   request: SeasonSimulationRequest,
 ): Promise<string> {
+  if (request.leagueSeasonId) {
+    const leagueSeason = await db.leagueSeason.findUnique({
+      where: { id: request.leagueSeasonId },
+      select: { id: true },
+    });
+    if (!leagueSeason) {
+      throw new Error(`League season not found: ${request.leagueSeasonId}`);
+    }
+    return leagueSeason.id;
+  }
+
   if (request.roundIds && request.roundIds.length > 0) {
     const round = await db.matchRound.findFirst({
       where: { id: request.roundIds[0] },

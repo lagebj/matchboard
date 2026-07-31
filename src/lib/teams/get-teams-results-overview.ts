@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { formatDateRange } from "@/lib/date/format-date-range";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type TeamPeriodResultsRow = {
   teamId: string;
@@ -32,14 +33,16 @@ export type TeamsResultsOverview = {
 
 export async function getTeamsResultsOverview(
   leagueSeasonId: string,
+  orgFilter?: OrgFilterMode,
 ): Promise<TeamsResultsOverview> {
+  const orgWhere = orgFilter?.type === 'org' ? orgFilter.filter : {};
   const leagueSeason = await db.leagueSeason.findUniqueOrThrow({
     where: { id: leagueSeasonId },
     select: { id: true, startDate: true, endDate: true },
   });
 
   const teams = await db.team.findMany({
-    where: { archivedAt: null },
+    where: { archivedAt: null, ...orgWhere },
     select: {
       id: true,
       name: true,

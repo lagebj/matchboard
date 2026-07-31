@@ -1,10 +1,17 @@
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { PlannedVsActualClient } from "./planned-vs-actual-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlannedVsActualPage() {
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+
   const leagueSeasons = await db.leagueSeason.findMany({
+    where: { ...orgWhere },
     orderBy: { startDate: "desc" },
     select: {
       id: true,
@@ -17,6 +24,7 @@ export default async function PlannedVsActualPage() {
   const activeLeagueSeason = leagueSeasons[0] ?? null;
 
   const teams = await db.team.findMany({
+    where: { ...orgWhere },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

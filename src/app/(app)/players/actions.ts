@@ -15,6 +15,15 @@ import { requireCoachAccess } from "@/lib/auth";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { playerPositionValues } from "@/lib/player-form-options";
 import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
+import {
+  togglePlayerActive as togglePlayerActiveDomain,
+  removePlayer as removePlayerDomain,
+  restorePlayer as restorePlayerDomain,
+  setPlayerAvailability as setPlayerAvailabilityDomain,
+  updatePlayerCoreTeam as updatePlayerCoreTeamDomain,
+} from "@/lib/players/player-domain";
+import { logPlayerRemove, logPlayerRestore } from "@/lib/security/audit-log";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 type PlayerInput = {
   active: boolean;
@@ -157,7 +166,7 @@ function readAvailabilityStatus(formData: FormData): AvailabilityStatus {
   throw new Error("Availability must be Available, Injured, Sick, Away, Tentative, or Unknown.");
 }
 
-async function readCoreTeamId(formData: FormData): Promise<string | null> {
+async function readCoreTeamId(formData: FormData, organisationId?: string): Promise<string | null> {
   const coreTeamId = readText(formData, "coreTeamId");
 
   if (!coreTeamId) {
@@ -168,6 +177,7 @@ async function readCoreTeamId(formData: FormData): Promise<string | null> {
     where: {
       id: coreTeamId,
       archivedAt: null,
+      ...(organisationId ? { organisationId } : {}),
     },
     select: {
       id: true,
@@ -181,10 +191,10 @@ async function readCoreTeamId(formData: FormData): Promise<string | null> {
   return team.id;
 }
 
-async function readPlayerInput(formData: FormData): Promise<PlayerInput> {
+async function readPlayerInput(formData: FormData, organisationId?: string): Promise<PlayerInput> {
   const firstName = readText(formData, "firstName");
   const primaryPosition = readRequiredPosition(formData, "primaryPosition");
-  const coreTeamId = await readCoreTeamId(formData);
+  const coreTeamId = await readCoreTeamId(formData, organisationId);
 
   if (!firstName) {
     throw new Error("First name and primary position are required.");
@@ -235,9 +245,11 @@ function getPlayerActionErrorMessage(error: unknown): string {
 }
 
 export async function createPlayerAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
-    const playerInput = await readPlayerInput(formData);
+    const playerInput = await readPlayerInput(formData, organisationId);
 
     let createdPlayerId: string | null = null;
     let attempts = 0;
@@ -252,6 +264,7 @@ export async function createPlayerAction(formData: FormData) {
           data: {
             ...playerInput,
             playerCode,
+            ...(organisationId ? { organisationId } : {}),
           },
           select: { id: true },
         });
@@ -294,14 +307,17 @@ export async function createPlayerAction(formData: FormData) {
 }
 
 export async function updatePlayerAction(playerId: string, formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
   try {
-    const playerInput = await readPlayerInput(formData);
+    const playerInput = await readPlayerInput(formData, organisationId);
 
     const player = await db.player.findFirst({
       where: {
         id: playerId,
         removedAt: null,
+        ...(organisationId ? { organisationId } : {}),
       },
       select: {
         id: true,
@@ -343,152 +359,65 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
 }
 
 export async function togglePlayerActiveAction(playerId: string) {
-  await requireCoachAccess();
-  try {
-    const player = await db.player.findFirst({
-      where: {
-        id: playerId,
-        removedAt: null,
-      },
-      select: {
-        active: true,
-        id: true,
-      },
-    });
-
-    if (!player) {
-      throw new Error("Player not found.");
-    }
-
-    await db.player.update({
-      where: { id: player.id },
-      data: {
-        active: !player.active,
-      },
-    });
-  } catch (error) {
-    redirect(
-      buildPathWithSearch("/players", {
-        error: getPlayerActionErrorMessage(error),
-      }),
-    );
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await togglePlayerActiveDomain(playerId, organisationId);
+  if (!result.success) {
+    redirect(buildPathWithSearch("/players", { error: result.error }));
   }
 
   revalidatePath("/players");
   revalidatePath(`/players/${playerId}`);
-  redirect(
-    buildPathWithSearch(`/players/${playerId}`, {
-      saved: "status",
-    }),
-  );
+  redirect(buildPathWithSearch(`/players/${playerId}`, { saved: "status" }));
 }
 
 export async function removePlayerAction(playerId: string) {
-  await requireCoachAccess();
-  try {
-    const player = await db.player.findFirst({
-      where: {
-        id: playerId,
-        removedAt: null,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!player) {
-      throw new Error("Player not found.");
-    }
-
-    await db.player.update({
-      where: { id: player.id },
-      data: {
-        active: false,
-        removedAt: new Date(),
-      },
-    });
-  } catch (error) {
-    redirect(
-      buildPathWithSearch("/players", {
-        error: getPlayerActionErrorMessage(error),
-      }),
-    );
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await removePlayerDomain(playerId, organisationId);
+  if (!result.success) {
+    logPlayerRemove(coach.email ?? "unknown", playerId, "failure", result.error);
+    redirect(buildPathWithSearch("/players", { error: result.error }));
   }
+
+  logPlayerRemove(coach.email ?? "unknown", playerId, "success");
 
   revalidatePath("/players");
   revalidatePath("/teams");
-  redirect(
-    buildPathWithSearch("/players", {
-      saved: "removed",
-    }),
-  );
+  redirect(buildPathWithSearch("/players", { saved: "removed" }));
 }
 
 export async function restorePlayerAction(playerId: string) {
-  await requireCoachAccess();
-  try {
-    const player = await db.player.findFirst({
-      where: {
-        id: playerId,
-        removedAt: { not: null },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!player) {
-      throw new Error("Player not found or not removed.");
-    }
-
-    await db.player.update({
-      where: { id: player.id },
-      data: {
-        active: true,
-        removedAt: null,
-      },
-    });
-  } catch (error) {
-    redirect(
-      buildPathWithSearch("/players", {
-        error: getPlayerActionErrorMessage(error),
-      }),
-    );
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await restorePlayerDomain(playerId, organisationId);
+  if (!result.success) {
+    logPlayerRestore(coach.email ?? "unknown", playerId, "failure");
+    redirect(buildPathWithSearch("/players", { error: result.error }));
   }
+
+  logPlayerRestore(coach.email ?? "unknown", playerId, "success");
 
   revalidatePath("/players");
   revalidatePath("/teams");
-  redirect(
-    buildPathWithSearch("/players", {
-      saved: "restored",
-    }),
-  );
+  redirect(buildPathWithSearch("/players", { saved: "restored" }));
 }
 
 export async function setPlayerAvailabilityAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
   const playerId = formData.get("playerId");
   const availability = formData.get("availability");
 
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof availability !== "string" || !availability) throw new Error("Availability is required.");
 
-  const validStatuses: AvailabilityStatus[] = ["AVAILABLE", "INJURED", "SICK", "AWAY", "TENTATIVE", "UNKNOWN"];
-  if (!validStatuses.includes(availability as AvailabilityStatus)) {
-    throw new Error(`Invalid availability status: ${availability}`);
-  }
-
-  const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: null },
-    select: { id: true },
-  });
-
-  if (!player) throw new Error("Player not found.");
-
-  await db.player.update({
-    where: { id: player.id },
-    data: { currentAvailability: availability as AvailabilityStatus },
-  });
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await setPlayerAvailabilityDomain(playerId, availability as AvailabilityStatus, organisationId);
+  if (!result.success) throw new Error(result.error);
 
   revalidatePath("/players");
   revalidatePath(`/players/${playerId}`);
@@ -496,27 +425,11 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
 }
 
 export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: string | null) {
-  await requireCoachAccess();
-
-  const player = await db.player.findFirst({
-    where: { id: playerId, removedAt: null },
-    select: { id: true },
-  });
-
-  if (!player) throw new Error("Player not found.");
-
-  if (coreTeamId !== null) {
-    const team = await db.team.findFirst({
-      where: { id: coreTeamId, archivedAt: null },
-      select: { id: true },
-    });
-    if (!team) throw new Error("Team not found or archived.");
-  }
-
-  await db.player.update({
-    where: { id: player.id },
-    data: { coreTeamId },
-  });
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId, organisationId);
+  if (!result.success) throw new Error(result.error);
 
   revalidatePath("/players");
   revalidatePath(`/players/${playerId}`);

@@ -16,6 +16,8 @@ import { type ReadinessSignalEntry } from "@/lib/selection/readiness-scoring";
 import { buildPolicyInput } from "@/lib/policies/build-policy-input";
 import { evaluateSelectionPolicy } from "@/lib/policies/policy-evaluation";
 import { coachFacingBlockedReason, coachFacingWarningMessage } from "@/lib/policies/policy-evaluation";
+import { getLeagueSeasonFairness } from "@/lib/selection/get-planning-period-fairness";
+import { type LeagueSeasonRoleCounts } from "@/lib/selection/selection-fairness";
 
 export async function generateMatchRound(matchRoundId: string): Promise<GeneratedRound> {
   const matchRound = await db.matchRound.findUnique({
@@ -80,9 +82,22 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   const matchResults: GeneratedSelection[] = [];
   const roundWarnings: SelectionWarning[] = [];
 
+  // Pre-compute fairness once per round instead of per-match
+  const leagueSeasonCounts = new Map<string, LeagueSeasonRoleCounts>();
+  if (matchRound.leagueSeasonId) {
+    const fairness = await getLeagueSeasonFairness(matchRound.leagueSeasonId);
+    for (const playerResult of fairness.players) {
+      leagueSeasonCounts.set(playerResult.playerId, {
+        coreCount: playerResult.coreCount,
+        developmentCount: playerResult.developmentCount,
+        supportCount: playerResult.supportCount,
+      });
+    }
+  }
+
   // Phase 1: Per-match core selection (deferRotation mode, fills only minCorePlayers)
   for (const match of sortedMatches) {
-    const result = await generateSelection(match.id, { deferRotation: true });
+    const result = await generateSelection(match.id, { deferRotation: true, precomputedFairness: leagueSeasonCounts });
     matchResults.push(result);
   }
 

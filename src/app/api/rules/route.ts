@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { getRules } from "@/lib/rules/get-rules";
 import { exportRuleConfig, validateImportedRuleConfig } from "@/lib/rules/validate-rules";
 
 export async function GET() {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
-    const rules = await getRules();
+    const rules = await getRules(orgFilter);
     const exported = exportRuleConfig(rules);
     return new Response(JSON.stringify(exported, null, 2), {
       headers: {
@@ -21,7 +23,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   try {
     const body = await request.json();
     const validation = validateImportedRuleConfig(body);
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
 
     const data = body as Record<string, unknown>;
 
-    const currentRules = await getRules();
+    const currentRules = await getRules(orgFilter);
 
     const updated = await db.ruleConfig.update({
       where: { id: currentRules.id },
@@ -41,6 +44,7 @@ export async function POST(request: Request) {
         minDaysBetweenAnyMatches: Number(data.minDaysBetweenAnyMatches ?? currentRules.minDaysBetweenAnyMatches),
         warningThreshold: Number(data.warningThreshold ?? currentRules.warningThreshold),
         version: { increment: 1 },
+        ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
       },
     });
 

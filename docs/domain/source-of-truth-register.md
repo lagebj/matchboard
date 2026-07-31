@@ -96,20 +96,80 @@ Matchboard distinguishes canonical facts, derived projections, historical snapsh
 - Unique constraint on `[playerId, rotationPathId, role]` — no duplicates
 - Coach-facing only — must never appear in parent-facing exports or external AI payloads
 
+## IMPROVE-0A assessment findings (2026-07-29)
+
+### Schema assessment
+
+All 55 Prisma models lack `organisationId` (single-tenant). This is a prerequisite for multitenancy (MT-1 through MT-4) and is tracked separately in the multitenancy specification.
+
+### String-typed enum fields
+
+The following fields store enum values as strings but should use proper enums for type safety and constraint enforcement:
+
+| Model | Field | Current | Target enum |
+|---|---|---|---|
+| MatchRound | status | String "DRAFT" | MatchRoundStatus (NOT_GENERATED, DRAFT, BLOCKED, READY, FINALIZED) |
+| Availability | status | String | AvailabilityStatus |
+| PostMatchPlayerActual | attendanceStatus | String | AttendanceStatusEnum |
+| PostMatchPlayerActual | source | String | ParticipationSourceEnum |
+| Goal | type | String | GoalTypeEnum |
+| Assist | type | String | AssistTypeEnum |
+| EventGoalEvent | type | String | GoalTypeEnum |
+| EventAssistEvent | type | String | AssistTypeEnum |
+| EventPostMatchPlayer | attendanceStatus | String | AttendanceStatusEnum |
+| EventPostMatchPlayer | role | String? | EventParticipationRoleEnum |
+| EventMatchSupportAssignment | plannedRole | String? | SupportRoleEnum |
+
+### Missing database constraints
+
+| Model | Constraint | Type | Priority |
+|---|---|---|---|
+| Selection | (playerId, matchRoundId, status) where status = DRAFT | Unique partial — one active planned assignment per player per round | Critical |
+| Availability | (playerId, matchRoundId) | Unique — one availability record per player per round | High |
+| RotationPath | (fromTeamId, toTeamId, role) | Unique — one path per direction and role | High |
+| Player | rating fields 1-10 nullable | CHECK constraint | Medium |
+| LeagueSeason | endDate > startDate | CHECK constraint | Medium |
+| Team | targetSquadSize >= minAcceptedSquadSize, maxSquadSize > targetSquadSize | CHECK constraint | Medium |
+
+### Domain logic distribution
+
+Domain logic currently leaks into:
+- Route handlers (direct Prisma calls from API routes)
+- Server actions (embedded business logic mixed with I/O)
+- React components (selection rules duplicated in UI)
+
+No central command/query layer exists. Server actions contain embedded business logic that should be extracted into owned domain modules.
+
+### Parallel model assessment
+
+League and event post-match reporting models are intentionally separate per AGENTS.md. Shared concepts (attendance status, goal types, position IDs) may be extracted as shared types, but aggregate roots must remain distinct.
+
+### Caching
+
+In-memory cache (`src/lib/cache.ts`) has no explicit invalidation tracking. Cache entries are time-based only. No Redis dependency exists.
+
+### Export security
+
+Export paths lack rate limiting and response size limits.
+
 ## Audit candidates
 
 Fields and structures identified as potential duplicate or legacy sources. These are audited but not modified in this branch without a separately proven safe migration.
 
 | Candidate | Concern | Read paths | Write paths | Measurable divergence | Changed now? | Follow-up |
 |---|---|---|---|---|---|---|
-| `Team.minSupportCount` / `Team.minSupportPlayers` | Two fields for same concept; may diverge | Selection engine, team config | Team config UI | Count vs player-list disagreement | No | Follow-up: unify or derive |
-| `Match.opponent` / `Match.opponentTeamId` → `OpponentTeam.displayName` | Free-text snapshot vs persisted entity | Match display, fixture list | Match creation form | Free text differs from persisted display name | Yes (PR #97) | Follow-up: migration to OpponentTeam only |
-| `Selection.explanation` / `SelectionExplanation` table | Two storage locations for selection rationale | Round board, explanations | Generation engine | Content divergence | No | Follow-up: determine canonical and deprecate other |
-| `Player.currentAvailability` / `Availability.status` | Snapshot vs per-round actual | Round board player availability | Availability form | Stale snapshot vs current round reality | No | Follow-up: derive from Availability only |
-| `Player.supportNoShowCount` | Counter vs factual derivation from reports | Fairness, selection | Report completion | Counter drift from actual report counts | No | Follow-up: derive or reconcile |
-| `Selection.role` / `MovementLedger` role values | Legacy BACKFILL vs new SUPPORT for squad repair | Display, movement tracking | Generation engine | Same movement shows different roles | No | Follow-up: complete BACKFILL→SUPPORT migration |
-| `Selection.controlledDoubleLoad` / `MovementLedger.controlledDoubleLoad` | Legacy double-load fields | Effective participation | Legacy generation | Fields may be inconsistent | No | Follow-up: deprecate when migration complete |
-| `Warning` rows / live plan integrity | Stale written projections vs canonical derived calculation | Formerly: Assistant issues; now: plan integrity | Generation engine writes, reconciliation updates | Stale Warning rows not matching canonical live state | No | Follow-up: full reconciliation sweep |
+| `Team.minSupportCount` / `Team.minSupportPlayers` | Two fields for same concept; may diverge | Selection engine, team config | Team config UI | Count vs player-list disagreement | No | IMPROVE-0B: unify or derive |
+| `Match.opponent` / `Match.opponentTeamId` → `OpponentTeam.displayName` | Free-text snapshot vs persisted entity | Match display, fixture list | Match creation form | Free text differs from persisted display name | Yes (PR #97) | IMPROVE-0B: complete migration, make free-text read-only |
+| `Selection.explanation` / `SelectionExplanation` table | Two storage locations for selection rationale | Round board, explanations | Generation engine | Content divergence | No | IMPROVE-0C: determine canonical and deprecate other |
+| `Player.currentAvailability` / `Availability.status` | Snapshot vs per-round actual | Round board player availability | Availability form | Stale snapshot vs current round reality | No | IMPROVE-0B: derive from Availability only |
+| `Player.supportNoShowCount` | Counter vs factual derivation from reports | Fairness, selection | Report completion | Counter drift from actual report counts | No | IMPROVE-0B: derive or reconcile |
+| `Selection.role` / `MovementLedger` role values | Legacy BACKFILL vs new SUPPORT for squad repair | Display, movement tracking | Generation engine | Same movement shows different roles | No | IMPROVE-0C: complete BACKFILL→SUPPORT migration |
+| `Selection.controlledDoubleLoad` / `MovementLedger.controlledDoubleLoad` | Legacy double-load fields | Effective participation | Legacy generation | Fields may be inconsistent | No | IMPROVE-0C: deprecate when migration complete |
+| `Warning` rows / live plan integrity | Stale written projections vs canonical derived calculation | Formerly: Assistant issues; now: plan integrity | Generation engine writes, reconciliation updates | Stale Warning rows not matching canonical live state | No | IMPROVE-0C: full reconciliation sweep, deprecate Warning.resolved |
+| `PlayerPosition` table / `Player.primaryPosition` etc. | Two representations of player positions — table never read | No active read paths | Sync logic writes both | Table data stale relative to Player fields | No | IMPROVE-0B: make Player fields canonical, stop writing table |
+| `Team.minSupportPlayers` (Int) | Appears unused alongside `minSupportCount` and `targetSupportCount` | Unknown | Team config UI | May not be actively used | No | IMPROVE-0B: audit read paths, remove if unused |
+| String-typed enum fields | Prisma stores enum values as strings without constraint enforcement | Application code | Application code | Application may write invalid values | No | IMPROVE-0C: migrate to proper enums with CHECK constraints |
+| CoachingIntentScopeType.PLANNING_PERIOD | Enum value uses legacy terminology | Intent display, selection engine | Admin config | Inconsistent with user-facing "League season" language | No | IMPROVE-0B: rename to LEAGUE_SEASON |
 
 ## Production correction principles
 
@@ -123,7 +183,7 @@ Fields and structures identified as potential duplicate or legacy sources. These
 8. Factual corrections require human review
 9. Derived projections may be rebuilt from canonical sources
 
-## Implementation status (2026-07-14)
+## Implementation status (2026-07-29)
 
 ### Completed
 
@@ -158,6 +218,12 @@ Fields and structures identified as potential duplicate or legacy sources. These
 | UNKNOWN attendance blocks submission | `actions.ts` (submit + lock) | Committed: server-side validation |
 | UNKNOWN attendance blocks locking | `actions.ts` (lock) | Committed: server-side validation |
 | UNKNOWN blocks completion (assistant) | `service.ts` (completePostMatchReport) | Committed: throws on UNKNOWN |
+| Source-of-truth inventory ADR | `docs/adr/0029-source-of-truth-inventory-and-deprecation-map.md` | Committed: ADR-0029 |
+| Application boundary ADR | `docs/adr/0030-application-boundaries-and-domain-ownership.md` | Committed: ADR-0030 |
+| Schema assessment | Prisma schema reviewed, 55 models, missing constraints and string enums identified | Committed: registered in source-of-truth-register.md |
+| Security baseline ADR | `docs/adr/0028-security-baseline-and-threat-model.md` | Committed: ADR-0028 |
+| Threat model | `docs/security/threat-model.md` | Committed: 24 abuse cases, 16 gaps |
+| ASVS matrix | `docs/security/asvs-matrix.md` | Committed: 97 requirements assessed |
 
 ### Not yet changed
 
@@ -165,3 +231,7 @@ Fields and structures identified as potential duplicate or legacy sources. These
 |---|---|---|---|
 | Warning/plan integrity reconciliation | `reconcile-canonical-derived-data.ts` exists | Production dry-run and full sweep not yet executed | Medium |
 | `Team.minSupportCount` / `minSupportPlayers` divergence | Audit detects | No unification yet | Low |
+| `PlayerPosition` table vs `Player.primaryPosition` | Table never read, sync logic writes both | Remove table writes or make table canonical | Medium |
+| `CoachingIntentScopeType.PLANNING_PERIOD` | Legacy enum value | Rename to `LEAGUE_SEASON` | Medium |
+| Missing unique constraint on Selection (playerId, matchRoundId) | Application enforced but DB did not | Partial unique index added (2026-07-29) | Critical — **Resolved** |
+| String-typed enum fields | No DB constraint on valid values | Migrate to proper enums | Medium |

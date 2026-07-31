@@ -5,6 +5,7 @@ import { MatchFeedbackSection } from "@/components/matches/match-feedback-sectio
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +14,15 @@ type PageProps = {
 };
 
 export default async function PostMatchRoute({ params }: PageProps) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
   const { matchId } = await params;
 
-   const match = await db.match.findUnique({
-    where: { id: matchId },
+   const match = await db.match.findFirst({
+    where: {
+      id: matchId,
+      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+    },
     select: {
       id: true,
       teamId: true,

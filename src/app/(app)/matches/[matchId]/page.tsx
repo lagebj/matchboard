@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +15,12 @@ export default async function MatchDetailPage({
 }) {
   const { matchId } = await params;
 
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+
   const match = await db.match.findUnique({
-    where: { id: matchId },
+    where: { id: matchId, ...orgWhere },
     include: {
       team: { select: { id: true, name: true } },
       matchRound: { select: { id: true, name: true, status: true, leagueSeasonId: true, leagueSeason: { select: { id: true, startDate: true, endDate: true } } } },
@@ -42,7 +48,7 @@ export default async function MatchDetailPage({
   const activeIntent = await getActiveCoachingIntentForMatch(matchId);
 
   const postMatchReport = await db.postMatchReport.findUnique({
-    where: { matchId },
+    where: { matchId, ...orgWhere },
     select: { status: true },
   });
 
@@ -67,7 +73,7 @@ export default async function MatchDetailPage({
   });
 
   const warnings = await db.warning.findMany({
-    where: { matchId: match.id },
+    where: { matchId: match.id, ...orgWhere },
     orderBy: [{ severity: "desc" }],
   });
 
@@ -79,7 +85,7 @@ export default async function MatchDetailPage({
   }));
 
   const matchIntent = await db.coachingIntent.findMany({
-    where: { scopeType: "MATCH", scopeId: matchId },
+    where: { scopeType: "MATCH", scopeId: matchId, ...orgWhere },
     orderBy: { createdAt: "desc" },
     take: 1,
   });

@@ -95,7 +95,12 @@ function getPlayerName(player: Pick<Player, "firstName" | "lastName">): string {
   return player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName;
 }
 
-export async function generateSelection(matchId: string, options?: { deferRotation?: boolean }): Promise<GeneratedSelection> {
+export type GenerateSelectionOptions = {
+  deferRotation?: boolean;
+  precomputedFairness?: Map<string, LeagueSeasonRoleCounts>;
+};
+
+export async function generateSelection(matchId: string, options?: GenerateSelectionOptions): Promise<GeneratedSelection> {
   const deferRotation = options?.deferRotation ?? false;
   const [match, players, rules, registeredMatches, savedSelections, rotationPaths, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
     db.match.findUnique({
@@ -117,29 +122,29 @@ export async function generateSelection(matchId: string, options?: { deferRotati
          },
        },
      }),
-     db.player.findMany({
-      where: {
-        removedAt: null,
-      },
-      include: {
-        coreTeam: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [
-        {
-          coreTeam: {
-            name: "asc",
-          },
-        },
-        { firstName: "asc" },
-        { lastName: "asc" },
-        { playerCode: "asc" },
-      ],
-    }),
+      db.player.findMany({
+       where: {
+         removedAt: null,
+       },
+       include: {
+         coreTeam: {
+           select: {
+             id: true,
+             name: true,
+           },
+         },
+       },
+       orderBy: [
+         {
+           coreTeam: {
+             name: "asc",
+           },
+         },
+         { firstName: "asc" },
+         { lastName: "asc" },
+         { playerCode: "asc" },
+       ],
+     }),
     getRules(),
     db.match.findMany({
       where: {
@@ -310,10 +315,10 @@ export async function generateSelection(matchId: string, options?: { deferRotati
     select: { leagueSeasonId: true },
   });
 
-  const leagueSeasonCounts = new Map<string, LeagueSeasonRoleCounts>();
+  const leagueSeasonCounts = options?.precomputedFairness ?? new Map<string, LeagueSeasonRoleCounts>();
   const consecutiveSupportByPlayer = new Map<string, number>();
 
-  if (matchRound?.leagueSeasonId) {
+  if (matchRound?.leagueSeasonId && !options?.precomputedFairness) {
     const fairness = await getLeagueSeasonFairness(matchRound.leagueSeasonId);
     for (const playerResult of fairness.players) {
       leagueSeasonCounts.set(playerResult.playerId, {

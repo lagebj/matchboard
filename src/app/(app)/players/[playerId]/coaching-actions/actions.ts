@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type ReadinessSignalType,
   type ReadinessSignalValue,
@@ -16,7 +17,8 @@ export async function setReadinessSignalAction(
   value: string,
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   if (!READINESS_SIGNAL_TYPES.includes(signalType as ReadinessSignalType)) {
     return { success: false, error: `Invalid readiness signal type: ${signalType}` };
@@ -28,8 +30,11 @@ export async function setReadinessSignalAction(
   }
 
   try {
-    const player = await db.player.findUnique({ where: { id: playerId } });
-    if (!player) return { success: false, error: "Player not found." };
+    const player = await db.player.findFirst({
+      where: { id: playerId, removedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+      select: { id: true },
+    });
+    if (!player) return { success: false, error: "Player not found or access denied." };
 
     await db.playerReadinessSignal.upsert({
       where: {
@@ -43,6 +48,7 @@ export async function setReadinessSignalAction(
         signalType: signalType as ReadinessSignalType,
         value: value as ReadinessSignalValue,
         note: note ?? null,
+        ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
       },
       update: {
         value: value as ReadinessSignalValue,
@@ -63,7 +69,8 @@ export async function deleteReadinessSignalAction(
   playerId: string,
   signalType: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   try {
     const signal = await db.playerReadinessSignal.findUnique({
@@ -76,6 +83,14 @@ export async function deleteReadinessSignalAction(
     });
 
     if (!signal) return { success: false, error: "Signal not found." };
+
+    if (orgFilter.type === "org") {
+      const player = await db.player.findFirst({
+        where: { id: playerId, ...orgFilter.filter },
+        select: { id: true },
+      });
+      if (!player) return { success: false, error: "Signal not found or access denied." };
+    }
 
     await db.playerReadinessSignal.delete({
       where: { id: signal.id },
@@ -93,11 +108,12 @@ export async function deleteReadinessSignalAction(
 export async function getReadinessSignalsAction(
   playerId: string,
 ): Promise<{ success: boolean; signals?: Array<{ id: string; signalType: string; value: string; note: string | null }>; error?: string }> {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   try {
     const signals = await db.playerReadinessSignal.findMany({
-      where: { playerId },
+      where: { playerId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
       orderBy: { signalType: "asc" },
     });
 

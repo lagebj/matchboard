@@ -1,5 +1,6 @@
 import { auth, signOut } from "@/auth";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import Link from "next/link";
 
 export async function UserNav() {
   const session = await auth();
@@ -17,6 +18,14 @@ export async function UserNav() {
 
   return (
     <div className="flex items-center gap-2">
+      <Link
+        href="/organisations"
+        className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-zinc-100 transition-colors"
+        title="Organisations"
+        aria-label="Organisations"
+      >
+        <Settings className="h-3.5 w-3.5" />
+      </Link>
       <div
         className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)]/60 text-[10px] font-semibold text-[var(--accent-strong)]"
         title={name}

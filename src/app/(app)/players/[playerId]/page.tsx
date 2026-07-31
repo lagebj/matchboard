@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
@@ -39,23 +41,27 @@ function formatSavedMessage(saved?: string): string | null {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([
     db.player.findFirst({
-      where: { id: playerId },
+      where: { id: playerId, ...orgWhere },
       include: { coreTeam: { select: { id: true, name: true } } },
     }),
     db.team.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...orgWhere },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     db.player.findMany({
-      where: { removedAt: null },
+      where: { removedAt: null, ...orgWhere },
       select: { id: true },
       orderBy: [{ coreTeam: { name: "asc" } }, { firstName: "asc" }, { lastName: "asc" }, { playerCode: "asc" }],
     }),
     db.selection.findMany({
-      where: { playerId },
+      where: { playerId, ...orgWhere },
       select: {
         createdAt: true,
         id: true,
@@ -82,6 +88,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         ],
         fromTeam: { archivedAt: null },
         toTeam: { archivedAt: null },
+        ...orgWhere,
       },
       include: {
         fromTeam: { select: { id: true, name: true } },
@@ -90,7 +97,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       orderBy: [{ fromTeamId: "asc" }, { role: "asc" }],
     }),
     db.movementCandidate.findMany({
-      where: { playerId },
+      where: { playerId, ...orgWhere },
       include: {
         rotationPath: {
           include: {

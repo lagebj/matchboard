@@ -1,4 +1,5 @@
 import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch, FixtureReportState, CompletedFixtureResult } from "./types";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { db } from "@/lib/db";
 import { deriveRoundStatus } from "@/lib/round-status";
 import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
@@ -11,8 +12,9 @@ function mapReadiness(blockerCount: number, decisionRequiredCount: number): "REA
   return "READY";
 }
 
-export async function getFixturesOverview(): Promise<FixturesOverview> {
+export async function getFixturesOverview(orgFilter: OrgFilterMode = { type: "unscoped", filter: {}, filterNullable: {} }): Promise<FixturesOverview> {
   const seasons = await db.season.findMany({
+    where: orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : undefined,
     orderBy: { name: "desc" },
     include: {
       leagueSeasons: {

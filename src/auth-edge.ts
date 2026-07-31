@@ -8,7 +8,11 @@ export const { auth: edgeAuth } = NextAuth({
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60,
+    updateAge: 4 * 60 * 60,
+  },
   trustHost: true,
   pages: {
     signIn: "/signin",

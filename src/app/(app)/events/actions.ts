@@ -4,31 +4,48 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireCoachAccess } from '@/lib/auth';
-import type { FormationSlotRoleType } from '@/generated/prisma/client';
+import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
+import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
-  type EventType,
-  type GameFormat,
-  type EventPlayerStatus,
-  type EventSquadIntent,
-  type EventSelectionPattern,
-} from '@/generated/prisma/client';
+  VALID_EVENT_TYPES,
+  VALID_GAME_FORMATS,
+  VALID_EVENT_PLAYER_STATUSES,
+  VALID_SQUAD_INTENTS,
+  VALID_SELECTION_PATTERNS,
+  parseEnum,
+} from '@/lib/events/event-validation-constants';
 import type { BroadPosition } from '@/lib/events/event-types';
 
-const VALID_EVENT_TYPES: EventType[] = ['CUP', 'TOURNAMENT', 'FRIENDLY_DAY', 'OTHER'];
-const VALID_GAME_FORMATS: GameFormat[] = ['THREE_A_SIDE', 'FIVE_A_SIDE', 'SEVEN_A_SIDE', 'NINE_A_SIDE', 'ELEVEN_A_SIDE'];
-const VALID_STATUSES: EventPlayerStatus[] = ['AVAILABLE', 'UNAVAILABLE', 'UNKNOWN', 'RESERVE', 'LATE_ADDITION', 'WITHDRAWN'];
-const VALID_INTENTS: EventSquadIntent[] = ['COMPETITIVE', 'BALANCED', 'MANUAL'];
-const VALID_PATTERNS: EventSelectionPattern[] = ['ALL_BALANCED', 'ONE_COMPETITIVE_BALANCED_REMAINDER', 'MANUAL_SEED_AUTO_BALANCE'];
+async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== 'org') return;
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!event) throw new Error('Event not found or access denied.');
+}
 
-function parseEnum<T extends string>(value: string | null | undefined, validValues: readonly T[], defaultValue: T): T {
-  if (!value) return defaultValue;
-  if (validValues.includes(value as T)) return value as T;
-  return defaultValue;
+async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode): Promise<string> {
+  if (orgFilter.type !== 'org') {
+    const squad = await db.eventSquad.findUnique({ where: { id: squadId }, select: { eventId: true } });
+    if (!squad) throw new Error('Squad not found.');
+    return squad.eventId;
+  }
+  const squad = await db.eventSquad.findFirst({
+    where: { id: squadId, event: orgFilter.filter },
+    select: { eventId: true },
+  });
+  if (!squad) throw new Error('Squad not found or access denied.');
+  return squad.eventId;
 }
 
 export async function getEvents() {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   return db.event.findMany({
+    where: {
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
     orderBy: { startsAt: 'desc' },
     include: {
       squads: {
@@ -46,9 +63,13 @@ export async function getEvents() {
 }
 
 export async function getEventById(id: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   return db.event.findUnique({
-    where: { id },
+    where: {
+      id,
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
     include: {
       squads: {
         include: {
@@ -69,7 +90,8 @@ export async function getEventById(id: string) {
 }
 
 export async function createEventAction(formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -85,7 +107,7 @@ export async function createEventAction(formData: FormData) {
 
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
-  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_SELECTION_PATTERNS, 'ALL_BALANCED') : null;
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
@@ -116,6 +138,7 @@ export async function createEventAction(formData: FormData) {
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
       notes,
+      ...(orgFilter.type === 'org' ? { organisationId: orgFilter.organisationId } : {}),
       squads: {
         create: Array.from({ length: squadCount }, (_, i) => ({
           name: i === 0 ? 'Squad 1' : `Squad ${i + 1}`,
@@ -136,7 +159,8 @@ export async function createEventAction(formData: FormData) {
 }
 
 export async function updateEventAction(id: string, formData: FormData) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -151,25 +175,30 @@ export async function updateEventAction(id: string, formData: FormData) {
 
   const eventType = parseEnum(eventTypeRaw, VALID_EVENT_TYPES, 'CUP');
   const gameFormat = parseEnum(gameFormatRaw, VALID_GAME_FORMATS, 'SEVEN_A_SIDE');
-  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_PATTERNS, 'ALL_BALANCED') : null;
+  const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_SELECTION_PATTERNS, 'ALL_BALANCED') : null;
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
   if (defaultFormationId) {
     const formation = await db.formation.findUnique({
-      where: { id: defaultFormationId },
+      where: {
+        id: defaultFormationId,
+        ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      },
       select: { id: true, gameFormat: true },
     });
     if (!formation) {
-      throw new Error('Selected formation does not exist.');
+      throw new Error('Selected formation does not exist or access denied.');
     }
     if (formation.gameFormat !== gameFormat) {
       throw new Error('Selected formation does not match the chosen game format.');
     }
   }
 
+  const orgWhere = orgFilter.type === 'org' ? { id, ...orgFilter.filter } : { id };
+
   const event = await db.event.update({
-    where: { id },
+    where: orgWhere,
     data: {
       name,
       eventType,
@@ -189,11 +218,20 @@ export async function updateEventAction(id: string, formData: FormData) {
 }
 
 export async function deleteEventAction(id: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
-  await db.event.delete({
-    where: { id },
+  const event = await db.event.findFirst({
+    where: {
+      id,
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
+    select: { id: true },
   });
+
+  if (!event) {
+    throw new Error('Event not found or access denied.');
+  }
 
   revalidatePath('/events');
 }
@@ -203,9 +241,11 @@ export async function updateEventPlayerAvailability(
   playerId: string,
   status: EventPlayerStatus,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
-  if (!VALID_STATUSES.includes(status)) {
+  if (!VALID_EVENT_PLAYER_STATUSES.includes(status)) {
     throw new Error(`Invalid availability status: ${status}`);
   }
 
@@ -231,9 +271,11 @@ export async function setEventPlayerPool(
   playerIds: string[],
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
-  if (!VALID_STATUSES.includes(defaultStatus)) {
+  if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
     throw new Error(`Invalid availability status: ${defaultStatus}`);
   }
 
@@ -261,11 +303,13 @@ export async function addPlayersToEventPoolAction(
   playerIds: string[],
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
   if (playerIds.length === 0) return;
 
-  if (!VALID_STATUSES.includes(defaultStatus)) {
+  if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
     throw new Error(`Invalid availability status: ${defaultStatus}`);
   }
 
@@ -292,7 +336,9 @@ export async function addPlayersToEventPoolAction(
 }
 
 export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
   const squadAssignment = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -313,7 +359,9 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
 }
 
 export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
   if (playerIds.length === 0) return;
 
@@ -340,7 +388,9 @@ export async function assignPlayerToEventSquadAction(
   playerId: string,
   locked: boolean = false,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -364,7 +414,8 @@ export async function assignPlayerToEventSquadAction(
 }
 
 export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
@@ -373,18 +424,13 @@ export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: str
 
   if (!squadPlayer) throw new Error('Squad assignment not found.');
 
-  const squad = await db.eventSquad.findUnique({
-    where: { id: squadPlayer.eventSquadId },
-    select: { eventId: true },
-  });
+  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
 
   await db.eventSquadPlayer.delete({
     where: { id: eventSquadPlayerId },
   });
 
-  if (squad) {
-    revalidatePath(`/events/${squad.eventId}`);
-  }
+  revalidatePath(`/events/${_eventId}`);
 }
 
 export async function addEventSquadAction(
@@ -394,9 +440,11 @@ export async function addEventSquadAction(
   targetSize: number,
   formationId?: string,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
-  if (!VALID_INTENTS.includes(intent)) {
+  if (!VALID_SQUAD_INTENTS.includes(intent)) {
     throw new Error(`Invalid squad intent: ${intent}`);
   }
 
@@ -432,13 +480,15 @@ export async function updateEventSquadAction(
     formationId?: string;
   },
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const _eventId = await requireSquadOrgAccess(squadId, orgFilter);
 
   const updateData: Parameters<typeof db.eventSquad.update>[0]['data'] = {};
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.intent !== undefined) {
-    if (!VALID_INTENTS.includes(data.intent)) {
+    if (!VALID_SQUAD_INTENTS.includes(data.intent)) {
       throw new Error(`Invalid squad intent: ${data.intent}`);
     }
     updateData.intent = data.intent;
@@ -459,7 +509,9 @@ export async function updateEventSquadAction(
 }
 
 export async function updateEventSquadNameAction(squadId: string, name: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const _eventId = await requireSquadOrgAccess(squadId, orgFilter);
 
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Squad name cannot be empty.');
@@ -474,7 +526,9 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
 }
 
 export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
   const validated = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
@@ -489,20 +543,15 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
 }
 
 export async function removeEventSquadAction(squadId: string) {
-  await requireCoachAccess();
-
-  const squad = await db.eventSquad.findUnique({
-    where: { id: squadId },
-    select: { eventId: true },
-  });
-
-  if (!squad) throw new Error('Squad not found.');
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const _eventId = await requireSquadOrgAccess(squadId, orgFilter);
 
   await db.eventSquad.delete({
     where: { id: squadId },
   });
 
-  revalidatePath(`/events/${squad.eventId}`);
+  revalidatePath(`/events/${_eventId}`);
 }
 
 export async function movePlayerBetweenSquadsAction(
@@ -510,7 +559,10 @@ export async function movePlayerBetweenSquadsAction(
   fromSquadId: string,
   toSquadId: string,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const _fromEventId = await requireSquadOrgAccess(fromSquadId, orgFilter);
+  await requireSquadOrgAccess(toSquadId, orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquadId: fromSquadId },
@@ -548,9 +600,19 @@ export async function togglePlayerLockAction(
   squadPlayerId: string,
   locked: boolean,
 ) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
-  const squadPlayer = await db.eventSquadPlayer.update({
+  const squadPlayer = await db.eventSquadPlayer.findUnique({
+    where: { id: squadPlayerId },
+    select: { eventSquadId: true },
+  });
+
+  if (!squadPlayer) throw new Error('Squad player assignment not found.');
+
+  await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
+
+  const updated = await db.eventSquadPlayer.update({
     where: { id: squadPlayerId },
     data: {
       locked,
@@ -559,20 +621,16 @@ export async function togglePlayerLockAction(
     },
   });
 
-  const squad = await db.eventSquad.findUnique({
-    where: { id: squadPlayer.eventSquadId },
-    select: { eventId: true },
-  });
+  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
+  revalidatePath(`/events/${_eventId}`);
 
-  if (squad) {
-    revalidatePath(`/events/${squad.eventId}`);
-  }
-
-  return squadPlayer;
+  return updated;
 }
 
 export async function clearEventSquadsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  await requireEventOrgAccess(eventId, orgFilter);
 
   const squads = await db.eventSquad.findMany({
     where: { eventId },
@@ -591,28 +649,38 @@ export async function clearEventSquadsAction(eventId: string) {
 }
 
 export async function getLeagueSeasons() {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   return db.leagueSeason.findMany({
+    where: {
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
     orderBy: { startDate: 'desc' },
   });
 }
 
 export async function getFormations() {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   return db.formation.findMany({
-    where: { isArchived: false },
+    where: {
+      isArchived: false,
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
     include: { slots: true },
     orderBy: [{ gameFormat: 'asc' }, { name: 'asc' }],
   });
 }
 
 export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   return db.player.findMany({
     where: {
       active: true,
       removedAt: null,
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
     },
     include: {
       coreTeam: true,
@@ -622,10 +690,14 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 }
 
 export async function generateEventSquadsAction(eventId: string) {
-  await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const event = await db.event.findUnique({
-    where: { id: eventId },
+    where: {
+      id: eventId,
+      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+    },
     include: {
       squads: {
         include: {

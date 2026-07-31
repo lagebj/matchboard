@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { TeamDetail } from "@/components/team/team-detail";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/lib/selection/movement-candidate";
@@ -16,9 +18,13 @@ type TeamPageProps = {
 export default async function TeamDetailPage({ params }: TeamPageProps) {
   const { teamId } = await params;
 
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+
   const [team, orderedTeamIds] = await Promise.all([
     db.team.findUnique({
-      where: { id: teamId, archivedAt: null },
+      where: { id: teamId, archivedAt: null, ...orgWhere },
       include: {
         corePlayers: {
           where: { removedAt: null },
@@ -47,7 +53,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       },
     }),
     db.team.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...orgWhere },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
@@ -63,7 +69,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   const nextTeamId = currentIndex >= 0 && currentIndex < teamIds.length - 1 ? teamIds[currentIndex + 1] : null;
 
   const activeRound = await db.matchRound.findFirst({
-    where: { status: { in: ["DRAFT"] } },
+    where: { status: { in: ["DRAFT"] }, ...orgWhere },
     include: {
       matches: {
         select: { id: true, teamId: true },
@@ -84,7 +90,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
 
   if (activeRound) {
     const firstMatch = await db.match.findFirst({
-      where: { matchRoundId: activeRound.id },
+      where: { matchRoundId: activeRound.id, ...orgWhere },
       select: { startsAt: true },
       orderBy: { startsAt: "asc" },
     });
@@ -104,6 +110,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
           where: {
             matchId: { in: matchIdsThisRound },
             status: { in: ["DRAFT", "FINALIZED"] },
+            ...orgWhere,
           },
           include: {
             player: {
@@ -124,6 +131,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     db.movementLedger.findMany({
       where: {
         OR: [{ fromTeamId: team.id }, { toTeamId: team.id }],
+        ...orgWhere,
       },
       include: {
         player: { select: { id: true, firstName: true, lastName: true } },
@@ -139,6 +147,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       where: {
         status: "FINALIZED",
         matches: { some: { teamId: team.id } },
+        ...orgWhere,
       },
       include: {
         matches: {
@@ -233,6 +242,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
             where: {
               matchId: { in: roundMatchIds },
               status: "FINALIZED",
+              ...orgWhere,
             },
             select: {
               playerId: true,
@@ -242,7 +252,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
           })
         : [];
       const firstMatch = await db.match.findFirst({
-        where: { matchRoundId: round.id },
+        where: { matchRoundId: round.id, ...orgWhere },
         select: { startsAt: true },
         orderBy: { startsAt: "asc" },
       });
@@ -306,13 +316,14 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   ];
 
   const [incomingCandidates, outgoingCandidates, eligibleCandidates] = await Promise.all([
-    getIncomingCandidatesForTeam(team.id),
-    getOutgoingCandidatesForTeam(team.id),
+    getIncomingCandidatesForTeam(team.id, orgFilter),
+    getOutgoingCandidatesForTeam(team.id, orgFilter),
     db.player.findMany({
       where: {
         removedAt: null,
         active: true,
         coreTeamId: { in: [team.id, ...team.toRotationPaths.filter((p) => p.active).map((p) => p.fromTeam.id)] },
+        ...orgWhere,
       },
       select: { id: true, firstName: true, lastName: true, coreTeamId: true, nonRotatable: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],

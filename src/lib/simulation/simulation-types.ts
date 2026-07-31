@@ -20,6 +20,7 @@ export type SeasonSimulationRequest = {
   scope: SimulationScope;
   seasonYear?: number;
   period?: "spring" | "fall" | "full_year";
+  leagueSeasonId?: string;
   roundIds?: string[];
   eventIds?: string[];
   dateFrom?: string;
@@ -194,6 +195,7 @@ export type SeasonSimulationResult = {
   policy: SimulationPolicySummary;
   validToCommit: boolean;
   dryRunNotice: true;
+  dryRunWarning?: string;
 };
 
 export type SimulationFairnessSummary = {

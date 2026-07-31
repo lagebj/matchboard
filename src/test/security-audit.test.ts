@@ -164,3 +164,52 @@ describe("Security audit: Vercel deployment readiness", () => {
     expect(dbCode).toContain("PrismaPg");
   });
 });
+
+describe("Security audit: forbidden SQL methods", () => {
+  const ALLOWED_UNSAFE_FILES = [
+    // tenant-client.ts uses $executeRawUnsafe for SET LOCAL session configuration
+    // with validated organisation IDs (alphanumeric + hyphen + underscore only).
+    // This is a security-reviewed exception for PostgreSQL RLS context injection.
+    // Prisma's tagged template $executeRaw does not support parameterised values
+    // in SET commands (PostgreSQL syntax error at "$1").
+    "src/lib/tenancy/tenant-client.ts",
+  ];
+
+  it("application code must not use $queryRawUnsafe or $executeRawUnsafe except in allowed files", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+
+    function walk(dir: string, files: string[] = []): string[] {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (["generated", "node_modules", ".next"].includes(entry.name)) continue;
+          walk(fullPath, files);
+        } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) {
+          files.push(fullPath);
+        }
+      }
+      return files;
+    }
+
+    const srcDir = path.join(process.cwd(), "src");
+    const files = walk(srcDir);
+    const violations: string[] = [];
+    const allowedAbsPaths = ALLOWED_UNSAFE_FILES.map((f) => path.join(process.cwd(), f));
+
+    for (const file of files) {
+      if (file.includes("security-audit.test.")) continue;
+      if (allowedAbsPaths.includes(file)) continue;
+      const content = fs.readFileSync(file, "utf-8");
+      if (content.includes("$queryRawUnsafe")) {
+        violations.push(`${path.relative(process.cwd(), file)}: $queryRawUnsafe`);
+      }
+      if (content.includes("$executeRawUnsafe")) {
+        violations.push(`${path.relative(process.cwd(), file)}: $executeRawUnsafe`);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+});

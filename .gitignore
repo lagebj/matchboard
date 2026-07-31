@@ -59,4 +59,6 @@ npm-debug.log*
 .codex
 
 # OPA binary cache
+.opa-cache/.devcontainer/devcontainer-lock.json
+.devcontainer/devcontainer-lock.json
 .opa-cache/

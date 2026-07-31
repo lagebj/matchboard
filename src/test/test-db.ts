@@ -56,27 +56,28 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.coachingIntent.deleteMany().catch(() => {});
   await db.playerReadinessSignal.deleteMany().catch(() => {});
   await db.matchExecutionFeedback.deleteMany().catch(() => {});
-  await db.teamReflection.deleteMany();
-  await db.decisionRecord.deleteMany();
+  await db.teamReflection.deleteMany().catch(() => {});
+  await db.decisionRecord.deleteMany().catch(() => {});
   await db.teamSeasonSnapshotPlayer.deleteMany().catch(() => {});
   await db.teamSeasonSnapshot.deleteMany().catch(() => {});
   await db.seasonPeriodSnapshot.deleteMany().catch(() => {});
-  await db.matchReportPlayerStat.deleteMany();
-  await db.matchReportAbsence.deleteMany();
-  await db.assist.deleteMany();
-  await db.goal.deleteMany();
-  await db.postMatchPlayerActual.deleteMany();
-  await db.postMatchReport.deleteMany();
-  await db.selectionAudit.deleteMany();
-  await db.warning.deleteMany();
-  await db.movementLedger.deleteMany();
-  await db.selection.deleteMany();
-  await db.availability.deleteMany();
-  await db.playerLock.deleteMany();
-  await db.match.deleteMany();
-  await db.matchRound.deleteMany();
-  await db.leagueSeason.deleteMany();
-  await db.season.deleteMany();
+  await db.policyDecisionLog.deleteMany().catch(() => {});
+  await db.matchReportPlayerStat.deleteMany().catch(() => {});
+  await db.matchReportAbsence.deleteMany().catch(() => {});
+  await db.assist.deleteMany().catch(() => {});
+  await db.goal.deleteMany().catch(() => {});
+  await db.postMatchPlayerActual.deleteMany().catch(() => {});
+  await db.postMatchReport.deleteMany().catch(() => {});
+  await db.selectionAudit.deleteMany().catch(() => {});
+  await db.warning.deleteMany().catch(() => {});
+  await db.movementLedger.deleteMany().catch(() => {});
+  await db.selection.deleteMany().catch(() => {});
+  await db.availability.deleteMany().catch(() => {});
+  await db.playerLock.deleteMany().catch(() => {});
+  await db.match.deleteMany().catch(() => {});
+  await db.matchRound.deleteMany().catch(() => {});
+  await db.leagueSeason.deleteMany().catch(() => {});
+  await db.season.deleteMany().catch(() => {});
   await db.eventMatchSupportAssignment.deleteMany().catch(() => {});
   await db.eventSquadPlayer.deleteMany().catch(() => {});
   await db.eventSquad.deleteMany().catch(() => {});
@@ -87,14 +88,24 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.eventPostMatchReport.deleteMany().catch(() => {});
   await db.eventMatch.deleteMany().catch(() => {});
   await db.event.deleteMany().catch(() => {});
-  await db.player.deleteMany();
-  await db.rotationPath.deleteMany();
-  await db.team.deleteMany();
-  await db.opponentTeam.deleteMany();
-  await db.ruleConfig.deleteMany();
+  await db.player.deleteMany().catch(() => {});
+  await db.rotationPath.deleteMany().catch(() => {});
+  await db.team.deleteMany().catch(() => {});
+  await db.opponentTeam.deleteMany().catch(() => {});
+  await db.ruleConfig.deleteMany().catch(() => {});
+  await db.teamAccess.deleteMany().catch(() => {});
+  await db.organisationInvitation.deleteMany().catch(() => {});
+  await db.organisationMembership.deleteMany().catch(() => {});
+  await db.machinePrincipal.deleteMany().catch(() => {});
+  await db.organisation.deleteMany().catch(() => {});
+  await db.account.deleteMany().catch(() => {});
+  await db.session.deleteMany().catch(() => {});
+  await db.verificationToken.deleteMany().catch(() => {});
+  await db.user.deleteMany().catch(() => {});
 }
 
 export type TestFixtureIds = {
+  organisationId: string | null;
   seasonId: string;
   leagueSeasonId: string;
   matchRoundId: string;
@@ -139,6 +150,7 @@ export async function seedTestFixture(
       minRestSpacingHours?: number;
       maxDoubleLoadsPerPeriod?: number;
     }>;
+    createOrganisation?: boolean;
   },
 ): Promise<TestFixtureIds> {
   const teams = options?.teams ?? [
@@ -149,12 +161,21 @@ export async function seedTestFixture(
 
   const playersPerTeam = options?.playersPerTeam ?? 12;
 
+  const createOrganisation = options?.createOrganisation ?? false;
+  let organisationId: string | null = null;
+  if (createOrganisation) {
+    const org = await db.organisation.create({
+      data: { name: "Test Organisation", slug: `test-org-${Date.now()}` },
+    });
+    organisationId = org.id;
+  }
+
   await db.ruleConfig.create({
-    data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5 },
+    data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, ...(organisationId ? { organisationId } : {}) },
   });
 
   const season = await db.season.create({
-    data: { name: "Test Season", year: 2026 },
+    data: { name: "Test Season", year: 2026, ...(organisationId ? { organisationId } : {}) },
   });
 
   const period = await db.leagueSeason.create({
@@ -164,6 +185,7 @@ export async function seedTestFixture(
       seasonId: season.id,
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
+      ...(organisationId ? { organisationId } : {}),
     },
   });
 
@@ -172,6 +194,7 @@ export async function seedTestFixture(
       name: "W19 Test",
       leagueSeasonId: period.id,
       status: "DRAFT",
+      ...(organisationId ? { organisationId } : {}),
     },
   });
 
@@ -189,6 +212,7 @@ export async function seedTestFixture(
         developmentSlots: team.developmentSlots ?? 0,
         minAcceptedSquadSize: team.minAcceptedSquadSize ?? 9,
         maxSquadSize: team.maxSquadSize ?? 14,
+        ...(organisationId ? { organisationId } : {}),
       },
     });
     teamIds[team.name] = created.id;
@@ -205,7 +229,7 @@ export async function seedTestFixture(
     const opponentTeam = await db.opponentTeam.upsert({
       where: { normalizedName },
       update: { displayName },
-      create: { displayName, normalizedName },
+      create: { displayName, normalizedName, ...(organisationId ? { organisationId } : {}) },
     });
     const opponentTeamId = opponentTeam.id;
     opponentTeamIds[normalizedName] = opponentTeamId;
@@ -221,6 +245,7 @@ export async function seedTestFixture(
         squadSize: team.targetSquadSize ?? 11,
         matchType: "FRIENDLY",
         gameFormat: "ELEVEN_A_SIDE",
+        ...(organisationId ? { organisationId } : {}),
       },
     });
     matchIds[team.name] = match.id;
@@ -251,6 +276,7 @@ export async function seedTestFixture(
         allowDoubleLoad: rp.allowDoubleLoad ?? false,
         minRestSpacingHours: rp.minRestSpacingHours ?? null,
         maxDoubleLoadsPerPeriod: rp.maxDoubleLoadsPerPeriod ?? null,
+        ...(organisationId ? { organisationId } : {}),
       },
     });
     rotationPathIds.push(created.id);
@@ -276,6 +302,7 @@ export async function seedTestFixture(
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          ...(organisationId ? { organisationId } : {}),
         },
       });
       players.push({
@@ -291,6 +318,7 @@ export async function seedTestFixture(
   }
 
   return {
+    organisationId,
     seasonId: season.id,
     leagueSeasonId: period.id,
     matchRoundId: round.id,

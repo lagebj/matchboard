@@ -5,6 +5,8 @@ import { RoundBoard } from "@/components/round/round-board";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
@@ -28,8 +30,12 @@ export default async function RoundBoardPage({
   const { matchRoundId } = await params;
   const { finalized, generated, error } = await searchParams;
 
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+
   const matchRound = await db.matchRound.findUnique({
-    where: { id: matchRoundId },
+    where: { id: matchRoundId, ...orgWhere },
     include: {
       matches: {
         include: {
@@ -73,6 +79,7 @@ export default async function RoundBoardPage({
       where: {
         matchId: { in: matchIds },
         status: { in: ["DRAFT", "FINALIZED"] },
+        ...orgWhere,
       },
       include: {
         player: {
@@ -97,6 +104,7 @@ export default async function RoundBoardPage({
         currentAvailability: {
           in: ["INJURED", "SICK", "AWAY"],
         },
+        ...orgWhere,
       },
       select: {
         id: true,
@@ -108,7 +116,7 @@ export default async function RoundBoardPage({
       },
     }),
     db.rotationPath.findMany({
-      where: { active: true },
+      where: { active: true, ...orgWhere },
       select: {
         fromTeamId: true,
         toTeamId: true,
@@ -116,17 +124,17 @@ export default async function RoundBoardPage({
       },
     }),
     db.coachingIntent.findMany({
-      where: { scopeType: "MATCH_ROUND", scopeId: matchRoundId },
+      where: { scopeType: "MATCH_ROUND", scopeId: matchRoundId, ...orgWhere },
       orderBy: { createdAt: "desc" },
       select: { id: true, category: true, scopeType: true, scopeId: true },
     }),
     db.coachingIntent.findMany({
-      where: { scopeType: "MATCH", scopeId: { in: matchIds } },
+      where: { scopeType: "MATCH", scopeId: { in: matchIds }, ...orgWhere },
       orderBy: { createdAt: "desc" },
       select: { id: true, category: true, scopeType: true, scopeId: true },
     }),
     db.playerReadinessSignal.findMany({
-      where: { value: { in: ["FALLING", "LOW", "NEEDS_ATTENTION"] } },
+      where: { value: { in: ["FALLING", "LOW", "NEEDS_ATTENTION"] }, ...orgWhere },
       select: { playerId: true, signalType: true, value: true },
     }),
   ]);
@@ -135,6 +143,7 @@ export default async function RoundBoardPage({
     where: {
       active: true,
       removedAt: null,
+      ...orgWhere,
     },
     select: {
       id: true,

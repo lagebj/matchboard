@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 import {
   validateObservation,
@@ -17,11 +18,21 @@ export type ObservationActionState = {
   errors?: string[];
 };
 
+async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  if (orgFilter.type !== "org") return;
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+}
+
 export async function saveObservationAction(
   _prevState: ObservationActionState,
   formData: FormData,
 ): Promise<ObservationActionState> {
   const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const matchId = formData.get("matchId") as string;
   if (!matchId) return { success: false, error: "Match ID is required." };
 
@@ -31,6 +42,8 @@ export async function saveObservationAction(
   });
   if (!match) return { success: false, error: "Match not found." };
   if (!match.opponentTeamId) return { success: false, error: "No opponent profile linked yet. Complete the post-match report to link a canonical opponent." };
+
+  await requireMatchOrgAccess(matchId, orgFilter);
 
   const existingObservation = await db.opponentEncounterObservation.findUnique({
     where: { matchId },
@@ -113,7 +126,8 @@ export async function updateMatchFitAction(
   _prevState: MatchFitActionState,
   formData: FormData,
 ): Promise<MatchFitActionState> {
-  const _coach = await requireCoachAccess();
+  const coach = await requireCoachAccess();
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
   const matchId = formData.get("matchId") as string;
   const matchFit = formData.get("matchFit") as string;
 
@@ -127,8 +141,10 @@ export async function updateMatchFitAction(
     return { success: false, error: "Invalid match fit value." };
   }
 
-  const match = await db.match.findUnique({ where: { id: matchId } });
-  if (!match) return { success: false, error: "Match not found." };
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+  });
+  if (!match) return { success: false, error: "Match not found or access denied." };
 
   try {
     await db.match.update({
