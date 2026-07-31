@@ -243,7 +243,7 @@ export async function submitReport(reportId: string): Promise<ReportTransitionRe
   });
   if (!report) return { success: false, error: "Report not found." };
 
-  if (!canTransitionTo(report.status, "REPORTED")) {
+  if (!canTransitionTo(report.status, "REPORTED").allowed) {
     return { success: false, error: "Only DRAFT reports can be submitted." };
   }
 
@@ -270,7 +270,7 @@ export async function lockReport(reportId: string): Promise<ReportTransitionResu
   });
   if (!report) return { success: false, error: "Report not found." };
 
-  if (!canTransitionTo(report.status, "LOCKED")) {
+  if (!canTransitionTo(report.status, "LOCKED").allowed) {
     return { success: false, error: "Only REPORTED reports can be locked." };
   }
 
@@ -297,7 +297,7 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
   });
   if (!report) return { success: false, error: "Report not found." };
 
-  if (!canTransitionTo(report.status, "LOCKED")) {
+  if (!canTransitionTo(report.status, "LOCKED").allowed) {
     return { success: false, error: "Only DRAFT or REPORTED reports can be completed." };
   }
 
@@ -331,7 +331,7 @@ export async function reopenReport(
   const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
   if (!report) return { success: false, error: "Report not found." };
 
-  if (!canTransitionTo(report.status, targetStatus ?? "REPORTED")) {
+  if (!canTransitionTo(report.status, targetStatus ?? "REPORTED").allowed) {
     return { success: false, error: "Only LOCKED or REPORTED reports can be reopened." };
   }
 
