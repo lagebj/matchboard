@@ -96,7 +96,7 @@ export default function SimulationPage() {
         description="Dry-run planning across league rounds and events without committing changes."
       />
       <p className="text-xs text-[var(--text-muted)] border border-[var(--border-subtle)] rounded px-2 py-1 bg-[var(--surface-muted)]">
-        Simulation is dry-run only. It does not change committed squads, lineups, reports, or snapshots.
+        Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.
       </p>
 
       <Surface variant="default" padding="md">
@@ -157,6 +157,12 @@ export default function SimulationPage() {
       {error && (
         <Surface variant="danger" padding="md">
           <p className="text-sm">{error}</p>
+        </Surface>
+      )}
+
+      {result?.dryRunWarning && (
+        <Surface variant="warning" padding="md">
+          <p className="text-sm">{result.dryRunWarning}</p>
         </Surface>
       )}
 
