@@ -34,10 +34,17 @@ The CI workflow (`.github/workflows/ci.yml`) enforces:
 - TypeScript type checking
 - Linting
 - Forbidden SQL methods check
+- Supply chain integrity check (GitHub Actions pinned by SHA)
 - Tests (with isolated TEST_DATABASE_URL)
 - Production build
 
 All CI jobs use `permissions: contents: read, pull-requests: read` (least privilege).
+
+All GitHub Actions are pinned by commit SHA with version comments:
+- `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2`
+- `actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5`
+
+The supply chain integrity check (`npm run security:check-supply-chain`) verifies that all actions remain pinned to the expected SHA and flags any unpinlocked or unknown actions.
 
 ## Production Deployment
 
