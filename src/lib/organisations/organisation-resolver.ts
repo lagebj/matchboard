@@ -19,6 +19,13 @@ class OrganisationMembershipError extends AuthorizationError {
   }
 }
 
+class OrganisationSuspendedError extends AuthorizationError {
+  constructor(message: string) {
+    super(message);
+    this.name = "OrganisationSuspendedError";
+  }
+}
+
 type OrgRow = { id: string; name: string; slug: string };
 type MembershipRow = {
   id: string;
@@ -39,12 +46,17 @@ export async function resolveOrganisationAccess(
 
   const org = await db.organisation.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true },
-  }) as OrgRow | null;
+    select: { id: true, name: true, slug: true, suspendedAt: true },
+  }) as OrgRow & { suspendedAt: Date | null } | null;
 
   if (!org) {
     logAccessDenied(coachEmail, `organisation:${slug}`, "not_found");
     throw new OrganisationNotFoundError("Organisation not found.");
+  }
+
+  if (org.suspendedAt) {
+    logAccessDenied(coachEmail, `organisation:${org.slug}`, "suspended");
+    throw new OrganisationSuspendedError("This organisation is suspended.");
   }
 
   const membership = await db.organisationMembership.findUnique({

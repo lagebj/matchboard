@@ -15,6 +15,7 @@ import {
   logOrganisationTeamAccessAdd,
   logOrganisationTeamAccessRemove,
 } from "@/lib/security/audit-log";
+import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
 import type { OrganisationRole } from "@/generated/prisma/client";
 
 const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER"]);
@@ -224,6 +225,54 @@ export async function removeTeamAccessAction(
 
   logOrganisationTeamAccessRemove(ctx.userEmail, ctx.organisationId, "success");
   revalidatePath(`/o/${organisationSlug}`);
+
+  return { success: true as const };
+}
+
+export async function suspendOrganisationAction(organisationSlug: string, reason: string) {
+  const ctx = await resolveOrganisationOwner(organisationSlug);
+
+  if (!reason?.trim()) {
+    return { success: false as const, error: "Suspension reason is required." };
+  }
+
+  const result = await suspendOrganisation(ctx.organisationId, reason.trim());
+
+  if (!result.success) {
+    return { success: false as const, error: result.error };
+  }
+
+  revalidatePath("/organisations");
+  revalidatePath(`/o/${organisationSlug}`);
+
+  return { success: true as const };
+}
+
+export async function reactivateOrganisationAction(organisationSlug: string) {
+  const ctx = await resolveOrganisationOwner(organisationSlug);
+
+  const result = await reactivateOrganisation(ctx.organisationId);
+
+  if (!result.success) {
+    return { success: false as const, error: result.error };
+  }
+
+  revalidatePath("/organisations");
+  revalidatePath(`/o/${organisationSlug}`);
+
+  return { success: true as const };
+}
+
+export async function deleteOrganisationAction(organisationSlug: string) {
+  const ctx = await resolveOrganisationOwner(organisationSlug);
+
+  const result = await deleteOrganisation(ctx.organisationId);
+
+  if (!result.success) {
+    return { success: false as const, error: result.error };
+  }
+
+  revalidatePath("/organisations");
 
   return { success: true as const };
 }

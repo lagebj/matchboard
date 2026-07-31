@@ -1530,12 +1530,14 @@ enum MachinePrincipalStatus {
 }
 
 model Organisation {
-  id         String   @id @default(cuid())
-  name       String
-  slug       String   @unique
-  isSynthetic Boolean @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  isSynthetic     Boolean   @default(false)
+  suspendedAt     DateTime?
+  suspendedReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   memberships                     OrganisationMembership[]
   invitations                      OrganisationInvitation[]

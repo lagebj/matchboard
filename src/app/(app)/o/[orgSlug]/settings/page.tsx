@@ -28,6 +28,8 @@ export default async function OrgSettingsPage({
       name: true,
       slug: true,
       isSynthetic: true,
+      suspendedAt: true,
+      suspendedReason: true,
       createdAt: true,
       _count: {
         select: {
@@ -65,6 +67,8 @@ export default async function OrgSettingsPage({
       principals={JSON.parse(JSON.stringify(principals))}
       orgSlug={orgSlug}
       isOwner={ctx.role === "OWNER"}
+      isSuspended={org.suspendedAt !== null && org.suspendedAt !== undefined}
+      suspendedReason={org.suspendedReason}
     />
   );
 }

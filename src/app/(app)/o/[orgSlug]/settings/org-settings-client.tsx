@@ -8,6 +8,11 @@ import {
   rotateMachinePrincipalSecretAction,
   listMachinePrincipalsAction,
 } from "@/app/(app)/organisations/machine-principal-actions";
+import {
+  suspendOrganisationAction,
+  reactivateOrganisationAction,
+  deleteOrganisationAction,
+} from "@/app/(app)/organisations/actions";
 
 type Org = {
   id: string;
@@ -34,11 +39,15 @@ export function OrgSettingsClient({
   principals,
   orgSlug,
   isOwner,
+  isSuspended,
+  suspendedReason,
 }: {
   org: Org;
   principals: Principal[];
   orgSlug: string;
   isOwner: boolean;
+  isSuspended: boolean;
+  suspendedReason: string | null;
 }) {
   const [showCreatePrincipal, setShowCreatePrincipal] = useState(false);
   const [principalName, setPrincipalName] = useState("");
@@ -233,6 +242,128 @@ export function OrgSettingsClient({
           )}
         </section>
       )}
+
+      {isOwner && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-red-400">Danger Zone</h2>
+
+          {isSuspended ? (
+            <div className="rounded-md border border-red-800 bg-red-950/20 p-4 space-y-3">
+              <p className="text-sm font-medium text-red-400">
+                This organisation is suspended.
+              </p>
+              {suspendedReason && (
+                <p className="text-xs text-muted-foreground">Reason: {suspendedReason}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Suspended organisations block all member access. Reactivate to restore access.
+              </p>
+              <div className="flex gap-3">
+                <SuspendActionButton orgSlug={orgSlug} action="reactivate" />
+                <DeleteOrgButton orgSlug={orgSlug} />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border border-[var(--border-soft)] p-4 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Suspending an organisation blocks all member access. This is reversible.
+              </p>
+              <SuspendActionButton orgSlug={orgSlug} action="suspend" />
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+function SuspendActionButton({ orgSlug, action }: { orgSlug: string; action: "suspend" | "reactivate" }) {
+  const [loading, setLoading] = useState(false);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSuspend() {
+    if (action === "suspend" && !reason.trim()) {
+      setError("A reason is required for suspension.");
+      return;
+    }
+    if (action === "suspend" && !confirm("Suspend this organisation? All members will lose access.")) return;
+    if (action === "reactivate" && !confirm("Reactivate this organisation? Members will regain access.")) return;
+
+    setLoading(true);
+    setError(null);
+
+    const result = action === "suspend"
+      ? await suspendOrganisationAction(orgSlug, reason)
+      : await reactivateOrganisationAction(orgSlug);
+
+    if (!result.success) {
+      setError(result.error ?? "Unknown error");
+    } else {
+      window.location.reload();
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="space-y-2">
+      {action === "suspend" && (
+        <input
+          type="text"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Reason for suspension"
+          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm"
+        />
+      )}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      <button
+        onClick={handleSuspend}
+        disabled={loading}
+        className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
+          action === "suspend"
+            ? "bg-red-950/30 text-red-400 hover:bg-red-950/50"
+            : "bg-green-950/30 text-green-400 hover:bg-green-950/50"
+        }`}
+      >
+        {loading
+          ? action === "suspend" ? "Suspending..." : "Reactivating..."
+          : action === "suspend" ? "Suspend organisation"
+          : "Reactivate organisation"}
+      </button>
+    </div>
+  );
+}
+
+function DeleteOrgButton({ orgSlug }: { orgSlug: string }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (!confirm("Permanently delete this organisation and all its data? This cannot be undone.")) return;
+    if (!confirm("Are you absolutely sure? All teams, players, matches, selections, and history will be deleted forever.")) return;
+
+    setLoading(true);
+    setError(null);
+    const result = await deleteOrganisationAction(orgSlug);
+    if (!result.success) {
+      setError(result.error ?? "Unknown error");
+    } else {
+      window.location.href = "/organisations";
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div>
+      <button
+        onClick={handleDelete}
+        disabled={loading}
+        className="rounded-md bg-red-950/30 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-950/50 disabled:opacity-50"
+      >
+        {loading ? "Deleting..." : "Delete organisation permanently"}
+      </button>
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -246,7 +377,7 @@ function RevokeButton({ principalId, orgSlug }: { principalId: string; orgSlug: 
     setLoading(true);
     setError(null);
     const result = await revokeMachinePrincipalAction(orgSlug, principalId);
-    if (!result.success) setError(result.error);
+    if (!result.success) setError(result.error ?? "Unknown error");
     else window.location.reload();
     setLoading(false);
   }
