@@ -124,6 +124,11 @@ export function OrgDetailClient({
         <p className="text-sm text-muted-foreground">
           Slug: {org.slug}
           {org.isSynthetic ? " \u00b7 Synthetic" : ""}
+          {(canInvite || canManageRoles) && (
+            <a href={`/o/${orgSlug}/settings`} className="ml-2 underline hover:text-foreground">
+              Settings
+            </a>
+          )}
         </p>
       </div>
 
