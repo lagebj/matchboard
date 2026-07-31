@@ -126,6 +126,8 @@ export default function SimulationPage() {
       />
       <p className="text-xs text-[var(--text-muted)] border border-[var(--border-subtle)] rounded px-2 py-1 bg-[var(--surface-muted)]">
         Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.
+        {" "}
+        <a href="/workbench" className="text-[var(--accent)] hover:underline">Policy Workbench →</a>
       </p>
 
       <Surface variant="default" padding="md">
