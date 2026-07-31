@@ -47,6 +47,16 @@ export async function POST(request: NextRequest) {
     body.policyMode = "default_only";
   }
 
+  if (orgFilter.type === "org" && body.leagueSeasonId) {
+    const owned = await db.leagueSeason.findFirst({
+      where: { id: body.leagueSeasonId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
+    }
+  }
+
   if (orgFilter.type === "org" && body.roundIds && body.roundIds.length > 0) {
     const ownedRounds = await db.matchRound.findMany({
       where: { id: { in: body.roundIds }, ...orgFilter.filter },
