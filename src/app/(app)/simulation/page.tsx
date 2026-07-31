@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -14,6 +14,13 @@ import type {
   RoundCoverageSummary,
   EventSimulationResult,
 } from "@/lib/simulation/simulation-types";
+
+interface LeagueSeasonOption {
+  id: string;
+  name: string;
+  seasonYear: number;
+  part: string;
+}
 
 const SCOPE_OPTIONS: { value: SimulationScope; label: string }[] = [
   { value: "league_round", label: "League: Selected rounds" },
@@ -53,9 +60,29 @@ export default function SimulationPage() {
   const [policyMode, setPolicyMode] = useState<SimulationPolicyMode>("default_only");
   const [includeLeague, setIncludeLeague] = useState(true);
   const [includeEvents, setIncludeEvents] = useState(false);
+  const [leagueSeasonId, setLeagueSeasonId] = useState<string>("");
+  const [leagueSeasons, setLeagueSeasons] = useState<LeagueSeasonOption[]>([]);
   const [result, setResult] = useState<SeasonSimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchLeagueSeasons() {
+      try {
+        const res = await fetch("/api/league-seasons");
+        if (res.ok) {
+          const data = await res.json();
+          setLeagueSeasons(data);
+          if (data.length > 0 && !leagueSeasonId) {
+            setLeagueSeasonId(data[0].id);
+          }
+        }
+      } catch {
+        // Ignore — league season selector will be empty
+      }
+    }
+    fetchLeagueSeasons();
+  }, []);
 
   async function handleRun() {
     setLoading(true);
@@ -69,6 +96,7 @@ export default function SimulationPage() {
       includeEvents,
       includeCommittedPlans: true,
       includeDraftPlans: true,
+      ...(leagueSeasonId ? { leagueSeasonId } : {}),
     };
 
     try {
@@ -103,6 +131,19 @@ export default function SimulationPage() {
       <Surface variant="default" padding="md">
         <h3 className="text-sm font-semibold text-zinc-100 mb-3">Simulation Scope</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm text-[var(--text-muted)]">League season</label>
+            <select
+              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+              value={leagueSeasonId}
+              onChange={(e) => setLeagueSeasonId(e.target.value)}
+            >
+              <option value="">Auto-detect</option>
+              {leagueSeasons.map((ls) => (
+                <option key={ls.id} value={ls.id}>{ls.name} ({ls.seasonYear} {ls.part})</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="text-sm text-[var(--text-muted)]">Scope</label>
             <select

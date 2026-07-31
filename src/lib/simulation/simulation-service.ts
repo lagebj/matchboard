@@ -391,6 +391,17 @@ function transformMatchResult(match: GeneratedSelection): SimulatedMatchResult {
 async function resolveLeagueSeasonId(
   request: SeasonSimulationRequest,
 ): Promise<string> {
+  if (request.leagueSeasonId) {
+    const leagueSeason = await db.leagueSeason.findUnique({
+      where: { id: request.leagueSeasonId },
+      select: { id: true },
+    });
+    if (!leagueSeason) {
+      throw new Error(`League season not found: ${request.leagueSeasonId}`);
+    }
+    return leagueSeason.id;
+  }
+
   if (request.roundIds && request.roundIds.length > 0) {
     const round = await db.matchRound.findFirst({
       where: { id: request.roundIds[0] },
