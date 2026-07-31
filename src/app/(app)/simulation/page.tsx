@@ -12,6 +12,7 @@ import type {
   SimulationConflict,
   PlayerSimulationParticipation,
   RoundCoverageSummary,
+  EventSimulationResult,
 } from "@/lib/simulation/simulation-types";
 
 const SCOPE_OPTIONS: { value: SimulationScope; label: string }[] = [
@@ -176,6 +177,10 @@ export default function SimulationPage() {
               roundCoverage={result.league.roundCoverage}
               conflicts={result.league.conflicts}
             />
+          )}
+
+          {result.events && result.events.length > 0 && (
+            <EventResults events={result.events} />
           )}
 
           {result.conflicts.length > 0 && (
@@ -383,6 +388,46 @@ function ConflictList({ conflicts }: { conflicts: SimulationConflict[] }) {
         {conflicts.length > 20 && (
           <p className="text-xs text-[var(--text-muted)]">+{conflicts.length - 20} more conflicts</p>
         )}
+      </div>
+    </Surface>
+  );
+}
+
+function EventResults({ events }: { events: EventSimulationResult[] }) {
+  return (
+    <Surface variant="default" padding="md">
+      <h3 className="text-sm font-semibold text-zinc-100 mb-3">Event Simulation</h3>
+      <div className="space-y-4">
+        {events.map((event) => (
+          <div key={event.eventId} className="border border-[var(--border-soft)] rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-zinc-100">{event.eventName}</h4>
+              <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                event.valid ? "bg-[var(--success-subtle)] text-[var(--success)]" : "bg-[var(--danger-subtle)] text-[var(--danger)]"
+              }`}>
+                {event.valid ? "Valid" : "Issues found"}
+              </span>
+            </div>
+            {event.poolValidation && (
+              <div className="text-xs text-[var(--text-muted)] mb-2">
+                Pool: {event.poolValidation.availablePlayers} available | {event.poolValidation.missingRatingsCount} missing ratings | GK: {event.poolValidation.gkCoverageStatus}
+              </div>
+            )}
+            <div className="space-y-1">
+              {event.squads.map((squad) => (
+                <div key={squad.squadId} className="flex items-center justify-between text-sm">
+                  <span>{squad.squadName} ({squad.intent})</span>
+                  <span className="text-[var(--text-muted)]">{squad.playerCount} players</span>
+                </div>
+              ))}
+            </div>
+            {event.warnings.length > 0 && (
+              <div className="mt-2 text-xs text-[var(--text-muted)]">
+                {event.warnings.length} warning(s)
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </Surface>
   );

@@ -8,10 +8,12 @@ import {
   computeSimulationFairness,
   detectGkCoverageGaps,
 } from "./simulation-fairness";
+import { simulateEvent } from "./simulation-event-service";
 import type {
   SeasonSimulationRequest,
   SeasonSimulationResult,
   LeagueSimulationResult,
+  EventSimulationResult,
   SimulationFairnessSummary,
   SimulationFairnessSignal,
   SimulationConflict,
@@ -58,6 +60,25 @@ export async function runSeasonSimulation(
     conflicts.push(...leagueResult.conflicts);
   }
 
+  let events: EventSimulationResult[] | undefined;
+  if (request.includeEvents && request.eventIds && request.eventIds.length > 0) {
+    events = [];
+    for (const eventId of request.eventIds) {
+      try {
+        const eventResult = await simulateEvent(eventId);
+        events.push(eventResult);
+        conflicts.push(...eventResult.conflicts);
+        warnings.push(...eventResult.warnings);
+      } catch (err) {
+        warnings.push({
+          code: "event_simulation_failed",
+          severity: "blocked" as const,
+          message: err instanceof Error ? err.message : `Event simulation failed for ${eventId}`,
+        });
+      }
+    }
+  }
+
   const emptyFairness: SimulationFairnessSummary = {
     totalPlayers: 0,
     playersWithZeroOpportunity: 0,
@@ -78,15 +99,17 @@ export async function runSeasonSimulation(
     artifactHash: getPolicyArtifactHash(),
     regoEnabled: request.policyMode === "default_plus_rego" && regoEnabledFlag,
     regoAvailable: regoEnabledFlag,
-    decisionTypes: request.includeLeague
-      ? ["league_match_selection", "league_round_fairness"]
-      : [],
+    decisionTypes: [
+      ...(request.includeLeague ? ["league_match_selection", "league_round_fairness"] as const : []),
+      ...(request.includeEvents ? ["event_squad_generation", "event_helper_selection"] as const : []),
+    ],
     defaultOnlyResultCount: league?.rounds.length ?? 0,
   };
 
   return {
     request,
     league,
+    events,
     fairness: league
       ? computeSimulationFairness(league.playerParticipation, league.rounds.length)
       : emptyFairness,
