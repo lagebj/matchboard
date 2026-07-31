@@ -339,7 +339,7 @@ export function FixturesPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Fixtures"
-        description="Phases, rounds, and matches. Open a round for squad work."
+        description="League seasons, rounds, and matches. Open a round for squad work."
       />
 
       {isPending && !data ? (

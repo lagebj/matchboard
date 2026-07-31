@@ -24,9 +24,10 @@ async function main() {
     data: { name: "Demo Season" },
   });
 
-  const period = await db.planningPeriod.create({
+  const period = await db.leagueSeason.create({
     data: {
       name: "Spring 2026",
+      part: "SPRING",
       seasonId: season.id,
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -36,7 +37,7 @@ async function main() {
   const round = await db.matchRound.create({
     data: {
       name: "R1",
-      planningPeriodId: period.id,
+      leagueSeasonId: period.id,
     },
   });
 
