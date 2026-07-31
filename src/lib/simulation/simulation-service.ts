@@ -95,7 +95,7 @@ export async function runSeasonSimulation(
     policy: policySummary,
     validToCommit: false,
     dryRunNotice: true,
-    dryRunWarning: "Simulation creates draft selections in the database. Run on rounds without existing drafts, or clear drafts before simulation. No finalized history is created.",
+    dryRunWarning: "Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.",
   };
 }
 
@@ -123,6 +123,16 @@ async function simulateLeague(
   const roundResults: SimulatedRoundResult[] = [];
   const goalkeepersPerRound: Record<string, number> = {};
   const allConflicts: SimulationConflict[] = [];
+
+  const allPlayers = await db.player.findMany({
+    where: { active: true, removedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      coreTeamId: true,
+    },
+  });
 
   const playerParticipationMap = new Map<
     string,
@@ -157,8 +167,11 @@ async function simulateLeague(
       const simulatedRound = transformGeneratedRound(generatedRound, round.name);
       roundResults.push(simulatedRound);
 
+      const selectedPlayerIds = new Set<string>();
+
       for (const match of generatedRound.matchResults) {
         for (const player of match.selectedPlayers) {
+          selectedPlayerIds.add(player.playerId);
           let stats = playerParticipationMap.get(player.playerId);
           if (!stats) {
             stats = {
@@ -185,6 +198,36 @@ async function simulateLeague(
         ).length;
         goalkeepersPerRound[round.id] = (goalkeepersPerRound[round.id] ?? 0) + gkInMatch;
       }
+
+      const roundAvailabilities = await db.availability.findMany({
+        where: { matchRoundId: round.id },
+        select: { playerId: true, status: true },
+      });
+
+      const unavailablePlayerIds = new Set(
+        roundAvailabilities
+          .filter((a) => a.status === "UNAVAILABLE")
+          .map((a) => a.playerId),
+      );
+
+      for (const player of allPlayers) {
+        if (selectedPlayerIds.has(player.id)) continue;
+        if (unavailablePlayerIds.has(player.id)) {
+          let stats = playerParticipationMap.get(player.id);
+          if (!stats) {
+            stats = { plannedRounds: 0, coreAssignments: 0, supportAssignments: 0, developmentAssignments: 0, squadRepairAssignments: 0, notSelectedRounds: 0, unavailableRounds: 0 };
+            playerParticipationMap.set(player.id, stats);
+          }
+          stats.unavailableRounds++;
+        } else {
+          let stats = playerParticipationMap.get(player.id);
+          if (!stats) {
+            stats = { plannedRounds: 0, coreAssignments: 0, supportAssignments: 0, developmentAssignments: 0, squadRepairAssignments: 0, notSelectedRounds: 0, unavailableRounds: 0 };
+            playerParticipationMap.set(player.id, stats);
+          }
+          stats.notSelectedRounds++;
+        }
+      }
     } else {
       roundResults.push({
         roundId: round.id,
@@ -198,16 +241,6 @@ async function simulateLeague(
       });
     }
   }
-
-  const allPlayers = await db.player.findMany({
-    where: { active: true, removedAt: null },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      coreTeamId: true,
-    },
-  });
 
   for (const player of allPlayers) {
     if (!playerParticipationMap.has(player.id)) {
