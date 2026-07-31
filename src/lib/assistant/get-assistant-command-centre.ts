@@ -315,6 +315,72 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     }
   }
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todayMatches = await db.match.findMany({
+    where: {
+      startsAt: { gte: todayStart, lte: todayEnd },
+      status: "SCHEDULED",
+      ...orgWhere,
+    },
+    select: {
+      id: true,
+      opponent: true,
+      homeAway: true,
+      teamId: true,
+      matchRoundId: true,
+      team: { select: { name: true } },
+      matchRound: { select: { id: true, name: true } },
+    },
+  });
+
+  const todayMatchIds = todayMatches.map((m) => m.id);
+
+  const finalizedSquadCounts = await db.selection.groupBy({
+    by: ["matchId"],
+    where: {
+      matchId: { in: todayMatchIds },
+      status: "FINALIZED",
+    },
+    _count: { id: true },
+  });
+
+  const matchesWithSquad = new Set(finalizedSquadCounts.map((s) => s.matchId));
+
+  const activeSessions = await db.liveMatchSession.findMany({
+    where: {
+      matchId: { in: todayMatchIds },
+      status: "ACTIVE",
+    },
+    select: { matchId: true },
+  });
+
+  const matchesWithSession = new Set(activeSessions.map((s) => s.matchId));
+
+  for (const match of todayMatches) {
+    if (matchesWithSession.has(match.id)) continue;
+    if (!matchesWithSquad.has(match.id)) continue;
+
+    const teamName = match.team.name;
+    const homeAway = match.homeAway === "HOME" ? "vs" : "@";
+    items.push(
+      makeItem({
+        category: "live_report_available",
+        matchRoundId: match.matchRoundId,
+        matchId: match.id,
+        title: `Live report: ${teamName} ${homeAway} ${match.opponent}`,
+        summary: "Finalized squad exists. Start live reporting for this matchday.",
+        primaryActionLabel: "Start live reporting",
+        primaryActionHref: `/matches/${match.id}/live`,
+        affectedTeamIds: [match.teamId],
+        affectedPlayerIds: [],
+      }),
+    );
+  }
+
   const eventItems = await getEventWorkItems(orgFilter);
   items.push(...eventItems);
 
