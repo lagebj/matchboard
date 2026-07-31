@@ -194,6 +194,7 @@ export type SeasonSimulationResult = {
   policy: SimulationPolicySummary;
   validToCommit: boolean;
   dryRunNotice: true;
+  dryRunWarning?: string;
 };
 
 export type SimulationFairnessSummary = {

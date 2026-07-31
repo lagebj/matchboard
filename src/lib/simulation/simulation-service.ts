@@ -28,6 +28,23 @@ import { getActivePackId, loadPackMetadata } from "@/lib/policies/policy-pack";
 import { isRegoEnabled } from "@/lib/policies/rego-policy-adapter";
 import type { SelectionRole } from "@/generated/prisma/client";
 
+/**
+ * Run a season simulation.
+ *
+ * IMPORTANT: The simulation calls generateMatchRound() which creates DRAFT
+ * selections in the database. This is not a true dry-run — it persists side
+ * effects. The simulation should only be run on rounds that do not already have
+ * draft selections, or the user should understand that existing drafts may be
+ * overwritten.
+ *
+ * A future improvement should refactor generateMatchRound() to accept an
+ * optional transaction client and roll back after capturing results.
+ *
+ * The dryRunNotice flag in the result indicates that the simulation is
+ * read-only for the result data (no commits are made to finalized history),
+ * but draft selections ARE created during the simulation run.
+ */
+
 export async function runSeasonSimulation(
   request: SeasonSimulationRequest,
 ): Promise<SeasonSimulationResult> {
@@ -78,6 +95,7 @@ export async function runSeasonSimulation(
     policy: policySummary,
     validToCommit: false,
     dryRunNotice: true,
+    dryRunWarning: "Simulation creates draft selections in the database. Run on rounds without existing drafts, or clear drafts before simulation. No finalized history is created.",
   };
 }
 
@@ -136,7 +154,7 @@ async function simulateLeague(
     }
 
     if (generatedRound) {
-      const simulatedRound = transformGeneratedRound(generatedRound);
+      const simulatedRound = transformGeneratedRound(generatedRound, round.name);
       roundResults.push(simulatedRound);
 
       for (const match of generatedRound.matchResults) {
@@ -260,10 +278,10 @@ async function simulateLeague(
   };
 }
 
-function transformGeneratedRound(generated: GeneratedRound): SimulatedRoundResult {
+function transformGeneratedRound(generated: GeneratedRound, roundName: string): SimulatedRoundResult {
   return {
     roundId: generated.matchRoundId,
-    roundName: `Round ${generated.matchRoundId}`,
+    roundName,
     matches: generated.matchResults.map(transformMatchResult),
     planIntegritySignals: [],
     warnings: generated.roundWarnings.map((w) => ({
