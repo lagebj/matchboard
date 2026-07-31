@@ -1,6 +1,7 @@
 import { getOrgContext } from "./org-context";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { OrgDetailClient } from "./org-detail-client";
 
 export default async function OrgDetailPage({
   params,
@@ -22,14 +23,15 @@ export default async function OrgDetailPage({
       id: true,
       name: true,
       slug: true,
+      isSynthetic: true,
       createdAt: true,
       memberships: {
         select: {
           id: true,
           userId: true,
           role: true,
-          user: { select: { name: true, email: true } },
-          teamAccesses: { select: { teamId: true, team: { select: { name: true } } } },
+          user: { select: { id: true, name: true, email: true } },
+          teamAccesses: { select: { id: true, teamId: true, team: { select: { id: true, name: true } } } },
         },
         orderBy: { role: "asc" },
       },
@@ -45,6 +47,7 @@ export default async function OrgDetailPage({
           intendedRole: true,
           status: true,
           expiresAt: true,
+          createdAt: true,
         },
         orderBy: { createdAt: "desc" },
       },
@@ -56,67 +59,15 @@ export default async function OrgDetailPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{org.name}</h1>
-        <p className="text-sm text-muted-foreground">Slug: {org.slug}</p>
-      </div>
-
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Members</h2>
-        {org.memberships.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No members yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {org.memberships.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-md border border-[var(--border-soft)] px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{m.user.name || m.user.email}</p>
-                  <p className="text-xs text-muted-foreground">{m.user.email}</p>
-                </div>
-                <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-2)]">{m.role}</span>
-                {m.teamAccesses.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    Teams: {m.teamAccesses.map((ta) => ta.team.name).join(", ")}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {org.invitations.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Pending Invitations</h2>
-          <div className="space-y-2">
-            {org.invitations.map((inv) => (
-              <div key={inv.id} className="flex items-center gap-3 rounded-md border border-[var(--border-soft)] px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">{inv.invitedEmail}</p>
-                </div>
-                <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-2)]">{inv.intendedRole}</span>
-                <span className="text-xs text-muted-foreground">
-                  Expires {inv.expiresAt.toLocaleDateString()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Teams</h2>
-        {org.teams.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No teams yet.</p>
-        ) : (
-          <div className="space-y-1">
-            {org.teams.map((t) => (
-              <div key={t.id} className="text-sm">{t.name}</div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+    <OrgDetailClient
+      org={JSON.parse(JSON.stringify(org))}
+      orgSlug={orgSlug}
+      currentUserId={ctx.userId}
+      currentUserRole={ctx.role}
+      canInvite={ctx.canManageMemberships}
+      canManageRoles={ctx.role === "OWNER"}
+      canManageTeamAccess={ctx.canManageMemberships}
+      teams={JSON.parse(JSON.stringify(org.teams))}
+    />
   );
 }
