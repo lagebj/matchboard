@@ -11,6 +11,7 @@ const BATCH_SIZE = 25;
 
 interface EnqueueNotificationInput {
   organisationId?: string;
+  idempotencyKey?: string;
   template: NotificationTemplate;
   payload: Record<string, unknown>;
   recipientEmail: string;
@@ -25,9 +26,20 @@ export async function enqueueNotification(
 ): Promise<string> {
   const client = tx ?? db;
 
+  if (input.idempotencyKey) {
+    const existing = await client.notificationOutbox.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+      select: { id: true },
+    });
+    if (existing) {
+      return existing.id;
+    }
+  }
+
   const outbox = await client.notificationOutbox.create({
     data: {
       organisationId: input.organisationId,
+      idempotencyKey: input.idempotencyKey,
       template: input.template,
       payload: input.payload as any,
       status: "PENDING" as NotificationStatus,

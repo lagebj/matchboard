@@ -1800,6 +1800,7 @@ model OrganisationMembership {
   userId         String
   organisationId String
   role           OrganisationRole @default(COACH)
+  expiresAt      DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -1811,6 +1812,7 @@ model OrganisationMembership {
   @@index([organisationId])
   @@index([userId])
   @@index([role])
+  @@index([expiresAt])
 }
 
 model OrganisationInvitation {
@@ -2060,6 +2062,7 @@ enum DeliveryStatus {
 model NotificationOutbox {
   id              String              @id @default(cuid())
   organisationId  String?
+  idempotencyKey  String?             @unique
   template        NotificationTemplate
   payload         Json
   status          NotificationStatus  @default(PENDING)
