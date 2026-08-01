@@ -151,6 +151,36 @@ No general-purpose long-lived API keys. Machine authentication uses workload ide
 - **More granular roles**: Rejected — product decision MT-1.4 mandates four roles only at this stage.
 - **Generic link-based invitations**: Rejected — product decision MT-1.5 mandates email-bound invitations.
 
+## Implementation status
+
+### Completed
+
+- MT-0.1: Shared-schema multi-tenancy model (one database) — implemented
+- MT-1.4: Role granularity (OWNER, ADMIN, COACH, VIEWER, SUPPORT) — enum and domain logic implemented
+- MT-1.5: Invitation model (OrganisationInvitation with token, email, expiry, status) — fully implemented
+- MT-2.7: Nullable `organisationId` on 50+ tenant-bearing models — migration applied
+- MT-2.8: Bootstrap organisation and OWNER membership — models exist, production data migration pending
+- MT-3.9: RLS policies on 53 tables — migration applied, null-allowing policies active
+- Machine authentication — MachinePrincipal model, token exchange, scope validation
+- Organisation lifecycle — suspend, reactivate, delete
+- Organisation listing and settings UI — `/organisations` and `/o/{organisationSlug}/settings`
+
+### In progress
+
+- MT-1.6: Organisation-scoped routes — only org detail/settings migrated, main app routes still flat
+- MT-3.10: Cache key org-scoping — not yet applied
+- `requireCoachAccess()` → `resolveOrganisationAccess()` migration — 136 files still use legacy auth
+- `resolveOrgFilterForUser()` unscoped mode — should fail closed, currently returns empty filter
+
+### Pending
+
+- NOT NULL constraint on `organisationId` — requires production data migration first
+- Null-allowing RLS policy removal — after NOT NULL constraint
+- Global unique constraint conversion (Player.playerCode, LeagueSeason.name) — after NOT NULL
+- SUPPORT role time-bound expiry and read-only enforcement (MT-7 per ADR-0040)
+- Email allowlist deprecation — after invitation-based membership is the sole auth mechanism
+- Route migration to `/o/{organisationSlug}/...` — main app routes
+
 ## Related
 
 - ADR-0028 (security baseline and threat model)

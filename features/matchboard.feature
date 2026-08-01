@@ -6819,3 +6819,309 @@ Feature: Matchboard football operations workspace
         Given match "M1" is in a finalized round
         When the coach attempts to finalize match "M1"
         Then the app must reject the finalization with a message that the match is already finalized
+
+  # --- Organisation membership and role enforcement ---
+
+  Feature: Organisation membership and role enforcement
+
+    Every protected operation requires an authenticated actor with active organisation membership. Organisation context fails closed.
+
+    Rule: No membership denies operational access
+
+      Scenario: User without membership cannot access protected operations
+        Given an authenticated user has no organisation membership
+        When the user attempts any protected operation
+        Then the app must deny access
+        And must not reveal the existence of inaccessible records
+
+      Scenario: Disabled membership denies access
+        Given an authenticated user has a disabled organisation membership
+        When the user attempts a protected operation
+        Then the app must deny access
+
+      Scenario: Several memberships require explicit organisation
+        Given an authenticated user has active memberships in Organisation A and Organisation B
+        When the user navigates to the app without an explicit organisation
+        Then the app must require the user to select an organisation
+        And must not default to the first database membership
+
+    Rule: Role permissions are enforced server-side
+
+      Scenario: OWNER has full organisation control
+        Given an authenticated user with OWNER role in Organisation A
+        When the user performs organisation operations
+        Then the app must allow membership management, settings, exports, and all team operations
+
+      Scenario: ADMIN has organisation-wide football operations
+        Given an authenticated user with ADMIN role in Organisation A
+        When the user performs football operations
+        Then the app must allow all team operations and player management
+        But must not allow ownership transfer or organisation deletion
+
+      Scenario: COACH has delegated team access only
+        Given an authenticated user with COACH role in Organisation A
+        And the user has access to Team X but not Team Y
+        When the user attempts operations on Team X
+        Then the app must allow full football-operational access
+        When the user attempts operations on Team Y
+        Then the app must deny access
+
+      Scenario: VIEWER has read-only access
+        Given an authenticated user with VIEWER role in Organisation A
+        When the user attempts any mutation
+        Then the app must deny the mutation
+
+      Scenario: SUPPORT has time-bound read-only access
+        Given an authenticated user with SUPPORT role in Organisation A
+        And the SUPPORT membership has not expired
+        When the user attempts any read operation
+        Then the app must allow the read
+        When the user attempts any mutation or export
+        Then the app must deny the operation
+
+      Scenario: Expired SUPPORT membership denies all access
+        Given an authenticated user with SUPPORT role in Organisation A
+        And the SUPPORT membership has expired
+        When the user attempts any protected operation
+        Then the app must deny access
+
+    Rule: Organisation context is required
+
+      Scenario: Organisation slug routes enforce membership
+        Given an authenticated user is a member of Organisation A
+        And is not a member of Organisation B
+        When the user navigates to /o/organisation-a/teams
+        Then the app must allow access
+        When the user navigates to /o/organisation-b/teams
+        Then the app must deny access without revealing record existence
+
+      Scenario: Cross-tenant ID injection is rejected
+        Given an authenticated user in Organisation A
+        When the user submits a mutation containing a team ID belonging to Organisation B
+        Then the app must reject the mutation
+
+    Rule: Invitation-based admission
+
+      Scenario: OWNER can invite members
+        Given an authenticated OWNER in Organisation A
+        When the OWNER invites a new member
+        Then the app must create an invitation with a unique token
+        And send a notification to the invited email
+
+      Scenario: Invitation token is single-use and expiring
+        Given a valid invitation token
+        When the invitee accepts the invitation
+        Then the app must create a membership with the intended role
+        And the invitation token must be invalidated
+        And subsequent use of the same token must be rejected
+
+  # --- Event-squad lifecycle ---
+
+  Feature: Event-squad lifecycle
+
+    Event squads are operational planning units. They do not require a generic confirmation or review state to be usable.
+
+    Rule: Event-squad confirmation is optional
+
+      Scenario: Draft squads are operational without confirmation
+        Given an event has generated squads in DRAFT status
+        When the coach reviews the squads
+        Then the squads must be editable, movable, and usable for lineup planning
+        And no Assistant work item must require generic confirmation
+
+      Scenario: Confirmation is an optional review action
+        Given an event has DRAFT squads
+        When the coach confirms the squads
+        Then the confirmation must be recorded as an advisory review
+        And must not block normal squad operations
+
+    Rule: Same-event atomic player movement
+
+      Scenario: Moving a player between squads is atomic
+        Given player "p1" is assigned to squad "S1" in event "E1"
+        And squad "S2" is in the same event "E1"
+        When the coach moves "p1" from "S1" to "S2"
+        Then "p1" must be removed from "S1"
+        And "p1" must be added to "S2"
+        And the movement must be atomic
+        And there must never be two active assignments for "p1" in event "E1"
+
+      Scenario: Cross-event movement is rejected
+        Given player "p1" is assigned to squad "S1" in event "E1"
+        And squad "S3" is in event "E2"
+        When the coach attempts to move "p1" to "S3"
+        Then the app must reject the movement
+
+    Rule: Squad removal is safe
+
+      Scenario: Removing a squad with assignments is rejected
+        Given squad "S1" in event "E1" has assigned players
+        When the coach attempts to delete "S1"
+        Then the app must reject the deletion
+        And must explain that players must be reassigned first
+
+      Scenario: Removing an empty unused squad succeeds
+        Given squad "S1" in event "E1" has no assigned players and no matches
+        When the coach deletes "S1"
+        Then the app must remove the squad
+
+    Rule: Event-lineup eligibility is server-enforced
+
+      Scenario: Only eligible players may be assigned to a lineup
+        Given a player is not in the event squad playing the match
+        And is not a valid helper for that match
+        When the coach attempts to assign the player to the lineup
+        Then the app must reject the assignment
+
+      Scenario: Helper provenance is server-derived
+        Given player "p1" is in squad "S1" and is assigned as a helper for match "M1"
+        When the lineup is created or auto-filled
+        Then "p1" must have source HELPER in the lineup
+        And the source must not be client-supplied
+
+    Rule: Stale assignments are detected
+
+      Scenario: Player removed from squad has stale helper assignment
+        Given player "p1" is assigned as a helper for match "M1"
+        And "p1" is removed from their source squad
+        When the helper assignments are loaded
+        Then "p1" must be flagged as stale
+        And the reason must explain the removal
+
+  # --- Notification hardening ---
+
+  Feature: Notification hardening
+
+    Notification creation must be transactional. Delivery must be idempotent. Webhook authentication must be mandatory.
+
+    Rule: Transactional notification enqueue
+
+      Scenario: Domain mutation and notification enqueue are atomic
+        Given a coach creates an organisation invitation
+        When the invitation is created
+        Then the notification outbox entry must be created in the same database transaction
+        And if the domain mutation fails, no notification must be enqueued
+        And if the notification enqueue fails, the domain mutation must not be committed
+
+    Rule: Idempotent notification delivery
+
+      Scenario: Duplicate enqueue with same idempotency key is deduplicated
+        Given a notification with idempotency key "invite-abc" is enqueued
+        When the same notification with key "invite-abc" is enqueued again
+        Then the app must not create a duplicate notification
+        And must not send a duplicate email
+
+      Scenario: Worker retry delivers exactly once
+        Given a notification is in PENDING status
+        When the worker processes the notification and the provider succeeds
+        Then the notification status must be SENT
+        And subsequent processing of the same notification must be idempotent
+
+    Rule: Webhook authentication is mandatory
+
+      Scenario: Brevo webhook rejects unauthenticated requests
+        Given the BREVO_WEBHOOK_KEY is configured
+        When an unauthenticated request is sent to the webhook endpoint
+        Then the app must reject it with 401
+
+      Scenario: Open and click tracking are disabled
+        Given Brevo email configuration
+        Then the app must not enable open tracking
+        And must not enable click tracking
+
+  # --- Simulation semantics ---
+
+  Feature: Simulation semantics
+
+    A simulation called dry-run must not create or modify football data.
+
+    Rule: Simulation performs no football-data writes
+
+      Scenario: League simulation does not create selections
+        Given the coach runs a season simulation
+        When the simulation completes
+        Then no Selection rows must be created
+        And no MovementLedger rows must be created
+        And no Warning rows must be created
+        And no Player rows must be modified
+        And no Availability rows must be modified
+
+      Scenario: Simulation produces proposed results
+        Given the coach runs a season simulation
+        When the simulation completes
+        Then the result must include proposed selections
+        And the result must include explanations
+        And the result must include fairness and movement effects
+
+    Rule: Applying simulation is a separate authorised operation
+
+      Scenario: Apply simulation reloads source state
+        Given the coach has a simulation result
+        When the coach applies the simulation as drafts
+        Then the app must reload current source state
+        And must detect stale inputs
+        And must require confirmation
+        And must run normal authorization
+        And must invoke normal generation services
+        And must create auditable draft selections
+
+  # --- Availability and readiness ---
+
+  Feature: Availability and readiness model
+
+    Availability is factual. Readiness is an optional coaching observation.
+
+    Rule: Availability is factual status
+
+      Scenario: Availability status uses canonical values
+        Given a player's availability is recorded for a match round
+        Then the availability status must be one of AVAILABLE, UNAVAILABLE, or UNKNOWN
+        And UNKNOWN availability must not be treated as confirmed availability
+
+      Scenario: Availability has an optional reason
+        Given a player is marked UNAVAILABLE
+        Then the coach may record a reason or note
+        And the reason must not appear in parent-facing exports
+
+    Rule: Readiness is optional and time-bound
+
+      Scenario: Readiness signals use structured model
+        Given a coach records a readiness signal for a player
+        Then the signal must use a canonical type from the supported list
+        And the signal must use a canonical value
+        And the signal must record the author and timestamp
+        And the signal must not appear in parent-facing exports
+
+      Scenario: Low readiness does not automatically exclude
+        Given a player has low readiness signals
+        When the selection engine evaluates candidates
+        Then low readiness must not create automatic exclusion
+        And must be an advisory influence, not a hard gate
+
+      Scenario: Readiness signals can be replaced or removed
+        Given a coach records a readiness signal for a player
+        When the coach replaces or removes the signal
+        Then the previous value must be replaced
+        And the history must not be lost
+
+  # --- Age-neutral product core ---
+
+  Feature: Age-neutral product core
+
+    The core product supports both youth and adult teams. Youth-specific safeguards remain where context requires them.
+
+    Rule: Adult teams operate without youth-only fields
+
+      Scenario: Adult team creation does not require youth-specific fields
+        Given the coach creates a team
+        Then the team must not require parent contact fields
+        And the team must not assume youth season structure
+        And the team must support adult competition formats
+
+    Rule: Youth safeguards remain context-sensitive
+
+      Scenario: Youth team safeguards are available when needed
+        Given a team is configured for youth context
+        Then the app must apply parent-export restrictions
+        And the app must apply child-safe language rules
+        And these restrictions must not affect adult teams
