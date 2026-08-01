@@ -1963,6 +1963,9 @@ Avoid:
 | `src/app/(app)/matches/[matchId]/live/page.tsx` | Live match server page (auth, org-scoped match data) |
 | `src/app/(app)/matches/[matchId]/live/live-client.tsx` | Live match client component (score, clock, goal/rotation/fair play/marked moment) |
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
+| `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action: end session and create/seed post-match report |
+| `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
+| `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 
 ## Stale references removed
 
