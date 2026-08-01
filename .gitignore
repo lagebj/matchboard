@@ -59,6 +59,10 @@ npm-debug.log*
 .codex
 
 # OPA binary cache
-.opa-cache/.devcontainer/devcontainer-lock.json
-.devcontainer/devcontainer-lock.json
 .opa-cache/
+.devcontainer/devcontainer-lock.json
+
+# Operational tooling state (never commit credentials or local auth)
+.neon/
+.vercel/
+.brevo/

@@ -4,7 +4,10 @@
     "dockerfile": "Dockerfile",
     "args": {
       "NODE_VARIANT": "24-bookworm",
-      "OPENCODE_VERSION": "1.18.8"
+      "OPENCODE_VERSION": "1.18.8",
+      "NEONCLI_VERSION": "2.38.5",
+      "VERCEL_VERSION": "58.4.4",
+      "BREVO_VERSION": "2.0.1"
     }
   },
   "features": {
