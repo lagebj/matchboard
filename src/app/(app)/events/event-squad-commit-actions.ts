@@ -3,7 +3,7 @@
 import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
-import { logEventSquadConfirm, logEventSquadUnconfirm } from "@/lib/security/audit-log";
+import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -27,7 +27,7 @@ export type EventSquadValidationResult = {
   issues: EventSquadValidationIssue[];
 };
 
-export async function validateEventSquadsBeforeCommit(
+export async function validateEventSquadsBeforeLock(
   eventId: string,
 ): Promise<EventSquadValidationResult> {
   const coach = await requireCoachAccess();
@@ -78,7 +78,7 @@ export async function validateEventSquadsBeforeCommit(
     issues.push({
       code: "no_squads",
       severity: "blocking",
-      message: "Event has no squads to commit.",
+      message: "Event has no squads to lock.",
     });
     return { valid: false, issues };
   }
@@ -172,22 +172,22 @@ export async function validateEventSquadsBeforeCommit(
   return { valid: !hasBlocking, issues };
 }
 
-export async function confirmEventSquadsAction(eventId: string) {
+export async function lockEventSquadsAction(eventId: string) {
   const coach = await requireCoachAccess();
   const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   await requireEventOrgAccess(eventId, orgFilter);
 
-  const validation = await validateEventSquadsBeforeCommit(eventId);
+  const validation = await validateEventSquadsBeforeLock(eventId);
 
   if (!validation.valid) {
     const blockingIssues = validation.issues.filter(
       (i) => i.severity === "blocking",
     );
-    logEventSquadConfirm(coach.email ?? "unknown", eventId, "failure", "Blocking validation issues");
+    logEventSquadLock(coach.email ?? "unknown", eventId, "failure", "Blocking validation issues");
     return {
       success: false as const,
-      error: "Cannot commit squads: blocking issues found.",
+      error: "Cannot lock squads: blocking issues found.",
       issues: validation.issues,
       blockingIssues,
     };
@@ -195,46 +195,46 @@ export async function confirmEventSquadsAction(eventId: string) {
 
   const result = await db.eventSquad.updateMany({
     where: { eventId, status: "DRAFT", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
-    data: { status: "CONFIRMED" },
+    data: { status: "LOCKED" },
   });
 
-  logEventSquadConfirm(coach.email ?? "unknown", eventId, "success");
+  logEventSquadLock(coach.email ?? "unknown", eventId, "success");
 
   return {
     success: true as const,
-    confirmedCount: result.count,
+    lockedCount: result.count,
     issues: validation.issues,
   };
 }
 
-export async function unconfirmEventSquadsAction(eventId: string) {
+export async function unlockEventSquadsAction(eventId: string) {
   const coach = await requireCoachAccess();
   const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   await requireEventOrgAccess(eventId, orgFilter);
 
-  const confirmedCount = await db.eventSquad.count({
-    where: { eventId, status: "CONFIRMED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+  const lockedCount = await db.eventSquad.count({
+    where: { eventId, status: "LOCKED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
   });
 
-  if (confirmedCount === 0) {
-    logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "failure");
+  if (lockedCount === 0) {
+    logEventSquadUnlock(coach.email ?? "unknown", eventId, "failure");
     return {
       success: false as const,
-      error: "No confirmed squads to unconfirm.",
+      error: "No locked squads to unlock.",
     };
   }
 
   const result = await db.eventSquad.updateMany({
-    where: { eventId, status: "CONFIRMED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { eventId, status: "LOCKED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     data: { status: "DRAFT" },
   });
 
-  logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "success");
+  logEventSquadUnlock(coach.email ?? "unknown", eventId, "success");
 
   return {
     success: true as const,
-    unconfirmedCount: result.count,
+    unlockedCount: result.count,
   };
 }
 
@@ -247,15 +247,15 @@ export async function getEventSquadsStatusAction(eventId: string) {
     select: { id: true, name: true, status: true },
   });
 
-  const allConfirmed = squads.length > 0 && squads.every((s) => s.status === "CONFIRMED");
+  const allLocked = squads.length > 0 && squads.every((s) => s.status === "LOCKED");
   const allDraft = squads.every((s) => s.status === "DRAFT");
-  const mixed = squads.length > 0 && !allConfirmed && !allDraft;
+  const mixed = squads.length > 0 && !allLocked && !allDraft;
 
-  let aggregateStatus: "DRAFT" | "CONFIRMED" | "MIXED";
+  let aggregateStatus: "DRAFT" | "LOCKED" | "MIXED";
   if (allDraft || squads.length === 0) {
     aggregateStatus = "DRAFT";
-  } else if (allConfirmed) {
-    aggregateStatus = "CONFIRMED";
+  } else if (allLocked) {
+    aggregateStatus = "LOCKED";
   } else {
     aggregateStatus = "MIXED";
   }
@@ -263,8 +263,18 @@ export async function getEventSquadsStatusAction(eventId: string) {
   return {
     squads,
     aggregateStatus,
-    allConfirmed,
+    allLocked,
     allDraft,
     mixed,
   };
 }
+
+export async function confirmEventSquadsAction(eventId: string) {
+  return lockEventSquadsAction(eventId);
+}
+
+export async function unconfirmEventSquadsAction(eventId: string) {
+  return unlockEventSquadsAction(eventId);
+}
+
+export const validateEventSquadsBeforeCommit = validateEventSquadsBeforeLock;

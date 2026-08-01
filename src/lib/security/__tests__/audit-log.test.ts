@@ -15,8 +15,8 @@ import {
   logMatchDelete,
   logPlayerRemove,
   logPlayerRestore,
-  logEventSquadConfirm,
-  logEventSquadUnconfirm,
+  logEventSquadLock,
+  logEventSquadUnlock,
 } from "../audit-log";
 
 describe("audit-log", () => {
@@ -138,17 +138,17 @@ describe("audit-log", () => {
     );
   });
 
-  it("logs event squad confirm event", () => {
-    logEventSquadConfirm("coach@example.com", "event_1", "success");
+  it("logs event squad lock event", () => {
+    logEventSquadLock("coach@example.com", "event_1", "success");
     expect(consoleInfoSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[security:mutation] event_squad_confirm result=success actor=coach@example.com resource=event id=event_1"),
+      expect.stringContaining("[security:mutation] event_squad_lock result=success actor=coach@example.com resource=event id=event_1"),
     );
   });
 
-  it("logs event squad unconfirm event with failure", () => {
-    logEventSquadUnconfirm("coach@example.com", "event_1", "failure");
+  it("logs event squad unlock event with failure", () => {
+    logEventSquadUnlock("coach@example.com", "event_1", "failure");
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[security:mutation] event_squad_unconfirm result=failure actor=coach@example.com resource=event id=event_1"),
+      expect.stringContaining("[security:mutation] event_squad_unlock result=failure actor=coach@example.com resource=event id=event_1"),
     );
   });
 });

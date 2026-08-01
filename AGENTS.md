@@ -1418,16 +1418,16 @@ Event squads are NOT normal `Team` rows. They are temporary event artifacts with
 
 ### Event squad draft/commit lifecycle
 
-Event squads have a status field: DRAFT or CONFIRMED.
+Event squads have a status field: DRAFT or LOCKED.
 
 - Generated squads start as DRAFT
 - The coach reviews DRAFT squads, may make manual adjustments
-- When satisfied, the coach commits squads via `confirmEventSquadsAction`, which runs validation first
+- When satisfied, the coach locks squads via `lockEventSquadsAction`, which runs validation first
 - Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
-- Blocking issues prevent commit; warning and info issues do not
-- Committed squads can be reverted to DRAFT via `unconfirmEventSquadsAction`
-- The Assistant surfaces `event_squads_draft_review` work items when all event squads are DRAFT
-- Aggregate status (DRAFT/CONFIRMED/MIXED) is available via `getEventSquadsStatusAction`
+- Blocking issues prevent locking; warning and info issues do not
+- Locked squads can be reverted to DRAFT via `unlockEventSquadsAction`
+- The Assistant surfaces `event_squads_ready` work items when event squads exist
+- Aggregate status (DRAFT/LOCKED/MIXED) is available via `getEventSquadsStatusAction`
 
 ### Policy decision types
 
@@ -1577,7 +1577,7 @@ Rules:
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
-| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
@@ -1852,7 +1852,7 @@ Avoid:
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
-| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 
