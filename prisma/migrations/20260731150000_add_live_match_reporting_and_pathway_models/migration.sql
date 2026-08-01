@@ -1,3 +1,27 @@
+-- CreateEnum: LiveSessionStatus
+CREATE TYPE "LiveSessionStatus" AS ENUM ('ACTIVE', 'ENDED');
+
+-- CreateEnum: LiveMatchEventType
+CREATE TYPE "LiveMatchEventType" AS ENUM ('MATCH_START', 'PERIOD_START', 'PERIOD_END', 'MATCH_END', 'GOAL_FOR', 'GOAL_AGAINST', 'SCORER_SET', 'ASSIST_SET', 'ROTATION_OUT', 'ROTATION_IN', 'POSITIONS_CHANGED', 'FAIR_PLAY_POSITIVE', 'FAIR_PLAY_CONCERN', 'MOMENT_MARKED', 'CLOCK_ADJUSTMENT', 'EVENT_CORRECTED', 'EVENT_REVERSED');
+
+-- CreateEnum: LiveEventCorrectionType
+CREATE TYPE "LiveEventCorrectionType" AS ENUM ('CORRECTION', 'REVERSAL');
+
+-- CreateEnum: MatchPeriod
+CREATE TYPE "MatchPeriod" AS ENUM ('BEFORE', 'FIRST_HALF', 'HALF_TIME', 'SECOND_HALF', 'EXTRA_FIRST_HALF', 'EXTRA_HALF_TIME', 'EXTRA_SECOND_HALF', 'FULL_TIME');
+
+-- CreateEnum: FairPlayCategory
+CREATE TYPE "FairPlayCategory" AS ENUM ('HELPED_OPPONENT', 'CHECKED_ON_INJURED_PLAYER', 'ACCEPTED_REFEREE_DECISION', 'ENCOURAGED_TEAMMATE', 'CALMED_DIFFICULT_SITUATION', 'OTHER_POSITIVE', 'RETALIATION', 'ABUSIVE_LANGUAGE', 'DISSENT_TOWARD_REFEREE', 'TAUNTING_OR_PROVOKING', 'DISRESPECT_TOWARD_TEAMMATE', 'OTHER_CONCERN');
+
+-- CreateEnum: FairPlayObservationSource
+CREATE TYPE "FairPlayObservationSource" AS ENUM ('LIVE', 'MANUAL');
+
+-- CreateEnum: FairPlayObservationStatus
+CREATE TYPE "FairPlayObservationStatus" AS ENUM ('PROVISIONAL', 'CONFIRMED', 'DISMISSED');
+
+-- CreateEnum: RotationSource
+CREATE TYPE "RotationSource" AS ENUM ('LIVE', 'MANUAL');
+
 -- CreateTable: LiveMatchSession
 CREATE TABLE "LiveMatchSession" (
     "id" TEXT NOT NULL,
@@ -73,30 +97,6 @@ CREATE TABLE "FairPlayObservation" (
 
     CONSTRAINT "FairPlayObservation_pkey" PRIMARY KEY ("id")
 );
-
--- CreateEnum: LiveSessionStatus
-CREATE TYPE "LiveSessionStatus" AS ENUM ('ACTIVE', 'ENDED');
-
--- CreateEnum: LiveMatchEventType
-CREATE TYPE "LiveMatchEventType" AS ENUM ('MATCH_START', 'PERIOD_START', 'PERIOD_END', 'MATCH_END', 'GOAL_FOR', 'GOAL_AGAINST', 'SCORER_SET', 'ASSIST_SET', 'ROTATION_OUT', 'ROTATION_IN', 'POSITIONS_CHANGED', 'FAIR_PLAY_POSITIVE', 'FAIR_PLAY_CONCERN', 'MOMENT_MARKED', 'CLOCK_ADJUSTMENT', 'EVENT_CORRECTED', 'EVENT_REVERSED');
-
--- CreateEnum: LiveEventCorrectionType
-CREATE TYPE "LiveEventCorrectionType" AS ENUM ('CORRECTION', 'REVERSAL');
-
--- CreateEnum: MatchPeriod
-CREATE TYPE "MatchPeriod" AS ENUM ('BEFORE', 'FIRST_HALF', 'HALF_TIME', 'SECOND_HALF', 'EXTRA_FIRST_HALF', 'EXTRA_HALF_TIME', 'EXTRA_SECOND_HALF', 'FULL_TIME');
-
--- CreateEnum: FairPlayCategory
-CREATE TYPE "FairPlayCategory" AS ENUM ('HELPED_OPPONENT', 'CHECKED_ON_INJURED_PLAYER', 'ACCEPTED_REFEREE_DECISION', 'ENCOURAGED_TEAMMATE', 'CALMED_DIFFICULT_SITUATION', 'OTHER_POSITIVE', 'RETALIATION', 'ABUSIVE_LANGUAGE', 'DISSENT_TOWARD_REFEREE', 'TAUNTING_OR_PROVOKING', 'DISRESPECT_TOWARD_TEAMMATE', 'OTHER_CONCERN');
-
--- CreateEnum: FairPlayObservationSource
-CREATE TYPE "FairPlayObservationSource" AS ENUM ('LIVE', 'MANUAL');
-
--- CreateEnum: FairPlayObservationStatus
-CREATE TYPE "FairPlayObservationStatus" AS ENUM ('PROVISIONAL', 'CONFIRMED', 'DISMISSED');
-
--- CreateEnum: RotationSource
-CREATE TYPE "RotationSource" AS ENUM ('LIVE', 'MANUAL');
 
 -- CreateIndex: LiveMatchSession unique constraint on matchId
 CREATE UNIQUE INDEX "LiveMatchSession_matchId_key" ON "LiveMatchSession"("matchId");
