@@ -69,7 +69,7 @@ Initial templates:
 
 ### 5. Outbox processor as Vercel Cron job
 
-Add a `/api/cron/notification-outbox` endpoint that processes pending outbox entries with idempotency and retry with exponential backoff (max 5 attempts, max age 72 hours). Protected by `CRON_SECRET`.
+Add a `/api/cron/notification-outbox` endpoint that processes pending outbox entries with idempotency and retry with exponential backoff (max 5 attempts, max age 72 hours). Protected by `CRON_SECRET`. On Vercel Hobby plans, cron is limited to once daily (`0 6 * * *`); on Pro/Enterprise, the interval can be reduced to every 2 minutes for faster delivery.
 
 ### 6. Webhook endpoint for delivery status
 
