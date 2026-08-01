@@ -22,6 +22,7 @@ import { signMachineToken, verifyMachineToken } from "@/lib/machine-principal/ma
 import type { MachineScope } from "@/lib/machine-principal/machine-principal";
 import { authenticateWithBearerToken, hasScope, hasAnyScope, hasAllScopes } from "@/lib/machine-principal/machine-auth";
 import { resolveOrgFilterForMachine, resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { AuthorizationError } from "@/lib/auth";
 import { withTenantContext, withUnscopedContext, isValidOrganisationId } from "@/lib/tenancy/tenant-client";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
 import { setupTestDb, teardownTestDb, cleanTestDb } from "@/test/test-db";
@@ -377,13 +378,12 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect(scopedFilter.type).toBe("org");
     });
 
-    it("user without organisation membership gets unscoped filter", async () => {
+    it("user without organisation membership gets AuthorizationError", async () => {
       const user = await db.user.create({
         data: { email: "no-org-user@test.com", name: "No Org User" },
       });
 
-      const result = await resolveOrgFilterForUser(user.id, db);
-      expect(result.type).toBe("unscoped");
+      await expect(resolveOrgFilterForUser(user.id, db)).rejects.toThrow(AuthorizationError);
     });
   });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, cleanTestDb, type TestFixtureIds } from "@/test/test-db";
+import { AuthorizationError } from "@/lib/auth";
 
 describe("RLS tenant isolation", () => {
   let db: PrismaClient;
@@ -245,17 +246,13 @@ describe("RLS tenant isolation", () => {
   });
 
   describe("resolveOrgFilterForUser integration", () => {
-    it("returns unscoped filter when user has no organisation membership", async () => {
+    it("throws AuthorizationError when user has no organisation membership", async () => {
       const { resolveOrgFilterForUser } = await import("../resolve-org-filter");
       const user = await db.user.create({
         data: { email: "no-org-rls@example.com", name: "No Org User" },
       });
 
-      const result = await resolveOrgFilterForUser(user.id, db);
-
-      expect(result.type).toBe("unscoped");
-      expect(result.filter).toEqual({});
-      expect(result.filterNullable).toEqual({});
+      await expect(resolveOrgFilterForUser(user.id, db)).rejects.toThrow(AuthorizationError);
     });
 
     it("returns org-scoped filter when user has organisation membership", async () => {
