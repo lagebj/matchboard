@@ -84,7 +84,7 @@ function readOptionalRating(formData: FormData, fieldName: string): number | nul
 
   const parsedValue = Number.parseInt(value, 10);
 
-  if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > 5) {
+  if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > 10) {
     return null;
   }
 

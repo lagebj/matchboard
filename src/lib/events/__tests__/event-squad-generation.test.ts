@@ -31,18 +31,18 @@ function makePlayer(overrides: Partial<PlayerAttributeProfile> = {}): PlayerAttr
     secondaryPosition: null,
     tertiaryPosition: null,
     goalkeeperAbility: 'NO',
-    ballControl: 3,
-    passing: 3,
-    firstTouch: 3,
-    oneVOneAttacking: 3,
-    positioning: 3,
-    oneVOneDefending: 3,
-    decisionMaking: 3,
-    effort: 3,
-    teamplay: 3,
-    concentration: 3,
-    speed: 3,
-    strength: 3,
+    ballControl: 6,
+    passing: 6,
+    firstTouch: 6,
+    oneVOneAttacking: 6,
+    positioning: 6,
+    oneVOneDefending: 6,
+    decisionMaking: 6,
+    effort: 6,
+    teamplay: 6,
+    concentration: 6,
+    speed: 6,
+    strength: 6,
     nonRotatable: false,
     preferredFoot: 'RIGHT',
     bestSide: 'RIGHT',
@@ -75,9 +75,9 @@ const players14 = Array.from({ length: 14 }, (_, i) =>
     lastName: `${i + 1}`,
     primaryPosition: i === 0 ? 'GK' : i < 5 ? 'CB' : i < 9 ? 'CM' : 'ST',
     goalkeeperAbility: i === 0 ? 'YES' : 'NO',
-    ballControl: 2 + (i % 4),
-    passing: 2 + (i % 3),
-    effort: 3,
+    ballControl: 4 + (i % 4) * 2,
+    passing: 4 + (i % 3) * 2,
+    effort: 6,
   }),
 );
 
@@ -151,11 +151,11 @@ describe('event-squad-generation', () => {
     });
 
     it('position-first: competitive squad fills tactical slots with position fit', () => {
-      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES', ballControl: 2, passing: 2 });
-      const weakCb = makePlayer({ playerId: 'weakCb', primaryPosition: 'CB', ballControl: 2, passing: 2 });
-      const strongCm = makePlayer({ playerId: 'strongCm', primaryPosition: 'CM', ballControl: 5, passing: 5 });
-      const weakSt = makePlayer({ playerId: 'weakSt', primaryPosition: 'ST', ballControl: 2, passing: 2 });
-      const flexible = makePlayer({ playerId: 'flex', primaryPosition: 'CM', ballControl: 4, passing: 4 });
+      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES', ballControl: 4, passing: 4 });
+      const weakCb = makePlayer({ playerId: 'weakCb', primaryPosition: 'CB', ballControl: 4, passing: 4 });
+      const strongCm = makePlayer({ playerId: 'strongCm', primaryPosition: 'CM', ballControl: 10, passing: 10 });
+      const weakSt = makePlayer({ playerId: 'weakSt', primaryPosition: 'ST', ballControl: 4, passing: 4 });
+      const flexible = makePlayer({ playerId: 'flex', primaryPosition: 'CM', ballControl: 8, passing: 8 });
 
       const input = makeInput({
         players: [gk, weakCb, strongCm, weakSt, flexible],
@@ -210,9 +210,9 @@ describe('event-squad-generation', () => {
     });
 
     it('competitive squad includes goalkeeper', () => {
-      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES', ballControl: 4, passing: 3 });
+      const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES', ballControl: 8, passing: 6 });
       const outfield = Array.from({ length: 8 }, (_, i) =>
-        makePlayer({ playerId: `p${i}`, primaryPosition: 'CM', ballControl: 2, passing: 2 }),
+        makePlayer({ playerId: `p${i}`, primaryPosition: 'CM', ballControl: 4, passing: 4 }),
       );
 
       const input = makeInput({
@@ -308,9 +308,9 @@ describe('event-squad-generation', () => {
 
     it('missing ratings produce uncertainty note in selection reason', () => {
       const unrated = makePlayer({ playerId: 'unrated', ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null, positioning: null, oneVOneDefending: null, decisionMaking: null, effort: null, teamplay: null, concentration: null, speed: null, strength: null });
-      const rated = makePlayer({ playerId: 'rated1', ballControl: 3, passing: 3, effort: 3 });
-      const rated2 = makePlayer({ playerId: 'rated2', ballControl: 3, passing: 3, effort: 3 });
-      const rated3 = makePlayer({ playerId: 'rated3', ballControl: 3, passing: 3, effort: 3 });
+      const rated = makePlayer({ playerId: 'rated1', ballControl: 6, passing: 6, effort: 6 });
+      const rated2 = makePlayer({ playerId: 'rated2', ballControl: 6, passing: 6, effort: 6 });
+      const rated3 = makePlayer({ playerId: 'rated3', ballControl: 6, passing: 6, effort: 6 });
       const input = makeInput({
         players: [unrated, rated, rated2, rated3],
         selectionPattern: 'ALL_BALANCED',
@@ -376,12 +376,12 @@ describe('event-types', () => {
   describe('computeCompositeRatings', () => {
     it('computes overall from all non-null attributes', () => {
       const player = makePlayer({
-        ballControl: 4, passing: 3, firstTouch: 4, oneVOneAttacking: 3,
-        positioning: 4, oneVOneDefending: 3, decisionMaking: 4,
-        effort: 3, teamplay: 4, concentration: 3, speed: 4, strength: 3,
+        ballControl: 8, passing: 6, firstTouch: 8, oneVOneAttacking: 6,
+        positioning: 8, oneVOneDefending: 6, decisionMaking: 8,
+        effort: 6, teamplay: 8, concentration: 6, speed: 8, strength: 6,
       });
       const ratings = computeCompositeRatings(player);
-      expect(ratings.overallLevel).toBe(3.5);
+      expect(ratings.overallLevel).toBe(7);
     });
 
     it('returns null overall when all attributes are null', () => {
@@ -396,21 +396,21 @@ describe('event-types', () => {
 
     it('computes composites from available attributes only', () => {
       const player = makePlayer({
-        ballControl: 4, passing: null, firstTouch: null, oneVOneAttacking: null,
-        positioning: 3, oneVOneDefending: null, decisionMaking: null,
-        effort: 5, teamplay: null, concentration: null, speed: null, strength: null,
+        ballControl: 8, passing: null, firstTouch: null, oneVOneAttacking: null,
+        positioning: 6, oneVOneDefending: null, decisionMaking: null,
+        effort: 10, teamplay: null, concentration: null, speed: null, strength: null,
       });
       const ratings = computeCompositeRatings(player);
       expect(ratings.overallLevel).not.toBeNull();
-      expect(ratings.defending).toBe(3);
-      expect(ratings.attacking).toBe(4);
-      expect(ratings.intensity).toBe(5);
+      expect(ratings.defending).toBe(6);
+      expect(ratings.attacking).toBe(8);
+      expect(ratings.intensity).toBe(10);
     });
 
     it('teamplay is direct value', () => {
-      const player = makePlayer({ teamplay: 4 });
+      const player = makePlayer({ teamplay: 8 });
       const ratings = computeCompositeRatings(player);
-      expect(ratings.teamplay).toBe(4);
+      expect(ratings.teamplay).toBe(8);
     });
 
     it('teamplay is null when not rated', () => {
@@ -676,8 +676,8 @@ describe('event-balance', () => {
   describe('computeSquadBalance', () => {
     it('computes balance summary for a squad', () => {
       const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
-      const def = makePlayer({ playerId: 'def', primaryPosition: 'CB', ballControl: 3 });
-      const mid = makePlayer({ playerId: 'mid', primaryPosition: 'CM', ballControl: 4 });
+      const def = makePlayer({ playerId: 'def', primaryPosition: 'CB', ballControl: 6 });
+      const mid = makePlayer({ playerId: 'mid', primaryPosition: 'CM', ballControl: 8 });
 
       const summary = computeSquadBalance('s1', 'Squad 1', 'BALANCED', [gk, def, mid]);
 
@@ -716,7 +716,7 @@ describe('event-balance', () => {
     it('counts missing ratings', () => {
       const players = [
         makePlayer({ playerId: 'p1', ballControl: null, passing: null, effort: null }),
-        makePlayer({ playerId: 'p2', ballControl: 3, passing: 3, effort: 3 }),
+        makePlayer({ playerId: 'p2', ballControl: 6, passing: 6, effort: 6 }),
       ];
 
       const summary = computeSquadBalance('s1', 'Squad 1', 'BALANCED', players);
@@ -733,22 +733,22 @@ describe('player attribute null handling', () => {
     expect(ratings.attacking).toBe(player.oneVOneAttacking);
   });
 
-  it('1-5 validation: values outside range should not crash', () => {
-    const player = makePlayer({ ballControl: 1, passing: 5, effort: 3 });
+    it('1-10 validation: values outside range should not crash', () => {
+    const player = makePlayer({ ballControl: 2, passing: 10, effort: 6 });
     const ratings = computeCompositeRatings(player);
     expect(ratings.overallLevel).toBeGreaterThanOrEqual(1);
-    expect(ratings.overallLevel).toBeLessThanOrEqual(5);
+    expect(ratings.overallLevel).toBeLessThanOrEqual(10);
   });
 
   it('composite ratings derive correctly from null-aware averages', () => {
     const player = makePlayer({
-      oneVOneDefending: 4,
-      positioning: 2,
+      oneVOneDefending: 8,
+      positioning: 4,
       ballControl: null,
       oneVOneAttacking: null,
     });
     const ratings = computeCompositeRatings(player);
-    expect(ratings.defending).toBe(3);
+    expect(ratings.defending).toBe(6);
     expect(ratings.attacking).toBeNull();
   });
 });
@@ -813,7 +813,7 @@ describe('position-fit-tier assignments', () => {
       speed: null,
       strength: null,
     });
-    const rated = makePlayer({ playerId: 'rated', ballControl: 3, passing: 3 });
+    const rated = makePlayer({ playerId: 'rated', ballControl: 6, passing: 6 });
 
     const input = makeInput({
       players: [unrated, rated],
@@ -872,11 +872,11 @@ describe('getDefaultSlotRequirements', () => {
 
 describe('computeLineupAssignment', () => {
   const basePlayers = [
-    { playerId: 'gk1', firstName: 'GK', lastName: 'One', primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: true, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 0 as number | null, assignedSlotLabel: 'Goalkeeper' as string | null, assignedRoleType: 'GOALKEEPER' as string | null, assignedPositionId: 'Goalkeeper' as string | null, lineupOrder: 1 as number | null, selectionReason: 'Selected for goalkeeper coverage', locked: false },
-    { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 1 as number | null, assignedSlotLabel: 'Defender' as string | null, assignedRoleType: 'DEFENDER' as string | null, assignedPositionId: 'Defender' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position defender', locked: false },
-    { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 2 as number | null, assignedSlotLabel: 'Midfielder' as string | null, assignedRoleType: 'MIDFIELDER' as string | null, assignedPositionId: 'Midfielder' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position midfielder', locked: false },
-    { playerId: 'fwd1', firstName: 'Fwd', lastName: 'One', primaryPosition: 'ST', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 3 as number | null, assignedSlotLabel: 'Forward' as string | null, assignedRoleType: 'FORWARD' as string | null, assignedPositionId: 'Forward' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position forward', locked: false },
-    { playerId: 'flex1', firstName: 'Flex', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'NO_FIT' as const, assignedSlotIndex: 4 as number | null, assignedSlotLabel: 'Flexible' as string | null, assignedRoleType: 'FREE' as string | null, assignedPositionId: 'Flexible' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as flexible player', locked: false },
+    { playerId: 'gk1', firstName: 'GK', lastName: 'One', primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: true, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 0 as number | null, assignedSlotLabel: 'Goalkeeper' as string | null, assignedRoleType: 'GOALKEEPER' as string | null, assignedPositionId: 'Goalkeeper' as string | null, lineupOrder: 1 as number | null, selectionReason: 'Selected for goalkeeper coverage', locked: false },
+    { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 1 as number | null, assignedSlotLabel: 'Defender' as string | null, assignedRoleType: 'DEFENDER' as string | null, assignedPositionId: 'Defender' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position defender', locked: false },
+    { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 2 as number | null, assignedSlotLabel: 'Midfielder' as string | null, assignedRoleType: 'MIDFIELDER' as string | null, assignedPositionId: 'Midfielder' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position midfielder', locked: false },
+    { playerId: 'fwd1', firstName: 'Fwd', lastName: 'One', primaryPosition: 'ST', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: 3 as number | null, assignedSlotLabel: 'Forward' as string | null, assignedRoleType: 'FORWARD' as string | null, assignedPositionId: 'Forward' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as primary-position forward', locked: false },
+    { playerId: 'flex1', firstName: 'Flex', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: 'NO_FIT' as const, assignedSlotIndex: 4 as number | null, assignedSlotLabel: 'Flexible' as string | null, assignedRoleType: 'FREE' as string | null, assignedPositionId: 'Flexible' as string | null, lineupOrder: null as number | null, selectionReason: 'Selected as flexible player', locked: false },
   ];
 
   it('maps assigned players to formation slots by slot index', () => {
@@ -963,11 +963,11 @@ describe('computeLineupAssignment', () => {
 
   it('derives placement from player positions when no slot metadata', () => {
     const playersWithoutSlotMetadata = [
-      { playerId: 'gk1', firstName: 'GK', lastName: 'One', primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: true, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
-      { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
-      { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
-      { playerId: 'fwd1', firstName: 'Fwd', lastName: 'One', primaryPosition: 'ST', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
-      { playerId: 'flex1', firstName: 'Flex', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'gk1', firstName: 'GK', lastName: 'One', primaryPosition: 'GK', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: true, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'fwd1', firstName: 'Fwd', lastName: 'One', primaryPosition: 'ST', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
+      { playerId: 'flex1', firstName: 'Flex', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: '', locked: false },
     ];
     const result = computeLineupAssignment({
       squadId: 's1',
@@ -988,7 +988,7 @@ describe('computeLineupAssignment', () => {
   });
 
   it('derives placement for manual assignments without slot metadata', () => {
-    const manualPlayer = { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: 'CM' as string | null, tertiaryPosition: null, overallLevel: 4, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: 'Manually assigned by coach', locked: false };
+    const manualPlayer = { playerId: 'def1', firstName: 'Def', lastName: 'One', primaryPosition: 'CB', secondaryPosition: 'CM' as string | null, tertiaryPosition: null, overallLevel: 8, isGK: false, positionFitTier: null as string | null, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: null as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: 'Manually assigned by coach', locked: false };
     const result = computeLineupAssignment({
       squadId: 's1',
       squadName: 'Squad 1',
@@ -1006,7 +1006,7 @@ describe('computeLineupAssignment', () => {
   });
 
   it('respects assigned role type over position-based derivation', () => {
-    const playerWithRole = { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 3, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: 'FORWARD' as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: 'Role override', locked: false };
+    const playerWithRole = { playerId: 'mid1', firstName: 'Mid', lastName: 'One', primaryPosition: 'CM', secondaryPosition: null, tertiaryPosition: null, overallLevel: 6, isGK: false, positionFitTier: 'PRIMARY' as const, assignedSlotIndex: null as number | null, assignedSlotLabel: null as string | null, assignedRoleType: 'FORWARD' as string | null, assignedPositionId: null as string | null, lineupOrder: null as number | null, selectionReason: 'Role override', locked: false };
     const result = computeLineupAssignment({
       squadId: 's1',
       squadName: 'Squad 1',

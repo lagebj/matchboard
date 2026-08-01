@@ -2,7 +2,7 @@ import type { PlayerAttributeProfile, GoalkeeperAbility } from './event-types';
 
 function normalizeRating(value: number | null | undefined): number | null {
   if (typeof value !== 'number') return null;
-  if (value < 1 || value > 5) return null;
+  if (value < 1 || value > 10) return null;
   return value;
 }
 

@@ -709,7 +709,7 @@ Event squad generation is entirely separate from league planning:
 ### Player attribute ratings
 
 - Null = "Not rated" — never displayed as 0 or max skill
-- Scale 1–5: 1 = needs support, 2 = developing, 3 = steady, 4 = strong, 5 = standout in this group
+- Scale 1–10: 2 = needs support, 4 = developing, 6 = steady, 8 = strong, 10 = standout in this group
 - Composite attributes for event generation: overallLevel, defending, attacking, gameUnderstanding, intensity, teamplay, goalkeeperAbility
 - Goals, assists, and post-match stats must NEVER directly become skill ratings
 - Ratings are internal coach-facing planning context, not parent-facing or public

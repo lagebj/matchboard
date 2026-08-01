@@ -1450,7 +1450,7 @@ Player attributes are coach-facing internal planning context.
 
 Rules:
 - Null means "Not rated" — never display as 0 or max skill
-- Ratings use a 1–5 scale: 1 = needs support, 2 = developing, 3 = steady, 4 = strong, 5 = standout in this group
+- Ratings use a 1–10 scale: 2 = needs support, 4 = developing, 6 = steady, 8 = strong, 10 = standout in this group
 - Ratings are relative to the cohort, not absolute scouting scores
 - Goals, assists, and post-match stats must never directly become skill ratings
 - Ratings must not appear in parent-facing exports
@@ -1465,7 +1465,7 @@ Composite attributes for event generation:
 - `teamplay`: direct value, or null
 - `goalkeeperAbility`: enum field (NO/EMERGENCY/YES), not a numeric rating
 
-Schema: Migrate Player numeric attribute fields from `Int @default(0)` to `Int?` (nullable). Add `goalkeeperAbility` enum field and `lastRatedAt DateTime?`. Server-side validation: null or integer 1–5 only. Existing 0 values are migrated to null (Not rated).
+Schema: Player numeric attribute fields are `Int?` (nullable). `goalkeeperAbility` enum field and `lastRatedAt DateTime?`. Server-side validation: null or integer 1–10 only. Existing 0 values are migrated to null (Not rated). Previous 1–5 values are migrated by ×2.
 
 ### Event availability
 
@@ -1648,7 +1648,7 @@ Required test coverage should include:
 - event squad: missing ratings produce uncertainty note
 - event squad: no player appears in two event squads for the same event
 - player attribute: null displays as Not rated, not 0 or max
-- player attribute: 1-5 validation rejects out-of-range values
+- player attribute: 1-10 validation rejects out-of-range values
 - player attribute: composite ratings derive correctly from null-aware averages
 - populate all skips finalized rounds
 - populate all reports partial failures without rollback

@@ -24,8 +24,23 @@ export type RatingSummary = {
   maxAttributeCount: number;
 };
 
+export const RATING_MIN = 1;
+export const RATING_MAX = 10;
+export const RATING_SCALE_LABELS: Record<number, string> = {
+  1: "Needs support",
+  2: "Developing",
+  3: "Developing+",
+  4: "Steady-",
+  5: "Steady",
+  6: "Steady+",
+  7: "Strong-",
+  8: "Strong",
+  9: "Standout-",
+  10: "Standout",
+};
+
 function isValidRating(value: number | null | undefined): value is number {
-  return typeof value === "number" && value >= 1 && value <= 5;
+  return typeof value === "number" && value >= RATING_MIN && value <= RATING_MAX;
 }
 
 export function getPlayerOverallRating(
@@ -56,7 +71,7 @@ export function getPlayerOverallRating(
 }
 
 export function getAverageRating(ratings: Array<number | null>): RatingSummary {
-  const validRatings = ratings.filter((r): r is number => r !== null);
+  const validRatings = ratings.filter((r): r is number => r !== null && r >= RATING_MIN && r <= RATING_MAX);
 
   if (validRatings.length === 0) {
     return {
@@ -76,4 +91,17 @@ export function getAverageRating(ratings: Array<number | null>): RatingSummary {
     ratedAttributeCount: validRatings.length,
     maxAttributeCount: RATING_ATTRIBUTE_KEYS.length,
   };
+}
+
+export function overallToStarValue(overall: number): number {
+  return overall / 2;
+}
+
+export function formatStarDisplay(overall: number): string {
+  const starValue = overallToStarValue(overall);
+  const whole = Math.floor(starValue);
+  const half = starValue - whole >= 0.25 && starValue - whole < 0.75;
+  const displayWhole = half ? whole : (starValue - whole >= 0.75 ? whole + 1 : whole);
+  if (half) return `${displayWhole}.5`;
+  return `${displayWhole}`;
 }
