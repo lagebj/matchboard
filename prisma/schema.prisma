@@ -2031,3 +2031,92 @@ enum SuggestionStatus {
   REJECTED
   SUPERSEDED
 }
+
+// ─── Transactional email outbox ──────────────────────────────────────────────
+
+enum NotificationTemplate {
+  ORGANISATION_INVITATION
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  OPENED
+  CLICKED
+  FAILED
+}
+
+model NotificationOutbox {
+  id              String              @id @default(cuid())
+  organisationId  String?
+  template        NotificationTemplate
+  payload         Json
+  status          NotificationStatus  @default(PENDING)
+  scheduledAt     DateTime            @default(now())
+  processedAt     DateTime?
+  retryCount      Int                 @default(0)
+  maxRetries      Int                 @default(5)
+  nextRetryAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  deliveries      NotificationDelivery[]
+
+  @@index([status, scheduledAt])
+  @@index([status, nextRetryAt])
+  @@index([organisationId])
+  @@index([template])
+}
+
+model NotificationDelivery {
+  id                String              @id @default(cuid())
+  outboxId           String
+  recipientEmail     String
+  recipientUserId    String?
+  providerMessageId  String?
+  status             DeliveryStatus     @default(QUEUED)
+  statusDetail       String?
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  bouncedAt          DateTime?
+  bouncedReason      String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  outbox             NotificationOutbox  @relation(fields: [outboxId], references: [id], onDelete: Cascade)
+
+  @@index([outboxId])
+  @@index([recipientEmail])
+  @@index([recipientUserId])
+  @@index([status])
+  @@index([providerMessageId])
+}
+
+model ProviderWebhookEvent {
+  id                String   @id @default(cuid())
+  provider          String   @default("brevo")
+  eventId           String   @unique
+  eventType         String
+  providerMessageId String?
+  recipientEmail    String?
+  payload           Json
+  processed         Boolean  @default(false)
+  processedAt       DateTime?
+  receivedAt        DateTime @default(now())
+
+  @@index([provider, eventType])
+  @@index([providerMessageId])
+  @@index([processed, receivedAt])
+  @@index([eventId])
+}

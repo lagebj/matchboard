@@ -1856,6 +1856,22 @@ Avoid:
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 
+### Transactional email files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/email/provider.ts` | `TransactionalEmailProvider` interface, `EmailProviderResult`, `SendEmailRequest`, helper functions |
+| `src/lib/email/brevo-provider.ts` | Brevo SDK adapter |
+| `src/lib/email/console-provider.ts` | Console logging adapter for local dev |
+| `src/lib/email/fake-provider.ts` | In-memory test adapter |
+| `src/lib/email/provider-factory.ts` | Provider factory: Brevo when API key present, Console otherwise |
+| `src/lib/email/templates/index.ts` | Template registry and renderer |
+| `src/lib/email/templates/organisation-invitation.ts` | Organisation invitation email template |
+| `src/lib/email/outbox.ts` | `enqueueNotification()`, outbox batch processing, retry with exponential backoff |
+| `src/lib/email/webhook-handler.ts` | Brevo webhook signature verification and delivery status processing |
+| `src/app/api/cron/notification-outbox/route.ts` | Cron endpoint for outbox processing |
+| `src/app/api/webhooks/brevo/route.ts` | Webhook endpoint for Brevo delivery status callbacks |
+
 ### Formation/tactics files
 
 | File | Purpose |
