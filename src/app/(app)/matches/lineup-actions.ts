@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCoachAccess } from "@/lib/auth";
+import { supersedePendingReviews } from "@/lib/review/review-service";
 import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   canModifyLineup,
@@ -182,6 +183,8 @@ export async function confirmLineup(lineupId: string) {
     where: { id: lineupId },
     data: { status: "CONFIRMED" },
   });
+
+  await supersedePendingReviews("MATCH_LINEUP", lineupId);
 
   revalidatePath(`/matches/${lineup.matchId}`);
   return updated;

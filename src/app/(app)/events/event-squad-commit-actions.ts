@@ -4,6 +4,7 @@ import { requireCoachAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
+import { supersedePendingReviews } from "@/lib/review/review-service";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -198,6 +199,15 @@ export async function lockEventSquadsAction(eventId: string) {
     data: { status: "LOCKED" },
   });
 
+  const squads = await db.eventSquad.findMany({
+    where: { eventId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    select: { id: true },
+  });
+
+  for (const squad of squads) {
+    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+  }
+
   logEventSquadLock(coach.email ?? "unknown", eventId, "success");
 
   return {
@@ -229,6 +239,15 @@ export async function unlockEventSquadsAction(eventId: string) {
     where: { eventId, status: "LOCKED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     data: { status: "DRAFT" },
   });
+
+  const squads = await db.eventSquad.findMany({
+    where: { eventId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    select: { id: true },
+  });
+
+  for (const squad of squads) {
+    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+  }
 
   logEventSquadUnlock(coach.email ?? "unknown", eventId, "success");
 
