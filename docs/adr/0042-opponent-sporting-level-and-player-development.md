@@ -4,7 +4,7 @@ Date: 2026-08-01
 
 ## Status
 
-Accepted
+Accepted — implemented (Stages 0–10 complete)
 
 Supersedes: 0026 (replaces coach-assessed sporting level with evidence-derived estimate; adds player development observations and profile suggestions)
 
