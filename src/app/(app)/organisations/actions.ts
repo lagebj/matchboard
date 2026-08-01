@@ -16,6 +16,7 @@ import {
   logOrganisationTeamAccessRemove,
 } from "@/lib/security/audit-log";
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
+import { enqueueNotification } from "@/lib/email/outbox";
 import type { OrganisationRole } from "@/generated/prisma/client";
 
 const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER", "SUPPORT"]);
@@ -92,6 +93,25 @@ export async function createInvitationAction(
 
   logOrganisationInvitationCreate(ctx.userEmail, ctx.organisationId, "success");
   revalidatePath(`/o/${organisationSlug}`);
+
+  try {
+    await enqueueNotification({
+      organisationId: ctx.organisationId,
+      template: "ORGANISATION_INVITATION",
+      payload: {
+        organisationName: ctx.organisationName,
+        inviterName: ctx.userEmail,
+        inviterEmail: ctx.userEmail,
+        inviteeEmail: trimmedEmail,
+        role: targetRole,
+        acceptUrl: `/invite/${result.token}`,
+        organisationSlug: ctx.organisationSlug,
+      },
+      recipientEmail: trimmedEmail,
+    });
+  } catch (err) {
+    console.error("[invite] Failed to enqueue invitation notification:", err);
+  }
 
   return { success: true as const, invitationId: result.invitationId };
 }

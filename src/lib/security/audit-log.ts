@@ -41,7 +41,9 @@ type SecurityEventAction =
   | "machine_principal_reactivate"
   | "machine_principal_secret_rotate"
   | "machine_token_issued"
-  | "machine_token_auth_failure";
+  | "machine_token_auth_failure"
+  | "notification_sent"
+  | "notification_failed";
 
 interface SecurityEvent {
   category: SecurityEventCategory;
@@ -412,5 +414,29 @@ export function logMachineTokenAuthFailure(actor: string, reason: string): void 
     resource: "machine_token",
     resourceId: reason,
     result: "failure",
+  });
+}
+
+export function logNotificationSent(actor: string, notificationId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "notification_sent",
+    actor,
+    resource: "notification_outbox",
+    resourceId: notificationId,
+    result,
+    reason,
+  });
+}
+
+export function logNotificationFailed(actor: string, notificationId: string, reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "notification_failed",
+    actor,
+    resource: "notification_outbox",
+    resourceId: notificationId,
+    result: "failure",
+    reason,
   });
 }

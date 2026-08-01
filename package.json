@@ -52,6 +52,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
     "@dnd-kit/core": "^6.3.1",
+    "@getbrevo/brevo": "^6.0.2",
     "@open-policy-agent/opa-wasm": "^1.10.0",
     "@prisma/adapter-neon": "^7.9.1",
     "@prisma/adapter-pg": "^7.9.1",
