@@ -4,8 +4,6 @@ set -Eeuo pipefail
 workspace="${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 cd "$workspace"
 
-chmod +x .devcontainer/*.sh
-
 # Local containers load the repository's ignored .env into every interactive
 # shell. Codespaces uses GitHub Codespaces secrets instead.
 if [[ "${CODESPACES:-false}" != "true" ]]; then
@@ -37,12 +35,16 @@ if [[ ! -f package-lock.json ]]; then
 fi
 
 echo "[devcontainer] Installing dependencies with npm ci..."
-npm ci --include=dev
+npm ci
 
 echo
 echo "Environment ready."
 printf 'Node: %s\n' "$(node --version)"
 printf 'npm: %s\n' "$(npm --version)"
+printf 'psql: %s\n' "$(psql --version)"
+printf 'neon: %s\n' "$(neon --version)"
+printf 'vercel: %s\n' "$(vercel --version)"
+printf 'brevo: %s\n' "$(brevo --version)"
 printf 'OpenCode: %s\n' "$(opencode --version)"
 
 skills_file="${XDG_DATA_HOME:-$HOME/.local/share}/matchboard-agent-skills/managed-skills.txt"
