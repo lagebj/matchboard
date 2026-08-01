@@ -61,7 +61,7 @@ export function getRoleRelevantRating(player: PlayerWithRatings, roleType: strin
       break;
     }
     if (key === 'goalkeeperAbility') {
-      values.push(player.goalkeeperAbility === 'YES' ? 5 : player.goalkeeperAbility === 'EMERGENCY' ? 3 : 1);
+      values.push(player.goalkeeperAbility === 'YES' ? 10 : player.goalkeeperAbility === 'EMERGENCY' ? 6 : 2);
       continue;
     }
     const val = player.ratings[key];

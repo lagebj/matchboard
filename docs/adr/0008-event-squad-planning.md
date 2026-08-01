@@ -37,10 +37,10 @@ Migrate the 12 Player numeric attribute fields from `Int @default(0)` to `Int?` 
 UI rules:
 - `null` displays as "Not rated" — never as 0 or max skill
 - Event generation treats unrated attributes as uncertainty, not low ability
-- Rating scale is 1–5 with explicit meaning: 1 = needs support, 2 = developing, 3 = steady, 4 = strong, 5 = standout in this group
+- Rating scale is 1–10 with explicit meaning: 2 = needs support, 4 = developing, 6 = steady, 8 = strong, 10 = standout in this group
 - Goals, assists, and post-match stats must never directly become skill ratings
 - Ratings are internal coach-facing planning context, not parent-facing or public
-- Server-side validation: null or integer 1–5 only
+- Server-side validation: null or integer 1–10 only
 
 Composite attribute mapping for event generation:
 - `overallLevel`: average of all non-null attributes (or null if all null)

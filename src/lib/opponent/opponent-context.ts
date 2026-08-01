@@ -58,7 +58,7 @@ export function calculateOpponentContextForMatch(
     };
   }
 
-  if (opponentEstimate.estimatedLevel <= 2.5) {
+  if (opponentEstimate.estimatedLevel <= 5.0) {
     return {
       influence: "lower_opponent_development_opportunity",
       suggestedMinimumLevel: suggestedMinimum,
@@ -70,7 +70,7 @@ export function calculateOpponentContextForMatch(
     };
   }
 
-  if (opponentEstimate.estimatedLevel >= 3.8) {
+  if (opponentEstimate.estimatedLevel >= 7.5) {
     return {
       influence: "higher_opponent_stability_preference",
       suggestedMinimumLevel: suggestedMinimum,
@@ -100,17 +100,17 @@ export function opponentContextScoringAdjustment(
 ): number {
   if (!opponentEstimate || opponentEstimate.assessmentCount === 0) return 0;
 
-  const adjustment: number = 0;
+  if (opponentEstimate.confidence === "unknown" || opponentEstimate.confidence === "low") return 0;
 
-  if (opponentEstimate.estimatedLevel >= 3.8 && !isDevelopmentCandidate) {
+  if (opponentEstimate.estimatedLevel >= 7.5 && !isDevelopmentCandidate) {
     return Math.min(playerReadinessScore * 0.5, 3);
   }
 
-  if (opponentEstimate.estimatedLevel <= 2.5 && isDevelopmentCandidate) {
+  if (opponentEstimate.estimatedLevel <= 5.0 && isDevelopmentCandidate) {
     return 2;
   }
 
-  return adjustment;
+  return 0;
 }
 
 export const OPPONENT_CONTEXT_HARD_BOUNDARIES = [

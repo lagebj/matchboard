@@ -321,6 +321,17 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
   const { resolveOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
   await resolveOpponentOnReportCompletion(report.matchId);
 
+  try {
+    const { recordOpponentSportingEvidence } = await import("@/lib/opponents/sporting-level-recording");
+    const coach = await import("@/lib/auth").then((m) => m.getCurrentCoach());
+    if (coach) {
+      const orgFilter = await import("@/lib/tenancy/resolve-org-filter").then((m) => m.resolveOrgFilterForUser(coach.id ?? ""));
+      await recordOpponentSportingEvidence(report.matchId, orgFilter);
+    }
+  } catch {
+    // Sporting evidence recording must not block report completion
+  }
+
   return { success: true, matchId: report.matchId };
 }
 

@@ -350,11 +350,12 @@ Feature: Matchboard football operations workspace
       And the profile must store mental attributes for "Effort", "Teamplay", and "Concentration"
       And the profile must store physical attributes for "Speed" and "Strength"
 
-    Scenario: Attribute ratings use one-to-five scale
+    Scenario: Attribute ratings use canonical one-to-ten scale
       Given a player exists
       When the coach records player attributes
-      Then every tracked attribute must be a whole number between 1 and 5
+      Then every tracked attribute must be a whole number between 1 and 10 or null
       And the player form must block values outside that range
+      And null remains a valid unrated state
 
     Scenario: Attribute averages are derived for profile display
       Given a player has recorded attributes
@@ -4649,13 +4650,15 @@ Feature: Matchboard football operations workspace
 
     Scenario: Opponent observations do not create a rating or blacklist
       Given the app stores opponent encounter observations
-      Then no opponent rating must exist
+      Then Matchboard may derive a private sporting-level estimate from factual encounter evidence
+      And sporting level remains strictly separate from Match.matchFit and OpponentEncounterObservation
       And no opponent ranking must exist
       And no opponent blacklist must exist
       And no Fair Play score must exist
       And no combined environment and sporting score must exist
       And no opponent-level permanent classification must exist
       And no opponent-level colour-coded status badge must exist
+      And environment and Fair Play observations never create a rating, reputation score, blacklist, eligibility rule, support rule, readiness mutation, or hard selection constraint
 
   Rule: Players overview separates seasonal facts from current planning attention
 
@@ -5486,13 +5489,13 @@ Feature: Matchboard football operations workspace
       And the app must not display null ratings as 0
       And the app must not display null ratings as max skill
 
-    Scenario: Player attribute editing uses 1-5 scale with explicit unrated
+    Scenario: Player attribute editing uses 1-10 scale with explicit unrated
       Given a player exists
       When the coach edits player attributes
-      Then each attribute must accept null (Not rated) or an integer from 1 to 5
-      And a rating of 1 means the player needs support in this area
-      And a rating of 3 means steady
-      And a rating of 5 means standout in this group
+      Then each attribute must accept null (Not rated) or an integer from 1 to 10
+      And a rating of 2 means the player needs support in this area
+      And a rating of 6 means steady
+      And a rating of 10 means standout in this group
       And the app must not convert null to any numeric value
       And the app must not treat null as low ability
 

@@ -126,17 +126,17 @@ export async function updatePlayerFieldAction(
         }
         parsedValue = value;
       }
-    } else if (numericFields.includes(field)) {
-      if (value === "" || value === "null" || value === "—") {
-        parsedValue = null;
-      } else {
-        const num = parseInt(value, 10);
-        if (isNaN(num) || num < 1 || num > 5) {
+      } else if (numericFields.includes(field)) {
+        if (value === "" || value === "null" || value === "—") {
           parsedValue = null;
         } else {
-          parsedValue = num;
+          const num = parseInt(value, 10);
+          if (isNaN(num) || num < 1 || num > 10) {
+            parsedValue = null;
+          } else {
+            parsedValue = num;
+          }
         }
-      }
     } else {
       parsedValue = value;
     }

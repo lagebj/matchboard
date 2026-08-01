@@ -384,6 +384,29 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   const eventItems = await getEventWorkItems(orgFilter);
   items.push(...eventItems);
 
+  const pendingSuggestions = await db.playerProfileSuggestion.findMany({
+    where: {
+      status: "PENDING",
+      ...(orgFilter && orgFilter.type === "org" ? orgFilter.filter : {}),
+    },
+    select: { id: true, playerId: true, targetType: true, attributeKey: true },
+  });
+
+  if (pendingSuggestions.length > 0) {
+    items.push(
+      makeItem({
+        category: "pending_profile_suggestions",
+        matchRoundId: "suggestions",
+        title: `${pendingSuggestions.length} pending profile suggestion${pendingSuggestions.length !== 1 ? "s" : ""}`,
+        summary: `${pendingSuggestions.length} player attribute suggestion${pendingSuggestions.length !== 1 ? "s" : ""} awaiting coach review.`,
+        affectedPlayerIds: [...new Set(pendingSuggestions.map((s) => s.playerId))],
+        affectedTeamIds: [],
+        primaryActionLabel: "Review suggestions",
+        primaryActionHref: "/players",
+      }),
+    );
+  }
+
   items.sort((a, b) => {
     const priDiff = a.priority - b.priority;
     if (priDiff !== 0) return priDiff;

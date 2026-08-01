@@ -11,18 +11,18 @@ describe('toPlayerAttributeProfile', () => {
     secondaryPosition: 'DM',
     tertiaryPosition: 'AM',
     goalkeeperAbility: 'NO',
-    ballControl: 3,
-    passing: 4,
-    firstTouch: 3,
-    oneVOneAttacking: 2,
-    positioning: 4,
-    oneVOneDefending: 3,
-    decisionMaking: 4,
-    effort: 5,
-    teamplay: 3,
-    concentration: 3,
-    speed: 4,
-    strength: 3,
+    ballControl: 6,
+    passing: 8,
+    firstTouch: 6,
+    oneVOneAttacking: 4,
+    positioning: 8,
+    oneVOneDefending: 6,
+    decisionMaking: 8,
+    effort: 10,
+    teamplay: 6,
+    concentration: 6,
+    speed: 8,
+    strength: 6,
     nonRotatable: false,
     preferredFoot: 'RIGHT' as const,
     bestSide: 'RIGHT' as const,
@@ -32,9 +32,9 @@ describe('toPlayerAttributeProfile', () => {
     const profile = toPlayerAttributeProfile(basePlayer);
     expect(profile.playerId).toBe('p1');
     expect(profile.firstName).toBe('Test');
-    expect(profile.ballControl).toBe(3);
-    expect(profile.passing).toBe(4);
-    expect(profile.effort).toBe(5);
+    expect(profile.ballControl).toBe(6);
+    expect(profile.passing).toBe(8);
+    expect(profile.effort).toBe(10);
     expect(profile.goalkeeperAbility).toBe('NO');
     expect(profile.primaryPosition).toBe('CM');
   });
@@ -43,11 +43,11 @@ describe('toPlayerAttributeProfile', () => {
     const profile = toPlayerAttributeProfile({ ...basePlayer, ballControl: null, passing: null });
     expect(profile.ballControl).toBeNull();
     expect(profile.passing).toBeNull();
-    expect(profile.effort).toBe(5);
+    expect(profile.effort).toBe(10);
   });
 
   it('normalizes out-of-range ratings to null', () => {
-    const profile = toPlayerAttributeProfile({ ...basePlayer, ballControl: 0, passing: 6, effort: -1 });
+    const profile = toPlayerAttributeProfile({ ...basePlayer, ballControl: 0, passing: 11, effort: -1 });
     expect(profile.ballControl).toBeNull();
     expect(profile.passing).toBeNull();
     expect(profile.effort).toBeNull();

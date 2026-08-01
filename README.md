@@ -155,6 +155,26 @@ Match-environment observations, concern categories, factual summaries, and follo
 
 The selection engine is unchanged: opponent identity, match-fit history, and environment observations do not alter eligibility, support priority, development movement, squad repair, fairness, readiness, plan integrity signals, blockers, or finalisation.
 
+## Opponent sporting level estimates
+
+After report completion, Matchboard derives a private, evidence-based opponent sporting level estimate from scoreline and fielded-team strength. This estimate is coach-facing only and never appears in parent-facing exports.
+
+The formula uses actual participant ratings snapshotted at evidence creation time. Historical player edits do not rewrite stored evidence. Encounters with `MatchFit` values `CHAOTIC`, `SUPPORT_OVERPOWERED`, or `SUPPORT_TOO_LOW` are auto-excluded. Coaches can manually exclude or re-include evidence with structured reasons; raw evidence is preserved.
+
+Aggregation uses six-month exponential half-life weighting over valid non-excluded evidence within a 12-month window. Same-game-format encounters receive a boost. Confidence: 0 encounters = unknown, 1 = low, 2–3 = medium, 4+ = high.
+
+Opponent context is a bounded soft scoring preference in the selection engine. It cannot bypass availability, rotation paths, nonRotatable, same-round uniqueness, squad minimums, or finalized history. Hard boundaries are documented in `OPPONENT_CONTEXT_HARD_BOUNDARIES`.
+
+## Player development observations
+
+Coaches can record sparse, explicit development observations for actual match participants. Two kinds: attribute (ballControl, passing, etc.) and position. Direction: positive or negative. Observable behavior notes are limited to 500 characters and reject disallowed language.
+
+Evidence evaluation follows confidence thresholds: LOW (<3 aligned or <3 matches or material contradiction) produces no suggestion; MEDIUM (≥3 aligned across ≥3 matches) creates a pending suggestion; HIGH (≥5 aligned across ≥4 matches, ≤1 contradiction) creates a high-confidence suggestion.
+
+Suggestion lifecycle: Accept (apply +1 or -1 to attribute), Adjust (set a specific value between 1–10), Reject (keep current, mark decided). Decisions create a DecisionRecord and establish a new evidence baseline. Only post-decision observations can reopen a target.
+
+Development observations and profile suggestions are coach-facing only. They must not appear in parent-facing exports or external AI payloads.
+
 ## Coach-facing vs parent-facing exports
 
 Internal planning reasons, readiness notes, support burden, confidence rebuild, effort concerns, and execution feedback must not leak into parent-facing exports.
@@ -709,7 +729,7 @@ Event squad generation is entirely separate from league planning:
 ### Player attribute ratings
 
 - Null = "Not rated" — never displayed as 0 or max skill
-- Scale 1–5: 1 = needs support, 2 = developing, 3 = steady, 4 = strong, 5 = standout in this group
+- Scale 1–10: 2 = needs support, 4 = developing, 6 = steady, 8 = strong, 10 = standout in this group
 - Composite attributes for event generation: overallLevel, defending, attacking, gameUnderstanding, intensity, teamplay, goalkeeperAbility
 - Goals, assists, and post-match stats must NEVER directly become skill ratings
 - Ratings are internal coach-facing planning context, not parent-facing or public

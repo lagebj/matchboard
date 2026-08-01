@@ -1,4 +1,4 @@
-export type SportingLevelConfidence = "low" | "medium" | "high";
+export type SportingLevelConfidence = "unknown" | "low" | "medium" | "high";
 
 export interface OpponentEncounterAssessment {
   sportingLevel: number;
@@ -16,11 +16,12 @@ export interface OpponentSportingEstimate {
   historicalContext: string;
 }
 
-export const DEFAULT_CHALLENGE_MARGIN = 0.2;
-export const MAX_SPORTING_LEVEL = 5.0;
+export const DEFAULT_CHALLENGE_MARGIN = 0.4;
+export const MAX_SPORTING_LEVEL = 10.0;
 export const MAX_RECENT_ENCOUNTERS = 5;
 
 const CONFIDENCE_THRESHOLDS = {
+  unknown: 0,
   low: 1,
   medium: 2,
   high: 4,
@@ -65,7 +66,8 @@ export function calculateConfidence(
 ): SportingLevelConfidence {
   if (assessmentCount >= CONFIDENCE_THRESHOLDS.high) return "high";
   if (assessmentCount >= CONFIDENCE_THRESHOLDS.medium) return "medium";
-  return "low";
+  if (assessmentCount >= CONFIDENCE_THRESHOLDS.low) return "low";
+  return "unknown";
 }
 
 export function calculateSuggestedMinimum(
@@ -85,7 +87,9 @@ export function generateHistoricalContext(
 
   const parts: string[] = [];
 
-  if (estimate.confidence === "low") {
+  if (estimate.confidence === "unknown") {
+    return "No comparable encounter data available.";
+  } else if (estimate.confidence === "low") {
     parts.push("Limited encounter data — estimate may change with more assessments.");
   } else if (estimate.confidence === "medium") {
     parts.push("Moderate encounter data available.");

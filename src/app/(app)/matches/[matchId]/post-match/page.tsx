@@ -4,6 +4,7 @@ import { PostMatchPage } from "@/components/assistant/post-match-page";
 import { MatchFeedbackSection } from "@/components/matches/match-feedback-section";
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { ObservationSection } from "@/components/opponents/observation-section";
+import { DevelopmentObservationSection } from "@/components/player-development/development-observation-section";
 import { requireCoachAccess } from "@/lib/auth";
 import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
@@ -148,7 +149,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     plannedSelections,
   } : null;
 
-  const [feedbackEntries, teamReflection, existingObservation] = await Promise.all([
+  const [feedbackEntries, teamReflection, existingObservation, devObservations] = await Promise.all([
     db.matchExecutionFeedback.findMany({
       where: { matchId },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
@@ -177,6 +178,24 @@ export default async function PostMatchRoute({ params }: PageProps) {
         concernCategories: true,
         factualSummary: true,
         followUp: true,
+      },
+    }),
+    db.playerDevelopmentObservation.findMany({
+      where: {
+        matchId,
+        ...(orgFilter.type === "org" ? orgFilter.filterNullable : {}),
+      },
+      orderBy: { observedAt: "desc" },
+      select: {
+        id: true,
+        playerId: true,
+        kind: true,
+        attributeKey: true,
+        positionId: true,
+        direction: true,
+        observableNote: true,
+        observedAt: true,
+        player: { select: { id: true, firstName: true, lastName: true } },
       },
     }),
   ]);
@@ -225,6 +244,18 @@ export default async function PostMatchRoute({ params }: PageProps) {
       }
     : null;
 
+  const devObservationData = devObservations.map((o) => ({
+    id: o.id,
+    playerId: o.playerId,
+    playerName: `${o.player.firstName} ${o.player.lastName ?? ""}`.trim(),
+    kind: o.kind,
+    attributeKey: o.attributeKey,
+    positionId: o.positionId,
+    direction: o.direction,
+    observableNote: o.observableNote,
+    observedAt: o.observedAt.toISOString(),
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} />
@@ -235,6 +266,12 @@ export default async function PostMatchRoute({ params }: PageProps) {
         matchFit={match.matchFit}
       />
       <MatchFeedbackSection matchId={matchId} feedback={feedbackData} players={playerOptions} />
+      <DevelopmentObservationSection
+        matchId={matchId}
+        players={playerOptions}
+        existingObservations={devObservationData}
+        isLocked={initialReport?.status === "LOCKED"}
+      />
       <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
     </div>
   );
