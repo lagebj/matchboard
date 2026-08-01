@@ -420,15 +420,41 @@ export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: str
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
-    select: { eventSquadId: true },
+    select: { playerId: true, eventSquadId: true, eventId: true },
   });
 
   if (!squadPlayer) throw new Error('Squad assignment not found.');
 
   const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
 
-  await db.eventSquadPlayer.delete({
-    where: { id: eventSquadPlayerId },
+  await db.$transaction(async (tx) => {
+    await tx.eventSquadPlayer.delete({
+      where: { id: eventSquadPlayerId },
+    });
+
+    const squadMatches = await tx.eventMatch.findMany({
+      where: { eventSquadId: squadPlayer.eventSquadId },
+      select: { id: true },
+    });
+
+    const matchIds = squadMatches.map((m) => m.id);
+
+    if (matchIds.length > 0) {
+      await tx.eventMatchLineupAssignment.updateMany({
+        where: {
+          playerId: squadPlayer.playerId,
+          lineup: { eventMatchId: { in: matchIds } },
+        },
+        data: { playerId: null, source: 'BASE_SQUAD' },
+      });
+
+      await tx.eventMatchSupportAssignment.deleteMany({
+        where: {
+          playerId: squadPlayer.playerId,
+          eventMatchId: { in: matchIds },
+        },
+      });
+    }
   });
 
   revalidatePath(`/events/${_eventId}`);
