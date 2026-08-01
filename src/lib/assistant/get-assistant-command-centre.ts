@@ -384,6 +384,44 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   const eventItems = await getEventWorkItems(orgFilter);
   items.push(...eventItems);
 
+  const pendingReviews = await db.reviewRequest.findMany({
+    where: {
+      ...(orgFilter && orgFilter.type === "org" ? orgFilter.filter : {}),
+      status: { in: ["PENDING", "CHANGES_REQUESTED"] },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const review of pendingReviews) {
+    if (review.status === "PENDING") {
+      items.push(
+        makeItem({
+          category: "review_assigned",
+          matchRoundId: "review",
+          title: `Review requested: ${review.targetType === "EVENT_SQUAD" ? "Event squad" : "Match lineup"}`,
+          summary: review.requestMessage ?? "A review has been requested.",
+          primaryActionLabel: "View review",
+          primaryActionHref: "/reviews",
+          affectedTeamIds: [],
+          affectedPlayerIds: [],
+        }),
+      );
+    } else if (review.status === "CHANGES_REQUESTED") {
+      items.push(
+        makeItem({
+          category: "review_changes_requested",
+          matchRoundId: "review",
+          title: `Changes requested: ${review.targetType === "EVENT_SQUAD" ? "Event squad" : "Match lineup"}`,
+          summary: review.reviewerComment ?? "Changes have been requested on your submission.",
+          primaryActionLabel: "View review",
+          primaryActionHref: "/reviews",
+          affectedTeamIds: [],
+          affectedPlayerIds: [],
+        }),
+      );
+    }
+  }
+
   const pendingSuggestions = await db.playerProfileSuggestion.findMany({
     where: {
       status: "PENDING",

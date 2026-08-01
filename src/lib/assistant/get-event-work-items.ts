@@ -90,7 +90,7 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
           eventId: event.id,
           affectedTeamIds: [],
           affectedPlayerIds: [],
-          primaryActionLabel: "Review squads",
+          primaryActionLabel: "View squads",
           primaryActionHref: `/events/${event.id}`,
         });
       }

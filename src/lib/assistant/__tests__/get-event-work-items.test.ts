@@ -371,7 +371,7 @@ describe("getEventWorkItems", () => {
     );
     expect(draftItems.length).toBe(1);
     expect(draftItems[0]!.title).toContain("Draft Review Cup");
-    expect(draftItems[0]!.primaryActionLabel).toBe("Review squads");
+    expect(draftItems[0]!.primaryActionLabel).toBe("View squads");
 
     await cleanEventTables(db);
   });

@@ -19,6 +19,8 @@ import {
   CalendarDays,
   ArrowRight,
   ShieldAlert,
+  Eye,
+  MessageSquareWarning,
 } from "lucide-react";
 
 /**
@@ -37,7 +39,7 @@ import {
 
 type WorkCategory = AssistantWorkItem["category"];
 
-type GroupKey = "blockers" | "decisions" | "setup" | "events" | "ready" | "reports";
+type GroupKey = "blockers" | "decisions" | "setup" | "events" | "reviews" | "ready" | "reports";
 
 type GroupConfig = {
   key: GroupKey;
@@ -80,6 +82,14 @@ const groups: GroupConfig[] = [
     categories: ["event_setup_missing", "event_squads_missing", "event_squads_ready", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
     icon: CalendarDays,
     variant: "info",
+  },
+  {
+    key: "reviews",
+    label: "Reviews",
+    description: "Pending review requests and changes requested.",
+    categories: ["review_assigned", "review_changes_requested"],
+    icon: Eye,
+    variant: "warning",
   },
   {
     key: "ready",
@@ -284,6 +294,7 @@ export function AssistantCommandCentrePage({
   // Metric aggregates
   const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);
   const decisionCount = actionable.reduce((sum, i) => sum + (i.decisionRequiredCount ?? 0), 0);
+  const reviewCount = actionable.filter((i) => i.category === "review_assigned" || i.category === "review_changes_requested").length;
   const reportCount = actionable.filter((i) => i.category === "post_match_report").length;
   const upcomingCount = upcoming.length;
 
@@ -307,7 +318,7 @@ export function AssistantCommandCentrePage({
       </div>
 
       {/* Metric strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <MetricTile
           label="Blocked"
           value={blockedCount}
@@ -319,6 +330,12 @@ export function AssistantCommandCentrePage({
           value={decisionCount}
           tone={decisionCount > 0 ? "warning" : "neutral"}
           icon={<AlertTriangle className="h-4 w-4" />}
+        />
+        <MetricTile
+          label="Reviews"
+          value={reviewCount}
+          tone={reviewCount > 0 ? "warning" : "neutral"}
+          icon={<Eye className="h-4 w-4" />}
         />
         <MetricTile
           label="Reports"
@@ -354,6 +371,21 @@ export function AssistantCommandCentrePage({
             </Button>
           }
         />
+      )}
+
+      {/* Review/attention link */}
+      {reviewCount > 0 && (
+        <div className="flex items-center justify-end">
+          <Button
+            as={Link}
+            href="/reviews"
+            variant="ghost"
+            size="sm"
+            trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
+          >
+            View all reviews
+          </Button>
+        </div>
       )}
 
       {/* Grouped work sections */}
