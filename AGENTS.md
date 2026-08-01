@@ -1008,6 +1008,7 @@ Other canonical routes:
 | `/formations/new` | Create new custom formation (supports `?gameFormat=X&returnTo=Y`) |
 | `/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
 | `/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
+| `/insights/player-pathways` | Player Pathways — season matrix, context transitions, fairness overview |
 
 Setup registry create routes (no top-level nav):
 - `/teams/new` — create team form
@@ -1019,6 +1020,7 @@ Detail routes (no top-level nav):
 - `/teams/[teamId]` — team detail workspace
 - `/teams/[teamId]/configuration` — team configuration and rules
 - `/matches/[matchId]` — match detail
+- `/matches/[matchId]/live` — live match reporting
 
 Canonical redirects:
 - `/` → `/assistant`
@@ -1937,6 +1939,33 @@ Avoid:
 | `src/app/(app)/insights/planned-vs-actual/planned-vs-actual-client.tsx` | Planned vs Actual interactive client component |
 | `src/app/(app)/insights/conflicts/page.tsx` | Conflict Review page |
 | `src/app/(app)/insights/conflicts/conflict-review-client.tsx` | Conflict Review interactive client component |
+
+### Player Pathways files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/pathways/pathways-types.ts` | Player Pathways type definitions (cell status, context, row, filters) |
+| `src/lib/pathways/pathways-helpers.ts` | Pure helper functions for role-to-context mapping, cell status, summary metrics, labels |
+| `src/lib/pathways/get-player-pathways.ts` | Server data function: derive pathway data from selections, availabilities, matches |
+| `src/app/api/insights/player-pathways/route.ts` | GET `/api/insights/player-pathways` — API route with auth, org validation |
+| `src/app/(app)/insights/player-pathways/page.tsx` | Player Pathways server page |
+| `src/app/(app)/insights/player-pathways/player-pathways-client.tsx` | Player Pathways interactive client component (matrix, filters, view modes) |
+
+### Live Match Reporting files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
+| `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
+| `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions |
+| `src/lib/live-match/live-match-event-store.ts` | Server functions: record events (idempotent), get events, get recent events |
+| `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |
+| `src/app/(app)/matches/[matchId]/live/page.tsx` | Live match server page (auth, org-scoped match data) |
+| `src/app/(app)/matches/[matchId]/live/live-client.tsx` | Live match client component (score, clock, goal/rotation/fair play/marked moment) |
+| `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
+| `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action: end session and create/seed post-match report |
+| `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
+| `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 
 ## Stale references removed
 

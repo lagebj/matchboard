@@ -15,7 +15,8 @@ export type AssistantWorkCategory =
   | "incomplete_report"
   | "unknown_attendance"
   | "event_report_incomplete"
-  | "upcoming_round";
+  | "upcoming_round"
+  | "live_report_available";
 
 export type AssistantWorkItem = {
   id: string;
@@ -59,4 +60,5 @@ export const CATEGORY_PRIORITY: Record<AssistantWorkCategory, number> = {
   unknown_attendance: 14,
   event_report_incomplete: 15,
   upcoming_round: 16,
+  live_report_available: 17,
 };

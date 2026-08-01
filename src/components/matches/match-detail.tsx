@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   XCircle,
   RotateCcw,
+  Radio,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
@@ -308,6 +309,11 @@ export function MatchDetail({ match }: { match: MatchData }) {
             )}
             {postMatchPill && !isCancelled && (
               <StatusPill variant={postMatchPill.variant}>{postMatchPill.label}</StatusPill>
+            )}
+            {matchFinalized && !isCancelled && (
+              <Button as={Link} href={`/matches/${match.id}/live`} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
+                Live reporting
+              </Button>
             )}
           </div>
         }

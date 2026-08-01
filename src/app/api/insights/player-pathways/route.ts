@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { requireCoachAccess } from "@/lib/auth";
+import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { getPlayerPathways } from "@/lib/pathways/get-player-pathways";
+import type { InsightScope, InsightContext } from "@/lib/insights/insights-types";
+import type { PathwayViewMode } from "@/lib/pathways/pathways-types";
+
+export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+  let coach;
+  try {
+    coach = await requireCoachAccess();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+
+  const { searchParams } = new URL(request.url);
+  const leagueSeasonId = searchParams.get("leagueSeasonId");
+  const scope = searchParams.get("scope") ?? "full_year";
+  const context = searchParams.get("context") ?? "league";
+  const teamId = searchParams.get("teamId") ?? undefined;
+  const matchRoundId = searchParams.get("matchRoundId") ?? undefined;
+  const includeRemoved = searchParams.get("includeRemoved") === "true";
+  const includeInactive = searchParams.get("includeInactive") === "true";
+  const viewModeParam = searchParams.get("viewMode") ?? "finalized_only";
+
+  if (!leagueSeasonId) {
+    return NextResponse.json(
+      { error: "leagueSeasonId is required" },
+      { status: 400 },
+    );
+  }
+
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
+    select: { organisationId: true },
+  });
+  if (!leagueSeason) {
+    return NextResponse.json({ error: "League season not found" }, { status: 404 });
+  }
+  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+    return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
+  }
+
+  const viewMode: PathwayViewMode =
+    viewModeParam === "include_drafts" ? "include_drafts" : "finalized_only";
+
+  const pathways = await getPlayerPathways(
+    {
+      leagueSeasonId,
+      scope: scope as InsightScope,
+      context: context as InsightContext,
+      teamId,
+      matchRoundId,
+      includeRemoved,
+      includeInactive,
+    },
+    viewMode,
+  );
+
+  return NextResponse.json({ pathways });
+}
