@@ -1426,7 +1426,7 @@ Event squads have a status field: DRAFT or CONFIRMED.
 - Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
 - Blocking issues prevent commit; warning and info issues do not
 - Committed squads can be reverted to DRAFT via `unconfirmEventSquadsAction`
-- The Assistant surfaces `event_squads_draft_review` work items when all event squads are DRAFT
+- The Assistant surfaces `event_squads_ready` work items when all event squads are DRAFT
 - Aggregate status (DRAFT/CONFIRMED/MIXED) is available via `getEventSquadsStatusAction`
 
 ### Policy decision types
@@ -1833,8 +1833,8 @@ Avoid:
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
-| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes incomplete_report, unknown_attendance) |
-| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state (includes audit work items) |
+| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
+| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items) |
 | `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |

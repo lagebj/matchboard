@@ -82,7 +82,7 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
       if (draftSquadCount === squadCount) {
         items.push({
           id: `event-squads-draft-${event.id}`,
-          category: "event_squads_draft_review",
+          category: "event_squads_ready",
           priority: 5,
           title: `${event.name}: squads need review`,
           summary: "Generated squads are ready for review before committing.",
@@ -90,7 +90,7 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
           eventId: event.id,
           affectedTeamIds: [],
           affectedPlayerIds: [],
-          primaryActionLabel: "Review squads",
+          primaryActionLabel: "View squads",
           primaryActionHref: `/events/${event.id}`,
         });
       }
