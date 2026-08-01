@@ -2,6 +2,8 @@ export { generateEventSquads, getDefaultTargetSize, getDefaultSlotRequirements }
 export { validateEventPool } from './event-validation';
 export { computeSquadBalance } from './event-balance';
 export { computeLineupAssignment } from './event-lineup-assignment';
+export { getEligibleEventMatchPlayers, assertEligibleEventMatchPlayer } from './event-match-eligibility';
+export type { EligibleEventMatchPlayer } from './event-match-eligibility';
 export type { LineupSlot, LineupAssignment } from './event-lineup-assignment';
 export {
   computeCompositeRatings,

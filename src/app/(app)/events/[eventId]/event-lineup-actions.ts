@@ -131,7 +131,14 @@ export async function assignPlayerToLineupSlot(
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
-    include: { assignments: true },
+    include: {
+      assignments: true,
+      eventMatch: {
+        select: {
+          eventSquadId: true,
+        },
+      },
+    },
   });
 
   if (!lineup) throw new Error('Lineup not found');
@@ -145,9 +152,15 @@ export async function assignPlayerToLineupSlot(
     });
   }
 
+  const isInSquad = await db.eventSquadPlayer.findFirst({
+    where: { eventSquadId: lineup.eventMatch.eventSquadId, playerId },
+  });
+
+  const source: 'BASE_SQUAD' | 'HELPER' = isInSquad ? 'BASE_SQUAD' : 'HELPER';
+
   const assignment = await db.eventMatchLineupAssignment.update({
     where: { id: assignmentId },
-    data: { playerId },
+    data: { playerId, source },
   });
 
   revalidatePath(`/events/${lineup.eventMatchId}`);
@@ -390,9 +403,10 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   }
 
   for (const update of updates) {
+    const isInSquad = squadPlayers.some((p) => p.id === update.playerId);
     await db.eventMatchLineupAssignment.update({
       where: { id: update.assignmentId },
-      data: { playerId: update.playerId },
+      data: { playerId: update.playerId, source: isInSquad ? 'BASE_SQUAD' : 'HELPER' },
     });
   }
 
