@@ -1872,6 +1872,19 @@ Avoid:
 | `src/app/api/cron/notification-outbox/route.ts` | Cron endpoint for outbox processing |
 | `src/app/api/webhooks/brevo/route.ts` | Webhook endpoint for Brevo delivery status callbacks |
 
+### Review and attention files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/review/review-service.ts` | `createReviewRequest()`, `resolveReviewRequest()`, `supersedePendingReviews()`, `getPendingReviewsForReviewer()`, `getReviewHistory()` |
+| `src/app/(app)/reviews/actions.ts` | Review server actions: request, resolve, cancel, get pending, get history |
+| `src/lib/attention/get-attention-entries.ts` | `getAttentionEntries()` — attention projection from live domain state |
+| `src/app/(app)/o/[orgSlug]/attention/page.tsx` | Attention page (server) |
+| `src/app/(app)/o/[orgSlug]/attention/attention-client.tsx` | Attention page client component |
+| `src/app/(app)/o/[orgSlug]/attention/actions.ts` | Attention server actions |
+| `src/app/(app)/o/[orgSlug]/reviews/page.tsx` | Reviews list page (server) |
+| `src/app/(app)/o/[orgSlug]/reviews/review-list-client.tsx` | Reviews list client component with resolve/cancel UI |
+
 ### Formation/tactics files
 
 | File | Purpose |
