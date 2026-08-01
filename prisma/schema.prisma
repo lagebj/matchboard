@@ -98,6 +98,8 @@ model Player {
   locks                   PlayerLock[]
   positions               PlayerPosition[]
   readinessSignals        PlayerReadinessSignal[]
+  developmentObservations PlayerDevelopmentObservation[]
+  profileSuggestions      PlayerProfileSuggestion[]
   postMatchActuals        PostMatchPlayerActual[]
   selections              Selection[]
   eventPostMatchPlayers   EventPostMatchPlayer[]
@@ -152,6 +154,8 @@ model Match {
   fairPlayObservations        FairPlayObservation[]
   movementLedger              MovementLedger[]
   opponentObservation         OpponentEncounterObservation?
+  sportingEvidence            OpponentSportingEvidence?
+  developmentObservations     PlayerDevelopmentObservation[]
   selections                  Selection[]
   teamReflection              TeamReflection?
 
@@ -172,6 +176,7 @@ model OpponentTeam {
   matches        Match[]
   eventMatches   EventMatch[]
   observations   OpponentEncounterObservation[]
+  sportingEvidence OpponentSportingEvidence[]
   organisation   Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([archivedAt, displayName])
@@ -1781,6 +1786,9 @@ model Organisation {
   teamSeasonSnapshots             TeamSeasonSnapshot[]
   teamSeasonSnapshotPlayers       TeamSeasonSnapshotPlayer[]
   policyDecisionLogs              PolicyDecisionLog[]
+  opponentSportingEvidence        OpponentSportingEvidence[]
+  developmentObservations         PlayerDevelopmentObservation[]
+  profileSuggestions              PlayerProfileSuggestion[]
   ruleConfigs                     RuleConfig[]
 
   @@index([slug])
@@ -1890,4 +1898,136 @@ model PolicyDecisionLog {
   @@index([relatedLeagueMatchId])
   @@index([createdAt])
   @@index([organisationId])
+}
+
+model OpponentSportingEvidence {
+  id                        String                        @id @default(cuid())
+  organisationId            String?
+  matchId                   String                        @unique
+  opponentTeamId            String
+  occurredAt                DateTime
+  gameFormat                GameFormat?
+  goalsFor                  Int
+  goalsAgainst              Int
+  fieldedRatingSnapshot     Decimal?                      @db.Decimal(4, 2)
+  participantCount          Int
+  ratedParticipantCount     Int
+  weightingMethod           OpponentWeightingMethod        @default(PARTICIPANT_AVERAGE)
+  estimate                  Decimal                       @db.Decimal(4, 2)
+  formulaVersion            String
+  excludedAt                DateTime?
+  exclusionReason           String?
+  fieldedRatingDetails      Json?
+  createdAt                 DateTime                      @default(now())
+  updatedAt                 DateTime                      @updatedAt
+  match                     Match                         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  opponentTeam              OpponentTeam                   @relation(fields: [opponentTeamId], references: [id])
+  organisation              Organisation?                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([opponentTeamId, occurredAt])
+  @@index([opponentTeamId, gameFormat, occurredAt])
+  @@index([organisationId])
+  @@index([excludedAt])
+}
+
+model PlayerDevelopmentObservation {
+  id                String                      @id @default(cuid())
+  organisationId    String?
+  playerId          String
+  sourceType        DevelopmentObservationSource @default(LEAGUE_MATCH)
+  matchId           String
+  kind               DevelopmentObservationKind
+  attributeKey       String?
+  positionId         String?
+  direction          DevelopmentDirection
+  observableNote    String?
+  observedAt        DateTime
+  recordedBy        String
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  player            Player                      @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  match              Match                       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  organisation       Organisation?               @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  suggestionEvidence PlayerProfileSuggestionEvidence[]
+
+  @@index([playerId, attributeKey, observedAt])
+  @@index([playerId, positionId, observedAt])
+  @@index([matchId])
+  @@index([organisationId])
+  @@index([recordedBy])
+}
+
+model PlayerProfileSuggestion {
+  id                 String                        @id @default(cuid())
+  organisationId     String?
+  playerId           String
+  targetType         DevelopmentObservationKind
+  attributeKey       String?
+  positionId         String?
+  confidence         SuggestionConfidence
+  direction          DevelopmentDirection
+  currentSnapshot    Json
+  proposedSnapshot   Json
+  evidenceSummary    Json
+  status             SuggestionStatus              @default(PENDING)
+  decidedAt          DateTime?
+  decidedBy          String?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  player             Player                        @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation       Organisation?                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  evidenceLinks      PlayerProfileSuggestionEvidence[]
+
+  @@unique([playerId, targetType, attributeKey, positionId, status])
+  @@index([playerId, status])
+  @@index([playerId, targetType])
+  @@index([organisationId])
+  @@index([status])
+  @@index([decidedAt])
+}
+
+model PlayerProfileSuggestionEvidence {
+  id             String                     @id @default(cuid())
+  suggestionId   String
+  observationId  String
+  createdAt      DateTime                   @default(now())
+  suggestion     PlayerProfileSuggestion    @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  observation    PlayerDevelopmentObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+
+  @@unique([suggestionId, observationId])
+  @@index([suggestionId])
+  @@index([observationId])
+}
+
+enum OpponentWeightingMethod {
+  MINUTE_WEIGHTED
+  PARTICIPANT_AVERAGE
+}
+
+enum DevelopmentObservationSource {
+  LEAGUE_MATCH
+  EVENT_MATCH
+}
+
+enum DevelopmentObservationKind {
+  ATTRIBUTE
+  POSITION
+}
+
+enum DevelopmentDirection {
+  POSITIVE
+  NEGATIVE
+}
+
+enum SuggestionConfidence {
+  MEDIUM
+  HIGH
+}
+
+enum SuggestionStatus {
+  PENDING
+  ACCEPTED
+  ADJUSTED
+  REJECTED
+  SUPERSEDED
 }
