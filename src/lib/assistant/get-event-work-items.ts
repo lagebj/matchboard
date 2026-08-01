@@ -75,25 +75,19 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
     }
 
     if (squadCount > 0) {
-      const draftSquadCount = await db.eventSquad.count({
-        where: { eventId: event.id, status: "DRAFT" },
+      items.push({
+        id: `event-squads-ready-${event.id}`,
+        category: "event_squads_ready",
+        priority: 5,
+        title: `${event.name}: squads generated`,
+        summary: `${squadCount} squad${squadCount > 1 ? "s" : ""} ready for lineup planning and helper assignment.`,
+        matchRoundId: "",
+        eventId: event.id,
+        affectedTeamIds: [],
+        affectedPlayerIds: [],
+        primaryActionLabel: "View squads",
+        primaryActionHref: `/events/${event.id}`,
       });
-
-      if (draftSquadCount === squadCount) {
-        items.push({
-          id: `event-squads-draft-${event.id}`,
-          category: "event_squads_draft_review",
-          priority: 5,
-          title: `${event.name}: squads need review`,
-          summary: "Generated squads are ready for review before committing.",
-          matchRoundId: "",
-          eventId: event.id,
-          affectedTeamIds: [],
-          affectedPlayerIds: [],
-          primaryActionLabel: "Review squads",
-          primaryActionHref: `/events/${event.id}`,
-        });
-      }
     }
 
     for (const match of eventMatches) {

@@ -6,9 +6,9 @@ import {
   getTestDb,
 } from "@/test/test-db";
 import {
-  validateEventSquadsBeforeCommit,
-  confirmEventSquadsAction,
-  unconfirmEventSquadsAction,
+  validateEventSquadsBeforeLock,
+  lockEventSquadsAction,
+  unlockEventSquadsAction,
   getEventSquadsStatusAction,
 } from "../event-squad-commit-actions";
 
@@ -70,9 +70,9 @@ describe("event-squad-commit-actions", () => {
     await teardownTestDb();
   });
 
-  describe("validateEventSquadsBeforeCommit", () => {
+  describe("validateEventSquadsBeforeLock", () => {
     it("returns blocking issue for nonexistent event", async () => {
-      const result = await validateEventSquadsBeforeCommit("nonexistent-id");
+      const result = await validateEventSquadsBeforeLock("nonexistent-id");
       expect(result.valid).toBe(false);
       expect(result.issues.some((i) => i.code === "event_not_found")).toBe(true);
     });
@@ -88,7 +88,7 @@ describe("event-squad-commit-actions", () => {
         },
       });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
       expect(result.issues.some((i) => i.code === "no_squads")).toBe(true);
 
@@ -115,7 +115,7 @@ describe("event-squad-commit-actions", () => {
       await db.eventSquadPlayer.create({ data: { eventSquadId: squadA.id, playerId: player.id, source: "AUTO" } });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squadB.id, playerId: player.id, source: "AUTO" } });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
       expect(result.issues.some((i) => i.code === "duplicate_player_across_squads")).toBe(true);
 
@@ -141,7 +141,7 @@ describe("event-squad-commit-actions", () => {
       });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
       expect(result.issues.some((i) => i.code === "unavailable_player_in_squad")).toBe(true);
 
@@ -162,7 +162,7 @@ describe("event-squad-commit-actions", () => {
         data: { eventId: event.id, name: "Tiny Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 5, status: "DRAFT" },
       });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
       expect(result.issues.some((i) => i.code === "squad_below_minimum")).toBe(true);
 
@@ -185,7 +185,7 @@ describe("event-squad-commit-actions", () => {
       });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.issues.some((i) => i.code === "squad_below_target")).toBe(true);
       expect(result.issues.some((i) => i.severity === "info" && i.code === "squad_below_target")).toBe(true);
 
@@ -208,7 +208,7 @@ describe("event-squad-commit-actions", () => {
       });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
       expect(result.issues.some((i) => i.code === "no_goalkeeper_coverage")).toBe(true);
 
@@ -231,7 +231,7 @@ describe("event-squad-commit-actions", () => {
       });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: gk.id, source: "AUTO" } });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
+      const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(true);
       expect(result.issues.filter((i) => i.severity === "blocking")).toHaveLength(0);
 
@@ -239,8 +239,8 @@ describe("event-squad-commit-actions", () => {
     });
   });
 
-  describe("confirmEventSquadsAction", () => {
-    it("confirms all DRAFT squads to CONFIRMED", async () => {
+  describe("lockEventSquadsAction", () => {
+    it("locks all DRAFT squads to LOCKED", async () => {
       const event = await db.event.create({
         data: {
           name: "Confirm Event",
@@ -256,14 +256,14 @@ describe("event-squad-commit-actions", () => {
       });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: gk.id, source: "AUTO" } });
 
-      const result = await confirmEventSquadsAction(event.id);
+      const result = await lockEventSquadsAction(event.id);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.confirmedCount).toBe(1);
+        expect(result.lockedCount).toBe(1);
       }
 
       const squads = await db.eventSquad.findMany({ where: { eventId: event.id } });
-      expect(squads.every((s) => s.status === "CONFIRMED")).toBe(true);
+      expect(squads.every((s) => s.status === "LOCKED")).toBe(true);
 
       await cleanEventTables(db);
     });
@@ -282,15 +282,15 @@ describe("event-squad-commit-actions", () => {
         data: { eventId: event.id, name: "Empty Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 5, status: "DRAFT" },
       });
 
-      const result = await confirmEventSquadsAction(event.id);
+      const result = await lockEventSquadsAction(event.id);
       expect(result.success).toBe(false);
 
       await cleanEventTables(db);
     });
   });
 
-  describe("unconfirmEventSquadsAction", () => {
-    it("reverts CONFIRMED squads back to DRAFT", async () => {
+  describe("unlockEventSquadsAction", () => {
+    it("reverts LOCKED squads back to DRAFT", async () => {
       const event = await db.event.create({
         data: {
           name: "Unconfirm Event",
@@ -301,13 +301,13 @@ describe("event-squad-commit-actions", () => {
         },
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Confirmed Squad", intent: "COMPETITIVE", targetSize: 7, status: "CONFIRMED" },
+        data: { eventId: event.id, name: "Locked Squad", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED" },
       });
 
-      const result = await unconfirmEventSquadsAction(event.id);
+      const result = await unlockEventSquadsAction(event.id);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.unconfirmedCount).toBe(1);
+        expect(result.unlockedCount).toBe(1);
       }
 
       const squads = await db.eventSquad.findMany({ where: { eventId: event.id } });
@@ -330,7 +330,7 @@ describe("event-squad-commit-actions", () => {
         data: { eventId: event.id, name: "Draft Squad", intent: "BALANCED", targetSize: 7, status: "DRAFT" },
       });
 
-      const result = await unconfirmEventSquadsAction(event.id);
+      const result = await unlockEventSquadsAction(event.id);
       expect(result.success).toBe(false);
 
       await cleanEventTables(db);
@@ -358,12 +358,12 @@ describe("event-squad-commit-actions", () => {
       const result = await getEventSquadsStatusAction(event.id);
       expect(result.aggregateStatus).toBe("DRAFT");
       expect(result.allDraft).toBe(true);
-      expect(result.allConfirmed).toBe(false);
+      expect(result.allLocked).toBe(false);
 
       await cleanEventTables(db);
     });
 
-    it("returns CONFIRMED aggregate when all squads are CONFIRMED", async () => {
+    it("returns LOCKED aggregate when all squads are LOCKED", async () => {
       const event = await db.event.create({
         data: {
           name: "Status Confirmed Event",
@@ -374,12 +374,12 @@ describe("event-squad-commit-actions", () => {
         },
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Confirmed A", intent: "COMPETITIVE", targetSize: 7, status: "CONFIRMED" },
+        data: { eventId: event.id, name: "Locked A", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED" },
       });
 
       const result = await getEventSquadsStatusAction(event.id);
-      expect(result.aggregateStatus).toBe("CONFIRMED");
-      expect(result.allConfirmed).toBe(true);
+      expect(result.aggregateStatus).toBe("LOCKED");
+      expect(result.allLocked).toBe(true);
       expect(result.allDraft).toBe(false);
 
       await cleanEventTables(db);
@@ -396,7 +396,7 @@ describe("event-squad-commit-actions", () => {
         },
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Confirmed Squad", intent: "COMPETITIVE", targetSize: 7, status: "CONFIRMED" },
+        data: { eventId: event.id, name: "Locked Squad", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED" },
       });
       await db.eventSquad.create({
         data: { eventId: event.id, name: "Draft Squad", intent: "BALANCED", targetSize: 7, status: "DRAFT" },

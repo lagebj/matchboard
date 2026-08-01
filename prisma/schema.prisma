@@ -1607,7 +1607,7 @@ enum EventSquadIntent {
 
 enum EventSquadStatus {
   DRAFT
-  CONFIRMED
+  LOCKED
 }
 
 enum EventSelectionPattern {
