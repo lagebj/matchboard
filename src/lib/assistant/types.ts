@@ -16,7 +16,8 @@ export type AssistantWorkCategory =
   | "unknown_attendance"
   | "event_report_incomplete"
   | "upcoming_round"
-  | "live_report_available";
+  | "live_report_available"
+  | "pending_profile_suggestions";
 
 export type AssistantWorkItem = {
   id: string;
@@ -61,4 +62,5 @@ export const CATEGORY_PRIORITY: Record<AssistantWorkCategory, number> = {
   event_report_incomplete: 15,
   upcoming_round: 16,
   live_report_available: 17,
+  pending_profile_suggestions: 18,
 };

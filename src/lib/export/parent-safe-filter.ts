@@ -159,6 +159,13 @@ const PARENT_EXCLUDED_FIELDS = [
   "opponentSpectatorContext",
   "matchFit",
   "readinessSignals",
+  "sportingLevelEstimate",
+  "sportingLevelConfidence",
+  "developmentObservations",
+  "profileSuggestions",
+  "attributeKey",
+  "observableNote",
+  "direction",
 ] as const;
 
 export function isParentExcludedField(fieldName: string): boolean {
