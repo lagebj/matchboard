@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
+import { supersedePendingReviews } from '@/lib/review/review-service';
 import { requireCoachAccess } from '@/lib/auth';
 import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
@@ -915,6 +916,14 @@ export async function generateEventSquadsAction(eventId: string) {
       });
     }
   }, { timeout: 15000 });
+
+  const eventSquadsForReview = await db.eventSquad.findMany({
+    where: { eventId },
+    select: { id: true },
+  });
+  for (const squad of eventSquadsForReview) {
+    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+  }
 
   revalidatePath(`/events/${eventId}`);
 
