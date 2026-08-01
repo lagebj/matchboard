@@ -202,3 +202,89 @@ export async function recordOpponentSportingEvidence(
 
   return { recorded: true, evidenceId: evidence.id };
 }
+
+export async function excludeOpponentSportingEvidence(
+  evidenceId: string,
+  reason: string,
+  orgFilter: OrgFilterMode,
+): Promise<{ success: boolean; error?: string }> {
+  if (orgFilter.type !== "org") {
+    return { success: false, error: "Organisation access required" };
+  }
+
+  const evidence = await db.opponentSportingEvidence.findUnique({
+    where: { id: evidenceId },
+  });
+
+  if (!evidence) {
+    return { success: false, error: "Evidence not found" };
+  }
+
+  if (evidence.organisationId !== orgFilter.organisationId) {
+    return { success: false, error: "Access denied" };
+  }
+
+  if (evidence.excludedAt) {
+    return { success: false, error: "Evidence already excluded" };
+  }
+
+  await db.opponentSportingEvidence.update({
+    where: { id: evidenceId },
+    data: {
+      excludedAt: new Date(),
+      exclusionReason: reason,
+    },
+  });
+
+  return { success: true };
+}
+
+export async function includeOpponentSportingEvidence(
+  evidenceId: string,
+  orgFilter: OrgFilterMode,
+): Promise<{ success: boolean; error?: string }> {
+  if (orgFilter.type !== "org") {
+    return { success: false, error: "Organisation access required" };
+  }
+
+  const evidence = await db.opponentSportingEvidence.findUnique({
+    where: { id: evidenceId },
+  });
+
+  if (!evidence) {
+    return { success: false, error: "Evidence not found" };
+  }
+
+  if (evidence.organisationId !== orgFilter.organisationId) {
+    return { success: false, error: "Access denied" };
+  }
+
+  if (!evidence.excludedAt) {
+    return { success: false, error: "Evidence is not excluded" };
+  }
+
+  await db.opponentSportingEvidence.update({
+    where: { id: evidenceId },
+    data: {
+      excludedAt: null,
+      exclusionReason: null,
+    },
+  });
+
+  return { success: true };
+}
+
+export async function getOpponentSportingEvidence(
+  opponentTeamId: string,
+  orgFilter: OrgFilterMode,
+): Promise<Prisma.OpponentSportingEvidenceGetPayload<{}>[]> {
+  if (orgFilter.type !== "org") return [];
+
+  return db.opponentSportingEvidence.findMany({
+    where: {
+      opponentTeamId,
+      ...orgFilter.filter,
+    },
+    orderBy: { occurredAt: "desc" },
+  });
+}

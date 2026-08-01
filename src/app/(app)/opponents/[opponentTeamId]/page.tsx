@@ -5,6 +5,9 @@ import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import Link from "next/link";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
+import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
+import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
+import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +89,61 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     postMatchResults[r.matchId] = { homeGoals: r.homeGoals, awayGoals: r.awayGoals };
   }
 
+  let sportingLevelData: {
+    aggregate: {
+      estimatedLevel: number;
+      confidence: string;
+      validEncounterCount: number;
+      lastEncounterDate: string | null;
+      gameFormat: string | null;
+    } | null;
+    evidence: Array<{
+      id: string;
+      matchId: string;
+      occurredAt: string;
+      gameFormat: string | null;
+      goalsFor: number;
+      goalsAgainst: number;
+      fieldedRatingSnapshot: number | null;
+      estimate: number;
+      excludedAt: string | null;
+      exclusionReason: string | null;
+      weightingMethod: string;
+      formulaVersion: string;
+    }>;
+  } = { aggregate: null, evidence: [] };
+
+  if (orgFilter.type === "org") {
+    const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, orgFilter);
+    const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
+
+    sportingLevelData = {
+      aggregate: aggregate
+        ? {
+            estimatedLevel: aggregate.estimatedLevel,
+            confidence: aggregate.confidence,
+            validEncounterCount: aggregate.validEncounterCount,
+            lastEncounterDate: aggregate.lastEncounterDate?.toISOString() ?? null,
+            gameFormat: aggregate.gameFormat,
+          }
+        : null,
+      evidence: evidenceRecords.map((e) => ({
+        id: e.id,
+        matchId: e.matchId,
+        occurredAt: e.occurredAt.toISOString(),
+        gameFormat: e.gameFormat,
+        goalsFor: e.goalsFor,
+        goalsAgainst: e.goalsAgainst,
+        fieldedRatingSnapshot: e.fieldedRatingSnapshot ? Number(e.fieldedRatingSnapshot) : null,
+        estimate: Number(e.estimate),
+        excludedAt: e.excludedAt ? e.excludedAt.toISOString() : null,
+        exclusionReason: e.exclusionReason,
+        weightingMethod: e.weightingMethod,
+        formulaVersion: e.formulaVersion,
+      })),
+    };
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -122,10 +180,17 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      <SportingLevelSection
+        opponentTeamId={opponentTeamId}
+        initialAggregate={sportingLevelData.aggregate}
+        initialEvidence={sportingLevelData.evidence}
+      />
+
       {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No encounter observations recorded for this opponent.</p>
       ) : (
         <div className="overflow-x-auto">
+          <h2 className="text-xl font-semibold text-zinc-50 mb-3">Encounter history</h2>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
