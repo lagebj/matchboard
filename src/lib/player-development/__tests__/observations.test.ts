@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-
-const RATING_ATTRIBUTE_KEYS = [
-  "ballControl", "passing", "firstTouch", "oneVOneAttacking", "positioning",
-  "oneVOneDefending", "decisionMaking", "effort", "teamplay", "concentration",
-  "speed", "strength",
-] as const;
+import { RATING_ATTRIBUTE_KEYS } from "../constants";
 
 describe("Development observations constants", () => {
   it("has exactly 12 rating attribute keys", () => {

@@ -1,25 +1,9 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { DevelopmentObservationSource, DevelopmentObservationKind, DevelopmentDirection } from "@/generated/prisma/client";
+import { DevelopmentObservationSource } from "@/generated/prisma/client";
 import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { requireCoachAccess } from "@/lib/auth";
-
-export const RATING_ATTRIBUTE_KEYS = [
-  "ballControl",
-  "passing",
-  "firstTouch",
-  "oneVOneAttacking",
-  "positioning",
-  "oneVOneDefending",
-  "decisionMaking",
-  "effort",
-  "teamplay",
-  "concentration",
-  "speed",
-  "strength",
-] as const;
-
-export type DevelopmentAttributeKey = (typeof RATING_ATTRIBUTE_KEYS)[number];
+import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./constants";
 
 export type DevelopmentObservationInput = {
   playerId: string;

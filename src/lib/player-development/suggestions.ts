@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { requireCoachAccess } from "@/lib/auth";
 import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
-import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./observations";
+import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./constants";
 import { evaluateAttributeEvidence, computeAttributeProposal, type AttributeEvidenceResult, type AttributeSuggestion } from "./evidence";
 
 export type SuggestionDecision = "ACCEPT" | "ADJUST" | "REJECT";
