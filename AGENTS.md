@@ -1856,6 +1856,25 @@ Avoid:
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 
+### Coaching intelligence files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/coaching/types.ts` | Coaching domain constants and types: intent categories, readiness signals, matchday responsibilities, feedback categories, disallowed language |
+| `src/lib/coaching/coaching-intent.ts` | Coaching intent CRUD and scope resolution (match → round → league season cascade) |
+| `src/lib/coaching/readiness-signals.ts` | Readiness signal CRUD, validation, and warnings |
+| `src/lib/coaching/match-execution-feedback.ts` | Match execution feedback CRUD, validation, and disallowed-language guard |
+| `src/lib/coaching/team-reflection.ts` | Team reflection CRUD and upsert |
+| `src/lib/coaching/matchday-responsibility.ts` | Matchday responsibility assignment, validation, and description |
+| `src/lib/coaching/index.ts` | Barrel export for coaching domain |
+| `src/lib/selection/readiness-scoring.ts` | Readiness scoring modifiers for selection engine |
+| `src/components/players/player-readiness-panel.tsx` | Readiness signals editor panel on player profile |
+| `src/components/matches/coaching-intent-selector.tsx` | Coaching intent dropdown selector |
+| `src/components/matches/matchday-responsibility-selector.tsx` | Matchday responsibility dropdown selector |
+| `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
+| `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
+| `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
+
 ### Transactional email files
 
 | File | Purpose |
