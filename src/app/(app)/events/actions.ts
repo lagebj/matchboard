@@ -393,7 +393,7 @@ export async function assignPlayerToEventSquadAction(
   await requireEventOrgAccess(eventId, orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
-    where: { playerId, eventSquad: { eventId } },
+    where: { playerId, eventId },
   });
 
   if (existing) {
@@ -402,6 +402,7 @@ export async function assignPlayerToEventSquadAction(
 
   await db.eventSquadPlayer.create({
     data: {
+      eventId,
       eventSquadId: squadId,
       playerId,
       source: locked ? 'LOCKED' : 'MANUAL',
@@ -570,6 +571,21 @@ export async function movePlayerBetweenSquadsAction(
 
   if (!existing) throw new Error('Player not found in source squad.');
 
+  const toSquad = await db.eventSquad.findUnique({
+    where: { id: toSquadId },
+    select: { eventId: true },
+  });
+
+  if (!toSquad) throw new Error('Target squad not found.');
+
+  const alreadyInTarget = await db.eventSquadPlayer.findFirst({
+    where: { playerId, eventId: toSquad.eventId, NOT: { id: existing.id } },
+  });
+
+  if (alreadyInTarget) {
+    throw new Error('Player is already in another squad in this event.');
+  }
+
   await db.$transaction(async (tx) => {
     await tx.eventSquadPlayer.delete({
       where: { id: existing.id },
@@ -577,6 +593,7 @@ export async function movePlayerBetweenSquadsAction(
 
     await tx.eventSquadPlayer.create({
       data: {
+        eventId: toSquad.eventId,
         eventSquadId: toSquadId,
         playerId,
         source: 'MANUAL',
@@ -586,14 +603,7 @@ export async function movePlayerBetweenSquadsAction(
     });
   });
 
-  const toSquad = await db.eventSquad.findUnique({
-    where: { id: toSquadId },
-    select: { eventId: true },
-  });
-
-  if (toSquad) {
-    revalidatePath(`/events/${toSquad.eventId}`);
-  }
+  revalidatePath(`/events/${toSquad.eventId}`);
 }
 
 export async function togglePlayerLockAction(
@@ -896,6 +906,7 @@ export async function generateEventSquadsAction(eventId: string) {
     if (newAssignments.length > 0) {
       await tx.eventSquadPlayer.createMany({
         data: newAssignments.map((assignment) => ({
+          eventId: assignment.eventId,
           eventSquadId: assignment.eventSquadId,
           playerId: assignment.playerId,
           assignedSlotIndex: assignment.assignedSlotIndex,

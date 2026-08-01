@@ -95,7 +95,7 @@ describe("event-squad-commit-actions", () => {
       await cleanEventTables(db);
     });
 
-    it("returns blocking issue for duplicate player across squads", async () => {
+    it("rejects duplicate player across squads at DB level", async () => {
       const { player } = await createPlayer(db);
       const event = await db.event.create({
         data: {
@@ -112,12 +112,11 @@ describe("event-squad-commit-actions", () => {
       const squadB = await db.eventSquad.create({
         data: { eventId: event.id, name: "Squad B", intent: "BALANCED", targetSize: 5, status: "DRAFT" },
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squadA.id, playerId: player.id, source: "AUTO" } });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squadB.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squadA.id, playerId: player.id, source: "AUTO" } });
 
-      const result = await validateEventSquadsBeforeLock(event.id);
-      expect(result.valid).toBe(false);
-      expect(result.issues.some((i) => i.code === "duplicate_player_across_squads")).toBe(true);
+      await expect(
+        db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squadB.id, playerId: player.id, source: "AUTO" } }),
+      ).rejects.toThrow();
 
       await cleanEventTables(db);
     });
@@ -139,7 +138,7 @@ describe("event-squad-commit-actions", () => {
       const squad = await db.eventSquad.create({
         data: { eventId: event.id, name: "Squad A", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" },
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
 
       const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
@@ -183,7 +182,7 @@ describe("event-squad-commit-actions", () => {
       const squad = await db.eventSquad.create({
         data: { eventId: event.id, name: "Short Squad", intent: "BALANCED", targetSize: 7, minSize: 5, status: "DRAFT" },
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
 
       const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.issues.some((i) => i.code === "squad_below_target")).toBe(true);
@@ -206,7 +205,7 @@ describe("event-squad-commit-actions", () => {
       const squad = await db.eventSquad.create({
         data: { eventId: event.id, name: "No GK Squad", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" },
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squad.id, playerId: player.id, source: "AUTO" } });
 
       const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(false);
@@ -229,7 +228,7 @@ describe("event-squad-commit-actions", () => {
       const squad = await db.eventSquad.create({
         data: { eventId: event.id, name: "Good Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 1, status: "DRAFT" },
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: gk.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squad.id, playerId: gk.id, source: "AUTO" } });
 
       const result = await validateEventSquadsBeforeLock(event.id);
       expect(result.valid).toBe(true);
@@ -254,7 +253,7 @@ describe("event-squad-commit-actions", () => {
       const squad = await db.eventSquad.create({
         data: { eventId: event.id, name: "Ready Squad", intent: "COMPETITIVE", targetSize: 7, status: "DRAFT" },
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, playerId: gk.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventId: event.id, eventSquadId: squad.id, playerId: gk.id, source: "AUTO" } });
 
       const result = await lockEventSquadsAction(event.id);
       expect(result.success).toBe(true);

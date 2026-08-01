@@ -118,7 +118,7 @@ describe('Event export route', () => {
         data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
       });
       await testDb.eventSquadPlayer.create({
-        data: { eventSquadId: squad1.id, playerId: p.id, source: 'AUTO', locked: false },
+        data: { eventId: event.id, eventSquadId: squad1.id, playerId: p.id, source: 'AUTO', locked: false },
       });
     }
 
@@ -127,7 +127,7 @@ describe('Event export route', () => {
         data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
       });
       await testDb.eventSquadPlayer.create({
-        data: { eventSquadId: squad2.id, playerId: p.id, source: 'AUTO', locked: false },
+        data: { eventId: event.id, eventSquadId: squad2.id, playerId: p.id, source: 'AUTO', locked: false },
       });
     }
 
@@ -331,7 +331,7 @@ describe('Event export route', () => {
         data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
       });
       await testDb.eventSquadPlayer.create({
-        data: { eventSquadId: squad.id, playerId: p.id, source: 'AUTO', locked: false },
+        data: { eventId: event.id, eventSquadId: squad.id, playerId: p.id, source: 'AUTO', locked: false },
       });
     }
 

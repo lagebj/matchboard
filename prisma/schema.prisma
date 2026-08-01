@@ -949,6 +949,7 @@ model Event {
   updatedAt              DateTime                  @updatedAt
   players                EventPlayerAvailability[]
   squads                 EventSquad[]
+  squadPlayers           EventSquadPlayer[]
   eventMatches           EventMatch[]
   organisation           Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -1008,6 +1009,7 @@ model EventSquad {
 model EventSquadPlayer {
   id                 String                 @id @default(cuid())
   organisationId     String?
+  eventId            String
   eventSquadId       String
   playerId           String
   assignedRoleType   FormationSlotRoleType?
@@ -1022,9 +1024,11 @@ model EventSquadPlayer {
   updatedAt          DateTime               @updatedAt
   positionFitTier    String?
   eventSquad         EventSquad             @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  event              Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   player             Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
   organisation       Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  @@unique([eventId, playerId])
   @@unique([eventSquadId, playerId])
   @@index([playerId])
   @@index([organisationId])

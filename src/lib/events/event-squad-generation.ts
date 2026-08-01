@@ -325,6 +325,7 @@ function distributeGoalkeepers(
   gameFormat: GameFormat,
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
+  eventId: string,
 ): void {
   const gkPlayers = players.filter((p) => !assignedGlobal.has(p.playerId) && p.isGoalkeeper);
   gkPlayers.sort((a, b) => {
@@ -348,6 +349,7 @@ function distributeGoalkeepers(
     assignedGlobal.add(gk.playerId);
     assignments.push({
       playerId: gk.playerId,
+      eventId: eventId,
       eventSquadId: squad.id,
       assignedRoleType: gkSlot?.roleType ?? 'GOALKEEPER',
       assignedPositionId: gkSlot?.label ?? 'Goalkeeper',
@@ -380,6 +382,7 @@ function distributeByRoleAcrossSquads(
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
   _notes: string[],
+  eventId: string,
 ): void {
   const slotsPerSquad = squads.map((squad) => {
     const formation = getFormationForSquad(squad, formations, defaultFormationId);
@@ -450,6 +453,7 @@ function distributeByRoleAcrossSquads(
           const fitTier = result.fitTier;
           assignments.push({
             playerId: result.player.playerId,
+            eventId: eventId,
             eventSquadId: squads[squadIdx].id,
             assignedRoleType: squadSlot.slot.roleType,
             assignedPositionId: squadSlot.slot.label,
@@ -472,7 +476,7 @@ function distributeByRoleAcrossSquads(
 
   const remainingPlayers = players.filter((p) => !assignedGlobal.has(p.playerId));
   if (remainingPlayers.length > 0) {
-    distributeRemainingByBalance(remainingPlayers, squads, assignments, assignedGlobal);
+    distributeRemainingByBalance(remainingPlayers, squads, assignments, assignedGlobal, eventId);
   }
 
   optimizeSwapsForBalance(players, squads, assignments, assignedGlobal);
@@ -483,6 +487,7 @@ function distributeRemainingByBalance(
   squads: GenerationInput['squads'],
   assignments: EventSquadAssignment[],
   assignedGlobal: Set<string>,
+  eventId: string,
 ): void {
   const sorted = [...players].sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
 
@@ -523,6 +528,7 @@ function distributeRemainingByBalance(
     const hasUncertainty = player.ratings.overallLevel === null;
     assignments.push({
       playerId: player.playerId,
+      eventId: eventId,
       eventSquadId: targetSquad.id,
       assignedRoleType: null,
       assignedPositionId: null,
@@ -636,6 +642,7 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
       if (squad) {
         assignments.push({
           playerId,
+          eventId: input.eventId,
           eventSquadId: squadId,
           assignedRoleType: null,
           assignedPositionId: null,
@@ -663,13 +670,13 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
 
   switch (selectionPattern) {
     case 'ALL_BALANCED':
-      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo);
+      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
       break;
     case 'ONE_COMPETITIVE_BALANCED_REMAINDER':
-      distributeOneCompetitiveBalancedRemainder(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo);
+      distributeOneCompetitiveBalancedRemainder(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
       break;
     case 'MANUAL_SEED_AUTO_BALANCE':
-      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo);
+      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
       break;
   }
 
@@ -730,18 +737,19 @@ function distributeAllBalanced(
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
   scarcityInfo: ReturnType<typeof computePositionScarcity>,
+  eventId: string,
 ): void {
   if (squads.length === 0 || players.length === 0) return;
 
   const assignedGlobal = new Set(assignments.map((a) => a.playerId));
 
-  distributeGoalkeepers(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId);
+  distributeGoalkeepers(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, eventId);
 
   const _protectedRoles = new Set(
     scarcityInfo.filter((s) => s.isScarce).map((s) => s.position),
   );
 
-  distributeByRoleAcrossSquads(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, notes);
+  distributeByRoleAcrossSquads(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, notes, eventId);
 }
 
 function distributeOneCompetitiveBalancedRemainder(
@@ -753,13 +761,14 @@ function distributeOneCompetitiveBalancedRemainder(
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
   scarcityInfo: ReturnType<typeof computePositionScarcity>,
+  eventId: string,
 ): void {
   const competitiveSquad = squads.find((s) => s.intent === 'COMPETITIVE');
   const balancedSquads = squads.filter((s) => s.intent !== 'COMPETITIVE');
 
   if (!competitiveSquad) {
     notes.push('No competitive squad found for ONE_COMPETITIVE_BALANCED_REMAINDER pattern');
-    distributeAllBalanced(players, squads, assignments, gameFormat, notes, formations, defaultFormationId, scarcityInfo);
+    distributeAllBalanced(players, squads, assignments, gameFormat, notes, formations, defaultFormationId, scarcityInfo, eventId);
     return;
   }
 
@@ -792,6 +801,7 @@ function distributeOneCompetitiveBalancedRemainder(
       const fitTier = result.fitTier;
       assignments.push({
         playerId: result.player.playerId,
+        eventId: eventId,
         eventSquadId: competitiveSquad.id,
         assignedRoleType: slot.roleType,
         assignedPositionId: slot.label,
@@ -821,6 +831,7 @@ function distributeOneCompetitiveBalancedRemainder(
       const hasUncertainty = player.ratings.overallLevel === null;
       assignments.push({
         playerId: player.playerId,
+        eventId: eventId,
         eventSquadId: competitiveSquad.id,
         assignedRoleType: null,
         assignedPositionId: null,
@@ -845,6 +856,7 @@ function distributeOneCompetitiveBalancedRemainder(
       formations,
       defaultFormationId,
       scarcityInfo,
+      eventId,
     );
   }
 }
