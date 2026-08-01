@@ -14,6 +14,7 @@ import { PlayerDetailsPanel } from "@/components/players/player-details-panel";
 import { PlayerAttributesPanel } from "@/components/players/player-attributes-panel";
 import { PlayerAvailabilityPanel } from "@/components/players/player-availability-panel";
 import { CoachContextPanel as PlayerCoachContextPanel } from "@/components/players/player-coach-context-panel";
+import { PlayerReadinessPanel } from "@/components/players/player-readiness-panel";
 import { PlayerReportSummaryPanel } from "@/components/players/player-report-summary-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
@@ -79,7 +80,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   if (!player) notFound();
 
-  const [rotationPaths, movementCandidates] = await Promise.all([
+  const [rotationPaths, movementCandidates, readinessSignals] = await Promise.all([
     db.rotationPath.findMany({
       where: {
         OR: [
@@ -107,6 +108,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         },
       },
       orderBy: { createdAt: "desc" },
+    }),
+    db.playerReadinessSignal.findMany({
+      where: { playerId, ...orgWhere },
+      orderBy: { signalType: "asc" },
     }),
   ]);
 
@@ -183,6 +188,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               rotationPaths={mappedRotationPaths}
               movementCandidates={mappedMovementCandidates}
               coreTeamId={player.coreTeamId}
+            />
+            <PlayerReadinessPanel
+              playerId={player.id}
+              signals={readinessSignals.map((s) => ({ id: s.id, signalType: s.signalType, value: s.value, note: s.note }))}
             />
           </div>
         }
