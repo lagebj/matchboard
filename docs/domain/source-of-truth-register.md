@@ -166,9 +166,9 @@ Fields and structures identified as potential duplicate or legacy sources. These
 | `Selection.role` / `MovementLedger` role values | Legacy BACKFILL vs new SUPPORT for squad repair | Display, movement tracking | Generation engine | Same movement shows different roles | No | IMPROVE-0C: complete BACKFILL→SUPPORT migration |
 | `Selection.controlledDoubleLoad` / `MovementLedger.controlledDoubleLoad` | Legacy double-load fields | Effective participation | Legacy generation | Fields may be inconsistent | No | IMPROVE-0C: deprecate when migration complete |
 | `Warning` rows / live plan integrity | Stale written projections vs canonical derived calculation | Formerly: Assistant issues; now: plan integrity | Generation engine writes, reconciliation updates | Stale Warning rows not matching canonical live state | No | IMPROVE-0C: full reconciliation sweep, deprecate Warning.resolved |
-| `PlayerPosition` table / `Player.primaryPosition` etc. | Two representations of player positions — table never read | No active read paths | Sync logic writes both | Table data stale relative to Player fields | No | IMPROVE-0B: make Player fields canonical, stop writing table |
+| `PlayerPosition` table / `Player.primaryPosition` etc. | Two representations of player positions — table never read | No active read paths | Sync logic writes both | Table data stale relative to Player fields | Yes (confirmed) | IMPROVE-0B: Player scalar fields confirmed canonical; PlayerPosition retained as secondary derived store for future approved-position workflow |
 | `Team.minSupportPlayers` (Int) | Appears unused alongside `minSupportCount` and `targetSupportCount` | Unknown | Team config UI | May not be actively used | No | IMPROVE-0B: audit read paths, remove if unused |
-| String-typed enum fields | Prisma stores enum values as strings without constraint enforcement | Application code | Application code | Application may write invalid values | No | IMPROVE-0C: migrate to proper enums with CHECK constraints |
+| String-typed enum fields | Prisma stores enum values as strings without constraint enforcement | Application code | Application code + CHECK constraints | Application may write invalid values | Yes (partial) | IMPROVE-0C: Availability.status migrated to enum; CHECK constraints added for 9 string fields across 7 models |
 | CoachingIntentScopeType.PLANNING_PERIOD | Enum value uses legacy terminology | Intent display, selection engine | Admin config | Inconsistent with user-facing "League season" language | No | IMPROVE-0B: rename to LEAGUE_SEASON |
 
 ## Production correction principles
@@ -231,7 +231,7 @@ Fields and structures identified as potential duplicate or legacy sources. These
 |---|---|---|---|
 | Warning/plan integrity reconciliation | `reconcile-canonical-derived-data.ts` exists | Production dry-run and full sweep not yet executed | Medium |
 | `Team.minSupportCount` / `minSupportPlayers` divergence | Audit detects | No unification yet | Low |
-| `PlayerPosition` table vs `Player.primaryPosition` | Table never read, sync logic writes both | Remove table writes or make table canonical | Medium |
+| `PlayerPosition` table vs `Player.primaryPosition` | Table never read, sync logic writes both | Player scalar fields confirmed canonical; table retained as secondary derived store | Medium |
 | `CoachingIntentScopeType.PLANNING_PERIOD` | Legacy enum value | Rename to `LEAGUE_SEASON` | Medium |
 | Missing unique constraint on Selection (playerId, matchRoundId) | Application enforced but DB did not | Partial unique index added (2026-07-29) | Critical — **Resolved** |
 | String-typed enum fields | No DB constraint on valid values | Migrate to proper enums | Medium |
