@@ -7,10 +7,16 @@ import pg from "pg";
 // Database connection configuration
 //
 // RLS role architecture (per ADR-0037):
-// - DATABASE_URL: Uses matchboard_app role (restricted by RLS, for runtime queries)
-//   Must NOT have BYPASSRLS. Tenant context is set via SET LOCAL in transactions.
-// - DIRECT_URL: Uses matchboard_admin role (BYPASSRLS, for Prisma migrations only)
-//   This role can bypass RLS for schema changes and data migrations.
+// - DATABASE_URL: Uses matchboard_app_runtime role (restricted by RLS, for runtime queries)
+//   NOBYPASSRLS, NOINHERIT. Tenant context is set via SET LOCAL in transactions.
+//   Neon Console-created roles inherit BYPASSRLS from neon_superuser, making RLS
+//   ineffective. The matchboard_app_runtime role is SQL-managed with correct attributes.
+// - DIRECT_URL: Uses matchboard_admin_migration role (NOBYPASSRLS, for Prisma migrations)
+//   Has admin_all RLS policy granting full access. Does NOT need BYPASSRLS.
+//   Also SQL-managed to avoid neon_superuser BYPASSRLS inheritance.
+//
+// Legacy roles (matchboard_app, matchboard_admin) exist in the database but inherit
+// BYPASSRLS from neon_superuser and must NOT be used for application connections.
 //
 // For local development without RLS roles, the default PostgreSQL user is used
 // and RLS policies are not enforced (superuser bypasses RLS).
