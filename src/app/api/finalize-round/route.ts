@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { finalizeRoundSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 export async function POST(request: Request) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const { allowed } = rateLimit("finalize-round", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many finalization requests. Please wait a moment and try again." }, { status: 429 });
@@ -34,7 +32,7 @@ export async function POST(request: Request) {
   if (!matchRound) {
     return NextResponse.json({ error: "Match round not found" }, { status: 404 });
   }
-  if (orgFilter.type === "org" && matchRound.organisationId !== orgFilter.organisationId) {
+  if (matchRound.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "Match round not found or access denied." }, { status: 404 });
   }
 

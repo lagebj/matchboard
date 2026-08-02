@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole, formatReadinessSignalType } from "@/lib/match-utils";
@@ -41,8 +40,7 @@ function buildFilename(format: ExportFormat) {
 // parent visibility mode entirely.
 
 export async function GET(request: NextRequest) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const rl = rateLimit("season:export", 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
@@ -65,14 +63,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
 
-  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 
-  logDataExport(coach.email ?? "unknown", format, visibility, "success");
+  logDataExport(ctx.email || "unknown", format, visibility, "success");
 
   const matchRounds = await db.matchRound.findMany({
-    where: { leagueSeasonId, status: "FINALIZED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { leagueSeasonId, status: "FINALIZED", ...ctx.orgFilter.filter },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -84,7 +82,7 @@ export async function GET(request: NextRequest) {
       matchRoundId: { in: roundIds },
       status: SelectionStatus.FINALIZED,
       player: { removedAt: null, active: true },
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: {
       matchRoundId: true,
@@ -120,7 +118,7 @@ export async function GET(request: NextRequest) {
     where: {
       matchRoundId: { in: roundIds },
       isDraft: false,
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: {
       matchRoundId: true,
@@ -140,7 +138,7 @@ export async function GET(request: NextRequest) {
   const readinessSignals = await db.playerReadinessSignal.findMany({
     where: {
       playerId: { in: [...new Set(selections.map((s) => s.playerId))] },
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: {
       playerId: true,

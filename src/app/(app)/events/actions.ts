@@ -4,8 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { supersedePendingReviews } from '@/lib/review/review-service';
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
+import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
   VALID_EVENT_TYPES,
@@ -41,11 +41,10 @@ async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode):
 }
 
 export async function getEvents() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   return db.event.findMany({
     where: {
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     orderBy: { startsAt: 'desc' },
     include: {
@@ -64,12 +63,11 @@ export async function getEvents() {
 }
 
 export async function getEventById(id: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   return db.event.findUnique({
     where: {
       id,
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     include: {
       squads: {
@@ -91,8 +89,7 @@ export async function getEventById(id: string) {
 }
 
 export async function createEventAction(formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -139,7 +136,7 @@ export async function createEventAction(formData: FormData) {
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
       notes,
-      ...(orgFilter.type === 'org' ? { organisationId: orgFilter.organisationId } : {}),
+      ...(ctx.orgFilter.type === 'org' ? { organisationId: ctx.orgFilter.organisationId } : {}),
       squads: {
         create: Array.from({ length: squadCount }, (_, i) => ({
           name: i === 0 ? 'Squad 1' : `Squad ${i + 1}`,
@@ -160,8 +157,7 @@ export async function createEventAction(formData: FormData) {
 }
 
 export async function updateEventAction(id: string, formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -184,7 +180,7 @@ export async function updateEventAction(id: string, formData: FormData) {
     const formation = await db.formation.findUnique({
       where: {
         id: defaultFormationId,
-        ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+        ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
       },
       select: { id: true, gameFormat: true },
     });
@@ -196,7 +192,7 @@ export async function updateEventAction(id: string, formData: FormData) {
     }
   }
 
-  const orgWhere = orgFilter.type === 'org' ? { id, ...orgFilter.filter } : { id };
+  const orgWhere = ctx.orgFilter.type === 'org' ? { id, ...ctx.orgFilter.filter } : { id };
 
   const event = await db.event.update({
     where: orgWhere,
@@ -219,13 +215,12 @@ export async function updateEventAction(id: string, formData: FormData) {
 }
 
 export async function deleteEventAction(id: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const event = await db.event.findFirst({
     where: {
       id,
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     select: { id: true },
   });
@@ -242,9 +237,8 @@ export async function updateEventPlayerAvailability(
   playerId: string,
   status: EventPlayerStatus,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_EVENT_PLAYER_STATUSES.includes(status)) {
     throw new Error(`Invalid availability status: ${status}`);
@@ -272,9 +266,8 @@ export async function setEventPlayerPool(
   playerIds: string[],
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
     throw new Error(`Invalid availability status: ${defaultStatus}`);
@@ -304,9 +297,8 @@ export async function addPlayersToEventPoolAction(
   playerIds: string[],
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
 
@@ -337,9 +329,8 @@ export async function addPlayersToEventPoolAction(
 }
 
 export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const squadAssignment = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -360,9 +351,8 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
 }
 
 export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
 
@@ -389,9 +379,8 @@ export async function assignPlayerToEventSquadAction(
   playerId: string,
   locked: boolean = false,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -416,8 +405,7 @@ export async function assignPlayerToEventSquadAction(
 }
 
 export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
@@ -426,7 +414,7 @@ export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: str
 
   if (!squadPlayer) throw new Error('Squad assignment not found.');
 
-  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
+  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
   await db.eventSquadPlayer.delete({
     where: { id: eventSquadPlayerId },
@@ -442,9 +430,8 @@ export async function addEventSquadAction(
   targetSize: number,
   formationId?: string,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_SQUAD_INTENTS.includes(intent)) {
     throw new Error(`Invalid squad intent: ${intent}`);
@@ -482,9 +469,8 @@ export async function updateEventSquadAction(
     formationId?: string;
   },
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const _eventId = await requireSquadOrgAccess(squadId, orgFilter);
+  const ctx = await requireActorContext();
+  const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   const updateData: Parameters<typeof db.eventSquad.update>[0]['data'] = {};
 
@@ -511,9 +497,8 @@ export async function updateEventSquadAction(
 }
 
 export async function updateEventSquadNameAction(squadId: string, name: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const _eventId = await requireSquadOrgAccess(squadId, orgFilter);
+  const ctx = await requireActorContext();
+  const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Squad name cannot be empty.');
@@ -528,9 +513,8 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
 }
 
 export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const validated = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
@@ -545,9 +529,8 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
 }
 
 export async function removeEventSquadAction(squadId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const _eventId = await requireSquadOrgAccess(squadId, orgFilter);
+  const ctx = await requireActorContext();
+  const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   await db.eventSquad.delete({
     where: { id: squadId },
@@ -561,10 +544,9 @@ export async function movePlayerBetweenSquadsAction(
   fromSquadId: string,
   toSquadId: string,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const eventId = await requireSquadOrgAccess(fromSquadId, orgFilter);
-  await requireSquadOrgAccess(toSquadId, orgFilter);
+  const ctx = await requireActorContext();
+  const eventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
+  await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquadId: fromSquadId },
@@ -603,8 +585,7 @@ export async function togglePlayerLockAction(
   squadPlayerId: string,
   locked: boolean,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: squadPlayerId },
@@ -613,7 +594,7 @@ export async function togglePlayerLockAction(
 
   if (!squadPlayer) throw new Error('Squad player assignment not found.');
 
-  await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
+  await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
   const updated = await db.eventSquadPlayer.update({
     where: { id: squadPlayerId },
@@ -624,16 +605,15 @@ export async function togglePlayerLockAction(
     },
   });
 
-  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, orgFilter);
+  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
   revalidatePath(`/events/${_eventId}`);
 
   return updated;
 }
 
 export async function clearEventSquadsAction(eventId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const squads = await db.eventSquad.findMany({
     where: { eventId },
@@ -652,23 +632,21 @@ export async function clearEventSquadsAction(eventId: string) {
 }
 
 export async function getLeagueSeasons() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   return db.leagueSeason.findMany({
     where: {
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     orderBy: { startDate: 'desc' },
   });
 }
 
 export async function getFormations() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   return db.formation.findMany({
     where: {
       isArchived: false,
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     include: { slots: true },
     orderBy: [{ gameFormat: 'asc' }, { name: 'asc' }],
@@ -676,14 +654,13 @@ export async function getFormations() {
 }
 
 export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   return db.player.findMany({
     where: {
       active: true,
       removedAt: null,
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     include: {
       coreTeam: true,
@@ -693,13 +670,12 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 }
 
 export async function generateEventSquadsAction(eventId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const event = await db.event.findUnique({
     where: {
       id: eventId,
-      ...(orgFilter.type === 'org' ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     include: {
       squads: {

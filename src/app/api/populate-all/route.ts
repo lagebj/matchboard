@@ -1,15 +1,13 @@
 import { populateAllDrafts } from "@/lib/selection/populate-all-drafts";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { populateAllSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const { allowed } = rateLimit("populate-all", 3, 60_000);
   if (!allowed) {
     return NextResponse.json(
@@ -41,7 +39,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
 
-  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 

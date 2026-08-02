@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +14,8 @@ export default async function MatchDetailPage({
 }) {
   const { matchId } = await params;
 
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const match = await db.match.findUnique({
     where: { id: matchId, ...orgWhere },

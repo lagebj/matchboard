@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { createDevelopmentObservation, deleteDevelopmentObservation } from "@/lib/player-development/observations";
 
 export async function POST(request: Request) {
   try {
-    const coach = await requireCoachAccess();
-    if (!coach) {
+    let ctx;
+    try {
+      ctx = await requireActorContext();
+    } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-    if (orgFilter.type !== "org") {
-      return NextResponse.json({ error: "Organisation access required" }, { status: 403 });
     }
 
     const body = await request.json();

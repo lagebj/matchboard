@@ -1,14 +1,12 @@
 "use server";
 
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { getTeamConfiguration, updateTeamConfiguration } from "@/domain/team-configuration/service";
 import { recordDecision } from "@/domain/assistant-manager/service";
 
 export async function fetchTeamConfiguration(teamId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  return getTeamConfiguration(teamId, orgFilter);
+  const ctx = await requireActorContext();
+  return getTeamConfiguration(teamId, ctx.orgFilter);
 }
 
 export async function updateTeamConfigurationAction(
@@ -21,10 +19,9 @@ export async function updateTeamConfigurationAction(
     supportPriority?: number;
   },
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const before = await getTeamConfiguration(teamId, orgFilter);
-  const result = await updateTeamConfiguration(teamId, input, orgFilter);
+  const ctx = await requireActorContext();
+  const before = await getTeamConfiguration(teamId, ctx.orgFilter);
+  const result = await updateTeamConfiguration(teamId, input, ctx.orgFilter);
 
   await recordDecision({
     decisionType: "TEAM_CONFIGURATION",

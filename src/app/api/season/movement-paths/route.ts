@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getMovementPathSummary } from "@/lib/selection/get-season-overview";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const rl = rateLimit("season:movement-paths", 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
@@ -27,7 +25,7 @@ export async function GET(request: NextRequest) {
   if (!leagueSeason) {
     return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
-  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 

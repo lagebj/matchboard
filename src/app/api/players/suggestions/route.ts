@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { evaluatePlayerAttributeSuggestions, decideSuggestion, getPendingSuggestions, getSuggestionHistory } from "@/lib/player-development/suggestions";
 
 export async function GET(request: Request) {
   try {
-    const coach = await requireCoachAccess();
-    if (!coach) {
+    let ctx;
+    try {
+      ctx = await requireActorContext();
+    } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-    if (orgFilter.type !== "org") {
-      return NextResponse.json({ error: "Organisation access required" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -25,13 +22,13 @@ export async function GET(request: Request) {
     const view = searchParams.get("view") ?? "pending";
 
     if (view === "pending") {
-      const suggestions = await getPendingSuggestions(playerId, orgFilter);
+      const suggestions = await getPendingSuggestions(playerId, ctx.orgFilter);
       return NextResponse.json({ suggestions });
     } else if (view === "history") {
-      const history = await getSuggestionHistory(playerId, orgFilter);
+      const history = await getSuggestionHistory(playerId, ctx.orgFilter);
       return NextResponse.json({ suggestions: history });
     } else if (view === "evaluate") {
-      const suggestions = await evaluatePlayerAttributeSuggestions(playerId, orgFilter);
+      const suggestions = await evaluatePlayerAttributeSuggestions(playerId, ctx.orgFilter);
       return NextResponse.json({ suggestions });
     }
 

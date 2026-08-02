@@ -1,13 +1,11 @@
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { ReviewListClient } from './review-list-client';
 
 export default async function ReviewsPage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  if (orgFilter.type !== 'org') {
+  if (ctx.orgFilter.type !== 'org') {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold tracking-tight">Reviews</h1>
@@ -17,7 +15,7 @@ export default async function ReviewsPage() {
   }
 
   const membership = await db.organisationMembership.findFirst({
-    where: { userId: coach.id, organisationId: orgFilter.organisationId },
+    where: { userId: ctx.userId, organisationId: ctx.organisationId },
   });
 
   if (!membership) {
@@ -30,7 +28,7 @@ export default async function ReviewsPage() {
   }
 
   const reviews = await db.reviewRequest.findMany({
-    where: { organisationId: orgFilter.organisationId },
+    where: { organisationId: ctx.organisationId },
     orderBy: { createdAt: 'desc' },
   });
 

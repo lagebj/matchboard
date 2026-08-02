@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
+import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { ReviewTargetType, ReviewStatus } from '@/generated/prisma/client';
 
 export type CreateReviewRequestInput = {
@@ -43,13 +43,12 @@ function requireOrganisationAccess(orgFilter: OrgFilterMode): string {
 export async function createReviewRequest(
   input: CreateReviewRequestInput,
 ): Promise<ReviewRequestWithRelations> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const organisationId = requireOrganisationAccess(orgFilter);
+  const ctx = await requireActorContext();
+  const organisationId = requireOrganisationAccess(ctx.orgFilter);
 
   const membership = await db.organisationMembership.findFirst({
     where: {
-      userId: coach.id,
+      userId: ctx.userId,
       organisationId,
       role: { in: ['OWNER', 'COACH'] },
     },
@@ -104,9 +103,8 @@ export async function resolveReviewRequest(
   reviewId: string,
   input: ResolveReviewRequestInput,
 ): Promise<ReviewRequestWithRelations> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const organisationId = requireOrganisationAccess(orgFilter);
+  const ctx = await requireActorContext();
+  const organisationId = requireOrganisationAccess(ctx.orgFilter);
 
   const existing = await db.reviewRequest.findUnique({
     where: { id: reviewId },
@@ -130,7 +128,7 @@ export async function resolveReviewRequest(
 
   const membership = await db.organisationMembership.findFirst({
     where: {
-      userId: coach.id,
+      userId: ctx.userId,
       organisationId,
       role: { in: ['OWNER', 'COACH'] },
     },

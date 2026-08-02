@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import { applySimulationAsDrafts, computeSimulationInputHash, isInputStale } from "@/lib/simulation/apply-simulation";
@@ -23,13 +22,12 @@ export type ApplyRequest = {
 };
 
 export async function POST(request: NextRequest) {
-  let coach;
+  let ctx;
   try {
-    coach = await requireCoachAccess();
+    ctx = await requireActorContext();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const rl = rateLimit("simulation:apply", 2, 60_000);
   if (!rl.allowed) {
@@ -47,19 +45,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "leagueSeasonId is required" }, { status: 400 });
   }
 
-  if (orgFilter.type === "org") {
-    const owned = await db.leagueSeason.findFirst({
-      where: { id: body.leagueSeasonId, ...orgFilter.filter },
-      select: { id: true },
-    });
-    if (!owned) {
-      return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
-    }
+  const owned = await db.leagueSeason.findFirst({
+    where: { id: body.leagueSeasonId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!owned) {
+    return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 
-  if (body.roundIds && body.roundIds.length > 0 && orgFilter.type === "org") {
+  if (body.roundIds && body.roundIds.length > 0) {
     const ownedRounds = await db.matchRound.findMany({
-      where: { id: { in: body.roundIds }, ...orgFilter.filter },
+      where: { id: { in: body.roundIds }, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     const ownedIds = new Set(ownedRounds.map((r) => r.id));

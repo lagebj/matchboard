@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import {
   createMovementCandidate,
   updateMovementCandidate,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/selection/movement-candidate";
 import type { MovementCandidateRole, MovementCandidateRationale } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 const VALID_ROLES = new Set<string>(["SUPPORT", "DEVELOPMENT"]);
 const VALID_RATIONALES = new Set<string>([
@@ -44,8 +44,7 @@ async function requireCandidateOrgAccess(candidateId: string, orgFilter: OrgFilt
 }
 
 export async function createMovementCandidateAction(formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const playerId = (formData.get("playerId") as string)?.trim() ?? "";
   const rotationPathId = (formData.get("rotationPathId") as string)?.trim() ?? "";
@@ -59,7 +58,7 @@ export async function createMovementCandidateAction(formData: FormData) {
   if (!role || !VALID_ROLES.has(role)) throw new Error("Valid role is required (SUPPORT or DEVELOPMENT).");
   if (!rationaleCategory || !VALID_RATIONALES.has(rationaleCategory)) throw new Error("Valid rationale category is required.");
 
-  await requireRotationPathOrgAccess(rotationPathId, orgFilter);
+  await requireRotationPathOrgAccess(rotationPathId, ctx.orgFilter);
 
   let reviewBy: Date | null = null;
   if (reviewByStr) {
@@ -75,7 +74,7 @@ export async function createMovementCandidateAction(formData: FormData) {
     rationaleCategory: rationaleCategory as MovementCandidateRationale,
     rationaleNote,
     reviewBy,
-    ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
+    ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
   };
 
   const result = await createMovementCandidate(input);
@@ -88,10 +87,9 @@ export async function createMovementCandidateAction(formData: FormData) {
 }
 
 export async function updateMovementCandidateAction(candidateId: string, formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  await requireCandidateOrgAccess(candidateId, orgFilter);
+  await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
 
   const status = (formData.get("status") as string)?.trim() || undefined;
   const rationaleCategory = (formData.get("rationaleCategory") as string)?.trim() || undefined;
@@ -126,10 +124,9 @@ export async function updateMovementCandidateAction(candidateId: string, formDat
 }
 
 export async function toggleMovementCandidateStatusAction(candidateId: string, targetStatus: "ACTIVE" | "PAUSED") {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  await requireCandidateOrgAccess(candidateId, orgFilter);
+  await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
 
   if (!VALID_STATUSES.has(targetStatus)) throw new Error("Invalid status.");
 
@@ -143,10 +140,9 @@ export async function toggleMovementCandidateStatusAction(candidateId: string, t
 }
 
 export async function deleteMovementCandidateAction(candidateId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  await requireCandidateOrgAccess(candidateId, orgFilter);
+  await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
 
   const result = await deleteMovementCandidate(candidateId);
 

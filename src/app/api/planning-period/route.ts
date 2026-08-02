@@ -1,11 +1,9 @@
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { revalidatePath } from "next/cache";
 
 export async function PATCH(request: Request) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   try {
     const body = await request.json();
@@ -30,7 +28,7 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "League season not found." }, { status: 404 });
     }
 
-    if (orgFilter.type === "org" && existing.organisationId !== orgFilter.organisationId) {
+    if (existing.organisationId !== ctx.organisationId) {
       return Response.json({ error: "League season not found or access denied." }, { status: 404 });
     }
 

@@ -4,10 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { createOrRestoreTeam, archiveTeam } from "@/lib/teams/team-domain";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -43,9 +42,8 @@ function getTeamErrorMessage(error: unknown): string {
 }
 
 export async function createTeamAction(formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const ctx = await requireActorContext();
+  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const name = readText(formData, "name");
     const targetSquadSize = readNonNegativeInteger(formData, "targetSquadSize", "Target squad size");
@@ -94,9 +92,8 @@ export async function createTeamAction(formData: FormData) {
 }
 
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const ctx = await requireActorContext();
+  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const team = await db.team.findFirst({
       where: {
@@ -202,9 +199,8 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 }
 
 export async function deleteTeamAction(teamId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const ctx = await requireActorContext();
+  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const result = await archiveTeam(teamId, organisationId);
     if (!result.success) {

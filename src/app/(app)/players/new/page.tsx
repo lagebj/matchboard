@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { createPlayerAction } from "@/app/(app)/players/actions";
 import { PlayerEditorForm } from "@/components/players/player-editor-form";
 import { Surface } from "@/components/ui/surface";
@@ -11,11 +10,10 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default async function NewPlayerPage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const teams = await db.team.findMany({
-    where: { archivedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { archivedAt: null, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

@@ -1,9 +1,9 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type CoachingIntentCategory,
   type CoachingIntentScopeType,
@@ -46,9 +46,8 @@ export async function setCoachingIntentAction(
   category: string,
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const ctx = await requireActorContext();
+  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
 
   if (!COACHING_INTENT_SCOPE_TYPES.includes(scopeType as CoachingIntentScopeType)) {
     return { success: false, error: `Invalid scope type: ${scopeType}` };
@@ -58,10 +57,10 @@ export async function setCoachingIntentAction(
   }
 
   try {
-    await requireScopeOrgAccess(scopeType, scopeId, orgFilter);
+    await requireScopeOrgAccess(scopeType, scopeId, ctx.orgFilter);
 
     const existing = await db.coachingIntent.findFirst({
-      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     });
 
     if (existing) {
@@ -104,12 +103,11 @@ export async function setCoachingIntentAction(
 export async function removeCoachingIntentAction(
   intentId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   try {
     const intent = await db.coachingIntent.findFirst({
-      where: { id: intentId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+      where: { id: intentId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     });
     if (!intent) return { success: false, error: "Intent not found." };
 
@@ -136,12 +134,11 @@ export async function getCoachingIntentsAction(
   scopeType: string,
   scopeId: string,
 ): Promise<{ success: boolean; intents?: Array<{ id: string; category: string; note: string | null; scopeType: string; scopeId: string }>; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   try {
     const intents = await db.coachingIntent.findMany({
-      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
       orderBy: { createdAt: "desc" },
     });
     return {

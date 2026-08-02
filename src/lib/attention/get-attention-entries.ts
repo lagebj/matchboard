@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
 
 export type AttentionCategory =
   | 'review_assigned'
@@ -27,16 +26,15 @@ export type AttentionEntry = {
 };
 
 export async function getAttentionEntries(): Promise<AttentionEntry[]> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  if (orgFilter.type !== 'org') return [];
+  if (ctx.orgFilter.type !== 'org') return [];
 
-  const organisationId = orgFilter.organisationId;
+  const organisationId = ctx.organisationId;
   const entries: AttentionEntry[] = [];
 
   const membership = await db.organisationMembership.findFirst({
-    where: { userId: coach.id, organisationId },
+    where: { userId: ctx.userId, organisationId },
   });
 
   if (!membership) return [];
@@ -136,7 +134,7 @@ export async function getAttentionEntries(): Promise<AttentionEntry[]> {
     });
   }
 
-  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
 
   const recentLeagueSeason = await db.leagueSeason.findFirst({
     where: { ...orgWhere },

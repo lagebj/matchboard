@@ -5,6 +5,7 @@ import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resol
 
 export type ActorContext = {
   userId: string;
+  email: string;
   membershipId: string;
   organisationId: string;
   organisationSlug: string;
@@ -18,6 +19,7 @@ export async function requireActorContext(
 ): Promise<ActorContext> {
   const coach = await requireCoachAccess();
   const userId = coach.id ?? "";
+  const email = coach.email ?? "";
 
   if (organisationSlug) {
     const access = await resolveOrganisationAccess(organisationSlug);
@@ -29,6 +31,7 @@ export async function requireActorContext(
     };
     return {
       userId: access.userId,
+      email,
       membershipId: access.membershipId,
       organisationId: access.organisationId,
       organisationSlug: access.organisationSlug,
@@ -69,6 +72,7 @@ export async function requireActorContext(
 
   return {
     userId,
+    email,
     membershipId: membership.id,
     organisationId: membership.organisationId,
     organisationSlug: organisation.slug,

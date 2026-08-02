@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
@@ -16,15 +15,14 @@ type PageProps = {
 };
 
 export default async function OpponentDetailPage({ params }: PageProps) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   const { opponentTeamId } = await params;
 
   const opponentTeam = await db.opponentTeam.findFirst({
     where: {
       id: opponentTeamId,
       archivedAt: null,
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
     },
     select: {
       id: true,
@@ -37,7 +35,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   const matches = await db.match.findMany({
     where: {
       opponentTeamId,
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
     },
     orderBy: { startsAt: "desc" },
     select: {
@@ -113,8 +111,8 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     }>;
   } = { aggregate: null, evidence: [] };
 
-  if (orgFilter.type === "org") {
-    const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, orgFilter);
+  if (ctx.orgFilter.type === "org") {
+    const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
     const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
 
     sportingLevelData = {

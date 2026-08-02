@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
@@ -10,13 +9,12 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Opponent teams" };
 
 export default async function OpponentsPage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const opponentTeams = await db.opponentTeam.findMany({
     where: {
       archivedAt: null,
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
     },
     orderBy: { displayName: "asc" },
     select: {

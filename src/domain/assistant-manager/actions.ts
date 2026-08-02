@@ -1,7 +1,8 @@
 "use server";
 
 import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { db } from "@/lib/db";
 import { getRoundReview } from "@/domain/assistant-manager/service";
 import { getTeamReadiness } from "@/domain/assistant-manager/service";
@@ -40,46 +41,41 @@ async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode):
 }
 
 export async function fetchRoundReview(roundId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireRoundOrgAccess(roundId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireRoundOrgAccess(roundId, ctx.orgFilter);
   return getRoundReview(roundId);
 }
 
 export async function fetchRoundPlanIntegrity(roundId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireRoundOrgAccess(roundId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireRoundOrgAccess(roundId, ctx.orgFilter);
   const integrity = await computeRoundPlanIntegrity(roundId);
   return integrity.signals;
 }
 
 export async function fetchTeamReadiness(teamId: string, matchId?: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireTeamOrgAccess(teamId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireTeamOrgAccess(teamId, ctx.orgFilter);
   if (matchId) {
-    await requireMatchOrgAccess(matchId, orgFilter);
+    await requireMatchOrgAccess(matchId, ctx.orgFilter);
   }
   return getTeamReadiness(teamId, matchId);
 }
 
 export async function fetchMatchReview(matchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
   return getMatchReview(matchId);
 }
 
 export async function fetchSelectionExplanation(scopeType: "ROUND" | "TEAM" | "MATCH" | "PLAYER", scopeId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   if (scopeType === "ROUND") {
-    await requireRoundOrgAccess(scopeId, orgFilter);
+    await requireRoundOrgAccess(scopeId, ctx.orgFilter);
   } else if (scopeType === "TEAM") {
-    await requireTeamOrgAccess(scopeId, orgFilter);
+    await requireTeamOrgAccess(scopeId, ctx.orgFilter);
   } else if (scopeType === "MATCH") {
-    await requireMatchOrgAccess(scopeId, orgFilter);
+    await requireMatchOrgAccess(scopeId, ctx.orgFilter);
   }
   return getSelectionExplanation(scopeType, scopeId);
 }
@@ -90,15 +86,13 @@ export async function createDecision(input: Parameters<typeof recordDecision>[0]
 }
 
 export async function fetchPostMatchReport(matchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
   return getPostMatchReport(matchId);
 }
 
 export async function finalizePostMatchReport(matchId: string, input: Parameters<typeof completePostMatchReport>[1]) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
   return completePostMatchReport(matchId, input);
 }

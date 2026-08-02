@@ -2,13 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 
 export async function endLiveSessionAndCreateReportAction(sessionId: string, matchId: string) {
   try {
-    const coach = await requireCoachAccess();
-    const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+    const ctx = await requireActorContext();
 
     const session = await db.liveMatchSession.findUnique({
       where: { id: sessionId },
@@ -27,7 +25,7 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
       return { success: false as const, error: "Session does not belong to this match." };
     }
 
-    if (orgFilter.type === "org" && session.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org" && session.organisationId !== ctx.orgFilter.organisationId) {
       return { success: false as const, error: "Session not found or access denied." };
     }
 

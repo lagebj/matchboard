@@ -1,9 +1,9 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type FeedbackCategory,
   type FeedbackNextAction,
@@ -38,10 +38,9 @@ export async function createMatchFeedbackAction(
   nextAction: string | null,
   note: string | null,
 ): Promise<{ success: boolean; error?: string; readinessSuggestion?: ReadinessSuggestionFromFeedback | null }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  await requireMatchOrgAccess(matchId, orgFilter);
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   if (!FEEDBACK_CATEGORIES.includes(category as FeedbackCategory)) {
     return { success: false, error: `Invalid feedback category: ${category}` };
@@ -70,7 +69,7 @@ export async function createMatchFeedbackAction(
         observableBehavior: observableBehavior ?? null,
         nextAction: (nextAction as FeedbackNextAction) ?? "NO_ACTION",
         note: note ?? null,
-        ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
+        ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
       },
     });
 
@@ -98,8 +97,7 @@ export async function updateMatchFeedbackAction(
     note?: string | null;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   if (data.nextAction && !FEEDBACK_NEXT_ACTIONS.includes(data.nextAction as FeedbackNextAction)) {
     return { success: false, error: `Invalid next action: ${data.nextAction}` };
@@ -109,9 +107,9 @@ export async function updateMatchFeedbackAction(
     const existing = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!existing) return { success: false, error: "Feedback not found." };
 
-    if (orgFilter.type === "org") {
+    if (ctx.orgFilter.type === "org") {
       const match = await db.match.findFirst({
-        where: { id: existing.matchId, ...orgFilter.filter },
+        where: { id: existing.matchId, ...ctx.orgFilter.filter },
         select: { id: true },
       });
       if (!match) return { success: false, error: "Feedback not found or access denied." };
@@ -149,16 +147,15 @@ export async function updateMatchFeedbackAction(
 export async function deleteMatchFeedbackAction(
   feedbackId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   try {
     const feedback = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!feedback) return { success: false, error: "Feedback not found." };
 
-    if (orgFilter.type === "org") {
+    if (ctx.orgFilter.type === "org") {
       const match = await db.match.findFirst({
-        where: { id: feedback.matchId, ...orgFilter.filter },
+        where: { id: feedback.matchId, ...ctx.orgFilter.filter },
         select: { id: true },
       });
       if (!match) return { success: false, error: "Feedback not found or access denied." };
@@ -179,14 +176,13 @@ export async function deleteMatchFeedbackAction(
 export async function getMatchFeedbackAction(
   matchId: string,
 ): Promise<{ success: boolean; feedback?: Array<{ id: string; playerId: string; category: string; value: string; observableBehavior: string | null; nextAction: string; note: string | null }>; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  await requireMatchOrgAccess(matchId, orgFilter);
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({
-      where: { matchId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+      where: { matchId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
     });
 
@@ -210,12 +206,11 @@ export async function getMatchFeedbackAction(
 export async function getPlayerFeedbackAction(
   playerId: string,
 ): Promise<{ success: boolean; feedback?: Array<{ id: string; matchId: string; category: string; value: string; observableBehavior: string | null; nextAction: string; note: string | null }>; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({
-      where: { playerId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+      where: { playerId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
       orderBy: [{ matchId: "asc" }, { category: "asc" }],
     });
 

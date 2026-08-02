@@ -9,8 +9,7 @@ import {
   type CreateReviewRequestInput,
   type ResolveReviewRequestInput,
 } from '@/lib/review/review-service';
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
@@ -37,21 +36,18 @@ export async function cancelReviewAction(reviewId: string) {
 }
 
 export async function getPendingReviewsAction() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-
-  if (orgFilter.type !== 'org') return [];
+  const ctx = await requireActorContext();
 
   const membership = await db.organisationMembership.findFirst({
     where: {
-      userId: coach.id,
-      organisationId: orgFilter.organisationId,
+      userId: ctx.userId,
+      organisationId: ctx.organisationId,
     },
   });
 
   if (!membership) return [];
 
-  return getPendingReviewsForReviewer(orgFilter.organisationId, membership.id);
+  return getPendingReviewsForReviewer(ctx.organisationId, membership.id);
 }
 
 export async function getReviewHistoryAction(targetType: string, targetId: string) {

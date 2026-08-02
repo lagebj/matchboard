@@ -1,16 +1,15 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
 import { validateLiveEventInput } from "./live-match-domain";
 
 export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const session = await db.liveMatchSession.findUnique({
     where: { id: input.sessionId },
@@ -29,7 +28,7 @@ export async function recordEvent(input: LiveEventInput): Promise<{ eventId: str
     throw new Error("Session does not belong to this match");
   }
 
-  if (orgFilter.type === "org" && session.organisationId !== orgFilter.organisationId) {
+  if (ctx.orgFilter.type === "org" && session.organisationId !== ctx.organisationId) {
     throw new Error("Session not found or access denied");
   }
 

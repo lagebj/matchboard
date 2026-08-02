@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
+import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { logMutationEvent } from '@/lib/security/audit-log';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
 import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
@@ -39,8 +39,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   plannedRole?: string;
   note?: string;
 }) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const { eventMatchId, playerId, plannedRole, note } = input;
 
@@ -58,7 +57,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   });
   if (!eventMatch) throw new Error('Event match not found.');
 
-  await requireEventOrgAccess(eventMatch.eventId, orgFilter);
+  await requireEventOrgAccess(eventMatch.eventId, ctx.orgFilter);
 
   if (eventMatch.status === 'CANCELLED') {
     throw new Error('Cannot add support to a cancelled match.');
@@ -152,15 +151,14 @@ export async function addEventMatchSupportAssignmentAction(input: {
     },
   });
 
-  logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignment.id, "success");
+  logMutationEvent("manual_override", ctx.email || "unknown", "event_match_support", assignment.id, "success");
 
   revalidatePath(`/events/${event.id}`);
   return assignment;
 }
 
 export async function removeEventMatchSupportAssignmentAction(assignmentId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const assignment = await db.eventMatchSupportAssignment.findUnique({
     where: { id: assignmentId },
@@ -168,7 +166,7 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
   });
   if (!assignment) throw new Error('Support assignment not found.');
 
-  await requireEventOrgAccess(assignment.eventMatch.eventId, orgFilter);
+  await requireEventOrgAccess(assignment.eventMatch.eventId, ctx.orgFilter);
 
   await db.$transaction(async (tx) => {
     await tx.eventMatchSupportAssignment.delete({ where: { id: assignmentId } });
@@ -183,7 +181,7 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
     });
   });
 
-  logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignmentId, "success");
+  logMutationEvent("manual_override", ctx.email || "unknown", "event_match_support", assignmentId, "success");
 
   revalidatePath(`/events/${assignment.eventMatch.eventId}`);
 }
@@ -193,8 +191,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   plannedRole?: string;
   note?: string;
 }) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const { assignmentId, plannedRole, note } = input;
 
@@ -208,7 +205,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   });
   if (!assignment) throw new Error('Support assignment not found.');
 
-  await requireEventOrgAccess(assignment.eventMatch.eventId, orgFilter);
+  await requireEventOrgAccess(assignment.eventMatch.eventId, ctx.orgFilter);
 
   const updated = await db.eventMatchSupportAssignment.update({
     where: { id: assignmentId },
@@ -218,18 +215,17 @@ export async function updateEventMatchSupportAssignmentAction(input: {
     },
   });
 
-  logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignmentId, "success");
+  logMutationEvent("manual_override", ctx.email || "unknown", "event_match_support", assignmentId, "success");
 
   revalidatePath(`/events/${assignment.eventMatch.eventId}`);
   return updated;
 }
 
 export async function getEventMatchSupportAssignmentsAction(eventId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: eventId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     select: { matchDurationMinutes: true },
   });
   if (!event) throw new Error('Event not found.');
@@ -297,8 +293,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 }
 
 export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const eventMatch = await db.eventMatch.findUnique({
     where: { id: eventMatchId },
@@ -306,7 +301,7 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
   });
   if (!eventMatch) throw new Error('Event match not found.');
 
-  await requireEventOrgAccess(eventMatch.eventId, orgFilter);
+  await requireEventOrgAccess(eventMatch.eventId, ctx.orgFilter);
 
   const event = eventMatch.event;
   const matchDurationMinutes = event.matchDurationMinutes;

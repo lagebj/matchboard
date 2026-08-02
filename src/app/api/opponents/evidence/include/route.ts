@@ -1,19 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { includeOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 
 export async function POST(request: Request) {
   try {
-    const coach = await requireCoachAccess();
-    if (!coach) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-    if (orgFilter.type !== "org") {
-      return NextResponse.json({ error: "Organisation access required" }, { status: 403 });
-    }
+    const ctx = await requireActorContext();
 
     const body = await request.json();
     const { evidenceId } = body;
@@ -22,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "evidenceId is required" }, { status: 400 });
     }
 
-    const result = await includeOpponentSportingEvidence(evidenceId, orgFilter);
+    const result = await includeOpponentSportingEvidence(evidenceId, ctx.orgFilter);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });

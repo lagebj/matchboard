@@ -1,13 +1,12 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import type { LiveSessionInfo } from "./live-match-types";
 
 export async function startLiveSession(matchId: string): Promise<LiveSessionInfo> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -18,7 +17,7 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
     throw new Error("Match not found");
   }
 
-  if (orgFilter.type === "org" && match.organisationId !== orgFilter.organisationId) {
+  if (ctx.orgFilter.type === "org" && match.organisationId !== ctx.organisationId) {
     throw new Error("Match not found or access denied");
   }
 
@@ -45,8 +44,8 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
   const session = await db.liveMatchSession.create({
     data: {
       matchId,
-      coachId: coach.id ?? "",
-      organisationId: orgFilter.type === "org" ? orgFilter.organisationId : null,
+      coachId: ctx.userId,
+      organisationId: ctx.orgFilter.type === "org" ? ctx.organisationId : null,
       status: "ACTIVE",
     },
   });

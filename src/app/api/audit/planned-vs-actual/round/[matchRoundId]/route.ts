@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { getPlannedVsActualForRound } from "@/lib/audit/planned-vs-actual";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ matchRoundId: string }> },
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const { matchRoundId } = await params;
 
@@ -20,7 +18,7 @@ export async function GET(
   if (!matchRound) {
     return NextResponse.json({ error: "Match round not found" }, { status: 404 });
   }
-  if (orgFilter.type === "org" && matchRound.organisationId !== orgFilter.organisationId) {
+  if (matchRound.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "Match round not found or access denied." }, { status: 404 });
   }
 

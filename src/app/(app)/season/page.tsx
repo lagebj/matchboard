@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { SeasonOverviewClient } from "./season-client";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { SeasonFinalizeControls } from "./season-finalize-controls";
@@ -17,9 +16,8 @@ const READINESS_LABELS: Record<string, string> = {
 };
 
 export default async function SeasonPage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
 
   const leagueSeasons = await db.leagueSeason.findMany({
     where: orgWhere,

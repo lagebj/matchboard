@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import type { SeasonSimulationRequest } from "@/lib/simulation/simulation-types";
@@ -9,13 +8,12 @@ import type { SeasonSimulationRequest } from "@/lib/simulation/simulation-types"
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  let coach;
+  let ctx;
   try {
-    coach = await requireCoachAccess();
+    ctx = await requireActorContext();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
 
   const rl = rateLimit("simulation:run", 3, 60_000);
   if (!rl.allowed) {
@@ -47,9 +45,9 @@ export async function POST(request: NextRequest) {
     body.policyMode = "default_only";
   }
 
-  if (orgFilter.type === "org" && body.leagueSeasonId) {
+  if (body.leagueSeasonId) {
     const owned = await db.leagueSeason.findFirst({
-      where: { id: body.leagueSeasonId, ...orgFilter.filter },
+      where: { id: body.leagueSeasonId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!owned) {
@@ -57,9 +55,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (orgFilter.type === "org" && body.roundIds && body.roundIds.length > 0) {
+  if (body.roundIds && body.roundIds.length > 0) {
     const ownedRounds = await db.matchRound.findMany({
-      where: { id: { in: body.roundIds }, ...orgFilter.filter },
+      where: { id: { in: body.roundIds }, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     const ownedIds = new Set(ownedRounds.map((r) => r.id));
@@ -69,9 +67,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (orgFilter.type === "org" && body.eventIds && body.eventIds.length > 0) {
+  if (body.eventIds && body.eventIds.length > 0) {
     const ownedEvents = await db.event.findMany({
-      where: { id: { in: body.eventIds }, ...orgFilter.filter },
+      where: { id: { in: body.eventIds }, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     const ownedIds = new Set(ownedEvents.map((e) => e.id));

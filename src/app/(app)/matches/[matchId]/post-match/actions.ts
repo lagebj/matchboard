@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import type { MatchReportStatus, PlannedAbsenceReason } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
@@ -23,7 +23,7 @@ import {
   removeAssistFromReportMutation,
 } from "@/lib/reports/report-mutations";
 import { logReportComplete, logReportReopen } from "@/lib/security/audit-log";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -101,11 +101,10 @@ export type MatchReportDetail = {
 };
 
 export async function getMatchReport(matchId: string): Promise<MatchReportDetail> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const match = await db.match.findUnique({
-    where: { id: matchId, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { id: matchId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
     select: {
       id: true,
       teamId: true,
@@ -244,11 +243,10 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
 }
 
 export async function seedMatchReport(matchId: string): Promise<{ success: boolean; error?: string; reportId?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const match = await db.match.findFirst({
-      where: { id: matchId, ...orgFilter.filter },
+      where: { id: matchId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!match) return { success: false, error: "Match not found or access denied." };
@@ -274,9 +272,8 @@ export async function updateMatchResult(
   reportId: string,
   data: { homeGoals?: number; awayGoals?: number; teamNote?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await updateReportResult(reportId, data);
@@ -295,9 +292,8 @@ export async function addActualPlayer(
   reportId: string,
   data: { playerId: string; attendanceStatus?: string; unplannedAppearanceReason?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await addActualPlayerToReport(reportId, data);
@@ -313,11 +309,10 @@ export async function addActualPlayer(
 }
 
 export async function removeActualPlayer(appearanceId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const appearance = await db.postMatchPlayerActual.findFirst({
-      where: { id: appearanceId, report: orgFilter.filter },
+      where: { id: appearanceId, report: ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!appearance) return { success: false, error: "Appearance not found or access denied." };
@@ -340,11 +335,10 @@ export async function updateAttendanceStatus(
   appearanceId: string,
   attendanceStatus: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const appearance = await db.postMatchPlayerActual.findFirst({
-      where: { id: appearanceId, report: orgFilter.filter },
+      where: { id: appearanceId, report: ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!appearance) return { success: false, error: "Appearance not found or access denied." };
@@ -367,9 +361,8 @@ export async function markPlannedAbsence(
   reportId: string,
   data: { playerId: string; reason: PlannedAbsenceReason; note?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await markPlannedAbsenceInReport(reportId, data);
@@ -385,11 +378,10 @@ export async function markPlannedAbsence(
 }
 
 export async function removePlannedAbsence(absenceId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const absence = await db.matchReportAbsence.findFirst({
-      where: { id: absenceId, report: orgFilter.filter },
+      where: { id: absenceId, report: ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!absence) return { success: false, error: "Absence not found or access denied." };
@@ -412,9 +404,8 @@ export async function updatePlayerStats(
   reportId: string,
   data: { playerId: string; goals?: number; assists?: number },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await updatePlayerStatsInReport(reportId, data);
@@ -430,9 +421,8 @@ export async function updatePlayerStats(
 }
 
 export async function submitMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await submitReport(reportId);
@@ -453,9 +443,8 @@ export async function submitMatchReport(reportId: string): Promise<{ success: bo
 }
 
 export async function lockMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await lockReport(reportId);
@@ -476,24 +465,23 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
 }
 
 export async function completeMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const report = await db.postMatchReport.findFirst({
-      where: { id: reportId, ...orgFilter.filter },
+      where: { id: reportId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!report) return { success: false, error: "Report not found or access denied." };
   }
 
   try {
-    const result = await completeReport(reportId, coach.email ?? "unknown");
+    const result = await completeReport(reportId, ctx.email || "unknown");
     if (!result.success) {
-      logReportComplete(coach.email ?? "unknown", reportId, "failure", result.error);
+      logReportComplete(ctx.email || "unknown", reportId, "failure", result.error);
       return { success: false, error: result.error };
     }
 
-    logReportComplete(coach.email ?? "unknown", reportId, "success");
+    logReportComplete(ctx.email || "unknown", reportId, "success");
 
     revalidatePath(`/matches/${result.matchId}`);
     revalidatePath(`/matches/${result.matchId}/post-match`);
@@ -515,11 +503,10 @@ export async function reopenMatchReport(
   reportId: string,
   targetStatus?: "DRAFT" | "REPORTED",
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const report = await db.postMatchReport.findFirst({
-      where: { id: reportId, ...orgFilter.filter },
+      where: { id: reportId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!report) return { success: false, error: "Report not found or access denied." };
@@ -528,11 +515,11 @@ export async function reopenMatchReport(
   try {
     const result = await reopenReport(reportId, targetStatus);
     if (!result.success) {
-      logReportReopen(coach.email ?? "unknown", reportId, "failure", result.error);
+      logReportReopen(ctx.email || "unknown", reportId, "failure", result.error);
       return { success: false, error: result.error };
     }
 
-    logReportReopen(coach.email ?? "unknown", reportId, "success");
+    logReportReopen(ctx.email || "unknown", reportId, "success");
 
     revalidatePath(`/matches/${result.matchId}`);
     revalidatePath(`/matches/${result.matchId}/post-match`);
@@ -553,9 +540,8 @@ export async function addGoalToReport(
   reportId: string,
   data: { playerId?: string; minute?: number; type?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await addGoalToReportMutation(reportId, data);
@@ -572,11 +558,10 @@ export async function addGoalToReport(
 }
 
 export async function removeGoalFromReport(goalId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const goal = await db.goal.findFirst({
-      where: { id: goalId, report: orgFilter.filter },
+      where: { id: goalId, report: ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!goal) return { success: false, error: "Goal not found or access denied." };
@@ -600,9 +585,8 @@ export async function addAssistToReport(
   reportId: string,
   data: { playerId: string; type?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  await requireReportOrgAccess(reportId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
     const result = await addAssistToReportMutation(reportId, data);
@@ -619,11 +603,10 @@ export async function addAssistToReport(
 }
 
 export async function removeAssistFromReport(assistId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const assist = await db.assist.findFirst({
-      where: { id: assistId, report: orgFilter.filter },
+      where: { id: assistId, report: ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!assist) return { success: false, error: "Assist not found or access denied." };

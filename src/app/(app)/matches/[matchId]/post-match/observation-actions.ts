@@ -1,8 +1,8 @@
 'use server'
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 import {
   validateObservation,
@@ -31,8 +31,7 @@ export async function saveObservationAction(
   _prevState: ObservationActionState,
   formData: FormData,
 ): Promise<ObservationActionState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const matchId = formData.get("matchId") as string;
   if (!matchId) return { success: false, error: "Match ID is required." };
 
@@ -43,7 +42,7 @@ export async function saveObservationAction(
   if (!match) return { success: false, error: "Match not found." };
   if (!match.opponentTeamId) return { success: false, error: "No opponent profile linked yet. Complete the post-match report to link a canonical opponent." };
 
-  await requireMatchOrgAccess(matchId, orgFilter);
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const existingObservation = await db.opponentEncounterObservation.findUnique({
     where: { matchId },
@@ -89,7 +88,7 @@ export async function saveObservationAction(
           concernCategories: cleanedCategories,
           factualSummary: cleanedSummary,
           followUp: data.followUp,
-          recordedBy: coach.email,
+          recordedBy: ctx.email,
         },
       });
     } else {
@@ -104,7 +103,7 @@ export async function saveObservationAction(
           concernCategories: cleanedCategories,
           factualSummary: cleanedSummary,
           followUp: data.followUp,
-          recordedBy: coach.email,
+          recordedBy: ctx.email,
         },
       });
     }
@@ -126,8 +125,7 @@ export async function updateMatchFitAction(
   _prevState: MatchFitActionState,
   formData: FormData,
 ): Promise<MatchFitActionState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const matchId = formData.get("matchId") as string;
   const matchFit = formData.get("matchFit") as string;
 
@@ -142,7 +140,7 @@ export async function updateMatchFitAction(
   }
 
   const match = await db.match.findFirst({
-    where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
   });
   if (!match) return { success: false, error: "Match not found or access denied." };
 

@@ -1,35 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  let coach;
+  let ctx;
   try {
-    coach = await requireCoachAccess();
+    ctx = await requireActorContext();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-
-  if (orgFilter.type !== "org") {
-    return NextResponse.json({
-      currentOrganisation: null,
-      organisations: [],
-      commands: getPublicCommands(),
-    });
-  }
-
   const membership = await db.organisationMembership.findFirst({
-    where: { userId: coach.id ?? "", organisationId: orgFilter.organisationId },
+    where: { userId: ctx.userId, organisationId: ctx.organisationId },
     select: { id: true, role: true },
   });
 
   const organisations = await db.organisationMembership.findMany({
-    where: { userId: coach.id ?? "" },
+    where: { userId: ctx.userId },
     select: {
       organisationId: true,
       organisation: { select: { id: true, name: true, slug: true } },
@@ -44,16 +33,16 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     currentOrganisation: {
-      id: orgFilter.organisationId,
-      name: organisations.find((o) => o.organisation.id === orgFilter.organisationId)?.organisation.name ?? "",
-      slug: organisations.find((o) => o.organisation.id === orgFilter.organisationId)?.organisation.slug ?? "",
+      id: ctx.organisationId,
+      name: organisations.find((o) => o.organisation.id === ctx.organisationId)?.organisation.name ?? "",
+      slug: organisations.find((o) => o.organisation.id === ctx.organisationId)?.organisation.slug ?? "",
     },
     organisations: organisations.map((o) => ({
       id: o.organisation.id,
       name: o.organisation.name,
       slug: o.organisation.slug,
       role: o.role,
-      isCurrent: o.organisation.id === orgFilter.organisationId,
+      isCurrent: o.organisation.id === ctx.organisationId,
     })),
     commands: getFilteredCommands(canCreate, canManageOrg),
   });

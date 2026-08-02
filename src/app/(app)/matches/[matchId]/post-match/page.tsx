@@ -5,8 +5,7 @@ import { MatchFeedbackSection } from "@/components/matches/match-feedback-sectio
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { DevelopmentObservationSection } from "@/components/player-development/development-observation-section";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +14,13 @@ type PageProps = {
 };
 
 export default async function PostMatchRoute({ params }: PageProps) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   const { matchId } = await params;
 
    const match = await db.match.findFirst({
     where: {
       id: matchId,
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
     },
     select: {
       id: true,
@@ -183,7 +181,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     db.playerDevelopmentObservation.findMany({
       where: {
         matchId,
-        ...(orgFilter.type === "org" ? orgFilter.filterNullable : {}),
+        ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filterNullable : {}),
       },
       orderBy: { observedAt: "desc" },
       select: {

@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   validateFormationForMatchUse,
   isValidRoleType,
@@ -30,8 +30,8 @@ async function requireFormationOrgAccess(formationId: string, orgFilter: OrgFilt
 }
 
 export async function getFormationsForFormat(gameFormat: GameFormat) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   return db.formation.findMany({
     where: { gameFormat, isArchived: false, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
@@ -40,8 +40,8 @@ export async function getFormationsForFormat(gameFormat: GameFormat) {
 }
 
 export async function getFormationById(formationId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireFormationOrgAccess(formationId, orgFilter);
   return db.formation.findUnique({
     where: { id: formationId },
@@ -64,8 +64,8 @@ export async function createCustomFormation(data: {
     sortOrder: number;
   }[];
 }) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   if (!data.name.trim()) throw new Error("Formation name is required");
   if (!data.slots || data.slots.length === 0) throw new Error("Formation must have at least one slot");
@@ -115,8 +115,8 @@ export async function createCustomFormation(data: {
 }
 
 export async function duplicateFormation(formationId: string, newName?: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   const source = await db.formation.findUnique({
     where: { id: formationId },
@@ -174,8 +174,8 @@ export async function updateCustomFormation(
     }[];
   },
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -256,8 +256,8 @@ export async function updateCustomFormation(
 }
 
 export async function archiveFormation(formationId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -279,8 +279,8 @@ export async function archiveFormation(formationId: string) {
 }
 
 export async function deleteCustomFormation(formationId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -313,8 +313,8 @@ export async function addFormationSlot(
   gridX: number,
   gridY: number,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireFormationOrgAccess(formationId, orgFilter);
 
   const formation = await db.formation.findUnique({
@@ -362,8 +362,8 @@ export async function updateFormationSlot(
     acceptedPositionIds?: string[];
   },
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   if (data.roleType && !isValidRoleType(data.roleType)) {
     throw new Error(`Invalid role type: ${data.roleType}`);
@@ -389,8 +389,8 @@ export async function updateFormationSlot(
 }
 
 export async function removeFormationSlot(slotId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
   if (!existingSlot) throw new Error("Slot not found");

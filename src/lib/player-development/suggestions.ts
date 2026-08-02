@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./constants";
 import { evaluateAttributeEvidence, computeAttributeProposal, type AttributeEvidenceResult, type AttributeSuggestion } from "./evidence";
 
@@ -150,8 +150,8 @@ export async function decideSuggestion(
   decision: SuggestionDecision,
   adjustedValue?: number,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
 
   if (orgFilter.type !== "org") {
     return { success: false, error: "Organisation access required" };
@@ -165,7 +165,7 @@ export async function decideSuggestion(
     return { success: false, error: "Suggestion not found" };
   }
 
-  if (suggestion.organisationId !== orgFilter.organisationId) {
+  if (suggestion.organisationId !== ctx.organisationId) {
     return { success: false, error: "Access denied" };
   }
 
@@ -174,7 +174,7 @@ export async function decideSuggestion(
   }
 
   if (suggestion.targetType === "ATTRIBUTE") {
-    return decideAttributeSuggestion(suggestion, decision, adjustedValue, coach.id ?? "unknown");
+    return decideAttributeSuggestion(suggestion, decision, adjustedValue, ctx.userId);
   }
 
   return { success: false, error: "Position suggestion decisions not yet implemented" };
