@@ -126,6 +126,7 @@ describe("Event pool and squad actions", () => {
 
       await testDb.eventSquadPlayer.create({
         data: {
+          eventId: event.id,
           eventSquadId: squad.id,
           playerId,
           source: "MANUAL",
@@ -244,6 +245,7 @@ describe("Event pool and squad actions", () => {
 
       const assignment = await testDb.eventSquadPlayer.create({
         data: {
+          eventId: event.id,
           eventSquadId: squad.id,
           playerId,
           source: "MANUAL",

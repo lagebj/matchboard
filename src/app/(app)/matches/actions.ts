@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -88,9 +87,8 @@ export type MatchFormState = { error: string };
 const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const ctx = await requireActorContext();
+  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
     const opponentText = readText(formData, "opponent");
@@ -207,17 +205,16 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 }
 
 export async function deleteMatchAction(matchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+  const ctx = await requireActorContext();
+  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const guard = await checkMatchDeletionGuard(matchId, orgId);
     if (!guard.success) throw new Error(guard.error);
 
     await db.match.delete({ where: { id: guard.matchId } });
-    logMatchDelete(coach.email ?? "unknown", matchId, "success");
+    logMatchDelete(ctx.email || "unknown", matchId, "success");
   } catch (error) {
-    logMatchDelete(coach.email ?? "unknown", matchId, "failure");
+    logMatchDelete(ctx.email || "unknown", matchId, "failure");
     const message = error instanceof Error ? error.message : "Could not delete the match.";
     redirect(`/fixtures?error=${encodeURIComponent(message)}`);
   }
@@ -241,12 +238,11 @@ export async function updateMatchAction(
     }
   | { success: false; error: string }
 > {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   try {
     const match = await db.match.findFirst({
-      where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+      where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
       select: {
         id: true,
         startsAt: true,
@@ -406,14 +402,13 @@ export async function updateMatchAction(
 }
 
 export async function finalizeMatchAction(formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
   }
 
-  await requireMatchOrgAccess(matchId, orgFilter);
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -453,18 +448,17 @@ export async function finalizeMatchAction(formData: FormData) {
 }
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  await requireMatchOrgAccess(matchId, orgFilter);
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const result = await cancelMatchDomain(matchId, cancelledReason);
   if (!result.success) {
-    logMatchCancel(coach.email ?? "unknown", matchId, "failure", result.error);
+    logMatchCancel(ctx.email || "unknown", matchId, "failure", result.error);
     throw new Error(result.error);
   }
 
-  logMatchCancel(coach.email ?? "unknown", matchId, "success", cancelledReason);
+  logMatchCancel(ctx.email || "unknown", matchId, "success", cancelledReason);
 
   await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
@@ -475,18 +469,17 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 }
 
 export async function reopenMatchAction(matchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  await requireMatchOrgAccess(matchId, orgFilter);
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const result = await reopenMatchDomain(matchId);
   if (!result.success) {
-    logMatchReopen(coach.email ?? "unknown", matchId, "failure");
+    logMatchReopen(ctx.email || "unknown", matchId, "failure");
     throw new Error(result.error);
   }
 
-  logMatchReopen(coach.email ?? "unknown", matchId, "success");
+  logMatchReopen(ctx.email || "unknown", matchId, "success");
 
   await reconcileRoundAfterDraftMutation(result.matchRoundId);
 

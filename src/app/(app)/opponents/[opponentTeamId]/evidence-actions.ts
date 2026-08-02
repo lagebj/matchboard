@@ -1,5 +1,4 @@
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import {
   excludeOpponentSportingEvidence as excludeEvidence,
   includeOpponentSportingEvidence as includeEvidence,
@@ -12,17 +11,15 @@ export async function excludeSportingEvidenceAction(
   evidenceId: string,
   reason: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  return excludeEvidence(evidenceId, reason, orgFilter);
+  const ctx = await requireActorContext();
+  return excludeEvidence(evidenceId, reason, ctx.orgFilter);
 }
 
 export async function includeSportingEvidenceAction(
   evidenceId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  return includeEvidence(evidenceId, orgFilter);
+  const ctx = await requireActorContext();
+  return includeEvidence(evidenceId, ctx.orgFilter);
 }
 
 export async function getOpponentSportingLevelAction(
@@ -50,14 +47,13 @@ export async function getOpponentSportingLevelAction(
     formulaVersion: string;
   }>;
 }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  if (orgFilter.type !== "org") {
+  if (ctx.orgFilter.type !== "org") {
     return { aggregate: null, evidence: [] };
   }
 
-  const evidenceRecords = await getEvidence(opponentTeamId, orgFilter);
+  const evidenceRecords = await getEvidence(opponentTeamId, ctx.orgFilter);
 
   const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
 

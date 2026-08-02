@@ -32,6 +32,7 @@ type MembershipRow = {
   userId: string;
   organisationId: string;
   role: OrganisationRole;
+  expiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   teamAccesses: Array<{ teamId: string }>;
@@ -67,6 +68,11 @@ export async function resolveOrganisationAccess(
   if (!membership) {
     logAccessDenied(coachEmail, `organisation:${org.slug}`, "no_membership");
     throw new OrganisationMembershipError("You are not a member of this organisation.");
+  }
+
+  if (membership.role === "SUPPORT" && membership.expiresAt && membership.expiresAt < new Date()) {
+    logAccessDenied(coachEmail, `organisation:${org.slug}`, "support_expired");
+    throw new OrganisationMembershipError("SUPPORT access has expired.");
   }
 
   const permittedTeamIds: string[] = membership.teamAccesses.map((ta) => ta.teamId);

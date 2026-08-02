@@ -1,8 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import type {
   PlayerPathwayData,
   PlayerPathwayRow,
@@ -22,11 +21,9 @@ export async function getPlayerPathways(
   filters: PathwayFilters,
   viewMode: PathwayViewMode = "finalized_only",
 ): Promise<PlayerPathwayData> {
-  await requireCoachAccess();
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   const orgWhere =
-    orgFilter.type === "org" ? orgFilter.filter : {};
+    ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const includeDrafts = viewMode === "include_drafts";
 
@@ -44,8 +41,8 @@ export async function getPlayerPathways(
   }
 
   if (
-    orgFilter.type === "org" &&
-    leagueSeason.organisationId !== orgFilter.organisationId
+    ctx.orgFilter.type === "org" &&
+    leagueSeason.organisationId !== ctx.organisationId
   ) {
     throw new Error("League season not found or access denied");
   }

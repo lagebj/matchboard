@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { LiveMatchClient } from "./live-client";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +10,8 @@ interface LiveMatchPageProps {
 
 export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
   const { matchId } = await params;
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -48,7 +46,7 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
         teamId: match.teamId,
         roundName: match.matchRound?.name ?? null,
       }}
-      coachId={coach.id ?? ""}
+      coachId={ctx.userId}
     />
   );
 }

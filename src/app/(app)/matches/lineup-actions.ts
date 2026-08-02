@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import { supersedePendingReviews } from "@/lib/review/review-service";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   canModifyLineup,
   requireAssignmentExists,
@@ -53,8 +54,8 @@ async function requireAssignmentOrgAccess(assignmentId: string, orgFilter: OrgFi
 }
 
 export async function getMatchLineup(matchId: string, teamId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(matchId, orgFilter);
   return db.matchLineup.findFirst({
     where: { matchId, teamId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
@@ -70,8 +71,8 @@ export async function createMatchLineup(data: {
   teamId: string;
   formationId: string;
 }) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(data.matchId, orgFilter);
 
   const lineup = await createLineupFromFormation(data);
@@ -85,8 +86,8 @@ export async function assignPlayerToSlot(
   playerId: string,
   locked: boolean = false,
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireAssignmentOrgAccess(assignmentId, orgFilter);
 
   const assignment = await requireAssignmentExists(assignmentId);
@@ -133,8 +134,8 @@ export async function assignPlayerToSlot(
 }
 
 export async function removePlayerFromSlot(assignmentId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireAssignmentOrgAccess(assignmentId, orgFilter);
 
   const assignment = await requireAssignmentExists(assignmentId);
@@ -152,8 +153,8 @@ export async function removePlayerFromSlot(assignmentId: string) {
 }
 
 export async function toggleSlotLock(assignmentId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireAssignmentOrgAccess(assignmentId, orgFilter);
 
   const assignment = await requireAssignmentExists(assignmentId);
@@ -171,8 +172,8 @@ export async function toggleSlotLock(assignmentId: string) {
 }
 
 export async function confirmLineup(lineupId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
 
   const lineup = await requireLineupExists(lineupId);
@@ -183,13 +184,15 @@ export async function confirmLineup(lineupId: string) {
     data: { status: "CONFIRMED" },
   });
 
+  await supersedePendingReviews("MATCH_LINEUP", lineupId);
+
   revalidatePath(`/matches/${lineup.matchId}`);
   return updated;
 }
 
 export async function archiveLineup(lineupId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireLineupOrgAccess(lineupId, orgFilter);
 
   const updated = await db.matchLineup.update({
@@ -202,8 +205,8 @@ export async function archiveLineup(lineupId: string) {
 }
 
 export async function revertLineupToDraft(lineupId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireLineupOrgAccess(lineupId, orgFilter);
 
   const updated = await db.matchLineup.update({
@@ -216,8 +219,8 @@ export async function revertLineupToDraft(lineupId: string) {
 }
 
 export async function updateLineupNotes(lineupId: string, notes: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireLineupOrgAccess(lineupId, orgFilter);
 
   const updated = await db.matchLineup.update({
@@ -229,8 +232,8 @@ export async function updateLineupNotes(lineupId: string, notes: string) {
 }
 
 export async function updateBenchPlayers(lineupId: string, benchPlayerIds: string[]) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
+  const orgFilter = ctx.orgFilter;
   await requireLineupOrgAccess(lineupId, orgFilter);
 
   const lineup = await db.matchLineup.findUnique({

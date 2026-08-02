@@ -27,9 +27,12 @@ export const bestSideOptions = [
 
 export const availabilityOptions = [
   { label: "Available", value: AvailabilityStatus.AVAILABLE },
+  { label: "Unavailable", value: AvailabilityStatus.UNAVAILABLE },
   { label: "Injured", value: AvailabilityStatus.INJURED },
   { label: "Sick", value: AvailabilityStatus.SICK },
   { label: "Away", value: AvailabilityStatus.AWAY },
+  { label: "Tentative", value: AvailabilityStatus.TENTATIVE },
+  { label: "Unknown", value: AvailabilityStatus.UNKNOWN },
 ] as const;
 
 export const playerPositionValues = ["GK", "CB", "CM", "W", "ST"] as const;

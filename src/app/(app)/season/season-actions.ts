@@ -1,13 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
@@ -21,7 +19,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
     return { success: false, error: "League season not found." };
   }
 
-  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     return { success: false, error: "League season not found or access denied." };
   }
 
@@ -34,7 +32,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
   }
 
   const teamsWithPlayers = await db.team.findMany({
-    where: { archivedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { archivedAt: null, ...ctx.orgFilter.filter },
     include: {
       corePlayers: {
         where: { removedAt: null },
@@ -97,8 +95,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
 }
 
 export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
@@ -108,7 +105,7 @@ export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Prom
     return { success: false, error: "League season not found." };
   }
 
-  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     return { success: false, error: "League season not found or access denied." };
   }
 

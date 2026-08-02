@@ -142,6 +142,7 @@ export interface EventPoolValidation {
 
 export interface EventSquadAssignment {
   playerId: string;
+  eventId: string;
   eventSquadId: string;
   assignedRoleType: string | null;
   assignedPositionId: string | null;

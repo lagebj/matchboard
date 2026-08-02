@@ -93,7 +93,7 @@ export async function regroupMatchesIntoIsoWeekRounds(): Promise<RegroupResult> 
           }
 
           const draftWarnings = await db.warning.findMany({
-            where: { matchRoundId: redundantRoundId, resolved: false },
+            where: { matchRoundId: redundantRoundId },
           });
           for (const w of draftWarnings) {
             await db.warning.update({

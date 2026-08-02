@@ -1,8 +1,7 @@
 import { addPlayerToDraftMatch, removePlayerFromDraftMatch, changeDraftPlayerRole, replaceDraftMatchPlayer } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { draftSelectionSchema } from "@/lib/security/validation";
@@ -10,8 +9,7 @@ import { safeErrorResponse } from "@/lib/security/errors";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 export async function POST(request: Request) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const { allowed } = rateLimit("draft-selection", 10, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
@@ -35,7 +33,7 @@ export async function POST(request: Request) {
   if (!match) {
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
-  if (orgFilter.type === "org" && match.team.organisationId !== orgFilter.organisationId) {
+  if (match.team.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "Match not found or access denied." }, { status: 404 });
   }
 

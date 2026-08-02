@@ -1,14 +1,12 @@
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { LoadTimelineClient } from "./load-timeline-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoadTimelinePage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const leagueSeasons = await db.leagueSeason.findMany({
     where: { ...orgWhere },

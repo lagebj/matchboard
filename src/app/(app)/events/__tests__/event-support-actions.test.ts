@@ -87,6 +87,7 @@ async function addPlayerToEventAndSquad(
   });
   await testDb.eventSquadPlayer.create({
     data: {
+      eventId,
       eventSquadId: squadId,
       playerId,
       source: "MANUAL",

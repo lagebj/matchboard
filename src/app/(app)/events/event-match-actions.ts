@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { requireCoachAccess } from '@/lib/auth';
-import { resolveOrgFilterForUser, type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
+import { requireActorContext } from '@/lib/auth/actor-context';
+import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchCategory } from '@/generated/prisma/client';
 import { getDefaultEventMatchCategory } from '@/lib/stats/event-match-stats';
 import { cleanOpponentDisplayName } from '@/lib/opponents/opponent-team';
@@ -47,8 +47,7 @@ async function resolveOpponent(opponentName: string, opponentTeamIdInput?: strin
 }
 
 export async function createEventMatchAction(formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
   const eventId = formData.get('eventId') as string;
   const eventSquadId = formData.get('eventSquadId') as string;
@@ -63,12 +62,12 @@ export async function createEventMatchAction(formData: FormData) {
     throw new Error('Event, squad, opponent name, and date/time are required.');
   }
 
-  await requireEventOrgAccess(eventId, orgFilter);
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const { opponentTeamId, opponentName } = await resolveOpponent(opponentNameInput, opponentTeamIdInput);
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: eventId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
   });
   if (!event) throw new Error('Event not found.');
 
@@ -96,7 +95,7 @@ export async function createEventMatchAction(formData: FormData) {
       location,
       notes,
       status: 'SCHEDULED',
-      ...(orgFilter.type === 'org' ? { organisationId: orgFilter.organisationId } : {}),
+      ...(ctx.orgFilter.type === 'org' ? { organisationId: ctx.orgFilter.organisationId } : {}),
     },
   });
 
@@ -113,10 +112,9 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
   category?: string;
   eventSquadId?: string;
 }) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, orgFilter);
+  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -133,7 +131,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
       where: {
         id: data.eventSquadId,
         eventId: existing.eventId,
-        ...(orgFilter.type === 'org' ? { event: orgFilter.filter } : {}),
+        ...(ctx.orgFilter.type === 'org' ? { event: ctx.orgFilter.filter } : {}),
       },
     });
     if (!squad) {
@@ -182,10 +180,9 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
 }
 
 export async function deleteEventMatchAction(eventMatchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, orgFilter);
+  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -205,10 +202,9 @@ export async function deleteEventMatchAction(eventMatchId: string) {
 }
 
 export async function cancelEventMatchAction(eventMatchId: string, reason?: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, orgFilter);
+  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -239,18 +235,16 @@ export async function cancelEventMatchAction(eventMatchId: string, reason?: stri
 }
 
 export async function listEventMatchesAction(eventId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireEventOrgAccess(eventId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
   const { getEventMatchesForEvent } = await import('@/lib/stats/event-match-stats');
   return getEventMatchesForEvent(eventId);
 }
 
 export async function reopenEventMatchAction(eventMatchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, orgFilter);
+  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');

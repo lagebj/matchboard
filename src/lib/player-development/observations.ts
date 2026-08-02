@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { DevelopmentObservationSource } from "@/generated/prisma/client";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./constants";
 
 export type DevelopmentObservationInput = {
@@ -54,10 +54,9 @@ function validatePositionId(positionId: string | null | undefined, kind: string)
 export async function createDevelopmentObservation(
   input: DevelopmentObservationInput,
 ): Promise<{ id: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  if (orgFilter.type !== "org") {
+  if (ctx.orgFilter.type !== "org") {
     throw new Error("Organisation access required");
   }
 
@@ -70,7 +69,7 @@ export async function createDevelopmentObservation(
   const player = await db.player.findFirst({
     where: {
       id: input.playerId,
-      ...orgFilter.filter,
+      ...ctx.orgFilter.filter,
     },
   });
 
@@ -81,7 +80,7 @@ export async function createDevelopmentObservation(
   const match = await db.match.findFirst({
     where: {
       id: input.matchId,
-      ...orgFilter.filter,
+      ...ctx.orgFilter.filter,
     },
     select: { id: true },
   });
@@ -104,7 +103,7 @@ export async function createDevelopmentObservation(
 
   const observation = await db.playerDevelopmentObservation.create({
     data: {
-      organisationId: orgFilter.organisationId,
+      organisationId: ctx.organisationId,
       playerId: input.playerId,
       sourceType,
       matchId: input.matchId,
@@ -114,7 +113,7 @@ export async function createDevelopmentObservation(
       direction: input.direction,
       observableNote,
       observedAt: new Date(),
-      recordedBy: coach.id ?? "unknown",
+      recordedBy: ctx.userId,
     },
   });
 
@@ -124,10 +123,9 @@ export async function createDevelopmentObservation(
 export async function deleteDevelopmentObservation(
   observationId: string,
 ): Promise<{ success: boolean }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
 
-  if (orgFilter.type !== "org") {
+  if (ctx.orgFilter.type !== "org") {
     throw new Error("Organisation access required");
   }
 
@@ -135,7 +133,7 @@ export async function deleteDevelopmentObservation(
     where: { id: observationId },
   });
 
-  if (!observation || observation.organisationId !== orgFilter.organisationId) {
+  if (!observation || observation.organisationId !== ctx.organisationId) {
     throw new Error("Observation not found or access denied");
   }
 

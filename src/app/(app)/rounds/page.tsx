@@ -1,12 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "./round-list-client";
-import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
-import { type WarningSeverity } from "@/generated/prisma/client";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 
 type RoundItem = {
@@ -19,9 +17,8 @@ type RoundItem = {
 };
 
 export default async function RoundsPage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
 
   const activeLeagueSeason = await db.leagueSeason.findFirst({
     where: orgWhere,
@@ -40,10 +37,6 @@ export default async function RoundsPage() {
         },
         orderBy: [{ startsAt: "asc" }],
       },
-      warnings: {
-        where: { resolved: false },
-        select: { severity: true, rule: true },
-      },
       selections: {
         where: { status: "DRAFT" },
         select: { id: true },
@@ -53,8 +46,9 @@ export default async function RoundsPage() {
     orderBy: [{ createdAt: "desc" }],
   });
 
-  const roundItems: RoundItem[] = matchRounds.map((round) => {
-    const blockedCount = round.warnings.filter((w) => signalCategoryFromSeverity(w.severity as WarningSeverity) === "BLOCKED").length;
+  const roundItems: RoundItem[] = await Promise.all(matchRounds.map(async (round) => {
+    const integrity = await computeRoundPlanIntegrity(round.id);
+    const blockedCount = integrity.summary.blockerCount + integrity.summary.decisionRequiredCount;
     const hasDraftSelections = round.selections.length > 0;
     const hasMatches = round.matches.length > 0;
 
@@ -68,7 +62,7 @@ export default async function RoundsPage() {
       teamNames: [...new Set(round.matches.map((m) => m.team.name))],
       derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, hasMatches, blockedSignalCount: blockedCount }),
     };
-  });
+  }));
 
   return (
     <div className="flex flex-col gap-3">

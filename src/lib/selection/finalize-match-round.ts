@@ -1,6 +1,7 @@
-import { WarningSeverity, SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getRules } from "@/lib/rules/get-rules";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 
@@ -21,20 +22,7 @@ export async function finalizeMatchRound(
 ): Promise<FinalizeResult> {
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId },
-    include: {
-      matches: {
-        select: { id: true },
-      },
-      warnings: {
-        select: {
-          id: true,
-          severity: true,
-          rule: true,
-          message: true,
-          resolved: true,
-        },
-      },
-    },
+    select: { id: true },
   });
 
   if (!matchRound) {
@@ -51,20 +39,16 @@ export async function finalizeMatchRound(
 
   const rules = await getRules();
 
-  const unresolvedWarnings = matchRound.warnings.filter((w) => !w.resolved);
+  const integrity = await computeRoundPlanIntegrity(matchRoundId);
 
-  const hardBlockWarnings = unresolvedWarnings.filter(
-    (w) => w.severity === WarningSeverity.HARD_BLOCK,
-  );
-  const requiresOverrideWarnings = unresolvedWarnings.filter(
-    (w) => w.severity === WarningSeverity.REQUIRES_OVERRIDE,
-  );
+  const blockedSignals = integrity.signals.filter((s) => s.kind === "BLOCKED");
+  const decisionRequiredSignals = integrity.signals.filter((s) => s.kind === "DECISION_REQUIRED");
 
-  const allOverrideWarnings = [...hardBlockWarnings, ...requiresOverrideWarnings];
+  const allOverrideSignals = [...blockedSignals, ...decisionRequiredSignals];
 
-  if (allOverrideWarnings.length > 0 && (!overrideReasonCategory)) {
-    const overrideMessages = allOverrideWarnings.map(
-      (w) => `[${w.severity as string}] ${w.rule}: ${w.message}`,
+  if (allOverrideSignals.length > 0 && !overrideReasonCategory) {
+    const overrideMessages = allOverrideSignals.map(
+      (s) => `[${s.kind}] ${s.ruleCode}: ${s.title}`,
     );
 
     return {
@@ -78,19 +62,13 @@ export async function finalizeMatchRound(
     };
   }
 
-  const hasHardOverrides = allOverrideWarnings.some(
-    (w) => w.severity === WarningSeverity.HARD_BLOCK || w.severity === WarningSeverity.REQUIRES_OVERRIDE,
-  );
+  const hasHardOverrides = allOverrideSignals.length > 0;
 
   const formattedOverrideReason = overrideReasonCategory
     ? formatOverrideReason(overrideReasonCategory, overrideReasonDetail)
     : null;
 
-  const warningCountWarnings = unresolvedWarnings.filter(
-    (w) => w.severity === WarningSeverity.WARNING || w.severity === WarningSeverity.SCORING_PREFERENCE,
-  );
-
-  const humanReviewRecommended = warningCountWarnings.length > rules.warningThreshold;
+  const humanReviewRecommended = integrity.planningNotes.length > rules.warningThreshold;
 
   const draftSelections = await db.selection.findMany({
     where: {
@@ -115,79 +93,9 @@ export async function finalizeMatchRound(
     };
   }
 
-  const nonCoreDraftSelections = await db.selection.findMany({
-    where: {
-      matchRoundId,
-      status: SelectionStatus.DRAFT,
-      role: { not: SelectionRole.CORE },
-    },
-    select: {
-      playerId: true,
-      matchId: true,
-      role: true,
-    },
-  });
-
-  // Legacy: controlledDoubleLoad was a previous-generation concept.
-  // No new true values are written by the engine. This query handles
-  // any remaining legacy data from before the match-first refactor.
-  const controlledDoubleLoadSelections = await db.selection.findMany({
-    where: {
-      matchRoundId,
-      status: SelectionStatus.DRAFT,
-      controlledDoubleLoad: true,
-    },
-    select: {
-      playerId: true,
-      matchId: true,
-    },
-  });
-
-  const allNonCorePlayerKeys = new Set<string>();
-  for (const s of nonCoreDraftSelections) {
-    allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
-  }
-  for (const s of controlledDoubleLoadSelections) {
-    allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
-  }
-
-  const ledgerKeys = new Set<string>();
-  if (allNonCorePlayerKeys.size > 0) {
-    const existingLedgerEntries = await db.movementLedger.findMany({
-      where: {
-        matchRoundId,
-        isDraft: true,
-      },
-      select: {
-        playerId: true,
-        matchId: true,
-      },
-    });
-    for (const e of existingLedgerEntries) {
-      ledgerKeys.add(`${e.playerId}:${e.matchId}`);
-    }
-  }
-
   const currentRuleConfigVersion = rules.version;
 
   await db.$transaction(async (tx) => {
-    for (const key of allNonCorePlayerKeys) {
-      if (!ledgerKeys.has(key)) {
-        const [playerId, matchId] = key.split(":");
-        await tx.warning.create({
-          data: {
-            matchRoundId,
-            matchId,
-            playerId,
-            severity: WarningSeverity.WARNING,
-            rule: "missing_movement_ledger",
-            message: `Non-core selection for player ${playerId} in match ${matchId} has no movement ledger entry.`,
-            resolved: false,
-          },
-        });
-      }
-    }
-
     await tx.selection.updateMany({
       where: {
         matchRoundId,
@@ -223,16 +131,19 @@ export async function finalizeMatchRound(
     });
   });
 
-  const allWarningMessages = unresolvedWarnings.map((w) => {
-    const severity = w.severity as string;
-    return `[${severity}] ${w.rule}: ${w.message}`;
+  const allWarningMessages = allOverrideSignals.map((s) => {
+    return `[${s.kind}] ${s.ruleCode}: ${s.title}`;
+  });
+
+  const planningNoteMessages = integrity.planningNotes.map((n) => {
+    return `[PLANNING_NOTE] ${n.code}: ${n.title}`;
   });
 
   const finalizedMatchIds = [...new Set(draftSelections.map((s) => s.matchId))];
 
   return {
     success: true,
-    warnings: allWarningMessages,
+    warnings: [...allWarningMessages, ...planningNoteMessages],
     hardBlocked: false,
     needsOverride: false,
     humanReviewRecommended,

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { getPlayerPathways } from "@/lib/pathways/get-player-pathways";
 import type { InsightScope, InsightContext } from "@/lib/insights/insights-types";
 import type { PathwayViewMode } from "@/lib/pathways/pathways-types";
@@ -9,13 +8,12 @@ import type { PathwayViewMode } from "@/lib/pathways/pathways-types";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  let coach;
+  let ctx;
   try {
-    coach = await requireCoachAccess();
+    ctx = await requireActorContext();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
 
   const { searchParams } = new URL(request.url);
   const leagueSeasonId = searchParams.get("leagueSeasonId");
@@ -41,7 +39,7 @@ export async function GET(request: Request) {
   if (!leagueSeason) {
     return NextResponse.json({ error: "League season not found" }, { status: 404 });
   }
-  if (orgFilter.type === "org" && leagueSeason.organisationId !== orgFilter.organisationId) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 

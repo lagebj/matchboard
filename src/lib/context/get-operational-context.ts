@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
 export type OperationalContext = {
   season: { id: string; name: string } | null;
@@ -63,13 +64,13 @@ export async function getOperationalContext(orgFilter?: OrgFilterMode): Promise<
 }
 
 async function enrichMatchRound(id: string, name: string, status: string): Promise<NonNullable<OperationalContext["matchRound"]>> {
-  const [draftCount, matchCount, blockingCount] = await Promise.all([
+  const [draftCount, matchCount, planIntegrity] = await Promise.all([
     db.selection.count({ where: { matchRoundId: id, status: "DRAFT" } }),
     db.match.count({ where: { matchRoundId: id } }),
-    db.warning.count({ where: { matchRoundId: id, resolved: false, severity: "HARD_BLOCK" } }),
+    computeRoundPlanIntegrity(id),
   ]);
 
-  return { id, name, status, hasDraftSelections: draftCount > 0, hasMatches: matchCount > 0, blockedSignalCount: blockingCount };
+  return { id, name, status, hasDraftSelections: draftCount > 0, hasMatches: matchCount > 0, blockedSignalCount: planIntegrity.summary.blockerCount };
 }
 
 export async function searchEntities(query: string, orgFilter?: OrgFilterMode) {

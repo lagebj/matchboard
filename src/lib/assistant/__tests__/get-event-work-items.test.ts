@@ -335,7 +335,7 @@ describe("getEventWorkItems", () => {
     await cleanEventTables(db);
   });
 
-  it("returns event_squads_draft_review when all squads are DRAFT", async () => {
+  it("returns event_squads_ready when all squads are DRAFT", async () => {
     const event = await db.event.create({
       data: {
         name: "Draft Review Cup",
@@ -367,19 +367,19 @@ describe("getEventWorkItems", () => {
 
     const items = await getEventWorkItems();
     const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft_review" && i.eventId === event.id,
+      (i) => i.category === "event_squads_ready" && i.eventId === event.id,
     );
     expect(draftItems.length).toBe(1);
     expect(draftItems[0]!.title).toContain("Draft Review Cup");
-    expect(draftItems[0]!.primaryActionLabel).toBe("Review squads");
+    expect(draftItems[0]!.primaryActionLabel).toBe("View squads");
 
     await cleanEventTables(db);
   });
 
-  it("does not return event_squads_draft_review when all squads are CONFIRMED", async () => {
+  it("does not return event_squads_ready when all squads are LOCKED", async () => {
     const event = await db.event.create({
       data: {
-        name: "Confirmed Cup",
+        name: "Locked Cup",
         eventType: "CUP",
         startsAt: new Date("2028-10-01T09:00:00Z"),
         endsAt: new Date("2028-10-01T17:00:00Z"),
@@ -389,10 +389,10 @@ describe("getEventWorkItems", () => {
     const squad = await db.eventSquad.create({
       data: {
         eventId: event.id,
-        name: "Confirmed Squad",
+        name: "Locked Squad",
         intent: "COMPETITIVE",
         targetSize: 7,
-        status: "CONFIRMED",
+        status: "LOCKED",
       },
     });
     await db.eventMatch.create({
@@ -400,7 +400,7 @@ describe("getEventWorkItems", () => {
         eventId: event.id,
         eventSquadId: squad.id,
         category: "CUP",
-        opponentName: "Confirmed Opponent",
+        opponentName: "Locked Opponent",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2028-10-01T10:00:00Z"),
       },
@@ -408,14 +408,14 @@ describe("getEventWorkItems", () => {
 
     const items = await getEventWorkItems();
     const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft_review" && i.eventId === event.id,
+      (i) => i.category === "event_squads_ready" && i.eventId === event.id,
     );
     expect(draftItems.length).toBe(0);
 
     await cleanEventTables(db);
   });
 
-  it("does not return event_squads_draft_review when some squads are CONFIRMED", async () => {
+  it("does not return event_squads_ready when some squads are LOCKED", async () => {
     const event = await db.event.create({
       data: {
         name: "Mixed Cup",
@@ -437,16 +437,16 @@ describe("getEventWorkItems", () => {
     await db.eventSquad.create({
       data: {
         eventId: event.id,
-        name: "Confirmed Squad",
+        name: "Locked Squad",
         intent: "COMPETITIVE",
         targetSize: 7,
-        status: "CONFIRMED",
+        status: "LOCKED",
       },
     });
 
     const items = await getEventWorkItems();
     const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft_review" && i.eventId === event.id,
+      (i) => i.category === "event_squads_ready" && i.eventId === event.id,
     );
     expect(draftItems.length).toBe(0);
 

@@ -55,6 +55,27 @@ const CONFLICT_TYPE_LABELS: Record<string, string> = {
   position_coverage_conflict: "Position coverage conflict",
 };
 
+type SimulationInputHash = {
+  leagueSeasonId: string;
+  roundIds: string[];
+  playerCount: number;
+  matchCount: number;
+  availabilityCount: number;
+  rotationPathCount: number;
+  computedAt: string;
+};
+
+type ApplyResult = {
+  leagueSeasonId: string;
+  results: { matchRoundId: string; matchRoundName: string; matchCount: number; warningCount: number; success: boolean; error?: string }[];
+  failedRoundIds: string[];
+  skippedRoundIds: string[];
+  totalRounds: number;
+  appliedCount: number;
+  failedCount: number;
+  skippedCount: number;
+};
+
 export default function SimulationPage() {
   const [scope, setScope] = useState<SimulationScope>("league_period_remainder");
   const [policyMode, setPolicyMode] = useState<SimulationPolicyMode>("default_only");
@@ -64,7 +85,12 @@ export default function SimulationPage() {
   const [leagueSeasons, setLeagueSeasons] = useState<LeagueSeasonOption[]>([]);
   const [result, setResult] = useState<SeasonSimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [inputHash, setInputHash] = useState<SimulationInputHash | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmApply, setConfirmApply] = useState(false);
 
   useEffect(() => {
     async function fetchLeagueSeasons() {
@@ -88,6 +114,10 @@ export default function SimulationPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setApplyResult(null);
+    setApplyError(null);
+    setInputHash(null);
+    setConfirmApply(false);
 
     const request: SeasonSimulationRequest = {
       scope,
@@ -110,11 +140,60 @@ export default function SimulationPage() {
         setError(err.error || `HTTP ${res.status}`);
         return;
       }
-      setResult(await res.json());
+      const data: SeasonSimulationResult = await res.json();
+      setResult(data);
+
+      if (data.validToCommit && data.league && leagueSeasonId) {
+        try {
+          const hashRes = await fetch(`/api/simulation/input-hash?leagueSeasonId=${encodeURIComponent(leagueSeasonId)}`);
+          if (hashRes.ok) {
+            setInputHash(await hashRes.json());
+          }
+        } catch {
+          // Input hash is optional — apply can still proceed without it
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleApply() {
+    if (!leagueSeasonId) return;
+    setApplying(true);
+    setApplyError(null);
+
+    try {
+      const res = await fetch("/api/simulation/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leagueSeasonId,
+          ...(inputHash ? { previousInputHash: inputHash } : {}),
+        }),
+      });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        setApplyError(data.error || "Input data has changed. Re-run the simulation first.");
+        return;
+      }
+
+      if (!res.ok) {
+        const err = await res.json();
+        setApplyError(err.error || `HTTP ${res.status}`);
+        return;
+      }
+
+      const data: ApplyResult = await res.json();
+      setApplyResult(data);
+      setConfirmApply(false);
+    } catch (e) {
+      setApplyError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -207,6 +286,70 @@ export default function SimulationPage() {
       {result?.dryRunWarning && (
         <Surface variant="warning" padding="md">
           <p className="text-sm">{result.dryRunWarning}</p>
+        </Surface>
+      )}
+
+      {result && result.validToCommit && result.league && leagueSeasonId && (
+        <Surface variant="default" padding="md">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-100">Apply as drafts</h3>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Re-run generation through the normal pipeline and persist draft selections for all non-finalized rounds.
+                Existing drafts will be replaced. Finalized rounds are skipped.
+              </p>
+            </div>
+            {!confirmApply ? (
+              <Button onClick={() => setConfirmApply(true)} variant="primary" size="sm">
+                Apply as drafts
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button onClick={handleApply} variant="primary" size="sm" disabled={applying}>
+                  {applying ? "Applying..." : "Confirm apply"}
+                </Button>
+                <Button onClick={() => setConfirmApply(false)} variant="ghost" size="sm">
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        </Surface>
+      )}
+
+      {result && !result.validToCommit && result.league && (
+        <Surface variant="subtle" padding="md">
+          <p className="text-sm text-[var(--text-muted)]">
+            Simulation contains blocked rounds or generation errors. Resolve issues before applying.
+          </p>
+        </Surface>
+      )}
+
+      {applyError && (
+        <Surface variant="danger" padding="md">
+          <p className="text-sm">{applyError}</p>
+        </Surface>
+      )}
+
+      {applyResult && (
+        <Surface variant="default" padding="md">
+          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Apply Results</h3>
+          <div className="grid grid-cols-4 gap-4 text-sm mb-4">
+            <div><span className="text-[var(--text-muted)]">Total</span><p className="font-bold">{applyResult.totalRounds}</p></div>
+            <div><span className="text-[var(--text-muted)]">Applied</span><p className="font-bold text-[var(--success)]">{applyResult.appliedCount}</p></div>
+            <div><span className="text-[var(--text-muted)]">Failed</span><p className="font-bold text-[var(--danger)]">{applyResult.failedCount}</p></div>
+            <div><span className="text-[var(--text-muted)]">Skipped</span><p className="font-bold">{applyResult.skippedCount}</p></div>
+          </div>
+          {applyResult.results.filter((r) => !r.success).length > 0 && (
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium text-[var(--danger)]">Failed rounds</h4>
+              {applyResult.results.filter((r) => !r.success).map((r) => (
+                <div key={r.matchRoundId} className="text-sm text-[var(--text-muted)]">
+                  {r.matchRoundName}: {r.error ?? "Unknown error"}
+                </div>
+              ))}
+            </div>
+          )}
         </Surface>
       )}
 

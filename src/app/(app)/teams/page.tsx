@@ -2,8 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { getTeamsResultsOverview } from "@/lib/teams/get-teams-results-overview";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import type { TeamPeriodResultsRow } from "@/lib/teams/get-teams-results-overview";
@@ -86,12 +85,11 @@ function MobileTeamCard({ row }: { row: TeamPeriodResultsRow }) {
 }
 
 export default async function TeamsPage({ searchParams }: TeamsPageProps) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const { periodId, error, saved } = await searchParams;
 
   const leagueSeasons = await db.leagueSeason.findMany({
-    where: { ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     orderBy: { startDate: "desc" },
     select: { id: true, name: true, startDate: true, endDate: true },
   });
@@ -99,7 +97,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
   const selectedPeriodId = periodId ?? leagueSeasons[0]?.id;
 
   const overview = selectedPeriodId
-    ? await getTeamsResultsOverview(selectedPeriodId, orgFilter)
+    ? await getTeamsResultsOverview(selectedPeriodId, ctx.orgFilter)
     : null;
 
   const selectedPeriod = selectedPeriodId

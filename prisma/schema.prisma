@@ -235,16 +235,16 @@ model MatchRound {
 }
 
 model Availability {
-  id           String     @id @default(cuid())
+  id           String           @id @default(cuid())
   organisationId String?
   playerId     String
   matchRoundId String
-  status       String
+  status       AvailabilityStatus @default(AVAILABLE)
   note         String?
-  createdAt    DateTime   @default(now())
-  matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+  matchRound   MatchRound       @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
+  player       Player           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, matchRoundId])
   @@index([organisationId])
@@ -261,6 +261,12 @@ model Selection {
   status                 SelectionStatus             @default(DRAFT)
   ruleConfigVersion      Int?
   explanation            Json?
+  manuallyAdded          Boolean                     @default(false)
+  manuallyRemoved        Boolean                     @default(false)
+  autoSelected           Boolean                     @default(true)
+  sourceTeamName         String?
+  targetTeamName         String?
+  selectionReason        String?
   overrideReason         String?
   overrideReasonCategory OverrideReasonCategory?
   overrideReasonDetail   String?
@@ -450,7 +456,7 @@ model Warning {
   severity     WarningSeverity
   rule         String
   message      String
-  resolved     Boolean         @default(false)
+  resolved     Boolean         @default(false) // Deprecated: use computeRoundPlanIntegrity() for live plan integrity. This field is retained for backward compatibility only.
   createdAt    DateTime        @default(now())
   matchRound   MatchRound      @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   organisation Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
@@ -949,6 +955,7 @@ model Event {
   updatedAt              DateTime                  @updatedAt
   players                EventPlayerAvailability[]
   squads                 EventSquad[]
+  squadPlayers           EventSquadPlayer[]
   eventMatches           EventMatch[]
   organisation           Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -1008,6 +1015,7 @@ model EventSquad {
 model EventSquadPlayer {
   id                 String                 @id @default(cuid())
   organisationId     String?
+  eventId            String
   eventSquadId       String
   playerId           String
   assignedRoleType   FormationSlotRoleType?
@@ -1022,9 +1030,11 @@ model EventSquadPlayer {
   updatedAt          DateTime               @updatedAt
   positionFitTier    String?
   eventSquad         EventSquad             @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  event              Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   player             Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
   organisation       Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  @@unique([eventId, playerId])
   @@unique([eventSquadId, playerId])
   @@index([playerId])
   @@index([organisationId])
@@ -1330,6 +1340,7 @@ enum BestSide {
 
 enum AvailabilityStatus {
   AVAILABLE
+  UNAVAILABLE
   INJURED
   SICK
   AWAY
@@ -1482,7 +1493,7 @@ enum CoachingIntentCategory {
 }
 
 enum CoachingIntentScopeType {
-  PLANNING_PERIOD
+  LEAGUE_SEASON
   MATCH_ROUND
   MATCH
   TEAM
@@ -1607,7 +1618,7 @@ enum EventSquadIntent {
 
 enum EventSquadStatus {
   DRAFT
-  CONFIRMED
+  LOCKED
 }
 
 enum EventSelectionPattern {
@@ -1790,6 +1801,8 @@ model Organisation {
   developmentObservations         PlayerDevelopmentObservation[]
   profileSuggestions              PlayerProfileSuggestion[]
   ruleConfigs                     RuleConfig[]
+  reviewRequests                  ReviewRequest[]
+  workOwnerships                  WorkOwnership[]
 
   @@index([slug])
   @@index([name])
@@ -1800,6 +1813,7 @@ model OrganisationMembership {
   userId         String
   organisationId String
   role           OrganisationRole @default(COACH)
+  expiresAt      DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -1811,6 +1825,7 @@ model OrganisationMembership {
   @@index([organisationId])
   @@index([userId])
   @@index([role])
+  @@index([expiresAt])
 }
 
 model OrganisationInvitation {
@@ -2060,6 +2075,7 @@ enum DeliveryStatus {
 model NotificationOutbox {
   id              String              @id @default(cuid())
   organisationId  String?
+  idempotencyKey  String?             @unique
   template        NotificationTemplate
   payload         Json
   status          NotificationStatus  @default(PENDING)
@@ -2072,7 +2088,6 @@ model NotificationOutbox {
   updatedAt       DateTime            @updatedAt
 
   deliveries      NotificationDelivery[]
-
   @@index([status, scheduledAt])
   @@index([status, nextRetryAt])
   @@index([organisationId])
@@ -2119,4 +2134,79 @@ model ProviderWebhookEvent {
   @@index([providerMessageId])
   @@index([processed, receivedAt])
   @@index([eventId])
+}
+
+enum ReviewTargetType {
+  EVENT_SQUAD
+  MATCH_LINEUP
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+  CANCELLED
+  SUPERSEDED
+}
+
+model ReviewRequest {
+  id                      String          @id @default(cuid())
+  organisationId          String?
+  targetType              ReviewTargetType
+  targetId                String
+  targetRevision          String
+  requestedByMembershipId String
+  reviewerMembershipId    String
+  status                  ReviewStatus    @default(PENDING)
+  requestMessage          String?
+  reviewerComment         String?
+  resolvedAt              DateTime?
+  supersededById          String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id])
+
+  @@index([targetType, targetId, status])
+  @@index([reviewerMembershipId, status])
+  @@index([requestedByMembershipId])
+  @@index([organisationId])
+}
+
+enum WorkTargetType {
+  FIXTURE
+  EVENT
+  POST_MATCH_REPORT
+  EVENT_SQUAD_PREPARATION
+}
+
+enum WorkOwnershipStatus {
+  ACTIVE
+  HANDED_OVER
+  COMPLETED
+}
+
+model WorkOwnership {
+  id                      String              @id @default(cuid())
+  organisationId          String
+  targetType              WorkTargetType
+  targetId                String
+  ownerMembershipId        String
+  assignedByMembershipId   String
+  status                  WorkOwnershipStatus @default(ACTIVE)
+  dueAt                   DateTime?
+  handoverNote            String?
+  acknowledgedAt          DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  organisation            Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([targetType, targetId, status])
+  @@index([organisationId])
+  @@index([ownerMembershipId, status])
+  @@index([assignedByMembershipId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([dueAt])
 }

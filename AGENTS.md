@@ -1,6 +1,6 @@
 # Matchboard Agent Instructions
 
-Matchboard is a private coach-facing youth football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals, finalized history, and post-match reflection across a league season.
+Matchboard is a private coach-facing football operations cockpit for match-round squad planning, controlled player movement, coaching intent, matchday responsibility, plan integrity signals, finalized history, and post-match reflection across a league season.
 
 It is deployed as a hosted web app on Vercel with Neon PostgreSQL backend persistence. It is not a generic club-management platform, not a parent communication platform, and not a public player evaluation system.
 
@@ -1409,8 +1409,8 @@ Event squad generation is separate from league round generation:
 Events use separate Prisma models:
 - `Event`: top-level container with name, type (CUP/TOURNAMENT/FRIENDLY_DAY/OTHER), date range, game format, independent of league season, default formation, selection pattern
 - `EventPlayerAvailability`: per-player availability for this event (AVAILABLE/UNAVAILABLE/UNKNOWN/RESERVE/LATE_ADDITION/WITHDRAWN)
-- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary, status (DRAFT/CONFIRM)
-- `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason
+- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary, status (DRAFT/LOCKED)
+- `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason, unique on [eventId, playerId] (one player per event across all squads)
 - `EventMatchLineup`: per-match lineup with formation reference, status (DRAFT/CONFIRMED), cascade delete with EventMatch
 - `EventMatchLineupAssignment`: per-slot player assignment within a lineup, with slot position (slotId, slotIndex, slotLabel, roleType, x, y), source (BASE_SQUAD/HELPER), unique on [lineupId, playerId]
 
@@ -1418,16 +1418,17 @@ Event squads are NOT normal `Team` rows. They are temporary event artifacts with
 
 ### Event squad draft/commit lifecycle
 
-Event squads have a status field: DRAFT or CONFIRMED.
+Event squads have a status field: DRAFT or LOCKED.
 
 - Generated squads start as DRAFT
 - The coach reviews DRAFT squads, may make manual adjustments
-- When satisfied, the coach commits squads via `confirmEventSquadsAction`, which runs validation first
+- When satisfied, the coach locks squads via `confirmEventSquadsAction`, which runs validation first
 - Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
-- Blocking issues prevent commit; warning and info issues do not
-- Committed squads can be reverted to DRAFT via `unconfirmEventSquadsAction`
-- The Assistant surfaces `event_squads_draft_review` work items when all event squads are DRAFT
-- Aggregate status (DRAFT/CONFIRMED/MIXED) is available via `getEventSquadsStatusAction`
+- Blocking issues prevent locking; warning and info issues do not
+- Locked squads can be unlocked back to DRAFT via `unconfirmEventSquadsAction`
+- The Assistant surfaces `event_squads_ready` work items when all event squads are DRAFT
+- Aggregate status (DRAFT/LOCKED/MIXED) is available via `getEventSquadsStatusAction`
+- Review is optional and advisory via `ReviewRequest` — locking does not require review
 
 ### Policy decision types
 
@@ -1571,13 +1572,14 @@ Rules:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
-| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
@@ -1833,8 +1835,8 @@ Avoid:
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
-| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes incomplete_report, unknown_attendance) |
-| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league and event state (includes audit work items) |
+| `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
+| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items) |
 | `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |
@@ -1846,15 +1848,35 @@ Avoid:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
-| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
+
+### Coaching intelligence files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/coaching/types.ts` | Coaching domain constants and types: intent categories, readiness signals, matchday responsibilities, feedback categories, disallowed language |
+| `src/lib/coaching/coaching-intent.ts` | Coaching intent CRUD and scope resolution (match → round → league season cascade) |
+| `src/lib/coaching/readiness-signals.ts` | Readiness signal CRUD, validation, and warnings |
+| `src/lib/coaching/match-execution-feedback.ts` | Match execution feedback CRUD, validation, and disallowed-language guard |
+| `src/lib/coaching/team-reflection.ts` | Team reflection CRUD and upsert |
+| `src/lib/coaching/matchday-responsibility.ts` | Matchday responsibility assignment, validation, and description |
+| `src/lib/coaching/index.ts` | Barrel export for coaching domain |
+| `src/lib/selection/readiness-scoring.ts` | Readiness scoring modifiers for selection engine |
+| `src/components/players/player-readiness-panel.tsx` | Readiness signals editor panel on player profile |
+| `src/components/matches/coaching-intent-selector.tsx` | Coaching intent dropdown selector |
+| `src/components/matches/matchday-responsibility-selector.tsx` | Matchday responsibility dropdown selector |
+| `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
+| `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
+| `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
 
 ### Transactional email files
 
@@ -1871,6 +1893,19 @@ Avoid:
 | `src/lib/email/webhook-handler.ts` | Brevo webhook signature verification and delivery status processing |
 | `src/app/api/cron/notification-outbox/route.ts` | Cron endpoint for outbox processing |
 | `src/app/api/webhooks/brevo/route.ts` | Webhook endpoint for Brevo delivery status callbacks |
+
+### Review and attention files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/review/review-service.ts` | `createReviewRequest()`, `resolveReviewRequest()`, `supersedePendingReviews()`, `getPendingReviewsForReviewer()`, `getReviewHistory()` |
+| `src/app/(app)/reviews/actions.ts` | Review server actions: request, resolve, cancel, get pending, get history |
+| `src/lib/attention/get-attention-entries.ts` | `getAttentionEntries()` — attention projection from live domain state |
+| `src/app/(app)/o/[orgSlug]/attention/page.tsx` | Attention page (server) |
+| `src/app/(app)/o/[orgSlug]/attention/attention-client.tsx` | Attention page client component |
+| `src/app/(app)/o/[orgSlug]/attention/actions.ts` | Attention server actions |
+| `src/app/(app)/o/[orgSlug]/reviews/page.tsx` | Reviews list page (server) |
+| `src/app/(app)/o/[orgSlug]/reviews/review-list-client.tsx` | Reviews list client component with resolve/cancel UI |
 
 ### Formation/tactics files
 

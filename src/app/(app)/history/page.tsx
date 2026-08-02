@@ -3,8 +3,7 @@ import { MovementOverview, type MovementOverviewRow } from "@/components/history
 import { HistoryTable, type PlayerHistoryRow } from "@/components/history/history-table";
 import { ExportPanel } from "@/components/history/export-panel";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { formatDate } from "@/lib/date-utils";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
 import {
@@ -32,9 +31,8 @@ function formatPatternDate(matchDate: Date): string {
 }
 
 export default async function HistoryPage() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
 
   const [players, rawSelectionSnapshots] = await Promise.all([
     db.player.findMany({

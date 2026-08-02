@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
@@ -14,6 +13,7 @@ import { PlayerDetailsPanel } from "@/components/players/player-details-panel";
 import { PlayerAttributesPanel } from "@/components/players/player-attributes-panel";
 import { PlayerAvailabilityPanel } from "@/components/players/player-availability-panel";
 import { CoachContextPanel as PlayerCoachContextPanel } from "@/components/players/player-coach-context-panel";
+import { PlayerReadinessPanel } from "@/components/players/player-readiness-panel";
 import { PlayerReportSummaryPanel } from "@/components/players/player-report-summary-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
@@ -41,9 +41,8 @@ function formatSavedMessage(saved?: string): string | null {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([
     db.player.findFirst({
@@ -79,7 +78,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   if (!player) notFound();
 
-  const [rotationPaths, movementCandidates] = await Promise.all([
+  const [rotationPaths, movementCandidates, readinessSignals] = await Promise.all([
     db.rotationPath.findMany({
       where: {
         OR: [
@@ -107,6 +106,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         },
       },
       orderBy: { createdAt: "desc" },
+    }),
+    db.playerReadinessSignal.findMany({
+      where: { playerId, ...orgWhere },
+      orderBy: { signalType: "asc" },
     }),
   ]);
 
@@ -183,6 +186,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               rotationPaths={mappedRotationPaths}
               movementCandidates={mappedMovementCandidates}
               coreTeamId={player.coreTeamId}
+            />
+            <PlayerReadinessPanel
+              playerId={player.id}
+              signals={readinessSignals.map((s) => ({ id: s.id, signalType: s.signalType, value: s.value, note: s.note }))}
             />
           </div>
         }

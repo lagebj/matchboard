@@ -6,15 +6,13 @@ import { createGeneratedDraftRound, createGeneratedDraftSelection } from "@/lib/
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
+import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 
-type SelectionExplanationRow = { explanation: Prisma.JsonValue };
+type SelectionRow = { manuallyAdded: boolean; manuallyRemoved: boolean; explanation: Prisma.JsonValue };
 
-function hasManualDraftChanges(selections: SelectionExplanationRow[]) {
+function hasManualDraftChanges(selections: SelectionRow[]) {
   return selections.some(
-    (selection) => {
-      const explanation = (selection.explanation ?? {}) as Record<string, unknown>;
-      return explanation.manuallyAdded === true || explanation.manuallyRemoved === true;
-    },
+    (selection) => selection.manuallyAdded || selection.manuallyRemoved,
   );
 }
 
@@ -29,6 +27,17 @@ async function cloneDraftSelection(matchId: string) {
       playerId: true,
       role: true,
       explanation: true,
+      manuallyAdded: true,
+      manuallyRemoved: true,
+      autoSelected: true,
+      sourceTeamName: true,
+      targetTeamName: true,
+      selectionReason: true,
+      overrideReason: true,
+      overrideReasonCategory: true,
+      overrideReasonDetail: true,
+      controlledDoubleLoad: true,
+      matchdayResponsibility: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -56,8 +65,19 @@ async function cloneDraftSelection(matchId: string) {
           matchRoundId,
           playerId: selection.playerId,
           role: selection.role,
+          controlledDoubleLoad: selection.controlledDoubleLoad,
           status: SelectionStatus.DRAFT,
           explanation: selection.explanation as Prisma.InputJsonValue,
+          manuallyAdded: selection.manuallyAdded,
+          manuallyRemoved: selection.manuallyRemoved,
+          autoSelected: selection.autoSelected,
+          sourceTeamName: selection.sourceTeamName,
+          targetTeamName: selection.targetTeamName,
+          selectionReason: selection.selectionReason,
+          overrideReason: selection.overrideReason,
+          overrideReasonCategory: selection.overrideReasonCategory,
+          overrideReasonDetail: selection.overrideReasonDetail,
+          matchdayResponsibility: selection.matchdayResponsibility,
         },
       });
     }
@@ -80,7 +100,6 @@ export async function refreshDraftSelection(matchId: string) {
     include: {
       selections: {
         select: {
-          explanation: true,
           status: true,
         },
         orderBy: [{ createdAt: "desc" }],
@@ -109,6 +128,8 @@ export async function refreshDraftSelection(matchId: string) {
       status: SelectionStatus.DRAFT,
     },
     select: {
+      manuallyAdded: true,
+      manuallyRemoved: true,
       explanation: true,
     },
   });
@@ -136,65 +157,7 @@ export async function refreshDraftSelection(matchId: string) {
   });
 
   if (matchRound) {
-    const matchIdByTeamName = new Map<string, string>();
-    const teamIdByTeamName = new Map<string, string>();
-    for (const m of matchRound.matches) {
-      matchIdByTeamName.set(m.team.name, m.id);
-      teamIdByTeamName.set(m.team.name, m.team.id);
-    }
-
-    const generatedRound: import("@/lib/selection/types").GeneratedRound = {
-      matchRoundId: matchRound.id,
-      roundWarnings: [],
-      matchResults: [generatedSelection],
-      generatedAt: new Date(),
-      generationSummary: { supportNeeds: [], routedCoreMatchDrops: [], unroutedExclusions: [] },
-    };
-
-    const matchWarnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName)
-      .filter((w) => w.matchId === matchId);
-
-    const existingWarnings = await db.warning.findMany({
-      where: { matchRoundId: matchRound.id, resolved: true },
-      select: { id: true, rule: true, playerId: true, matchId: true, teamId: true, severity: true, message: true, resolved: true },
-    });
-
-    const otherMatchWarnings = await db.warning.findMany({
-      where: { matchRoundId: matchRound.id, matchId: { not: matchId } },
-      select: { matchRoundId: true, matchId: true, playerId: true, teamId: true, severity: true, rule: true, message: true, resolved: true },
-    });
-
-    const allWarnings = [...otherMatchWarnings, ...matchWarnings];
-
-    const resolvedByKey = new Map<string, typeof existingWarnings[number]>();
-    for (const r of existingWarnings) {
-      const key = `${r.rule}|${r.playerId ?? ""}|${r.matchId ?? ""}|${r.teamId ?? ""}`;
-      resolvedByKey.set(key, r);
-    }
-
-    await db.$transaction(async (tx) => {
-      await tx.warning.deleteMany({
-        where: { matchRoundId: matchRound.id },
-      });
-
-      for (const w of allWarnings) {
-        const key = `${w.rule}|${w.playerId ?? ""}|${w.matchId ?? ""}|${w.teamId ?? ""}`;
-        const matching = resolvedByKey.get(key);
-
-        await tx.warning.create({
-          data: {
-            matchRoundId: w.matchRoundId,
-            matchId: w.matchId,
-            playerId: w.playerId,
-            teamId: w.teamId,
-            severity: w.severity,
-            rule: w.rule,
-            message: w.message,
-            resolved: matching?.resolved ?? false,
-          },
-        });
-      }
-    });
+    await reconcileRoundAfterDraftMutation(matchRound.id);
   }
 
   return {
@@ -246,6 +209,8 @@ export async function refreshDraftRound(matchRoundId: string) {
       status: SelectionStatus.DRAFT,
     },
     select: {
+      manuallyAdded: true,
+      manuallyRemoved: true,
       explanation: true,
     },
   });
@@ -275,6 +240,7 @@ export async function refreshDraftRound(matchRoundId: string) {
   await persistRoundWarnings(warnings);
   await persistRoundExplanations(generatedRound);
   await enrichSelectionsWithIntent(generatedRound.matchResults.map((m) => m.matchId));
+  await reconcileRoundAfterDraftMutation(matchRoundId);
 
   return { preservedManualDraft: false };
 }
@@ -291,6 +257,17 @@ async function cloneDraftRound(matchRoundId: string) {
       playerId: true,
       role: true,
       explanation: true,
+      manuallyAdded: true,
+      manuallyRemoved: true,
+      autoSelected: true,
+      sourceTeamName: true,
+      targetTeamName: true,
+      selectionReason: true,
+      overrideReason: true,
+      overrideReasonCategory: true,
+      overrideReasonDetail: true,
+      controlledDoubleLoad: true,
+      matchdayResponsibility: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -314,8 +291,19 @@ async function cloneDraftRound(matchRoundId: string) {
           matchRoundId: selection.matchRoundId,
           playerId: selection.playerId,
           role: selection.role,
+          controlledDoubleLoad: selection.controlledDoubleLoad,
           status: SelectionStatus.DRAFT,
           explanation: selection.explanation as Prisma.InputJsonValue,
+          manuallyAdded: selection.manuallyAdded,
+          manuallyRemoved: selection.manuallyRemoved,
+          autoSelected: selection.autoSelected,
+          sourceTeamName: selection.sourceTeamName,
+          targetTeamName: selection.targetTeamName,
+          selectionReason: selection.selectionReason,
+          overrideReason: selection.overrideReason,
+          overrideReasonCategory: selection.overrideReasonCategory,
+          overrideReasonDetail: selection.overrideReasonDetail,
+          matchdayResponsibility: selection.matchdayResponsibility,
         },
       });
     }

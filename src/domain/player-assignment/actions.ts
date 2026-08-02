@@ -1,7 +1,7 @@
 "use server";
 
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { db } from "@/lib/db";
 import { getPlayerAssignmentBoard, movePlayerToTeam } from "@/domain/player-assignment/service";
 
@@ -24,9 +24,8 @@ async function requirePlayerOrgAccess(playerId: string, orgFilter: OrgFilterMode
 }
 
 export async function fetchPlayerAssignmentBoard() {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  return getPlayerAssignmentBoard(orgFilter);
+  const ctx = await requireActorContext();
+  return getPlayerAssignmentBoard(ctx.orgFilter);
 }
 
 export async function movePlayerToTeamAction(input: {
@@ -35,11 +34,10 @@ export async function movePlayerToTeamAction(input: {
   previousTeamId?: string | null;
   reason?: string;
 }) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requirePlayerOrgAccess(input.playerId, orgFilter);
+  const ctx = await requireActorContext();
+  await requirePlayerOrgAccess(input.playerId, ctx.orgFilter);
   if (input.targetTeamId) {
-    await requireTeamOrgAccess(input.targetTeamId, orgFilter);
+    await requireTeamOrgAccess(input.targetTeamId, ctx.orgFilter);
   }
   return movePlayerToTeam(input);
 }

@@ -65,7 +65,7 @@ export async function getMatchIntentMap(matchIds: string[]): Promise<Map<string,
 
     if (uniquePeriodIds.length > 0) {
       const periodIntents = await db.coachingIntent.findMany({
-        where: { scopeType: "PLANNING_PERIOD", scopeId: { in: uniquePeriodIds } },
+        where: { scopeType: "LEAGUE_SEASON", scopeId: { in: uniquePeriodIds } },
         orderBy: { createdAt: "desc" },
       });
 
@@ -130,6 +130,7 @@ export async function enrichSelectionsWithIntent(matchIds: string[]): Promise<vo
     select: {
       id: true,
       matchId: true,
+      playerId: true,
       explanation: true,
     },
   });
@@ -151,5 +152,10 @@ export async function enrichSelectionsWithIntent(matchIds: string[]): Promise<vo
         data: { explanation: enriched as unknown as Prisma.InputJsonValue },
       });
     }
+
+    await db.selectionExplanation.updateMany({
+      where: { matchId: selection.matchId, playerId: selection.playerId },
+      data: { coachingIntentCategory: intentCategory },
+    });
   }
 }

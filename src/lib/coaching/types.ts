@@ -14,7 +14,7 @@ export const COACHING_INTENT_CATEGORIES = [
 export type CoachingIntentCategory = (typeof COACHING_INTENT_CATEGORIES)[number];
 
 export const COACHING_INTENT_SCOPE_TYPES = [
-  "PLANNING_PERIOD",
+  "LEAGUE_SEASON",
   "MATCH_ROUND",
   "MATCH",
   "TEAM",

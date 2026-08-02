@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
@@ -20,12 +19,11 @@ type PlayersPageProps = {
 };
 
 export default async function PlayersPage({ searchParams }: PlayersPageProps) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
+  const ctx = await requireActorContext();
   const { mode, periodId, roundId, showRemoved, error, saved } = await searchParams;
   const includeRemoved = showRemoved === "1";
 
-  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
   const playerFilter = includeRemoved
     ? { removedAt: { not: null } satisfies Prisma.DateTimeNullableFilter<"Player">, ...orgWhere }
     : { removedAt: null, active: true, ...orgWhere };
@@ -57,13 +55,13 @@ export default async function PlayersPage({ searchParams }: PlayersPageProps) {
   const selectedPeriodId = periodId ?? leagueSeasons[0]?.id ?? "";
 
   const seasonData = selectedPeriodId
-    ? await getPlayersSeasonOverview(selectedPeriodId, { orgFilter })
+    ? await getPlayersSeasonOverview(selectedPeriodId, { orgFilter: ctx.orgFilter })
     : { leagueSeason: { id: "", label: "No phase" }, seasonRows: [] as PlayerSeasonOverviewRow[] };
 
   const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
 
   const currentRoundRows = selectedRoundId
-    ? await getPlayersCurrentRoundAttention(selectedRoundId, orgFilter)
+    ? await getPlayersCurrentRoundAttention(selectedRoundId, ctx.orgFilter)
     : [];
 
   const playerRatings = new Map<string, RatingSummary>();

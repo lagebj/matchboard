@@ -6,7 +6,7 @@ import {
   shouldAutoExcludeEncounter,
   FORMULA_VERSION,
 } from "./sporting-level-calculation";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type FieldedPlayer = {
   playerId: string;

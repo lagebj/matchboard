@@ -7,21 +7,19 @@ import {
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { movePlannedSelectionWithinRound } from "@/lib/selection/move-planned-selection";
 import { logManualOverride } from "@/lib/security/audit-log";
 import { db } from "@/lib/db";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 
 async function verifyMatchOrgAccess(matchId: string): Promise<void> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const match = await db.match.findFirst({
-      where: { id: matchId, ...orgFilter.filter },
+      where: { id: matchId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!match) throw new Error("Match not found or access denied.");
@@ -29,11 +27,10 @@ async function verifyMatchOrgAccess(matchId: string): Promise<void> {
 }
 
 async function verifyRoundOrgAccess(matchRoundId: string): Promise<void> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  if (orgFilter.type === "org") {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
     const round = await db.matchRound.findFirst({
-      where: { id: matchRoundId, ...orgFilter.filter },
+      where: { id: matchRoundId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!round) throw new Error("Round not found or access denied.");
@@ -74,8 +71,8 @@ export async function addPlayerToMatchAction(formData: FormData) {
   const result = await addPlayerToDraftMatch(matchId, playerId, role as SelectionRole, category, detail);
 
   if (result.success && category) {
-    const coach = await requireCoachAccess();
-    logManualOverride(coach.email ?? "unknown", "selection", `${matchId}:${playerId}`, category);
+    const ctx = await requireActorContext();
+    logManualOverride(ctx.email || "unknown", "selection", `${matchId}:${playerId}`, category);
   }
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
@@ -124,8 +121,8 @@ export async function changePlayerRoleAction(formData: FormData) {
   const result = await changeDraftPlayerRole(matchId, playerId, role as SelectionRole, category, detail);
 
   if (result.success && category) {
-    const coach = await requireCoachAccess();
-    logManualOverride(coach.email ?? "unknown", "selection_role", `${matchId}:${playerId}`, category);
+    const ctx = await requireActorContext();
+    logManualOverride(ctx.email || "unknown", "selection_role", `${matchId}:${playerId}`, category);
   }
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";

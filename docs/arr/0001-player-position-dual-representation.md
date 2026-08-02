@@ -52,7 +52,16 @@ One authoritative writable representation for player position priority. The cano
 
 ## Disposition
 
-Pending. Source-of-truth register designates Player string fields as canonical. PlayerPosition to be made read-only or removed in IMPROVE-0B/0C.
+In progress. Player scalar fields (`primaryPosition`, `secondaryPosition`, `tertiaryPosition`) are confirmed canonical. `PlayerPosition` table is a secondary derived store written by `syncPlayerPositions()` with no active read paths. The table is retained for future approved-position workflow but must not be read as canonical position source. All position reads for selection, display, and export use Player scalar fields.
+
+## History
+
+### 2026-08-02
+
+- Confirmed: `PlayerPosition` table has zero active read paths. Only `syncPlayerPositions()` writes to it.
+- Confirmed: All selection engine, display, and export code reads from Player scalar fields.
+- Decision: Player scalar fields remain canonical. PlayerPosition table retained for future approved-position workflow but documented as secondary derived store.
+- Updated source-of-truth register to reflect canonical status.
 
 ## Related decisions
 

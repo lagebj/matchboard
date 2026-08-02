@@ -322,12 +322,10 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
   await resolveOpponentOnReportCompletion(report.matchId);
 
   try {
+    const { requireActorContext } = await import("@/lib/auth/actor-context");
+    const ctx = await requireActorContext();
     const { recordOpponentSportingEvidence } = await import("@/lib/opponents/sporting-level-recording");
-    const coach = await import("@/lib/auth").then((m) => m.getCurrentCoach());
-    if (coach) {
-      const orgFilter = await import("@/lib/tenancy/resolve-org-filter").then((m) => m.resolveOrgFilterForUser(coach.id ?? ""));
-      await recordOpponentSportingEvidence(report.matchId, orgFilter);
-    }
+    await recordOpponentSportingEvidence(report.matchId, ctx.orgFilter);
   } catch {
     // Sporting evidence recording must not block report completion
   }

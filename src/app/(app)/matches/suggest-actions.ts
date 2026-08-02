@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { suggestFormationForMatch, suggestLineupForFormation, type SuggestFormationInput, type SuggestLineupInput } from "@/lib/formations/suggest";
 import { createFormationSnapshot } from "@/lib/formations/snapshot";
 import type { GameFormat } from "@/generated/prisma/client";
@@ -33,9 +33,8 @@ async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode
 }
 
 export async function getSuggestFormationData(matchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -67,12 +66,12 @@ export async function getSuggestFormationData(matchId: string) {
   if (!match) throw new Error("Match not found");
 
   const formations = await db.formation.findMany({
-    where: { gameFormat: match.gameFormat as GameFormat, isArchived: false, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { gameFormat: match.gameFormat as GameFormat, isArchived: false, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
   const recentLineup = await db.matchLineup.findFirst({
-    where: { teamId: match.teamId, status: "CONFIRMED", ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { teamId: match.teamId, status: "CONFIRMED", ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     orderBy: { createdAt: "desc" },
     select: { formationId: true },
   });
@@ -121,9 +120,8 @@ export async function getSuggestFormationData(matchId: string) {
 }
 
 export async function getSuggestLineupData(matchId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -155,7 +153,7 @@ export async function getSuggestLineupData(matchId: string) {
   if (!match) throw new Error("Match not found");
 
   const lineup = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { matchId, teamId: match.teamId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: "asc" } } } },
       assignments: true,
@@ -166,9 +164,8 @@ export async function getSuggestLineupData(matchId: string) {
 }
 
 export async function suggestLineupForMatch(matchId: string, formationId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -199,14 +196,14 @@ export async function suggestLineupForMatch(matchId: string, formationId: string
   if (!match) throw new Error("Match not found");
 
   const formation = await db.formation.findFirst({
-    where: { id: formationId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: formationId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
   if (!formation) throw new Error("Formation not found");
 
   const existingLineup = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { matchId, teamId: match.teamId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     include: { assignments: true },
   });
 
@@ -253,24 +250,23 @@ export async function applySuggestedLineup(
   assignments: { slotId: string; playerId: string; source: "SUGGESTED" | "MANUAL" }[],
   benchPlayerIds: string[],
 ) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findFirst({
-    where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
   });
   if (!match) throw new Error("Match not found");
 
   const formation = await db.formation.findFirst({
-    where: { id: formationId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: formationId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
   if (!formation) throw new Error("Formation not found");
 
   const existing = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { matchId, teamId: match.teamId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
   });
 
   if (existing) {
@@ -363,9 +359,8 @@ export async function applySuggestedLineup(
 }
 
 export async function clearSuggestedAssignments(lineupId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireLineupOrgAccess(lineupId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.matchLineup.findUnique({
     where: { id: lineupId },
@@ -391,9 +386,8 @@ export async function clearSuggestedAssignments(lineupId: string) {
 }
 
 export async function fillEmptySlots(lineupId: string) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireLineupOrgAccess(lineupId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.matchLineup.findUnique({
     where: { id: lineupId },
@@ -410,7 +404,7 @@ export async function fillEmptySlots(lineupId: string) {
   }
 
   const match = await db.match.findFirst({
-    where: { id: lineup.matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: lineup.matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     select: {
       gameFormat: true,
       selections: {

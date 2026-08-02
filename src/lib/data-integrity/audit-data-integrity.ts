@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { db as defaultDb } from "@/lib/db";
 import type { IntegrityAuditInput, IntegrityAuditResult, IntegrityFinding, IntegrityDomain, IntegritySeverity } from "./types";
 
@@ -380,10 +380,107 @@ async function checkCandidateOpponentIdentityDivergence(
 }
 
 async function checkCandidateSelectionExplanationDivergence(
-  _db: Dbc,
-  _scope: { leagueSeasonId?: string; matchId?: string },
-  _findings: IntegrityFinding[],
+  db: Dbc,
+  scope: { leagueSeasonId?: string; matchId?: string },
+  findings: IntegrityFinding[],
 ): Promise<void> {
+  const matchIds = await getCompletedMatchIds(db, scope.leagueSeasonId);
+  if (matchIds.length === 0 && !scope.matchId) return;
+
+  const targetMatchIds = scope.matchId ? [scope.matchId] : matchIds;
+  if (targetMatchIds.length === 0) return;
+
+  const selections = await db.selection.findMany({
+    where: {
+      matchId: { in: targetMatchIds },
+      explanation: { not: Prisma.DbNull },
+    },
+    select: {
+      id: true,
+      matchId: true,
+      playerId: true,
+      explanation: true,
+    },
+  });
+
+  for (const selection of selections) {
+    if (!selection.explanation || typeof selection.explanation !== "object") continue;
+
+    const explanation = selection.explanation as Record<string, unknown>;
+
+    const canonicalExplanation = await db.selectionExplanation.findFirst({
+      where: {
+        matchId: selection.matchId,
+        playerId: selection.playerId,
+        scopeType: "SELECTION",
+      },
+      select: {
+        coachingIntentCategory: true,
+        matchdayResponsibility: true,
+        summary: true,
+      },
+    });
+
+    if (canonicalExplanation) {
+      const cacheIntent = explanation.coachingIntentCategory as string | undefined;
+      const canonicalIntent = canonicalExplanation.coachingIntentCategory;
+
+      if (cacheIntent !== canonicalIntent) {
+        findings.push({
+          code: "SELECTION_EXPLANATION_INTENT_DIVERGENCE",
+          severity: "REVIEW",
+          domain: "SELECTION_EXPLANATION",
+          entityType: "Selection",
+          entityId: selection.id,
+          matchId: selection.matchId,
+          playerId: selection.playerId ?? undefined,
+          message: `Selection.explanation.coachingIntentCategory (${cacheIntent ?? "null"}) diverges from SelectionExplanation.coachingIntentCategory (${canonicalIntent ?? "null"})`,
+          canonicalValue: canonicalIntent,
+          conflictingValue: cacheIntent,
+          repairability: "AUTO_SAFE",
+          recommendedAction: "Re-run explanation enrichment to sync cache from canonical table",
+        });
+      }
+
+      const cacheResponsibility = explanation.matchdayResponsibility as string | undefined;
+      const canonicalResponsibility = canonicalExplanation.matchdayResponsibility;
+
+      if (cacheResponsibility !== canonicalResponsibility) {
+        findings.push({
+          code: "SELECTION_EXPLANATION_RESPONSIBILITY_DIVERGENCE",
+          severity: "REVIEW",
+          domain: "SELECTION_EXPLANATION",
+          entityType: "Selection",
+          entityId: selection.id,
+          matchId: selection.matchId,
+          playerId: selection.playerId ?? undefined,
+          message: `Selection.explanation.matchdayResponsibility (${cacheResponsibility ?? "null"}) diverges from SelectionExplanation.matchdayResponsibility (${canonicalResponsibility ?? "null"})`,
+          canonicalValue: canonicalResponsibility,
+          conflictingValue: cacheResponsibility,
+          repairability: "AUTO_SAFE",
+          recommendedAction: "Re-sync matchday responsibility from canonical table to cache",
+        });
+      }
+    } else {
+      const explanationKeys = Object.keys(explanation);
+      if (explanationKeys.length > 0) {
+        findings.push({
+          code: "SELECTION_EXPLANATION_MISSING_CANONICAL",
+          severity: "INFO",
+          domain: "SELECTION_EXPLANATION",
+          entityType: "Selection",
+          entityId: selection.id,
+          matchId: selection.matchId,
+          playerId: selection.playerId ?? undefined,
+          message: `Selection ${selection.id} has explanation cache but no canonical SelectionExplanation row`,
+          canonicalValue: null,
+          conflictingValue: `cache has keys: ${explanationKeys.join(", ")}`,
+          repairability: "REPORT_ONLY",
+          recommendedAction: "Generate canonical SelectionExplanation rows for this selection",
+        });
+      }
+    }
+  }
 }
 async function checkCandidateAvailabilityPrecedence(
   _db: Dbc,
@@ -398,16 +495,118 @@ async function checkCandidateSupportNoShowCounterDrift(
 ): Promise<void> {
 }
 async function checkCandidateDoubleLoadLegacyRemnants(
-  _db: Dbc,
-  _scope: { leagueSeasonId?: string; matchId?: string },
-  _findings: IntegrityFinding[],
+  db: Dbc,
+  scope: { leagueSeasonId?: string; matchId?: string },
+  findings: IntegrityFinding[],
 ): Promise<void> {
+  const where: Record<string, unknown> = {};
+  if (scope.leagueSeasonId) {
+    where.matchRound = { leagueSeasonId: scope.leagueSeasonId };
+  }
+
+  const doubleLoadSelections = await db.selection.findMany({
+    where: {
+      controlledDoubleLoad: true,
+      ...where,
+    },
+    select: {
+      id: true,
+      matchId: true,
+      playerId: true,
+      role: true,
+      controlledDoubleLoad: true,
+    },
+    take: 100,
+  });
+
+  for (const sel of doubleLoadSelections) {
+    findings.push({
+      code: "LEGACY_DOUBLE_LOAD_SELECTION",
+      severity: "INFO",
+      domain: "MOVEMENT_LEDGER",
+      entityType: "Selection",
+      entityId: sel.id,
+      matchId: sel.matchId,
+      playerId: sel.playerId,
+      message: `Selection ${sel.id} has controlledDoubleLoad=true (legacy flag). New generation never sets this flag.`,
+      canonicalValue: false,
+      conflictingValue: true,
+      repairability: "REQUIRES_FACTUAL_REVIEW",
+      recommendedAction: "Verify this is historical data, not new generation. MovementLedger should be the source of truth for movement type.",
+    });
+  }
 }
 async function checkCandidateWarningProjectionDrift(
-  _db: Dbc,
-  _scope: { leagueSeasonId?: string; matchId?: string },
-  _findings: IntegrityFinding[],
+  db: Dbc,
+  scope: { leagueSeasonId?: string; matchId?: string },
+  findings: IntegrityFinding[],
 ): Promise<void> {
+  const where: Record<string, unknown> = {};
+  if (scope.leagueSeasonId) {
+    where.matchRound = { leagueSeasonId: scope.leagueSeasonId };
+  }
+
+  const rounds = await db.matchRound.findMany({
+    where: { ...where, status: { in: ["DRAFT", "BLOCKED", "READY"] } },
+    select: { id: true, name: true },
+    take: 50,
+  });
+
+  for (const round of rounds) {
+    const persistedWarnings = await db.warning.count({
+      where: { matchRoundId: round.id },
+    });
+
+    if (persistedWarnings === 0) continue;
+
+    const liveSignals = await import("@/lib/selection/compute-plan-integrity").then((m) =>
+      m.computeRoundPlanIntegrity(round.id),
+    );
+
+    const liveBlockerCount = liveSignals.summary.blockerCount;
+    const liveDecisionCount = liveSignals.summary.decisionRequiredCount;
+
+    const persistedHardBlockCount = await db.warning.count({
+      where: { matchRoundId: round.id, severity: "HARD_BLOCK" },
+    });
+    const persistedRequiresOverrideCount = await db.warning.count({
+      where: { matchRoundId: round.id, severity: "REQUIRES_OVERRIDE" },
+    });
+
+    if (persistedHardBlockCount !== liveBlockerCount) {
+      findings.push({
+        code: "WARNING_PROJECTION_BLOCKER_COUNT_DRIFT",
+        severity: "INFO",
+        domain: "PLAN_INTEGRITY_PROJECTION",
+        entityType: "MatchRound",
+        entityId: round.id,
+        matchId: undefined,
+        leagueSeasonId: scope.leagueSeasonId,
+        message: `Round ${round.name}: persisted HARD_BLOCK warning count (${persistedHardBlockCount}) differs from live blocker count (${liveBlockerCount})`,
+        canonicalValue: liveBlockerCount,
+        conflictingValue: persistedHardBlockCount,
+        repairability: "AUTO_SAFE",
+        recommendedAction: "Re-run plan integrity computation and persist updated signals",
+      });
+    }
+
+    if (persistedRequiresOverrideCount !== liveDecisionCount) {
+      findings.push({
+        code: "WARNING_PROJECTION_DECISION_COUNT_DRIFT",
+        severity: "INFO",
+        domain: "PLAN_INTEGRITY_PROJECTION",
+        entityType: "MatchRound",
+        entityId: round.id,
+        matchId: undefined,
+        leagueSeasonId: scope.leagueSeasonId,
+        message: `Round ${round.name}: persisted REQUIRES_OVERRIDE warning count (${persistedRequiresOverrideCount}) differs from live decision-required count (${liveDecisionCount})`,
+        canonicalValue: liveDecisionCount,
+        conflictingValue: persistedRequiresOverrideCount,
+        repairability: "AUTO_SAFE",
+        recommendedAction: "Re-run plan integrity computation and persist updated signals",
+      });
+    }
+  }
 }
 
 async function filterByLeagueSeason<T extends { matchId: string }>(

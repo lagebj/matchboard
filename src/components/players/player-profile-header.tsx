@@ -7,7 +7,7 @@ import { BrandIllustration } from "@/components/ui/brand-illustration";
 import { formatAvailabilityStatus, formatPlayerName, getPlayerAttributeAverages, getOverallStarRating } from "@/lib/player-metrics";
 import { togglePlayerActiveAction, removePlayerAction, restorePlayerAction } from "@/app/(app)/players/actions";
 
-type AvailabilityStatus = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
+type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
 type PlayerWithTeamAndAttributes = {
   id: string;

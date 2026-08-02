@@ -3,8 +3,7 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { TeamDetail } from "@/components/team/team-detail";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/lib/selection/movement-candidate";
@@ -18,9 +17,8 @@ type TeamPageProps = {
 export default async function TeamDetailPage({ params }: TeamPageProps) {
   const { teamId } = await params;
 
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const [team, orderedTeamIds] = await Promise.all([
     db.team.findUnique({
@@ -316,8 +314,8 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   ];
 
   const [incomingCandidates, outgoingCandidates, eligibleCandidates] = await Promise.all([
-    getIncomingCandidatesForTeam(team.id, orgFilter),
-    getOutgoingCandidatesForTeam(team.id, orgFilter),
+    getIncomingCandidatesForTeam(team.id, ctx.orgFilter),
+    getOutgoingCandidatesForTeam(team.id, ctx.orgFilter),
     db.player.findMany({
       where: {
         removedAt: null,

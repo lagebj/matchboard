@@ -6,8 +6,7 @@ import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/l
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { LiveEventInput } from "@/lib/live-match/live-match-types";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 
 export async function startLiveSessionAction(matchId: string) {
   try {
@@ -106,9 +105,8 @@ export async function getRecentEventsAction(matchId: string, limit?: number) {
 
 export async function getLiveMatchPreMatchPackageAction(matchId: string) {
   try {
-    const coach = await requireCoachAccess();
-    const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-    const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+    const ctx = await requireActorContext();
+    const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
     const match = await db.match.findUnique({
       where: { id: matchId },
@@ -133,15 +131,15 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
       return { success: false as const, error: "Match not found." };
     }
 
-    if (orgFilter.type === "org" && match.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org" && match.organisationId !== ctx.orgFilter.organisationId) {
       return { success: false as const, error: "Match not found or access denied." };
     }
 
     const squadPlayers = await db.selection.findMany({
       where: {
         matchId,
-        ...(orgFilter.type === "org"
-          ? { match: { organisationId: orgFilter.organisationId } }
+        ...(ctx.orgFilter.type === "org"
+          ? { match: { organisationId: ctx.orgFilter.organisationId } }
           : {}),
       },
       select: {

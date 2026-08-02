@@ -1,10 +1,10 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type MatchdayResponsibilityType,
   MATCHDAY_RESPONSIBILITIES,
@@ -38,9 +38,8 @@ export async function setMatchdayResponsibilityAction(
   selectionId: string,
   responsibility: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireSelectionOrgAccess(selectionId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireSelectionOrgAccess(selectionId, ctx.orgFilter);
 
   if (responsibility !== null && !MATCHDAY_RESPONSIBILITIES.includes(responsibility as MatchdayResponsibilityType)) {
     return { success: false, error: `Invalid matchday responsibility: ${responsibility}` };
@@ -49,7 +48,7 @@ export async function setMatchdayResponsibilityAction(
   try {
     const selection = await db.selection.findUnique({
       where: { id: selectionId },
-      select: { id: true, matchId: true, status: true, matchdayResponsibility: true },
+      select: { id: true, matchId: true, status: true, matchdayResponsibility: true, playerId: true },
     });
 
     if (!selection) return { success: false, error: "Selection not found." };
@@ -80,6 +79,11 @@ export async function setMatchdayResponsibilityAction(
       }
     }
 
+    await db.selectionExplanation.updateMany({
+      where: { matchId: selection.matchId, playerId: selection.playerId },
+      data: { matchdayResponsibility: responsibility as MatchdayResponsibilityType | null },
+    });
+
     revalidatePath(`/matches/${selection.matchId}`);
     revalidatePath(`/rounds`);
 
@@ -105,14 +109,13 @@ export async function setTeamReflectionAction(
     note?: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const orgId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {
     const match = await db.match.findFirst({
-      where: { id: matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+      where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     });
     if (!match) return { success: false, error: "Match not found." };
 
@@ -148,13 +151,12 @@ export async function setTeamReflectionAction(
 export async function getTeamReflectionAction(
   matchId: string,
 ): Promise<{ success: boolean; reflection?: { id: string; effort: string | null; teamCohesion: string | null; positionalShape: string | null; recoveryBehavior: string | null; note: string | null } | null; error?: string }> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  await requireMatchOrgAccess(matchId, orgFilter);
+  const ctx = await requireActorContext();
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {
     const reflection = await db.teamReflection.findFirst({
-      where: { matchId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+      where: { matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     });
 
     return {

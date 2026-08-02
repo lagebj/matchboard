@@ -33,18 +33,13 @@ import type { SelectionRole } from "@/generated/prisma/client";
 /**
  * Run a season simulation.
  *
- * IMPORTANT: The simulation calls generateMatchRound() which creates DRAFT
- * selections in the database. This is not a true dry-run — it persists side
- * effects. The simulation should only be run on rounds that do not already have
- * draft selections, or the user should understand that existing drafts may be
- * overwritten.
+ * The simulation calls generateMatchRound() which is a pure computation
+ * function — it reads from the database but does not create, update, or
+ * delete any football data. Selections, warnings, explanations, and
+ * movement ledger entries are not persisted.
  *
- * A future improvement should refactor generateMatchRound() to accept an
- * optional transaction client and roll back after capturing results.
- *
- * The dryRunNotice flag in the result indicates that the simulation is
- * read-only for the result data (no commits are made to finalized history),
- * but draft selections ARE created during the simulation run.
+ * The dryRunNotice flag indicates that the simulation result is read-only
+ * and no commits are made to draft or finalized state.
  */
 
 export async function runSeasonSimulation(
@@ -106,6 +101,15 @@ export async function runSeasonSimulation(
     defaultOnlyResultCount: league?.rounds.length ?? 0,
   };
 
+  const leagueRoundsValid = league
+    ? league.rounds.every((r) => r.valid && !r.warnings.some((w) => w.severity === "blocked"))
+    : true;
+  const eventsValid = events
+    ? events.every((e) => e.valid)
+    : true;
+  const noGenerationErrors = warnings.every((w) => w.code !== "generation_failed");
+  const validToCommit = leagueRoundsValid && eventsValid && noGenerationErrors;
+
   return {
     request,
     league,
@@ -116,9 +120,9 @@ export async function runSeasonSimulation(
     conflicts,
     warnings,
     policy: policySummary,
-    validToCommit: false,
+    validToCommit,
     dryRunNotice: true,
-    dryRunWarning: "Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.",
+    dryRunWarning: "Simulation computes proposed selections without persisting. No draft selections, warnings, or movement data are created. Use the apply action to create drafts from simulation results.",
   };
 }
 
@@ -388,7 +392,7 @@ function transformMatchResult(match: GeneratedSelection): SimulatedMatchResult {
   };
 }
 
-async function resolveLeagueSeasonId(
+export async function resolveLeagueSeasonId(
   request: SeasonSimulationRequest,
 ): Promise<string> {
   if (request.leagueSeasonId) {

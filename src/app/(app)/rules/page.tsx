@@ -7,8 +7,7 @@ import { RotationPathCard } from "@/components/rules/rotation-path-card";
 import { getRules } from "@/lib/rules/get-rules";
 import { validateRuleConfig } from "@/lib/rules/validate-rules";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 
 type RulesPageProps = {
   searchParams: Promise<{
@@ -19,10 +18,9 @@ type RulesPageProps = {
 };
 
 export default async function RulesPage({ searchParams }: RulesPageProps) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const orgWhere = orgFilter.type === 'org' ? orgFilter.filter : {};
-  const rules = await getRules(orgFilter);
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const rules = await getRules(ctx.orgFilter);
   const { error, imported, saved } = await searchParams;
   const validation = validateRuleConfig(rules);
 

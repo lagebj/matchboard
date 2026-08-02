@@ -170,18 +170,19 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
        },
        orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
      }),
-     db.selection.findMany({
-       where: {
-         matchId: {
-           not: matchId,
-         },
-       },
-       select: {
-         matchId: true,
-         status: true,
-         playerId: true,
-         role: true,
-         explanation: true,
+      db.selection.findMany({
+        where: {
+          matchId: {
+            not: matchId,
+          },
+        },
+        select: {
+          matchId: true,
+          status: true,
+          playerId: true,
+          role: true,
+          explanation: true,
+          manuallyRemoved: true,
          match: {
            select: {
              id: true,
@@ -365,8 +366,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   const latestSavedSelectionByMatchId = new Map<string, RegisteredSelectionSnapshot>();
 
   for (const selectionRecord of savedSelections) {
-    const explanation = (selectionRecord.explanation ?? {}) as Record<string, unknown>;
-    if (explanation.manuallyRemoved === true) {
+    if (selectionRecord.manuallyRemoved) {
       continue;
     }
 
@@ -377,14 +377,8 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     const matchSelections = savedSelections.filter(
       (s) => s.matchId === selectionRecord.matchId,
     );
-    const _manuallyRemoved = matchSelections.filter((s) => {
-      const e = (s.explanation ?? {}) as Record<string, unknown>;
-      return e.manuallyRemoved === true;
-    });
-    const filteredSelections = matchSelections.filter((s) => {
-      const e = (s.explanation ?? {}) as Record<string, unknown>;
-      return e.manuallyRemoved !== true;
-    });
+    const _manuallyRemoved = matchSelections.filter((s) => s.manuallyRemoved);
+    const filteredSelections = matchSelections.filter((s) => !s.manuallyRemoved);
 
     if (filteredSelections.length === 0) {
       continue;

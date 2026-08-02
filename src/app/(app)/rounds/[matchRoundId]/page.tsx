@@ -5,12 +5,13 @@ import { RoundBoard } from "@/components/round/round-board";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 import type { CoachingIntentCategory } from "@/lib/coaching/types";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { WarningSeverity } from "@/generated/prisma/client";
 
 type RoundBoardPageProps = {
   params: Promise<{
@@ -30,9 +31,8 @@ export default async function RoundBoardPage({
   const { matchRoundId } = await params;
   const { finalized, generated, error } = await searchParams;
 
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const ctx = await requireActorContext();
+  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId, ...orgWhere },
@@ -51,20 +51,7 @@ export default async function RoundBoardPage({
           },
         },
         orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-      },
-      warnings: {
-        select: {
-          id: true,
-          rule: true,
-          message: true,
-          severity: true,
-          matchId: true,
-          playerId: true,
-          teamId: true,
-          resolved: true,
-        },
-        orderBy: [{ createdAt: "desc" }],
-      },
+       },
     },
   });
 
@@ -229,6 +216,17 @@ export default async function RoundBoardPage({
     }
   }
 
+  const integrity = await computeRoundPlanIntegrity(matchRoundId);
+
+  const unresolvedSignals = integrity.signals;
+
+  const warningSeverityMap: Record<string, WarningSeverity> = {
+    SQUAD_BELOW_MINIMUM: WarningSeverity.HARD_BLOCK,
+    SELECTED_PLAYER_UNAVAILABLE: WarningSeverity.HARD_BLOCK,
+    DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE: WarningSeverity.HARD_BLOCK,
+    AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY: WarningSeverity.REQUIRES_OVERRIDE,
+  };
+
   const unavailableByTeamId = new Map<string, typeof allPlayers>();
   for (const p of allPlayers) {
     const teamId = p.coreTeamId ?? "";
@@ -237,16 +235,11 @@ export default async function RoundBoardPage({
     unavailableByTeamId.set(teamId, existing);
   }
 
-  const unresolvedWarnings = matchRound.warnings.filter((w) => !w.resolved);
-
   const SELECTED_ROLES = new Set(["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "CONFIDENCE_REBUILD", "MANUAL_OVERRIDE"]);
 
   const squads = matchRound.matches.map((match) => {
     const matchSels = (selectionsByMatchId.get(match.id) ?? [])
-      .filter((s) => {
-        const explanation = (s.explanation ?? {}) as Record<string, unknown>;
-        return explanation.manuallyRemoved !== true;
-      });
+      .filter((s) => !s.manuallyRemoved);
 
     const seenPlayerIds = new Set<string>();
     const players: PlayerInMatch[] = [];
@@ -311,8 +304,8 @@ export default async function RoundBoardPage({
       selectedPlayerIds.add(sel.player.id);
     }
     const selectedCount = selectedPlayerIds.size;
-    const matchWarnings = unresolvedWarnings.filter(
-      (w) => w.matchId === match.id || w.teamId === match.teamId,
+    const matchWarnings = unresolvedSignals.filter(
+      (s) => (s.matchId === match.id || s.teamId === match.teamId),
     );
     const minSupport = match.team.minSupportPlayers ?? 0;
 
@@ -351,17 +344,17 @@ export default async function RoundBoardPage({
   const totalSquadRepairReceived = Array.from(squadRepairReceivedByTeamId.values()).reduce((a, b) => a + b, 0);
   const totalDrops = Array.from(dropsCountByTeamId.values()).reduce((a, b) => a + b, 0);
 
-  const warnings = unresolvedWarnings.map((w) => ({
-    code: w.rule,
-    message: w.message,
-    severity: w.severity,
-    teamName: matchRound.matches.find((m) => m.teamId === w.teamId)?.team.name,
+  const warnings = unresolvedSignals.map((s) => ({
+    code: s.ruleCode,
+    message: s.title,
+    severity: warningSeverityMap[s.ruleCode] ?? (s.kind === "BLOCKED" ? WarningSeverity.HARD_BLOCK : s.kind === "DECISION_REQUIRED" ? WarningSeverity.REQUIRES_OVERRIDE : WarningSeverity.WARNING),
+    teamName: matchRound.matches.find((m) => m.teamId === s.teamId)?.team.name,
   }));
 
   const signalSummary = {
-    blocked: unresolvedWarnings.filter((w) => w.severity === "HARD_BLOCK").length,
-    decisionRequired: unresolvedWarnings.filter((w) => w.severity === "REQUIRES_OVERRIDE").length,
-    planningNote: unresolvedWarnings.filter((w) => w.severity === "WARNING" || w.severity === "SCORING_PREFERENCE").length,
+    blocked: integrity.summary.blockerCount,
+    decisionRequired: integrity.summary.decisionRequiredCount,
+    planningNote: integrity.planningNotes.length,
   };
 
   const uniqueSelectedPlayerIds = new Set<string>();
@@ -441,12 +434,12 @@ export default async function RoundBoardPage({
              manualOverride: p.manualOverride,
              controlledDoubleLoad: p.controlledDoubleLoad,
              matchdayResponsibility: p.matchdayResponsibility,
-             warningCount: (() => {
-             const matchWarnings = unresolvedWarnings.filter(
-               (w) => (w.matchId === s.matchId || w.teamId === (matchRecord?.teamId ?? "")) && w.playerId === p.playerId,
-             );
-             return matchWarnings.length;
-           })(),
+              warningCount: (() => {
+              const playerWarnings = unresolvedSignals.filter(
+                (sig) => (sig.matchId === s.matchId || sig.teamId === (matchRecord?.teamId ?? "")) && sig.playerId === p.playerId,
+              );
+              return playerWarnings.length;
+            })(),
              negativeReadinessSignals: playerNegativeReadiness.get(p.playerId) ?? [],
         })),
     };

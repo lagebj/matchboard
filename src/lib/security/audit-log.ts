@@ -25,6 +25,8 @@ type SecurityEventAction =
   | "player_restore"
   | "event_squad_confirm"
   | "event_squad_unconfirm"
+  | "event_squad_lock"
+  | "event_squad_unlock"
   | "data_export"
   | "policy_evaluation"
   | "session_revoked"
@@ -249,10 +251,10 @@ export function logPlayerRestore(actor: string, playerId: string, result: "succe
   });
 }
 
-export function logEventSquadConfirm(actor: string, eventId: string, result: "success" | "failure", reason?: string): void {
+export function logEventSquadLock(actor: string, eventId: string, result: "success" | "failure", reason?: string): void {
   logSecurityEvent({
     category: "mutation",
-    action: "event_squad_confirm",
+    action: "event_squad_lock",
     actor,
     resource: "event",
     resourceId: eventId,
@@ -261,16 +263,20 @@ export function logEventSquadConfirm(actor: string, eventId: string, result: "su
   });
 }
 
-export function logEventSquadUnconfirm(actor: string, eventId: string, result: "success" | "failure"): void {
+export const logEventSquadConfirm = logEventSquadLock;
+
+export function logEventSquadUnlock(actor: string, eventId: string, result: "success" | "failure"): void {
   logSecurityEvent({
     category: "mutation",
-    action: "event_squad_unconfirm",
+    action: "event_squad_unlock",
     actor,
     resource: "event",
     resourceId: eventId,
     result,
   });
 }
+
+export const logEventSquadUnconfirm = logEventSquadUnlock;
 
 export function logOrganisationCreate(actor: string, organisationId: string, result: "success" | "failure"): void {
   logSecurityEvent({

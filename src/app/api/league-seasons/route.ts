@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { requireActorContext } from "@/lib/auth/actor-context";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  let coach;
+  let ctx;
   try {
-    coach = await requireCoachAccess();
+    ctx = await requireActorContext();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
-
-  const where = orgFilter.type === "org" ? orgFilter.filter : {};
+  const where = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({
     where,

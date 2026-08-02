@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { type DevelopmentAttributeKey } from "./constants";
 
 export type EvidenceConfidence = "LOW" | "MEDIUM" | "HIGH";

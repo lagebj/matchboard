@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getRules } from "@/lib/rules/get-rules";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -53,12 +52,11 @@ function validateRole(role: string): RotationPathRole {
 }
 
 export async function saveRulesAction(formData: FormData) {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   try {
     const rules = await getRules();
 
-    if (orgFilter.type === "org" && rules.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org" && rules.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Rule configuration not found or access denied.");
     }
 
@@ -86,8 +84,7 @@ export async function saveRulesAction(formData: FormData) {
 }
 
 export async function createRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   try {
     const fromTeamId = readText(formData, "fromTeamId");
     const toTeamId = readText(formData, "toTeamId");
@@ -120,8 +117,8 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     if (!fromTeam) throw new Error("Source team not found.");
     if (!toTeam) throw new Error("Target team not found.");
 
-    if (orgFilter.type === "org") {
-      if (fromTeam.organisationId !== orgFilter.organisationId || toTeam.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org") {
+      if (fromTeam.organisationId !== ctx.orgFilter.organisationId || toTeam.organisationId !== ctx.orgFilter.organisationId) {
         throw new Error("Source or target team not found or access denied.");
       }
     }
@@ -148,7 +145,7 @@ export async function createRotationPathAction(prevState: ActionState, formData:
         allowDoubleLoad,
         minRestSpacingHours,
         maxDoubleLoadsPerPeriod,
-        ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
+        ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
       },
     });
   } catch (error) {
@@ -167,8 +164,7 @@ export async function createRotationPathAction(prevState: ActionState, formData:
 }
 
 export async function updateRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   try {
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
@@ -176,7 +172,7 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
     const existingPath = await db.rotationPath.findUnique({ where: { id: pathId } });
     if (!existingPath) throw new Error("Rotation path not found.");
 
-    if (orgFilter.type === "org" && existingPath.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Rotation path not found or access denied.");
     }
 
@@ -222,8 +218,7 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
 }
 
 export async function deleteRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   try {
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
@@ -235,7 +230,7 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
 
     if (!existingPath) throw new Error("Rotation path not found.");
 
-    if (orgFilter.type === "org" && existingPath.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Rotation path not found or access denied.");
     }
 
@@ -253,8 +248,7 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
 }
 
 export async function toggleRotationPathActiveAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const coach = await requireCoachAccess();
-  const orgFilter = await resolveOrgFilterForUser(coach.id ?? "");
+  const ctx = await requireActorContext();
   try {
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
@@ -266,7 +260,7 @@ export async function toggleRotationPathActiveAction(prevState: ActionState, for
 
     if (!existingPath) throw new Error("Rotation path not found.");
 
-    if (orgFilter.type === "org" && existingPath.organisationId !== orgFilter.organisationId) {
+    if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Rotation path not found or access denied.");
     }
 

@@ -113,7 +113,7 @@ export async function getActiveCoachingIntentForMatch(matchId: string) {
   if (!round) return null;
 
   const periodIntents = await db.coachingIntent.findMany({
-    where: { scopeType: "PLANNING_PERIOD", scopeId: round.leagueSeasonId },
+    where: { scopeType: "LEAGUE_SEASON", scopeId: round.leagueSeasonId },
     orderBy: { createdAt: "desc" },
     take: 1,
   });

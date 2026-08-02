@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
+import { AuthorizationError } from "@/lib/auth";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
 import { db } from "@/lib/db";
 
@@ -14,7 +15,7 @@ export async function resolveOrgFilterForUser(userId: string, client: PrismaClie
   });
 
   if (!membership) {
-    return { type: "unscoped", filter: {}, filterNullable: {} };
+    throw new AuthorizationError("No active organisation membership");
   }
 
   const organisationId = membership.organisationId;
