@@ -35,9 +35,33 @@ One authoritative representation for selection explanations. Per the source-of-t
 
 ## Containment
 
-- Do not add new read paths to `Selection.explanation` JSON field for explanation display
-- All new explanation display code must read from `SelectionExplanation` table
-- `Selection.explanation` must not be independently written — it is a cache populated from the table
+- Do not add new read paths to `Selection.explanation` JSON field for provenance flags (manuallyAdded, manuallyRemoved, autoSelected, sourceTeamName, targetTeamName, selectionReason)
+- All provenance flag reads must use the new `Selection` columns instead of parsing JSON
+- `SelectionExplanation` table is the canonical source for structured explanation data (rulesApplied, blockers, warnings, recommendations, crossTeamImpacts)
+- `Selection.explanation` is a compatibility cache populated during selection creation; it may be read for display but must not be the source of truth for operational flags
+- New explanation display code must read from `SelectionExplanation` table or the provenance columns
+
+## Resolution criteria
+
+- [x] Provenance columns added to `Selection` model: manuallyAdded, manuallyRemoved, autoSelected, sourceTeamName, targetTeamName, selectionReason
+- [x] Regeneration logic reads `manuallyRemoved` column instead of JSON parsing
+- [x] Round board page reads `manuallyRemoved` column instead of JSON parsing
+- [ ] All read paths for provenance flags migrated to columns
+- [ ] `Selection.explanation` marked as compatibility field in source-of-truth register
+- [ ] Reconciliation check confirms no divergence between columns and JSON
+
+## Resolution progress
+
+### 2026-08-02
+
+- Added `manuallyAdded`, `manuallyRemoved`, `autoSelected`, `sourceTeamName`, `targetTeamName`, `selectionReason` columns to `Selection` model
+- Updated `save-generated-draft.ts` to write provenance columns alongside explanation JSON
+- Updated `manual-draft-edit.ts` to write provenance columns
+- Updated `move-planned-selection.ts` to write provenance columns
+- Updated `refresh-draft-selection.ts` to read/write provenance columns during cloning, use column instead of JSON parsing for `hasManualDraftChanges`
+- Updated `generate-selection.ts` to read `manuallyRemoved` column instead of parsing JSON
+- Updated round board page to read `manuallyRemoved` column instead of parsing JSON
+- Migration backfills provenance columns from existing JSON data
 
 ## Resolution criteria
 
@@ -48,7 +72,7 @@ One authoritative representation for selection explanations. Per the source-of-t
 
 ## Disposition
 
-Pending. Source-of-truth register designates `SelectionExplanation` table as canonical. `Selection.explanation` to be made read-only in IMPROVE-0C.
+In progress. Provenance columns added to `Selection` model. `SelectionExplanation` table designated canonical for structured explanations. `Selection.explanation` remains as compatibility cache. Full migration of all read paths pending.
 
 ## Related decisions
 

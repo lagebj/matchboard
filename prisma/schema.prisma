@@ -261,6 +261,12 @@ model Selection {
   status                 SelectionStatus             @default(DRAFT)
   ruleConfigVersion      Int?
   explanation            Json?
+  manuallyAdded          Boolean                     @default(false)
+  manuallyRemoved        Boolean                     @default(false)
+  autoSelected           Boolean                     @default(true)
+  sourceTeamName         String?
+  targetTeamName         String?
+  selectionReason        String?
   overrideReason         String?
   overrideReasonCategory OverrideReasonCategory?
   overrideReasonDetail   String?

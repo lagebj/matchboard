@@ -243,10 +243,7 @@ export default async function RoundBoardPage({
 
   const squads = matchRound.matches.map((match) => {
     const matchSels = (selectionsByMatchId.get(match.id) ?? [])
-      .filter((s) => {
-        const explanation = (s.explanation ?? {}) as Record<string, unknown>;
-        return explanation.manuallyRemoved !== true;
-      });
+      .filter((s) => !s.manuallyRemoved);
 
     const seenPlayerIds = new Set<string>();
     const players: PlayerInMatch[] = [];

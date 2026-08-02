@@ -7,14 +7,11 @@ import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
 
-type SelectionExplanationRow = { explanation: Prisma.JsonValue };
+type SelectionRow = { manuallyAdded: boolean; manuallyRemoved: boolean; explanation: Prisma.JsonValue };
 
-function hasManualDraftChanges(selections: SelectionExplanationRow[]) {
+function hasManualDraftChanges(selections: SelectionRow[]) {
   return selections.some(
-    (selection) => {
-      const explanation = (selection.explanation ?? {}) as Record<string, unknown>;
-      return explanation.manuallyAdded === true || explanation.manuallyRemoved === true;
-    },
+    (selection) => selection.manuallyAdded || selection.manuallyRemoved,
   );
 }
 
@@ -29,6 +26,17 @@ async function cloneDraftSelection(matchId: string) {
       playerId: true,
       role: true,
       explanation: true,
+      manuallyAdded: true,
+      manuallyRemoved: true,
+      autoSelected: true,
+      sourceTeamName: true,
+      targetTeamName: true,
+      selectionReason: true,
+      overrideReason: true,
+      overrideReasonCategory: true,
+      overrideReasonDetail: true,
+      controlledDoubleLoad: true,
+      matchdayResponsibility: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -56,8 +64,19 @@ async function cloneDraftSelection(matchId: string) {
           matchRoundId,
           playerId: selection.playerId,
           role: selection.role,
+          controlledDoubleLoad: selection.controlledDoubleLoad,
           status: SelectionStatus.DRAFT,
           explanation: selection.explanation as Prisma.InputJsonValue,
+          manuallyAdded: selection.manuallyAdded,
+          manuallyRemoved: selection.manuallyRemoved,
+          autoSelected: selection.autoSelected,
+          sourceTeamName: selection.sourceTeamName,
+          targetTeamName: selection.targetTeamName,
+          selectionReason: selection.selectionReason,
+          overrideReason: selection.overrideReason,
+          overrideReasonCategory: selection.overrideReasonCategory,
+          overrideReasonDetail: selection.overrideReasonDetail,
+          matchdayResponsibility: selection.matchdayResponsibility,
         },
       });
     }
@@ -80,7 +99,6 @@ export async function refreshDraftSelection(matchId: string) {
     include: {
       selections: {
         select: {
-          explanation: true,
           status: true,
         },
         orderBy: [{ createdAt: "desc" }],
@@ -109,6 +127,8 @@ export async function refreshDraftSelection(matchId: string) {
       status: SelectionStatus.DRAFT,
     },
     select: {
+      manuallyAdded: true,
+      manuallyRemoved: true,
       explanation: true,
     },
   });
@@ -246,6 +266,8 @@ export async function refreshDraftRound(matchRoundId: string) {
       status: SelectionStatus.DRAFT,
     },
     select: {
+      manuallyAdded: true,
+      manuallyRemoved: true,
       explanation: true,
     },
   });
@@ -291,6 +313,17 @@ async function cloneDraftRound(matchRoundId: string) {
       playerId: true,
       role: true,
       explanation: true,
+      manuallyAdded: true,
+      manuallyRemoved: true,
+      autoSelected: true,
+      sourceTeamName: true,
+      targetTeamName: true,
+      selectionReason: true,
+      overrideReason: true,
+      overrideReasonCategory: true,
+      overrideReasonDetail: true,
+      controlledDoubleLoad: true,
+      matchdayResponsibility: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -314,8 +347,19 @@ async function cloneDraftRound(matchRoundId: string) {
           matchRoundId: selection.matchRoundId,
           playerId: selection.playerId,
           role: selection.role,
+          controlledDoubleLoad: selection.controlledDoubleLoad,
           status: SelectionStatus.DRAFT,
           explanation: selection.explanation as Prisma.InputJsonValue,
+          manuallyAdded: selection.manuallyAdded,
+          manuallyRemoved: selection.manuallyRemoved,
+          autoSelected: selection.autoSelected,
+          sourceTeamName: selection.sourceTeamName,
+          targetTeamName: selection.targetTeamName,
+          selectionReason: selection.selectionReason,
+          overrideReason: selection.overrideReason,
+          overrideReasonCategory: selection.overrideReasonCategory,
+          overrideReasonDetail: selection.overrideReasonDetail,
+          matchdayResponsibility: selection.matchdayResponsibility,
         },
       });
     }
