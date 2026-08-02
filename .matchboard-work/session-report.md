@@ -136,6 +136,9 @@
 - ARR-0002: Updated source-of-truth register and ARR-0002 document to designate `SelectionExplanation` table as canonical for structured explanations, `Selection.explanation` as compatibility cache, and provenance columns as operational truth.
 - ARR-0003: Documented progress on `Warning.resolved` vestigial field. Confirmed that Assistant, Fixtures, Players overview, and reconciliation all use `computeRoundPlanIntegrity()` for live computation. Finalization still reads `Warning.resolved` from DB — migration to live computation pending.
 - ARR-0006: Added database CHECK constraints for 9 string-typed enum fields across 7 models.
+- ARR-0001: Confirmed Player scalar fields canonical, PlayerPosition is secondary derived store with zero active read paths.
+- CoachingIntentScopeType.PLANNING_PERIOD renamed to LEAGUE_SEASON across all code and database. Aligned with user-facing terminology and existing LeagueSeason model rename.
+- MB-DW-023: Removed "youth" qualifier from feature contract preamble and AGENTS.md. Product described as "football operations cockpit" without age restriction.
 
 ## Database changes (cumulative)
 
@@ -148,6 +151,7 @@
 - `Availability.status` — migrated from String to AvailabilityStatus enum, added UNAVAILABLE
 - `Selection` — added `manuallyAdded`, `manuallyRemoved`, `autoSelected`, `sourceTeamName`, `targetTeamName`, `selectionReason` columns
 - Database CHECK constraints added for: `MatchRound.status`, `PostMatchPlayerActual.attendanceStatus`, `PostMatchPlayerActual.source`, `Goal.type`, `Assist.type`, `EventGoalEvent.type`, `EventAssistEvent.type`, `EventPostMatchPlayer.attendanceStatus`, `EventMatchSupportAssignment.plannedRole`
+- `CoachingIntentScopeType.PLANNING_PERIOD` renamed to `LEAGUE_SEASON`
 
 ## Production actions still required
 
@@ -159,6 +163,7 @@
 6. Run `20260802100000_availability_status_enum` migration
 7. Run `20260802110000_add_selection_provenance_columns` migration
 8. Run `20260802120000_add_enum_check_constraints` migration
+9. Run `20260802130000_rename_coaching_intent_scope_planning_period_to_league_season` migration
 7. Set `BREVO_WEBHOOK_KEY` environment variable in production
 8. Set `BREVO_WEBHOOK_BEARER_TOKEN` environment variable in production (recommended)
 9. Production data backfill: assign all existing data to bootstrap organisation
