@@ -8,7 +8,9 @@ export type AttentionCategory =
   | 'invitation_pending'
   | 'missing_post_match_report'
   | 'event_review_needed'
-  | 'expiring_support_access';
+  | 'expiring_support_access'
+  | 'unacknowledged_handover'
+  | 'unowned_fixture';
 
 export type AttentionUrgency = 'LOW' | 'NORMAL' | 'HIGH';
 
@@ -177,6 +179,77 @@ export async function getAttentionEntries(): Promise<AttentionEntry[]> {
         href: `/matches/${match.id}`,
         urgency: 'NORMAL',
         dueAt: null,
+        sourceType: 'match',
+        sourceId: match.id,
+      });
+    }
+  }
+
+  const unacknowledgedHandovers = await db.workOwnership.findMany({
+    where: {
+      ownerMembershipId: membership.id,
+      status: 'ACTIVE',
+      acknowledgedAt: null,
+      assignedByMembershipId: { not: membership.id },
+      organisationId,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  for (const handover of unacknowledgedHandovers) {
+    entries.push({
+      id: `handover-${handover.id}`,
+      category: 'unacknowledged_handover',
+      title: `Handover: ${handover.targetType.replace(/_/g, ' ').toLowerCase()}`,
+      summary: handover.handoverNote ?? 'Work ownership has been handed over to you. Please acknowledge.',
+      href: handover.targetType === 'EVENT' ? `/events/${handover.targetId}` : `/matches/${handover.targetId}`,
+      urgency: 'HIGH',
+      dueAt: handover.dueAt,
+      sourceType: 'work_ownership',
+      sourceId: handover.id,
+    });
+  }
+
+  const upcomingUnownedFixtures = await db.workOwnership.findMany({
+    where: {
+      organisationId,
+      targetType: 'FIXTURE',
+      status: 'ACTIVE',
+      dueAt: { not: null, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+    },
+    orderBy: { dueAt: 'asc' },
+  });
+
+  const ownedFixtureIds = new Set(upcomingUnownedFixtures.map((o) => o.targetId));
+
+  if (recentLeagueSeason) {
+    const upcomingMatches = await db.match.findMany({
+      where: {
+        ...orgWhere,
+        matchRound: { leagueSeasonId: recentLeagueSeason.id },
+        status: 'SCHEDULED',
+        startsAt: { gte: now, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+      },
+      select: {
+        id: true,
+        opponent: true,
+        startsAt: true,
+      },
+      orderBy: { startsAt: 'asc' },
+      take: 10,
+    });
+
+    for (const match of upcomingMatches) {
+      if (ownedFixtureIds.has(match.id)) continue;
+
+      entries.push({
+        id: `unowned-fixture-${match.id}`,
+        category: 'unowned_fixture',
+        title: `No owner assigned: vs ${match.opponent}`,
+        summary: `The upcoming match on ${match.startsAt.toLocaleDateString()} has no assigned owner.`,
+        href: `/matches/${match.id}`,
+        urgency: 'LOW',
+        dueAt: match.startsAt,
         sourceType: 'match',
         sourceId: match.id,
       });

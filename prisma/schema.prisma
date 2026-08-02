@@ -1802,6 +1802,7 @@ model Organisation {
   profileSuggestions              PlayerProfileSuggestion[]
   ruleConfigs                     RuleConfig[]
   reviewRequests                  ReviewRequest[]
+  workOwnerships                  WorkOwnership[]
 
   @@index([slug])
   @@index([name])
@@ -2170,4 +2171,42 @@ model ReviewRequest {
   @@index([reviewerMembershipId, status])
   @@index([requestedByMembershipId])
   @@index([organisationId])
+}
+
+enum WorkTargetType {
+  FIXTURE
+  EVENT
+  POST_MATCH_REPORT
+  EVENT_SQUAD_PREPARATION
+}
+
+enum WorkOwnershipStatus {
+  ACTIVE
+  HANDED_OVER
+  COMPLETED
+}
+
+model WorkOwnership {
+  id                      String              @id @default(cuid())
+  organisationId          String
+  targetType              WorkTargetType
+  targetId                String
+  ownerMembershipId        String
+  assignedByMembershipId   String
+  status                  WorkOwnershipStatus @default(ACTIVE)
+  dueAt                   DateTime?
+  handoverNote            String?
+  acknowledgedAt          DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  organisation            Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([targetType, targetId, status])
+  @@index([organisationId])
+  @@index([ownerMembershipId, status])
+  @@index([assignedByMembershipId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([dueAt])
 }
