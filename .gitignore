@@ -68,3 +68,4 @@ npm-debug.log*
 .brevo/
 pnpm-lock.yaml
 pnpm-workspace.yaml
+.matchboard-work/

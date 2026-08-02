@@ -28,22 +28,27 @@ Key constraints:
 
 ## Decision
 
-### 1. Two database roles: `matchboard_app` (runtime) and `matchbook_admin` (migration)
+### 1. Two database roles: `matchboard_app_runtime` (runtime) and `matchboard_admin_migration` (migration)
 
-- `matchboard_admin` owns all tables, can run migrations, has `BYPASSRLS` for maintenance. Used only by `prisma migrate deploy` and operational scripts.
-- `matchboard_app` is the runtime role used by the Next.js application. It has `SELECT`, `INSERT`, `UPDATE`, `DELETE` on tenant-bearing tables and full access to non-tenant tables. It does NOT have `BYPASSRLS`. It does NOT own any tables.
-- `DIRECT_URL` uses `matchboard_admin` for Prisma migrations.
-- `DATABASE_URL` uses `matchboard_app` for application queries (via Neon pooler).
+- `matchboard_admin_migration` owns all tables, can run migrations, has an `admin_all` RLS policy granting full access. It does NOT need `BYPASSRLS`. Used only by `prisma migrate deploy` and operational scripts. It is SQL-managed (`NOINHERIT`, `NOCREATEDB`, `NOCREATEROLE`, `NOREPLICATION`, `NOBYPASSRLS`) and does NOT inherit from `neon_superuser`.
+- `matchboard_app_runtime` is the runtime role used by the Next.js application. It has `SELECT`, `INSERT`, `UPDATE`, `DELETE` on tenant-bearing tables and full access to non-tenant tables. It does NOT have `BYPASSRLS`. It does NOT own any tables. It is SQL-managed (`NOINHERIT`, `NOCREATEDB`, `NOCREATEROLE`, `NOREPLICATION`, `NOBYPASSRLS`) and does NOT inherit from `neon_superuser`.
+- `DIRECT_URL` uses `matchboard_admin_migration` for Prisma migrations.
+- `DATABASE_URL` uses `matchboard_app_runtime` for application queries (via Neon pooler).
 
-### 2. RLS policies enforce `organisationId = current_setting('app.current_organization_id')` on all 53 tenant-bearing models
+**Neon Console-created role limitation:** Neon Console-created roles (including `matchboard_app` and `matchboard_admin`) automatically inherit from `neon_superuser`, which grants `BYPASSRLS`, `CREATEROLE`, `CREATEDB`, and `REPLICATION`. This membership cannot be revoked via SQL. To enforce RLS effectively, we use SQL-managed roles that do NOT inherit from `neon_superuser`. The legacy roles (`matchboard_app`, `matchboard_admin`) remain in the database but must NOT be used for application connections.
+
+### 2. RLS policies enforce `organisationId = current_setting('app.current_organization_id')` on all 63 tenant-bearing models
 
 Every tenant-bearing table gets:
 - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`
-- A read policy: `USING (organisationId = current_setting('app.current_organization_id', true))`
-- A write policy: `WITH CHECK (organisationId = current_setting('app.current_organization_id', true))`
-- An admin bypass: policy for `matchboard_admin` role that allows all operations
+- `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
+- A read policy for `matchboard_app_runtime`: `USING (organisationId = current_setting('app.current_organization_id', true))`
+- An insert policy for `matchboard_app_runtime`: `WITH CHECK (organisationId = current_setting('app.current_organization_id', true))`
+- An update policy for `matchboard_app_runtime`: `USING` and `WITH CHECK` on organisationId
+- A delete policy for `matchboard_app_runtime`: `USING (organisationId = current_setting('app.current_organization_id', true))`
+- An admin bypass policy for `matchboard_admin_migration`: `USING (true) WITH CHECK (true)`
 
-Non-tenant tables (Organisation, User, Account, Session, VerificationToken) do NOT have RLS policies. They are accessed through application-level authorization only. TeamAccess is also not RLS-protected because it bridges org membership to teams and is always scoped through org membership checks.
+Non-tenant tables (Organisation, User, Account, Session, VerificationToken, TeamAccess, NotificationDelivery, PlayerProfileSuggestionEvidence, ProviderWebhookEvent, _prisma_migrations) do NOT have RLS policies. They are accessed through application-level authorization only. TeamAccess bridges org membership to teams and is always scoped through org membership checks.
 
 ### 3. Transaction-local tenant context via Prisma `$executeRaw`
 
@@ -90,9 +95,11 @@ Per ADR-0035 MT-3.9: application queries MUST always include `organisationId` in
 ### 7. RLS policy naming convention
 
 Policies are named:
-- `{table}_tenant_read` — SELECT policy for `matchboard_app`
-- `{table}_tenant_write` — INSERT/UPDATE/DELETE policy for `matchboard_app`
-- `{table}_admin_all` — ALL policy for `matchboard_admin`
+- `{table}_tenant_read` — SELECT policy for `matchboard_app_runtime`
+- `{table}_tenant_insert` — INSERT policy for `matchboard_app_runtime`
+- `{table}_tenant_update` — UPDATE policy for `matchboard_app_runtime`
+- `{table}_tenant_delete` — DELETE policy for `matchboard_app_runtime`
+- `{table}_admin_all` — ALL policy for `matchboard_admin_migration`
 
 ### 8. Null `organisationId` handling during migration
 
@@ -109,6 +116,7 @@ All cache keys, export filenames, and cache namespaces are prefixed with `org:{o
 ## Rationale
 
 - Two-role separation ensures the runtime application cannot bypass RLS even if a code bug tries to
+- SQL-managed roles (not Console-created) avoid the Neon `neon_superuser` BYPASSRLS inheritance problem
 - `SET LOCAL` inside transactions is the only safe way to set PostgreSQL session state with Neon's pooled connections
 - Prisma client extension provides a clean API that doesn't require every call site to remember `SET LOCAL`
 - Application-level filters plus RLS provides defence in depth per ADR-0035
@@ -174,13 +182,14 @@ All cache keys, export filenames, and cache namespaces are prefixed with `org:{o
 
 ### Phase 1: Create roles and enable RLS (this stage)
 
-1. Create `matchboard_app` and `matchboard_admin` roles in Neon
-2. Grant appropriate permissions
-3. Create RLS policies on all 53 tenant-bearing tables
-4. Create migration SQL
-5. Update `.env` configuration: `DATABASE_URL` uses `matchboard_app`, `DIRECT_URL` uses `matchboard_admin`
-6. Implement tenant client extension in application code
-7. Write isolation tests that verify cross-tenant read/write rejection
+1. Create `matchboard_app_runtime` and `matchboard_admin_migration` roles via SQL (or `scripts/create-rls-roles.sh`)
+2. Grant appropriate permissions and default privileges
+3. Transfer object ownership to `matchboard_admin_migration`
+4. Create RLS policies on all 63 tenant-bearing tables, referencing new roles
+5. Enable and force RLS on all 63 tenant-bearing tables
+6. Update `.env` configuration: `DATABASE_URL` uses `matchboard_app_runtime`, `DIRECT_URL` uses `matchboard_admin_migration`
+7. Implement tenant client extension in application code
+8. Write isolation tests that verify cross-tenant read/write rejection
 
 ### Phase 2: Application code migration (subsequent)
 
@@ -202,8 +211,9 @@ All cache keys, export filenames, and cache namespaces are prefixed with `org:{o
 
 ## Security and operations
 
-- `matchboard_admin` credentials are stored in `DIRECT_URL` environment variable, used only by `prisma migrate deploy`
-- `matchboard_app` credentials are stored in `DATABASE_URL`, used by the Next.js application at runtime
+- `matchboard_admin_migration` credentials are stored in `DIRECT_URL` environment variable, used only by `prisma migrate deploy`
+- `matchboard_app_runtime` credentials are stored in `DATABASE_URL`, used by the Next.js application at runtime
+- Legacy `matchboard_admin` and `matchboard_app` roles must NOT be used for application connections (they inherit BYPASSRLS from neon_superuser)
 - Neon connection pooling is safe because `SET LOCAL` is transaction-scoped
 - RLS failures produce standard PostgreSQL permission errors that should be logged and monitored
 - The tenant client extension validates `organisationId` format before setting context
@@ -235,3 +245,7 @@ None.
 ### 2026-07-30
 
 Record created.
+
+### 2026-08-02
+
+Updated role architecture: Console-created Neon roles (`matchboard_app`, `matchboard_admin`) inherit `BYPASSRLS` from `neon_superuser`, making RLS ineffective. Replaced with SQL-managed roles (`matchboard_app_runtime`, `matchboard_admin_migration`) that have `NOBYPASSRLS` and do not inherit from `neon_superuser`. Expanded RLS coverage from 53 to 63 tables. Transfered object ownership to `matchboard_admin_migration`. The admin role no longer needs `BYPASSRLS` — an `admin_all` RLS policy grants full access through RLS.
