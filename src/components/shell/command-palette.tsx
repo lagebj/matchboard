@@ -14,6 +14,9 @@ import {
   LayoutDashboard,
   ArrowRight,
   Command,
+  Building2,
+  FlaskConical,
+  Wrench,
 } from "lucide-react";
 
 type CommandItem = {
@@ -23,23 +26,39 @@ type CommandItem = {
   icon: React.ReactNode;
   href?: string;
   action?: () => void;
-  category: "navigation" | "create" | "search" | "command";
+  category: "navigate" | "create" | "search" | "switch" | "admin";
   keywords: string[];
 };
 
-const NAVIGATION_COMMANDS: CommandItem[] = [
-  { id: "nav-assistant", label: "Assistant", description: "Next actions and blockers", icon: <LayoutDashboard className="h-4 w-4" />, href: "/assistant", category: "navigation", keywords: ["assistant", "dashboard", "home", "today"] },
-  { id: "nav-fixtures", label: "Fixtures", description: "Season and match overview", icon: <Calendar className="h-4 w-4" />, href: "/fixtures", category: "navigation", keywords: ["fixtures", "matches", "rounds", "schedule"] },
-  { id: "nav-teams", label: "Teams", description: "Team registry and detail", icon: <Trophy className="h-4 w-4" />, href: "/teams", category: "navigation", keywords: ["teams", "squad"] },
-  { id: "nav-players", label: "Players", description: "Player registry and profiles", icon: <Users className="h-4 w-4" />, href: "/players", category: "navigation", keywords: ["players", "registry"] },
-  { id: "nav-season", label: "Season", description: "Season matrix and fairness", icon: <Flag className="h-4 w-4" />, href: "/season", category: "navigation", keywords: ["season", "matrix", "fairness"] },
-  { id: "nav-rules", label: "Rules", description: "Selection rules and rotation paths", icon: <Settings className="h-4 w-4" />, href: "/rules", category: "navigation", keywords: ["rules", "config", "paths"] },
-  { id: "nav-events", label: "Events", description: "Event squads and planning", icon: <Calendar className="h-4 w-4" />, href: "/events", category: "navigation", keywords: ["events", "cups", "tournaments"] },
-  { id: "create-team", label: "Create team", description: "Add a new team", icon: <Plus className="h-4 w-4" />, href: "/teams/new", category: "create", keywords: ["create", "new", "add", "team"] },
-  { id: "create-player", label: "Create player", description: "Add a new player", icon: <Plus className="h-4 w-4" />, href: "/players/new", category: "create", keywords: ["create", "new", "add", "player"] },
-  { id: "create-fixture", label: "Create fixture", description: "Add a new match", icon: <Plus className="h-4 w-4" />, href: "/matches/new", category: "create", keywords: ["create", "new", "add", "match", "fixture"] },
-  { id: "create-event", label: "Create event", description: "Add a new event", icon: <Plus className="h-4 w-4" />, href: "/events/new", category: "create", keywords: ["create", "new", "add", "event", "cup", "tournament"] },
-];
+type OrganisationOption = {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  isCurrent: boolean;
+};
+
+type CommandPaletteData = {
+  currentOrganisation: { id: string; name: string; slug: string } | null;
+  organisations: OrganisationOption[];
+  commands: { id: string; label: string; description?: string; href: string; category: string; keywords: string[] }[];
+};
+
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  navigate: <LayoutDashboard className="h-4 w-4" />,
+  create: <Plus className="h-4 w-4" />,
+  switch: <Building2 className="h-4 w-4" />,
+  admin: <Wrench className="h-4 w-4" />,
+  search: <Search className="h-4 w-4" />,
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  navigate: "Navigate",
+  create: "Create",
+  switch: "Switch organisation",
+  admin: "Admin",
+  search: "Search",
+};
 
 type SearchResult = {
   players: { id: string; name: string; coreTeamName: string }[];
@@ -50,6 +69,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [paletteData, setPaletteData] = useState<CommandPaletteData | null>(null);
   const searchSeqRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -72,6 +92,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       setSearchResults(null);
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
+      fetch("/api/command-palette")
+        .then((r) => r.json())
+        .then(setPaletteData)
+        .catch(() => {});
     }
   }, [open]);
 
@@ -92,15 +116,36 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filteredCommands = NAVIGATION_COMMANDS.filter((cmd) => {
-    if (query.trim().length === 0) return true;
-    const q = query.toLowerCase();
-    return (
-      cmd.label.toLowerCase().includes(q) ||
-      cmd.description?.toLowerCase().includes(q) ||
-      cmd.keywords.some((k) => k.includes(q))
-    );
-  });
+  const staticCommands: CommandItem[] = (paletteData?.commands ?? []).map((cmd) => ({
+    ...cmd,
+    icon: CATEGORY_ICONS[cmd.category] ?? <ArrowRight className="h-4 w-4" />,
+    category: cmd.category as CommandItem["category"],
+  }));
+
+  const orgItems: CommandItem[] = (paletteData?.organisations ?? [])
+    .filter((o) => !o.isCurrent)
+    .map((o) => ({
+      id: `org-${o.slug}`,
+      label: o.name,
+      description: `Switch to ${o.name} (${o.role})`,
+      icon: <Building2 className="h-4 w-4" />,
+      href: `/o/${o.slug}/attention`,
+      category: "switch" as const,
+      keywords: [o.name, o.slug, "organisation", "switch"],
+    }));
+
+  const allStaticItems = [...orgItems, ...staticCommands];
+
+  const filteredCommands = query.trim().length === 0
+    ? allStaticItems
+    : allStaticItems.filter((cmd) => {
+        const q = query.toLowerCase();
+        return (
+          cmd.label.toLowerCase().includes(q) ||
+          cmd.description?.toLowerCase().includes(q) ||
+          cmd.keywords.some((k) => k.includes(q))
+        );
+      });
 
   const searchItems: CommandItem[] = (searchResults?.players ?? []).map((p) => ({
     id: `player-${p.id}`,
@@ -157,15 +202,19 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
   if (!open) return null;
 
-  const categories = query.trim().length === 0
+  const groupedCategories = query.trim().length === 0
     ? [
-        { label: "Create", items: allItems.filter((i) => i.category === "create") },
-        { label: "Navigate", items: allItems.filter((i) => i.category === "navigation") },
+        ...(orgItems.length > 0 ? [{ label: "Switch organisation", items: orgItems }] : []),
+        { label: "Create", items: allStaticItems.filter((i) => i.category === "create") },
+        { label: "Navigate", items: allStaticItems.filter((i) => i.category === "navigate") },
+        { label: "Admin", items: allStaticItems.filter((i) => i.category === "admin") },
       ]
     : [
         ...(searchItems.length > 0 ? [{ label: "Players", items: searchItems }] : []),
         ...(teamItems.length > 0 ? [{ label: "Teams", items: teamItems }] : []),
-        ...(filteredCommands.length > 0 ? [{ label: "Commands", items: filteredCommands }] : []),
+        ...(filteredCommands.filter((i) => i.category === "switch").length > 0 ? [{ label: "Switch organisation", items: filteredCommands.filter((i) => i.category === "switch") }] : []),
+        ...(filteredCommands.filter((i) => i.category === "create").length > 0 ? [{ label: "Create", items: filteredCommands.filter((i) => i.category === "create") }] : []),
+        ...(filteredCommands.filter((i) => i.category === "navigate" || i.category === "admin").length > 0 ? [{ label: "Commands", items: filteredCommands.filter((i) => i.category === "navigate" || i.category === "admin") }] : []),
       ];
 
   return (
@@ -198,7 +247,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 No results found
               </p>
             )}
-            {categories.map((group) =>
+            {groupedCategories.map((group) =>
               group.items.length > 0 ? (
                 <div key={group.label}>
                   <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
