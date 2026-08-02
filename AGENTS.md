@@ -1409,8 +1409,8 @@ Event squad generation is separate from league round generation:
 Events use separate Prisma models:
 - `Event`: top-level container with name, type (CUP/TOURNAMENT/FRIENDLY_DAY/OTHER), date range, game format, independent of league season, default formation, selection pattern
 - `EventPlayerAvailability`: per-player availability for this event (AVAILABLE/UNAVAILABLE/UNKNOWN/RESERVE/LATE_ADDITION/WITHDRAWN)
-- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary, status (DRAFT/CONFIRM)
-- `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason
+- `EventSquad`: named squad within an event with intent (COMPETITIVE/BALANCED/MANUAL), target/min/max sizes, formation override, generation order, balance summary, status (DRAFT/LOCKED)
+- `EventSquadPlayer`: player assignment with role type, position, source (AUTO/MANUAL/LOCKED), locked flag, selection reason, unique on [eventId, playerId] (one player per event across all squads)
 - `EventMatchLineup`: per-match lineup with formation reference, status (DRAFT/CONFIRMED), cascade delete with EventMatch
 - `EventMatchLineupAssignment`: per-slot player assignment within a lineup, with slot position (slotId, slotIndex, slotLabel, roleType, x, y), source (BASE_SQUAD/HELPER), unique on [lineupId, playerId]
 
@@ -1418,16 +1418,17 @@ Event squads are NOT normal `Team` rows. They are temporary event artifacts with
 
 ### Event squad draft/commit lifecycle
 
-Event squads have a status field: DRAFT or CONFIRMED.
+Event squads have a status field: DRAFT or LOCKED.
 
 - Generated squads start as DRAFT
 - The coach reviews DRAFT squads, may make manual adjustments
-- When satisfied, the coach commits squads via `confirmEventSquadsAction`, which runs validation first
+- When satisfied, the coach locks squads via `confirmEventSquadsAction`, which runs validation first
 - Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
-- Blocking issues prevent commit; warning and info issues do not
-- Committed squads can be reverted to DRAFT via `unconfirmEventSquadsAction`
+- Blocking issues prevent locking; warning and info issues do not
+- Locked squads can be unlocked back to DRAFT via `unconfirmEventSquadsAction`
 - The Assistant surfaces `event_squads_ready` work items when all event squads are DRAFT
-- Aggregate status (DRAFT/CONFIRMED/MIXED) is available via `getEventSquadsStatusAction`
+- Aggregate status (DRAFT/LOCKED/MIXED) is available via `getEventSquadsStatusAction`
+- Review is optional and advisory via `ReviewRequest` — locking does not require review
 
 ### Policy decision types
 
@@ -1571,13 +1572,14 @@ Rules:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
-| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/page.tsx` | Event list page |
 | `src/app/(app)/events/new/page.tsx` | Create event |
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
@@ -1846,13 +1848,14 @@ Avoid:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
+| `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
 | `src/app/(app)/events/event-support-actions.ts` | Server actions: support assignment add/remove/update, conflict-enriched list, candidate eligibility query |
-| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, confirm, unconfirm, aggregate status |
+| `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 
