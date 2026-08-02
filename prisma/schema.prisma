@@ -456,7 +456,7 @@ model Warning {
   severity     WarningSeverity
   rule         String
   message      String
-  resolved     Boolean         @default(false)
+  resolved     Boolean         @default(false) // Deprecated: use computeRoundPlanIntegrity() for live plan integrity. This field is retained for backward compatibility only.
   createdAt    DateTime        @default(now())
   matchRound   MatchRound      @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   organisation Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)

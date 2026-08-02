@@ -186,3 +186,77 @@
 6. Set `BREVO_WEBHOOK_KEY` environment variable in production (was previously optional)
 7. Production data backfill: assign all existing data to bootstrap organisation
 8. After backfill: apply NOT NULL constraint to `organisationId` on all tenant-bearing tables
+
+## Session 4 date: 2026-08-02
+
+### Bundle 6 — Command Palette (completed)
+
+1. Command palette component (`src/components/shell/command-palette.tsx`) now fetches from `/api/command-palette` endpoint on open
+2. `/api/command-palette` returns permission-filtered commands (navigation + create for coaches/admins, navigation only for viewers) and organisation list for switching
+3. Org switching: non-current organisations appear as "Switch organisation" category items
+4. Simulation page updated with "Apply as drafts" button that appears when simulation result is valid
+
+### Bundle 7 — Planning Tools (completed)
+
+1. **Apply simulation as drafts**: New `/api/simulation/apply` endpoint that re-runs `populateAllDrafts` pipeline for non-finalized rounds, with authorization and rate limiting
+2. **Stale-input detection**: `/api/simulation/input-hash` endpoint computes hash of current input state (player count, match count, availability count, rotation path count, round IDs). Apply endpoint rejects requests when input data has changed since simulation was run (HTTP 409)
+3. **validToCommit computed dynamically**: `SeasonSimulationResult.validToCommit` now computed from whether all rounds are valid and have no blocked-level warnings, instead of hardcoded `false`
+4. **Apply simulation service**: `src/lib/simulation/apply-simulation.ts` with `applySimulationAsDrafts()`, `computeSimulationInputHash()`, `isInputStale()`
+5. **UI**: Simulation page shows "Apply as drafts" button when valid, confirmation dialog, stale-input error handling, apply results display
+
+### Bundle 8 — Coaching Intelligence: WorkOwnership (completed)
+
+1. **WorkOwnership model**: `WorkTargetType` enum (FIXTURE, EVENT, POST_MATCH_REPORT, EVENT_SQUAD_PREPARATION), `WorkOwnershipStatus` enum (ACTIVE, HANDED_OVER, COMPLETED), `WorkOwnership` table with unique constraint on `[targetType, targetId, status]`
+2. **Domain service**: `src/lib/ownership/work-ownership.ts` with assign, handover, acknowledge, complete, query functions
+3. **Server actions**: `src/app/(app)/ownership/actions.ts` using `requireActorContext()` for authorization
+4. **Attention projection**: Added `unacknowledged_handover` and `unowned_fixture` categories to `getAttentionEntries()`
+5. **Migration**: `20260802140000_add_work_ownership`
+
+### Bundle 2 — Tenant Cutover (continued)
+
+1. **ActorContext.orgFilter**: Added `orgFilter` field to `ActorContext` type, so callers get both the context and filter in one call
+2. **requireActorContext enhanced**: When called with `organisationSlug`, constructs the org filter from resolved access instead of re-querying
+3. **Ownership actions use requireActorContext**: Work ownership server actions use the new auth pattern as reference implementation
+
+### Build verification
+
+- Typecheck: passes
+- Build: passes
+- Tests: pre-existing `AvailabilityStatus` enum migration failures (test DB not migrated); no new failures introduced
+- Lint: pre-existing `eslint-plugin-react` + `eslint@10.8.0` incompatibility; not introduced by this work
+
+### Remaining work
+
+#### Bundle 2 remaining
+- Migrate remaining ~147 files from `requireCoachAccess()` to `requireActorContext()` (incremental)
+- Implement `/o/{organisationSlug}/...` route structure for main app routes
+- Organisation switcher in sidebar
+- NOT NULL constraint on `organisationId` (requires production data backfill)
+- RLS runtime isolation proof through `matchboard_app` role
+- Remove null-allowing RLS policies after NOT NULL constraint
+
+#### Bundle 7 remaining
+- Interactive 2D rotation graph (requires frontend design work)
+- Accessible non-graph fallback for rotation path management
+
+#### Bundle 8 remaining
+- Ownership UI: assign, handover, acknowledge, complete workflows in match/event detail pages
+- Attention page integration for unacknowledged handovers
+- Ownership handover notifications
+
+#### Bundle 9 remaining
+- Remove or derive `Player.supportSuitability` and `Player.developmentReadiness`
+- Migrate reads to `PlayerPosition` canonical model (590 references)
+- Make `SelectionExplanation` canonical, `Selection.explanation` read-only cache (enforcement layer)
+
+## Database changes (Session 4)
+
+- `WorkOwnership` model with `WorkTargetType` and `WorkOwnershipStatus` enums
+- Unique constraint `@@unique([targetType, targetId, status])` on WorkOwnership
+- Indexes on organisationId, ownerMembershipId+status, assignedByMembershipId, targetType+targetId, status, dueAt
+- Migration: `20260802140000_add_work_ownership`
+
+## Production actions (Session 4)
+
+1. Run `20260802140000_add_work_ownership` migration
+2. Set up `BREVO_WEBHOOK_KEY` and `BREVO_WEBHOOK_BEARER_TOKEN` environment variables if not already done
