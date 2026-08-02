@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { deriveRoundStatus } from "@/lib/round-status";
 
 export type UnfinalizeSingleMatchResult = {
@@ -15,19 +16,9 @@ export async function unfinalizeSingleMatch(
 ): Promise<UnfinalizeSingleMatchResult> {
   const match = await db.match.findUnique({
     where: { id: matchId },
-    include: {
-      matchRound: {
-        include: {
-          matches: { select: { id: true } },
-          warnings: {
-            select: {
-              id: true,
-              severity: true,
-              resolved: true,
-            },
-          },
-        },
-      },
+    select: {
+      id: true,
+      matchRoundId: true,
     },
   });
 
@@ -61,8 +52,6 @@ export async function unfinalizeSingleMatch(
     };
   }
 
-  let roundStatusReverted = false;
-
   await db.$transaction(async (tx) => {
     await tx.selection.updateMany({
       where: {
@@ -88,40 +77,42 @@ export async function unfinalizeSingleMatch(
       },
     });
 
-    const round = match.matchRound;
+    const remainingFinalized = await tx.selection.count({
+      where: {
+        matchRoundId,
+        status: SelectionStatus.FINALIZED,
+      },
+    });
 
-    if (round.status === "FINALIZED") {
-      const remainingFinalized = await tx.selection.count({
-        where: {
-          matchRoundId,
-          status: SelectionStatus.FINALIZED,
-        },
+    if (remainingFinalized === 0) {
+      const integrity = await computeRoundPlanIntegrity(matchRoundId);
+
+      const blockedSignalCount = integrity.summary.blockerCount + integrity.summary.decisionRequiredCount;
+
+      const newStatus = deriveRoundStatus({
+        dbStatus: "DRAFT",
+        hasDraftSelections: true,
+        hasMatches: true,
+        blockedSignalCount,
       });
 
-      if (remainingFinalized === 0) {
-        const unresolvedBlocking = round.warnings.filter(
-          (w) =>
-            !w.resolved &&
-            (w.severity === "HARD_BLOCK" ||
-              w.severity === "REQUIRES_OVERRIDE"),
-        ).length;
-
-        const newStatus = deriveRoundStatus({
-          dbStatus: "DRAFT",
-          hasDraftSelections: true,
-          hasMatches: round.matches.length > 0,
-          blockedSignalCount: unresolvedBlocking,
-        });
-
-        await tx.matchRound.update({
-          where: { id: matchRoundId },
-          data: { status: newStatus },
-        });
-
-        roundStatusReverted = true;
-      }
+      await tx.matchRound.update({
+        where: { id: matchRoundId },
+        data: { status: newStatus },
+      });
     }
   });
+
+  let roundStatusReverted = false;
+
+  const round = await db.matchRound.findUnique({
+    where: { id: matchRoundId },
+    select: { status: true },
+  });
+
+  if (round && round.status !== "FINALIZED") {
+    roundStatusReverted = true;
+  }
 
   return {
     success: true,

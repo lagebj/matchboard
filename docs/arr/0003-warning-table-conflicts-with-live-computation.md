@@ -50,7 +50,16 @@ Per the source-of-truth register, current plan integrity is derived live from `c
 
 ## Disposition
 
-In progress. Canonical live computation (`computeRoundPlanIntegrity()`) is used by Assistant, Fixtures, Players overview, and reconciliation. Finalization still reads `Warning.resolved` from the database — needs migration to live computation. Warning table rows remain as persisted projections but must not be authoritative for finalization decisions.
+Resolved. All plan integrity display and finalization paths now use live computation via `computeRoundPlanIntegrity()`.
+
+- `finalize-match-round.ts` — uses `computeRoundPlanIntegrity()` instead of `Warning` table reads; no longer creates `missing_movement_ledger` Warning rows during finalization
+- `finalize-single-match.ts` — uses `computeRoundPlanIntegrity()` instead of `Warning` table reads; no longer creates `missing_movement_ledger` Warning rows during finalization
+- `unfinalize-match-round.ts` — uses `computeRoundPlanIntegrity()` for status derivation instead of `Warning.resolved` reads
+- `unfinalize-single-match.ts` — uses `computeRoundPlanIntegrity()` for status derivation instead of `Warning.resolved` reads
+- `refresh-draft-selection.ts` — uses `reconcileRoundAfterDraftMutation()` instead of manual Warning row manipulation
+- Round board page (`/rounds/[matchRoundId]/page.tsx`) — uses `computeRoundPlanIntegrity()` for signal display instead of `Warning.resolved` reads
+- Warning persistence (`persist-warnings.ts`) remains as derived projection for audit/debugging
+- `Warning.resolved` field is effectively deprecated: no code path reads it for plan integrity or finalization decisions
 
 ## History
 
@@ -60,6 +69,17 @@ In progress. Canonical live computation (`computeRoundPlanIntegrity()`) is used 
 - Identified that finalization (`finalize-match-round.ts`, `finalize-single-match.ts`) and refresh (`refresh-draft-selection.ts`) still read `Warning.resolved` from the database
 - `Warning.resolved` vestigial field needs to be replaced with live computation during finalization
 - Warning persistence (`persist-warnings.ts`) remains as derived projection for audit/debugging
+
+### 2026-08-02 (session 3)
+
+- Migrated all finalization paths (`finalize-match-round.ts`, `finalize-single-match.ts`) to use `computeRoundPlanIntegrity()` instead of `Warning` table reads
+- Migrated all unfinalization paths (`unfinalize-match-round.ts`, `unfinalize-single-match.ts`) to use `computeRoundPlanIntegrity()` for status derivation
+- Removed `missing_movement_ledger` Warning creation from finalize transactions (stale Warning rows should not be created during finalization)
+- Migrated `refresh-draft-selection.ts` single-match refresh to use `reconcileRoundAfterDraftMutation()` instead of manual Warning row merge
+- Added `reconcileRoundAfterDraftMutation()` call to `refreshDraftRound()` for consistent round status derivation
+- Migrated round board page (`/rounds/[matchRoundId]/page.tsx`) to use `computeRoundPlanIntegrity()` for signal display instead of `Warning.resolved` reads
+- `Warning.resolved` field is now effectively deprecated: no code path reads it for plan integrity or finalization decisions
+- ARR-0003 disposition changed from "In progress" to "Resolved"
 
 ## Related decisions
 

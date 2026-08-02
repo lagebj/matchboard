@@ -1,6 +1,7 @@
-import { WarningSeverity, SelectionRole, SelectionStatus } from "@/generated/prisma/client";
+import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getRules } from "@/lib/rules/get-rules";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 
@@ -21,22 +22,10 @@ export async function finalizeSingleMatch(
 ): Promise<FinalizeSingleMatchResult> {
   const match = await db.match.findUnique({
     where: { id: matchId },
-    include: {
-      matchRound: {
-        include: {
-          matches: { select: { id: true } },
-          warnings: {
-            select: {
-              id: true,
-              severity: true,
-              rule: true,
-              message: true,
-              resolved: true,
-              matchId: true,
-            },
-          },
-        },
-      },
+    select: {
+      id: true,
+      matchRoundId: true,
+      status: true,
     },
   });
 
@@ -44,18 +33,6 @@ export async function finalizeSingleMatch(
     return {
       success: false,
       warnings: ["Match not found."],
-      hardBlocked: true,
-      needsOverride: false,
-      finalizedSelectionCount: 0,
-      matchId,
-      roundAutoFinalized: false,
-    };
-  }
-
-  if (match.matchRound.status === "FINALIZED") {
-    return {
-      success: false,
-      warnings: ["This match is already in a finalised round."],
       hardBlocked: true,
       needsOverride: false,
       finalizedSelectionCount: 0,
@@ -76,23 +53,37 @@ export async function finalizeSingleMatch(
     };
   }
 
-  const matchWarnings = match.matchRound.warnings.filter(
-    (w) => w.matchId === matchId && !w.resolved,
+  const matchRound = await db.matchRound.findUnique({
+    where: { id: match.matchRoundId },
+    select: { id: true, status: true },
+  });
+
+  if (matchRound?.status === "FINALIZED") {
+    return {
+      success: false,
+      warnings: ["This match is already in a finalised round."],
+      hardBlocked: true,
+      needsOverride: false,
+      finalizedSelectionCount: 0,
+      matchId,
+      roundAutoFinalized: false,
+    };
+  }
+
+  const integrity = await computeRoundPlanIntegrity(match.matchRoundId);
+
+  const matchSignals = integrity.signals.filter(
+    (s) => !s.matchId || s.matchId === matchId,
   );
 
-  const hardBlockWarnings = matchWarnings.filter(
-    (w) => w.severity === WarningSeverity.HARD_BLOCK,
-  );
+  const blockedSignals = matchSignals.filter((s) => s.kind === "BLOCKED");
+  const decisionRequiredSignals = matchSignals.filter((s) => s.kind === "DECISION_REQUIRED");
 
-  const requiresOverrideWarnings = matchWarnings.filter(
-    (w) => w.severity === WarningSeverity.REQUIRES_OVERRIDE,
-  );
+  const allOverrideSignals = [...blockedSignals, ...decisionRequiredSignals];
 
-  const allOverrideWarnings = [...hardBlockWarnings, ...requiresOverrideWarnings];
-
-  if (allOverrideWarnings.length > 0 && (!overrideReasonCategory)) {
-    const overrideMessages = allOverrideWarnings.map(
-      (w) => `[${w.severity as string}] ${w.rule}: ${w.message}`,
+  if (allOverrideSignals.length > 0 && !overrideReasonCategory) {
+    const overrideMessages = allOverrideSignals.map(
+      (s) => `[${s.kind}] ${s.ruleCode}: ${s.title}`,
     );
     return {
       success: false,
@@ -105,9 +96,7 @@ export async function finalizeSingleMatch(
     };
   }
 
-  const hasHardOverrides = allOverrideWarnings.some(
-    (w) => w.severity === WarningSeverity.HARD_BLOCK || w.severity === WarningSeverity.REQUIRES_OVERRIDE,
-  );
+  const hasHardOverrides = allOverrideSignals.length > 0;
 
   const formattedOverrideReason = overrideReasonCategory
     ? formatOverrideReason(overrideReasonCategory, overrideReasonDetail)
@@ -135,82 +124,12 @@ export async function finalizeSingleMatch(
     };
   }
 
-  const nonCoreDraftSelections = await db.selection.findMany({
-    where: {
-      matchId,
-      status: SelectionStatus.DRAFT,
-      role: { not: SelectionRole.CORE },
-    },
-    select: {
-      playerId: true,
-      matchId: true,
-      role: true,
-    },
-  });
-
-  // Legacy: controlledDoubleLoad was a previous-generation concept.
-  // No new true values are written by the engine. This query handles
-  // any remaining legacy data from before the match-first refactor.
-  const controlledDoubleLoadSelections = await db.selection.findMany({
-    where: {
-      matchId,
-      status: SelectionStatus.DRAFT,
-      controlledDoubleLoad: true,
-    },
-    select: {
-      playerId: true,
-      matchId: true,
-    },
-  });
-
-  const allNonCorePlayerKeys = new Set<string>();
-  for (const s of nonCoreDraftSelections) {
-    allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
-  }
-  for (const s of controlledDoubleLoadSelections) {
-    allNonCorePlayerKeys.add(`${s.playerId}:${s.matchId}`);
-  }
-
-  const ledgerKeys = new Set<string>();
-  if (allNonCorePlayerKeys.size > 0) {
-    const existingLedgerEntries = await db.movementLedger.findMany({
-      where: {
-        matchId,
-        isDraft: true,
-      },
-      select: {
-        playerId: true,
-        matchId: true,
-      },
-    });
-    for (const e of existingLedgerEntries) {
-      ledgerKeys.add(`${e.playerId}:${e.matchId}`);
-    }
-  }
-
   const currentRuleConfigVersion = rules.version;
   const matchRoundId = match.matchRoundId;
 
   let roundAutoFinalized = false;
 
   await db.$transaction(async (tx) => {
-    for (const key of allNonCorePlayerKeys) {
-      if (!ledgerKeys.has(key)) {
-        const [playerId, mId] = key.split(":");
-        await tx.warning.create({
-          data: {
-            matchRoundId: match.matchRoundId,
-            matchId: mId,
-            playerId,
-            severity: WarningSeverity.WARNING,
-            rule: "missing_movement_ledger",
-            message: `Non-core selection for player ${playerId} in match ${mId} has no movement ledger entry.`,
-            resolved: false,
-          },
-        });
-      }
-    }
-
     await tx.selection.updateMany({
       where: {
         matchId,
@@ -257,13 +176,21 @@ export async function finalizeSingleMatch(
     }
   });
 
-  const allWarningMessages = matchWarnings.map(
-    (w) => `[${w.severity as string}] ${w.rule}: ${w.message}`,
+  const matchPlanningNotes = integrity.planningNotes.filter(
+    (n) => !n.matchId || n.matchId === matchId,
   );
+
+  const allWarningMessages = allOverrideSignals.map((s) => {
+    return `[${s.kind}] ${s.ruleCode}: ${s.title}`;
+  });
+
+  const planningNoteMessages = matchPlanningNotes.map((n) => {
+    return `[PLANNING_NOTE] ${n.code}: ${n.title}`;
+  });
 
   return {
     success: true,
-    warnings: allWarningMessages,
+    warnings: [...allWarningMessages, ...planningNoteMessages],
     hardBlocked: false,
     needsOverride: false,
     finalizedSelectionCount: draftSelections.length,
