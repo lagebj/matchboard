@@ -7,7 +7,8 @@ export type AttentionCategory =
   | 'review_changes_requested'
   | 'invitation_pending'
   | 'missing_post_match_report'
-  | 'event_review_needed';
+  | 'event_review_needed'
+  | 'expiring_support_access';
 
 export type AttentionUrgency = 'LOW' | 'NORMAL' | 'HIGH';
 
@@ -106,6 +107,30 @@ export async function getAttentionEntries(): Promise<AttentionEntry[]> {
       dueAt: inv.expiresAt,
       sourceType: 'organisation_invitation',
       sourceId: inv.id,
+    });
+  }
+
+  const expiringSupportMemberships = await db.organisationMembership.findMany({
+    where: {
+      organisationId,
+      role: 'SUPPORT',
+      expiresAt: { not: null, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+    },
+    include: { user: { select: { name: true } } },
+    orderBy: { expiresAt: 'asc' },
+  });
+
+  for (const supportMembership of expiringSupportMemberships) {
+    entries.push({
+      id: `expiring-support-${supportMembership.id}`,
+      category: 'expiring_support_access',
+      title: `Expiring SUPPORT access: ${supportMembership.user?.name ?? 'Unknown'}`,
+      summary: `SUPPORT access expires on ${supportMembership.expiresAt!.toLocaleDateString()}.`,
+      href: `/organisations`,
+      urgency: 'HIGH',
+      dueAt: supportMembership.expiresAt,
+      sourceType: 'organisation_membership',
+      sourceId: supportMembership.id,
     });
   }
 
