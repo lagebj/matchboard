@@ -101,6 +101,15 @@ export async function runSeasonSimulation(
     defaultOnlyResultCount: league?.rounds.length ?? 0,
   };
 
+  const leagueRoundsValid = league
+    ? league.rounds.every((r) => r.valid && !r.warnings.some((w) => w.severity === "blocked"))
+    : true;
+  const eventsValid = events
+    ? events.every((e) => e.valid)
+    : true;
+  const noGenerationErrors = warnings.every((w) => w.code !== "generation_failed");
+  const validToCommit = leagueRoundsValid && eventsValid && noGenerationErrors;
+
   return {
     request,
     league,
@@ -111,7 +120,7 @@ export async function runSeasonSimulation(
     conflicts,
     warnings,
     policy: policySummary,
-    validToCommit: false,
+    validToCommit,
     dryRunNotice: true,
     dryRunWarning: "Simulation computes proposed selections without persisting. No draft selections, warnings, or movement data are created. Use the apply action to create drafts from simulation results.",
   };
@@ -383,7 +392,7 @@ function transformMatchResult(match: GeneratedSelection): SimulatedMatchResult {
   };
 }
 
-async function resolveLeagueSeasonId(
+export async function resolveLeagueSeasonId(
   request: SeasonSimulationRequest,
 ): Promise<string> {
   if (request.leagueSeasonId) {
