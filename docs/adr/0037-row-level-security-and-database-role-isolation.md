@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted — implementation in progress
 
 ## Date
 

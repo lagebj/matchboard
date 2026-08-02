@@ -949,6 +949,7 @@ model Event {
   updatedAt              DateTime                  @updatedAt
   players                EventPlayerAvailability[]
   squads                 EventSquad[]
+  squadPlayers           EventSquadPlayer[]
   eventMatches           EventMatch[]
   organisation           Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -1023,6 +1024,7 @@ model EventSquadPlayer {
   updatedAt          DateTime               @updatedAt
   positionFitTier    String?
   eventSquad         EventSquad             @relation(fields: [eventSquadId], references: [id], onDelete: Cascade)
+  event              Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   player             Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
   organisation       Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -1815,6 +1817,7 @@ model OrganisationMembership {
   @@index([organisationId])
   @@index([userId])
   @@index([role])
+  @@index([expiresAt])
 }
 
 model OrganisationInvitation {
@@ -2064,9 +2067,9 @@ enum DeliveryStatus {
 model NotificationOutbox {
   id              String              @id @default(cuid())
   organisationId  String?
+  idempotencyKey  String?             @unique
   template        NotificationTemplate
   payload         Json
-  idempotencyKey  String?
   status          NotificationStatus  @default(PENDING)
   scheduledAt     DateTime            @default(now())
   processedAt     DateTime?
@@ -2077,8 +2080,6 @@ model NotificationOutbox {
   updatedAt       DateTime            @updatedAt
 
   deliveries      NotificationDelivery[]
-
-  @@unique([idempotencyKey])
   @@index([status, scheduledAt])
   @@index([status, nextRetryAt])
   @@index([organisationId])

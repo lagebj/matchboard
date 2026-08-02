@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb } from "@/test/test-db";
 import { resolveOrgFilterForUser, orgFilterFromContext } from "@/lib/tenancy/resolve-org-filter";
+import { AuthorizationError } from "@/lib/auth";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import type { PrismaClient } from "@/generated/prisma/client";
 
@@ -15,17 +16,12 @@ describe("resolveOrgFilterForUser", () => {
     await teardownTestDb();
   });
 
-  it("returns unscoped filter when user has no organisation membership", async () => {
+  it("throws AuthorizationError when user has no organisation membership", async () => {
     const email = `no-org-${Date.now()}@test.com`;
     const user = await db.user.create({ data: { email, name: "No Org User" } });
 
-    const result = await resolveOrgFilterForUser(user.id, db);
-
-    expect(result.type).toBe("unscoped");
-    if (result.type === "unscoped") {
-      expect(result.filter).toEqual({});
-      expect(result.filterNullable).toEqual({});
-    }
+    await expect(resolveOrgFilterForUser(user.id, db)).rejects.toThrow(AuthorizationError);
+    await expect(resolveOrgFilterForUser(user.id, db)).rejects.toThrow("No active organisation membership");
   });
 
   it("returns org-scoped filter when user has organisation membership", async () => {

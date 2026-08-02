@@ -1,36 +1,50 @@
-# ARR-0007: All 50 tenant-bearing models lack organizationId
+# ARR-0007: Tenant-bearing models organizationId migration
 
 ## Status
 
-Active
+Active — partially resolved
 
 ## Discovered
 
 2026-07-30
 
+## Last updated
+
+2026-08-01
+
 ## Residue
 
-All 50 tenant-bearing Prisma models (football-domain data) lack the `organizationId` column required for multi-organisation isolation. Per the data-ownership matrix in `docs/mt/mt0-data-ownership-matrix.md`, every football-domain model needs direct `organizationId` rather than relying on indirect relationships (e.g. `Match → Team → Organisation`).
+All tenant-bearing Prisma models now have nullable `organizationId` columns added via migration `20260730140000`. However, `organizationId` is still nullable (NOT NULL constraint not yet applied). The null-allowing RLS policies remain active. Application-level filters (`organisationFilter()`) are the primary enforcement mechanism.
 
-This is the foundational structural mismatch that MT-2 (tenant ownership across the domain) will resolve.
+This ARR tracks the remaining work to make `organizationId` non-null and enforce composite unique constraints.
 
 ## Containment
 
-Until MT-2 is implemented:
-- `requireCoachAccess()` provides single-tenant access control (email allowlist)
-- No cross-organisation data can exist because there is only one implicit organisation
-- The email allowlist is checked on every request via middleware
-- Preview deployment API routes are restricted to `PREVIEW_ALLOWLIST_EMAILS`
+- `organisationFilter()` and `resolveOrgFilterForUser()` provide application-level org scoping
+- RLS policies exist on 53 tables but use null-allowing conditions during migration
+- `resolveOrganisationAccess()` provides full org context with role and team delegation
+- 136 files still use `requireCoachAccess()` without org context
+- 115 files use `resolveOrgFilterForUser()` or `resolveOrganisationAccess()`
 
 ## Resolution criteria
 
 - All 50 tenant-bearing models have a non-null `organizationId` column
 - `Team.name` unique constraint is composite `@@unique([organizationId, name])`
 - `Player.playerCode` unique constraint is scoped to `organizationId`
+- `OpponentTeam.normalizedName` unique constraint is composite `@@unique([organizationId, normalizedName])` (already done)
 - Every domain query, mutation, cache key, and export includes `organizationId`
 - Zero unowned tenant rows after migration
-- PostgreSQL RLS policies enforce hard tenant boundaries
+- PostgreSQL RLS policies enforce hard tenant boundaries with null-rejecting conditions
 - Application queries include `organizationId` even with RLS active
+
+## Progress
+
+- Nullable `organizationId` added to all 50+ tenant-bearing models (migration `20260730140000`)
+- RLS policies created on 53 tables (migration `20260730160000`)
+- Two database roles created (`matchboard_app`, `matchboard_admin`)
+- `resolveOrganisationAccess()` and `orgFilterFromContext()` implemented
+- `Team` and `OpponentTeam` composite unique constraints added
+- NOT NULL constraint and null-rejecting RLS policies still pending
 
 ## Affected ADRs
 
@@ -48,24 +62,30 @@ Until MT-2 is implemented:
 
 ## Status
 
-Active
+Active — partially resolved
 
 ## Discovered
 
 2026-07-30
 
+## Last updated
+
+2026-08-01
+
 ## Residue
 
-The current `requireCoachAccess()` function in `src/lib/auth.ts` returns a single coach object with no role, no organisation context, and no team delegation. Every server action treats the authenticated user identically — as a full-access coach.
+`requireCoachAccess()` remains the primary auth gate for 136 files. `resolveOrganisationAccess()` provides full org context with role and team delegation but is only used in 115 org-scoped routes and actions. The transition from single-tenant email allowlist to org-scoped role-based auth is incomplete.
 
-Per ADR-0035, the target model has four roles (OWNER, ADMIN, COACH, VIEWER) with organisation membership and team-level delegation. Until MT-1 is implemented, there is no database-backed membership, no role differentiation, and no team access scoping.
+`resolveOrgFilterForUser()` can return `{type: "unscoped"}` when no membership exists — this is not fail-closed.
+
+Per ADR-0035, the target model requires every protected operation to resolve through organisation membership.
 
 ## Containment
 
-- `requireCoachAccess()` is the single authorisation gate for all protected operations
-- The middleware allowlist provides edge-level access control
-- Preview deployment API routes are restricted to `PREVIEW_ALLOWLIST_EMAILS`
-- No resource-level authorisation (IDOR) protection exists — acknowledged gap in threat model (G-03, G-04)
+- `requireCoachAccess()` provides single-tenant access control (email allowlist)
+- `resolveOrganisationAccess()` provides full org context for org-scoped routes
+- `OrganisationAccessContext` includes role, team delegation, and permission checks
+- Role enforcement helpers (`requireRole()`, `requireTeamAccess()`) exist but are not applied to most mutations
 
 ## Resolution criteria
 
@@ -74,6 +94,19 @@ Per ADR-0035, the target model has four roles (OWNER, ADMIN, COACH, VIEWER) with
 - COACH and VIEWER roles have explicit team delegation via TeamAccess
 - OWNER and ADMIN roles have organisation-wide access
 - Every mutation validates the user's role and permitted teams before executing
+- `resolveOrgFilterForUser()` never returns `{type: "unscoped"}` for authenticated users with memberships
+
+## Progress
+
+- Organisation, Membership, Invitation, TeamAccess models implemented
+- `OrganisationAccessContext` type with role and team delegation
+- `resolveOrganisationAccess()`, `requireRole()`, `requireTeamAccess()` helpers
+- Role permission logic in `organisation-domain.ts` (5 roles: OWNER, ADMIN, COACH, VIEWER, SUPPORT)
+- Organisation lifecycle (suspend, reactivate, delete)
+- Machine principal auth with scoped tokens
+- Security assurance tests (SEC-3)
+- 115 files migrated to org-scoped access
+- 136 files still using `requireCoachAccess()`
 
 ## Affected ADRs
 
@@ -91,23 +124,29 @@ Per ADR-0035, the target model has four roles (OWNER, ADMIN, COACH, VIEWER) with
 
 ## Status
 
-Active
+Active — partially resolved
 
 ## Discovered
 
 2026-07-30
 
+## Last updated
+
+2026-08-01
+
 ## Residue
 
-All Matchboard routes use flat paths (`/teams`, `/players`, `/matches`, `/rounds`) without organisation context. Per ADR-0035, the target route structure is `/o/{organisationSlug}/...` where every server request resolves: authenticated user → requested organisation → membership → role → permitted teams → operation.
+Organisation detail and settings routes exist at `/o/{organisationSlug}/...` using `resolveOrganisationAccess()`. However, all main app routes (Assistant, Fixtures, Teams, Players, Rounds, Matches, Events, Insights, etc.) remain at flat paths under `src/app/(app)/` and use `requireCoachAccess()` + `resolveOrgFilterForUser()` for org scoping.
 
-The current flat structure assumes single-tenant access. Adding organisation context requires restructuring the entire route hierarchy and every server action that reads or writes tenant-bearing data.
+Per ADR-0035, the target route structure is `/o/{organisationSlug}/...` where every server request resolves through organisation membership.
 
 ## Containment
 
-- Single-tenant deployment limits the impact to one implicit organisation
-- The email allowlist provides a single-tenant access boundary
-- No production deployment serves multiple organisations yet
+- Single-tenant deployment limits the impact
+- Organisation listing at `/organisations` shows user's memberships
+- `/o/{organisationSlug}/settings` provides org management
+- `/invite/{token}` handles invitation acceptance
+- Flat routes work because there is only one implicit organisation
 
 ## Resolution criteria
 
@@ -116,6 +155,15 @@ The current flat structure assumes single-tenant access. Adding organisation con
 - Client-supplied organisation ID is never trusted as authority
 - A remembered "last active organisation" is used for UX only
 - Organisation switcher is available in sidebar/account area for multi-org users
+- Legacy flat routes redirect to org-scoped equivalents
+
+## Progress
+
+- `/o/{organisationSlug}` — org detail page
+- `/o/{organisationSlug}/settings` — org management
+- `/organisations` — user's org listing
+- `/invite/{token}` — invitation acceptance
+- Main app routes (136 files) still use flat paths
 
 ## Affected ADRs
 
@@ -132,27 +180,27 @@ The current flat structure assumes single-tenant access. Adding organisation con
 
 ## Status
 
-Active
+Active — partially resolved
 
 ## Discovered
 
 2026-07-30
 
+## Last updated
+
+2026-08-01
+
 ## Residue
 
-Several Prisma models have global `@unique` constraints that must become composite `@@unique([organizationId, ...])` constraints when `organizationId` is added. The most significant:
+Several Prisma models have global `@unique` constraints that must become composite `@@unique([organizationId, ...])` constraints. Some have already been converted; others remain global pending NOT NULL enforcement on `organizationId`.
 
-1. `Team.name` — currently globally unique, must become `@@unique([organizationId, name])`
-2. `Player.playerCode` — currently globally unique, must become scoped to `organizationId`
-3. `OpponentTeam.name` — likely needs `@@unique([organizationId, name])`
-4. `LeagueSeason.name` — likely needs `@@unique([organizationId, name])`
+## Progress
 
-These constraints will require migration steps: add nullable `organizationId`, populate all rows, add composite unique, remove global unique, make `organizationId` NOT NULL.
-
-## Containment
-
-- Single-tenant deployment means these global unique constraints currently work correctly
-- No cross-organisation data can violate the future composite constraints yet
+- `Team` composite unique `@@unique([organisationId, name])` added (migration `20260729120000`)
+- `OpponentTeam` composite unique `@@unique([organisationId, normalizedName])` added
+- `Player.playerCode` global unique still in place — pending organisationId NOT NULL
+- `LeagueSeason.name` global unique still in place — pending organisationId NOT NULL
+- Critical unique constraints added: `Selection_playerId_matchRoundId_draft_key`, `Availability_playerId_matchRoundId`, `RotationPath` composite keys (migration `20260729120000`)
 
 ## Resolution criteria
 

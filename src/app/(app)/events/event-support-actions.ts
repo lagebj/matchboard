@@ -164,13 +164,24 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
 
   const assignment = await db.eventMatchSupportAssignment.findUnique({
     where: { id: assignmentId },
-    include: { eventMatch: { select: { eventId: true } } },
+    include: { eventMatch: { select: { id: true, eventId: true } } },
   });
   if (!assignment) throw new Error('Support assignment not found.');
 
   await requireEventOrgAccess(assignment.eventMatch.eventId, orgFilter);
 
-  await db.eventMatchSupportAssignment.delete({ where: { id: assignmentId } });
+  await db.$transaction(async (tx) => {
+    await tx.eventMatchSupportAssignment.delete({ where: { id: assignmentId } });
+
+    await tx.eventMatchLineupAssignment.updateMany({
+      where: {
+        playerId: assignment.playerId,
+        source: 'HELPER',
+        lineup: { eventMatchId: assignment.eventMatchId },
+      },
+      data: { playerId: null, source: 'BASE_SQUAD' },
+    });
+  });
 
   logMutationEvent("manual_override", coach.email ?? "unknown", "event_match_support", assignmentId, "success");
 

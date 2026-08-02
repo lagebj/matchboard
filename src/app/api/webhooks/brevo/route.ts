@@ -3,8 +3,13 @@ import { verifyBrevoWebhookSignature, processBrevoWebhookEvents } from "@/lib/em
 import type { BrevoWebhookEvent } from "@/lib/email/webhook-handler";
 
 const BREVO_WEBHOOK_KEY = process.env.BREVO_WEBHOOK_KEY ?? "";
+const NODE_ENV = process.env.NODE_ENV ?? "development";
 
 export async function POST(request: Request) {
+  if (!BREVO_WEBHOOK_KEY && NODE_ENV === "production") {
+    return NextResponse.json({ error: "Webhook authentication not configured" }, { status: 503 });
+  }
+
   const rawBody = await request.text();
   const signatureHeader = request.headers.get("x-brevo-signature");
 
