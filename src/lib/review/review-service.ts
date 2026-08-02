@@ -8,6 +8,7 @@ export type CreateReviewRequestInput = {
   targetId: string;
   targetRevision: string;
   requestMessage?: string;
+  reviewerMembershipId?: string;
 };
 
 export type ResolveReviewRequestInput = {
@@ -70,6 +71,20 @@ export async function createReviewRequest(
     throw new Error('A pending review request already exists for this target.');
   }
 
+  if (input.reviewerMembershipId && input.reviewerMembershipId === membership.id) {
+    throw new Error('Cannot request a review from yourself.');
+  }
+
+  const reviewerMembership = input.reviewerMembershipId
+    ? await db.organisationMembership.findUnique({
+        where: { id: input.reviewerMembershipId },
+      })
+    : null;
+
+  if (input.reviewerMembershipId && (!reviewerMembership || reviewerMembership.organisationId !== organisationId)) {
+    throw new Error('Reviewer must be a member of the same organisation.');
+  }
+
   const review = await db.reviewRequest.create({
     data: {
       organisationId,
@@ -77,7 +92,7 @@ export async function createReviewRequest(
       targetId: input.targetId,
       targetRevision: input.targetRevision,
       requestedByMembershipId: membership.id,
-      reviewerMembershipId: membership.id,
+      reviewerMembershipId: input.reviewerMembershipId ?? membership.id,
       requestMessage: input.requestMessage ?? null,
     },
   });
@@ -109,6 +124,10 @@ export async function resolveReviewRequest(
     throw new Error('Only pending review requests can be resolved.');
   }
 
+  if (existing.requestedByMembershipId === existing.reviewerMembershipId && input.status !== 'CANCELLED') {
+    throw new Error('Cannot review your own request.');
+  }
+
   const membership = await db.organisationMembership.findFirst({
     where: {
       userId: coach.id,
@@ -119,6 +138,10 @@ export async function resolveReviewRequest(
 
   if (!membership) {
     throw new Error('Only coaches and owners can resolve reviews.');
+  }
+
+  if (membership.id !== existing.reviewerMembershipId) {
+    throw new Error('Only the assigned reviewer can resolve this review request.');
   }
 
   const updated = await db.reviewRequest.update({
