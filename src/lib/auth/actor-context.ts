@@ -1,7 +1,7 @@
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
-import { resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
+import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type ActorContext = {
   userId: string;
@@ -10,6 +10,7 @@ export type ActorContext = {
   organisationSlug: string;
   role: OrganisationRole;
   delegatedTeamIds: string[] | null;
+  orgFilter: OrgFilterMode;
 };
 
 export async function requireActorContext(
@@ -20,6 +21,12 @@ export async function requireActorContext(
 
   if (organisationSlug) {
     const access = await resolveOrganisationAccess(organisationSlug);
+    const slugOrgFilter: OrgFilterMode = {
+      type: "org",
+      filter: { organisationId: access.organisationId },
+      filterNullable: { organisationId: access.organisationId },
+      organisationId: access.organisationId,
+    };
     return {
       userId: access.userId,
       membershipId: access.membershipId,
@@ -27,6 +34,7 @@ export async function requireActorContext(
       organisationSlug: access.organisationSlug,
       role: access.role,
       delegatedTeamIds: access.permittedTeamIds ?? null,
+      orgFilter: slugOrgFilter,
     };
   }
 
@@ -66,5 +74,6 @@ export async function requireActorContext(
     organisationSlug: organisation.slug,
     role: membership.role,
     delegatedTeamIds: teamAccesses.map((ta) => ta.teamId),
+    orgFilter,
   };
 }
