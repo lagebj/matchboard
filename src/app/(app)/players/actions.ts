@@ -154,6 +154,7 @@ function readAvailabilityStatus(formData: FormData): AvailabilityStatus {
 
   if (
     value === AvailabilityStatus.AVAILABLE ||
+    value === AvailabilityStatus.UNAVAILABLE ||
     value === AvailabilityStatus.INJURED ||
     value === AvailabilityStatus.SICK ||
     value === AvailabilityStatus.AWAY ||
@@ -163,7 +164,7 @@ function readAvailabilityStatus(formData: FormData): AvailabilityStatus {
     return value;
   }
 
-  throw new Error("Availability must be Available, Injured, Sick, Away, Tentative, or Unknown.");
+  throw new Error("Availability must be Available, Unavailable, Injured, Sick, Away, Tentative, or Unknown.");
 }
 
 async function readCoreTeamId(formData: FormData, organisationId?: string): Promise<string | null> {

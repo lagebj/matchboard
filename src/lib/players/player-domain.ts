@@ -7,6 +7,7 @@ export type PlayerMutationResult =
 
 const VALID_AVAILABILITY_STATUSES: AvailabilityStatus[] = [
   "AVAILABLE",
+  "UNAVAILABLE",
   "INJURED",
   "SICK",
   "AWAY",

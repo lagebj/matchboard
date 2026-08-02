@@ -235,16 +235,16 @@ model MatchRound {
 }
 
 model Availability {
-  id           String     @id @default(cuid())
+  id           String           @id @default(cuid())
   organisationId String?
   playerId     String
   matchRoundId String
-  status       String
+  status       AvailabilityStatus @default(AVAILABLE)
   note         String?
-  createdAt    DateTime   @default(now())
-  matchRound   MatchRound @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player       Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+  matchRound   MatchRound       @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
+  player       Player           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, matchRoundId])
   @@index([organisationId])
@@ -1334,6 +1334,7 @@ enum BestSide {
 
 enum AvailabilityStatus {
   AVAILABLE
+  UNAVAILABLE
   INJURED
   SICK
   AWAY

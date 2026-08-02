@@ -12,9 +12,9 @@ import {
 } from "@/lib/table-sort";
 import { setPlayerAvailabilityAction } from "@/app/(app)/players/actions";
 
-type AvailabilityStatus = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
+type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
-const AVAILABILITY_OPTIONS: AvailabilityStatus[] = ["AVAILABLE", "INJURED", "SICK", "AWAY", "TENTATIVE", "UNKNOWN"];
+const AVAILABILITY_OPTIONS: AvailabilityStatus[] = ["AVAILABLE", "UNAVAILABLE", "INJURED", "SICK", "AWAY", "TENTATIVE", "UNKNOWN"];
 
 type PlayerRow = {
   active: boolean;
