@@ -93,30 +93,19 @@
 - Remove null-allowing RLS policies after NOT NULL constraint
 
 #### Bundle 4 remaining
-- Brevo webhook bearer token authentication
-- Disable open/click tracking in Brevo template configuration
+- Disable open/click tracking in Brevo template configuration (requires Brevo API changes outside repo)
 
-#### Bundle 6 — Assistant and Command Palette
-- Implement weekly operational briefing
-- Remove top-bar search, implement command palette with Cmd+K
-- Permission-filtered commands and search
+#### Bundle 4 completed (Session 2)
+- Bearer token authentication: `BREVO_WEBHOOK_BEARER_TOKEN` environment variable added. Webhook endpoint now checks bearer token first, then falls back to signature verification.
 
-#### Bundle 7 — Planning Tools
-- Extract pure planning function from `generateMatchRound()`
-- Implement separate apply operation
-- Build interactive 2D rotation graph (no Three.js)
-- Accessible list/form fallback
+#### Bundle 9 — Model Reconciliation (partial, Session 2)
+- ARR-0006: `Availability.status` migrated from String to `AvailabilityStatus` enum. Added `UNAVAILABLE` value. Migration `20260802100000_availability_status_enum`.
+- Review self-review prevention: `createReviewRequest` now rejects self-assigned reviewers and validates reviewer organisation membership. `resolveReviewRequest` now requires the assigned reviewer to resolve.
+- Attention: Added `expiring_support_access` category for SUPPORT memberships expiring within 7 days.
 
-#### Bundle 8 — Coaching Intelligence
-- Create `WorkOwnership` model
-- Implement opportunity context, position/formation exposure
-- Player combination history
-- Continuity versus exploration analysis
-
-#### Bundle 9 — Model Reconciliation
-- Migrate `Availability.status` from String to enum with AVAILABLE/UNAVAILABLE/UNKNOWN
+#### Bundle 9 remaining
 - Remove or derive `Player.supportSuitability` and `Player.developmentReadiness`
-- Migrate reads to `PlayerPosition` canonical model
+- Migrate reads to `PlayerPosition` canonical model (590 references)
 - Make `SelectionExplanation` canonical, `Selection.explanation` read-only cache
 - Add check constraints for string-typed enums
 - Update feature contract preamble to age-neutral language
@@ -137,6 +126,8 @@
 - Event-squad player uniqueness enforced at DB level (one player per event across all squads)
 - Event-match eligibility enforced server-side via canonical service
 - HELPER provenance tracked in lineup assignments
+- Review self-review prevention and reviewer eligibility enforced
+- Bearer token authentication on Brevo webhook endpoint
 
 ## Database changes (cumulative)
 
@@ -146,6 +137,7 @@
 - `EventSquadPlayer` — `eventId` field with `@@unique([eventId, playerId])`
 - `ReviewRequest` model with ReviewTargetType and ReviewStatus enums
 - `EventMatchLineupPlayerSource` — added HELPER value
+- `Availability.status` — migrated from String to AvailabilityStatus enum, added UNAVAILABLE
 
 ## Production actions still required
 
@@ -153,6 +145,12 @@
 2. Run `20260801160000_add_support_role_expiry` migration
 3. Run `20260801170000_rename_event_squad_confirmed_to_locked` migration
 4. Run `20260801180000_add_event_squad_player_event_id` migration
+5. Run `20260801210000_add_review_request_model` migration
+6. Run `20260802100000_availability_status_enum` migration
+7. Set `BREVO_WEBHOOK_KEY` environment variable in production
+8. Set `BREVO_WEBHOOK_BEARER_TOKEN` environment variable in production (recommended)
+9. Production data backfill: assign all existing data to bootstrap organisation
+10. After backfill: apply NOT NULL constraint to `organisationId` on all tenant-bearing tables
 5. Run `20260801210000_add_review_request_model` migration
 6. Set `BREVO_WEBHOOK_KEY` environment variable in production (was previously optional)
 7. Production data backfill: assign all existing data to bootstrap organisation
