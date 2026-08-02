@@ -76,41 +76,34 @@ export async function unfinalizeSingleMatch(
         isDraft: true,
       },
     });
+  });
 
-    const remainingFinalized = await tx.selection.count({
-      where: {
-        matchRoundId,
-        status: SelectionStatus.FINALIZED,
-      },
-    });
-
-    if (remainingFinalized === 0) {
-      const integrity = await computeRoundPlanIntegrity(matchRoundId);
-
-      const blockedSignalCount = integrity.summary.blockerCount + integrity.summary.decisionRequiredCount;
-
-      const newStatus = deriveRoundStatus({
-        dbStatus: "DRAFT",
-        hasDraftSelections: true,
-        hasMatches: true,
-        blockedSignalCount,
-      });
-
-      await tx.matchRound.update({
-        where: { id: matchRoundId },
-        data: { status: newStatus },
-      });
-    }
+  const remainingFinalized = await db.selection.count({
+    where: {
+      matchRoundId,
+      status: SelectionStatus.FINALIZED,
+    },
   });
 
   let roundStatusReverted = false;
 
-  const round = await db.matchRound.findUnique({
-    where: { id: matchRoundId },
-    select: { status: true },
-  });
+  if (remainingFinalized === 0) {
+    const integrity = await computeRoundPlanIntegrity(matchRoundId);
 
-  if (round && round.status !== "FINALIZED") {
+    const blockedSignalCount = integrity.summary.blockerCount + integrity.summary.decisionRequiredCount;
+
+    const newStatus = deriveRoundStatus({
+      dbStatus: "DRAFT",
+      hasDraftSelections: true,
+      hasMatches: true,
+      blockedSignalCount,
+    });
+
+    await db.matchRound.update({
+      where: { id: matchRoundId },
+      data: { status: newStatus },
+    });
+
     roundStatusReverted = true;
   }
 

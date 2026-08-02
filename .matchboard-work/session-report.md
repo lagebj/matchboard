@@ -135,6 +135,20 @@
 - ARR-0002: Added provenance columns to `Selection` model (`manuallyAdded`, `manuallyRemoved`, `autoSelected`, `sourceTeamName`, `targetTeamName`, `selectionReason`). These extract operational flags from the JSON `explanation` field, making them queryable without JSON parsing. Migrated read paths in `generate-selection.ts`, `refresh-draft-selection.ts`, and round board page to use columns. Migration backfills from existing JSON.
 - ARR-0002: Updated source-of-truth register and ARR-0002 document to designate `SelectionExplanation` table as canonical for structured explanations, `Selection.explanation` as compatibility cache, and provenance columns as operational truth.
 - ARR-0003: Documented progress on `Warning.resolved` vestigial field. Confirmed that Assistant, Fixtures, Players overview, and reconciliation all use `computeRoundPlanIntegrity()` for live computation. Finalization still reads `Warning.resolved` from DB — migration to live computation pending.
+
+#### Bundle 9 — Model Reconciliation (Session 3)
+
+- ARR-0003 RESOLVED: All finalization, unfinalization, refresh, and display paths now use `computeRoundPlanIntegrity()` instead of `Warning.resolved` reads:
+  - `finalize-match-round.ts`: Uses live plan integrity for blocker/decision-required detection; removed Warning table reads, WarningSeverity import, and `missing_movement_ledger` Warning creation during finalization
+  - `finalize-single-match.ts`: Uses live plan integrity scoped to match; removed Warning table reads and `missing_movement_ledger` creation
+  - `unfinalize-match-round.ts`: Uses `computeRoundPlanIntegrity()` for round status derivation after un-finalization
+  - `unfinalize-single-match.ts`: Uses `computeRoundPlanIntegrity()` for status derivation
+  - `refresh-draft-selection.ts`: Uses `reconcileRoundAfterDraftMutation()` for single-match refresh; added `reconcileRoundAfterDraftMutation()` call after round refresh
+  - Round board page (`/rounds/[matchRoundId]/page.tsx`): Uses `computeRoundPlanIntegrity()` for signal display instead of Warning.resolved reads
+  - `Warning.resolved` field is now effectively deprecated: no code path reads it for plan integrity or finalization decisions
+  - Source-of-truth register updated; ARR-0003 disposition changed to Resolved
+
+- Bundle 7 partial: Verified that simulation (`generateMatchRound()`) is already zero-write — it only reads from the database, never creates/updates/deletes football data. Corrected misleading comment that claimed simulation created draft selections. Updated dry-run notice to accurately reflect zero-write behavior.
 - ARR-0006: Added database CHECK constraints for 9 string-typed enum fields across 7 models.
 - ARR-0001: Confirmed Player scalar fields canonical, PlayerPosition is secondary derived store with zero active read paths.
 - CoachingIntentScopeType.PLANNING_PERIOD renamed to LEAGUE_SEASON across all code and database. Aligned with user-facing terminology and existing LeagueSeason model rename.
