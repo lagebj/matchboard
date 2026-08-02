@@ -495,10 +495,46 @@ async function checkCandidateSupportNoShowCounterDrift(
 ): Promise<void> {
 }
 async function checkCandidateDoubleLoadLegacyRemnants(
-  _db: Dbc,
-  _scope: { leagueSeasonId?: string; matchId?: string },
-  _findings: IntegrityFinding[],
+  db: Dbc,
+  scope: { leagueSeasonId?: string; matchId?: string },
+  findings: IntegrityFinding[],
 ): Promise<void> {
+  const where: Record<string, unknown> = {};
+  if (scope.leagueSeasonId) {
+    where.matchRound = { leagueSeasonId: scope.leagueSeasonId };
+  }
+
+  const doubleLoadSelections = await db.selection.findMany({
+    where: {
+      controlledDoubleLoad: true,
+      ...where,
+    },
+    select: {
+      id: true,
+      matchId: true,
+      playerId: true,
+      role: true,
+      controlledDoubleLoad: true,
+    },
+    take: 100,
+  });
+
+  for (const sel of doubleLoadSelections) {
+    findings.push({
+      code: "LEGACY_DOUBLE_LOAD_SELECTION",
+      severity: "INFO",
+      domain: "MOVEMENT_LEDGER",
+      entityType: "Selection",
+      entityId: sel.id,
+      matchId: sel.matchId,
+      playerId: sel.playerId,
+      message: `Selection ${sel.id} has controlledDoubleLoad=true (legacy flag). New generation never sets this flag.`,
+      canonicalValue: false,
+      conflictingValue: true,
+      repairability: "REQUIRES_FACTUAL_REVIEW",
+      recommendedAction: "Verify this is historical data, not new generation. MovementLedger should be the source of truth for movement type.",
+    });
+  }
 }
 async function checkCandidateWarningProjectionDrift(
   db: Dbc,
