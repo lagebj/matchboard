@@ -50,7 +50,16 @@ Per the source-of-truth register, current plan integrity is derived live from `c
 
 ## Disposition
 
-Pending. To be addressed in IMPROVE-0B/0C.
+In progress. Canonical live computation (`computeRoundPlanIntegrity()`) is used by Assistant, Fixtures, Players overview, and reconciliation. Finalization still reads `Warning.resolved` from the database — needs migration to live computation. Warning table rows remain as persisted projections but must not be authoritative for finalization decisions.
+
+## History
+
+### 2026-08-02
+
+- Verified that Assistant, Fixtures, Players overview, and reconciliation all use `computeRoundPlanIntegrity()` for live computation
+- Identified that finalization (`finalize-match-round.ts`, `finalize-single-match.ts`) and refresh (`refresh-draft-selection.ts`) still read `Warning.resolved` from the database
+- `Warning.resolved` vestigial field needs to be replaced with live computation during finalization
+- Warning persistence (`persist-warnings.ts`) remains as derived projection for audit/debugging
 
 ## Related decisions
 
