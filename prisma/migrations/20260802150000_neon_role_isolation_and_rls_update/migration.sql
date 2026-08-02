@@ -100,14 +100,14 @@ BEGIN
     WHERE n.nspname = 'public' AND t.typtype = 'e'
       AND pg_get_userbyid(t.typowner) = 'neondb_owner'
   LOOP
-    EXECUTE format('ALTER TYPE %I.%I OWNER TO matchboard_admin_migration', 'public', typ.typname);
+    EXECUTE format('ALTER TYPE %I.%I OWNER TO matchboard_admin_migration', 'public', typ);
   END LOOP;
 
   -- Transfer sequence ownership
   FOR seq IN
     SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'
   LOOP
-    EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO matchboard_admin_migration', 'public', seq.sequencename);
+    EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO matchboard_admin_migration', 'public', seq);
   END LOOP;
 END $$;
 
@@ -142,8 +142,8 @@ BEGIN
     JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e'
   LOOP
-    EXECUTE format('GRANT USAGE ON TYPE %I.%I TO matchboard_app_runtime', 'public', typ.typname);
-    EXECUTE format('GRANT ALL PRIVILEGES ON TYPE %I.%I TO matchboard_admin_migration', 'public', typ.typname);
+    EXECUTE format('GRANT USAGE ON TYPE %I.%I TO matchboard_app_runtime', 'public', typ);
+    EXECUTE format('GRANT ALL PRIVILEGES ON TYPE %I.%I TO matchboard_admin_migration', 'public', typ);
   END LOOP;
 END $$;
 
@@ -209,6 +209,33 @@ BEGIN
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public'
         AND EXISTS (SELECT 1 FROM pg_roles r2 WHERE r2.oid = ANY(p.polroles) AND r2.rolname = 'matchboard_admin')
+    LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.polname, pol.relname);
+    END LOOP;
+  END IF;
+
+  -- Drop any existing new role policies (idempotent re-creation)
+  IF new_app_role_exists THEN
+    FOR pol IN
+      SELECT p.polname, c.relname
+      FROM pg_policy p
+      JOIN pg_class c ON c.oid = p.polrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND EXISTS (SELECT 1 FROM pg_roles r2 WHERE r2.oid = ANY(p.polroles) AND r2.rolname = 'matchboard_app_runtime')
+    LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.polname, pol.relname);
+    END LOOP;
+  END IF;
+
+  IF new_admin_role_exists THEN
+    FOR pol IN
+      SELECT p.polname, c.relname
+      FROM pg_policy p
+      JOIN pg_class c ON c.oid = p.polrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND EXISTS (SELECT 1 FROM pg_roles r2 WHERE r2.oid = ANY(p.polroles) AND r2.rolname = 'matchboard_admin_migration')
     LOOP
       EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.polname, pol.relname);
     END LOOP;
