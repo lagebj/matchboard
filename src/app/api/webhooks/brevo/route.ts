@@ -3,11 +3,19 @@ import { verifyBrevoWebhookSignature, processBrevoWebhookEvents } from "@/lib/em
 import type { BrevoWebhookEvent } from "@/lib/email/webhook-handler";
 
 const BREVO_WEBHOOK_KEY = process.env.BREVO_WEBHOOK_KEY ?? "";
+const BREVO_WEBHOOK_BEARER_TOKEN = process.env.BREVO_WEBHOOK_BEARER_TOKEN ?? "";
 const NODE_ENV = process.env.NODE_ENV ?? "development";
 
 export async function POST(request: Request) {
-  if (!BREVO_WEBHOOK_KEY && NODE_ENV === "production") {
+  if (!BREVO_WEBHOOK_KEY && !BREVO_WEBHOOK_BEARER_TOKEN && NODE_ENV === "production") {
     return NextResponse.json({ error: "Webhook authentication not configured" }, { status: 503 });
+  }
+
+  const authHeader = request.headers.get("authorization");
+  if (BREVO_WEBHOOK_BEARER_TOKEN) {
+    if (!authHeader || authHeader !== `Bearer ${BREVO_WEBHOOK_BEARER_TOKEN}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const rawBody = await request.text();
@@ -15,6 +23,10 @@ export async function POST(request: Request) {
 
   if (BREVO_WEBHOOK_KEY && !verifyBrevoWebhookSignature(rawBody, signatureHeader, BREVO_WEBHOOK_KEY)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  if (!BREVO_WEBHOOK_KEY && !BREVO_WEBHOOK_BEARER_TOKEN) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   let events: BrevoWebhookEvent[];
