@@ -151,16 +151,22 @@ END $$;
 -- 6. Enable and force RLS on additional tenant-bearing tables
 -- ============================================================
 -- These tables were not in the original RLS migration but have organisationId.
+-- Uses dynamic discovery: only enables RLS on tables that exist AND have organisationId.
 
 DO $$
 DECLARE
   tbl TEXT;
 BEGIN
-  FOR tbl IN SELECT unnest(ARRAY[
-    'FairPlayObservation', 'LiveMatchEvent', 'LiveMatchSession', 'MatchRotation',
-    'NotificationOutbox', 'OpponentSportingEvidence', 'PlayerDevelopmentObservation',
-    'PlayerProfileSuggestion', 'ReviewRequest', 'WorkOwnership'
-  ]) LOOP
+  FOR tbl IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+      AND EXISTS (
+        SELECT 1 FROM information_schema.columns col
+        WHERE col.table_schema = 'public' AND col.table_name = c.relname AND col.column_name = 'organisationId'
+      )
+  LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tbl);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', tbl);
   END LOOP;
@@ -242,26 +248,19 @@ BEGIN
   END IF;
 
   -- Create new policies for matchboard_app_runtime and matchboard_admin_migration
+  -- Uses dynamic discovery: only creates policies on tables that exist AND have organisationId
   IF new_app_role_exists AND new_admin_role_exists THEN
-    FOR tbl IN SELECT unnest(ARRAY[
-      'Team', 'Player', 'Match', 'OpponentTeam', 'RuleConfig',
-      'Season', 'MatchRound', 'Availability', 'Selection', 'RotationPath',
-      'MovementLedger', 'Formation', 'FormationSlot', 'MatchLineup', 'MatchLineupAssignment',
-      'PlayerPosition', 'Warning', 'PlayerLock', 'SelectionAudit', 'DecisionRecord',
-      'CoachingIntent', 'PostMatchReport', 'PostMatchPlayerActual', 'Goal', 'Assist',
-      'MatchReportAbsence', 'MatchReportPlayerStat', 'PlayerReadinessSignal', 'MatchExecutionFeedback',
-      'TeamReflection', 'OpponentEncounterObservation', 'SelectionExplanation', 'MovementCandidate',
-      'Event', 'EventPlayerAvailability', 'EventSquad', 'EventSquadPlayer', 'EventMatch',
-      'EventPostMatchReport', 'EventPostMatchPlayer', 'EventGoalEvent', 'EventAssistEvent',
-      'EventMatchSupportAssignment', 'EventMatchLineup', 'EventMatchLineupAssignment',
-      'LeagueSeason', 'SeasonPeriodSnapshot', 'TeamSeasonSnapshot', 'TeamSeasonSnapshotPlayer',
-      'PolicyDecisionLog',
-      'OrganisationMembership', 'OrganisationInvitation', 'MachinePrincipal',
-      -- Tables added in this migration
-      'FairPlayObservation', 'LiveMatchEvent', 'LiveMatchSession', 'MatchRotation',
-      'NotificationOutbox', 'OpponentSportingEvidence', 'PlayerDevelopmentObservation',
-      'PlayerProfileSuggestion', 'ReviewRequest', 'WorkOwnership'
-    ]) LOOP
+    FOR tbl IN
+      SELECT c.relname
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity = true
+        AND EXISTS (
+          SELECT 1 FROM information_schema.columns col
+          WHERE col.table_schema = 'public' AND col.table_name = c.relname AND col.column_name = 'organisationId'
+        )
+      ORDER BY c.relname
+    LOOP
       -- Tenant-scoped policies for matchboard_app_runtime
       EXECUTE format(
         'CREATE POLICY %I ON %I FOR SELECT TO matchboard_app_runtime USING (
