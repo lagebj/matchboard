@@ -26,6 +26,9 @@ export async function getPolicyWarningReview(
   const warnings = await db.warning.findMany({
     where: {
       matchRoundId: { in: roundIds },
+      // Note: Warning.resolved is deprecated for operational decisions.
+      // This display query uses the derived projection for historical review.
+      // For live plan integrity, use computeRoundPlanIntegrity() instead.
       resolved: false,
     },
     select: {
