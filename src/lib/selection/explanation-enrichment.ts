@@ -130,6 +130,7 @@ export async function enrichSelectionsWithIntent(matchIds: string[]): Promise<vo
     select: {
       id: true,
       matchId: true,
+      playerId: true,
       explanation: true,
     },
   });
@@ -151,5 +152,10 @@ export async function enrichSelectionsWithIntent(matchIds: string[]): Promise<vo
         data: { explanation: enriched as unknown as Prisma.InputJsonValue },
       });
     }
+
+    await db.selectionExplanation.updateMany({
+      where: { matchId: selection.matchId, playerId: selection.playerId },
+      data: { coachingIntentCategory: intentCategory },
+    });
   }
 }

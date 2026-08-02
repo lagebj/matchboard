@@ -49,7 +49,7 @@ export async function setMatchdayResponsibilityAction(
   try {
     const selection = await db.selection.findUnique({
       where: { id: selectionId },
-      select: { id: true, matchId: true, status: true, matchdayResponsibility: true },
+      select: { id: true, matchId: true, status: true, matchdayResponsibility: true, playerId: true },
     });
 
     if (!selection) return { success: false, error: "Selection not found." };
@@ -79,6 +79,11 @@ export async function setMatchdayResponsibilityAction(
         });
       }
     }
+
+    await db.selectionExplanation.updateMany({
+      where: { matchId: selection.matchId, playerId: selection.playerId },
+      data: { matchdayResponsibility: responsibility as MatchdayResponsibilityType | null },
+    });
 
     revalidatePath(`/matches/${selection.matchId}`);
     revalidatePath(`/rounds`);
