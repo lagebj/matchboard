@@ -25,6 +25,8 @@ type SecurityEventAction =
   | "player_restore"
   | "event_squad_confirm"
   | "event_squad_unconfirm"
+  | "event_squad_lock"
+  | "event_squad_unlock"
   | "data_export"
   | "policy_evaluation"
   | "session_revoked"

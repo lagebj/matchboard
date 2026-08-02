@@ -185,7 +185,7 @@ export async function confirmEventSquadsAction(eventId: string) {
     const blockingIssues = validation.issues.filter(
       (i) => i.severity === "blocking",
     );
-    logEventSquadConfirm(coach.email ?? "unknown", eventId, "failure", "Blocking validation issues");
+    logEventSquadLock(coach.email ?? "unknown", eventId, "failure", "Blocking validation issues");
     return {
       success: false as const,
       error: "Cannot commit squads: blocking issues found.",
@@ -228,7 +228,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   });
 
   if (confirmedCount === 0) {
-    logEventSquadUnconfirm(coach.email ?? "unknown", eventId, "failure");
+    logEventSquadUnlock(coach.email ?? "unknown", eventId, "failure");
     return {
       success: false as const,
       error: "No confirmed squads to unconfirm.",
