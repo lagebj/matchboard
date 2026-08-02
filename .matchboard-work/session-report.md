@@ -128,6 +128,14 @@
 - HELPER provenance tracked in lineup assignments
 - Review self-review prevention and reviewer eligibility enforced
 - Bearer token authentication on Brevo webhook endpoint
+- Selection provenance columns enforce operational truth at DB level
+- Database CHECK constraints enforce enum values for 9 string-typed fields across 7 models
+
+#### Bundle 9 — Model Reconciliation (continued, Session 2)
+- ARR-0002: Added provenance columns to `Selection` model (`manuallyAdded`, `manuallyRemoved`, `autoSelected`, `sourceTeamName`, `targetTeamName`, `selectionReason`). These extract operational flags from the JSON `explanation` field, making them queryable without JSON parsing. Migrated read paths in `generate-selection.ts`, `refresh-draft-selection.ts`, and round board page to use columns. Migration backfills from existing JSON.
+- ARR-0002: Updated source-of-truth register and ARR-0002 document to designate `SelectionExplanation` table as canonical for structured explanations, `Selection.explanation` as compatibility cache, and provenance columns as operational truth.
+- ARR-0003: Documented progress on `Warning.resolved` vestigial field. Confirmed that Assistant, Fixtures, Players overview, and reconciliation all use `computeRoundPlanIntegrity()` for live computation. Finalization still reads `Warning.resolved` from DB — migration to live computation pending.
+- ARR-0006: Added database CHECK constraints for 9 string-typed enum fields across 7 models.
 
 ## Database changes (cumulative)
 
@@ -138,6 +146,8 @@
 - `ReviewRequest` model with ReviewTargetType and ReviewStatus enums
 - `EventMatchLineupPlayerSource` — added HELPER value
 - `Availability.status` — migrated from String to AvailabilityStatus enum, added UNAVAILABLE
+- `Selection` — added `manuallyAdded`, `manuallyRemoved`, `autoSelected`, `sourceTeamName`, `targetTeamName`, `selectionReason` columns
+- Database CHECK constraints added for: `MatchRound.status`, `PostMatchPlayerActual.attendanceStatus`, `PostMatchPlayerActual.source`, `Goal.type`, `Assist.type`, `EventGoalEvent.type`, `EventAssistEvent.type`, `EventPostMatchPlayer.attendanceStatus`, `EventMatchSupportAssignment.plannedRole`
 
 ## Production actions still required
 
@@ -147,6 +157,8 @@
 4. Run `20260801180000_add_event_squad_player_event_id` migration
 5. Run `20260801210000_add_review_request_model` migration
 6. Run `20260802100000_availability_status_enum` migration
+7. Run `20260802110000_add_selection_provenance_columns` migration
+8. Run `20260802120000_add_enum_check_constraints` migration
 7. Set `BREVO_WEBHOOK_KEY` environment variable in production
 8. Set `BREVO_WEBHOOK_BEARER_TOKEN` environment variable in production (recommended)
 9. Production data backfill: assign all existing data to bootstrap organisation
