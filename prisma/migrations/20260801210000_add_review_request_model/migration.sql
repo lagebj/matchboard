@@ -1,3 +1,9 @@
+-- CreateEnum
+CREATE TYPE "ReviewTargetType" AS ENUM ('EVENT_SQUAD', 'MATCH_LINEUP');
+
+-- CreateEnum
+CREATE TYPE "ReviewStatus" AS ENUM ('PENDING', 'APPROVED', 'CHANGES_REQUESTED', 'CANCELLED', 'SUPERSEDED');
+
 -- CreateTable
 CREATE TABLE "ReviewRequest" (
     "id" TEXT NOT NULL,
@@ -17,12 +23,6 @@ CREATE TABLE "ReviewRequest" (
 
     CONSTRAINT "ReviewRequest_pkey" PRIMARY KEY ("id")
 );
-
--- CreateEnum
-CREATE TYPE "ReviewTargetType" AS ENUM ('EVENT_SQUAD', 'MATCH_LINEUP');
-
--- CreateEnum
-CREATE TYPE "ReviewStatus" AS ENUM ('PENDING', 'APPROVED', 'CHANGES_REQUESTED', 'CANCELLED', 'SUPERSEDED');
 
 -- CreateIndex
 CREATE INDEX "ReviewRequest_targetType_targetId_status_idx" ON "ReviewRequest"("targetType", "targetId", "status");
