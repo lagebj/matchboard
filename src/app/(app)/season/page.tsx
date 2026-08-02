@@ -31,7 +31,7 @@ export default async function SeasonPage() {
 
   const leagueSeasonIntent = activeLeagueSeason
     ? await db.coachingIntent.findFirst({
-        where: { scopeType: "PLANNING_PERIOD", scopeId: activeLeagueSeason.id, ...orgWhere },
+        where: { scopeType: "LEAGUE_SEASON", scopeId: activeLeagueSeason.id, ...orgWhere },
         select: { id: true, category: true },
       })
     : null;
@@ -80,7 +80,7 @@ export default async function SeasonPage() {
       )}
       {activeLeagueSeason && (
         <CoachingIntentSelector
-          scopeType="PLANNING_PERIOD"
+          scopeType="LEAGUE_SEASON"
           scopeId={activeLeagueSeason.id}
           currentIntent={leagueSeasonIntent?.category ?? undefined}
           currentIntentId={leagueSeasonIntent?.id ?? undefined}

@@ -25,7 +25,7 @@ async function requireScopeOrgAccess(scopeType: string, scopeId: string, orgFilt
       select: { id: true },
     });
     if (!round) throw new Error("Match round not found or access denied.");
-  } else if (scopeType === "LEAGUE_SEASON" || scopeType === "PLANNING_PERIOD") {
+  } else if (scopeType === "LEAGUE_SEASON") {
     const season = await db.leagueSeason.findFirst({
       where: { id: scopeId, ...orgFilter.filter },
       select: { id: true },
@@ -91,7 +91,7 @@ export async function setCoachingIntentAction(
     if (scopeType === "MATCH_ROUND") {
       revalidatePath(`/rounds/${scopeId}`);
     }
-    if (scopeType === "PLANNING_PERIOD") {
+    if (scopeType === "LEAGUE_SEASON") {
       revalidatePath(`/season`);
     }
 
@@ -122,7 +122,7 @@ export async function removeCoachingIntentAction(
     if (intent.scopeType === "MATCH_ROUND") {
       revalidatePath(`/rounds/${intent.scopeId}`);
     }
-    if (intent.scopeType === "PLANNING_PERIOD") {
+    if (intent.scopeType === "LEAGUE_SEASON") {
       revalidatePath(`/season`);
     }
 

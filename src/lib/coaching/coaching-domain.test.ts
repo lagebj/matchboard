@@ -49,7 +49,7 @@ describe("Coaching Intent", () => {
     it("accepts valid scope types", () => {
       expect(validateCoachingIntentScopeType("MATCH")).toBe(true);
       expect(validateCoachingIntentScopeType("MATCH_ROUND")).toBe(true);
-      expect(validateCoachingIntentScopeType("PLANNING_PERIOD")).toBe(true);
+      expect(validateCoachingIntentScopeType("LEAGUE_SEASON")).toBe(true);
       expect(validateCoachingIntentScopeType("TEAM")).toBe(true);
       expect(validateCoachingIntentScopeType("SELECTION")).toBe(true);
     });

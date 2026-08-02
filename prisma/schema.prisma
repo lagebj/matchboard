@@ -1493,7 +1493,7 @@ enum CoachingIntentCategory {
 }
 
 enum CoachingIntentScopeType {
-  PLANNING_PERIOD
+  LEAGUE_SEASON
   MATCH_ROUND
   MATCH
   TEAM

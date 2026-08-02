@@ -65,7 +65,7 @@ export async function getMatchIntentMap(matchIds: string[]): Promise<Map<string,
 
     if (uniquePeriodIds.length > 0) {
       const periodIntents = await db.coachingIntent.findMany({
-        where: { scopeType: "PLANNING_PERIOD", scopeId: { in: uniquePeriodIds } },
+        where: { scopeType: "LEAGUE_SEASON", scopeId: { in: uniquePeriodIds } },
         orderBy: { createdAt: "desc" },
       });
 
