@@ -366,19 +366,20 @@ describe('Event post-match report actions', () => {
             intent: 'BALANCED',
             targetSize: 7,
             generationOrder: 0,
-            players: {
-              create: [
-                { playerId: player1Id, source: 'MANUAL', locked: false },
-                { playerId: player2Id, source: 'MANUAL', locked: false },
-              ],
-            },
           },
         },
       },
-      include: { squads: { include: { players: true } } },
+      include: { squads: true },
     });
     eventId = event.id;
     squadId = event.squads[0]!.id;
+
+    await testDb.eventSquadPlayer.createMany({
+      data: [
+        { eventSquadId: squadId, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false },
+        { eventSquadId: squadId, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false },
+      ],
+    });
 
     const formData = new FormData();
     formData.set('eventId', eventId);
@@ -460,18 +461,19 @@ describe('Event post-match report actions', () => {
               intent: 'BALANCED',
               targetSize: 7,
               generationOrder: 0,
-              players: {
-                create: [
-                  { playerId: player1Id, source: 'MANUAL', locked: false },
-                  { playerId: player2Id, source: 'MANUAL', locked: false },
-                ],
-              },
             },
           },
         },
-        include: { squads: { include: { players: true } } },
+        include: { squads: true },
       });
       const squad = event.squads[0];
+
+      await testDb.eventSquadPlayer.createMany({
+        data: [
+          { eventSquadId: squad!.id, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false },
+          { eventSquadId: squad!.id, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false },
+        ],
+      });
 
       const formData = new FormData();
       formData.set('eventId', event.id);

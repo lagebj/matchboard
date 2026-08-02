@@ -195,7 +195,7 @@ export async function confirmEventSquadsAction(eventId: string) {
 
   const result = await db.eventSquad.updateMany({
     where: { eventId, status: "DRAFT", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
-    data: { status: "CONFIRMED" },
+    data: { status: "LOCKED" },
   });
 
   logEventSquadConfirm(coach.email ?? "unknown", eventId, "success");
@@ -214,7 +214,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   await requireEventOrgAccess(eventId, orgFilter);
 
   const confirmedCount = await db.eventSquad.count({
-    where: { eventId, status: "CONFIRMED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { eventId, status: "LOCKED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
   });
 
   if (confirmedCount === 0) {
@@ -226,7 +226,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   }
 
   const result = await db.eventSquad.updateMany({
-    where: { eventId, status: "CONFIRMED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { eventId, status: "LOCKED", ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
     data: { status: "DRAFT" },
   });
 
@@ -247,15 +247,15 @@ export async function getEventSquadsStatusAction(eventId: string) {
     select: { id: true, name: true, status: true },
   });
 
-  const allConfirmed = squads.length > 0 && squads.every((s) => s.status === "CONFIRMED");
+  const allLocked = squads.length > 0 && squads.every((s) => s.status === "LOCKED");
   const allDraft = squads.every((s) => s.status === "DRAFT");
-  const mixed = squads.length > 0 && !allConfirmed && !allDraft;
+  const mixed = squads.length > 0 && !allLocked && !allDraft;
 
-  let aggregateStatus: "DRAFT" | "CONFIRMED" | "MIXED";
+  let aggregateStatus: "DRAFT" | "LOCKED" | "MIXED";
   if (allDraft || squads.length === 0) {
     aggregateStatus = "DRAFT";
-  } else if (allConfirmed) {
-    aggregateStatus = "CONFIRMED";
+  } else if (allLocked) {
+    aggregateStatus = "LOCKED";
   } else {
     aggregateStatus = "MIXED";
   }
@@ -263,7 +263,7 @@ export async function getEventSquadsStatusAction(eventId: string) {
   return {
     squads,
     aggregateStatus,
-    allConfirmed,
+    allLocked,
     allDraft,
     mixed,
   };

@@ -402,6 +402,7 @@ export async function assignPlayerToEventSquadAction(
 
   await db.eventSquadPlayer.create({
     data: {
+      eventId,
       eventSquadId: squadId,
       playerId,
       source: locked ? 'LOCKED' : 'MANUAL',
@@ -561,7 +562,7 @@ export async function movePlayerBetweenSquadsAction(
 ) {
   const coach = await requireCoachAccess();
   const orgFilter = await resolveOrgFilterForUser(coach.id ?? '');
-  const _fromEventId = await requireSquadOrgAccess(fromSquadId, orgFilter);
+  const eventId = await requireSquadOrgAccess(fromSquadId, orgFilter);
   await requireSquadOrgAccess(toSquadId, orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
@@ -577,6 +578,7 @@ export async function movePlayerBetweenSquadsAction(
 
     await tx.eventSquadPlayer.create({
       data: {
+        eventId,
         eventSquadId: toSquadId,
         playerId,
         source: 'MANUAL',
@@ -896,6 +898,7 @@ export async function generateEventSquadsAction(eventId: string) {
     if (newAssignments.length > 0) {
       await tx.eventSquadPlayer.createMany({
         data: newAssignments.map((assignment) => ({
+          eventId,
           eventSquadId: assignment.eventSquadId,
           playerId: assignment.playerId,
           assignedSlotIndex: assignment.assignedSlotIndex,

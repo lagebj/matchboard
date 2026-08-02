@@ -1008,6 +1008,7 @@ model EventSquad {
 model EventSquadPlayer {
   id                 String                 @id @default(cuid())
   organisationId     String?
+  eventId            String
   eventSquadId       String
   playerId           String
   assignedRoleType   FormationSlotRoleType?
@@ -1025,6 +1026,7 @@ model EventSquadPlayer {
   player             Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
   organisation       Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  @@unique([eventId, playerId])
   @@unique([eventSquadId, playerId])
   @@index([playerId])
   @@index([organisationId])
@@ -1607,7 +1609,7 @@ enum EventSquadIntent {
 
 enum EventSquadStatus {
   DRAFT
-  CONFIRMED
+  LOCKED
 }
 
 enum EventSelectionPattern {
@@ -1790,6 +1792,7 @@ model Organisation {
   developmentObservations         PlayerDevelopmentObservation[]
   profileSuggestions              PlayerProfileSuggestion[]
   ruleConfigs                     RuleConfig[]
+  reviewRequests                  ReviewRequest[]
 
   @@index([slug])
   @@index([name])
@@ -1800,6 +1803,7 @@ model OrganisationMembership {
   userId         String
   organisationId String
   role           OrganisationRole @default(COACH)
+  expiresAt      DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -2062,6 +2066,7 @@ model NotificationOutbox {
   organisationId  String?
   template        NotificationTemplate
   payload         Json
+  idempotencyKey  String?
   status          NotificationStatus  @default(PENDING)
   scheduledAt     DateTime            @default(now())
   processedAt     DateTime?
@@ -2073,6 +2078,7 @@ model NotificationOutbox {
 
   deliveries      NotificationDelivery[]
 
+  @@unique([idempotencyKey])
   @@index([status, scheduledAt])
   @@index([status, nextRetryAt])
   @@index([organisationId])
@@ -2119,4 +2125,41 @@ model ProviderWebhookEvent {
   @@index([providerMessageId])
   @@index([processed, receivedAt])
   @@index([eventId])
+}
+
+enum ReviewTargetType {
+  EVENT_SQUAD
+  MATCH_LINEUP
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+  CANCELLED
+  SUPERSEDED
+}
+
+model ReviewRequest {
+  id                      String          @id @default(cuid())
+  organisationId          String?
+  targetType              ReviewTargetType
+  targetId                String
+  targetRevision          String
+  requestedByMembershipId String
+  reviewerMembershipId    String
+  status                  ReviewStatus    @default(PENDING)
+  requestMessage          String?
+  reviewerComment         String?
+  resolvedAt              DateTime?
+  supersededById          String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id])
+
+  @@index([targetType, targetId, status])
+  @@index([reviewerMembershipId, status])
+  @@index([requestedByMembershipId])
+  @@index([organisationId])
 }

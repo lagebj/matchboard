@@ -320,7 +320,7 @@ function getFormationForSquad(
 function distributeGoalkeepers(
   players: PlayerWithRatings[],
   squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
+  assignments: InternalAssignment[],
   assignedGlobal: Set<string>,
   gameFormat: GameFormat,
   formations: (Formation & { slots: FormationSlot[] })[],
@@ -374,7 +374,7 @@ type SlotWithSquad = {
 function distributeByRoleAcrossSquads(
   players: PlayerWithRatings[],
   squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
+  assignments: InternalAssignment[],
   assignedGlobal: Set<string>,
   gameFormat: GameFormat,
   formations: (Formation & { slots: FormationSlot[] })[],
@@ -481,7 +481,7 @@ function distributeByRoleAcrossSquads(
 function distributeRemainingByBalance(
   players: PlayerWithRatings[],
   squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
+  assignments: InternalAssignment[],
   assignedGlobal: Set<string>,
 ): void {
   const sorted = [...players].sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
@@ -544,7 +544,7 @@ function distributeRemainingByBalance(
 function optimizeSwapsForBalance(
   allPlayers: PlayerWithRatings[],
   squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
+  assignments: InternalAssignment[],
   assignedGlobal: Set<string>,
 ): void {
   const maxIterations = 50;
@@ -617,11 +617,13 @@ function optimizeSwapsForBalance(
   void assignedGlobal;
 }
 
+type InternalAssignment = Omit<EventSquadAssignment, 'eventId'>;
+
 export function generateEventSquads(input: GenerationInput): GenerationOutput {
   const { selectionPattern, players, squads, lockedAssignments, gameFormat, formations, defaultFormationId } = input;
 
   const availablePlayers = players.filter((p) => p !== null).map(toPlayerWithRatings);
-  const assignments: EventSquadAssignment[] = [];
+  const assignments: InternalAssignment[] = [];
   const validationNotes: string[] = [];
   const warnings: string[] = [];
 
@@ -714,7 +716,7 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
   }
 
   return {
-    assignments,
+    assignments: assignments.map((a) => ({ ...a, eventId: input.eventId })),
     balanceSummaries,
     validationNotes,
     warnings,
@@ -724,7 +726,7 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
 function distributeAllBalanced(
   players: PlayerWithRatings[],
   squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
+  assignments: InternalAssignment[],
   gameFormat: GameFormat,
   notes: string[],
   formations: (Formation & { slots: FormationSlot[] })[],
@@ -747,7 +749,7 @@ function distributeAllBalanced(
 function distributeOneCompetitiveBalancedRemainder(
   players: PlayerWithRatings[],
   squads: GenerationInput['squads'],
-  assignments: EventSquadAssignment[],
+  assignments: InternalAssignment[],
   gameFormat: GameFormat,
   notes: string[],
   formations: (Formation & { slots: FormationSlot[] })[],
