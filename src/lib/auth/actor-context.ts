@@ -2,6 +2,7 @@ import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
 import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
+import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 
 export type ActorContext = {
   userId: string;
@@ -21,8 +22,10 @@ export async function requireActorContext(
   const userId = coach.id ?? "";
   const email = coach.email ?? "";
 
-  if (organisationSlug) {
-    const access = await resolveOrganisationAccess(organisationSlug);
+  const resolvedSlug = organisationSlug ?? await getOrgSlugFromCookie();
+
+  if (resolvedSlug) {
+    const access = await resolveOrganisationAccess(resolvedSlug);
     const slugOrgFilter: OrgFilterMode = {
       type: "org",
       filter: { organisationId: access.organisationId },
