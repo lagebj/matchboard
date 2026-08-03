@@ -1,42 +1,5 @@
-import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
-import { PlayerPathwaysClient } from "./player-pathways-client";
+import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
 
-export const dynamic = "force-dynamic";
-
-export default async function PlayerPathwaysPage() {
-  const ctx = await requireActorContext();
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
-
-  const leagueSeasons = await db.leagueSeason.findMany({
-    where: { ...orgWhere },
-    orderBy: { startDate: "desc" },
-    select: {
-      id: true,
-      name: true,
-      startDate: true,
-      endDate: true,
-    },
-  });
-
-  const activeLeagueSeason = leagueSeasons[0] ?? null;
-
-  const teams = await db.team.findMany({
-    where: { ...orgWhere },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
-
-  return (
-    <PlayerPathwaysClient
-      leagueSeasons={leagueSeasons.map((ls) => ({
-        id: ls.id,
-        name: ls.name,
-        startDate: ls.startDate.toISOString(),
-        endDate: ls.endDate.toISOString(),
-      }))}
-      activeLeagueSeasonId={activeLeagueSeason?.id ?? null}
-      teams={teams}
-    />
-  );
+export default async function PlayerPathwaysRedirect() {
+  return redirectToOrgSlug("/insights/player-pathways");
 }

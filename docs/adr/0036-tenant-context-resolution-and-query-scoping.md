@@ -104,10 +104,14 @@ None.
 
 ## Superseded by
 
-None.
+ADR-0048 (orgSlug-authoritative route migration — all protected routes migrate under `/o/{orgSlug}/...`)
 
 ## History
 
 ### 2026-07-30
 
 Record created.
+
+### 2026-08-03
+
+§3 (route-level resolution) superseded by ADR-0048. The original decision stated "Server actions resolve the organisation slug from the route parameter (`/o/{orgSlug}/...`) or from the request context" but only 4 of many routes used the orgSlug path. ADR-0048 mandates all protected routes use orgSlug-authoritative paths.

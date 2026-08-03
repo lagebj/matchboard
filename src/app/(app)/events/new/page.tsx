@@ -1,19 +1,5 @@
-import { getLeagueSeasons, getFormations } from '../actions';
-import { CreateEventForm } from '@/components/events/create-event-form';
+import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
 
-export const metadata = { title: 'Create Event' };
-
-export default async function CreateEventPage() {
-  const [_leagueSeasons, formations] = await Promise.all([
-    getLeagueSeasons(),
-    getFormations(),
-  ]);
-
-  const formationOptions = formations.map((f) => ({
-    id: f.id,
-    name: f.name,
-    gameFormat: f.gameFormat,
-  }));
-
-  return <CreateEventForm formations={formationOptions} />;
+export default async function NewEventRedirect() {
+  return redirectToOrgSlug("/events/new");
 }

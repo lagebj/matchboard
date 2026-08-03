@@ -1,12 +1,7 @@
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
+import { resolveOrgSlugForLayout } from "@/lib/auth/resolve-org-slug";
 
-import { requireActorContext } from "@/lib/auth/actor-context";
-import { getAssistantCommandCentre } from "@/lib/assistant/get-assistant-command-centre";
-import { AssistantCommandCentrePage } from "@/components/assistant/assistant-command-centre-page";
-
-export default async function AssistantPage() {
-  const ctx = await requireActorContext();
-  const commandCentre = await getAssistantCommandCentre(ctx.orgFilter);
-
-  return <AssistantCommandCentrePage commandCentre={commandCentre} />;
+export default async function AssistantRedirect() {
+  const orgSlug = await resolveOrgSlugForLayout();
+  redirect(`/o/${orgSlug}/assistant`);
 }

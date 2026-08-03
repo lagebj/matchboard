@@ -21,30 +21,32 @@ type NavItem = {
   icon: LucideIcon;
 };
 
-const navItems: NavItem[] = [
-  { href: "/assistant", label: "Assistant", icon: Bot },
-  { href: "/fixtures", label: "Fixtures", icon: CalendarRange },
-  { href: "/events", label: "Events", icon: CalendarDays },
-  { href: "/teams", label: "Teams", icon: Shield },
-  { href: "/players", label: "Players", icon: Users },
-  { href: "/opponents", label: "Opponents", icon: Swords },
-  { href: "/formations", label: "Formations", icon: LayoutGrid },
-];
+function navItems(orgSlug: string): NavItem[] {
+  return [
+    { href: `/o/${orgSlug}/assistant`, label: "Assistant", icon: Bot },
+    { href: `/o/${orgSlug}/fixtures`, label: "Fixtures", icon: CalendarRange },
+    { href: `/o/${orgSlug}/events`, label: "Events", icon: CalendarDays },
+    { href: `/o/${orgSlug}/teams`, label: "Teams", icon: Shield },
+    { href: `/o/${orgSlug}/players`, label: "Players", icon: Users },
+    { href: `/o/${orgSlug}/opponents`, label: "Opponents", icon: Swords },
+    { href: `/o/${orgSlug}/formations`, label: "Formations", icon: LayoutGrid },
+  ];
+}
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
-  if (href === "/fixtures") {
+  if (href.includes("/fixtures")) {
     return ["/rounds", "/matches"].some(
       (p) => pathname === p || pathname.startsWith(`${p}/`),
     );
   }
-  if (href === "/opponents") {
-    return pathname === "/opponents" || pathname.startsWith("/opponents/");
+  if (href.includes("/opponents")) {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
-  if (href === "/formations") {
-    return pathname.startsWith("/formations/");
+  if (href.includes("/formations")) {
+    return pathname.startsWith(`${href}/`);
   }
   return true;
 }
@@ -57,8 +59,9 @@ function isActive(pathname: string, href: string): boolean {
  * Brand mark: subtle identity, not heavy.
  * Version: barely visible footer text.
  */
-export function SidebarNav() {
+export function SidebarNav({ orgSlug }: { orgSlug: string }) {
   const pathname = usePathname();
+  const items = navItems(orgSlug);
 
   return (
     <nav
@@ -76,7 +79,7 @@ export function SidebarNav() {
       {/* Nav items */}
       <div className="flex-1 overflow-y-auto px-2 pt-1">
         <ul className="flex flex-col gap-0.5" role="list">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (

@@ -1,17 +1,6 @@
-import { Suspense } from "react";
-import { TeamConfigurationPage } from "@/components/team/team-configuration-page";
-import { requireCoachAccess } from "@/lib/auth";
+import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
 
-type TeamConfigRouteProps = {
-  params: Promise<{ teamId: string }>;
-};
-
-export default async function TeamConfigurationRoute({ params }: TeamConfigRouteProps) {
-  await requireCoachAccess();
+export default async function TeamConfigurationRedirect({ params }: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await params;
-  return (
-    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading configuration...</div>}>
-      <TeamConfigurationPage teamId={teamId} />
-    </Suspense>
-  );
+  return redirectToOrgSlug(`/teams/${teamId}/configuration`);
 }
