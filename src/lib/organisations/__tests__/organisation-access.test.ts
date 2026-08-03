@@ -10,6 +10,8 @@ describe("organisation-access", () => {
     organisationName: "Test Club",
     membershipId: "mem1",
     permittedTeamIds: ["team1", "team2"],
+    accessibleGroupIds: [],
+    groupAccesses: [],
     canAccessAllTeams: false,
     canCreateTeam: false,
     canManageMemberships: false,

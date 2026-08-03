@@ -37,6 +37,8 @@ function makeContext(role: ActorContext["role"], delegatedTeamIds?: string[] | n
     organisationSlug: ORG_SLUG,
     role,
     delegatedTeamIds: delegatedTeamIds ?? null,
+    accessibleGroupIds: [],
+    groupAccesses: [],
     orgFilter: { type: "org" as const, filter: { organisationId: ORG_ID }, filterNullable: { organisationId: ORG_ID }, organisationId: ORG_ID },
   };
 }

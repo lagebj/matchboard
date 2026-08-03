@@ -18,6 +18,8 @@ describe("tenant-context", () => {
         role: "OWNER" as const,
         membershipId: "mem-1",
         permittedTeamIds: [],
+        accessibleGroupIds: [],
+        groupAccesses: [],
         canAccessAllTeams: true,
         canCreateTeam: true,
         canManageMemberships: true,

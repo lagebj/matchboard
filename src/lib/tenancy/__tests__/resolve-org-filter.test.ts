@@ -236,6 +236,8 @@ describe("orgFilterFromContext", () => {
     role: "COACH",
     membershipId: "mem-1",
     permittedTeamIds: ["team-1"],
+    accessibleGroupIds: [],
+    groupAccesses: [],
     canAccessAllTeams: false,
     canCreateTeam: false,
     canManageMemberships: false,
