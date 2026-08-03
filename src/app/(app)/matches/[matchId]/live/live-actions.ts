@@ -6,12 +6,13 @@ import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/l
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { LiveEventInput } from "@/lib/live-match/live-match-types";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchTeamAccess } from "@/lib/auth/actor-context";
 
 export async function startLiveSessionAction(matchId: string) {
   try {
     const ctx = await requireActorContext();
     requireMutationRole(ctx);
+    await requireMatchTeamAccess(ctx, matchId);
     const session = await startLiveSession(matchId);
     revalidatePath(`/matches/${matchId}`);
     revalidatePath(`/matches/${matchId}/live`);
@@ -36,6 +37,7 @@ export async function endLiveSessionAction(sessionId: string) {
     requireMutationRole(ctx);
     const session = await endLiveSession(sessionId);
     const matchId = session.matchId;
+    await requireMatchTeamAccess(ctx, matchId);
     revalidatePath(`/matches/${matchId}`);
     revalidatePath(`/matches/${matchId}/live`);
     return { success: true as const, data: session };
@@ -71,6 +73,7 @@ export async function recordLiveEventAction(input: {
   try {
     const ctx = await requireActorContext();
     requireMutationRole(ctx);
+    await requireMatchTeamAccess(ctx, input.matchId);
     const typedInput: LiveEventInput = {
       matchId: input.matchId,
       sessionId: input.sessionId,
