@@ -91,6 +91,15 @@ The `SidebarNav` component receives the current `orgSlug` from the route context
 
 API routes (`/api/...`) that serve protected data resolve organisation context from the authenticated session. API routes that serve org-scoped data accept orgSlug as a query parameter or derive it from the session, but never trust client-supplied `organisationId` as authority.
 
+### 5.5 Cookie-based orgSlug resolution for server actions
+
+To avoid changing 190+ server action call sites immediately, `requireActorContext()` (without explicit orgSlug) falls back to an `x-matchboard-org-slug` cookie set by the `/o/[orgSlug]/` layout. This means:
+
+- When a user navigates to `/o/{orgSlug}/teams`, the layout sets the cookie
+- When a client component on that page calls a server action without passing orgSlug, `requireActorContext()` resolves the org from the cookie
+- This eliminates the `MultipleMembershipsError` for multi-org users browsing org-scoped routes
+- Explicit orgSlug parameters are still preferred and should be progressively added for defense-in-depth
+
 ### 6. Incremental migration with parallel routes
 
 The migration is done incrementally. During migration, both global routes and orgSlug routes work. Once all pages and actions are migrated:
@@ -194,7 +203,7 @@ Each phase can be rolled back independently by restoring the previous route stru
 
 ## Implementation evidence
 
-- Pull requests or commits: (to be added during implementation)
+- Pull requests or commits: 5925afe4, 9dfb6c73, cd3e56b2
 - Tests or verification: (to be added during implementation)
 - Provider evidence: None required
 
