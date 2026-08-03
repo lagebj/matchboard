@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import type { WorkbenchRunRequest } from "@/lib/workbench/workbench-types";
@@ -7,7 +7,8 @@ import type { WorkbenchRunRequest } from "@/lib/workbench/workbench-types";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  await requireActorContext();
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const rl = rateLimit("workbench:run", 5, 60_000);
   if (!rl.allowed) {

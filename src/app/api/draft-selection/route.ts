@@ -1,7 +1,7 @@
 import { addPlayerToDraftMatch, removePlayerFromDraftMatch, changeDraftPlayerRole, replaceDraftMatchPlayer } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { draftSelectionSchema } from "@/lib/security/validation";
@@ -10,6 +10,7 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const { allowed } = rateLimit("draft-selection", 10, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });

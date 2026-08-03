@@ -3,7 +3,7 @@ import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft"
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { generateRoundSchema } from "@/lib/security/validation";
@@ -11,6 +11,7 @@ import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const { allowed } = rateLimit("generate-round", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many generation requests. Please wait a moment and try again." }, { status: 429 });

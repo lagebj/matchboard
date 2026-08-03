@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext, requireAdminRole } from "@/lib/auth/actor-context";
 import { isRegoEnabled, getRegoFailureMode } from "@/lib/policies/rego-policy-adapter";
 import { getActivePackDiagnostics } from "@/lib/policies/policy-pack";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  requireAdminRole(ctx);
   const regoEnabled = isRegoEnabled();
   const regoFailureMode = getRegoFailureMode();
   const packDiagnostics = getActivePackDiagnostics();

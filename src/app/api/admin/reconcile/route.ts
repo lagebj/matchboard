@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext, requireAdminRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { reconcileCanonicalDerivedData } from "@/lib/data-integrity/reconcile-canonical-derived-data";
 import { reconcileSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function POST(request: Request) {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  requireAdminRole(ctx);
   const { allowed } = rateLimit("admin-reconcile", 2, 60_000);
   if (!allowed) {
     return NextResponse.json(
