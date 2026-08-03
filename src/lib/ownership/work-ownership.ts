@@ -18,6 +18,7 @@ export type HandoverWorkOwnershipInput = {
   newOwnerMembershipId: string;
   handoverNote?: string | null;
   assignedByMembershipId: string;
+  organisationId: string;
 };
 
 export async function assignWorkOwnership(input: AssignWorkOwnershipInput) {
@@ -57,39 +58,55 @@ export async function handoverWorkOwnership(input: HandoverWorkOwnershipInput) {
     throw new AuthorizationError("Work ownership not found.");
   }
 
+  if (ownership.organisationId !== input.organisationId) {
+    throw new AuthorizationError("Work ownership not found or access denied.");
+  }
+
   if (ownership.status === "COMPLETED") {
     throw new AuthorizationError("Cannot hand over completed ownership.");
   }
 
-  await db.workOwnership.update({
-    where: { id: input.ownershipId },
-    data: {
-      status: "HANDED_OVER",
-      handoverNote: input.handoverNote ?? null,
-    },
+  if (ownership.status === "HANDED_OVER") {
+    throw new AuthorizationError("This ownership has already been handed over.");
+  }
+
+  const newOwnership = await db.$transaction(async (tx) => {
+    await tx.workOwnership.update({
+      where: { id: input.ownershipId },
+      data: {
+        status: "HANDED_OVER",
+        handoverNote: input.handoverNote ?? null,
+      },
+    });
+
+    return tx.workOwnership.create({
+      data: {
+        organisationId: ownership.organisationId,
+        targetType: ownership.targetType,
+        targetId: ownership.targetId,
+        ownerMembershipId: input.newOwnerMembershipId,
+        assignedByMembershipId: input.assignedByMembershipId,
+        status: "ACTIVE",
+        dueAt: ownership.dueAt,
+        handoverNote: input.handoverNote ?? null,
+      },
+    });
   });
 
-  return db.workOwnership.create({
-    data: {
-      organisationId: ownership.organisationId,
-      targetType: ownership.targetType,
-      targetId: ownership.targetId,
-      ownerMembershipId: input.newOwnerMembershipId,
-      assignedByMembershipId: input.assignedByMembershipId,
-      status: "ACTIVE",
-      dueAt: ownership.dueAt,
-      handoverNote: input.handoverNote ?? null,
-    },
-  });
+  return newOwnership;
 }
 
-export async function acknowledgeWorkOwnership(ownershipId: string) {
+export async function acknowledgeWorkOwnership(ownershipId: string, organisationId: string) {
   const ownership = await db.workOwnership.findUnique({
     where: { id: ownershipId },
   });
 
   if (!ownership) {
     throw new AuthorizationError("Work ownership not found.");
+  }
+
+  if (ownership.organisationId !== organisationId) {
+    throw new AuthorizationError("Work ownership not found or access denied.");
   }
 
   if (ownership.status === "COMPLETED") {
@@ -102,11 +119,12 @@ export async function acknowledgeWorkOwnership(ownershipId: string) {
   });
 }
 
-export async function completeWorkOwnership(targetType: WorkTargetType, targetId: string) {
+export async function completeWorkOwnership(targetType: WorkTargetType, targetId: string, organisationId: string) {
   const ownerships = await db.workOwnership.findMany({
     where: {
       targetType,
       targetId,
+      organisationId,
       status: { in: ["ACTIVE", "HANDED_OVER"] },
     },
   });
@@ -121,18 +139,19 @@ export async function completeWorkOwnership(targetType: WorkTargetType, targetId
   });
 }
 
-export async function getWorkOwnershipForTarget(targetType: WorkTargetType, targetId: string) {
+export async function getWorkOwnershipForTarget(targetType: WorkTargetType, targetId: string, organisationId: string) {
   return db.workOwnership.findMany({
-    where: { targetType, targetId },
+    where: { targetType, targetId, organisationId },
     orderBy: { createdAt: "desc" },
   });
 }
 
-export async function getActiveWorkOwnershipForTarget(targetType: WorkTargetType, targetId: string) {
+export async function getActiveWorkOwnershipForTarget(targetType: WorkTargetType, targetId: string, organisationId: string) {
   return db.workOwnership.findFirst({
     where: {
       targetType,
       targetId,
+      organisationId,
       status: "ACTIVE",
     },
     orderBy: { createdAt: "desc" },

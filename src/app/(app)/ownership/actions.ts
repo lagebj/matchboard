@@ -47,29 +47,30 @@ export async function handoverWorkOwnerAction(input: {
     newOwnerMembershipId: input.newOwnerMembershipId,
     handoverNote: input.handoverNote,
     assignedByMembershipId: ctx.membershipId,
+    organisationId: ctx.organisationId,
   });
 }
 
 export async function acknowledgeWorkOwnerAction(ownershipId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  return acknowledgeWorkOwnership(ownershipId);
+  return acknowledgeWorkOwnership(ownershipId, ctx.organisationId);
 }
 
 export async function completeWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  return completeWorkOwnership(targetType, targetId);
+  return completeWorkOwnership(targetType, targetId, ctx.organisationId);
 }
 
 export async function getWorkOwnershipsAction(targetType: WorkTargetType, targetId: string) {
-  await requireActorContext();
-  return getWorkOwnershipForTarget(targetType, targetId);
+  const ctx = await requireActorContext();
+  return getWorkOwnershipForTarget(targetType, targetId, ctx.organisationId);
 }
 
 export async function getActiveWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
-  await requireActorContext();
-  return getActiveWorkOwnershipForTarget(targetType, targetId);
+  const ctx = await requireActorContext();
+  return getActiveWorkOwnershipForTarget(targetType, targetId, ctx.organisationId);
 }
 
 export async function getOwnerWorkItemsAction(status?: "ACTIVE" | "HANDED_OVER" | "COMPLETED") {
