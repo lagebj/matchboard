@@ -90,6 +90,7 @@ export async function removePlayerFromMatchAction(formData: FormData) {
   }
 
   await requireMatchTeamAccess(ctx, matchId);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   const result = await removePlayerFromDraftMatch(matchId, playerId);
 
@@ -123,6 +124,7 @@ export async function changePlayerRoleAction(formData: FormData) {
   }
 
   await requireMatchTeamAccess(ctx, matchId);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -169,6 +171,7 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
 
   await requireMatchTeamAccess(ctx, fromMatchId);
   await requireMatchTeamAccess(ctx, toMatchId);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)

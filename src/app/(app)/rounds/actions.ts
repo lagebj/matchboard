@@ -284,9 +284,14 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+
+  if (ctx.orgFilter.type !== "org") {
+    return { error: "Organisation access required." };
+  }
+
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
-    const result = await regroupMatchesIntoIsoWeekRounds();
+    const result = await regroupMatchesIntoIsoWeekRounds(ctx.orgFilter.organisationId);
 
     revalidatePath("/");
     revalidatePath("/rounds");
