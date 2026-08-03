@@ -11,9 +11,37 @@ vi.mock('@/lib/db', () => ({
   get db() { return getTestDb(); },
 }));
 
-vi.mock('@/lib/auth', () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue({ id: 'test-coach', email: 'coach@test.com' }),
-}));
+vi.mock('@/lib/auth', () => {
+  class AuthorizationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'AuthorizationError';
+    }
+  }
+  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: 'test-coach', email: 'coach@test.com' }) };
+});
+
+vi.mock('@/lib/auth/actor-context', () => {
+  const makeCtx = () => ({
+    userId: 'test-coach',
+    email: 'coach@test.com',
+    membershipId: 'mem-test',
+    organisationId: 'org-test',
+    organisationSlug: 'test-org',
+    role: 'COACH',
+    delegatedTeamIds: null,
+    orgFilter: { type: 'all' as const },
+  });
+  return {
+    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
+    requireMutationRole: vi.fn(),
+    canMutate: vi.fn().mockReturnValue(true),
+    canAdmin: vi.fn().mockReturnValue(false),
+    canOwn: vi.fn().mockReturnValue(false),
+    hasTeamAccess: vi.fn().mockReturnValue(true),
+    requireTeamAccess: vi.fn(),
+  };
+});
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
