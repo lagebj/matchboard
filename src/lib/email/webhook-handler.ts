@@ -1,8 +1,6 @@
 import crypto from "crypto";
 import { db } from "@/lib/db";
 
-const BREVO_WEBHOOK_SIGNATURE_HEADER = "x-brevo-signature";
-
 interface BrevoWebhookEvent {
   event: string;
   email: string;
@@ -12,24 +10,6 @@ interface BrevoWebhookEvent {
   subject?: string;
   tag?: string;
   [key: string]: unknown;
-}
-
-export function verifyBrevoWebhookSignature(
-  payload: string,
-  signatureHeader: string | null,
-  webhookKey: string,
-): boolean {
-  if (!signatureHeader) return false;
-
-  const computed = crypto
-    .createHmac("sha256", webhookKey)
-    .update(payload)
-    .digest("hex");
-
-  const computedBuf = Buffer.from(computed);
-  const sigBuf = Buffer.from(signatureHeader);
-  if (computedBuf.length !== sigBuf.length) return false;
-  return crypto.timingSafeEqual(computedBuf, sigBuf);
 }
 
 export async function processBrevoWebhookEvents(
@@ -135,4 +115,4 @@ async function updateDeliveryStatus(
   }
 }
 
-export { BREVO_WEBHOOK_SIGNATURE_HEADER, type BrevoWebhookEvent };
+export { type BrevoWebhookEvent };
