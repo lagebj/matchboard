@@ -1,23 +1,10 @@
 import { db } from "@/lib/db";
 import type { FootballGroupType, GroupMembershipType, GroupMembershipStatus, GroupAccessRole } from "@/generated/prisma/client";
+import { generateSlug } from "./group-slug";
 
 export type GroupMutationResult =
   | { success: true; groupId: string }
   | { success: false; error: string };
-
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[æåàáâäã]/g, "a")
-    .replace(/[øöòóôõ]/g, "o")
-    .replace(/[üùúû]/g, "u")
-    .replace(/[ëèéê]/g, "e")
-    .replace(/[ìíîï]/g, "i")
-    .replace(/ñ/g, "n")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 export async function createFootballGroup(data: {
   name: string;
