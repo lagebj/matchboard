@@ -62,7 +62,7 @@ export async function requestReviewAction(input: CreateReviewRequestInput) {
 export async function resolveReviewAction(reviewId: string, input: ResolveReviewRequestInput) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const review = await resolveReviewRequest(reviewId, input, ctx.organisationId, ctx.membershipId);
+  const { review, targetChanged } = await resolveReviewRequest(reviewId, input, ctx.organisationId, ctx.membershipId);
 
   if (input.status === 'CHANGES_REQUESTED' && review.requestedByMembershipId !== ctx.membershipId) {
     const requester = await db.organisationMembership.findUnique({
@@ -106,13 +106,13 @@ export async function resolveReviewAction(reviewId: string, input: ResolveReview
 
   revalidatePath('/assistant');
   revalidatePath('/events');
-  return review;
+  return { ...review, targetChanged };
 }
 
 export async function cancelReviewAction(reviewId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const review = await resolveReviewRequest(reviewId, {
+  const { review } = await resolveReviewRequest(reviewId, {
     status: 'CANCELLED',
   }, ctx.organisationId, ctx.membershipId);
   revalidatePath('/assistant');

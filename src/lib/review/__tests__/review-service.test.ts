@@ -187,9 +187,9 @@ describe("review-service", () => {
         reviewerComment: "Looks good",
       }, org.id, membership2.id);
 
-      expect(resolved.status).toBe("APPROVED");
-      expect(resolved.reviewerComment).toBe("Looks good");
-      expect(resolved.resolvedAt).not.toBeNull();
+      expect(resolved.review.status).toBe("APPROVED");
+      expect(resolved.review.reviewerComment).toBe("Looks good");
+      expect(resolved.review.resolvedAt).not.toBeNull();
     });
 
     it("rejects resolving by non-assigned reviewer", async () => {

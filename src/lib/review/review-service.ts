@@ -1,11 +1,12 @@
 import { db } from '@/lib/db';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { ReviewTargetType, ReviewStatus } from '@/generated/prisma/client';
+import { computeTargetContentHash, hasTargetChanged } from './content-hash';
 
 export type CreateReviewRequestInput = {
   targetType: ReviewTargetType;
   targetId: string;
-  targetRevision: string;
+  targetRevision?: string;
   requestMessage?: string;
   reviewerMembershipId?: string;
 };
@@ -70,12 +71,16 @@ export async function createReviewRequest(
     }
   }
 
+  const targetRevision = input.targetRevision && input.targetRevision.trim() !== ''
+    ? input.targetRevision
+    : await computeTargetContentHash(input.targetType, input.targetId, organisationId);
+
   const review = await db.reviewRequest.create({
     data: {
       organisationId,
       targetType: input.targetType,
       targetId: input.targetId,
-      targetRevision: input.targetRevision,
+      targetRevision,
       requestedByMembershipId,
       reviewerMembershipId: input.reviewerMembershipId ?? requestedByMembershipId,
       requestMessage: input.requestMessage ?? null,
@@ -85,12 +90,17 @@ export async function createReviewRequest(
   return review;
 }
 
+export type ResolveReviewResult = {
+  review: ReviewRequestWithRelations;
+  targetChanged: boolean;
+};
+
 export async function resolveReviewRequest(
   reviewId: string,
   input: ResolveReviewRequestInput,
   organisationId: string,
   resolvedByMembershipId: string,
-): Promise<ReviewRequestWithRelations> {
+): Promise<ResolveReviewResult> {
   const existing = await db.reviewRequest.findUnique({
     where: { id: reviewId },
   });
@@ -115,6 +125,19 @@ export async function resolveReviewRequest(
     throw new Error('Only the assigned reviewer can resolve this review request.');
   }
 
+  let targetChanged = false;
+  try {
+    const currentHash = await computeTargetContentHash(
+      existing.targetType,
+      existing.targetId,
+      organisationId,
+    );
+    targetChanged = hasTargetChanged(existing.targetRevision, currentHash);
+  } catch {
+    // If the target no longer exists, the review is still resolvable
+    // but we can't verify content. Leave targetChanged as false.
+  }
+
   const updated = await db.reviewRequest.update({
     where: { id: reviewId },
     data: {
@@ -124,7 +147,7 @@ export async function resolveReviewRequest(
     },
   });
 
-  return updated;
+  return { review: updated, targetChanged };
 }
 
 export type SupersededReviewInfo = {

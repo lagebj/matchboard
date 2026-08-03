@@ -28,6 +28,16 @@ const { mockDb, mocks } = vi.hoisted(() => {
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
 
+const { mockComputeTargetContentHash, mockHasTargetChanged } = vi.hoisted(() => ({
+  mockComputeTargetContentHash: vi.fn(),
+  mockHasTargetChanged: vi.fn(),
+}));
+
+vi.mock("@/lib/review/content-hash", () => ({
+  computeTargetContentHash: mockComputeTargetContentHash,
+  hasTargetChanged: mockHasTargetChanged,
+}));
+
 import {
   createReviewRequest,
   resolveReviewRequest,
@@ -41,6 +51,7 @@ const MEMBERSHIP_ID = "mem-1";
 describe("createReviewRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockComputeTargetContentHash.mockResolvedValue("computed-hash");
   });
 
   it("creates a review request when no pending review exists", async () => {
@@ -136,29 +147,102 @@ describe("createReviewRequest", () => {
       }),
     });
   });
+
+  it("computes content hash when targetRevision is empty", async () => {
+    mocks.findFirst.mockResolvedValue(null);
+    mockComputeTargetContentHash.mockResolvedValue("computed-hash-abc");
+    mocks.create.mockResolvedValue({
+      id: "review-2",
+      organisationId: ORG_ID,
+      targetType: "MATCH_LINEUP",
+      targetId: "lineup-1",
+      targetRevision: "computed-hash-abc",
+      requestedByMembershipId: MEMBERSHIP_ID,
+      reviewerMembershipId: MEMBERSHIP_ID,
+      status: "PENDING",
+    });
+
+    await createReviewRequest(
+      { targetType: "MATCH_LINEUP", targetId: "lineup-1" },
+      ORG_ID,
+      MEMBERSHIP_ID,
+    );
+
+    expect(mockComputeTargetContentHash).toHaveBeenCalledWith("MATCH_LINEUP", "lineup-1", ORG_ID);
+    expect(mocks.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        targetRevision: "computed-hash-abc",
+      }),
+    });
+  });
 });
 
 describe("resolveReviewRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockComputeTargetContentHash.mockResolvedValue("hash-abc");
+    mockHasTargetChanged.mockReturnValue(false);
   });
 
-  it("resolves a pending review as APPROVED", async () => {
+  it("resolves a pending review as APPROVED and returns targetChanged false", async () => {
     mocks.findUnique.mockResolvedValue({
       id: "review-1",
       organisationId: ORG_ID,
+      targetType: "EVENT_SQUAD",
+      targetId: "target-1",
+      targetRevision: "hash-abc",
       status: "PENDING",
       requestedByMembershipId: "mem-1",
       reviewerMembershipId: "mem-2",
     });
     mocks.update.mockResolvedValue({ id: "review-1", status: "APPROVED" });
 
-    await resolveReviewRequest("review-1", { status: "APPROVED" }, ORG_ID, "mem-2");
+    const result = await resolveReviewRequest("review-1", { status: "APPROVED" }, ORG_ID, "mem-2");
 
+    expect(result.review.status).toBe("APPROVED");
+    expect(result.targetChanged).toBe(false);
     expect(mocks.update).toHaveBeenCalledWith({
       where: { id: "review-1" },
       data: expect.objectContaining({ status: "APPROVED" }),
     });
+  });
+
+  it("detects target changed when current hash differs", async () => {
+    mocks.findUnique.mockResolvedValue({
+      id: "review-1",
+      organisationId: ORG_ID,
+      targetType: "EVENT_SQUAD",
+      targetId: "target-1",
+      targetRevision: "hash-old",
+      status: "PENDING",
+      requestedByMembershipId: "mem-1",
+      reviewerMembershipId: "mem-2",
+    });
+    mocks.update.mockResolvedValue({ id: "review-1", status: "APPROVED" });
+    mockHasTargetChanged.mockReturnValue(true);
+
+    const result = await resolveReviewRequest("review-1", { status: "APPROVED" }, ORG_ID, "mem-2");
+
+    expect(result.targetChanged).toBe(true);
+  });
+
+  it("handles missing target gracefully", async () => {
+    mocks.findUnique.mockResolvedValue({
+      id: "review-1",
+      organisationId: ORG_ID,
+      targetType: "EVENT_SQUAD",
+      targetId: "target-1",
+      targetRevision: "hash-abc",
+      status: "PENDING",
+      requestedByMembershipId: "mem-1",
+      reviewerMembershipId: "mem-2",
+    });
+    mocks.update.mockResolvedValue({ id: "review-1", status: "APPROVED" });
+    mockComputeTargetContentHash.mockRejectedValue(new Error("not found"));
+
+    const result = await resolveReviewRequest("review-1", { status: "APPROVED" }, ORG_ID, "mem-2");
+
+    expect(result.targetChanged).toBe(false);
   });
 
   it("rejects cross-org resolution", async () => {
@@ -193,15 +277,19 @@ describe("resolveReviewRequest", () => {
     mocks.findUnique.mockResolvedValue({
       id: "review-1",
       organisationId: ORG_ID,
+      targetType: "EVENT_SQUAD",
+      targetId: "target-1",
+      targetRevision: "hash-abc",
       status: "PENDING",
       requestedByMembershipId: "mem-1",
       reviewerMembershipId: "mem-2",
     });
     mocks.update.mockResolvedValue({ id: "review-1", status: "CANCELLED" });
 
-    await resolveReviewRequest("review-1", { status: "CANCELLED" }, ORG_ID, "mem-1");
+    const result = await resolveReviewRequest("review-1", { status: "CANCELLED" }, ORG_ID, "mem-1");
 
     expect(mocks.update).toHaveBeenCalled();
+    expect(result.review.status).toBe("CANCELLED");
   });
 
   it("rejects resolution of non-pending review", async () => {
