@@ -27,22 +27,25 @@ export type GroupActorContext = {
 
 export async function resolveGroupContext(
   organisationId: string,
-  groupSlug: string,
+  groupSlugOrId: string,
   membershipId: string,
   orgRole: OrganisationRole,
 ): Promise<GroupActorContext> {
   const group = await db.footballGroup.findFirst({
     where: {
       organisationId,
-      slug: groupSlug,
       isActive: true,
+      OR: [
+        { id: groupSlugOrId },
+        { slug: groupSlugOrId },
+      ],
     },
     select: { id: true },
   });
 
   if (!group) {
     throw new AuthorizationError(
-      `Group "${groupSlug}" not found or not accessible in this organisation.`,
+      `Group "${groupSlugOrId}" not found or not accessible in this organisation.`,
     );
   }
 
