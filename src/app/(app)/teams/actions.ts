@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { createOrRestoreTeam, archiveTeam } from "@/lib/teams/team-domain";
 
@@ -95,6 +95,7 @@ export async function createTeamAction(formData: FormData) {
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  requireTeamAccess(ctx, teamId);
   const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const team = await db.team.findFirst({
@@ -203,6 +204,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 export async function deleteTeamAction(teamId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  requireTeamAccess(ctx, teamId);
   const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const result = await archiveTeam(teamId, organisationId);

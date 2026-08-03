@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/auth", () => {
   class AuthorizationError extends Error {
@@ -19,6 +19,7 @@ import {
   canOwn,
   hasTeamAccess,
   requireTeamAccess,
+  requirePlayerTeamAccess,
   type ActorContext,
 } from "../actor-context";
 import { AuthorizationError } from "@/lib/auth";
@@ -38,6 +39,16 @@ function makeContext(role: ActorContext["role"], delegatedTeamIds?: string[] | n
     orgFilter: { type: "org" as const, filter: { organisationId: ORG_ID }, filterNullable: { organisationId: ORG_ID }, organisationId: ORG_ID },
   };
 }
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    player: {
+      findFirst: vi.fn(),
+    },
+  },
+}));
+
+import { db } from "@/lib/db";
 
 describe("requireMutationRole", () => {
   it("allows OWNER", () => {
@@ -178,5 +189,80 @@ describe("requireTeamAccess", () => {
 
   it("rejects COACH with non-matching team", () => {
     expect(() => requireTeamAccess(makeContext("COACH", ["team-1"]), "team-2")).toThrow(AuthorizationError);
+  });
+});
+
+describe("requirePlayerTeamAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows ADMIN without checking player team", async () => {
+    const ctx = makeContext("ADMIN");
+    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    expect(result).toBeNull();
+    expect(db.player.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows OWNER without checking player team", async () => {
+    const ctx = makeContext("OWNER");
+    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    expect(result).toBeNull();
+    expect(db.player.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows COACH with null delegatedTeamIds without checking player team", async () => {
+    const ctx = makeContext("COACH", null);
+    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    expect(result).toBeNull();
+    expect(db.player.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows COACH with delegated access to player's team", async () => {
+    (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      coreTeamId: "team-1",
+    });
+    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    expect(result).toBe("team-1");
+  });
+
+  it("rejects COACH without delegated access to player's team", async () => {
+    (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      coreTeamId: "team-3",
+    });
+    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    await expect(requirePlayerTeamAccess(ctx, "player-1")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("rejects when player not found in org", async () => {
+    (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    const ctx = makeContext("COACH", ["team-1"]);
+    await expect(requirePlayerTeamAccess(ctx, "player-missing")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("allows COACH when player has no core team (coreTeamId is null)", async () => {
+    (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      coreTeamId: null,
+    });
+    const ctx = makeContext("COACH", ["team-1"]);
+    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    expect(result).toBeNull();
+  });
+
+  it("queries with org filter when org context", async () => {
+    (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      coreTeamId: "team-1",
+    });
+    const ctx = makeContext("COACH", ["team-1"]);
+    await requirePlayerTeamAccess(ctx, "player-1");
+    expect(db.player.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "player-1",
+          organisationId: ORG_ID,
+        }),
+      }),
+    );
   });
 });

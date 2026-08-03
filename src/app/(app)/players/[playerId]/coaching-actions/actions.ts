@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import {
   type ReadinessSignalType,
@@ -18,6 +18,7 @@ export async function setReadinessSignalAction(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   if (!READINESS_SIGNAL_TYPES.includes(signalType as ReadinessSignalType)) {
     return { success: false, error: `Invalid readiness signal type: ${signalType}` };
@@ -70,6 +71,7 @@ export async function deleteReadinessSignalAction(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   try {
     const signal = await db.playerReadinessSignal.findUnique({

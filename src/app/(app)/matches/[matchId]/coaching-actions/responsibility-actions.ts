@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
@@ -56,6 +56,8 @@ export async function setMatchdayResponsibilityAction(
     if (selection.status === "FINALIZED") {
       return { success: false, error: "Cannot modify matchday responsibility on a finalised selection." };
     }
+
+    await requirePlayerTeamAccess(ctx, selection.playerId);
 
     await db.selection.update({
       where: { id: selectionId },

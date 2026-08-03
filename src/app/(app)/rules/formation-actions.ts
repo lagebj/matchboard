@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   validateFormationForMatchUse,
@@ -20,13 +20,14 @@ function revalidateFormationPaths() {
   revalidatePath("/formations");
 }
 
-async function requireFormationOrgAccess(formationId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== "org") return;
+async function requireFormationOrgAccess(formationId: string, orgFilter: OrgFilterMode): Promise<string | null> {
+  if (orgFilter.type !== "org") return null;
   const formation = await db.formation.findFirst({
     where: { id: formationId, ...orgFilter.filter },
-    select: { id: true },
+    select: { id: true, teamId: true },
   });
   if (!formation) throw new Error("Formation not found or access denied.");
+  return formation.teamId;
 }
 
 export async function getFormationsForFormat(gameFormat: GameFormat) {
@@ -66,6 +67,7 @@ export async function createCustomFormation(data: {
 }) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  if (data.teamId) requireTeamAccess(ctx, data.teamId);
   const orgFilter = ctx.orgFilter;
 
   if (!data.name.trim()) throw new Error("Formation name is required");
@@ -131,6 +133,8 @@ export async function duplicateFormation(formationId: string, newName?: string) 
     throw new Error("Formation not found or access denied.");
   }
 
+  if (source.teamId) requireTeamAccess(ctx, source.teamId);
+
   const name = newName?.trim() ?? `${source.name} (copy)`;
 
   const formation = await db.formation.create({
@@ -191,6 +195,8 @@ export async function updateCustomFormation(
   if (orgFilter.type === "org" && formation.organisationId !== orgFilter.organisationId) {
     throw new Error("Formation not found or access denied.");
   }
+
+  if (formation.teamId) requireTeamAccess(ctx, formation.teamId);
 
   const lineupUsage = await db.matchLineup.count({
     where: { formationId },
@@ -274,6 +280,8 @@ export async function archiveFormation(formationId: string) {
     throw new Error("Formation not found or access denied.");
   }
 
+  if (formation.teamId) requireTeamAccess(ctx, formation.teamId);
+
   await db.formation.update({
     where: { id: formationId },
     data: { isArchived: true },
@@ -298,6 +306,8 @@ export async function deleteCustomFormation(formationId: string) {
     throw new Error("Formation not found or access denied.");
   }
 
+  if (formation.teamId) requireTeamAccess(ctx, formation.teamId);
+
   const lineupUsage = await db.matchLineup.count({
     where: { formationId },
   });
@@ -321,7 +331,8 @@ export async function addFormationSlot(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireFormationOrgAccess(formationId, orgFilter);
+  const formationTeamId = await requireFormationOrgAccess(formationId, orgFilter);
+  if (formationTeamId) requireTeamAccess(ctx, formationTeamId);
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -378,7 +389,8 @@ export async function updateFormationSlot(
 
   const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
   if (!existingSlot) throw new Error("Slot not found");
-  await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
+  const slotFormationTeamId = await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
+  if (slotFormationTeamId) requireTeamAccess(ctx, slotFormationTeamId);
 
   const updateData: Record<string, unknown> = {};
   if (data.label !== undefined) updateData.label = data.label;
@@ -402,7 +414,8 @@ export async function removeFormationSlot(slotId: string) {
 
   const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
   if (!existingSlot) throw new Error("Slot not found");
-  await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
+  const slotFormationTeamId = await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
+  if (slotFormationTeamId) requireTeamAccess(ctx, slotFormationTeamId);
 
   await db.formationSlot.delete({ where: { id: slotId } });
   revalidateFormationPaths();

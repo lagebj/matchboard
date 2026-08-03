@@ -137,3 +137,33 @@ export function requireTeamAccess(ctx: ActorContext, teamId: string): void {
     throw new AuthorizationError("You do not have access to this team.");
   }
 }
+
+export async function requirePlayerTeamAccess(
+  ctx: ActorContext,
+  playerId: string,
+): Promise<string | null> {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+
+  const { db } = await import("@/lib/db");
+  const player = await db.player.findFirst({
+    where: {
+      id: playerId,
+      removedAt: null,
+      ...(ctx.orgFilter.type === "org"
+        ? { organisationId: ctx.orgFilter.organisationId }
+        : {}),
+    },
+    select: { coreTeamId: true },
+  });
+
+  if (!player) {
+    throw new AuthorizationError("Player not found or access denied.");
+  }
+
+  if (player.coreTeamId && !ctx.delegatedTeamIds.includes(player.coreTeamId)) {
+    throw new AuthorizationError("You do not have access to this player's team.");
+  }
+
+  return player.coreTeamId;
+}

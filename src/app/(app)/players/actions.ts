@@ -11,7 +11,7 @@ import {
   SecondaryFoot,
 } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { playerPositionValues } from "@/lib/player-form-options";
 import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
@@ -415,6 +415,8 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof availability !== "string" || !availability) throw new Error("Availability is required.");
 
+  await requirePlayerTeamAccess(ctx, playerId);
+
   const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   const result = await setPlayerAvailabilityDomain(playerId, availability as AvailabilityStatus, organisationId);
   if (!result.success) throw new Error(result.error);
@@ -427,6 +429,7 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
 export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: string | null) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  if (coreTeamId) requireTeamAccess(ctx, coreTeamId);
   const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId, organisationId);
   if (!result.success) throw new Error(result.error);

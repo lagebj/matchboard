@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getRules } from "@/lib/rules/get-rules";
 
@@ -119,6 +119,9 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     if (!fromTeam) throw new Error("Source team not found.");
     if (!toTeam) throw new Error("Target team not found.");
 
+    requireTeamAccess(ctx, fromTeamId);
+    requireTeamAccess(ctx, toTeamId);
+
     if (ctx.orgFilter.type === "org") {
       if (fromTeam.organisationId !== ctx.orgFilter.organisationId || toTeam.organisationId !== ctx.orgFilter.organisationId) {
         throw new Error("Source or target team not found or access denied.");
@@ -179,6 +182,9 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
       throw new Error("Rotation path not found or access denied.");
     }
 
+    requireTeamAccess(ctx, existingPath.fromTeamId);
+    requireTeamAccess(ctx, existingPath.toTeamId);
+
     const purpose = readText(formData, "purpose");
     const priority = readOptionalInt(formData, "priority");
     const minimumCount = readOptionalInt(formData, "minimumCount");
@@ -238,6 +244,9 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
       throw new Error("Rotation path not found or access denied.");
     }
 
+    requireTeamAccess(ctx, existingPath.fromTeamId);
+    requireTeamAccess(ctx, existingPath.toTeamId);
+
     await db.rotationPath.delete({ where: { id: pathId } });
 
     revalidatePath("/rules");
@@ -268,6 +277,9 @@ export async function toggleRotationPathActiveAction(prevState: ActionState, for
     if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Rotation path not found or access denied.");
     }
+
+    requireTeamAccess(ctx, existingPath.fromTeamId);
+    requireTeamAccess(ctx, existingPath.toTeamId);
 
     await db.rotationPath.update({
       where: { id: pathId },
