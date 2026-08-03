@@ -18,25 +18,32 @@ import {
 import type { BroadPosition } from '@/lib/events/event-types';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== 'org') return;
-  const event = await db.event.findFirst({
-    where: { id: eventId, ...orgFilter.filter },
-    select: { id: true },
-  });
-  if (!event) throw new Error('Event not found or access denied.');
+  if (orgFilter.type === 'org') {
+    const event = await db.event.findFirst({
+      where: { id: eventId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!event) throw new Error('Event not found or access denied.');
+  } else {
+    const event = await db.event.findUnique({
+      where: { id: eventId },
+      select: { id: true },
+    });
+    if (!event) throw new Error('Event not found.');
+  }
 }
 
 async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode): Promise<string> {
-  if (orgFilter.type !== 'org') {
-    const squad = await db.eventSquad.findUnique({ where: { id: squadId }, select: { eventId: true } });
-    if (!squad) throw new Error('Squad not found.');
+  if (orgFilter.type === 'org') {
+    const squad = await db.eventSquad.findFirst({
+      where: { id: squadId, event: orgFilter.filter },
+      select: { eventId: true },
+    });
+    if (!squad) throw new Error('Squad not found or access denied.');
     return squad.eventId;
   }
-  const squad = await db.eventSquad.findFirst({
-    where: { id: squadId, event: orgFilter.filter },
-    select: { eventId: true },
-  });
-  if (!squad) throw new Error('Squad not found or access denied.');
+  const squad = await db.eventSquad.findUnique({ where: { id: squadId }, select: { eventId: true } });
+  if (!squad) throw new Error('Squad not found.');
   return squad.eventId;
 }
 
@@ -391,6 +398,14 @@ export async function assignPlayerToEventSquadAction(
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
+  const squad = await db.eventSquad.findFirst({
+    where: { id: squadId, eventId },
+    select: { id: true },
+  });
+  if (!squad) {
+    throw new Error('Squad does not belong to this event.');
+  }
+
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
   });
@@ -561,8 +576,12 @@ export async function movePlayerBetweenSquadsAction(
 ) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const eventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
-  await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
+  const fromEventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
+  const toEventId = await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
+
+  if (fromEventId !== toEventId) {
+    throw new Error('Cannot move a player between squads in different events.');
+  }
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquadId: fromSquadId },
@@ -577,7 +596,7 @@ export async function movePlayerBetweenSquadsAction(
 
     await tx.eventSquadPlayer.create({
       data: {
-        eventId,
+        eventId: fromEventId,
         eventSquadId: toSquadId,
         playerId,
         source: 'MANUAL',
@@ -587,14 +606,7 @@ export async function movePlayerBetweenSquadsAction(
     });
   });
 
-  const toSquad = await db.eventSquad.findUnique({
-    where: { id: toSquadId },
-    select: { eventId: true },
-  });
-
-  if (toSquad) {
-    revalidatePath(`/events/${toSquad.eventId}`);
-  }
+  revalidatePath(`/events/${fromEventId}`);
 }
 
 export async function togglePlayerLockAction(
@@ -611,7 +623,7 @@ export async function togglePlayerLockAction(
 
   if (!squadPlayer) throw new Error('Squad player assignment not found.');
 
-  await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
+  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
   const updated = await db.eventSquadPlayer.update({
     where: { id: squadPlayerId },
@@ -622,7 +634,6 @@ export async function togglePlayerLockAction(
     },
   });
 
-  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
   revalidatePath(`/events/${_eventId}`);
 
   return updated;
