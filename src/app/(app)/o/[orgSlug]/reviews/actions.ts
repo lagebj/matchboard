@@ -135,5 +135,6 @@ export async function getPendingReviewsAction() {
 }
 
 export async function getReviewHistoryAction(targetType: string, targetId: string) {
-  return getReviewHistory(targetType as 'EVENT_SQUAD' | 'MATCH_LINEUP', targetId);
+  const ctx = await requireActorContext();
+  return getReviewHistory(targetType as 'EVENT_SQUAD' | 'MATCH_LINEUP', targetId, ctx.organisationId);
 }

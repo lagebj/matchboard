@@ -165,11 +165,13 @@ export async function getPendingReviewsForReviewer(
 export async function getReviewHistory(
   targetType: ReviewTargetType,
   targetId: string,
+  organisationId?: string,
 ): Promise<ReviewRequestWithRelations[]> {
   const reviews = await db.reviewRequest.findMany({
     where: {
       targetType,
       targetId,
+      ...(organisationId ? { organisationId } : {}),
     },
     orderBy: { createdAt: 'desc' },
   });

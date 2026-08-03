@@ -1,9 +1,10 @@
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function PATCH(request: Request) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   try {
     const body = await request.json();
