@@ -130,20 +130,31 @@ export async function resolveReviewRequest(
 export async function supersedePendingReviews(
   targetType: ReviewTargetType,
   targetId: string,
+  supersededById?: string,
 ): Promise<number> {
-  const result = await db.reviewRequest.updateMany({
+  const pending = await db.reviewRequest.findMany({
     where: {
       targetType,
       targetId,
       status: 'PENDING',
     },
+    select: { id: true },
+  });
+
+  if (pending.length === 0) return 0;
+
+  await db.reviewRequest.updateMany({
+    where: {
+      id: { in: pending.map((r) => r.id) },
+    },
     data: {
       status: 'SUPERSEDED',
       resolvedAt: new Date(),
+      ...(supersededById ? { supersededById } : {}),
     },
   });
 
-  return result.count;
+  return pending.length;
 }
 
 export async function getPendingReviewsForReviewer(

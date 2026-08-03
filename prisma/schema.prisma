@@ -2169,7 +2169,9 @@ model ReviewRequest {
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
 
-  organisation Organisation? @relation(fields: [organisationId], references: [id])
+  organisation Organisation?  @relation(fields: [organisationId], references: [id])
+  supersededBy ReviewRequest?  @relation("ReviewSuperseded", fields: [supersededById], references: [id])
+  superseded   ReviewRequest[] @relation("ReviewSuperseded")
 
   @@index([targetType, targetId, status])
   @@index([reviewerMembershipId, status])
