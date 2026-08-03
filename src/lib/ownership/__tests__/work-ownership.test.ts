@@ -69,7 +69,7 @@ describe("work-ownership handover atomicity", () => {
     mocks.findUnique.mockResolvedValue({
       id: "own-1",
       organisationId: "org-other",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-1",
       status: "ACTIVE",
@@ -89,7 +89,7 @@ describe("work-ownership handover atomicity", () => {
     mocks.findUnique.mockResolvedValue({
       id: "own-1",
       organisationId: "org-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-1",
       status: "COMPLETED",
@@ -109,7 +109,7 @@ describe("work-ownership handover atomicity", () => {
     mocks.findUnique.mockResolvedValue({
       id: "own-1",
       organisationId: "org-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-1",
       status: "HANDED_OVER",
@@ -129,7 +129,7 @@ describe("work-ownership handover atomicity", () => {
     const ownership = {
       id: "own-1",
       organisationId: "org-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-1",
       assignedByMembershipId: "mem-admin",
@@ -143,7 +143,7 @@ describe("work-ownership handover atomicity", () => {
     const newOwnership = {
       id: "own-2",
       organisationId: "org-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-2",
       assignedByMembershipId: "mem-admin",
@@ -197,7 +197,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
   it("rejects assignment when an ACTIVE ownership already exists for the same target", async () => {
     mocks.findFirst.mockResolvedValue({
       id: "existing-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       status: "ACTIVE",
     });
@@ -205,7 +205,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
     await expect(
       assignWorkOwnership({
         organisationId: "org-1",
-        targetType: "EVENT_SQUAD",
+        targetType: "EVENT_SQUAD_PREPARATION",
         targetId: "target-1",
         ownerMembershipId: "mem-2",
         assignedByMembershipId: "mem-admin",
@@ -216,7 +216,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
   it("rejects assignment when a HANDED_OVER ownership already exists for the same target", async () => {
     mocks.findFirst.mockResolvedValue({
       id: "existing-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       status: "HANDED_OVER",
     });
@@ -224,7 +224,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
     await expect(
       assignWorkOwnership({
         organisationId: "org-1",
-        targetType: "EVENT_SQUAD",
+        targetType: "EVENT_SQUAD_PREPARATION",
         targetId: "target-1",
         ownerMembershipId: "mem-2",
         assignedByMembershipId: "mem-admin",
@@ -237,7 +237,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
     mocks.create.mockResolvedValue({
       id: "new-1",
       organisationId: "org-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-2",
       assignedByMembershipId: "mem-admin",
@@ -246,7 +246,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
 
     const result = await assignWorkOwnership({
       organisationId: "org-1",
-      targetType: "EVENT_SQUAD",
+      targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",
       ownerMembershipId: "mem-2",
       assignedByMembershipId: "mem-admin",
@@ -255,7 +255,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
     expect(mocks.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         organisationId: "org-1",
-        targetType: "EVENT_SQUAD",
+        targetType: "EVENT_SQUAD_PREPARATION",
         targetId: "target-1",
         ownerMembershipId: "mem-2",
         assignedByMembershipId: "mem-admin",
@@ -297,10 +297,10 @@ describe("work-ownership org-scoped access", () => {
   it("getWorkOwnershipForTarget uses org filter", async () => {
     mocks.findMany.mockResolvedValue([]);
 
-    await getWorkOwnershipForTarget("EVENT_SQUAD", "target-1", "org-1");
+    await getWorkOwnershipForTarget("EVENT_SQUAD_PREPARATION", "target-1", "org-1");
 
     expect(mocks.findMany).toHaveBeenCalledWith({
-      where: { targetType: "EVENT_SQUAD", targetId: "target-1", organisationId: "org-1" },
+      where: { targetType: "EVENT_SQUAD_PREPARATION", targetId: "target-1", organisationId: "org-1" },
       orderBy: { createdAt: "desc" },
     });
   });
