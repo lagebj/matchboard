@@ -1,33 +1,34 @@
 import { NextResponse } from "next/server";
-import { verifyBrevoWebhookSignature, processBrevoWebhookEvents } from "@/lib/email/webhook-handler";
+import { processBrevoWebhookEvents } from "@/lib/email/webhook-handler";
 import type { BrevoWebhookEvent } from "@/lib/email/webhook-handler";
+import crypto from "crypto";
 
-const BREVO_WEBHOOK_KEY = process.env.BREVO_WEBHOOK_KEY ?? "";
 const BREVO_WEBHOOK_BEARER_TOKEN = process.env.BREVO_WEBHOOK_BEARER_TOKEN ?? "";
 const NODE_ENV = process.env.NODE_ENV ?? "development";
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export async function POST(request: Request) {
-  if (!BREVO_WEBHOOK_KEY && !BREVO_WEBHOOK_BEARER_TOKEN && NODE_ENV === "production") {
+  if (!BREVO_WEBHOOK_BEARER_TOKEN && NODE_ENV === "production") {
     return NextResponse.json({ error: "Webhook authentication not configured" }, { status: 503 });
   }
 
   const authHeader = request.headers.get("authorization");
+
   if (BREVO_WEBHOOK_BEARER_TOKEN) {
-    if (!authHeader || authHeader !== `Bearer ${BREVO_WEBHOOK_BEARER_TOKEN}`) {
+    if (!authHeader || !timingSafeEqual(authHeader, `Bearer ${BREVO_WEBHOOK_BEARER_TOKEN}`)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+  } else if (NODE_ENV !== "production") {
+    // Development: allow unauthenticated webhooks for testing
+  } else {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   const rawBody = await request.text();
-  const signatureHeader = request.headers.get("x-brevo-signature");
-
-  if (BREVO_WEBHOOK_KEY && !verifyBrevoWebhookSignature(rawBody, signatureHeader, BREVO_WEBHOOK_KEY)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
-  if (!BREVO_WEBHOOK_KEY && !BREVO_WEBHOOK_BEARER_TOKEN) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
 
   let events: BrevoWebhookEvent[];
 
