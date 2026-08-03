@@ -335,7 +335,7 @@ describe("getEventWorkItems", () => {
     await cleanEventTables(db);
   });
 
-  it("returns event_squads_ready when all squads are DRAFT", async () => {
+  it("returns event_squads_draft when all squads are DRAFT", async () => {
     const event = await db.event.create({
       data: {
         name: "Draft Review Cup",
@@ -367,7 +367,7 @@ describe("getEventWorkItems", () => {
 
     const items = await getEventWorkItems();
     const draftItems = items.filter(
-      (i) => i.category === "event_squads_ready" && i.eventId === event.id,
+      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
     );
     expect(draftItems.length).toBe(1);
     expect(draftItems[0]!.title).toContain("Draft Review Cup");
@@ -376,7 +376,7 @@ describe("getEventWorkItems", () => {
     await cleanEventTables(db);
   });
 
-  it("does not return event_squads_ready when all squads are LOCKED", async () => {
+  it("does not return event_squads_draft when all squads are LOCKED", async () => {
     const event = await db.event.create({
       data: {
         name: "Locked Cup",
@@ -408,14 +408,14 @@ describe("getEventWorkItems", () => {
 
     const items = await getEventWorkItems();
     const draftItems = items.filter(
-      (i) => i.category === "event_squads_ready" && i.eventId === event.id,
+      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
     );
     expect(draftItems.length).toBe(0);
 
     await cleanEventTables(db);
   });
 
-  it("does not return event_squads_ready when some squads are LOCKED", async () => {
+  it("does not return event_squads_draft when some squads are LOCKED", async () => {
     const event = await db.event.create({
       data: {
         name: "Mixed Cup",
@@ -446,7 +446,7 @@ describe("getEventWorkItems", () => {
 
     const items = await getEventWorkItems();
     const draftItems = items.filter(
-      (i) => i.category === "event_squads_ready" && i.eventId === event.id,
+      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
     );
     expect(draftItems.length).toBe(0);
 

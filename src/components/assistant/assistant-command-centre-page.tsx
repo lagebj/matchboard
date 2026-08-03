@@ -79,7 +79,7 @@ const groups: GroupConfig[] = [
     key: "events",
     label: "Events",
     description: "Event setup, lineups, helpers, and reports.",
-    categories: ["event_setup_missing", "event_squads_missing", "event_squads_ready", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
+    categories: ["event_setup_missing", "event_squads_missing", "event_squads_draft", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
     icon: CalendarDays,
     variant: "info",
   },
