@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockRequireActorContext, mockCanAdmin, mocks, mockDb } = vi.hoisted(() => {
+const { mockRequireActorContext, mockCanAdmin, mockHasTeamAccess, mocks, mockDb } = vi.hoisted(() => {
   const mockRequireActorContext = vi.fn();
   const mockCanAdmin = vi.fn();
+  const mockHasTeamAccess = vi.fn();
   const mocks = {
     membershipFindFirst: vi.fn(),
     membershipFindMany: vi.fn(),
@@ -24,12 +25,13 @@ const { mockRequireActorContext, mockCanAdmin, mocks, mockDb } = vi.hoisted(() =
     workOwnership: { findMany: mocks.workOwnershipFindMany },
     leagueSeason: { findFirst: mocks.leagueSeasonFindFirst },
   };
-  return { mockRequireActorContext, mockCanAdmin, mocks, mockDb };
+  return { mockRequireActorContext, mockCanAdmin, mockHasTeamAccess, mocks, mockDb };
 });
 
 vi.mock("@/lib/auth/actor-context", () => ({
   requireActorContext: mockRequireActorContext,
   canAdmin: mockCanAdmin,
+  hasTeamAccess: mockHasTeamAccess,
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
@@ -59,6 +61,17 @@ const COACH_CTX = {
   organisationSlug: "test-org",
   role: "COACH" as const,
   delegatedTeamIds: null,
+  orgFilter: { type: "org" as const, filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
+};
+
+const DELEGATED_COACH_CTX = {
+  userId: "user-3",
+  email: "delegated@test.com",
+  membershipId: "mem-3",
+  organisationId: "org-1",
+  organisationSlug: "test-org",
+  role: "COACH" as const,
+  delegatedTeamIds: ["team-A"],
   orgFilter: { type: "org" as const, filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
 };
 
@@ -190,5 +203,69 @@ describe("getAttentionEntries", () => {
 
     if (highIdx >= 0 && normalIdx >= 0) expect(highIdx).toBeLessThan(normalIdx);
     if (normalIdx >= 0 && lowIdx >= 0) expect(normalIdx).toBeLessThan(lowIdx);
+  });
+
+  describe("team-scoped filtering for delegated coaches", () => {
+    it("filters missing post-match report entries by team access for delegated coaches", async () => {
+      mockRequireActorContext.mockResolvedValue(DELEGATED_COACH_CTX);
+      mockCanAdmin.mockReturnValue(false);
+      mockHasTeamAccess.mockImplementation((_ctx: unknown, teamId: string) => teamId === "team-A");
+      mocks.membershipFindFirst.mockResolvedValue({ id: "mem-3", userId: "user-3", organisationId: "org-1", role: "COACH" });
+      mocks.leagueSeasonFindFirst.mockResolvedValue({ id: "ls-1" });
+      mocks.postMatchReportFindMany.mockResolvedValue([]);
+      mocks.matchFindMany.mockResolvedValue([
+        { id: "match-1", opponent: "Team X", homeAway: "HOME", startsAt: new Date("2026-01-01"), teamId: "team-A" },
+        { id: "match-2", opponent: "Team Y", homeAway: "AWAY", startsAt: new Date("2026-01-01"), teamId: "team-B" },
+        { id: "match-3", opponent: "Team Z", homeAway: "HOME", startsAt: new Date("2026-01-01"), teamId: null },
+      ]);
+
+      const result = await getAttentionEntries("test-org");
+
+      const missingReports = result.filter((e) => e.category === "missing_post_match_report");
+      const matchIds = missingReports.map((e) => e.sourceId);
+      expect(matchIds).toContain("match-1");
+      expect(matchIds).not.toContain("match-2");
+      expect(matchIds).toContain("match-3");
+    });
+
+    it("filters unowned fixture entries by team access for delegated coaches", async () => {
+      mockRequireActorContext.mockResolvedValue(DELEGATED_COACH_CTX);
+      mockCanAdmin.mockReturnValue(false);
+      mockHasTeamAccess.mockImplementation((_ctx: unknown, teamId: string) => teamId === "team-A");
+      mocks.membershipFindFirst.mockResolvedValue({ id: "mem-3", userId: "user-3", organisationId: "org-1", role: "COACH" });
+      mocks.leagueSeasonFindFirst.mockResolvedValue({ id: "ls-1" });
+      mocks.workOwnershipFindMany.mockResolvedValue([]);
+      const upcomingDate = new Date(Date.now() + 2 * 86400000);
+      mocks.matchFindMany.mockResolvedValue([
+        { id: "match-1", opponent: "Team X", startsAt: upcomingDate, teamId: "team-A" },
+        { id: "match-2", opponent: "Team Y", startsAt: upcomingDate, teamId: "team-B" },
+      ]);
+
+      const result = await getAttentionEntries("test-org");
+
+      const unowned = result.filter((e) => e.category === "unowned_fixture");
+      const matchIds = unowned.map((e) => e.sourceId);
+      expect(matchIds).toContain("match-1");
+      expect(matchIds).not.toContain("match-2");
+    });
+
+    it("shows all entries for unrestricted coaches", async () => {
+      mockRequireActorContext.mockResolvedValue(COACH_CTX);
+      mockCanAdmin.mockReturnValue(false);
+      mockHasTeamAccess.mockReturnValue(true);
+      mocks.membershipFindFirst.mockResolvedValue({ id: "mem-2", userId: "user-2", organisationId: "org-1", role: "COACH" });
+      mocks.leagueSeasonFindFirst.mockResolvedValue({ id: "ls-1" });
+      mocks.postMatchReportFindMany.mockResolvedValue([]);
+      const pastDate = new Date("2026-01-01");
+      mocks.matchFindMany.mockResolvedValue([
+        { id: "match-1", opponent: "Team X", homeAway: "HOME", startsAt: pastDate, teamId: "team-A" },
+        { id: "match-2", opponent: "Team Y", homeAway: "AWAY", startsAt: pastDate, teamId: "team-B" },
+      ]);
+
+      const result = await getAttentionEntries("test-org");
+
+      const missingReports = result.filter((e) => e.category === "missing_post_match_report");
+      expect(missingReports).toHaveLength(2);
+    });
   });
 });
