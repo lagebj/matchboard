@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -42,6 +42,8 @@ export async function createMatchFeedbackAction(
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   if (!FEEDBACK_CATEGORIES.includes(category as FeedbackCategory)) {
     return { success: false, error: `Invalid feedback category: ${category}` };
@@ -109,6 +111,9 @@ export async function updateMatchFeedbackAction(
     const existing = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!existing) return { success: false, error: "Feedback not found." };
 
+    await requireMatchTeamAccess(ctx, existing.matchId);
+    await requirePlayerTeamAccess(ctx, existing.playerId);
+
     if (ctx.orgFilter.type === "org") {
       const match = await db.match.findFirst({
         where: { id: existing.matchId, ...ctx.orgFilter.filter },
@@ -155,6 +160,9 @@ export async function deleteMatchFeedbackAction(
   try {
     const feedback = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!feedback) return { success: false, error: "Feedback not found." };
+
+    await requireMatchTeamAccess(ctx, feedback.matchId);
+    await requirePlayerTeamAccess(ctx, feedback.playerId);
 
     if (ctx.orgFilter.type === "org") {
       const match = await db.match.findFirst({
