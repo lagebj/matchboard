@@ -130,7 +130,7 @@ export function EventMatchLineupPanel({
         if (lineupData) {
           setLineup(lineupData as LineupData);
         }
-        setFormations(formationsData as Formation[]);
+        setFormations(formationsData as unknown as Formation[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load lineup');
       } finally {

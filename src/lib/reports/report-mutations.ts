@@ -24,6 +24,7 @@ export async function seedReportFromFinalizedSquad(matchId: string): Promise<Rep
     where: { id: matchId },
     select: {
       id: true,
+      organisationId: true,
       selections: {
         where: { status: "FINALIZED" },
         select: { playerId: true, role: true },
@@ -37,10 +38,12 @@ export async function seedReportFromFinalizedSquad(matchId: string): Promise<Rep
 
   const report = await db.postMatchReport.create({
     data: {
+      organisationId: match.organisationId,
       matchId,
       status: "DRAFT",
       playerActuals: {
         create: match.selections.map((s) => ({
+          organisationId: match.organisationId,
           matchId,
           playerId: s.playerId,
           source: "PLANNED",
@@ -98,6 +101,7 @@ export async function addActualPlayerToReport(
 
   await db.postMatchPlayerActual.create({
     data: {
+      organisationId: report.organisationId,
       reportId,
       matchId: report.matchId,
       playerId: data.playerId,
@@ -172,6 +176,7 @@ export async function markPlannedAbsenceInReport(
     where: { matchReportId_playerId: { matchReportId: reportId, playerId: data.playerId } },
     update: { reason: data.reason, note: data.note ?? null },
     create: {
+      organisationId: report.organisationId,
       matchReportId: reportId,
       matchId: report.matchId,
       playerId: data.playerId,
@@ -226,6 +231,7 @@ export async function updatePlayerStatsInReport(
       ...(data.assists !== undefined ? { assists: data.assists } : {}),
     },
     create: {
+      organisationId: report.organisationId,
       matchReportId: reportId,
       playerId: data.playerId,
       goals: data.goals ?? 0,
@@ -370,6 +376,7 @@ export async function addGoalToReportMutation(
 
   await db.goal.create({
     data: {
+      organisationId: report.organisationId,
       reportId,
       playerId: data.playerId || null,
       minute: data.minute ?? null,
@@ -407,6 +414,7 @@ export async function addAssistToReportMutation(
 
   await db.assist.create({
     data: {
+      organisationId: report.organisationId,
       reportId,
       playerId: data.playerId,
       type: data.type ?? DEFAULT_ASSIST_TYPE,

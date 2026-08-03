@@ -67,6 +67,9 @@ export async function createLineupFromFormation(data: {
   const formation = await requireFormationExists(data.formationId);
   await requireNoExistingLineup(data.matchId, data.teamId);
 
+  const match = await db.match.findUnique({ where: { id: data.matchId }, select: { organisationId: true } });
+  const organisationId = match?.organisationId ?? "";
+
   const snapshot = createFormationSnapshot(
     formation.id,
     formation.name,
@@ -85,6 +88,7 @@ export async function createLineupFromFormation(data: {
 
   return db.matchLineup.create({
     data: {
+      organisationId,
       matchId: data.matchId,
       teamId: data.teamId,
       formationId: data.formationId,
@@ -93,6 +97,7 @@ export async function createLineupFromFormation(data: {
       benchPlayerIds: [],
       assignments: {
         create: formation.slots.map((slot) => ({
+          organisationId,
           slotId: slot.id,
           playerId: null,
           locked: false,

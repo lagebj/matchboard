@@ -67,7 +67,10 @@ export async function movePlannedSelectionWithinRound(input: {
 
   const targetMatch = await db.match.findUnique({
     where: { id: toMatchId },
-    include: {
+    select: {
+      id: true,
+      organisationId: true,
+      teamId: true,
       team: { select: { id: true, name: true, maxSquadSize: true } },
       selections: { where: { status: SelectionStatus.DRAFT }, include: { player: true } },
     },
@@ -176,6 +179,7 @@ export async function movePlannedSelectionWithinRound(input: {
 
       const newSelection = await tx.selection.create({
         data: {
+          organisationId: targetMatch.organisationId,
           matchId: toMatchId,
           matchRoundId,
           playerId,
@@ -203,6 +207,7 @@ export async function movePlannedSelectionWithinRound(input: {
       if (player.coreTeamId !== targetMatch.teamId || targetRole !== SelectionRole.CORE) {
         await tx.movementLedger.create({
           data: {
+            organisationId: targetMatch.organisationId,
             matchRoundId,
             matchId: toMatchId,
             playerId,

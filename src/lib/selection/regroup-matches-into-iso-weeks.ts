@@ -8,8 +8,9 @@ export type RegroupResult = {
   roundsRemoved: number;
 };
 
-export async function regroupMatchesIntoIsoWeekRounds(): Promise<RegroupResult> {
+export async function regroupMatchesIntoIsoWeekRounds(organisationId?: string): Promise<RegroupResult> {
   const allRounds = await db.matchRound.findMany({
+    where: organisationId ? { organisationId } : undefined,
     include: {
       matches: { select: { id: true, startsAt: true } },
     },

@@ -16,6 +16,7 @@ type CreateFeedbackInput = {
   nextAction?: FeedbackNextAction;
   note?: string;
   recordedBy?: string;
+  organisationId: string;
 };
 
 type UpdateFeedbackInput = {
@@ -76,6 +77,7 @@ export async function createMatchExecutionFeedback(input: CreateFeedbackInput) {
 
   return db.matchExecutionFeedback.create({
     data: {
+      organisationId: input.organisationId,
       matchId: input.matchId,
       playerId: input.playerId,
       category: input.category,

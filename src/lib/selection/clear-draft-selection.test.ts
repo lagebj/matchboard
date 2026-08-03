@@ -10,6 +10,7 @@ import {
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
+let testOrgId: string;
 
 vi.mock("@/lib/db", () => {
   return {
@@ -22,8 +23,13 @@ vi.mock("@/lib/db", () => {
 async function createFreshFixture(): Promise<TestFixtureIds> {
   await import("@/test/test-db");
 
+  const org = await testDb.organisation.create({
+    data: { name: `Org ${Date.now()}`, slug: `org-clear-${Date.now()}` },
+  });
+  testOrgId = org.id;
+
   const season = await testDb.season.create({
-    data: { name: `Season ${Date.now()}`, year: 2026 },
+    data: { name: `Season ${Date.now()}`, year: 2026, organisationId: testOrgId },
   });
   const period = await testDb.leagueSeason.create({
     data: {
@@ -32,6 +38,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
       seasonId: season.id,
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
+      organisationId: testOrgId,
     },
   });
   const round = await testDb.matchRound.create({
@@ -39,6 +46,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
       name: `Round ${Date.now()}`,
       leagueSeasonId: period.id,
       status: "DRAFT",
+      organisationId: testOrgId,
     },
   });
 
@@ -61,6 +69,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
         developmentSlots: 3,
         minAcceptedSquadSize: 9,
         maxSquadSize: 14,
+        organisationId: testOrgId,
       },
     });
     teamIds[t.name] = team.id;
@@ -78,7 +87,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
       const ot = await testDb.opponentTeam.upsert({
         where: { normalizedName },
         update: { displayName },
-        create: { displayName, normalizedName },
+        create: { displayName, normalizedName, organisationId: testOrgId },
       });
       opponentTeamId = ot.id;
       opponentTeamIds[normalizedName] = opponentTeamId;
@@ -94,6 +103,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
         squadSize: 11,
         matchType: "FRIENDLY",
         gameFormat: "ELEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
     matchIds[t.name] = match.id;
@@ -117,6 +127,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
       players.push({
@@ -132,7 +143,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
   }
 
   return {
-    organisationId: null,
+    organisationId: testOrgId,
     seasonId: season.id,
     leagueSeasonId: period.id,
     matchRoundId: round.id,
@@ -167,6 +178,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.selection.create({
@@ -176,6 +188,7 @@ describe("clear-draft-selection", () => {
           playerId: fx.players.find((p) => p.coreTeamName === "Hvit")!.id,
           role: "MANUAL_OVERRIDE",
           status: SelectionStatus.FINALIZED,
+          organisationId: testOrgId,
         },
       });
 
@@ -206,6 +219,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.movementLedger.create({
@@ -218,6 +232,7 @@ describe("clear-draft-selection", () => {
           role: "CORE",
           reason: "test",
           isDraft: true,
+          organisationId: testOrgId,
         },
       });
       await testDb.warning.create({
@@ -228,6 +243,7 @@ describe("clear-draft-selection", () => {
           severity: "WARNING",
           rule: "test_rule",
           message: "Test warning",
+          organisationId: testOrgId,
         },
       });
 
@@ -265,6 +281,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.movementLedger.create({
@@ -277,6 +294,7 @@ describe("clear-draft-selection", () => {
           role: "CORE",
           reason: "test",
           isDraft: true,
+          organisationId: testOrgId,
         },
       });
       await testDb.warning.create({
@@ -285,6 +303,7 @@ describe("clear-draft-selection", () => {
           severity: "WARNING",
           rule: "test_rule",
           message: "Test warning",
+          organisationId: testOrgId,
         },
       });
 
@@ -319,6 +338,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
 
@@ -327,6 +347,7 @@ describe("clear-draft-selection", () => {
           name: "W20 Other",
           leagueSeasonId: fx.leagueSeasonId,
           status: "DRAFT",
+          organisationId: testOrgId,
         },
       });
       const secondMatch = await testDb.match.create({
@@ -340,6 +361,7 @@ describe("clear-draft-selection", () => {
           squadSize: 11,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const hvitPlayer = fx.players.find((p) => p.coreTeamName === "Hvit")!;
@@ -350,6 +372,7 @@ describe("clear-draft-selection", () => {
           playerId: hvitPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.warning.create({
@@ -359,6 +382,7 @@ describe("clear-draft-selection", () => {
           severity: "WARNING",
           rule: "test_rule",
           message: "Second round warning",
+          organisationId: testOrgId,
         },
       });
 
@@ -409,6 +433,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.movementLedger.create({
@@ -421,6 +446,7 @@ describe("clear-draft-selection", () => {
           role: "CORE",
           reason: "test",
           isDraft: true,
+          organisationId: testOrgId,
         },
       });
       await testDb.warning.create({
@@ -430,6 +456,7 @@ describe("clear-draft-selection", () => {
           severity: "WARNING",
           rule: "test_rule",
           message: "Match warning",
+          organisationId: testOrgId,
         },
       });
 
@@ -466,6 +493,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.selection.create({
@@ -475,6 +503,7 @@ describe("clear-draft-selection", () => {
           playerId: hvitPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
 
@@ -507,6 +536,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           role: "CORE",
           status: SelectionStatus.DRAFT,
+          organisationId: testOrgId,
         },
       });
       await testDb.warning.create({
@@ -516,6 +546,7 @@ describe("clear-draft-selection", () => {
           severity: "WARNING",
           rule: "test_rule",
           message: "Test warning",
+          organisationId: testOrgId,
         },
       });
       await testDb.availability.create({
@@ -523,6 +554,7 @@ describe("clear-draft-selection", () => {
           playerId: blaPlayer.id,
           matchRoundId: fx.matchRoundId,
           status: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 

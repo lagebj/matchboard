@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -39,8 +39,11 @@ export async function createMatchFeedbackAction(
   note: string | null,
 ): Promise<{ success: boolean; error?: string; readinessSuggestion?: ReadinessSuggestionFromFeedback | null }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
+  await requirePlayerTeamAccess(ctx, playerId);
 
   if (!FEEDBACK_CATEGORIES.includes(category as FeedbackCategory)) {
     return { success: false, error: `Invalid feedback category: ${category}` };
@@ -69,7 +72,7 @@ export async function createMatchFeedbackAction(
         observableBehavior: observableBehavior ?? null,
         nextAction: (nextAction as FeedbackNextAction) ?? "NO_ACTION",
         note: note ?? null,
-        ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
+        organisationId: ctx.organisationId,
       },
     });
 
@@ -98,6 +101,7 @@ export async function updateMatchFeedbackAction(
   },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   if (data.nextAction && !FEEDBACK_NEXT_ACTIONS.includes(data.nextAction as FeedbackNextAction)) {
     return { success: false, error: `Invalid next action: ${data.nextAction}` };
@@ -106,6 +110,9 @@ export async function updateMatchFeedbackAction(
   try {
     const existing = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!existing) return { success: false, error: "Feedback not found." };
+
+    await requireMatchTeamAccess(ctx, existing.matchId);
+    await requirePlayerTeamAccess(ctx, existing.playerId);
 
     if (ctx.orgFilter.type === "org") {
       const match = await db.match.findFirst({
@@ -148,10 +155,14 @@ export async function deleteMatchFeedbackAction(
   feedbackId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   try {
     const feedback = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
     if (!feedback) return { success: false, error: "Feedback not found." };
+
+    await requireMatchTeamAccess(ctx, feedback.matchId);
+    await requirePlayerTeamAccess(ctx, feedback.playerId);
 
     if (ctx.orgFilter.type === "org") {
       const match = await db.match.findFirst({

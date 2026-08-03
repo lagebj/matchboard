@@ -17,6 +17,7 @@ import {
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
+let testOrgId: string;
 
 vi.mock("@/lib/db", () => ({
   get db() {
@@ -32,7 +33,7 @@ async function ensureTestOpponentTeam(db: PrismaClient, name: string): Promise<s
   const ot = await db.opponentTeam.upsert({
     where: { normalizedName },
     update: { displayName },
-    create: { displayName, normalizedName },
+    create: { displayName, normalizedName, organisationId: testOrgId },
   });
   return ot.id;
 }
@@ -128,6 +129,8 @@ describe("Effective participation helpers", () => {
 describe("Effective participation database queries", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
+    const org = await testDb.organisation.create({ data: { name: "EffPart Test Org", slug: `effpart-org-${Date.now()}` } });
+    testOrgId = org.id;
     testOpponentTeamId = await ensureTestOpponentTeam(testDb, "Test Opponent Team");
   });
 
@@ -138,9 +141,9 @@ describe("Effective participation database queries", () => {
   describe("match with no report", () => {
     it("returns finalized selections as PLANNED_FINALIZED", async () => {
       await testDb.ruleConfig.create({
-        data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5 },
+        data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId: testOrgId },
       });
-      const season = await testDb.season.create({ data: { name: "Test Season", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period",
@@ -148,10 +151,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 No Report", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 No Report", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -165,6 +169,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -178,6 +183,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -193,6 +199,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -208,6 +215,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -218,6 +226,7 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -228,6 +237,7 @@ describe("Effective participation database queries", () => {
           playerId: player2.id,
           role: "SUPPORT",
           status: "DRAFT",
+          organisationId: testOrgId,
         },
       });
 
@@ -255,9 +265,9 @@ describe("Effective participation database queries", () => {
   describe("match with REPORTED status", () => {
     it("uses actuals as source of truth", async () => {
       await testDb.ruleConfig.create({
-        data: { name: "Test rules 2", minDaysBetweenAnyMatches: 3, warningThreshold: 5 },
+        data: { name: "Test rules 2", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId: testOrgId },
       });
-      const season = await testDb.season.create({ data: { name: "Test Season 2", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season 2", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 2",
@@ -265,10 +275,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Reported", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 Reported", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -282,6 +293,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -295,6 +307,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -310,6 +323,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -325,6 +339,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -340,6 +355,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -350,6 +366,7 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -360,6 +377,7 @@ describe("Effective participation database queries", () => {
           playerId: player2.id,
           role: "SUPPORT",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -370,6 +388,7 @@ describe("Effective participation database queries", () => {
           playerId: player3.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -377,6 +396,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "REPORTED",
+          organisationId: testOrgId,
         },
       });
 
@@ -387,6 +407,7 @@ describe("Effective participation database queries", () => {
           source: "PLANNED",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -397,6 +418,7 @@ describe("Effective participation database queries", () => {
           source: "PLANNED",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -406,6 +428,7 @@ describe("Effective participation database queries", () => {
           matchId: match.id,
           playerId: player3.id,
           reason: "SICK",
+          organisationId: testOrgId,
         },
       });
 
@@ -415,17 +438,18 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           goals: 2,
           assists: 1,
+          organisationId: testOrgId,
         },
       });
 
       await testDb.goal.create({
-        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" , organisationId: testOrgId },
       });
       await testDb.goal.create({
-        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" , organisationId: testOrgId },
       });
       await testDb.assist.create({
-        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" , organisationId: testOrgId },
       });
 
       const rows = await getEffectiveMatchParticipation(match.id);
@@ -451,7 +475,7 @@ describe("Effective participation database queries", () => {
     });
 
     it("excludes NO_SHOW players from participation", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 3", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season 3", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 3",
@@ -459,10 +483,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 NoShow", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 NoShow", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -476,6 +501,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -489,6 +515,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -504,6 +531,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -514,6 +542,7 @@ describe("Effective participation database queries", () => {
           playerId: playerNoShow.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -521,6 +550,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "REPORTED",
+          organisationId: testOrgId,
         },
       });
 
@@ -531,6 +561,7 @@ describe("Effective participation database queries", () => {
           source: "PLANNED",
           attendanceStatus: "NO_SHOW",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -550,7 +581,7 @@ describe("Effective participation database queries", () => {
     });
 
     it("includes added-post-match players", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 4", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season 4", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 4",
@@ -558,10 +589,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Added", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 Added", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -575,6 +607,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -588,6 +621,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -603,6 +637,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -610,6 +645,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "REPORTED",
+          organisationId: testOrgId,
         },
       });
 
@@ -620,6 +656,7 @@ describe("Effective participation database queries", () => {
           source: "ADDED_POST_MATCH",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -634,7 +671,7 @@ describe("Effective participation database queries", () => {
     });
 
     it("includes emergency backfill players", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 5", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season 5", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 5",
@@ -642,10 +679,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Emergency", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 Emergency", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -659,6 +697,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -672,6 +711,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -687,6 +727,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -694,6 +735,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "REPORTED",
+          organisationId: testOrgId,
         },
       });
 
@@ -704,6 +746,7 @@ describe("Effective participation database queries", () => {
           source: "EMERGENCY_BACKFILL",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -719,7 +762,7 @@ describe("Effective participation database queries", () => {
 
   describe("match with DRAFT report", () => {
     it("uses finalized selections, not draft report data", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 6", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season 6", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 6",
@@ -727,10 +770,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 DraftReport", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 DraftReport", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -744,6 +788,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -757,6 +802,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -772,6 +818,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -782,6 +829,7 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -789,6 +837,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "DRAFT",
+          organisationId: testOrgId,
         },
       });
 
@@ -799,6 +848,7 @@ describe("Effective participation database queries", () => {
           source: "PLANNED",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -817,7 +867,7 @@ describe("Effective participation database queries", () => {
 
   describe("match with LOCKED report", () => {
     it("uses ACTUAL_LOCKED source for locked reports", async () => {
-      const season = await testDb.season.create({ data: { name: "Test Season 7", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Test Season 7", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Test Period 7",
@@ -825,10 +875,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Locked", leagueSeasonId: period.id, status: "FINALIZED" },
+        data: { name: "W1 Locked", leagueSeasonId: period.id, status: "FINALIZED" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -842,6 +893,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -855,6 +907,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -870,6 +923,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -880,6 +934,7 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -887,6 +942,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "LOCKED",
+          organisationId: testOrgId,
         },
       });
 
@@ -897,6 +953,7 @@ describe("Effective participation database queries", () => {
           source: "PLANNED",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -914,7 +971,7 @@ describe("Effective participation database queries", () => {
 
   describe("getEffectiveSeasonStats", () => {
     it("computes season stats including role classification and flags", async () => {
-      const season = await testDb.season.create({ data: { name: "Stats Season", year: 2026 } });
+      const season = await testDb.season.create({ data: { name: "Stats Season", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
         data: {
           name: "Stats Period",
@@ -922,10 +979,11 @@ describe("Effective participation database queries", () => {
           seasonId: season.id,
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
+          organisationId: testOrgId,
         },
       });
       const round = await testDb.matchRound.create({
-        data: { name: "W1 Stats", leagueSeasonId: period.id, status: "DRAFT" },
+        data: { name: "W1 Stats", leagueSeasonId: period.id, status: "DRAFT" , organisationId: testOrgId },
       });
       const team = await testDb.team.create({
         data: {
@@ -939,6 +997,7 @@ describe("Effective participation database queries", () => {
           developmentSlots: 0,
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
+          organisationId: testOrgId,
         },
       });
       const match = await testDb.match.create({
@@ -952,6 +1011,7 @@ describe("Effective participation database queries", () => {
           squadSize: 8,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -967,6 +1027,7 @@ describe("Effective participation database queries", () => {
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
+          organisationId: testOrgId,
         },
       });
 
@@ -977,6 +1038,7 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           role: "SUPPORT",
           status: "FINALIZED",
+          organisationId: testOrgId,
         },
       });
 
@@ -984,6 +1046,7 @@ describe("Effective participation database queries", () => {
         data: {
           matchId: match.id,
           status: "REPORTED",
+          organisationId: testOrgId,
         },
       });
 
@@ -994,6 +1057,7 @@ describe("Effective participation database queries", () => {
           source: "PLANNED",
           attendanceStatus: "PRESENT",
           reportId: report.id,
+          organisationId: testOrgId,
         },
       });
 
@@ -1003,18 +1067,19 @@ describe("Effective participation database queries", () => {
           playerId: player1.id,
           goals: 1,
           assists: 2,
+          organisationId: testOrgId,
         },
       });
 
       await testDb.goal.create({
-        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" , organisationId: testOrgId },
       });
 
       await testDb.assist.create({
-        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" , organisationId: testOrgId },
       });
       await testDb.assist.create({
-        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" },
+        data: { reportId: report.id, playerId: player1.id, type: "NORMAL" , organisationId: testOrgId },
       });
 
       const stats = await getEffectiveSeasonStats(player1.id, period.id);

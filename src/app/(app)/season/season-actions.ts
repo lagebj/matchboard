@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 
 export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
@@ -67,10 +68,12 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
       data: {
         leagueSeasonId,
         finalizedAt: now,
+        organisationId: ctx.organisationId,
         teamSnapshots: {
           create: teamsWithPlayers.map((team) => ({
             teamId: team.id,
             teamNameSnapshot: team.name,
+            organisationId: ctx.organisationId,
             playerSnapshots: {
               create: team.corePlayers.map((player) => ({
                 playerId: player.id,
@@ -80,6 +83,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
                 tertiaryPositionSnapshot: player.tertiaryPosition,
                 shirtNumberSnapshot: player.shirtNumber,
                 activeAtSnapshot: player.active,
+                organisationId: ctx.organisationId,
               })),
             },
           })),
@@ -96,6 +100,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
 
 export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },

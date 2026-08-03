@@ -10,6 +10,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 import {
   OctagonAlert,
   AlertTriangle,
@@ -79,7 +80,7 @@ const groups: GroupConfig[] = [
     key: "events",
     label: "Events",
     description: "Event setup, lineups, helpers, and reports.",
-    categories: ["event_setup_missing", "event_squads_missing", "event_squads_ready", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
+    categories: ["event_setup_missing", "event_squads_missing", "event_squads_draft", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
     icon: CalendarDays,
     variant: "info",
   },
@@ -286,6 +287,7 @@ export function AssistantCommandCentrePage({
 }: {
   commandCentre: AssistantCommandCentre;
 }) {
+  const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
   const actionable = items.filter(isActionable);
   const upcoming = items.filter((i) => i.category === "upcoming_round");
@@ -363,7 +365,7 @@ export function AssistantCommandCentrePage({
           action={
             <Button
               as={Link}
-              href="/fixtures"
+              href={orgUrl("/fixtures")}
               variant="primary"
               trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
             >
@@ -378,7 +380,7 @@ export function AssistantCommandCentrePage({
         <div className="flex items-center justify-end">
           <Button
             as={Link}
-            href="/reviews"
+            href={orgUrl("/reviews")}
             variant="ghost"
             size="sm"
             trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}

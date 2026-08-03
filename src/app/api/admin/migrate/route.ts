@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext, requireAdminRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { migrateDoubleLoadRoles } from "@/lib/selection/migrate-double-load-roles";
 import { migrateSquadRepairRoles } from "@/lib/selection/migrate-squad-repair-roles";
 import { backfillMovementLedger } from "@/lib/selection/backfill-movement-ledger";
 
 export async function POST(request: Request) {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  requireAdminRole(ctx);
   const { allowed } = rateLimit("admin-migrate", 2, 60_000);
   if (!allowed) {
     return NextResponse.json(

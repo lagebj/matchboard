@@ -28,6 +28,30 @@ vi.mock("@/auth", () => ({
   isAllowedCoach: vi.fn().mockReturnValue(true),
 }));
 
+let _testOrgId = "test-org-id";
+
+vi.mock("@/lib/auth/actor-context", () => {
+  const makeCtx = () => ({
+    userId: "test-coach",
+    email: "test@example.com",
+    membershipId: "mem-test",
+    organisationId: _testOrgId,
+    organisationSlug: "test-org",
+    role: "COACH",
+    delegatedTeamIds: null,
+    orgFilter: { type: "all" as const },
+  });
+  return {
+    requireActorContext: vi.fn().mockImplementation(async () => makeCtx()),
+    requireMutationRole: vi.fn(),
+    canMutate: vi.fn().mockReturnValue(true),
+    canAdmin: vi.fn().mockReturnValue(false),
+    canOwn: vi.fn().mockReturnValue(false),
+    hasTeamAccess: vi.fn().mockReturnValue(true),
+    requireTeamAccess: vi.fn(),
+  };
+});
+
 function isRedirectError(error: unknown): boolean {
   return error instanceof Error && error.message === "NEXT_REDIRECT";
 }
@@ -41,6 +65,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
       playersPerTeam: 0,
       rotationPaths: [],
     });
+    _testOrgId = _fixtureIds.organisationId;
   });
   afterAll(async () => { await teardownTestDb(); });
 
@@ -99,7 +124,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
 
   it("restores archived team with same name instead of creating duplicate", async () => {
     const existingTeam = await testDb.team.create({
-      data: { name: "Archived Team", archivedAt: new Date(), targetSquadSize: 11 },
+      data: { name: "Archived Team", archivedAt: new Date(), targetSquadSize: 11, organisationId: _testOrgId },
     });
 
     const formData = new FormData();
@@ -140,6 +165,7 @@ describe("Setup registry: create match action assigns match to round by date", (
       playersPerTeam: 0,
       rotationPaths: [],
     });
+    _testOrgId = _fixtureIds.organisationId;
   });
   afterAll(async () => { await teardownTestDb(); });
 

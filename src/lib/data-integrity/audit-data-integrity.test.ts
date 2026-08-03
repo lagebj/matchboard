@@ -39,6 +39,7 @@ describe("auditDataIntegrity", () => {
           status: "REPORTED",
           homeGoals: 3,
           awayGoals: 1,
+          organisationId: fixture.organisationId,
         },
       });
 
@@ -49,14 +50,15 @@ describe("auditDataIntegrity", () => {
           playerId,
           source: "PLANNED",
           attendanceStatus: "PRESENT",
+          organisationId: fixture.organisationId,
         },
       });
 
       await testDb.goal.create({
-        data: { reportId: report.id, playerId, type: "NORMAL" },
+        data: { reportId: report.id, playerId, type: "NORMAL" , organisationId: fixture.organisationId },
       });
       await testDb.goal.create({
-        data: { reportId: report.id, playerId, type: "NORMAL" },
+        data: { reportId: report.id, playerId, type: "NORMAL" , organisationId: fixture.organisationId },
       });
 
       await testDb.matchReportPlayerStat.create({
@@ -65,6 +67,7 @@ describe("auditDataIntegrity", () => {
           playerId,
           goals: 5,
           assists: 0,
+          organisationId: fixture.organisationId,
         },
       });
 
@@ -85,7 +88,7 @@ describe("auditDataIntegrity", () => {
       const playerId = fixture.players[1]!.id;
 
       const report = await testDb.postMatchReport.create({
-        data: { matchId, status: "REPORTED" },
+        data: { matchId, status: "REPORTED" , organisationId: fixture.organisationId },
       });
 
       await testDb.postMatchPlayerActual.create({
@@ -95,6 +98,7 @@ describe("auditDataIntegrity", () => {
           playerId,
           source: "PLANNED",
           attendanceStatus: "UNKNOWN",
+          organisationId: fixture.organisationId,
         },
       });
 
@@ -114,7 +118,7 @@ describe("auditDataIntegrity", () => {
       const playerId = fixture.players[2]!.id;
 
       await testDb.postMatchReport.create({
-        data: { matchId, status: "LOCKED" },
+        data: { matchId, status: "LOCKED" , organisationId: fixture.organisationId },
       });
 
       await testDb.selection.create({
@@ -124,6 +128,7 @@ describe("auditDataIntegrity", () => {
           playerId,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: fixture.organisationId,
         },
       });
 
@@ -157,17 +162,18 @@ describe("auditDataIntegrity", () => {
           status: "REPORTED",
           homeGoals: 1,
           awayGoals: 0,
+          organisationId: fixture.organisationId,
         },
       });
 
       await testDb.goal.create({
-        data: { reportId: report.id, playerId, type: "NORMAL" },
+        data: { reportId: report.id, playerId, type: "NORMAL" , organisationId: fixture.organisationId },
       });
       await testDb.goal.create({
-        data: { reportId: report.id, playerId, type: "NORMAL" },
+        data: { reportId: report.id, playerId, type: "NORMAL" , organisationId: fixture.organisationId },
       });
       await testDb.goal.create({
-        data: { reportId: report.id, playerId, type: "NORMAL" },
+        data: { reportId: report.id, playerId, type: "NORMAL" , organisationId: fixture.organisationId },
       });
 
       const result = await auditDataIntegrity({ matchId }, testDb);
@@ -196,11 +202,12 @@ describe("auditDataIntegrity", () => {
           status: "REPORTED",
           homeGoals: 5,
           awayGoals: 2,
+          organisationId: fixture.organisationId,
         },
       });
 
       await testDb.goal.create({
-        data: { reportId: report.id, playerId, type: "NORMAL" },
+        data: { reportId: report.id, playerId, type: "NORMAL" , organisationId: fixture.organisationId },
       });
 
       const result = await auditDataIntegrity({ matchId }, testDb);
@@ -232,6 +239,7 @@ describe("auditDataIntegrity", () => {
           opponent: "Different Snapshot Name",
           startsAt: new Date(),
           homeAway: "HOME",
+          organisationId: fixture.organisationId,
         },
       });
 

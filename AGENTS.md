@@ -978,62 +978,63 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
-### Canonical routes
-
+ ### Canonical routes
+ 
 Primary navigation (4 items, in this order):
 
-1. **Assistant** (`/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work.
-2. **Fixtures** (`/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections.
-3. **Teams** (`/teams`) — team registry and access to team detail.
-4. **Players** (`/players`) — season participation, current planning attention, and base-group administration.
+1. **Assistant** (`/o/{orgSlug}/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work.
+2. **Fixtures** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections.
+3. **Teams** (`/o/{orgSlug}/teams`) — team registry and access to team detail.
+4. **Players** (`/o/{orgSlug}/players`) — season participation, current planning attention, and base-group administration.
 
 The following must not be primary sidebar items:
-- `/rounds`
-- `/matches`
-- `/season`
-- `/history`
-- `/rules`
+- `/o/{orgSlug}/rounds`
+- `/o/{orgSlug}/matches`
+- `/o/{orgSlug}/season`
+- `/o/{orgSlug}/history`
+- `/o/{orgSlug}/rules`
 
 These remain accessible through contextually appropriate links, buttons, tabs or secondary navigation.
 
 Other canonical routes:
 | Route | Purpose |
 |-------|---------|
-| `/rounds` | Rounds — generate, review, finalize per match round |
-| `/rounds/[matchRoundId]` | Round Board |
-| `/season` | Season — player-by-round matrix, movement paths, fairness overview |
-| `/history` | Historical audit of finalized selections and movement |
-| `/rules` | Selection rules, support priority, rotation paths |
-| `/formations` | Formation management — list, filter by game format, create, duplicate, edit, archive |
-| `/formations/new` | Create new custom formation (supports `?gameFormat=X&returnTo=Y`) |
-| `/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
-| `/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
-| `/insights/player-pathways` | Player Pathways — season matrix, context transitions, fairness overview |
+| `/o/{orgSlug}/rounds` | Rounds — generate, review, finalize per match round |
+| `/o/{orgSlug}/rounds/[matchRoundId]` | Round Board |
+| `/o/{orgSlug}/season` | Season — player-by-round matrix, movement paths, fairness overview |
+| `/o/{orgSlug}/history` | Historical audit of finalized selections and movement |
+| `/o/{orgSlug}/rules` | Selection rules, support priority, rotation paths |
+| `/o/{orgSlug}/formations` | Formation management — list, filter by game format, create, duplicate, edit, archive |
+| `/o/{orgSlug}/formations/new` | Create new custom formation (supports `?gameFormat=X&returnTo=Y`) |
+| `/o/{orgSlug}/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
+| `/o/{orgSlug}/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
+| `/o/{orgSlug}/insights/player-pathways` | Player Pathways — season matrix, context transitions, fairness overview |
 
 Setup registry create routes (no top-level nav):
-- `/teams/new` — create team form
-- `/players/new` — create player form
-- `/matches/new` — create match form
+- `/o/{orgSlug}/teams/new` — create team form
+- `/o/{orgSlug}/players/new` — create player form
+- `/o/{orgSlug}/matches/new` — create match form
 
 Detail routes (no top-level nav):
-- `/players/[playerId]` — player profile
-- `/teams/[teamId]` — team detail workspace
-- `/teams/[teamId]/configuration` — team configuration and rules
-- `/matches/[matchId]` — match detail
-- `/matches/[matchId]/live` — live match reporting
+- `/o/{orgSlug}/players/[playerId]` — player profile
+- `/o/{orgSlug}/teams/[teamId]` — team detail workspace
+- `/o/{orgSlug}/teams/[teamId]/configuration` — team configuration and rules
+- `/o/{orgSlug}/matches/[matchId]` — match detail
+- `/o/{orgSlug}/matches/[matchId]/live` — live match reporting
 
 Canonical redirects:
-- `/` → `/assistant`
-- `/today` → `/assistant`
-- `/matches` → `/fixtures`
+- `/` → `/o/{orgSlug}/assistant` (resolves orgSlug from session)
+- `/today` → `/o/{orgSlug}/assistant`
+- `/matches` → `/o/{orgSlug}/fixtures`
+- Global routes (`/assistant`, `/fixtures`, `/teams`, etc.) redirect to `/o/{orgSlug}/` equivalents
 
-No navigation component, page header, CTA or breadcrumb may present `/matches` as a competing top-level destination. Match detail routes such as `/matches/[matchId]` remain valid.
+No navigation component, page header, CTA or breadcrumb may present `/matches` as a competing top-level destination. Match detail routes such as `/o/{orgSlug}/matches/[matchId]` remain valid.
 
 Active navigation state:
-- `/assistant` visibly activates Assistant.
-- `/fixtures` and fixture child/detail contexts visibly activate Fixtures.
-- `/teams` and `/teams/[teamId]` contexts visibly activate Teams.
-- `/players` and `/players/[playerId]` contexts visibly activate Players.
+- `/o/{orgSlug}/assistant` visibly activates Assistant.
+- `/o/{orgSlug}/fixtures` and fixture child/detail contexts visibly activate Fixtures.
+- `/o/{orgSlug}/teams` and `/o/{orgSlug}/teams/[teamId]` contexts visibly activate Teams.
+- `/o/{orgSlug}/players` and `/o/{orgSlug}/players/[playerId]` contexts visibly activate Players.
 - Redirected routes do not produce an unselected or misleading sidebar state.
 
 Operational workflow hierarchy:

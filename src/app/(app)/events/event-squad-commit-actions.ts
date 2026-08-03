@@ -1,10 +1,11 @@
 "use server";
 
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
 import { supersedePendingReviews } from "@/lib/review/review-service";
+import { enqueueNotification } from "@/lib/email/outbox";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -174,6 +175,7 @@ export async function validateEventSquadsBeforeCommit(
 
 export async function confirmEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -203,7 +205,37 @@ export async function confirmEventSquadsAction(eventId: string) {
   });
 
   for (const squad of squads) {
-    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    const { superseded } = await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    for (const review of superseded) {
+      const requester = await db.organisationMembership.findUnique({
+        where: { id: review.requestedByMembershipId },
+        include: { user: { select: { email: true } } },
+      });
+      if (requester?.user?.email) {
+        const organisation = await db.organisation.findUnique({
+          where: { id: ctx.organisationId },
+          select: { name: true, slug: true },
+        });
+        await enqueueNotification({
+          organisationId: ctx.organisationId,
+          idempotencyKey: `review-superseded-${review.id}`,
+          template: 'REVIEW_SUPERSEDED',
+          payload: {
+            organisationName: organisation?.name ?? 'Matchboard',
+            requesterName: requester.user.email,
+            requesterEmail: requester.user.email,
+            targetType: review.targetType,
+            targetId: review.targetId,
+            targetLabel: review.targetId,
+            reason: 'Squad locked',
+            reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/events/${eventId}`,
+            organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+          },
+          recipientEmail: requester.user.email,
+          recipientUserId: requester.userId,
+        });
+      }
+    }
   }
 
   logEventSquadLock(ctx.email || "unknown", eventId, "success");
@@ -217,6 +249,7 @@ export async function confirmEventSquadsAction(eventId: string) {
 
 export async function unconfirmEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -243,7 +276,37 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   });
 
   for (const squad of squads) {
-    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    const { superseded } = await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    for (const review of superseded) {
+      const requester = await db.organisationMembership.findUnique({
+        where: { id: review.requestedByMembershipId },
+        include: { user: { select: { email: true } } },
+      });
+      if (requester?.user?.email) {
+        const organisation = await db.organisation.findUnique({
+          where: { id: ctx.organisationId },
+          select: { name: true, slug: true },
+        });
+        await enqueueNotification({
+          organisationId: ctx.organisationId,
+          idempotencyKey: `review-superseded-${review.id}`,
+          template: 'REVIEW_SUPERSEDED',
+          payload: {
+            organisationName: organisation?.name ?? 'Matchboard',
+            requesterName: requester.user.email,
+            requesterEmail: requester.user.email,
+            targetType: review.targetType,
+            targetId: review.targetId,
+            targetLabel: review.targetId,
+            reason: 'Squad unlocked',
+            reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/events/${eventId}`,
+            organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+          },
+          recipientEmail: requester.user.email,
+          recipientUserId: requester.userId,
+        });
+      }
+    }
   }
 
   logEventSquadUnlock(ctx.email || "unknown", eventId, "success");

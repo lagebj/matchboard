@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { createOrRestoreTeam, archiveTeam } from "@/lib/teams/team-domain";
 
@@ -43,7 +43,8 @@ function getTeamErrorMessage(error: unknown): string {
 
 export async function createTeamAction(formData: FormData) {
   const ctx = await requireActorContext();
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  const organisationId = ctx.organisationId;
   try {
     const name = readText(formData, "name");
     const targetSquadSize = readNonNegativeInteger(formData, "targetSquadSize", "Target squad size");
@@ -93,7 +94,9 @@ export async function createTeamAction(formData: FormData) {
 
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
   const ctx = await requireActorContext();
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  requireTeamAccess(ctx, teamId);
+  const organisationId = ctx.organisationId;
   try {
     const team = await db.team.findFirst({
       where: {
@@ -200,7 +203,9 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 
 export async function deleteTeamAction(teamId: string) {
   const ctx = await requireActorContext();
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  requireTeamAccess(ctx, teamId);
+  const organisationId = ctx.organisationId;
   try {
     const result = await archiveTeam(teamId, organisationId);
     if (!result.success) {

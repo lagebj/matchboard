@@ -26,18 +26,20 @@ function createAdapter(url: string) {
   return new PrismaPg(pool);
 }
 
-const EXPORT_VERSION = 2;
+const EXPORT_VERSION = 3;
 
 type ExportData = {
   version: number;
   exportedAt: string;
   source: string;
   schemaVersion: string;
+  organisations: unknown[];
   teams: unknown[];
   players: unknown[];
   seasons: unknown[];
   leagueSeasons: unknown[];
   matchRounds: unknown[];
+  opponentTeams: unknown[];
   matches: unknown[];
   availabilities: unknown[];
   rotationPaths: unknown[];
@@ -63,11 +65,13 @@ async function main() {
 
   try {
     const [
+      organisations,
       teams,
       players,
       seasons,
       leagueSeasons,
       matchRounds,
+      opponentTeams,
       matches,
       availabilities,
       rotationPaths,
@@ -78,11 +82,13 @@ async function main() {
       selectionAudits,
       ruleConfigs,
     ] = await Promise.all([
+      db.organisation.findMany(),
       db.team.findMany({ where: { archivedAt: null } }),
       db.player.findMany({ where: { removedAt: null, active: true } }),
       db.season.findMany(),
       db.leagueSeason.findMany(),
       db.matchRound.findMany(),
+      db.opponentTeam.findMany(),
       db.match.findMany(),
       db.availability.findMany(),
       db.rotationPath.findMany({ where: { active: true } }),
@@ -99,11 +105,13 @@ async function main() {
       exportedAt: new Date().toISOString(),
       source: connectionString.includes("neon.tech") ? "neon" : "local",
       schemaVersion: "2025-05-12-postgres-baseline",
+      organisations,
       teams,
       players,
       seasons,
       leagueSeasons,
       matchRounds,
+      opponentTeams,
       matches,
       availabilities,
       rotationPaths,
@@ -127,6 +135,7 @@ async function main() {
     fs.writeFileSync(filepath, JSON.stringify(exportData, null, 2));
 
     console.log(`\nExport complete!`);
+    console.log(`  Organisations:   ${organisations.length}`);
     console.log(`  Teams:           ${teams.length}`);
     console.log(`  Players:         ${players.length}`);
     console.log(`  Seasons:         ${seasons.length}`);

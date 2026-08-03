@@ -11,7 +11,14 @@ export async function replaceRoundActiveSignals(
   matchRoundId: string,
   integrity: RoundPlanIntegrity,
 ): Promise<void> {
+  const round = await db.matchRound.findUnique({
+    where: { id: matchRoundId },
+    select: { organisationId: true },
+  });
+  const organisationId = round?.organisationId ?? "";
+
   const warnings = integrity.signals.map((s) => ({
+    organisationId,
     matchRoundId,
     matchId: s.matchId ?? null,
     playerId: s.playerId ?? null,

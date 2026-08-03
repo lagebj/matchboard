@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { supersedePendingReviews } from '@/lib/review/review-service';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { enqueueNotification } from '@/lib/email/outbox';
+import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
@@ -18,25 +19,32 @@ import {
 import type { BroadPosition } from '@/lib/events/event-types';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== 'org') return;
-  const event = await db.event.findFirst({
-    where: { id: eventId, ...orgFilter.filter },
-    select: { id: true },
-  });
-  if (!event) throw new Error('Event not found or access denied.');
+  if (orgFilter.type === 'org') {
+    const event = await db.event.findFirst({
+      where: { id: eventId, ...orgFilter.filter },
+      select: { id: true },
+    });
+    if (!event) throw new Error('Event not found or access denied.');
+  } else {
+    const event = await db.event.findUnique({
+      where: { id: eventId },
+      select: { id: true },
+    });
+    if (!event) throw new Error('Event not found.');
+  }
 }
 
 async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode): Promise<string> {
-  if (orgFilter.type !== 'org') {
-    const squad = await db.eventSquad.findUnique({ where: { id: squadId }, select: { eventId: true } });
-    if (!squad) throw new Error('Squad not found.');
+  if (orgFilter.type === 'org') {
+    const squad = await db.eventSquad.findFirst({
+      where: { id: squadId, event: orgFilter.filter },
+      select: { eventId: true },
+    });
+    if (!squad) throw new Error('Squad not found or access denied.');
     return squad.eventId;
   }
-  const squad = await db.eventSquad.findFirst({
-    where: { id: squadId, event: orgFilter.filter },
-    select: { eventId: true },
-  });
-  if (!squad) throw new Error('Squad not found or access denied.');
+  const squad = await db.eventSquad.findUnique({ where: { id: squadId }, select: { eventId: true } });
+  if (!squad) throw new Error('Squad not found.');
   return squad.eventId;
 }
 
@@ -90,6 +98,7 @@ export async function getEventById(id: string) {
 
 export async function createEventAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -158,6 +167,7 @@ export async function createEventAction(formData: FormData) {
 
 export async function updateEventAction(id: string, formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -216,6 +226,7 @@ export async function updateEventAction(id: string, formData: FormData) {
 
 export async function deleteEventAction(id: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const event = await db.event.findFirst({
     where: {
@@ -238,6 +249,7 @@ export async function updateEventPlayerAvailability(
   status: EventPlayerStatus,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_EVENT_PLAYER_STATUSES.includes(status)) {
@@ -252,6 +264,7 @@ export async function updateEventPlayerAvailability(
       eventId,
       playerId,
       status,
+      organisationId: ctx.organisationId,
     },
     update: {
       status,
@@ -267,6 +280,7 @@ export async function setEventPlayerPool(
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
@@ -284,6 +298,7 @@ export async function setEventPlayerPool(
           eventId,
           playerId,
           status: defaultStatus,
+          organisationId: ctx.organisationId,
         })),
       });
     }
@@ -298,6 +313,7 @@ export async function addPlayersToEventPoolAction(
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
@@ -320,6 +336,7 @@ export async function addPlayersToEventPoolAction(
         eventId,
         playerId,
         status: defaultStatus,
+        organisationId: ctx.organisationId,
       })),
     });
   }
@@ -330,6 +347,7 @@ export async function addPlayersToEventPoolAction(
 
 export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const squadAssignment = await db.eventSquadPlayer.findFirst({
@@ -352,6 +370,7 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
 
 export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
@@ -380,7 +399,16 @@ export async function assignPlayerToEventSquadAction(
   locked: boolean = false,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+
+  const squad = await db.eventSquad.findFirst({
+    where: { id: squadId, eventId },
+    select: { id: true },
+  });
+  if (!squad) {
+    throw new Error('Squad does not belong to this event.');
+  }
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -398,6 +426,7 @@ export async function assignPlayerToEventSquadAction(
       source: locked ? 'LOCKED' : 'MANUAL',
       locked,
       selectionReason: locked ? 'Locked by coach' : 'Manually assigned by coach',
+      organisationId: ctx.organisationId,
     },
   });
 
@@ -406,6 +435,7 @@ export async function assignPlayerToEventSquadAction(
 
 export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
@@ -431,6 +461,7 @@ export async function addEventSquadAction(
   formationId?: string,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_SQUAD_INTENTS.includes(intent)) {
@@ -451,6 +482,7 @@ export async function addEventSquadAction(
       targetSize,
       formationId: formationId || undefined,
       generationOrder: (maxOrder?.generationOrder ?? -1) + 1,
+      organisationId: ctx.organisationId,
     },
   });
 
@@ -470,6 +502,7 @@ export async function updateEventSquadAction(
   },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   const updateData: Parameters<typeof db.eventSquad.update>[0]['data'] = {};
@@ -498,6 +531,7 @@ export async function updateEventSquadAction(
 
 export async function updateEventSquadNameAction(squadId: string, name: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   const trimmed = name.trim();
@@ -514,6 +548,7 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
 
 export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const validated = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
@@ -530,6 +565,7 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
 
 export async function removeEventSquadAction(squadId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   await db.eventSquad.delete({
@@ -545,8 +581,13 @@ export async function movePlayerBetweenSquadsAction(
   toSquadId: string,
 ) {
   const ctx = await requireActorContext();
-  const eventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
-  await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
+  requireMutationRole(ctx);
+  const fromEventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
+  const toEventId = await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
+
+  if (fromEventId !== toEventId) {
+    throw new Error('Cannot move a player between squads in different events.');
+  }
 
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquadId: fromSquadId },
@@ -561,24 +602,18 @@ export async function movePlayerBetweenSquadsAction(
 
     await tx.eventSquadPlayer.create({
       data: {
-        eventId,
+        eventId: fromEventId,
         eventSquadId: toSquadId,
         playerId,
         source: 'MANUAL',
         locked: false,
         selectionReason: 'Moved by coach',
+        organisationId: ctx.organisationId,
       },
     });
   });
 
-  const toSquad = await db.eventSquad.findUnique({
-    where: { id: toSquadId },
-    select: { eventId: true },
-  });
-
-  if (toSquad) {
-    revalidatePath(`/events/${toSquad.eventId}`);
-  }
+  revalidatePath(`/events/${fromEventId}`);
 }
 
 export async function togglePlayerLockAction(
@@ -586,6 +621,7 @@ export async function togglePlayerLockAction(
   locked: boolean,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: squadPlayerId },
@@ -594,7 +630,7 @@ export async function togglePlayerLockAction(
 
   if (!squadPlayer) throw new Error('Squad player assignment not found.');
 
-  await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
+  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
   const updated = await db.eventSquadPlayer.update({
     where: { id: squadPlayerId },
@@ -605,7 +641,6 @@ export async function togglePlayerLockAction(
     },
   });
 
-  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
   revalidatePath(`/events/${_eventId}`);
 
   return updated;
@@ -613,6 +648,7 @@ export async function togglePlayerLockAction(
 
 export async function clearEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const squads = await db.eventSquad.findMany({
@@ -671,6 +707,7 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 
 export async function generateEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const event = await db.event.findUnique({
     where: {
@@ -887,6 +924,7 @@ export async function generateEventSquadsAction(eventId: string) {
           locked: assignment.locked,
           positionFitTier: assignment.positionFitTier,
           selectionReason: assignment.selectionReason,
+          organisationId: ctx.organisationId,
         })),
         skipDuplicates: true,
       });
@@ -898,7 +936,37 @@ export async function generateEventSquadsAction(eventId: string) {
     select: { id: true },
   });
   for (const squad of eventSquadsForReview) {
-    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    const { superseded } = await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    for (const review of superseded) {
+      const requester = await db.organisationMembership.findUnique({
+        where: { id: review.requestedByMembershipId },
+        include: { user: { select: { email: true } } },
+      });
+      if (requester?.user?.email) {
+        const organisation = await db.organisation.findUnique({
+          where: { id: ctx.organisationId },
+          select: { name: true, slug: true },
+        });
+        await enqueueNotification({
+          organisationId: ctx.organisationId,
+          idempotencyKey: `review-superseded-${review.id}`,
+          template: 'REVIEW_SUPERSEDED',
+          payload: {
+            organisationName: organisation?.name ?? 'Matchboard',
+            requesterName: requester.user.email,
+            requesterEmail: requester.user.email,
+            targetType: review.targetType,
+            targetId: review.targetId,
+            targetLabel: review.targetId,
+            reason: 'Squad regenerated',
+            reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/events/${eventId}`,
+            organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+          },
+          recipientEmail: requester.user.email,
+          recipientUserId: requester.userId,
+        });
+      }
+    }
   }
 
   revalidatePath(`/events/${eventId}`);

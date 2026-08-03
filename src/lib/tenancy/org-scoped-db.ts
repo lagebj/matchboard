@@ -4,7 +4,7 @@ import { organisationFilter, organisationFilterNullable, requireOrganisationId }
 export type OrgContext = {
   organisationId: string;
   filter: { organisationId: string };
-  filterNullable: { organisationId: string | null };
+  filterNullable: { organisationId: string };
   ctx: OrganisationAccessContext;
 };
 

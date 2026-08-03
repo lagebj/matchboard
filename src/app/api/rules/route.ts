@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { getRules } from "@/lib/rules/get-rules";
 import { exportRuleConfig, validateImportedRuleConfig } from "@/lib/rules/validate-rules";
 
@@ -22,6 +22,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const body = await request.json();
     const validation = validateImportedRuleConfig(body);

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
@@ -39,6 +39,7 @@ export async function setMatchdayResponsibilityAction(
   responsibility: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireSelectionOrgAccess(selectionId, ctx.orgFilter);
 
   if (responsibility !== null && !MATCHDAY_RESPONSIBILITIES.includes(responsibility as MatchdayResponsibilityType)) {
@@ -55,6 +56,8 @@ export async function setMatchdayResponsibilityAction(
     if (selection.status === "FINALIZED") {
       return { success: false, error: "Cannot modify matchday responsibility on a finalised selection." };
     }
+
+    await requirePlayerTeamAccess(ctx, selection.playerId);
 
     await db.selection.update({
       where: { id: selectionId },
@@ -110,7 +113,8 @@ export async function setTeamReflectionAction(
   },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
-  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  const orgId = ctx.organisationId;
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {
@@ -128,7 +132,7 @@ export async function setTeamReflectionAction(
         positionalShape: data.positionalShape ?? null,
         recoveryBehavior: data.recoveryBehavior ?? null,
         note: data.note ?? null,
-        ...(orgId ? { organisationId: orgId } : {}),
+        organisationId: orgId,
       },
       update: {
         ...(data.effort !== undefined && { effort: data.effort }),

@@ -1,7 +1,7 @@
 "use server";
 
 import { AuthorizationError } from "@/lib/auth";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import {
   assignWorkOwnership,
   handoverWorkOwnership,
@@ -14,6 +14,8 @@ import {
   getExpiringWorkItems,
 } from "@/lib/ownership/work-ownership";
 import type { WorkTargetType } from "@/generated/prisma/client";
+import { db } from "@/lib/db";
+import { enqueueNotification } from "@/lib/email/outbox";
 
 export async function assignWorkOwnerAction(input: {
   targetType: WorkTargetType;
@@ -22,8 +24,9 @@ export async function assignWorkOwnerAction(input: {
   dueAt?: Date | null;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
-  return assignWorkOwnership({
+  const ownership = await assignWorkOwnership({
     organisationId: ctx.organisationId,
     targetType: input.targetType,
     targetId: input.targetId,
@@ -31,6 +34,40 @@ export async function assignWorkOwnerAction(input: {
     assignedByMembershipId: ctx.membershipId,
     dueAt: input.dueAt,
   });
+
+  const owner = await db.organisationMembership.findUnique({
+    where: { id: input.ownerMembershipId },
+    include: { user: { select: { email: true } } },
+  });
+
+  if (owner?.user?.email) {
+    const organisation = await db.organisation.findUnique({
+      where: { id: ctx.organisationId },
+      select: { name: true, slug: true },
+    });
+
+    await enqueueNotification({
+      organisationId: ctx.organisationId,
+      idempotencyKey: `ownership-assigned-${ownership.id}`,
+      template: 'OWNERSHIP_ASSIGNED',
+      payload: {
+        organisationName: organisation?.name ?? "Matchboard",
+        assignerName: ctx.email,
+        assignerEmail: ctx.email,
+        assigneeName: owner.user.email,
+        assigneeEmail: owner.user.email,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        targetLabel: input.targetId,
+        ownershipUrl: `/assistant`,
+        organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+      },
+      recipientEmail: owner.user.email,
+      recipientUserId: owner.userId,
+    });
+  }
+
+  return ownership;
 }
 
 export async function handoverWorkOwnerAction(input: {
@@ -39,33 +76,71 @@ export async function handoverWorkOwnerAction(input: {
   handoverNote?: string | null;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
-  return handoverWorkOwnership({
+  const ownership = await handoverWorkOwnership({
     ownershipId: input.ownershipId,
     newOwnerMembershipId: input.newOwnerMembershipId,
     handoverNote: input.handoverNote,
     assignedByMembershipId: ctx.membershipId,
+    organisationId: ctx.organisationId,
   });
+
+  const newOwner = await db.organisationMembership.findUnique({
+    where: { id: input.newOwnerMembershipId },
+    include: { user: { select: { email: true } } },
+  });
+
+  if (newOwner?.user?.email) {
+    const organisation = await db.organisation.findUnique({
+      where: { id: ctx.organisationId },
+      select: { name: true, slug: true },
+    });
+
+    await enqueueNotification({
+      organisationId: ctx.organisationId,
+      idempotencyKey: `ownership-handover-${ownership.id}`,
+      template: 'OWNERSHIP_HANDOVER_REQUESTED',
+      payload: {
+        organisationName: organisation?.name ?? "Matchboard",
+        assignerName: ctx.email,
+        assignerEmail: ctx.email,
+        assigneeName: newOwner.user.email,
+        assigneeEmail: newOwner.user.email,
+        targetType: ownership.targetType,
+        targetId: ownership.targetId,
+        targetLabel: ownership.targetId,
+        ownershipUrl: `/assistant`,
+        organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+      },
+      recipientEmail: newOwner.user.email,
+      recipientUserId: newOwner.userId,
+    });
+  }
+
+  return ownership;
 }
 
 export async function acknowledgeWorkOwnerAction(ownershipId: string) {
-  await requireActorContext();
-  return acknowledgeWorkOwnership(ownershipId);
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+  return acknowledgeWorkOwnership(ownershipId, ctx.organisationId);
 }
 
 export async function completeWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
-  await requireActorContext();
-  return completeWorkOwnership(targetType, targetId);
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+  return completeWorkOwnership(targetType, targetId, ctx.organisationId);
 }
 
 export async function getWorkOwnershipsAction(targetType: WorkTargetType, targetId: string) {
-  await requireActorContext();
-  return getWorkOwnershipForTarget(targetType, targetId);
+  const ctx = await requireActorContext();
+  return getWorkOwnershipForTarget(targetType, targetId, ctx.organisationId);
 }
 
 export async function getActiveWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
-  await requireActorContext();
-  return getActiveWorkOwnershipForTarget(targetType, targetId);
+  const ctx = await requireActorContext();
+  return getActiveWorkOwnershipForTarget(targetType, targetId, ctx.organisationId);
 }
 
 export async function getOwnerWorkItemsAction(status?: "ACTIVE" | "HANDED_OVER" | "COMPLETED") {

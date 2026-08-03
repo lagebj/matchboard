@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchTeamAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 import {
@@ -32,6 +32,7 @@ export async function saveObservationAction(
   formData: FormData,
 ): Promise<ObservationActionState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const matchId = formData.get("matchId") as string;
   if (!matchId) return { success: false, error: "Match ID is required." };
 
@@ -43,6 +44,7 @@ export async function saveObservationAction(
   if (!match.opponentTeamId) return { success: false, error: "No opponent profile linked yet. Complete the post-match report to link a canonical opponent." };
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const existingObservation = await db.opponentEncounterObservation.findUnique({
     where: { matchId },
@@ -104,6 +106,7 @@ export async function saveObservationAction(
           factualSummary: cleanedSummary,
           followUp: data.followUp,
           recordedBy: ctx.email,
+          organisationId: ctx.organisationId,
         },
       });
     }
@@ -126,6 +129,7 @@ export async function updateMatchFitAction(
   formData: FormData,
 ): Promise<MatchFitActionState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const matchId = formData.get("matchId") as string;
   const matchFit = formData.get("matchFit") as string;
 

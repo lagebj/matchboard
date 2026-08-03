@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { evaluatePlayerAttributeSuggestions, decideSuggestion, getPendingSuggestions, getSuggestionHistory } from "@/lib/player-development/suggestions";
 
 export async function GET(request: Request) {
   try {
-    let ctx;
-    try {
-      ctx = await requireActorContext();
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const ctx = await requireActorContext();
 
     const { searchParams } = new URL(request.url);
     const playerId = searchParams.get("playerId");
@@ -40,10 +34,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const coach = await requireCoachAccess();
-    if (!coach) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
 
     const body = await request.json();
     const { suggestionId, decision, adjustedValue } = body;

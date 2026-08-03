@@ -7,6 +7,7 @@ import { fetchRoundReview, fetchRoundPlanIntegrity } from "@/domain/assistant-ma
 import { getReadinessClasses } from "@/domain/assistant-manager/utils/issue-grouping";
 import { TeamReadinessCard } from "./team-readiness-card";
 import { DecisionPanel } from "./decision-panel";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type SignalKind = "BLOCKED" | "DECISION_REQUIRED" | "PLANNING_NOTE";
 
@@ -36,6 +37,7 @@ function signalKindBadgeClass(kind: SignalKind): string {
 }
 
 export function RoundReviewPage({ roundId }: { roundId: string }) {
+  const orgUrl = useOrgUrl();
   const [review, setReview] = useState<RoundReview | null>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [overrideReason, setOverrideReason] = useState("");
@@ -65,7 +67,7 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
             {readinessLabel(review.readinessState)}
           </span>
         </div>
-        <Link href="/rounds" className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to rounds</Link>
+        <Link href={orgUrl("/rounds")} className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to rounds</Link>
       </div>
 
       <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext, requireAdminRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { auditDataIntegrity } from "@/lib/data-integrity/audit-data-integrity";
 import { auditQuerySchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
 
 export async function GET(request: Request) {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  requireAdminRole(ctx);
   const { allowed } = rateLimit("admin-audit", 10, 60_000);
   if (!allowed) {
     return NextResponse.json(

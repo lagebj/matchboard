@@ -30,6 +30,7 @@ async function createDraftSelections(db: PrismaClient, fixtureIds: TestFixtureId
           playerId: teamPlayers[i]!.id,
           role: i < 4 ? "CORE" : "SUPPORT",
           status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
         },
       });
     }
@@ -61,7 +62,10 @@ describe("Unfinalize match round", () => {
   it("reverts finalized selections back to DRAFT", async () => {
     await createDraftSelections(testDb, fixtureIds);
 
-    await finalizeMatchRound(fixtureIds.matchRoundId);
+    const finalizeResult = await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement", "Test override");
+    if (!finalizeResult.success) {
+      throw new Error(`Finalize failed: ${finalizeResult.warnings.join(", ")}`);
+    }
 
     const beforeCount = await testDb.selection.count({
       where: { matchRoundId: fixtureIds.matchRoundId, status: "FINALIZED" },
@@ -97,10 +101,11 @@ describe("Unfinalize match round", () => {
         severity: "REQUIRES_OVERRIDE",
         rule: "test_rule",
         message: "Test blocker",
+        organisationId: fixtureIds.organisationId,
       },
     });
 
-    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement");
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement", "Test override");
 
     const beforeSelections = await testDb.selection.findMany({
       where: { matchRoundId: fixtureIds.matchRoundId, status: "FINALIZED" },
@@ -154,12 +159,13 @@ describe("Unfinalize match round", () => {
             toTeamId: match.teamId,
             role: "SUPPORT",
             isDraft: true,
+            organisationId: fixtureIds.organisationId,
           },
         });
       }
     }
 
-    await finalizeMatchRound(fixtureIds.matchRoundId);
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement", "Test override");
 
     const beforeNonDraft = await testDb.movementLedger.count({
       where: { matchRoundId: fixtureIds.matchRoundId, isDraft: false },
@@ -181,7 +187,7 @@ describe("Unfinalize match round", () => {
 
   it("reverts round status from FINALIZED to DRAFT", async () => {
     await createDraftSelections(testDb, fixtureIds);
-    await finalizeMatchRound(fixtureIds.matchRoundId);
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement", "Test override");
 
     const before = await testDb.matchRound.findUnique({
       where: { id: fixtureIds.matchRoundId },
@@ -212,10 +218,11 @@ describe("Unfinalize match round", () => {
         rule: "test_rule",
         message: "Test hard blocker",
         resolved: false,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
-    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement");
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement", "Test override");
 
     await unfinalizeMatchRound(fixtureIds.matchRoundId);
 
@@ -274,7 +281,7 @@ describe("Unfinalize single match", () => {
     });
     const firstMatchId = matches[0]!.id;
 
-    await finalizeSingleMatch(firstMatchId);
+    await finalizeSingleMatch(firstMatchId, "coach_judgement", "Test override");
 
     const beforeCount = await testDb.selection.count({
       where: { matchId: firstMatchId, status: "FINALIZED" },
@@ -306,7 +313,7 @@ describe("Unfinalize single match", () => {
     });
 
     for (const match of matches) {
-      await finalizeSingleMatch(match.id);
+      await finalizeSingleMatch(match.id, "coach_judgement", "Test override");
     }
 
     const before = await testDb.matchRound.findUnique({
@@ -336,7 +343,7 @@ describe("Unfinalize single match", () => {
     });
 
     for (const match of matches) {
-      await finalizeSingleMatch(match.id);
+      await finalizeSingleMatch(match.id, "coach_judgement", "Test override");
     }
 
     if (matches.length < 2) return;
@@ -385,10 +392,11 @@ describe("Unfinalize single match", () => {
         severity: "REQUIRES_OVERRIDE",
         rule: "test_rule",
         message: "Test blocker",
+        organisationId: fixtureIds.organisationId,
       },
     });
 
-    await finalizeSingleMatch(firstMatchId, "coach_judgement");
+    await finalizeSingleMatch(firstMatchId, "coach_judgement", "Test override");
 
     await unfinalizeSingleMatch(firstMatchId);
 

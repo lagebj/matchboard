@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { createDevelopmentObservation, deleteDevelopmentObservation } from "@/lib/player-development/observations";
 
 export async function POST(request: Request) {
   try {
-    let ctx;
-    try {
-      ctx = await requireActorContext();
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
 
     const body = await request.json();
     const { playerId, matchId, kind, attributeKey, positionId, direction, observableNote, sourceType } = body;
@@ -44,10 +39,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const coach = await requireCoachAccess();
-    if (!coach) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
 
     const { searchParams } = new URL(request.url);
     const observationId = searchParams.get("observationId");

@@ -28,6 +28,7 @@ async function createDraftSelections(db: PrismaClient, fixtureIds: TestFixtureId
           playerId: teamPlayers[i]!.id,
           role: i < 4 ? "CORE" : "SUPPORT",
           status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
         },
       });
     }
@@ -65,7 +66,7 @@ describe("Per-match finalization", () => {
     });
     const firstMatchId = matches[0]!.id;
 
-    const result = await finalizeSingleMatch(firstMatchId);
+    const result = await finalizeSingleMatch(firstMatchId, "coach_judgement", "Test override");
 
     expect(result.success).toBe(true);
     expect(result.finalizedSelectionCount).toBeGreaterThan(0);
@@ -92,7 +93,7 @@ describe("Per-match finalization", () => {
     });
 
     for (const match of matches) {
-      const result = await finalizeSingleMatch(match.id);
+      const result = await finalizeSingleMatch(match.id, "coach_judgement", "Test override");
       expect(result.success).toBe(true);
     }
 
@@ -106,7 +107,7 @@ describe("Per-match finalization", () => {
   it("rejects finalization for a match in an already-finalized round", async () => {
     await createDraftSelections(testDb, fixtureIds);
 
-    await finalizeMatchRound(fixtureIds.matchRoundId);
+    await finalizeMatchRound(fixtureIds.matchRoundId, "coach_judgement", "Test override");
 
     const matches = await testDb.match.findMany({
       where: { matchRoundId: fixtureIds.matchRoundId },
@@ -135,6 +136,7 @@ describe("Per-match finalization", () => {
         severity: "HARD_BLOCK",
         rule: "test_rule",
         message: "Test hard blocker",
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -166,11 +168,12 @@ describe("Per-match finalization", () => {
           severity: "HARD_BLOCK",
           rule: "test_rule",
           message: "Blocker on other match",
+          organisationId: fixtureIds.organisationId,
         },
       });
     }
 
-    const result = await finalizeSingleMatch(firstMatchId);
+    const result = await finalizeSingleMatch(firstMatchId, "coach_judgement", "Test override");
     expect(result.success).toBe(true);
     expect(result.roundAutoFinalized).toBe(false);
   });

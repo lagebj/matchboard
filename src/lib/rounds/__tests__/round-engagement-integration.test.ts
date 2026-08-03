@@ -35,6 +35,7 @@ describe("computeRoundEngagement", () => {
             playerId: player.id,
             role: "CORE",
             status: "DRAFT",
+            organisationId: fx.organisationId,
           },
         });
       }
@@ -46,6 +47,7 @@ describe("computeRoundEngagement", () => {
           playerId: player.id,
           matchRoundId: fx.matchRoundId,
           status: "AVAILABLE",
+          organisationId: fx.organisationId,
         },
       });
     }
@@ -66,6 +68,7 @@ describe("computeRoundEngagement", () => {
           playerId: player.id,
           matchRoundId: fx.matchRoundId,
           status: "AVAILABLE",
+          organisationId: fx.organisationId,
         },
       });
     }
@@ -92,6 +95,7 @@ describe("computeRoundEngagement", () => {
             playerId: player.id,
             role: "CORE",
             status: "DRAFT",
+            organisationId: fx.organisationId,
           },
         });
       }
@@ -103,6 +107,7 @@ describe("computeRoundEngagement", () => {
           playerId: player.id,
           matchRoundId: fx.matchRoundId,
           status: "UNAVAILABLE",
+          organisationId: fx.organisationId,
         },
       });
     }
@@ -128,6 +133,7 @@ describe("computeRoundEngagement", () => {
             playerId: player.id,
             role: "CORE",
             status: "DRAFT",
+            organisationId: fx.organisationId,
           },
         });
       }
@@ -139,6 +145,7 @@ describe("computeRoundEngagement", () => {
           playerId: player.id,
           matchRoundId: fx.matchRoundId,
           status: "AVAILABLE",
+          organisationId: fx.organisationId,
         },
       });
     }
@@ -171,6 +178,7 @@ describe("computeRoundEngagement", () => {
             playerId: player.id,
             role: "CORE",
             status: "DRAFT",
+            organisationId: fx.organisationId,
           },
         });
       }
@@ -182,6 +190,7 @@ describe("computeRoundEngagement", () => {
           playerId: player.id,
           matchRoundId: fx.matchRoundId,
           status: "TENTATIVE",
+          organisationId: fx.organisationId,
         },
       });
     }
@@ -209,6 +218,7 @@ describe("computeRoundEngagement", () => {
           playerId: player.id,
           matchRoundId: fx.matchRoundId,
           status: "AVAILABLE",
+          organisationId: fx.organisationId,
         },
       });
     }

@@ -32,6 +32,7 @@ function createAdapter(url: string) {
   exportedAt: string;
   source: string;
   schemaVersion: string;
+  organisations: any[];
   teams: any[];
   players: any[];
   seasons: any[];
@@ -85,15 +86,43 @@ async function main() {
       process.exit(1);
     }
 
+    let organisationId = "";
+    if (data.organisations && data.organisations.length > 0) {
+      console.log("Importing organisations...");
+      for (const org of data.organisations) {
+        const created = await db.organisation.create({
+          data: {
+            id: org.id,
+            name: org.name,
+            slug: org.slug,
+            isSynthetic: org.isSynthetic ?? false,
+            suspendedAt: org.suspendedAt ? new Date(org.suspendedAt) : null,
+            suspendedReason: org.suspendedReason ?? null,
+          },
+        });
+        if (!organisationId) organisationId = created.id;
+      }
+    }
+    if (!organisationId) {
+      const existingOrg = await db.organisation.findFirst();
+      if (existingOrg) {
+        organisationId = existingOrg.id;
+      } else {
+        const org = await db.organisation.create({ data: { name: "Imported", slug: "imported" } });
+        organisationId = org.id;
+      }
+    }
+    console.log(`Using organisationId: ${organisationId}`);
+
     console.log("Importing rule configs...");
     for (const rc of data.ruleConfigs) {
-      await db.ruleConfig.create({ data: { name: rc.name, minDaysBetweenAnyMatches: rc.minDaysBetweenAnyMatches, warningThreshold: rc.warningThreshold } });
+      await db.ruleConfig.create({ data: { organisationId, name: rc.name, minDaysBetweenAnyMatches: rc.minDaysBetweenAnyMatches, warningThreshold: rc.warningThreshold } });
     }
 
     console.log("Importing seasons...");
     const seasonIdMap = new Map<string, string>();
     for (const s of data.seasons) {
-      const created = await db.season.create({ data: { id: s.id, name: s.name, year: s.year ?? (parseInt(s.name) || new Date().getFullYear()) } });
+      const created = await db.season.create({ data: { organisationId, id: s.id, name: s.name, year: s.year ?? (parseInt(s.name) || new Date().getFullYear()) } });
       seasonIdMap.set(s.id, created.id);
     }
 
@@ -102,6 +131,7 @@ async function main() {
     for (const p of data.leagueSeasons) {
       const created = await db.leagueSeason.create({
         data: {
+          organisationId,
           id: p.id,
           name: p.name,
           part: p.part ?? 'SPRING',
@@ -117,6 +147,7 @@ async function main() {
     for (const t of data.teams) {
       await db.team.create({
         data: {
+          organisationId,
           id: t.id,
           name: t.name,
           targetSquadSize: t.targetSquadSize ?? 11,
@@ -139,6 +170,7 @@ async function main() {
     for (const p of data.players) {
       await db.player.create({
         data: {
+          organisationId,
           id: p.id,
           playerCode: p.playerCode,
           firstName: p.firstName,
@@ -181,6 +213,7 @@ async function main() {
     for (const rp of data.rotationPaths) {
       await db.rotationPath.create({
         data: {
+          organisationId,
           id: rp.id,
           fromTeamId: rp.fromTeamId,
           toTeamId: rp.toTeamId,
@@ -204,6 +237,7 @@ async function main() {
     for (const mr of data.matchRounds) {
       const created = await db.matchRound.create({
         data: {
+          organisationId,
           id: mr.id,
           name: mr.name,
           leagueSeasonId: periodIdMap.get(mr.leagueSeasonId) ?? mr.leagueSeasonId,
@@ -219,6 +253,7 @@ async function main() {
       for (const ot of data.opponentTeams) {
         const created = await db.opponentTeam.create({
           data: {
+            organisationId,
             id: ot.id,
             displayName: ot.displayName,
             normalizedName: ot.normalizedName,
@@ -242,13 +277,14 @@ async function main() {
         if (existing) {
           opponentTeamId = existing.id;
         } else {
-          const created = await db.opponentTeam.create({ data: { displayName, normalizedName } });
+          const created = await db.opponentTeam.create({ data: { organisationId, displayName, normalizedName } });
           opponentTeamId = created.id;
         }
       }
 
       await db.match.create({
         data: {
+          organisationId,
           id: m.id,
           matchRoundId: roundIdMap.get(m.matchRoundId) ?? m.matchRoundId,
           teamId: m.teamId,
@@ -271,6 +307,7 @@ async function main() {
     for (const a of data.availabilities) {
       await db.availability.create({
         data: {
+          organisationId,
           id: a.id,
           playerId: a.playerId,
           matchRoundId: roundIdMap.get(a.matchRoundId) ?? a.matchRoundId,
@@ -284,6 +321,7 @@ async function main() {
     for (const s of data.selections) {
       await db.selection.create({
         data: {
+          organisationId,
           id: s.id,
           matchId: s.matchId,
           matchRoundId: roundIdMap.get(s.matchRoundId) ?? s.matchRoundId,
@@ -304,6 +342,7 @@ async function main() {
     for (const ml of data.movementLedger) {
       await db.movementLedger.create({
         data: {
+          organisationId,
           id: ml.id,
           matchRoundId: roundIdMap.get(ml.matchRoundId) ?? ml.matchRoundId,
           matchId: ml.matchId,
@@ -323,6 +362,7 @@ async function main() {
     for (const w of data.warnings) {
       await db.warning.create({
         data: {
+          organisationId,
           id: w.id,
           matchRoundId: roundIdMap.get(w.matchRoundId) ?? w.matchRoundId,
           matchId: w.matchId ?? null,
@@ -340,6 +380,7 @@ async function main() {
     for (const pl of data.playerLocks) {
       await db.playerLock.create({
         data: {
+          organisationId,
           id: pl.id,
           matchRoundId: roundIdMap.get(pl.matchRoundId) ?? pl.matchRoundId,
           playerId: pl.playerId,
@@ -354,6 +395,7 @@ async function main() {
     for (const sa of data.selectionAudits) {
       await db.selectionAudit.create({
         data: {
+          organisationId,
           id: sa.id,
           selectionId: sa.selectionId,
           changeReason: sa.changeReason,
@@ -366,11 +408,13 @@ async function main() {
     console.log("\nImport complete!");
 
     const counts = {
+      organisations: await db.organisation.count(),
       teams: await db.team.count(),
       players: await db.player.count(),
       seasons: await db.season.count(),
       leagueSeasons: await db.leagueSeason.count(),
       matchRounds: await db.matchRound.count(),
+      opponentTeams: await db.opponentTeam.count(),
       matches: await db.match.count(),
       availabilities: await db.availability.count(),
       rotationPaths: await db.rotationPath.count(),

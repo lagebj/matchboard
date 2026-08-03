@@ -75,6 +75,7 @@ describe("getAssistantCommandCentre", () => {
         preferredFoot: "RIGHT",
         secondaryFoot: "WEAK",
         bestSide: "CENTER",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -166,6 +167,7 @@ describe("getAssistantCommandCentre", () => {
         leagueSeasonId: fixture.leagueSeasonId,
         name: "W20 Test",
         status: "READY",
+        organisationId: fixture.organisationId,
       },
     });
     const match2 = await db.match.findFirst({
@@ -184,6 +186,7 @@ describe("getAssistantCommandCentre", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: fixture.organisationId,
         },
       });
     }
@@ -260,8 +263,11 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
   it("shows setup_missing when no teams exist", async () => {
     await cleanExceptRules(setupDb);
 
+    const org = await setupDb.organisation.create({
+      data: { name: "Setup Test Org", slug: `setup-test-org-${Date.now()}` },
+    });
     const season = await setupDb.season.create({
-      data: { name: "Setup Season", year: 2026 },
+      data: { name: "Setup Season", year: 2026, organisationId: org.id },
     });
     const period = await setupDb.leagueSeason.create({
       data: {
@@ -270,6 +276,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         part: "SPRING",
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
+        organisationId: org.id,
       },
     });
 
@@ -282,13 +289,17 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
 
     await setupDb.leagueSeason.delete({ where: { id: period.id } });
     await setupDb.season.delete({ where: { id: season.id } });
+    await setupDb.organisation.delete({ where: { id: org.id } });
   });
 
   it("shows setup_missing when no players exist", async () => {
     await cleanExceptRules(setupDb);
 
+    const org = await setupDb.organisation.create({
+      data: { name: "Setup Test Org 2", slug: `setup-test-org2-${Date.now()}` },
+    });
     const season = await setupDb.season.create({
-      data: { name: "Setup Season 2", year: 2026 },
+      data: { name: "Setup Season 2", year: 2026, organisationId: org.id },
     });
     const period = await setupDb.leagueSeason.create({
       data: {
@@ -297,10 +308,11 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         part: "SPRING",
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
+        organisationId: org.id,
       },
     });
     const team = await setupDb.team.create({
-      data: { name: "Team A", targetSquadSize: 11 },
+      data: { name: "Team A", targetSquadSize: 11, organisationId: org.id },
     });
 
     const result = await getAssistantCommandCentre();
@@ -313,13 +325,17 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     await setupDb.team.delete({ where: { id: team.id } });
     await setupDb.leagueSeason.delete({ where: { id: period.id } });
     await setupDb.season.delete({ where: { id: season.id } });
+    await setupDb.organisation.delete({ where: { id: org.id } });
   });
 
   it("shows setup_missing when no matches exist", async () => {
     await cleanExceptRules(setupDb);
 
+    const org = await setupDb.organisation.create({
+      data: { name: "Setup Test Org 3", slug: `setup-test-org3-${Date.now()}` },
+    });
     const season = await setupDb.season.create({
-      data: { name: "Setup Season 3", year: 2026 },
+      data: { name: "Setup Season 3", year: 2026, organisationId: org.id },
     });
     const period = await setupDb.leagueSeason.create({
       data: {
@@ -328,10 +344,11 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         part: "SPRING",
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
+        organisationId: org.id,
       },
     });
     const team = await setupDb.team.create({
-      data: { name: "Team A3", targetSquadSize: 11 },
+      data: { name: "Team A3", targetSquadSize: 11, organisationId: org.id },
     });
     await setupDb.player.create({
       data: {
@@ -343,6 +360,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         preferredFoot: "RIGHT",
         secondaryFoot: "WEAK",
         bestSide: "CENTER",
+        organisationId: org.id,
       },
     });
 
@@ -359,6 +377,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     await setupDb.team.delete({ where: { id: team.id } });
     await setupDb.leagueSeason.delete({ where: { id: period.id } });
     await setupDb.season.delete({ where: { id: season.id } });
+    await setupDb.organisation.delete({ where: { id: org.id } });
   });
 });
 
@@ -388,4 +407,5 @@ async function cleanExceptRules(db: PrismaClient) {
   await db.rotationPath.deleteMany();
   await db.team.deleteMany();
   await db.opponentTeam.deleteMany();
+  await db.organisation.deleteMany();
 }

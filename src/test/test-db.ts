@@ -94,6 +94,8 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.opponentTeam.deleteMany().catch(() => {});
   await db.ruleConfig.deleteMany().catch(() => {});
   await db.teamAccess.deleteMany().catch(() => {});
+  await db.reviewRequest.deleteMany().catch(() => {});
+  await db.notificationOutbox.deleteMany().catch(() => {});
   await db.organisationInvitation.deleteMany().catch(() => {});
   await db.organisationMembership.deleteMany().catch(() => {});
   await db.machinePrincipal.deleteMany().catch(() => {});
@@ -105,7 +107,7 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
 }
 
 export type TestFixtureIds = {
-  organisationId: string | null;
+  organisationId: string;
   seasonId: string;
   leagueSeasonId: string;
   matchRoundId: string;
@@ -162,8 +164,13 @@ export async function seedTestFixture(
   const playersPerTeam = options?.playersPerTeam ?? 12;
 
   const createOrganisation = options?.createOrganisation ?? false;
-  let organisationId: string | null = null;
+  let organisationId: string;
   if (createOrganisation) {
+    const org = await db.organisation.create({
+      data: { name: "Test Organisation", slug: `test-org-${Date.now()}` },
+    });
+    organisationId = org.id;
+  } else {
     const org = await db.organisation.create({
       data: { name: "Test Organisation", slug: `test-org-${Date.now()}` },
     });
@@ -171,11 +178,11 @@ export async function seedTestFixture(
   }
 
   await db.ruleConfig.create({
-    data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, ...(organisationId ? { organisationId } : {}) },
+    data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId },
   });
 
   const season = await db.season.create({
-    data: { name: "Test Season", year: 2026, ...(organisationId ? { organisationId } : {}) },
+    data: { name: "Test Season", year: 2026, organisationId },
   });
 
   const period = await db.leagueSeason.create({
@@ -185,7 +192,7 @@ export async function seedTestFixture(
       seasonId: season.id,
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
-      ...(organisationId ? { organisationId } : {}),
+      organisationId,
     },
   });
 
@@ -194,7 +201,7 @@ export async function seedTestFixture(
       name: "W19 Test",
       leagueSeasonId: period.id,
       status: "DRAFT",
-      ...(organisationId ? { organisationId } : {}),
+      organisationId,
     },
   });
 
@@ -212,7 +219,7 @@ export async function seedTestFixture(
         developmentSlots: team.developmentSlots ?? 0,
         minAcceptedSquadSize: team.minAcceptedSquadSize ?? 9,
         maxSquadSize: team.maxSquadSize ?? 14,
-        ...(organisationId ? { organisationId } : {}),
+        organisationId,
       },
     });
     teamIds[team.name] = created.id;
@@ -229,7 +236,7 @@ export async function seedTestFixture(
     const opponentTeam = await db.opponentTeam.upsert({
       where: { normalizedName },
       update: { displayName },
-      create: { displayName, normalizedName, ...(organisationId ? { organisationId } : {}) },
+      create: { displayName, normalizedName, organisationId },
     });
     const opponentTeamId = opponentTeam.id;
     opponentTeamIds[normalizedName] = opponentTeamId;
@@ -245,7 +252,7 @@ export async function seedTestFixture(
         squadSize: team.targetSquadSize ?? 11,
         matchType: "FRIENDLY",
         gameFormat: "ELEVEN_A_SIDE",
-        ...(organisationId ? { organisationId } : {}),
+        organisationId,
       },
     });
     matchIds[team.name] = match.id;
@@ -276,7 +283,7 @@ export async function seedTestFixture(
         allowDoubleLoad: rp.allowDoubleLoad ?? false,
         minRestSpacingHours: rp.minRestSpacingHours ?? null,
         maxDoubleLoadsPerPeriod: rp.maxDoubleLoadsPerPeriod ?? null,
-        ...(organisationId ? { organisationId } : {}),
+        organisationId,
       },
     });
     rotationPathIds.push(created.id);
@@ -302,7 +309,7 @@ export async function seedTestFixture(
           secondaryFoot: "WEAK",
           bestSide: "CENTER",
           currentAvailability: "AVAILABLE",
-          ...(organisationId ? { organisationId } : {}),
+          organisationId,
         },
       });
       players.push({

@@ -1,4 +1,4 @@
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import {
   excludeOpponentSportingEvidence as excludeEvidence,
   includeOpponentSportingEvidence as includeEvidence,
@@ -12,6 +12,7 @@ export async function excludeSportingEvidenceAction(
   reason: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   return excludeEvidence(evidenceId, reason, ctx.orgFilter);
 }
 
@@ -19,6 +20,7 @@ export async function includeSportingEvidenceAction(
   evidenceId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   return includeEvidence(evidenceId, ctx.orgFilter);
 }
 

@@ -32,6 +32,7 @@ export type PersistableWarning = {
   severity: WarningSeverity;
   rule: string;
   message: string;
+  organisationId: string;
 };
 
 function enrichWarning(
@@ -39,6 +40,7 @@ function enrichWarning(
   matchRoundId: string,
   _matchIdByTeamName: Map<string, string>,
   _teamIdByTeamName: Map<string, string>,
+  organisationId: string,
 ): PersistableWarning {
   return {
     matchRoundId,
@@ -48,6 +50,7 @@ function enrichWarning(
     severity: mapWarningSeverityToDB(warning.code),
     rule: warning.code,
     message: warning.message,
+    organisationId,
   };
 }
 
@@ -55,11 +58,12 @@ export function buildPersistableWarnings(
   generatedRound: GeneratedRound,
   matchIdByTeamName: Map<string, string>,
   teamIdByTeamName: Map<string, string>,
+  organisationId: string,
 ): PersistableWarning[] {
   const warnings: PersistableWarning[] = [];
 
   for (const w of generatedRound.roundWarnings) {
-    warnings.push(enrichWarning(w, generatedRound.matchRoundId, matchIdByTeamName, teamIdByTeamName));
+    warnings.push(enrichWarning(w, generatedRound.matchRoundId, matchIdByTeamName, teamIdByTeamName, organisationId));
   }
 
   for (const matchResult of generatedRound.matchResults) {
@@ -69,6 +73,7 @@ export function buildPersistableWarnings(
         generatedRound.matchRoundId,
         matchIdByTeamName,
         teamIdByTeamName,
+        organisationId,
       ));
     }
   }
@@ -87,6 +92,7 @@ export async function persistRoundWarnings(warnings: PersistableWarning[]): Prom
     for (const w of warnings) {
       await tx.warning.create({
         data: {
+          organisationId: w.organisationId,
           matchRoundId: w.matchRoundId,
           matchId: w.matchId,
           playerId: w.playerId,

@@ -1,12 +1,12 @@
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { ReviewTargetType, ReviewStatus } from '@/generated/prisma/client';
+import { computeTargetContentHash, hasTargetChanged } from './content-hash';
 
 export type CreateReviewRequestInput = {
   targetType: ReviewTargetType;
   targetId: string;
-  targetRevision: string;
+  targetRevision?: string;
   requestMessage?: string;
   reviewerMembershipId?: string;
 };
@@ -42,22 +42,9 @@ function requireOrganisationAccess(orgFilter: OrgFilterMode): string {
 
 export async function createReviewRequest(
   input: CreateReviewRequestInput,
+  organisationId: string,
+  requestedByMembershipId: string,
 ): Promise<ReviewRequestWithRelations> {
-  const ctx = await requireActorContext();
-  const organisationId = requireOrganisationAccess(ctx.orgFilter);
-
-  const membership = await db.organisationMembership.findFirst({
-    where: {
-      userId: ctx.userId,
-      organisationId,
-      role: { in: ['OWNER', 'COACH'] },
-    },
-  });
-
-  if (!membership) {
-    throw new Error('Only coaches and owners can request reviews.');
-  }
-
   const existingPending = await db.reviewRequest.findFirst({
     where: {
       targetType: input.targetType,
@@ -70,28 +57,32 @@ export async function createReviewRequest(
     throw new Error('A pending review request already exists for this target.');
   }
 
-  if (input.reviewerMembershipId && input.reviewerMembershipId === membership.id) {
+  if (input.reviewerMembershipId && input.reviewerMembershipId === requestedByMembershipId) {
     throw new Error('Cannot request a review from yourself.');
   }
 
-  const reviewerMembership = input.reviewerMembershipId
-    ? await db.organisationMembership.findUnique({
-        where: { id: input.reviewerMembershipId },
-      })
-    : null;
+  if (input.reviewerMembershipId) {
+    const reviewerMembership = await db.organisationMembership.findUnique({
+      where: { id: input.reviewerMembershipId },
+    });
 
-  if (input.reviewerMembershipId && (!reviewerMembership || reviewerMembership.organisationId !== organisationId)) {
-    throw new Error('Reviewer must be a member of the same organisation.');
+    if (!reviewerMembership || reviewerMembership.organisationId !== organisationId) {
+      throw new Error('Reviewer must be a member of the same organisation.');
+    }
   }
+
+  const targetRevision = input.targetRevision && input.targetRevision.trim() !== ''
+    ? input.targetRevision
+    : await computeTargetContentHash(input.targetType, input.targetId, organisationId);
 
   const review = await db.reviewRequest.create({
     data: {
       organisationId,
       targetType: input.targetType,
       targetId: input.targetId,
-      targetRevision: input.targetRevision,
-      requestedByMembershipId: membership.id,
-      reviewerMembershipId: input.reviewerMembershipId ?? membership.id,
+      targetRevision,
+      requestedByMembershipId,
+      reviewerMembershipId: input.reviewerMembershipId ?? requestedByMembershipId,
       requestMessage: input.requestMessage ?? null,
     },
   });
@@ -99,13 +90,17 @@ export async function createReviewRequest(
   return review;
 }
 
+export type ResolveReviewResult = {
+  review: ReviewRequestWithRelations;
+  targetChanged: boolean;
+};
+
 export async function resolveReviewRequest(
   reviewId: string,
   input: ResolveReviewRequestInput,
-): Promise<ReviewRequestWithRelations> {
-  const ctx = await requireActorContext();
-  const organisationId = requireOrganisationAccess(ctx.orgFilter);
-
+  organisationId: string,
+  resolvedByMembershipId: string,
+): Promise<ResolveReviewResult> {
   const existing = await db.reviewRequest.findUnique({
     where: { id: reviewId },
   });
@@ -126,20 +121,21 @@ export async function resolveReviewRequest(
     throw new Error('Cannot review your own request.');
   }
 
-  const membership = await db.organisationMembership.findFirst({
-    where: {
-      userId: ctx.userId,
-      organisationId,
-      role: { in: ['OWNER', 'COACH'] },
-    },
-  });
-
-  if (!membership) {
-    throw new Error('Only coaches and owners can resolve reviews.');
+  if (resolvedByMembershipId !== existing.reviewerMembershipId && input.status !== 'CANCELLED') {
+    throw new Error('Only the assigned reviewer can resolve this review request.');
   }
 
-  if (membership.id !== existing.reviewerMembershipId) {
-    throw new Error('Only the assigned reviewer can resolve this review request.');
+  let targetChanged = false;
+  try {
+    const currentHash = await computeTargetContentHash(
+      existing.targetType,
+      existing.targetId,
+      organisationId,
+    );
+    targetChanged = hasTargetChanged(existing.targetRevision, currentHash);
+  } catch {
+    // If the target no longer exists, the review is still resolvable
+    // but we can't verify content. Leave targetChanged as false.
   }
 
   const updated = await db.reviewRequest.update({
@@ -147,31 +143,58 @@ export async function resolveReviewRequest(
     data: {
       status: input.status,
       reviewerComment: input.reviewerComment ?? null,
-      reviewerMembershipId: membership.id,
       resolvedAt: new Date(),
     },
   });
 
-  return updated;
+  return { review: updated, targetChanged };
 }
+
+export type SupersededReviewInfo = {
+  id: string;
+  requestedByMembershipId: string;
+  reviewerMembershipId: string;
+  targetType: ReviewTargetType;
+  targetId: string;
+};
 
 export async function supersedePendingReviews(
   targetType: ReviewTargetType,
   targetId: string,
-): Promise<number> {
-  const result = await db.reviewRequest.updateMany({
+  supersededById?: string,
+): Promise<{ count: number; superseded: SupersededReviewInfo[] }> {
+  const pending = await db.reviewRequest.findMany({
     where: {
       targetType,
       targetId,
       status: 'PENDING',
     },
-    data: {
-      status: 'SUPERSEDED',
-      resolvedAt: new Date(),
+    select: {
+      id: true,
+      requestedByMembershipId: true,
+      reviewerMembershipId: true,
+      targetType: true,
+      targetId: true,
     },
   });
 
-  return result.count;
+  if (pending.length === 0) return { count: 0, superseded: [] };
+
+  await db.reviewRequest.updateMany({
+    where: {
+      id: { in: pending.map((r) => r.id) },
+    },
+    data: {
+      status: 'SUPERSEDED',
+      resolvedAt: new Date(),
+      ...(supersededById ? { supersededById } : {}),
+    },
+  });
+
+  return {
+    count: pending.length,
+    superseded: pending,
+  };
 }
 
 export async function getPendingReviewsForReviewer(
@@ -193,11 +216,13 @@ export async function getPendingReviewsForReviewer(
 export async function getReviewHistory(
   targetType: ReviewTargetType,
   targetId: string,
+  organisationId?: string,
 ): Promise<ReviewRequestWithRelations[]> {
   const reviews = await db.reviewRequest.findMany({
     where: {
       targetType,
       targetId,
+      ...(organisationId ? { organisationId } : {}),
     },
     orderBy: { createdAt: 'desc' },
   });

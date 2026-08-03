@@ -54,6 +54,7 @@ async function createNextRound(
       name: `W${weekNumber} Test`,
       leagueSeasonId,
       status: "DRAFT",
+      organisationId: fixtureIds.organisationId,
     },
   });
 
@@ -69,7 +70,7 @@ async function createNextRound(
     const ot = await db.opponentTeam.upsert({
       where: { normalizedName },
       update: { displayName },
-      create: { displayName, normalizedName },
+      create: { displayName, normalizedName, organisationId: fixtureIds.organisationId },
     });
     const opponentTeamId = ot.id;
 
@@ -84,6 +85,7 @@ async function createNextRound(
         squadSize: 11,
         matchType: "FRIENDLY",
         gameFormat: "ELEVEN_A_SIDE",
+        organisationId: fixtureIds.organisationId,
       },
     });
     matchIds[teamName] = match.id;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import { applySimulationAsDrafts, computeSimulationInputHash, isInputStale } from "@/lib/simulation/apply-simulation";
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
   let ctx;
   try {
     ctx = await requireActorContext();
+    requireMutationRole(ctx);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

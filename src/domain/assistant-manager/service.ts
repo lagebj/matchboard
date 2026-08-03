@@ -431,6 +431,9 @@ export async function completePostMatchReport(
 
   const existing = await db.postMatchReport.findUnique({ where: { matchId } });
 
+  const match = await db.match.findUnique({ where: { id: matchId }, select: { organisationId: true } });
+  const organisationId = match?.organisationId ?? "";
+
   if (existing) {
     await db.postMatchReport.update({
       where: { matchId },
@@ -447,6 +450,7 @@ export async function completePostMatchReport(
     for (const actual of input.playerActuals) {
       await db.postMatchPlayerActual.create({
         data: {
+          organisationId,
           matchId,
           playerId: actual.playerId,
           attendanceStatus: actual.attendanceStatus,
@@ -460,6 +464,7 @@ export async function completePostMatchReport(
   } else {
     const report = await db.postMatchReport.create({
       data: {
+        organisationId,
         matchId,
         status: "LOCKED",
         teamNote: input.teamNote,
@@ -471,6 +476,7 @@ export async function completePostMatchReport(
     for (const actual of input.playerActuals) {
       await db.postMatchPlayerActual.create({
         data: {
+          organisationId,
           matchId,
           playerId: actual.playerId,
           attendanceStatus: actual.attendanceStatus,

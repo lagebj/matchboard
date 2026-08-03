@@ -1,17 +1,6 @@
-import { Suspense } from "react";
-import { RoundReviewPage } from "@/components/assistant/round-review-page";
-import { requireCoachAccess } from "@/lib/auth";
+import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
 
-type RoundReviewRouteProps = {
-  params: Promise<{ matchRoundId: string }>;
-};
-
-export default async function RoundReviewRoute({ params }: RoundReviewRouteProps) {
-  await requireCoachAccess();
+export default async function RoundReviewRedirect({ params }: { params: Promise<{ matchRoundId: string }> }) {
   const { matchRoundId } = await params;
-  return (
-    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading round review...</div>}>
-      <RoundReviewPage roundId={matchRoundId} />
-    </Suspense>
-  );
+  return redirectToOrgSlug(`/rounds/${matchRoundId}/review`);
 }

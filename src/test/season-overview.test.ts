@@ -34,6 +34,7 @@ describe("Season overview service", () => {
           playerId,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -58,6 +59,7 @@ describe("Season overview service", () => {
           playerId,
           role: "SUPPORT",
           status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -81,8 +83,8 @@ describe("Season overview service", () => {
 
       await testDb.selection.createMany({
         data: [
-          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: corePlayer.id, role: "CORE", status: "FINALIZED" },
-          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: supportPlayer.id, role: "SUPPORT", status: "FINALIZED" },
+          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: corePlayer.id, role: "CORE", status: "FINALIZED" , organisationId: fixtureIds.organisationId },
+          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: supportPlayer.id, role: "SUPPORT", status: "FINALIZED" , organisationId: fixtureIds.organisationId },
         ],
       });
 
@@ -95,6 +97,7 @@ describe("Season overview service", () => {
           toTeamId: hvitTeamId,
           role: "SUPPORT",
           isDraft: false,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -117,6 +120,7 @@ describe("Season overview service", () => {
           playerId,
           matchRoundId: fixtureIds.matchRoundId,
           status: "INJURED",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -167,6 +171,7 @@ describe("Season overview service", () => {
           toTeamId: hvitTeamId,
           role: "DEVELOPMENT",
           isDraft: false,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -192,6 +197,7 @@ describe("Season overview service", () => {
           toTeamId: blaTeamId,
           role: "BACKFILL",
           isDraft: true,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -232,6 +238,7 @@ describe("Season overview service", () => {
           playerId: blaPlayer.id,
           role: "SUPPORT",
           status: "FINALIZED",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -244,6 +251,7 @@ describe("Season overview service", () => {
           toTeamId: hvitTeamId,
           role: "SUPPORT",
           isDraft: false,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -275,9 +283,9 @@ describe("Season overview service", () => {
 
       await testDb.selection.createMany({
         data: [
-          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "CORE", status: "FINALIZED" },
-          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: "FINALIZED" },
-          { matchId: fixtureIds.matches["Rod"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: "FINALIZED" },
+          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "CORE", status: "FINALIZED" , organisationId: fixtureIds.organisationId },
+          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: "FINALIZED" , organisationId: fixtureIds.organisationId },
+          { matchId: fixtureIds.matches["Rod"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: "FINALIZED" , organisationId: fixtureIds.organisationId },
         ],
       });
 
@@ -294,8 +302,8 @@ describe("Season overview service", () => {
 
       await testDb.selection.createMany({
         data: [
-          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: "FINALIZED" },
-          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: "FINALIZED" },
+          { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: "FINALIZED" , organisationId: fixtureIds.organisationId },
+          { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: "FINALIZED" , organisationId: fixtureIds.organisationId },
         ],
       });
 
@@ -320,6 +328,7 @@ describe("Season overview service", () => {
           playerId: rodPlayer.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -330,6 +339,7 @@ describe("Season overview service", () => {
           playerId: rodPlayer.id,
           role: "SUPPORT",
           status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -340,6 +350,7 @@ describe("Season overview service", () => {
           playerId: rodPlayer.id,
           role: "SUPPORT",
           status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
         },
       });
 

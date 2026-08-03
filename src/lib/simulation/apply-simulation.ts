@@ -166,7 +166,7 @@ export async function applySimulationAsDrafts(
         teamIdByTeamName.set(match.team.name, match.team.id);
       }
 
-      const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+      const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, matchRound.organisationId);
       await persistRoundWarnings(warnings);
       await persistRoundExplanations(generatedRound);
       await enrichSelectionsWithIntent(generatedRound.matchResults.map((m) => m.matchId));

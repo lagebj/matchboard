@@ -3,7 +3,7 @@ export type AssistantWorkCategory =
   | "availability_missing"
   | "event_setup_missing"
   | "event_squads_missing"
-  | "event_squads_ready"
+  | "event_squads_draft"
   | "event_lineup_missing"
   | "populate_needed"
   | "blocked_round"
@@ -51,7 +51,7 @@ export const CATEGORY_PRIORITY: Record<AssistantWorkCategory, number> = {
   event_setup_missing: 2,
   blocked_round: 3,
   event_squads_missing: 4,
-  event_squads_ready: 5,
+  event_squads_draft: 5,
   event_lineup_missing: 6,
   populate_needed: 7,
   decision_required: 8,

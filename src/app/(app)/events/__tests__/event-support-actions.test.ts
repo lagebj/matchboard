@@ -3,9 +3,39 @@ import type { PrismaClient, EventPlayerStatus } from "@/generated/prisma/client"
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
 
-vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }),
-}));
+let _testOrgId = "org-test";
+
+vi.mock("@/lib/auth", () => {
+  class AuthorizationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = "AuthorizationError";
+    }
+  }
+  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }) };
+});
+
+vi.mock("@/lib/auth/actor-context", () => {
+  const makeCtx = () => ({
+    userId: "test-coach",
+    email: "coach@test.com",
+    membershipId: "mem-test",
+    organisationId: _testOrgId,
+    organisationSlug: "test-org",
+    role: "COACH",
+    delegatedTeamIds: null,
+    orgFilter: { type: "all" as const },
+  });
+  return {
+    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
+    requireMutationRole: vi.fn(),
+    canMutate: vi.fn().mockReturnValue(true),
+    canAdmin: vi.fn().mockReturnValue(false),
+    canOwn: vi.fn().mockReturnValue(false),
+    hasTeamAccess: vi.fn().mockReturnValue(true),
+    requireTeamAccess: vi.fn(),
+  };
+});
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -36,10 +66,11 @@ async function createEventWithMatches(testDb: PrismaClient, options?: { matchDur
       startsAt: new Date("2026-07-01T10:00:00Z"),
       gameFormat: "SEVEN_A_SIDE",
       matchDurationMinutes,
+      organisationId: fixture.organisationId,
       squads: {
         create: [
-          { name: "Red Squad", intent: "BALANCED", targetSize: 7, generationOrder: 0 },
-          { name: "Blue Squad", intent: "BALANCED", targetSize: 7, generationOrder: 1 },
+          { name: "Red Squad", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+          { name: "Blue Squad", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
         ],
       },
     },
@@ -58,7 +89,8 @@ async function createEventWithMatches(testDb: PrismaClient, options?: { matchDur
       category: "CUP",
       opponentName: "Opponent A",
       startsAt: baseDate,
-    },
+          organisationId: fixture.organisationId,
+},
   });
 
   const match2Date = options?.matchDates?.[1] ?? new Date("2026-07-01T12:00:00Z");
@@ -69,7 +101,8 @@ async function createEventWithMatches(testDb: PrismaClient, options?: { matchDur
       category: "CUP",
       opponentName: "Opponent B",
       startsAt: match2Date,
-    },
+          organisationId: fixture.organisationId,
+},
   });
 
   return { event, squads, match1, match2 };
@@ -83,7 +116,7 @@ async function addPlayerToEventAndSquad(
   availabilityStatus: EventPlayerStatus = "AVAILABLE",
 ) {
   await testDb.eventPlayerAvailability.create({
-    data: { eventId, playerId, status: availabilityStatus },
+    data: { eventId, playerId, status: availabilityStatus , organisationId: fixture.organisationId},
   });
   await testDb.eventSquadPlayer.create({
     data: {
@@ -93,7 +126,8 @@ async function addPlayerToEventAndSquad(
       source: "MANUAL",
       locked: false,
       selectionReason: "Test assignment",
-    },
+          organisationId: fixture.organisationId,
+},
   });
 }
 
@@ -101,6 +135,7 @@ describe("Event support actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    _testOrgId = fixture.organisationId;
   });
 
   afterAll(async () => {
@@ -156,10 +191,11 @@ describe("Event support actions", () => {
           startsAt: new Date("2026-07-01T10:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           matchDurationMinutes: null,
+          organisationId: fixture.organisationId,
           squads: {
             create: [
-              { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0 },
-              { name: "Squad B", intent: "BALANCED", targetSize: 7, generationOrder: 1 },
+              { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: "Squad B", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
             ],
           },
         },
@@ -177,7 +213,8 @@ describe("Event support actions", () => {
           category: "CUP",
           opponentName: "Opponent",
           startsAt: new Date("2026-07-01T10:00:00Z"),
-        },
+                  organisationId: fixture.organisationId,
+},
       });
 
       const playerId = fixture.players[0]!.id;
@@ -215,7 +252,7 @@ describe("Event support actions", () => {
 
       const playerId = fixture.players[0]!.id;
       await testDb.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId, status: "AVAILABLE" },
+        data: { eventId: event.id, playerId, status: "AVAILABLE" , organisationId: fixture.organisationId},
       });
 
       await expect(
@@ -455,10 +492,11 @@ describe("Event support actions", () => {
           startsAt: new Date("2026-07-01T10:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           matchDurationMinutes: null,
+          organisationId: fixture.organisationId,
           squads: {
             create: [
-              { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0 },
-              { name: "Squad B", intent: "BALANCED", targetSize: 7, generationOrder: 1 },
+              { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: "Squad B", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
             ],
           },
         },
@@ -476,7 +514,8 @@ describe("Event support actions", () => {
           category: "CUP",
           opponentName: "Opponent",
           startsAt: new Date("2026-07-01T10:00:00Z"),
-        },
+                  organisationId: fixture.organisationId,
+},
       });
 
       const playerId = fixture.players[0]!.id;
@@ -488,7 +527,8 @@ describe("Event support actions", () => {
           playerId,
           sourceEventSquadId: squads[1]!.id,
           targetEventSquadId: squads[0]!.id,
-        },
+                  organisationId: fixture.organisationId,
+},
       });
 
       const result = await getEventMatchSupportAssignmentsAction(event.id);
@@ -516,13 +556,15 @@ describe("Event support actions", () => {
             playerId,
             sourceEventSquadId: squads[1]!.id,
             targetEventSquadId: squads[0]!.id,
-          },
+                      organisationId: fixture.organisationId,
+},
           {
             eventMatchId: match2.id,
             playerId,
             sourceEventSquadId: squads[1]!.id,
             targetEventSquadId: squads[0]!.id,
-          },
+                      organisationId: fixture.organisationId,
+},
         ],
       });
 
@@ -542,8 +584,9 @@ describe("Event support actions", () => {
           startsAt: new Date("2026-07-01T10:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           matchDurationMinutes: null,
+          organisationId: fixture.organisationId,
           squads: {
-            create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 },
+            create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
           },
         },
       });

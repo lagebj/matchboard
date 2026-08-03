@@ -2,8 +2,9 @@ import { requireActorContext } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { ReviewListClient } from './review-list-client';
 
-export default async function ReviewsPage() {
-  const ctx = await requireActorContext();
+export default async function ReviewsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+  const { orgSlug } = await params;
+  const ctx = await requireActorContext(orgSlug);
 
   if (ctx.orgFilter.type !== 'org') {
     return (

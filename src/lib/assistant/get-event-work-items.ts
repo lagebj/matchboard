@@ -82,10 +82,10 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
       if (draftSquadCount === squadCount) {
         items.push({
           id: `event-squads-draft-${event.id}`,
-          category: "event_squads_ready",
+          category: "event_squads_draft",
           priority: 5,
-          title: `${event.name}: squads need review`,
-          summary: "Generated squads are ready for review before committing.",
+          title: `${event.name}: draft squads generated`,
+          summary: "Squads have been generated. Review and adjust if needed before locking.",
           matchRoundId: "",
           eventId: event.id,
           affectedTeamIds: [],

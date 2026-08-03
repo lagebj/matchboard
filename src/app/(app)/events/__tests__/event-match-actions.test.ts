@@ -3,9 +3,37 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from '@/test/test-db';
 import type { TestFixtureIds } from '@/test/test-db';
 
-vi.mock('@/lib/auth', () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue({ id: 'test-coach', email: 'coach@test.com' }),
-}));
+vi.mock('@/lib/auth', () => {
+  class AuthorizationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'AuthorizationError';
+    }
+  }
+  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: 'test-coach', email: 'coach@test.com' }) };
+});
+
+vi.mock('@/lib/auth/actor-context', () => {
+  const makeCtx = () => ({
+    userId: 'test-coach',
+    email: 'coach@test.com',
+    membershipId: 'mem-test',
+    organisationId: 'org-test',
+    organisationSlug: 'test-org',
+    role: 'COACH',
+    delegatedTeamIds: null,
+    orgFilter: { type: 'all' as const },
+  });
+  return {
+    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
+    requireMutationRole: vi.fn(),
+    canMutate: vi.fn().mockReturnValue(true),
+    canAdmin: vi.fn().mockReturnValue(false),
+    canOwn: vi.fn().mockReturnValue(false),
+    hasTeamAccess: vi.fn().mockReturnValue(true),
+    requireTeamAccess: vi.fn(),
+  };
+});
 
 vi.mock('@/lib/db', () => ({
   get db() { return getTestDb(); },
@@ -119,7 +147,7 @@ describe('Event match CRUD actions', () => {
 
     it('links to existing opponent team when opponentTeamId is provided', async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: 'Existing FC', normalizedName: 'existing fc' },
+        data: { displayName: 'Existing FC', normalizedName: 'existing fc', organisationId: 'org-test' },
       });
 
       const formData = new FormData();
@@ -319,7 +347,7 @@ describe('Event match CRUD actions', () => {
 
     it('links to existing opponent team when updating with opponentTeamId', async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: 'Linked FC', normalizedName: 'linked fc' },
+        data: { displayName: 'Linked FC', normalizedName: 'linked fc', organisationId: 'org-test' },
       });
 
       const updated = await updateEventMatchAction(updateMatchId, {
@@ -376,8 +404,8 @@ describe('Event post-match report actions', () => {
 
     await testDb.eventSquadPlayer.createMany({
       data: [
-        { eventSquadId: squadId, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false },
-        { eventSquadId: squadId, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false },
+        { eventSquadId: squadId, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
+        { eventSquadId: squadId, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
       ],
     });
 
@@ -470,8 +498,8 @@ describe('Event post-match report actions', () => {
 
       await testDb.eventSquadPlayer.createMany({
         data: [
-          { eventSquadId: squad!.id, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false },
-          { eventSquadId: squad!.id, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false },
+          { eventSquadId: squad!.id, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
+          { eventSquadId: squad!.id, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
         ],
       });
 

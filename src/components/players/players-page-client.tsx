@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { Users } from "lucide-react";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type PlayersPageClientProps = {
   players: Array<{
@@ -59,6 +60,7 @@ export function PlayersPageClient({
 }: PlayersPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const orgUrl = useOrgUrl();
   const { mode, setMode } = usePlayersMode(
     (initialMode === "attention" ? "attention" : initialMode === "groups" ? "groups" : "season") as "season" | "attention" | "groups",
   );
@@ -92,7 +94,7 @@ export function PlayersPageClient({
         description="Participation, movement and current planning attention."
         actions={
           teams.length > 0 ? (
-            <Button variant="primary" size="sm" as="a" href="/players/new">
+            <Button variant="primary" size="sm" as="a" href={orgUrl("/players/new")}>
               Add player
             </Button>
           ) : undefined

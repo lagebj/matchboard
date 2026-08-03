@@ -71,7 +71,7 @@ describe("Warning persistence", () => {
       teamIdByTeamName.set(teamName, fixtureIds.teams[teamName]!);
     }
 
-    const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+    const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, fixtureIds.organisationId);
     await persistRoundWarnings(warnings);
 
     const dbWarnings = await testDb.warning.findMany({
@@ -104,10 +104,10 @@ describe("Warning persistence", () => {
       teamIdByTeamName.set(teamName, fixtureIds.teams[teamName]!);
     }
 
-    const warnings1 = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+    const warnings1 = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, fixtureIds.organisationId);
     await persistRoundWarnings(warnings1);
 
-    const warnings2 = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+    const warnings2 = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, fixtureIds.organisationId);
     await persistRoundWarnings(warnings2);
 
     const dbWarnings = await testDb.warning.findMany({
@@ -147,6 +147,7 @@ describe("Populate all workflow", () => {
         name: "W20 Populate Test",
         leagueSeasonId: fixtureIds.leagueSeasonId,
         status: "DRAFT",
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -158,7 +159,7 @@ describe("Populate all workflow", () => {
       const ot = await testDb.opponentTeam.upsert({
         where: { normalizedName },
         update: { displayName },
-        create: { displayName, normalizedName },
+        create: { displayName, normalizedName, organisationId: fixtureIds.organisationId },
       });
       const opponentTeamId = ot.id;
       fixtureIds.opponentTeamIds[normalizedName] = opponentTeamId;
@@ -173,6 +174,7 @@ describe("Populate all workflow", () => {
           squadSize: 11,
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: fixtureIds.organisationId,
         },
       });
     }

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess, requirePlayerTeamAccess, requireMatchTeamAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
@@ -88,9 +88,11 @@ const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
   const ctx = await requireActorContext();
-  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  const orgId = ctx.organisationId;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
+    requireTeamAccess(ctx, teamId);
     const opponentText = readText(formData, "opponent");
     const opponentTeamIdInput = readText(formData, "opponentTeamId");
     const startsAt = readDate(formData, "startsAt", "Match date");
@@ -99,7 +101,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");
 
     const team = await db.team.findFirst({
-      where: { id: teamId, archivedAt: null, ...(orgId ? { organisationId: orgId } : {}) },
+      where: { id: teamId, archivedAt: null, organisationId: orgId },
       select: { id: true },
     });
     if (!team) throw new Error("Team not found.");
@@ -141,7 +143,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       });
       matchRoundId = resolved.roundId;
     } else {
-      matchRoundId = await createFullHierarchy(startsAt, weekStart, weekEnd);
+      matchRoundId = await createFullHierarchy(startsAt, weekStart, weekEnd, orgId);
     }
 
     await db.match.create({
@@ -154,7 +156,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
         matchType,
         gameFormat,
         matchRoundId,
-        ...(orgId ? { organisationId: orgId } : {}),
+        organisationId: ctx.organisationId,
       },
     });
   } catch (error) {
@@ -167,7 +169,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   redirect("/fixtures?saved=created");
 }
 
-async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: Date): Promise<string> {
+async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: Date, organisationId: string): Promise<string> {
   const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
 
   const part = getLeagueSeasonPartForDate(startsAt);
@@ -182,10 +184,10 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 
   if (!season) {
     const created = await db.season.create({
-      data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear() },
+      data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear(), organisationId },
     });
     const period = await db.leagueSeason.create({
-      data: { ...periodData, part, seasonId: created.id },
+      data: { ...periodData, part, seasonId: created.id, organisationId },
     });
     const resolved = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: period.id,
@@ -195,7 +197,7 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
   }
 
   const period = await db.leagueSeason.create({
-    data: { ...periodData, part, seasonId: season.id },
+    data: { ...periodData, part, seasonId: season.id, organisationId },
   });
   const resolved = await resolveOrCreateMatchRoundForDate({
     leagueSeasonId: period.id,
@@ -206,7 +208,9 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 
 export async function deleteMatchAction(matchId: string) {
   const ctx = await requireActorContext();
-  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  await requireMatchTeamAccess(ctx, matchId);
+  const orgId = ctx.organisationId;
   try {
     const guard = await checkMatchDeletionGuard(matchId, orgId);
     if (!guard.success) throw new Error(guard.error);
@@ -239,6 +243,8 @@ export async function updateMatchAction(
   | { success: false; error: string }
 > {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+  await requireMatchTeamAccess(ctx, matchId);
 
   try {
     const match = await db.match.findFirst({
@@ -403,12 +409,14 @@ export async function updateMatchAction(
 
 export async function finalizeMatchAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
   }
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -449,8 +457,10 @@ export async function finalizeMatchAction(formData: FormData) {
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const result = await cancelMatchDomain(matchId, cancelledReason);
   if (!result.success) {
@@ -470,8 +480,10 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 
 export async function reopenMatchAction(matchId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const result = await reopenMatchDomain(matchId);
   if (!result.success) {

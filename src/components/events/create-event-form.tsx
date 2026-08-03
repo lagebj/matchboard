@@ -3,6 +3,7 @@
 import { useTransition, useState } from "react";
 import Link from "next/link";
 import { createEventAction } from "@/app/(app)/events/actions";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type Formation = {
   id: string;
@@ -23,6 +24,7 @@ import { formatGameFormat } from "@/lib/formatters/game-format";
 export function CreateEventForm({ formations }: { formations: Formation[] }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const orgUrl = useOrgUrl();
 
   const [name, setName] = useState("");
   const [eventType, setEventType] = useState("CUP");
@@ -293,7 +295,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
             {isPending ? "Creating..." : "Create event"}
           </button>
           <Link
-            href="/events"
+            href={orgUrl("/events")}
             className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
           >
             Cancel

@@ -11,6 +11,7 @@ import {
   type SortDirection,
 } from "@/lib/table-sort";
 import { setPlayerAvailabilityAction } from "@/app/(app)/players/actions";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
@@ -45,6 +46,7 @@ function getAvailabilityPillClassName(availability: PlayerRow["currentAvailabili
 }
 
 export function PlayerTable({ players }: { players: PlayerRow[] }) {
+  const orgUrl = useOrgUrl();
   const [sortKey, setSortKey] = useState("player");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [editingAvailabilityId, setEditingAvailabilityId] = useState<string | null>(null);
@@ -277,7 +279,7 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
               <tr>
                 <td className="px-4 py-10 text-center app-copy-muted" colSpan={8}>
                   No players yet.{" "}
-                  <Link href="/players/new" className="underline text-[var(--accent-strong)]">
+                  <Link href={orgUrl("/players/new")} className="underline text-[var(--accent-strong)]">
                     Create a player
                   </Link>
                 </td>

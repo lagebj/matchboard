@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -47,7 +47,8 @@ export async function setCoachingIntentAction(
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
-  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  requireMutationRole(ctx);
+  const orgId = ctx.organisationId;
 
   if (!COACHING_INTENT_SCOPE_TYPES.includes(scopeType as CoachingIntentScopeType)) {
     return { success: false, error: `Invalid scope type: ${scopeType}` };
@@ -58,6 +59,10 @@ export async function setCoachingIntentAction(
 
   try {
     await requireScopeOrgAccess(scopeType, scopeId, ctx.orgFilter);
+
+    if (scopeType === "TEAM") {
+      requireTeamAccess(ctx, scopeId);
+    }
 
     const existing = await db.coachingIntent.findFirst({
       where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
@@ -104,12 +109,17 @@ export async function removeCoachingIntentAction(
   intentId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   try {
     const intent = await db.coachingIntent.findFirst({
       where: { id: intentId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
     });
     if (!intent) return { success: false, error: "Intent not found." };
+
+    if (intent.scopeType === "TEAM") {
+      requireTeamAccess(ctx, intent.scopeId);
+    }
 
     await db.coachingIntent.delete({ where: { id: intentId } });
 

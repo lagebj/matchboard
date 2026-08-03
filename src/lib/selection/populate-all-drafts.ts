@@ -74,7 +74,7 @@ export async function populateAllDrafts(
         teamIdByTeamName.set(match.team.name, match.team.id);
       }
 
-      const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+      const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, leagueSeason.organisationId);
       await persistRoundWarnings(warnings);
       await persistRoundExplanations(generatedRound);
       await enrichSelectionsWithIntent(generatedRound.matchResults.map((m) => m.matchId));

@@ -18,6 +18,7 @@ import {
   FlaskConical,
   Wrench,
 } from "lucide-react";
+import { useOrgSlug } from "@/components/shell/org-slug-context";
 
 type CommandItem = {
   id: string;
@@ -66,6 +67,7 @@ type SearchResult = {
 };
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const orgSlug = useOrgSlug();
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -152,7 +154,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     label: p.name,
     description: p.coreTeamName,
     icon: <Users className="h-4 w-4" />,
-    href: `/players/${p.id}`,
+    href: `/o/${orgSlug}/players/${p.id}`,
     category: "search" as const,
     keywords: [p.name, p.coreTeamName],
   }));
@@ -161,7 +163,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     id: `team-${t.id}`,
     label: t.name,
     icon: <Trophy className="h-4 w-4" />,
-    href: `/teams/${t.id}`,
+    href: `/o/${orgSlug}/teams/${t.id}`,
     category: "search" as const,
     keywords: [t.name],
   }));

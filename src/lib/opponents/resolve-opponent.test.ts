@@ -4,6 +4,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { resolveOpponentOnReportCompletion, resolveEventOpponentOnReportCompletion } from "@/lib/opponents/resolve-opponent";
 
 let testDb: PrismaClient;
+let testOrgId: string;
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -21,7 +22,7 @@ vi.mock("@/lib/auth", () => ({
 
 async function createTestRound(testDb: PrismaClient) {
   const season = await testDb.season.create({
-    data: { name: "Test Season 2026", year: 2026 },
+    data: { name: "Test Season 2026", year: 2026 , organisationId: testOrgId },
   });
   const leagueSeason = await testDb.leagueSeason.create({
     data: {
@@ -30,6 +31,7 @@ async function createTestRound(testDb: PrismaClient) {
       startDate: new Date("2026-04-01"),
       endDate: new Date("2026-09-30"),
       seasonId: season.id,
+      organisationId: testOrgId,
     },
   });
   const round = await testDb.matchRound.create({
@@ -37,6 +39,7 @@ async function createTestRound(testDb: PrismaClient) {
       name: "W1",
       leagueSeasonId: leagueSeason.id,
       status: "DRAFT",
+      organisationId: testOrgId,
     },
   });
   return { season, leagueSeason, round };
@@ -45,6 +48,10 @@ async function createTestRound(testDb: PrismaClient) {
 describe("Opponent resolution on report completion", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
+    const org = await testDb.organisation.create({
+      data: { name: "Test Org", slug: `test-org-resolve-${Date.now()}` },
+    });
+    testOrgId = org.id;
   });
   afterAll(async () => { await teardownTestDb(); });
 
@@ -52,7 +59,7 @@ describe("Opponent resolution on report completion", () => {
     it("creates a canonical opponent when match has no opponentTeamId", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Resolution Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 },
+        data: { name: "Resolution Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
       });
       const match = await testDb.match.create({
         data: {
@@ -64,6 +71,7 @@ describe("Opponent resolution on report completion", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -88,10 +96,10 @@ describe("Opponent resolution on report completion", () => {
     it("reuses existing canonical opponent by normalised name", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Reuse Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 },
+        data: { name: "Reuse Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Existing FC", normalizedName: "existing fc" },
+        data: { displayName: "Existing FC", normalizedName: "existing fc" , organisationId: testOrgId },
       });
 
       const match = await testDb.match.create({
@@ -104,6 +112,7 @@ describe("Opponent resolution on report completion", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -121,10 +130,10 @@ describe("Opponent resolution on report completion", () => {
     it("keeps existing opponentTeamId if already set", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Already Linked Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 },
+        data: { name: "Already Linked Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Already Linked FC", normalizedName: "already linked fc" },
+        data: { displayName: "Already Linked FC", normalizedName: "already linked fc" , organisationId: testOrgId },
       });
 
       const match = await testDb.match.create({
@@ -137,6 +146,7 @@ describe("Opponent resolution on report completion", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -153,7 +163,7 @@ describe("Opponent resolution on report completion", () => {
     it("returns null when opponent name is empty", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Empty Opponent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 },
+        data: { name: "Empty Opponent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
       });
       const match = await testDb.match.create({
         data: {
@@ -165,6 +175,7 @@ describe("Opponent resolution on report completion", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -175,7 +186,7 @@ describe("Opponent resolution on report completion", () => {
     it("is idempotent — calling twice produces the same result", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Idempotent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 },
+        data: { name: "Idempotent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
       });
       const match = await testDb.match.create({
         data: {
@@ -187,6 +198,7 @@ describe("Opponent resolution on report completion", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -199,10 +211,10 @@ describe("Opponent resolution on report completion", () => {
     it("uses exact normalised matching — no fuzzy merge", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "No Fuzzy Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 },
+        data: { name: "No Fuzzy Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Slemmestad Blå", normalizedName: "slemmestad blå" },
+        data: { displayName: "Slemmestad Blå", normalizedName: "slemmestad blå" , organisationId: testOrgId },
       });
 
       const match = await testDb.match.create({
@@ -215,6 +227,7 @@ describe("Opponent resolution on report completion", () => {
           homeAway: "HOME",
           matchType: "FRIENDLY",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -239,6 +252,7 @@ describe("Opponent resolution on report completion", () => {
           startsAt: new Date("2026-08-10T09:00:00Z"),
           endsAt: new Date("2026-08-10T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const squad = await testDb.eventSquad.create({
@@ -250,6 +264,7 @@ describe("Opponent resolution on report completion", () => {
           minSize: 5,
           maxSize: 9,
           status: "DRAFT",
+          organisationId: testOrgId,
         },
       });
       const eventMatch = await testDb.eventMatch.create({
@@ -260,6 +275,7 @@ describe("Opponent resolution on report completion", () => {
           opponentTeamId: null,
           startsAt: new Date("2026-08-10T10:00:00Z"),
           status: "SCHEDULED",
+          organisationId: testOrgId,
         },
       });
 
@@ -281,7 +297,7 @@ describe("Opponent resolution on report completion", () => {
 
     it("keeps existing opponentTeamId if already set", async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Linked Event FC", normalizedName: "linked event fc" },
+        data: { displayName: "Linked Event FC", normalizedName: "linked event fc" , organisationId: testOrgId },
       });
       const event = await testDb.event.create({
         data: {
@@ -290,6 +306,7 @@ describe("Opponent resolution on report completion", () => {
           startsAt: new Date("2026-08-11T09:00:00Z"),
           endsAt: new Date("2026-08-11T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const squad = await testDb.eventSquad.create({
@@ -301,6 +318,7 @@ describe("Opponent resolution on report completion", () => {
           minSize: 5,
           maxSize: 9,
           status: "DRAFT",
+          organisationId: testOrgId,
         },
       });
       const eventMatch = await testDb.eventMatch.create({
@@ -311,6 +329,7 @@ describe("Opponent resolution on report completion", () => {
           opponentTeamId: existing.id,
           startsAt: new Date("2026-08-11T10:00:00Z"),
           status: "SCHEDULED",
+          organisationId: testOrgId,
         },
       });
 

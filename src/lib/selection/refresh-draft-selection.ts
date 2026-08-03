@@ -38,6 +38,7 @@ async function cloneDraftSelection(matchId: string) {
       overrideReasonDetail: true,
       controlledDoubleLoad: true,
       matchdayResponsibility: true,
+      organisationId: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -61,8 +62,9 @@ async function cloneDraftSelection(matchId: string) {
     for (const selection of latestSelections) {
       await tx.selection.create({
         data: {
+          organisationId: selection.organisationId,
           matchId,
-          matchRoundId,
+          matchRoundId: selection.matchRoundId,
           playerId: selection.playerId,
           role: selection.role,
           controlledDoubleLoad: selection.controlledDoubleLoad,
@@ -225,18 +227,22 @@ export async function refreshDraftRound(matchRoundId: string) {
 
   const matchIdByTeamName = new Map<string, string>();
   const teamIdByTeamName = new Map<string, string>();
+  let organisationId = "";
   for (const matchResult of generatedRound.matchResults) {
     const match = await db.match.findUnique({
       where: { id: matchResult.matchId },
-      select: { team: { select: { id: true, name: true } } },
+      select: { team: { select: { id: true, name: true } }, organisationId: true },
     });
     if (match?.team) {
       matchIdByTeamName.set(match.team.name, matchResult.matchId);
       teamIdByTeamName.set(match.team.name, match.team.id);
     }
+    if (!organisationId && match) {
+      organisationId = match.organisationId;
+    }
   }
 
-  const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+  const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, organisationId);
   await persistRoundWarnings(warnings);
   await persistRoundExplanations(generatedRound);
   await enrichSelectionsWithIntent(generatedRound.matchResults.map((m) => m.matchId));
@@ -268,6 +274,7 @@ async function cloneDraftRound(matchRoundId: string) {
       overrideReasonDetail: true,
       controlledDoubleLoad: true,
       matchdayResponsibility: true,
+      organisationId: true,
     },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -287,6 +294,7 @@ async function cloneDraftRound(matchRoundId: string) {
     for (const selection of latestSelections) {
       await tx.selection.create({
         data: {
+          organisationId: selection.organisationId,
           matchId: selection.matchId,
           matchRoundId: selection.matchRoundId,
           playerId: selection.playerId,

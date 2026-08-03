@@ -1,5 +1,5 @@
 import { getAppBaseUrl } from "../provider";
-import { registerTemplate } from "./index";
+import { registerTemplate } from "./registry";
 
 interface OrganisationInvitationData {
   organisationName: string;

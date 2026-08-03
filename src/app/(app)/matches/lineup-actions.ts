@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requireTeamAccess } from "@/lib/auth/actor-context";
 import { supersedePendingReviews } from "@/lib/review/review-service";
+import { enqueueNotification } from "@/lib/email/outbox";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   canModifyLineup,
@@ -72,8 +73,10 @@ export async function createMatchLineup(data: {
   formationId: string;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(data.matchId, orgFilter);
+  requireTeamAccess(ctx, data.teamId);
 
   const lineup = await createLineupFromFormation(data);
 
@@ -87,8 +90,10 @@ export async function assignPlayerToSlot(
   locked: boolean = false,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireAssignmentOrgAccess(assignmentId, orgFilter);
+  const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
+  await requireMatchTeamAccess(ctx, assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
   if (!canModifyLineup(assignment.matchLineup.status)) {
@@ -135,8 +140,10 @@ export async function assignPlayerToSlot(
 
 export async function removePlayerFromSlot(assignmentId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireAssignmentOrgAccess(assignmentId, orgFilter);
+  const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
+  await requireMatchTeamAccess(ctx, assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
   if (!canModifyLineup(assignment.matchLineup.status)) {
@@ -154,8 +161,10 @@ export async function removePlayerFromSlot(assignmentId: string) {
 
 export async function toggleSlotLock(assignmentId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireAssignmentOrgAccess(assignmentId, orgFilter);
+  const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
+  await requireMatchTeamAccess(ctx, assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
   if (!canModifyLineup(assignment.matchLineup.status)) {
@@ -173,8 +182,10 @@ export async function toggleSlotLock(assignmentId: string) {
 
 export async function confirmLineup(lineupId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const lineup = await requireLineupExists(lineupId);
   requireAllSlotsAssigned(lineup.assignments);
@@ -184,7 +195,37 @@ export async function confirmLineup(lineupId: string) {
     data: { status: "CONFIRMED" },
   });
 
-  await supersedePendingReviews("MATCH_LINEUP", lineupId);
+  const { superseded } = await supersedePendingReviews("MATCH_LINEUP", lineupId);
+  for (const review of superseded) {
+    const requester = await db.organisationMembership.findUnique({
+      where: { id: review.requestedByMembershipId },
+      include: { user: { select: { email: true } } },
+    });
+    if (requester?.user?.email) {
+      const organisation = await db.organisation.findUnique({
+        where: { id: ctx.organisationId },
+        select: { name: true, slug: true },
+      });
+      await enqueueNotification({
+        organisationId: ctx.organisationId,
+        idempotencyKey: `review-superseded-${review.id}`,
+        template: 'REVIEW_SUPERSEDED',
+        payload: {
+          organisationName: organisation?.name ?? 'Matchboard',
+          requesterName: requester.user.email,
+          requesterEmail: requester.user.email,
+          targetType: review.targetType,
+          targetId: review.targetId,
+          targetLabel: review.targetId,
+          reason: 'Lineup confirmed',
+          reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/matches/${matchId}`,
+          organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+        },
+        recipientEmail: requester.user.email,
+        recipientUserId: requester.userId,
+      });
+    }
+  }
 
   revalidatePath(`/matches/${lineup.matchId}`);
   return updated;
@@ -192,8 +233,10 @@ export async function confirmLineup(lineupId: string) {
 
 export async function archiveLineup(lineupId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireLineupOrgAccess(lineupId, orgFilter);
+  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -206,8 +249,10 @@ export async function archiveLineup(lineupId: string) {
 
 export async function revertLineupToDraft(lineupId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireLineupOrgAccess(lineupId, orgFilter);
+  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -220,8 +265,10 @@ export async function revertLineupToDraft(lineupId: string) {
 
 export async function updateLineupNotes(lineupId: string, notes: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireLineupOrgAccess(lineupId, orgFilter);
+  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -233,8 +280,10 @@ export async function updateLineupNotes(lineupId: string, notes: string) {
 
 export async function updateBenchPlayers(lineupId: string, benchPlayerIds: string[]) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
-  await requireLineupOrgAccess(lineupId, orgFilter);
+  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const lineup = await db.matchLineup.findUnique({
     where: { id: lineupId },

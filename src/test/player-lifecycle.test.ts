@@ -93,6 +93,7 @@ describe("Player lifecycle preservation", () => {
         matchRoundId: fixture.matchRoundId,
         role: "CORE",
         status: "DRAFT",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -111,6 +112,7 @@ describe("Player lifecycle preservation", () => {
         playerId: player.id,
         matchRoundId: fixture.matchRoundId,
         status: "AVAILABLE",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -131,6 +133,7 @@ describe("Player lifecycle preservation", () => {
         role: "SUPPORT",
         status: "ACTIVE",
         rationaleCategory: "COACH_JUDGEMENT",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -151,6 +154,7 @@ describe("Player lifecycle preservation", () => {
         status: "DRAFT",
         homeGoals: 2,
         awayGoals: 1,
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -159,6 +163,7 @@ describe("Player lifecycle preservation", () => {
         reportId: postMatchReport.id,
         playerId: player.id,
         minute: 10,
+        organisationId: fixture.organisationId,
       },
     });
 

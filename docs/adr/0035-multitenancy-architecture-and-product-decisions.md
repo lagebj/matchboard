@@ -167,7 +167,7 @@ No general-purpose long-lived API keys. Machine authentication uses workload ide
 
 ### In progress
 
-- MT-1.6: Organisation-scoped routes — only org detail/settings migrated, main app routes still flat
+- MT-1.6: Organisation-scoped routes — orgSlug route structure in place, global routes redirect to orgSlug equivalents (ADR-0048). Server actions still need progressive migration to accept orgSlug params.
 - MT-3.10: Cache key org-scoping — not yet applied
 - `requireCoachAccess()` → `resolveOrganisationAccess()` migration — 136 files still use legacy auth
 - `resolveOrgFilterForUser()` unscoped mode — should fail closed, currently returns empty filter
@@ -179,7 +179,7 @@ No general-purpose long-lived API keys. Machine authentication uses workload ide
 - Global unique constraint conversion (Player.playerCode, LeagueSeason.name) — after NOT NULL
 - SUPPORT role time-bound expiry and read-only enforcement (MT-7 per ADR-0040)
 - Email allowlist deprecation — after invitation-based membership is the sole auth mechanism
-- Route migration to `/o/{organisationSlug}/...` — main app routes
+- Route migration to `/o/{organisationSlug}/...` — route structure in place (ADR-0048). Server action migration in progress.
 
 ## Related
 

@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { FixturesPage } from "@/components/fixtures/fixtures-page";
+import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
 
-export default function FixturesRoute() {
-  return (
-    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading fixtures...</div>}>
-      <FixturesPage />
-    </Suspense>
-  );
+export default async function FixturesRedirect() {
+  return redirectToOrgSlug("/fixtures");
 }

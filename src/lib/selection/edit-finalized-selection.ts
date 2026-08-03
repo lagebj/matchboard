@@ -39,6 +39,7 @@ export async function editFinalizedSelection(
       explanation: true,
       overrideReason: true,
       ruleConfigVersion: true,
+      organisationId: true,
     },
   });
 
@@ -59,6 +60,7 @@ export async function editFinalizedSelection(
   const auditEntry = await db.$transaction(async (tx) => {
     const audit = await tx.selectionAudit.create({
       data: {
+        organisationId: selection.organisationId,
         selectionId,
         changeReason,
         previousRole: selection.role,

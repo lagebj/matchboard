@@ -8,6 +8,7 @@ type CreateTeamReflectionInput = {
   recoveryBehavior?: string;
   note?: string;
   recordedBy?: string;
+  organisationId: string;
 };
 
 type UpdateTeamReflectionInput = {
@@ -21,6 +22,7 @@ type UpdateTeamReflectionInput = {
 export async function createTeamReflection(input: CreateTeamReflectionInput) {
   return db.teamReflection.create({
     data: {
+      organisationId: input.organisationId,
       matchId: input.matchId,
       effort: input.effort,
       teamCohesion: input.teamCohesion,
@@ -49,6 +51,7 @@ export async function upsertTeamReflection(input: CreateTeamReflectionInput) {
   return db.teamReflection.upsert({
     where: { matchId: input.matchId },
     create: {
+      organisationId: input.organisationId,
       matchId: input.matchId,
       effort: input.effort,
       teamCohesion: input.teamCohesion,

@@ -11,6 +11,9 @@ type PositionInput = {
 export async function syncPlayerPositions(input: PositionInput): Promise<void> {
   const { playerId, primaryPosition, secondaryPosition, tertiaryPosition } = input;
 
+  const player = await db.player.findUnique({ where: { id: playerId }, select: { organisationId: true } });
+  const organisationId = player?.organisationId ?? "";
+
   const entries: { positionId: string; priority: PlayerPositionPriority }[] = [];
 
   entries.push({ positionId: primaryPosition, priority: 'PRIMARY' });
@@ -31,6 +34,7 @@ export async function syncPlayerPositions(input: PositionInput): Promise<void> {
     if (entries.length > 0) {
       await tx.playerPosition.createMany({
         data: entries.map((e) => ({
+          organisationId,
           playerId,
           positionId: e.positionId,
           priority: e.priority,

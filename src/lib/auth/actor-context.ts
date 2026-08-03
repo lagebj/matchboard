@@ -1,7 +1,8 @@
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
+import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 
 export type ActorContext = {
   userId: string;
@@ -21,8 +22,10 @@ export async function requireActorContext(
   const userId = coach.id ?? "";
   const email = coach.email ?? "";
 
-  if (organisationSlug) {
-    const access = await resolveOrganisationAccess(organisationSlug);
+  const resolvedSlug = organisationSlug ?? await getOrgSlugFromCookie();
+
+  if (resolvedSlug) {
+    const access = await resolveOrganisationAccess(resolvedSlug);
     const slugOrgFilter: OrgFilterMode = {
       type: "org",
       filter: { organisationId: access.organisationId },
@@ -80,4 +83,119 @@ export async function requireActorContext(
     delegatedTeamIds: teamAccesses.map((ta) => ta.teamId),
     orgFilter,
   };
+}
+
+export { MultipleMembershipsError };
+
+const MUTATION_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH"];
+const ADMIN_ROLES: OrganisationRole[] = ["OWNER", "ADMIN"];
+const OWNER_ROLES: OrganisationRole[] = ["OWNER"];
+
+export function requireMutationRole(ctx: ActorContext): void {
+  if (!MUTATION_ROLES.includes(ctx.role)) {
+    throw new AuthorizationError(
+      `Role ${ctx.role} cannot perform this action. Required: ${MUTATION_ROLES.join(" or ")}.`,
+    );
+  }
+}
+
+export function requireAdminRole(ctx: ActorContext): void {
+  if (!ADMIN_ROLES.includes(ctx.role)) {
+    throw new AuthorizationError(
+      `Role ${ctx.role} cannot perform this action. Required: ${ADMIN_ROLES.join(" or ")}.`,
+    );
+  }
+}
+
+export function requireOwnerRole(ctx: ActorContext): void {
+  if (!OWNER_ROLES.includes(ctx.role)) {
+    throw new AuthorizationError(
+      `Role ${ctx.role} cannot perform this action. Required: ${OWNER_ROLES.join(" or ")}.`,
+    );
+  }
+}
+
+export function canMutate(ctx: ActorContext): boolean {
+  return MUTATION_ROLES.includes(ctx.role);
+}
+
+export function canAdmin(ctx: ActorContext): boolean {
+  return ADMIN_ROLES.includes(ctx.role);
+}
+
+export function canOwn(ctx: ActorContext): boolean {
+  return OWNER_ROLES.includes(ctx.role);
+}
+
+export function hasTeamAccess(ctx: ActorContext, teamId: string): boolean {
+  if (ADMIN_ROLES.includes(ctx.role)) return true;
+  if (ctx.delegatedTeamIds === null) return true;
+  return ctx.delegatedTeamIds.includes(teamId);
+}
+
+export function requireTeamAccess(ctx: ActorContext, teamId: string): void {
+  if (ADMIN_ROLES.includes(ctx.role)) return;
+  if (ctx.delegatedTeamIds === null) return;
+  if (!ctx.delegatedTeamIds.includes(teamId)) {
+    throw new AuthorizationError("You do not have access to this team.");
+  }
+}
+
+export async function requirePlayerTeamAccess(
+  ctx: ActorContext,
+  playerId: string,
+): Promise<string | null> {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+
+  const { db } = await import("@/lib/db");
+  const player = await db.player.findFirst({
+    where: {
+      id: playerId,
+      removedAt: null,
+      ...(ctx.orgFilter.type === "org"
+        ? { organisationId: ctx.orgFilter.organisationId }
+        : {}),
+    },
+    select: { coreTeamId: true },
+  });
+
+  if (!player) {
+    throw new AuthorizationError("Player not found or access denied.");
+  }
+
+  if (player.coreTeamId && !ctx.delegatedTeamIds.includes(player.coreTeamId)) {
+    throw new AuthorizationError("You do not have access to this player's team.");
+  }
+
+  return player.coreTeamId;
+}
+
+export async function requireMatchTeamAccess(
+  ctx: ActorContext,
+  matchId: string,
+): Promise<string | null> {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+
+  const { db } = await import("@/lib/db");
+  const match = await db.match.findFirst({
+    where: {
+      id: matchId,
+      ...(ctx.orgFilter.type === "org"
+        ? ctx.orgFilter.filter
+        : {}),
+    },
+    select: { teamId: true },
+  });
+
+  if (!match) {
+    throw new AuthorizationError("Match not found or access denied.");
+  }
+
+  if (match.teamId && !ctx.delegatedTeamIds.includes(match.teamId)) {
+    throw new AuthorizationError("You do not have access to this match's team.");
+  }
+
+  return match.teamId;
 }

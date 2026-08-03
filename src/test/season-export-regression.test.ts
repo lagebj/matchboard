@@ -33,6 +33,7 @@ describe("Season export regression", () => {
         playerId: blaPlayer.id,
         role: "SUPPORT",
         status: "FINALIZED",
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -45,6 +46,7 @@ describe("Season export regression", () => {
         toTeamId: hvitTeamId,
         role: "SUPPORT",
         isDraft: false,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -67,6 +69,7 @@ describe("Season export regression", () => {
         role: "SUPPORT",
         controlledDoubleLoad: true,
         status: SelectionStatus.FINALIZED,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -94,6 +97,7 @@ describe("Season export regression", () => {
         playerId: blaPlayer.id,
         role: "BACKFILL",
         status: SelectionStatus.FINALIZED,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -117,6 +121,7 @@ describe("Season export regression", () => {
         role: "SUPPORT",
         controlledDoubleLoad: true,
         status: SelectionStatus.FINALIZED,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -133,10 +138,10 @@ describe("Season export regression", () => {
 
     await testDb.selection.createMany({
       data: [
-        { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "CORE", status: SelectionStatus.FINALIZED },
-        { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED },
-        { matchId: fixtureIds.matches["Rod"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED },
-        { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED },
+        { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "CORE", status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
+        { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
+        { matchId: fixtureIds.matches["Rod"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
+        { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
       ],
     });
 
@@ -152,8 +157,8 @@ describe("Season export regression", () => {
 
     await testDb.selection.createMany({
       data: [
-        { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED },
-        { matchId: fixtureIds.matches["Rod"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED },
+        { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
+        { matchId: fixtureIds.matches["Rod"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
       ],
     });
 
@@ -169,8 +174,8 @@ describe("Season export regression", () => {
 
     await testDb.selection.createMany({
       data: [
-        { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: SelectionStatus.FINALIZED },
-        { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: SelectionStatus.FINALIZED },
+        { matchId: fixtureIds.matches["Bla"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
+        { matchId: fixtureIds.matches["Hvit"]!, matchRoundId: fixtureIds.matchRoundId, playerId: blaPlayer.id, role: "SUPPORT", controlledDoubleLoad: true, status: SelectionStatus.FINALIZED , organisationId: fixtureIds.organisationId },
       ],
     });
 

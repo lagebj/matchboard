@@ -35,6 +35,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Player not found");
@@ -48,6 +49,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: "nonexistent",
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Rotation path not found");
@@ -62,6 +64,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "DEVELOPMENT" as MovementCandidateRole,
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
       expect(result.valid).toBe(false);
       expect(result.error).toContain("does not match");
@@ -74,6 +77,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "INVALID_CATEGORY" as MovementCandidateRationale,
+      organisationId: fixture.organisationId,
       });
       expect(result.success).toBe(false);
     });
@@ -85,6 +89,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
       expect(result.valid).toBe(false);
     });
@@ -97,6 +102,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: "nonexistent-path-id",
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
       expect(result.valid).toBe(false);
     });
@@ -111,6 +117,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "STABILISE_TEAM_FUNCTION",
+      organisationId: fixture.organisationId,
       });
       expect(result.valid).toBe(false);
       expect(result.error).toContain("source team");
@@ -129,6 +136,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "SUPPORT_TEAMMATES",
+      organisationId: fixture.organisationId,
       });
 
       await db.player.update({
@@ -152,6 +160,7 @@ describe("movement-candidate data model and validation", () => {
         rationaleCategory: "CHALLENGE_EXPOSURE",
         rationaleNote: "Test note",
         reviewBy: new Date("2025-12-31"),
+      organisationId: fixture.organisationId,
       });
 
       expect(result.success).toBe(true);
@@ -173,6 +182,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
       expect(first.success).toBe(true);
 
@@ -181,6 +191,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "SUPPORT_TEAMMATES",
+      organisationId: fixture.organisationId,
       });
       expect(second.success).toBe(false);
 
@@ -198,6 +209,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       const updated = await updateMovementCandidate(created.candidate!.id, { status: "PAUSED" });
@@ -216,6 +228,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       await updateMovementCandidate(created.candidate!.id, { status: "PAUSED" });
@@ -235,6 +248,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       const updated = await updateMovementCandidate(created.candidate!.id, {
@@ -259,6 +273,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       const deleted = await deleteMovementCandidate(created.candidate!.id);
@@ -281,6 +296,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "STABILISE_TEAM_FUNCTION",
+      organisationId: fixture.organisationId,
       });
 
       const incoming = await getIncomingCandidatesForTeam(hvitTeamId);
@@ -301,6 +317,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "SUPPORT_TEAMMATES",
+      organisationId: fixture.organisationId,
       });
 
       const outgoing = await getOutgoingCandidatesForTeam(blaTeamId);
@@ -320,6 +337,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       await updateMovementCandidate(created.candidate!.id, { status: "PAUSED" });
@@ -342,6 +360,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: fixture.rotationPathIds[0]!,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       const updatedPlayer = await db.player.findUnique({
@@ -365,6 +384,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       const active = await getActiveMovementCandidatesForPath(blaToHvitSupportPath, "SUPPORT");
@@ -383,6 +403,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       await updateMovementCandidate(created.candidate!.id, { status: "PAUSED" });
@@ -403,6 +424,7 @@ describe("movement-candidate data model and validation", () => {
         rotationPathId: blaToHvitSupportPath,
         role: "SUPPORT",
         rationaleCategory: "CHALLENGE_EXPOSURE",
+      organisationId: fixture.organisationId,
       });
 
       expect(await isPlayerActiveCandidate(blaPlayer.id, blaToHvitSupportPath, "SUPPORT")).toBe(true);

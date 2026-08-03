@@ -6,6 +6,7 @@ import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 import { RatingBadge } from "@/components/ratings/rating-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { RatingSummary } from "@/lib/ratings/player-rating";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type ManageBaseGroupsViewProps = {
   players: Array<{
@@ -24,6 +25,7 @@ type ManageBaseGroupsViewProps = {
 };
 
 export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewProps) {
+  const orgUrl = useOrgUrl();
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [isPending, startTransition] = useTransition();
@@ -47,7 +49,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
           illustration="emptyPlayers"
           action={
             <Link
-              href="/teams/new"
+              href={orgUrl("/teams/new")}
               className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
             >
               Create a team
@@ -61,7 +63,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
           illustration="emptyPlayers"
           action={
             <Link
-              href="/players/new"
+              href={orgUrl("/players/new")}
               className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
             >
               Add player
@@ -81,7 +83,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                 <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Flags</th>
                 <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                   <Link
-                    href="/players/new"
+                    href={orgUrl("/players/new")}
                     className="text-[var(--accent-strong)] hover:underline"
                   >
                     + Add
