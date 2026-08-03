@@ -63,6 +63,47 @@ export async function resolveReviewAction(reviewId: string, input: ResolveReview
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   const review = await resolveReviewRequest(reviewId, input, ctx.organisationId, ctx.membershipId);
+
+  if (input.status === 'CHANGES_REQUESTED' && review.requestedByMembershipId !== ctx.membershipId) {
+    const requester = await db.organisationMembership.findUnique({
+      where: { id: review.requestedByMembershipId },
+      include: { user: { select: { email: true } } },
+    });
+
+    if (requester?.user?.email) {
+      const organisation = await db.organisation.findUnique({
+        where: { id: ctx.organisationId },
+        select: { name: true, slug: true },
+      });
+
+      const reviewer = await db.organisationMembership.findUnique({
+        where: { id: ctx.membershipId },
+        include: { user: { select: { email: true, name: true } } },
+      });
+
+      await enqueueNotification({
+        organisationId: ctx.organisationId,
+        idempotencyKey: `review-changes-requested-${review.id}`,
+        template: 'REVIEW_CHANGES_REQUESTED',
+        payload: {
+          organisationName: organisation?.name ?? 'Matchboard',
+          requesterName: requester.user.email,
+          requesterEmail: requester.user.email,
+          reviewerName: reviewer?.user?.name ?? reviewer?.user?.email ?? ctx.email,
+          reviewerEmail: ctx.email,
+          targetType: review.targetType,
+          targetId: review.targetId,
+          targetLabel: review.targetId,
+          reviewerComment: input.reviewerComment ?? null,
+          reviewUrl: `/assistant`,
+          organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+        },
+        recipientEmail: requester.user.email,
+        recipientUserId: requester.userId,
+      });
+    }
+  }
+
   revalidatePath('/assistant');
   revalidatePath('/events');
   return review;
