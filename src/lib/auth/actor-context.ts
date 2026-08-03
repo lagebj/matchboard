@@ -167,3 +167,32 @@ export async function requirePlayerTeamAccess(
 
   return player.coreTeamId;
 }
+
+export async function requireMatchTeamAccess(
+  ctx: ActorContext,
+  matchId: string,
+): Promise<string | null> {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+
+  const { db } = await import("@/lib/db");
+  const match = await db.match.findFirst({
+    where: {
+      id: matchId,
+      ...(ctx.orgFilter.type === "org"
+        ? ctx.orgFilter.filter
+        : {}),
+    },
+    select: { teamId: true },
+  });
+
+  if (!match) {
+    throw new AuthorizationError("Match not found or access denied.");
+  }
+
+  if (match.teamId && !ctx.delegatedTeamIds.includes(match.teamId)) {
+    throw new AuthorizationError("You do not have access to this match's team.");
+  }
+
+  return match.teamId;
+}

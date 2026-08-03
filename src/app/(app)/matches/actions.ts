@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamAccess, requirePlayerTeamAccess, requireMatchTeamAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
@@ -92,6 +92,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
+    requireTeamAccess(ctx, teamId);
     const opponentText = readText(formData, "opponent");
     const opponentTeamIdInput = readText(formData, "opponentTeamId");
     const startsAt = readDate(formData, "startsAt", "Match date");
@@ -208,6 +209,7 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 export async function deleteMatchAction(matchId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  await requireMatchTeamAccess(ctx, matchId);
   const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const guard = await checkMatchDeletionGuard(matchId, orgId);
@@ -242,6 +244,7 @@ export async function updateMatchAction(
 > {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+  await requireMatchTeamAccess(ctx, matchId);
 
   try {
     const match = await db.match.findFirst({
@@ -413,6 +416,7 @@ export async function finalizeMatchAction(formData: FormData) {
   }
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -456,6 +460,7 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const result = await cancelMatchDomain(matchId, cancelledReason);
   if (!result.success) {
@@ -478,6 +483,7 @@ export async function reopenMatchAction(matchId: string) {
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchTeamAccess(ctx, matchId);
 
   const result = await reopenMatchDomain(matchId);
   if (!result.success) {

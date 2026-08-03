@@ -20,6 +20,7 @@ import {
   hasTeamAccess,
   requireTeamAccess,
   requirePlayerTeamAccess,
+  requireMatchTeamAccess,
   type ActorContext,
 } from "../actor-context";
 import { AuthorizationError } from "@/lib/auth";
@@ -43,6 +44,9 @@ function makeContext(role: ActorContext["role"], delegatedTeamIds?: string[] | n
 vi.mock("@/lib/db", () => ({
   db: {
     player: {
+      findFirst: vi.fn(),
+    },
+    match: {
       findFirst: vi.fn(),
     },
   },
@@ -264,5 +268,63 @@ describe("requirePlayerTeamAccess", () => {
         }),
       }),
     );
+  });
+});
+
+describe("requireMatchTeamAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows ADMIN without checking match team", async () => {
+    const ctx = makeContext("ADMIN");
+    const result = await requireMatchTeamAccess(ctx, "match-1");
+    expect(result).toBeNull();
+    expect(db.match.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows OWNER without checking match team", async () => {
+    const ctx = makeContext("OWNER");
+    const result = await requireMatchTeamAccess(ctx, "match-1");
+    expect(result).toBeNull();
+  });
+
+  it("allows COACH with null delegatedTeamIds without checking match team", async () => {
+    const ctx = makeContext("COACH", null);
+    const result = await requireMatchTeamAccess(ctx, "match-1");
+    expect(result).toBeNull();
+    expect(db.match.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows COACH with delegated access to match's team", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      teamId: "team-1",
+    });
+    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    const result = await requireMatchTeamAccess(ctx, "match-1");
+    expect(result).toBe("team-1");
+  });
+
+  it("rejects COACH without delegated access to match's team", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      teamId: "team-3",
+    });
+    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    await expect(requireMatchTeamAccess(ctx, "match-1")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("rejects when match not found in org", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    const ctx = makeContext("COACH", ["team-1"]);
+    await expect(requireMatchTeamAccess(ctx, "match-missing")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("allows COACH when match has no teamId (null)", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      teamId: null,
+    });
+    const ctx = makeContext("COACH", ["team-1"]);
+    const result = await requireMatchTeamAccess(ctx, "match-1");
+    expect(result).toBeNull();
   });
 });

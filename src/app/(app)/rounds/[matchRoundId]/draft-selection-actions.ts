@@ -7,7 +7,7 @@ import {
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requirePlayerTeamAccess, requireMatchTeamAccess } from "@/lib/auth/actor-context";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
@@ -50,6 +50,9 @@ export async function addPlayerToMatchAction(formData: FormData) {
     if (!match) throw new Error("Match not found or access denied.");
   }
 
+  await requireMatchTeamAccess(ctx, matchId);
+  await requirePlayerTeamAccess(ctx, playerId as string);
+
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
     : undefined;
@@ -86,6 +89,8 @@ export async function removePlayerFromMatchAction(formData: FormData) {
     if (!match) throw new Error("Match not found or access denied.");
   }
 
+  await requireMatchTeamAccess(ctx, matchId);
+
   const result = await removePlayerFromDraftMatch(matchId, playerId);
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
@@ -116,6 +121,8 @@ export async function changePlayerRoleAction(formData: FormData) {
     });
     if (!match) throw new Error("Match not found or access denied.");
   }
+
+  await requireMatchTeamAccess(ctx, matchId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -159,6 +166,9 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
     });
     if (!round) throw new Error("Round not found or access denied.");
   }
+
+  await requireMatchTeamAccess(ctx, fromMatchId);
+  await requireMatchTeamAccess(ctx, toMatchId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
