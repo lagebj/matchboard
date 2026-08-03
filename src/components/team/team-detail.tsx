@@ -30,6 +30,7 @@ import {
   deleteMovementCandidateAction,
   toggleMovementCandidateStatusAction,
 } from "@/app/(app)/teams/movement-candidate-actions";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type PlayerSummary = {
   id: string;
@@ -560,6 +561,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
 }
 
 function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: RotationPathSummary[]; teamId: string; teamOptions: Array<{ id: string; name: string }> }) {
+  const orgUrl = useOrgUrl();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const outgoingPaths = rotationPaths.filter((p) => p.direction === "outgoing");
@@ -611,7 +613,7 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
       )}
 
       <div>
-        <Button variant="ghost" size="sm" as="a" href="/rules">
+        <Button variant="ghost" size="sm" as="a" href={orgUrl("/rules")}>
           View global rules
         </Button>
       </div>
@@ -900,6 +902,7 @@ function MovementCandidatesTab({
 }
 
 export function TeamDetail({ data }: { data: TeamDetailData }) {
+  const orgUrl = useOrgUrl();
   const [activeTab, setActiveTab] = useState<TabKey>("squad");
 
   return (
@@ -920,7 +923,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
                 Next team
               </Button>
             )}
-            <Button variant="ghost" size="sm" as="a" href="/teams">
+            <Button variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>
               Back to teams
             </Button>
           </div>

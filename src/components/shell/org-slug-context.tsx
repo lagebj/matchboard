@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useCallback } from "react";
 
 const OrgSlugContext = createContext<string>("");
 
@@ -24,4 +24,12 @@ export function useOrgSlug(): string {
     throw new Error("useOrgSlug must be used within an OrgSlugProvider");
   }
   return slug;
+}
+
+export function useOrgUrl(): (path: string) => string {
+  const orgSlug = useOrgSlug();
+  return useCallback(
+    (path: string) => `/o/${orgSlug}${path}`,
+    [orgSlug],
+  );
 }

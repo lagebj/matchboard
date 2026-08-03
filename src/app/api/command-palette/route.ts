@@ -44,43 +44,45 @@ export async function GET(request: NextRequest) {
       role: o.role,
       isCurrent: o.organisation.id === ctx.organisationId,
     })),
-    commands: getFilteredCommands(canCreate, canManageOrg),
+    commands: getFilteredCommands(canCreate, canManageOrg, ctx.organisationSlug),
   });
 }
 
-function getPublicCommands(): CommandItem[] {
+function getPublicCommands(orgSlug: string): CommandItem[] {
+  const prefix = `/o/${orgSlug}`;
   return [
-    { id: "nav-assistant", label: "Assistant", href: "/assistant", category: "navigate", keywords: ["assistant", "dashboard"] },
-    { id: "nav-fixtures", label: "Fixtures", href: "/fixtures", category: "navigate", keywords: ["fixtures", "matches"] },
-    { id: "nav-teams", label: "Teams", href: "/teams", category: "navigate", keywords: ["teams"] },
-    { id: "nav-players", label: "Players", href: "/players", category: "navigate", keywords: ["players"] },
+    { id: "nav-assistant", label: "Assistant", href: `${prefix}/assistant`, category: "navigate", keywords: ["assistant", "dashboard"] },
+    { id: "nav-fixtures", label: "Fixtures", href: `${prefix}/fixtures`, category: "navigate", keywords: ["fixtures", "matches"] },
+    { id: "nav-teams", label: "Teams", href: `${prefix}/teams`, category: "navigate", keywords: ["teams"] },
+    { id: "nav-players", label: "Players", href: `${prefix}/players`, category: "navigate", keywords: ["players"] },
   ];
 }
 
-function getFilteredCommands(canCreate: boolean, canManageOrg: boolean): CommandItem[] {
+function getFilteredCommands(canCreate: boolean, canManageOrg: boolean, orgSlug: string): CommandItem[] {
+  const prefix = `/o/${orgSlug}`;
   const commands: CommandItem[] = [
-    { id: "nav-assistant", label: "Assistant", description: "Next actions and blockers", href: "/assistant", category: "navigate", keywords: ["assistant", "dashboard", "home"] },
-    { id: "nav-fixtures", label: "Fixtures", description: "Season and match overview", href: "/fixtures", category: "navigate", keywords: ["fixtures", "matches", "rounds", "schedule"] },
-    { id: "nav-teams", label: "Teams", description: "Team registry and detail", href: "/teams", category: "navigate", keywords: ["teams", "squad"] },
-    { id: "nav-players", label: "Players", description: "Player registry and profiles", href: "/players", category: "navigate", keywords: ["players", "registry"] },
-    { id: "nav-season", label: "Season", description: "Season matrix and fairness", href: "/season", category: "navigate", keywords: ["season", "matrix", "fairness"] },
-    { id: "nav-rules", label: "Rules", description: "Selection rules and rotation paths", href: "/rules", category: "navigate", keywords: ["rules", "config", "paths"] },
-    { id: "nav-events", label: "Events", description: "Event squads and planning", href: "/events", category: "navigate", keywords: ["events", "cups", "tournaments"] },
+    { id: "nav-assistant", label: "Assistant", description: "Next actions and blockers", href: `${prefix}/assistant`, category: "navigate", keywords: ["assistant", "dashboard", "home"] },
+    { id: "nav-fixtures", label: "Fixtures", description: "Season and match overview", href: `${prefix}/fixtures`, category: "navigate", keywords: ["fixtures", "matches", "rounds", "schedule"] },
+    { id: "nav-teams", label: "Teams", description: "Team registry and detail", href: `${prefix}/teams`, category: "navigate", keywords: ["teams", "squad"] },
+    { id: "nav-players", label: "Players", description: "Player registry and profiles", href: `${prefix}/players`, category: "navigate", keywords: ["players", "registry"] },
+    { id: "nav-season", label: "Season", description: "Season matrix and fairness", href: `${prefix}/season`, category: "navigate", keywords: ["season", "matrix", "fairness"] },
+    { id: "nav-rules", label: "Rules", description: "Selection rules and rotation paths", href: `${prefix}/rules`, category: "navigate", keywords: ["rules", "config", "paths"] },
+    { id: "nav-events", label: "Events", description: "Event squads and planning", href: `${prefix}/events`, category: "navigate", keywords: ["events", "cups", "tournaments"] },
   ];
 
   if (canCreate) {
     commands.push(
-      { id: "create-team", label: "Create team", description: "Add a new team", href: "/teams/new", category: "create", keywords: ["create", "new", "add", "team"] },
-      { id: "create-player", label: "Create player", description: "Add a new player", href: "/players/new", category: "create", keywords: ["create", "new", "add", "player"] },
-      { id: "create-fixture", label: "Create fixture", description: "Add a new match", href: "/matches/new", category: "create", keywords: ["create", "new", "add", "match", "fixture"] },
-      { id: "create-event", label: "Create event", description: "Add a new event", href: "/events/new", category: "create", keywords: ["create", "new", "add", "event", "cup", "tournament"] },
+      { id: "create-team", label: "Create team", description: "Add a new team", href: `${prefix}/teams/new`, category: "create", keywords: ["create", "new", "add", "team"] },
+      { id: "create-player", label: "Create player", description: "Add a new player", href: `${prefix}/players/new`, category: "create", keywords: ["create", "new", "add", "player"] },
+      { id: "create-fixture", label: "Create fixture", description: "Add a new match", href: `${prefix}/matches/new`, category: "create", keywords: ["create", "new", "add", "match", "fixture"] },
+      { id: "create-event", label: "Create event", description: "Add a new event", href: `${prefix}/events/new`, category: "create", keywords: ["create", "new", "add", "event", "cup", "tournament"] },
     );
   }
 
   if (canManageOrg) {
     commands.push(
-      { id: "nav-simulation", label: "Simulation", description: "Run season simulation", href: "/simulation", category: "navigate", keywords: ["simulation", "dry-run", "plan"] },
-      { id: "nav-workbench", label: "Policy workbench", description: "Policy evaluation workbench", href: "/workbench", category: "navigate", keywords: ["workbench", "policy", "rego"] },
+      { id: "nav-simulation", label: "Simulation", description: "Run season simulation", href: `${prefix}/simulation`, category: "navigate", keywords: ["simulation", "dry-run", "plan"] },
+      { id: "nav-workbench", label: "Policy workbench", description: "Policy evaluation workbench", href: `${prefix}/workbench`, category: "navigate", keywords: ["workbench", "policy", "rego"] },
     );
   }
 

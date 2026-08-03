@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createMatchAction } from "@/app/(app)/matches/actions";
 import { OpponentTeamSelect } from "@/components/opponents/opponent-team-select";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -30,13 +31,14 @@ export function MatchCreateForm({
 }) {
   const [state, formAction] = useActionState(createMatchAction, INITIAL_STATE);
   const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | null>(null);
+  const orgUrl = useOrgUrl();
   const today = new Date().toISOString().split("T")[0];
 
   if (teams.length === 0) {
     return (
       <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
         Create at least one team before adding matches.{" "}
-        <Link href="/teams/new" className="underline text-[var(--accent-strong)]">
+        <Link href={orgUrl("/teams/new")} className="underline text-[var(--accent-strong)]">
           Create a team
         </Link>
       </div>

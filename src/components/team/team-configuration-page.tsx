@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 function RuleRow({ rule, onEdit }: { rule: TeamConfiguration["rules"][0]; onEdit?: () => void }) {
   return (
@@ -107,6 +108,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
 }
 
 export function TeamConfigurationPage({ teamId }: { teamId: string }) {
+  const orgUrl = useOrgUrl();
   const [config, setConfig] = useState<TeamConfiguration | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -131,7 +133,7 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
     return (
       <div className="flex flex-col items-center gap-2 py-8">
         <p className="text-sm text-[var(--text-soft)]">Team not found.</p>
-        <Button variant="ghost" size="sm" as="a" href="/teams">Back to teams</Button>
+        <Button variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>Back to teams</Button>
       </div>
     );
   }

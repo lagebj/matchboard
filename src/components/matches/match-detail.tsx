@@ -39,6 +39,7 @@ import { TeamShield } from "@/components/ui/team-shield";
 import { IntentCard } from "@/components/ui/intent-card";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { COACHING_INTENT_LABELS, type CoachingIntentCategory } from "@/lib/coaching/types";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type SelectionRow = {
   id: string;
@@ -191,6 +192,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const error = searchParams.get("error");
   const finalized = searchParams.get("finalized");
   const roundFinalized = searchParams.get("roundFinalized");
+  const orgUrl = useOrgUrl();
   const [isPending, startTransition] = useTransition();
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
@@ -286,12 +288,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
         />
       )}
       <div>
-        <Link
-          href="/fixtures"
-          className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-100 transition-colors"
-        >
-          <Calendar className="h-3.5 w-3.5" />
-          Fixtures
+         <Link
+           href={orgUrl("/fixtures")}
+           className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-100 transition-colors"
+         >
+           <Calendar className="h-3.5 w-3.5" />
+           Fixtures
         </Link>
       </div>
 

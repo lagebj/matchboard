@@ -8,8 +8,10 @@ import { TeamReadinessCard } from "./team-readiness-card";
 import { RuleImpactPanel } from "./rule-impact-panel";
 import { CrossTeamImpactPanel } from "./cross-team-impact-panel";
 import { RecommendationPanel } from "./recommendation-panel";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 export function TeamReviewPage({ teamId }: { teamId: string }) {
+  const orgUrl = useOrgUrl();
   const [readiness, setReadiness] = useState<TeamReadiness | null>(null);
   const [_explanation, setExplanation] = useState<SelectionExplanation | null>(null);
   const [_isPending, startTransition] = useTransition();
@@ -35,7 +37,7 @@ export function TeamReviewPage({ teamId }: { teamId: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Team Review</p>
-        <Link href="/teams" className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to teams</Link>
+        <Link href={orgUrl("/teams")} className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to teams</Link>
       </div>
 
       <TeamReadinessCard readiness={readiness} />

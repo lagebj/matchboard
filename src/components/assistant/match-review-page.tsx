@@ -8,6 +8,7 @@ import { RuleImpactPanel } from "./rule-impact-panel";
 import { CrossTeamImpactPanel } from "./cross-team-impact-panel";
 import { RecommendationPanel } from "./recommendation-panel";
 import { DecisionPanel } from "./decision-panel";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 function _readinessLabel(state: string): string {
   switch (state) {
@@ -20,6 +21,7 @@ function _readinessLabel(state: string): string {
 }
 
 export function MatchReviewPage({ matchId }: { matchId: string }) {
+  const orgUrl = useOrgUrl();
   const [review, setReview] = useState<MatchReview | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -42,7 +44,7 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Match Review</p>
-        <Link href="/fixtures" className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to fixtures</Link>
+        <Link href={orgUrl("/fixtures")} className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to fixtures</Link>
       </div>
 
       <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">

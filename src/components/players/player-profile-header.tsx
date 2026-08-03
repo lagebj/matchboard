@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
 import { formatAvailabilityStatus, formatPlayerName, getPlayerAttributeAverages, getOverallStarRating } from "@/lib/player-metrics";
 import { togglePlayerActiveAction, removePlayerAction, restorePlayerAction } from "@/app/(app)/players/actions";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
@@ -78,6 +79,7 @@ type PlayerProfileHeaderProps = {
 };
 
 export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, planningFlags }: PlayerProfileHeaderProps) {
+  const orgUrl = useOrgUrl();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -222,7 +224,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
           </Link>
         )}
         <Link
-          href="/players"
+          href={orgUrl("/players")}
           className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[10px] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
         >
           All

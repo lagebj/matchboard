@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/shell/command-palette";
+import { useOrgSlug } from "@/components/shell/org-slug-context";
 
 type ContextData = {
   season: { id: string; name: string } | null;
@@ -20,31 +21,20 @@ type ContextData = {
   matchRound: { id: string; name: string; status: string } | null;
 };
 
-const pageTitles: Record<string, string> = {
-  "/assistant": "Assistant",
-  "/fixtures": "Fixtures",
-  "/events": "Events",
-  "/players": "Players",
-  "/teams": "Teams",
-  "/opponents": "Opponents",
-  "/rules": "Rules",
-  "/history": "History",
-  "/season": "Season",
-};
-
 function getPageTitle(pathname: string): string {
-  if (pathname.startsWith("/rounds/") && pathname !== "/rounds") return "Round Board";
-  if (pathname.startsWith("/teams/") && pathname !== "/teams") return "Team";
-  if (pathname.startsWith("/players/") && pathname !== "/players") return "Player";
-  if (pathname.startsWith("/matches/") && pathname !== "/matches") return "Match";
-  if (pathname.startsWith("/opponents/") && pathname !== "/opponents") return "Opponent";
-  if (pathname.startsWith("/events/new")) return "New Event";
-  if (pathname.startsWith("/events/") && pathname !== "/events") return "Event";
-  return pageTitles[pathname] ?? "Matchboard";
+  if (pathname.includes("/rounds/") && !pathname.endsWith("/rounds")) return "Round Board";
+  if (pathname.includes("/teams/") && !pathname.endsWith("/teams")) return "Team";
+  if (pathname.includes("/players/") && !pathname.endsWith("/players")) return "Player";
+  if (pathname.includes("/matches/") && !pathname.endsWith("/matches")) return "Match";
+  if (pathname.includes("/opponents/") && !pathname.endsWith("/opponents")) return "Opponent";
+  if (pathname.includes("/events/new")) return "New Event";
+  if (pathname.includes("/events/") && !pathname.endsWith("/events")) return "Event";
+  return "Matchboard";
 }
 
 export function TopContextBar() {
   const pathname = usePathname();
+  const orgSlug = useOrgSlug();
   const title = getPageTitle(pathname);
   const [ctx, setCtx] = useState<ContextData | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -73,7 +63,7 @@ export function TopContextBar() {
                 <>
                   <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
                   <Link
-                    href={`/rounds/${ctx.matchRound.id}`}
+                    href={`/o/${orgSlug}/rounds/${ctx.matchRound.id}`}
                     className="text-[var(--accent-strong)] hover:underline shrink-0"
                   >
                     {ctx.matchRound.name}
