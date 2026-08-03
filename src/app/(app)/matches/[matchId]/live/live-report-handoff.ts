@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchTeamAccess } from "@/lib/auth/actor-context";
 
 export async function endLiveSessionAndCreateReportAction(sessionId: string, matchId: string) {
   try {
     const ctx = await requireActorContext();
+    requireMutationRole(ctx);
 
     const session = await db.liveMatchSession.findUnique({
       where: { id: sessionId },
@@ -28,6 +29,8 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
     if (ctx.orgFilter.type === "org" && session.organisationId !== ctx.orgFilter.organisationId) {
       return { success: false as const, error: "Session not found or access denied." };
     }
+
+    await requireMatchTeamAccess(ctx, matchId);
 
     await db.liveMatchSession.update({
       where: { id: sessionId },
