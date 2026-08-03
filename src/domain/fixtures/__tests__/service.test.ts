@@ -96,6 +96,7 @@ describe("Fixtures Service", () => {
           playerId: player.id,
           role: "CORE",
           status: "DRAFT",
+          organisationId: fixture.organisationId,
         },
       });
 

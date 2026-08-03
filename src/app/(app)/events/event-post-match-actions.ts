@@ -83,13 +83,20 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
     data: {
       eventMatchId,
       status: 'DRAFT',
+      organisationId: ctx.organisationId,
       playerReports: {
         create: [
           ...eventMatch.eventSquad.players.map((sp) => ({
             playerId: sp.playerId,
             attendanceStatus: 'UNKNOWN' as const,
+            organisationId: ctx.organisationId,
           })),
-          ...supportPlayerReports,
+          ...supportPlayerReports.map((sr) => ({
+            playerId: sr.playerId,
+            attendanceStatus: 'UNKNOWN' as const,
+            role: sr.role,
+            organisationId: ctx.organisationId,
+          })),
         ],
       },
     },
@@ -211,6 +218,7 @@ export async function addEventGoalAction(
       minute: data.minute ?? null,
       type: data.type || 'NORMAL',
       note: data.note || null,
+      organisationId: ctx.organisationId,
     },
   });
 
@@ -266,6 +274,7 @@ export async function addEventAssistAction(
       reportId,
       playerId: data.playerId,
       type: data.type || 'NORMAL',
+      organisationId: ctx.organisationId,
     },
   });
 

@@ -147,7 +147,8 @@ describe("Matchday Responsibility Actions", () => {
           role: "CORE",
           status: "DRAFT",
           explanation: {},
-        },
+                  organisationId: 'org-test',
+},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, "STABILIZER");
@@ -161,7 +162,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[1]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "CONNECTOR" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "CONNECTOR" , organisationId: 'org-test'},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, null);
@@ -175,7 +176,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[2]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {} },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {} , organisationId: 'org-test'},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, "INVALID_ROLE");
@@ -187,7 +188,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[3]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "FINALIZED", explanation: {} },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "FINALIZED", explanation: {} , organisationId: 'org-test'},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, "STABILIZER");
@@ -201,7 +202,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[4]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "WIDTH_HOLDER" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "WIDTH_HOLDER" , organisationId: 'org-test'},
       });
 
       const result = await removeMatchdayResponsibilityAction(selection.id);

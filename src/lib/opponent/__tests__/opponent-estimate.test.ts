@@ -214,7 +214,7 @@ describe("opponent estimate calculation", () => {
       const result = buildOpponentEstimate("team-1", [], null);
       expect(result.estimatedLevel).toBe(0);
       expect(result.confidence).toBe("unknown");
-      expect(result.historicalContext).toContain("No comparable encounter data");
+      expect(result.historicalContext).toContain("No previous encounters recorded");
     });
   });
 });

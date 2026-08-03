@@ -69,6 +69,7 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
               playerId: s.playerId,
               source: "PLANNED",
               attendanceStatus: "UNKNOWN",
+              organisationId: session.organisationId,
             })),
           },
         },

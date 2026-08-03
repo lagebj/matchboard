@@ -109,6 +109,7 @@ export async function createEventMatchLineup(input: {
       eventMatchId: input.eventMatchId,
       formationId,
       status: 'DRAFT',
+      organisationId: ctx.organisationId,
       assignments: {
         create: formationSlots.map((slot, index) => ({
           slotId: slot.id,
@@ -118,6 +119,7 @@ export async function createEventMatchLineup(input: {
           source: 'BASE_SQUAD',
           x: slot.gridX ? slot.gridX / 4 : null,
           y: slot.gridY ? slot.gridY / 5 : null,
+          organisationId: ctx.organisationId,
         })),
       },
     },
@@ -324,6 +326,7 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
       source: 'BASE_SQUAD' as const,
       x: slot.gridX ? slot.gridX / 4 : null,
       y: slot.gridY ? slot.gridY / 5 : null,
+      organisationId: ctx.organisationId,
     })),
   });
 
@@ -489,7 +492,7 @@ export async function getAvailableFormations(gameFormat: string) {
     where: {
       gameFormat: gameFormat as GameFormat,
       isArchived: false,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filterNullable : {}),
+      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
     include: { slots: { orderBy: { sortOrder: 'asc' } } },
     orderBy: { name: 'asc' },

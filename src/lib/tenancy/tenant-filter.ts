@@ -8,6 +8,6 @@ export function organisationFilter(organisationId: string): { organisationId: st
   return { organisationId };
 }
 
-export function organisationFilterNullable(organisationId: string): { organisationId: string | null } {
+export function organisationFilterNullable(organisationId: string): { organisationId: string } {
   return { organisationId };
 }

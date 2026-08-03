@@ -10,7 +10,7 @@ const MAX_AGE_HOURS = 72;
 const BATCH_SIZE = 25;
 
 interface EnqueueNotificationInput {
-  organisationId?: string;
+  organisationId: string;
   idempotencyKey?: string;
   template: NotificationTemplate;
   payload: Record<string, unknown>;

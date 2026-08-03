@@ -149,6 +149,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
       targetEventSquadId: eventMatch.eventSquadId,
       plannedRole: plannedRole ?? null,
       note: note ?? null,
+      organisationId: ctx.organisationId,
     },
   });
 

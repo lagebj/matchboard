@@ -65,6 +65,7 @@ describe("Post-match report lifecycle", () => {
           playerId: p.id,
           role: "CORE",
           status: "FINALIZED",
+          organisationId: fixture.organisationId,
         })),
       });
 
@@ -91,7 +92,7 @@ describe("Post-match report lifecycle", () => {
       const hvitPlayer = fixture.players.find((p) => p.coreTeamName === "Hvit")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -155,7 +156,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -193,7 +194,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -224,7 +225,7 @@ describe("Post-match report lifecycle", () => {
       const hvitPlayer = fixture.players.find((p) => p.coreTeamName === "Hvit")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -248,7 +249,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -281,7 +282,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -309,7 +310,7 @@ describe("Post-match report lifecycle", () => {
       const hvitPlayer = fixture.players.find((p) => p.coreTeamName === "Hvit")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -355,7 +356,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -373,7 +374,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -406,7 +407,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -434,7 +435,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -452,7 +453,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);
@@ -480,7 +481,7 @@ describe("Post-match report lifecycle", () => {
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
       await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" },
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: 'org-test'},
       });
 
       const seedResult = await seedMatchReport(matchId);

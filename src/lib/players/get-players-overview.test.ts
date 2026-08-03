@@ -22,13 +22,13 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-async function ensureTestOpponentTeam(db: PrismaClient, name: string): Promise<string> {
+async function ensureTestOpponentTeam(db: PrismaClient, name: string, organisationId: string): Promise<string> {
   const normalizedName = normalizeOpponentName(name);
   const displayName = cleanOpponentDisplayName(name);
   const ot = await db.opponentTeam.upsert({
     where: { normalizedName },
     update: { displayName },
-    create: { displayName, normalizedName },
+    create: { displayName, normalizedName, organisationId },
   });
   return ot.id;
 }
@@ -108,7 +108,7 @@ describe("getPlayersSeasonOverview", () => {
   it("counts actual appearances from reported post-match data", async () => {
     const matchId = Object.values(fixture.matches)[0];
     const player = fixture.players[0];
-    const opponentTeamId = await ensureTestOpponentTeam(db, "Test Opponent");
+    const opponentTeamId = await ensureTestOpponentTeam(db, "Test Opponent", fixture.organisationId);
 
     await db.match.update({
       where: { id: matchId },
@@ -121,6 +121,7 @@ describe("getPlayersSeasonOverview", () => {
         status: "REPORTED",
         homeGoals: 3,
         awayGoals: 1,
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -131,6 +132,7 @@ describe("getPlayersSeasonOverview", () => {
         playerId: player.id,
         source: "PLANNED",
         attendanceStatus: "PRESENT",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -140,17 +142,18 @@ describe("getPlayersSeasonOverview", () => {
         playerId: player.id,
         goals: 2,
         assists: 1,
+        organisationId: fixture.organisationId,
       },
     });
 
     await db.goal.create({
-      data: { reportId: report.id, playerId: player.id, type: "NORMAL" },
+      data: { reportId: report.id, playerId: player.id, type: "NORMAL" , organisationId: fixture.organisationId },
     });
     await db.goal.create({
-      data: { reportId: report.id, playerId: player.id, type: "NORMAL" },
+      data: { reportId: report.id, playerId: player.id, type: "NORMAL" , organisationId: fixture.organisationId },
     });
     await db.assist.create({
-      data: { reportId: report.id, playerId: player.id, type: "NORMAL" },
+      data: { reportId: report.id, playerId: player.id, type: "NORMAL" , organisationId: fixture.organisationId },
     });
 
     await db.selection.create({
@@ -160,6 +163,7 @@ describe("getPlayersSeasonOverview", () => {
         matchRoundId: fixture.matchRoundId,
         role: "CORE",
         status: "FINALIZED",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -180,7 +184,7 @@ describe("getPlayersSeasonOverview", () => {
     let report = await db.postMatchReport.findFirst({ where: { matchId } });
     if (!report) {
       report = await db.postMatchReport.create({
-        data: { matchId, status: "REPORTED", homeGoals: 2, awayGoals: 0 },
+        data: { matchId, status: "REPORTED", homeGoals: 2, awayGoals: 0 , organisationId: fixture.organisationId },
       });
     }
 
@@ -191,6 +195,7 @@ describe("getPlayersSeasonOverview", () => {
         playerId: player.id,
         source: "ADDED_POST_MATCH",
         attendanceStatus: "PRESENT",
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -246,6 +251,7 @@ describe("getPlayersCurrentRoundAttention", () => {
         matchRoundId: fixture.matchRoundId,
         role: "CORE",
         status: "DRAFT",
+        organisationId: fixture.organisationId,
       },
     });
 

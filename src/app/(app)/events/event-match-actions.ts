@@ -96,7 +96,7 @@ export async function createEventMatchAction(formData: FormData) {
       location,
       notes,
       status: 'SCHEDULED',
-      ...(ctx.orgFilter.type === 'org' ? { organisationId: ctx.orgFilter.organisationId } : {}),
+      organisationId: ctx.organisationId,
     },
   });
 

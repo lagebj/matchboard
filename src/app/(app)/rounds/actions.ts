@@ -131,7 +131,7 @@ export async function generateRoundAction(prevState: { error: string }, formData
       teamIdByTeamName.set(match.team.name, match.team.id);
     }
 
-    const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+    const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, matchRound.organisationId);
     await persistRoundWarnings(warnings);
     await reconcileRoundAfterDraftMutation(roundId);
 

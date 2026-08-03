@@ -264,6 +264,7 @@ export async function updateEventPlayerAvailability(
       eventId,
       playerId,
       status,
+      organisationId: ctx.organisationId,
     },
     update: {
       status,
@@ -297,6 +298,7 @@ export async function setEventPlayerPool(
           eventId,
           playerId,
           status: defaultStatus,
+          organisationId: ctx.organisationId,
         })),
       });
     }
@@ -334,6 +336,7 @@ export async function addPlayersToEventPoolAction(
         eventId,
         playerId,
         status: defaultStatus,
+        organisationId: ctx.organisationId,
       })),
     });
   }
@@ -423,6 +426,7 @@ export async function assignPlayerToEventSquadAction(
       source: locked ? 'LOCKED' : 'MANUAL',
       locked,
       selectionReason: locked ? 'Locked by coach' : 'Manually assigned by coach',
+      organisationId: ctx.organisationId,
     },
   });
 
@@ -478,6 +482,7 @@ export async function addEventSquadAction(
       targetSize,
       formationId: formationId || undefined,
       generationOrder: (maxOrder?.generationOrder ?? -1) + 1,
+      organisationId: ctx.organisationId,
     },
   });
 
@@ -603,6 +608,7 @@ export async function movePlayerBetweenSquadsAction(
         source: 'MANUAL',
         locked: false,
         selectionReason: 'Moved by coach',
+        organisationId: ctx.organisationId,
       },
     });
   });
@@ -918,6 +924,7 @@ export async function generateEventSquadsAction(eventId: string) {
           locked: assignment.locked,
           positionFitTier: assignment.positionFitTier,
           selectionReason: assignment.selectionReason,
+          organisationId: ctx.organisationId,
         })),
         skipDuplicates: true,
       });

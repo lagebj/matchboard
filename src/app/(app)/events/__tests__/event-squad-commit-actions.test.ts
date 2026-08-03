@@ -27,7 +27,7 @@ vi.mock("@/lib/auth/actor-context", () => {
     userId: "test-coach-id",
     email: "test@matchboard.test",
     membershipId: "mem-test",
-    organisationId: "org-test",
+    organisationId: testOrgId,
     organisationSlug: "test-org",
     role: "COACH",
     delegatedTeamIds: null,
@@ -58,6 +58,7 @@ vi.mock("@/lib/db", () => {
 
 let db: PrismaClient;
 let playerCodeCounter = 10000;
+let testOrgId: string;
 
 async function cleanEventTables(db: PrismaClient) {
   await db.eventSquadPlayer.deleteMany();
@@ -71,7 +72,7 @@ async function cleanEventTables(db: PrismaClient) {
 
 async function createPlayer(db: PrismaClient, overrides: Record<string, unknown> = {}) {
   const team = await db.team.create({
-    data: { name: `Team-${Math.random().toString(36).slice(2, 8)}` },
+    data: { name: `Team-${Math.random().toString(36).slice(2, 8)}`, organisationId: testOrgId },
   });
   const player = await db.player.create({
     data: {
@@ -84,7 +85,8 @@ async function createPlayer(db: PrismaClient, overrides: Record<string, unknown>
       bestSide: "CENTER",
       coreTeamId: team.id,
       ...overrides,
-    },
+          organisationId: testOrgId,
+},
   });
   return { player, team };
 }
@@ -92,6 +94,12 @@ async function createPlayer(db: PrismaClient, overrides: Record<string, unknown>
 describe("event-squad-commit-actions", () => {
   beforeAll(async () => {
     db = await setupTestDb();
+    const org = await db.organisation.upsert({
+      where: { slug: "test-org-commit" },
+      update: {},
+      create: { name: "Test Org Commit", slug: "test-org-commit" },
+    });
+    testOrgId = org.id;
   });
 
   afterAll(async () => {
@@ -113,6 +121,7 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-01-01T09:00:00Z"),
           endsAt: new Date("2028-01-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 
@@ -132,16 +141,17 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-02-01T09:00:00Z"),
           endsAt: new Date("2028-02-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const squadA = await db.eventSquad.create({
-        data: { eventId: event.id, name: "Squad A", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "Squad A", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
       const squadB = await db.eventSquad.create({
-        data: { eventId: event.id, name: "Squad B", intent: "BALANCED", targetSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "Squad B", intent: "BALANCED", targetSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squadA.id, eventId: event.id, playerId: player.id, source: "AUTO" } });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squadB.id, eventId: event.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squadA.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squadB.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
 
       const result = await validateEventSquadsBeforeCommit(event.id);
       expect(result.valid).toBe(false);
@@ -159,15 +169,16 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-03-01T09:00:00Z"),
           endsAt: new Date("2028-03-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       await db.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId: player.id, status: "UNAVAILABLE" },
+        data: { eventId: event.id, playerId: player.id, status: "UNAVAILABLE" , organisationId: testOrgId},
       });
       const squad = await db.eventSquad.create({
-        data: { eventId: event.id, name: "Squad A", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "Squad A", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
 
       const result = await validateEventSquadsBeforeCommit(event.id);
       expect(result.valid).toBe(false);
@@ -184,10 +195,11 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-04-01T09:00:00Z"),
           endsAt: new Date("2028-04-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Tiny Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "Tiny Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
 
       const result = await validateEventSquadsBeforeCommit(event.id);
@@ -206,12 +218,13 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-05-01T09:00:00Z"),
           endsAt: new Date("2028-05-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const squad = await db.eventSquad.create({
-        data: { eventId: event.id, name: "Short Squad", intent: "BALANCED", targetSize: 7, minSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "Short Squad", intent: "BALANCED", targetSize: 7, minSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
 
       const result = await validateEventSquadsBeforeCommit(event.id);
       expect(result.issues.some((i) => i.code === "squad_below_target")).toBe(true);
@@ -229,12 +242,13 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-06-01T09:00:00Z"),
           endsAt: new Date("2028-06-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const squad = await db.eventSquad.create({
-        data: { eventId: event.id, name: "No GK Squad", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "No GK Squad", intent: "COMPETITIVE", targetSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: player.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
 
       const result = await validateEventSquadsBeforeCommit(event.id);
       expect(result.valid).toBe(false);
@@ -252,12 +266,13 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-07-01T09:00:00Z"),
           endsAt: new Date("2028-07-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const squad = await db.eventSquad.create({
-        data: { eventId: event.id, name: "Good Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 1, status: "DRAFT" },
+        data: { eventId: event.id, name: "Good Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 1, status: "DRAFT" , organisationId: testOrgId},
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: gk.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: gk.id, source: "AUTO" , organisationId: testOrgId} });
 
       const result = await validateEventSquadsBeforeCommit(event.id);
       expect(result.valid).toBe(true);
@@ -276,13 +291,14 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-08-01T09:00:00Z"),
           endsAt: new Date("2028-08-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       const { player: gk } = await createPlayer(db, { goalkeeperAbility: "YES", primaryPosition: "GK" });
       const squad = await db.eventSquad.create({
-        data: { eventId: event.id, name: "Ready Squad", intent: "COMPETITIVE", targetSize: 7, status: "DRAFT" },
+        data: { eventId: event.id, name: "Ready Squad", intent: "COMPETITIVE", targetSize: 7, status: "DRAFT" , organisationId: testOrgId},
       });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: gk.id, source: "AUTO" } });
+      await db.eventSquadPlayer.create({ data: { eventSquadId: squad.id, eventId: event.id, playerId: gk.id, source: "AUTO", organisationId: testOrgId } });
 
       const result = await confirmEventSquadsAction(event.id);
       expect(result.success).toBe(true);
@@ -304,10 +320,11 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-09-01T09:00:00Z"),
           endsAt: new Date("2028-09-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Empty Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 5, status: "DRAFT" },
+        data: { eventId: event.id, name: "Empty Squad", intent: "COMPETITIVE", targetSize: 7, minSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
 
       const result = await confirmEventSquadsAction(event.id);
@@ -326,10 +343,11 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-10-01T09:00:00Z"),
           endsAt: new Date("2028-10-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
-        },
+                  organisationId: testOrgId,
+},
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Locked Squad", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED" },
+        data: { eventId: event.id, name: "Locked Squad", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED", organisationId: testOrgId },
       });
 
       const result = await unconfirmEventSquadsAction(event.id);
@@ -352,10 +370,11 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-11-01T09:00:00Z"),
           endsAt: new Date("2028-11-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
-        },
+                  organisationId: testOrgId,
+},
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Draft Squad", intent: "BALANCED", targetSize: 7, status: "DRAFT" },
+        data: { eventId: event.id, name: "Draft Squad", intent: "BALANCED", targetSize: 7, status: "DRAFT", organisationId: testOrgId },
       });
 
       const result = await unconfirmEventSquadsAction(event.id);
@@ -374,13 +393,14 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2028-12-01T09:00:00Z"),
           endsAt: new Date("2028-12-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
-        },
+                  organisationId: testOrgId,
+},
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Draft A", intent: "COMPETITIVE", targetSize: 7, status: "DRAFT" },
+        data: { eventId: event.id, name: "Draft A", intent: "COMPETITIVE", targetSize: 7, status: "DRAFT" , organisationId: testOrgId},
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Draft B", intent: "BALANCED", targetSize: 7, status: "DRAFT" },
+        data: { eventId: event.id, name: "Draft B", intent: "BALANCED", targetSize: 7, status: "DRAFT", organisationId: testOrgId },
       });
 
       const result = await getEventSquadsStatusAction(event.id);
@@ -399,10 +419,11 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2029-01-01T09:00:00Z"),
           endsAt: new Date("2029-01-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
-        },
+                  organisationId: testOrgId,
+},
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Locked A", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED" },
+        data: { eventId: event.id, name: "Locked A", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED", organisationId: testOrgId },
       });
 
       const result = await getEventSquadsStatusAction(event.id);
@@ -421,13 +442,14 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2029-02-01T09:00:00Z"),
           endsAt: new Date("2029-02-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
-        },
+                  organisationId: testOrgId,
+},
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Locked Squad", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED" },
+        data: { eventId: event.id, name: "Locked Squad", intent: "COMPETITIVE", targetSize: 7, status: "LOCKED", organisationId: testOrgId },
       });
       await db.eventSquad.create({
-        data: { eventId: event.id, name: "Draft Squad", intent: "BALANCED", targetSize: 7, status: "DRAFT" },
+        data: { eventId: event.id, name: "Draft Squad", intent: "BALANCED", targetSize: 7, status: "DRAFT", organisationId: testOrgId },
       });
 
       const result = await getEventSquadsStatusAction(event.id);
@@ -445,6 +467,7 @@ describe("event-squad-commit-actions", () => {
           startsAt: new Date("2029-03-01T09:00:00Z"),
           endsAt: new Date("2029-03-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: testOrgId,
         },
       });
 

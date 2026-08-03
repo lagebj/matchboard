@@ -107,7 +107,7 @@ export async function createCustomFormation(data: {
       teamId: data.teamId ?? null,
       description: data.description ?? null,
       isArchived: false,
-      ...(orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : {}),
+      organisationId: orgFilter.type === "org" ? orgFilter.organisationId : "",
       slots: { create: slots },
     },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
@@ -363,6 +363,7 @@ export async function addFormationSlot(
       roleType: defaults.roleType,
       acceptedPositionIds: defaults.acceptedPositionIds,
       sortOrder: maxSortOrder + 1,
+      organisationId: formation.organisationId,
     },
   });
 

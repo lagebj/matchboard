@@ -182,7 +182,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     db.playerDevelopmentObservation.findMany({
       where: {
         matchId,
-        ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filterNullable : {}),
+        ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
       },
       orderBy: { observedAt: "desc" },
       select: {

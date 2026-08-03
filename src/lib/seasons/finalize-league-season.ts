@@ -81,14 +81,17 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
 
     const snapshot = await tx.seasonPeriodSnapshot.create({
       data: {
+        organisationId: leagueSeason.organisationId,
         leagueSeasonId,
         finalizedAt: now,
         teamSnapshots: {
           create: teamsWithPlayers.map((team) => ({
+            organisationId: leagueSeason.organisationId,
             teamId: team.id,
             teamNameSnapshot: team.name,
             playerSnapshots: {
               create: team.corePlayers.map((player) => ({
+                organisationId: leagueSeason.organisationId,
                 playerId: player.id,
                 playerNameSnapshot: [player.firstName, player.lastName].filter(Boolean).join(" "),
                 primaryPositionSnapshot: player.primaryPosition,

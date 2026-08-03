@@ -35,6 +35,7 @@ describe("Season fairness warnings — new warnings", () => {
         role: "SUPPORT",
         purpose: "Blå → Rød support",
         active: true,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -47,6 +48,7 @@ describe("Season fairness warnings — new warnings", () => {
         role: "SUPPORT",
         purpose: "Hvit → Blå support",
         active: true,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -78,6 +80,7 @@ describe("Season fairness warnings — new warnings", () => {
         playerId: blaPlayer.id,
         role: "SUPPORT",
         status: "FINALIZED",
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -90,6 +93,7 @@ describe("Season fairness warnings — new warnings", () => {
         toTeamId: rodTeamId,
         role: "SUPPORT",
         isDraft: false,
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -115,6 +119,7 @@ describe("Season fairness warnings — new warnings", () => {
           name: `Consecutive week ${i + 1}`,
           leagueSeasonId: fixtureIds.leagueSeasonId,
           status: "FINALIZED",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -124,7 +129,7 @@ describe("Season fairness warnings — new warnings", () => {
       const ot = await testDb.opponentTeam.upsert({
         where: { normalizedName },
         update: { displayName },
-        create: { displayName, normalizedName },
+        create: { displayName, normalizedName, organisationId: fixtureIds.organisationId },
       });
       const opponentTeamId = ot.id;
       fixtureIds.opponentTeamIds[normalizedName] = opponentTeamId;
@@ -139,6 +144,7 @@ describe("Season fairness warnings — new warnings", () => {
           homeAway: "HOME",
           matchType: "LEAGUE",
           gameFormat: "ELEVEN_A_SIDE",
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -149,6 +155,7 @@ describe("Season fairness warnings — new warnings", () => {
           playerId: blaPlayer.id,
           role: "SUPPORT",
           status: "FINALIZED",
+          organisationId: fixtureIds.organisationId,
         },
       });
     }

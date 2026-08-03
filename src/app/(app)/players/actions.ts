@@ -247,7 +247,7 @@ function getPlayerActionErrorMessage(error: unknown): string {
 export async function createPlayerAction(formData: FormData) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   try {
     const playerInput = await readPlayerInput(formData, organisationId);
 
@@ -264,7 +264,7 @@ export async function createPlayerAction(formData: FormData) {
           data: {
             ...playerInput,
             playerCode,
-            ...(organisationId ? { organisationId } : {}),
+            organisationId,
           },
           select: { id: true },
         });
@@ -309,7 +309,7 @@ export async function createPlayerAction(formData: FormData) {
 export async function updatePlayerAction(playerId: string, formData: FormData) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   try {
     const playerInput = await readPlayerInput(formData, organisationId);
 
@@ -361,7 +361,7 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
 export async function togglePlayerActiveAction(playerId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   const result = await togglePlayerActiveDomain(playerId, organisationId);
   if (!result.success) {
     redirect(buildPathWithSearch("/players", { error: result.error }));
@@ -375,7 +375,7 @@ export async function togglePlayerActiveAction(playerId: string) {
 export async function removePlayerAction(playerId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   const result = await removePlayerDomain(playerId, organisationId);
   if (!result.success) {
     logPlayerRemove(ctx.email || "unknown", playerId, "failure", result.error);
@@ -392,7 +392,7 @@ export async function removePlayerAction(playerId: string) {
 export async function restorePlayerAction(playerId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   const result = await restorePlayerDomain(playerId, organisationId);
   if (!result.success) {
     logPlayerRestore(ctx.email || "unknown", playerId, "failure");
@@ -417,7 +417,7 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
 
   await requirePlayerTeamAccess(ctx, playerId);
 
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   const result = await setPlayerAvailabilityDomain(playerId, availability as AvailabilityStatus, organisationId);
   if (!result.success) throw new Error(result.error);
 
@@ -430,7 +430,7 @@ export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: s
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   if (coreTeamId) requireTeamAccess(ctx, coreTeamId);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId, organisationId);
   if (!result.success) throw new Error(result.error);
 

@@ -70,6 +70,8 @@ export async function addPlayerToDraftMatch(
     return { success: false, errors: ["Cannot edit a match in a finalised round."], warnings };
   }
 
+  const organisationId = match.organisationId;
+
   const player = await db.player.findUnique({
     where: { id: playerId },
     include: { coreTeam: { select: { id: true, name: true } } },
@@ -190,6 +192,7 @@ export async function addPlayerToDraftMatch(
 
   const selection = await db.selection.create({
     data: {
+      organisationId,
       matchId,
       matchRoundId: match.matchRoundId,
       playerId,
@@ -217,6 +220,7 @@ export async function addPlayerToDraftMatch(
   if (player.coreTeamId !== match.teamId || role !== SelectionRole.CORE) {
     await db.movementLedger.create({
       data: {
+        organisationId,
         matchRoundId: match.matchRoundId,
         matchId,
         playerId,
@@ -294,9 +298,12 @@ export async function changeDraftPlayerRole(
     },
     include: {
       match: {
-        include: {
-          team: { select: { id: true, name: true } },
+        select: {
+          id: true,
+          organisationId: true,
+          teamId: true,
           matchRound: { select: { id: true, status: true } },
+          team: { select: { id: true, name: true } },
         },
       },
       player: {
@@ -390,7 +397,8 @@ export async function changeDraftPlayerRole(
   if (player.coreTeamId !== selection.match.teamId || newRole !== SelectionRole.CORE) {
     await db.movementLedger.create({
       data: {
-        matchRoundId: selection.match.matchRoundId,
+        organisationId: selection.match.organisationId,
+        matchRoundId: selection.match.matchRound.id,
         matchId,
         playerId,
         fromTeamId: player.coreTeamId ?? "",

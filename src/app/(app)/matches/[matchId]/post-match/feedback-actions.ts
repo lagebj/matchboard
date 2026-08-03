@@ -72,7 +72,7 @@ export async function createMatchFeedbackAction(
         observableBehavior: observableBehavior ?? null,
         nextAction: (nextAction as FeedbackNextAction) ?? "NO_ACTION",
         note: note ?? null,
-        ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
+        organisationId: ctx.organisationId,
       },
     });
 

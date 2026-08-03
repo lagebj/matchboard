@@ -114,7 +114,7 @@ export async function setTeamReflectionAction(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const orgId = ctx.organisationId;
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {
@@ -132,7 +132,7 @@ export async function setTeamReflectionAction(
         positionalShape: data.positionalShape ?? null,
         recoveryBehavior: data.recoveryBehavior ?? null,
         note: data.note ?? null,
-        ...(orgId ? { organisationId: orgId } : {}),
+        organisationId: orgId,
       },
       update: {
         ...(data.effort !== undefined && { effort: data.effort }),

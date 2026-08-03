@@ -3,6 +3,8 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
 
+let _testOrgId = "org-test";
+
 vi.mock("@/lib/auth", () => {
   class AuthorizationError extends Error {
     constructor(message: string) {
@@ -18,7 +20,7 @@ vi.mock("@/lib/auth/actor-context", () => {
     userId: "test-coach",
     email: "coach@test.com",
     membershipId: "mem-test",
-    organisationId: "org-test",
+    organisationId: _testOrgId,
     organisationSlug: "test-org",
     role: "COACH",
     delegatedTeamIds: null,
@@ -58,6 +60,7 @@ describe("Event pool and squad actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    _testOrgId = fixture.organisationId;
   });
 
   afterAll(async () => {
@@ -72,7 +75,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -97,7 +101,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -121,7 +126,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -140,14 +146,15 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
       const playerId = fixture.players[0]!.id;
 
       await testDb.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId, status: "AVAILABLE" },
+        data: { eventId: event.id, playerId, status: "AVAILABLE" , organisationId: fixture.organisationId},
       });
 
       const squad = await testDb.eventSquad.findFirstOrThrow({ where: { eventId: event.id } });
@@ -160,7 +167,8 @@ describe("Event pool and squad actions", () => {
           source: "MANUAL",
           locked: false,
           selectionReason: "Manually assigned by coach",
-        },
+                  organisationId: fixture.organisationId,
+},
       });
 
       await removePlayerFromEventPoolAction(event.id, playerId);
@@ -185,7 +193,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -211,7 +220,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -236,10 +246,11 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
+          organisationId: fixture.organisationId,
           squads: {
             create: [
-              { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 },
-              { name: "Squad 2", intent: "BALANCED", targetSize: 7, generationOrder: 1 },
+              { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: "Squad 2", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
             ],
           },
         },
@@ -264,7 +275,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -279,7 +291,8 @@ describe("Event pool and squad actions", () => {
           source: "MANUAL",
           locked: false,
           selectionReason: "Manually assigned by coach",
-        },
+                  organisationId: fixture.organisationId,
+},
       });
 
       await unassignPlayerFromEventSquadAction(assignment.id);
@@ -303,7 +316,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -319,7 +333,8 @@ describe("Event pool and squad actions", () => {
           eventType: "CUP",
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
-          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0 } },
+          organisationId: fixture.organisationId,
+          squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
 
@@ -328,7 +343,8 @@ describe("Event pool and squad actions", () => {
           eventId: event.id,
           playerId: fixture.players[0]!.id,
           status: "UNAVAILABLE",
-        },
+                  organisationId: fixture.organisationId,
+},
       });
 
       await expect(

@@ -48,7 +48,7 @@ export async function setReadinessSignalAction(
         signalType: signalType as ReadinessSignalType,
         value: value as ReadinessSignalValue,
         note: note ?? null,
-        ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
+        organisationId: ctx.organisationId,
       },
       update: {
         value: value as ReadinessSignalValue,

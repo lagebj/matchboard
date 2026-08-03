@@ -44,7 +44,7 @@ function getTeamErrorMessage(error: unknown): string {
 export async function createTeamAction(formData: FormData) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   try {
     const name = readText(formData, "name");
     const targetSquadSize = readNonNegativeInteger(formData, "targetSquadSize", "Target squad size");
@@ -96,7 +96,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   requireTeamAccess(ctx, teamId);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   try {
     const team = await db.team.findFirst({
       where: {
@@ -205,7 +205,7 @@ export async function deleteTeamAction(teamId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   requireTeamAccess(ctx, teamId);
-  const organisationId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const organisationId = ctx.organisationId;
   try {
     const result = await archiveTeam(teamId, organisationId);
     if (!result.success) {

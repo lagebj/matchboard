@@ -9,7 +9,7 @@ export type CreateMovementCandidateInput = {
   rationaleCategory: MovementCandidateRationale;
   rationaleNote?: string | null;
   reviewBy?: Date | null;
-  organisationId?: string;
+  organisationId: string;
 };
 
 export type UpdateMovementCandidateInput = {
@@ -128,17 +128,17 @@ export async function createMovementCandidate(input: CreateMovementCandidateInpu
   }
 
   try {
-    const candidate = await db.movementCandidate.create({
-      data: {
-        playerId: input.playerId,
+      const candidate = await db.movementCandidate.create({
+        data: {
+          organisationId: input.organisationId,
+          playerId: input.playerId,
         rotationPathId: input.rotationPathId,
         role: input.role,
         status: "ACTIVE",
-        rationaleCategory: input.rationaleCategory,
-        rationaleNote: input.rationaleNote ?? null,
-        reviewBy: input.reviewBy ?? null,
-        ...(input.organisationId ? { organisationId: input.organisationId } : {}),
-      },
+          rationaleCategory: input.rationaleCategory,
+          rationaleNote: input.rationaleNote ?? null,
+          reviewBy: input.reviewBy ?? null,
+        },
     });
 
     return { success: true, candidate };

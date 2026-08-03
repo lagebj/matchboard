@@ -216,6 +216,7 @@ describe("getConsecutiveSupportCount", () => {
         playerId,
         role: "SUPPORT",
         status: "FINALIZED",
+        organisationId: fixtureIds.organisationId,
       })),
     });
 
@@ -241,6 +242,7 @@ describe("getConsecutiveSupportCount", () => {
         playerId,
         role: "CORE",
         status: "FINALIZED",
+        organisationId: fixtureIds.organisationId,
       },
     });
 

@@ -170,7 +170,7 @@ export async function fixtureGenerateRoundAction(prevState: { error: string }, f
     teamIdByTeamName.set(match.team.name, match.team.id);
   }
 
-  const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName);
+  const warnings = buildPersistableWarnings(generatedRound, matchIdByTeamName, teamIdByTeamName, fullRound.organisationId);
   await persistRoundWarnings(warnings);
 
   revalidatePath("/");

@@ -68,10 +68,12 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
       data: {
         leagueSeasonId,
         finalizedAt: now,
+        organisationId: ctx.organisationId,
         teamSnapshots: {
           create: teamsWithPlayers.map((team) => ({
             teamId: team.id,
             teamNameSnapshot: team.name,
+            organisationId: ctx.organisationId,
             playerSnapshots: {
               create: team.corePlayers.map((player) => ({
                 playerId: player.id,
@@ -81,6 +83,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
                 tertiaryPositionSnapshot: player.tertiaryPosition,
                 shirtNumberSnapshot: player.shirtNumber,
                 activeAtSnapshot: player.active,
+                organisationId: ctx.organisationId,
               })),
             },
           })),

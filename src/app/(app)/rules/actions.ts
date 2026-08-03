@@ -150,7 +150,7 @@ export async function createRotationPathAction(prevState: ActionState, formData:
         allowDoubleLoad,
         minRestSpacingHours,
         maxDoubleLoadsPerPeriod,
-        ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
+        organisationId: ctx.organisationId,
       },
     });
   } catch (error) {

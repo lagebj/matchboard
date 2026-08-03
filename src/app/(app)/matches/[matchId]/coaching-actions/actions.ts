@@ -48,7 +48,7 @@ export async function setCoachingIntentAction(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
+  const orgId = ctx.organisationId;
 
   if (!COACHING_INTENT_SCOPE_TYPES.includes(scopeType as CoachingIntentScopeType)) {
     return { success: false, error: `Invalid scope type: ${scopeType}` };

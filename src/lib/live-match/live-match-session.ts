@@ -45,7 +45,7 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
     data: {
       matchId,
       coachId: ctx.userId,
-      organisationId: ctx.orgFilter.type === "org" ? ctx.organisationId : null,
+      organisationId: ctx.organisationId,
       status: "ACTIVE",
     },
   });

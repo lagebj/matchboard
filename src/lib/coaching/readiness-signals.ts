@@ -12,6 +12,7 @@ type CreateReadinessSignalInput = {
   value: ReadinessSignalValue;
   note?: string;
   recordedBy?: string;
+  organisationId: string;
 };
 
 type UpdateReadinessSignalInput = {
@@ -53,6 +54,7 @@ export async function setReadinessSignal(input: CreateReadinessSignalInput) {
       },
     },
     create: {
+      organisationId: input.organisationId,
       playerId: input.playerId,
       signalType: input.signalType,
       value: input.value,

@@ -17,7 +17,7 @@ export async function backfillMovementLedger(): Promise<BackfillMovementLedgerRe
     },
     include: {
       player: { select: { coreTeamId: true } },
-      match: { select: { teamId: true } },
+      match: { select: { teamId: true, organisationId: true } },
     },
   });
 
@@ -28,7 +28,7 @@ export async function backfillMovementLedger(): Promise<BackfillMovementLedgerRe
     },
     include: {
       player: { select: { coreTeamId: true } },
-      match: { select: { teamId: true } },
+      match: { select: { teamId: true, organisationId: true } },
     },
   });
 
@@ -61,6 +61,7 @@ export async function backfillMovementLedger(): Promise<BackfillMovementLedgerRe
     if (!existing) {
       await db.movementLedger.create({
         data: {
+          organisationId: sel.match.organisationId,
           matchRoundId: sel.matchRoundId,
           matchId: sel.matchId,
           playerId: sel.playerId,

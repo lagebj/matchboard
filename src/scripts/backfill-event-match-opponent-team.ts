@@ -10,7 +10,7 @@ async function backfillEventMatchOpponentTeam() {
       opponentTeamId: null,
       opponentName: { not: "" },
     },
-    select: { id: true, opponentName: true },
+    select: { id: true, opponentName: true, event: { select: { organisationId: true } } },
   });
 
   console.log(`Found ${eventMatches.length} event matches without opponentTeamId.`);
@@ -37,7 +37,7 @@ async function backfillEventMatchOpponentTeam() {
     } else {
       const displayName = cleanOpponentDisplayName(em.opponentName);
       const created_team = await db.opponentTeam.create({
-        data: { displayName, normalizedName },
+        data: { displayName, normalizedName, organisationId: em.event.organisationId },
       });
       opponentTeamId = created_team.id;
       created++;

@@ -106,6 +106,7 @@ export async function saveObservationAction(
           factualSummary: cleanedSummary,
           followUp: data.followUp,
           recordedBy: ctx.email,
+          organisationId: ctx.organisationId,
         },
       });
     }

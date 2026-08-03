@@ -69,6 +69,7 @@ async function finalizeSeason(leagueSeasonId: string) {
           create: teamsWithPlayers.map((team) => ({
             teamId: team.id,
             teamNameSnapshot: team.name,
+            organisationId: fixture.organisationId,
             playerSnapshots: {
               create: team.corePlayers.map((player) => ({
                 playerId: player.id,
@@ -78,10 +79,12 @@ async function finalizeSeason(leagueSeasonId: string) {
                 tertiaryPositionSnapshot: player.tertiaryPosition,
                 shirtNumberSnapshot: player.shirtNumber,
                 activeAtSnapshot: player.active,
+                organisationId: fixture.organisationId,
               })),
             },
           })),
         },
+        organisationId: fixture.organisationId,
       },
     });
   });
@@ -190,7 +193,7 @@ describe("League season finalization", () => {
 
   it("getLeagueSeasonSnapshot returns null for a league season that was never finalized", async () => {
     const newSeason = await testDb.season.create({
-      data: { name: "Test Season 2027", year: 2027 },
+      data: { name: "Test Season 2027", year: 2027 , organisationId: fixture.organisationId },
     });
     const newLeagueSeason = await testDb.leagueSeason.create({
       data: {
@@ -199,6 +202,7 @@ describe("League season finalization", () => {
         seasonId: newSeason.id,
         startDate: new Date("2027-01-01"),
         endDate: new Date("2027-06-30"),
+        organisationId: fixture.organisationId,
       },
     });
 
@@ -232,6 +236,7 @@ describe("League season finalization", () => {
         secondaryFoot: "WEAK",
         bestSide: "CENTER",
         currentAvailability: "AVAILABLE",
+        organisationId: fixture.organisationId,
       },
     });
 

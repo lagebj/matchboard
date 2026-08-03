@@ -39,7 +39,7 @@ export async function resolveOrCreateMatchRoundForDate(
 
   const period = await client.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
-    select: { id: true, startDate: true, endDate: true },
+    select: { id: true, startDate: true, endDate: true, organisationId: true },
   });
 
   if (!period) {
@@ -95,6 +95,7 @@ export async function resolveOrCreateMatchRoundForDate(
     data: {
       name: isoWeekLabel,
       leagueSeasonId,
+      organisationId: period.organisationId,
       status: "NOT_GENERATED",
     },
     select: { id: true, name: true },

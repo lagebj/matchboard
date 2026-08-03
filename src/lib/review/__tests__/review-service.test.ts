@@ -285,6 +285,10 @@ describe("review-service", () => {
         data: { email: `rev-cross-${Date.now()}@test.com`, name: "Reviewer Cross" },
       });
 
+      const user3 = await db.user.create({
+        data: { email: `rev3-cross-${Date.now()}@test.com`, name: "Reviewer Org1" },
+      });
+
       const membership1 = await db.organisationMembership.create({
         data: { userId: user1.id, organisationId: org1.id, role: "COACH" },
       });
@@ -293,11 +297,15 @@ describe("review-service", () => {
         data: { userId: user2.id, organisationId: org2.id, role: "COACH" },
       });
 
+      const membership3 = await db.organisationMembership.create({
+        data: { userId: user3.id, organisationId: org1.id, role: "COACH" },
+      });
+
       const review = await createReviewRequest({
         targetType: "EVENT_SQUAD",
         targetId: "squad-cross-org-resolve",
         targetRevision: "rev-1",
-        reviewerMembershipId: membership1.id,
+        reviewerMembershipId: membership3.id,
       }, org1.id, membership1.id);
 
       await expect(

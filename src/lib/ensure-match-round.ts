@@ -24,14 +24,14 @@ export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string>
     });
 
     if (matchingPeriod) {
-      return findOrCreateRound(matchingPeriod.id, weekKey, weekLabel);
+      return findOrCreateRound(matchingPeriod.id, matchingPeriod.organisationId, weekLabel);
     }
   }
 
-  return createFullHierarchy(startsAt, weekKey, weekLabel);
+  return createFullHierarchy(startsAt, weekLabel);
 }
 
-async function findOrCreateRound(leagueSeasonId: string, weekKey: string, weekLabel: string): Promise<string> {
+async function findOrCreateRound(leagueSeasonId: string, organisationId: string, weekLabel: string): Promise<string> {
   const existing = await db.matchRound.findFirst({
     where: {
       leagueSeasonId,
@@ -47,22 +47,25 @@ async function findOrCreateRound(leagueSeasonId: string, weekKey: string, weekLa
     data: {
       name: weekLabel,
       leagueSeasonId,
+      organisationId,
     },
   });
 
   return round.id;
 }
 
-async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: string): Promise<string> {
+async function createFullHierarchy(startsAt: Date, weekLabel: string): Promise<string> {
   const part: LeagueSeasonPart = getLeagueSeasonPartForDate(startsAt);
   const dateRange = getLeagueSeasonDateRange(startsAt.getUTCFullYear(), part);
   const name = formatLeagueSeasonLabel({ year: startsAt.getUTCFullYear(), part });
 
   const roundId = await db.$transaction(async (tx) => {
     let season = await tx.season.findFirst({ orderBy: { createdAt: "desc" } });
+    const organisationId = season?.organisationId ?? "";
+
     if (!season) {
       season = await tx.season.create({
-        data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear() },
+        data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear(), organisationId },
       });
     }
 
@@ -82,6 +85,7 @@ async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: s
           seasonId: season.id,
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
+          organisationId: season.organisationId,
         },
       });
     }
@@ -98,6 +102,7 @@ async function createFullHierarchy(startsAt: Date, weekKey: string, weekLabel: s
         data: {
           name: weekLabel,
           leagueSeasonId: period.id,
+          organisationId: period.organisationId,
         },
       });
     }

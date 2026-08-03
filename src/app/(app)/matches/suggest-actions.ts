@@ -342,6 +342,7 @@ export async function applySuggestedLineup(
       formationSnapshot: snapshot,
       benchPlayerIds,
       status: "DRAFT",
+      organisationId: ctx.organisationId,
       assignments: {
         create: formation.slots.map((slot) => {
           const assignment = assignments.find((a) => a.slotId === slot.id);
@@ -350,6 +351,7 @@ export async function applySuggestedLineup(
             playerId: assignment?.playerId ?? null,
             locked: false,
             source: (assignment?.source ?? "MANUAL") as "SUGGESTED" | "MANUAL",
+            organisationId: ctx.organisationId,
           };
         }),
       },

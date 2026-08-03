@@ -34,6 +34,7 @@ async function createMovementLedgerEntry(
   matchId: string,
   matchRoundId: string,
   targetTeamId: string,
+  organisationId: string,
 ) {
   const role = mapSelectionCategoryToRole(player.selectionCategory);
   // controlledDoubleLoad is a legacy flag. No new true values are written
@@ -43,6 +44,7 @@ async function createMovementLedgerEntry(
   if (isControlledDoubleLoad && player.coreTeamId === targetTeamId) {
     await tx.movementLedger.create({
       data: {
+        organisationId,
         matchId,
         matchRoundId,
         playerId: player.playerId,
@@ -61,6 +63,7 @@ async function createMovementLedgerEntry(
   if (player.coreTeamId !== targetTeamId) {
     await tx.movementLedger.create({
       data: {
+        organisationId,
         matchId,
         matchRoundId,
         playerId: player.playerId,
@@ -83,6 +86,9 @@ export async function createGeneratedDraftSelection(
   const matchRoundId = generatedSelection.matchRoundId;
   const targetTeamId = generatedSelection.teamId;
 
+  const match = await db.match.findUnique({ where: { id: matchId }, select: { organisationId: true } });
+  const organisationId = match?.organisationId ?? "";
+
   await db.$transaction(async (tx) => {
     await tx.selection.deleteMany({
       where: {
@@ -101,6 +107,7 @@ export async function createGeneratedDraftSelection(
     for (const player of generatedSelection.selectedPlayers) {
       await tx.selection.create({
         data: {
+          organisationId,
           matchId,
           matchRoundId,
           playerId: player.playerId,
@@ -127,7 +134,7 @@ export async function createGeneratedDraftSelection(
       });
 
       if (isNonCoreMovement(player, targetTeamId)) {
-        await createMovementLedgerEntry(tx, player, matchId, matchRoundId, targetTeamId);
+        await createMovementLedgerEntry(tx, player, matchId, matchRoundId, targetTeamId, organisationId);
       }
     }
   });
@@ -137,6 +144,13 @@ export async function createGeneratedDraftRound(
   generatedRound: GeneratedRound,
 ) {
   const matchIds = generatedRound.matchResults.map((m) => m.matchId);
+
+  const matches = await db.match.findMany({
+    where: { id: { in: matchIds } },
+    select: { id: true, organisationId: true },
+  });
+  const orgIdByMatchId = new Map(matches.map((m) => [m.id, m.organisationId]));
+  const organisationId = orgIdByMatchId.get(matchIds[0] ?? "") ?? "";
 
   await db.$transaction(async (tx) => {
     await tx.selection.deleteMany({
@@ -158,6 +172,7 @@ export async function createGeneratedDraftRound(
         const targetTeamId = matchResult.teamId;
         await tx.selection.create({
           data: {
+            organisationId,
             matchId: matchResult.matchId,
             matchRoundId: matchResult.matchRoundId,
             playerId: player.playerId,
@@ -184,7 +199,7 @@ export async function createGeneratedDraftRound(
         });
 
         if (isNonCoreMovement(player, targetTeamId)) {
-          await createMovementLedgerEntry(tx, player, matchResult.matchId, matchResult.matchRoundId, targetTeamId);
+          await createMovementLedgerEntry(tx, player, matchResult.matchId, matchResult.matchRoundId, targetTeamId, organisationId);
         }
       }
     }

@@ -21,6 +21,7 @@ vi.mock("@/lib/db", () => {
 
 let db: PrismaClient;
 let opponentTeamId: string;
+let testOrgId: string;
 
 async function cleanEventTables(db: PrismaClient) {
   await db.eventGoalEvent.deleteMany();
@@ -41,8 +42,12 @@ describe("getEventWorkItems", () => {
   beforeAll(async () => {
     db = await setupTestDb();
     await cleanEventTables(db);
+    const org = await db.organisation.create({
+      data: { name: "Event Test Org", slug: `event-test-org-${Date.now()}` },
+    });
+    testOrgId = org.id;
     const opp = await db.opponentTeam.create({
-      data: { displayName: "Event Test Opponent", normalizedName: "event-test-opponent" },
+      data: { displayName: "Event Test Opponent", normalizedName: "event-test-opponent", organisationId: testOrgId },
     });
     opponentTeamId = opp.id;
   });
@@ -60,6 +65,7 @@ describe("getEventWorkItems", () => {
         startsAt: new Date("2026-08-01T09:00:00Z"),
         endsAt: new Date("2026-08-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
 
@@ -83,6 +89,7 @@ describe("getEventWorkItems", () => {
         startsAt: new Date("2026-08-15T09:00:00Z"),
         endsAt: new Date("2026-08-15T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -91,6 +98,7 @@ describe("getEventWorkItems", () => {
         name: "Team A",
         intent: "COMPETITIVE",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     await db.eventMatch.create({
@@ -101,6 +109,7 @@ describe("getEventWorkItems", () => {
         opponentName: "Rivals FC",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2026-08-15T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
 
@@ -121,6 +130,7 @@ describe("getEventWorkItems", () => {
         startsAt: new Date("2028-06-01T09:00:00Z"),
         endsAt: new Date("2028-06-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -129,6 +139,7 @@ describe("getEventWorkItems", () => {
         name: "Team Alpha",
         intent: "BALANCED",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     await db.eventMatch.create({
@@ -139,6 +150,7 @@ describe("getEventWorkItems", () => {
         opponentName: "Local FC",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2028-06-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
 
@@ -161,6 +173,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2020-01-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -169,6 +182,7 @@ describe("getEventWorkItems", () => {
         name: "Team Beta",
         intent: "COMPETITIVE",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     const match = await db.eventMatch.create({
@@ -179,12 +193,14 @@ describe("getEventWorkItems", () => {
         opponentName: "Old Rivals",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2020-01-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
     await db.eventMatchLineup.create({
       data: {
         eventMatchId: match.id,
         status: "CONFIRMED",
+        organisationId: testOrgId,
       },
     });
 
@@ -207,6 +223,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2020-02-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -215,6 +232,7 @@ describe("getEventWorkItems", () => {
         name: "Team Gamma",
         intent: "BALANCED",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     const match = await db.eventMatch.create({
@@ -225,18 +243,21 @@ describe("getEventWorkItems", () => {
         opponentName: "Another FC",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2020-02-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
     await db.eventMatchLineup.create({
       data: {
         eventMatchId: match.id,
         status: "CONFIRMED",
+        organisationId: testOrgId,
       },
     });
     await db.eventPostMatchReport.create({
       data: {
         eventMatchId: match.id,
         status: "DRAFT",
+        organisationId: testOrgId,
       },
     });
 
@@ -259,6 +280,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2099-07-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -267,6 +289,7 @@ describe("getEventWorkItems", () => {
         name: "Team Future",
         intent: "COMPETITIVE",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     const match = await db.eventMatch.create({
@@ -277,12 +300,14 @@ describe("getEventWorkItems", () => {
         opponentName: "Future Opponent",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2099-07-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
     await db.eventMatchLineup.create({
       data: {
         eventMatchId: match.id,
         status: "CONFIRMED",
+        organisationId: testOrgId,
       },
     });
 
@@ -306,6 +331,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2020-03-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -314,6 +340,7 @@ describe("getEventWorkItems", () => {
         name: "Team Cancelled",
         intent: "BALANCED",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     await db.eventMatch.create({
@@ -325,6 +352,7 @@ describe("getEventWorkItems", () => {
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2020-03-01T10:00:00Z"),
         status: "CANCELLED",
+        organisationId: testOrgId,
       },
     });
 
@@ -343,6 +371,7 @@ describe("getEventWorkItems", () => {
         startsAt: new Date("2028-09-01T09:00:00Z"),
         endsAt: new Date("2028-09-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -352,6 +381,7 @@ describe("getEventWorkItems", () => {
         intent: "COMPETITIVE",
         targetSize: 7,
         status: "DRAFT",
+        organisationId: testOrgId,
       },
     });
     await db.eventMatch.create({
@@ -362,6 +392,7 @@ describe("getEventWorkItems", () => {
         opponentName: "Draft Opponent",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2028-09-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
 
@@ -384,6 +415,7 @@ describe("getEventWorkItems", () => {
         startsAt: new Date("2028-10-01T09:00:00Z"),
         endsAt: new Date("2028-10-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -393,6 +425,7 @@ describe("getEventWorkItems", () => {
         intent: "COMPETITIVE",
         targetSize: 7,
         status: "LOCKED",
+        organisationId: testOrgId,
       },
     });
     await db.eventMatch.create({
@@ -403,6 +436,7 @@ describe("getEventWorkItems", () => {
         opponentName: "Locked Opponent",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2028-10-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
 
@@ -423,6 +457,7 @@ describe("getEventWorkItems", () => {
         startsAt: new Date("2028-11-01T09:00:00Z"),
         endsAt: new Date("2028-11-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
+        organisationId: testOrgId,
       },
     });
     await db.eventSquad.create({
@@ -432,6 +467,7 @@ describe("getEventWorkItems", () => {
         intent: "BALANCED",
         targetSize: 7,
         status: "DRAFT",
+        organisationId: testOrgId,
       },
     });
     await db.eventSquad.create({
@@ -441,6 +477,7 @@ describe("getEventWorkItems", () => {
         intent: "COMPETITIVE",
         targetSize: 7,
         status: "LOCKED",
+        organisationId: testOrgId,
       },
     });
 
@@ -462,6 +499,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2019-01-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
+        organisationId: testOrgId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -470,6 +508,7 @@ describe("getEventWorkItems", () => {
         name: "Past Team",
         intent: "BALANCED",
         targetSize: 7,
+        organisationId: testOrgId,
       },
     });
     const pastMatch = await db.eventMatch.create({
@@ -480,12 +519,14 @@ describe("getEventWorkItems", () => {
         opponentName: "Old Opponent",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2019-01-01T10:00:00Z"),
+        organisationId: testOrgId,
       },
     });
     await db.eventMatchLineup.create({
       data: {
         eventMatchId: pastMatch.id,
         status: "CONFIRMED",
+        organisationId: testOrgId,
       },
     });
 

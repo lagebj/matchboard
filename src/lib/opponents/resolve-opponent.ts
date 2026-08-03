@@ -22,7 +22,7 @@ export async function resolveOpponentOnReportCompletion(
 ): Promise<string | null> {
   const match = await db.match.findUnique({
     where: { id: matchId },
-    select: { id: true, opponent: true, opponentTeamId: true },
+    select: { id: true, opponent: true, opponentTeamId: true, organisationId: true },
   });
   if (!match) return null;
 
@@ -36,7 +36,7 @@ export async function resolveOpponentOnReportCompletion(
 
   const opponentTeam = await db.opponentTeam.upsert({
     where: { normalizedName },
-    create: { displayName, normalizedName },
+    create: { displayName, normalizedName, organisationId: match.organisationId },
     update: { displayName },
   });
 
@@ -56,7 +56,7 @@ export async function resolveEventOpponentOnReportCompletion(
 ): Promise<string | null> {
   const eventMatch = await db.eventMatch.findUnique({
     where: { id: eventMatchId },
-    select: { id: true, opponentName: true, opponentTeamId: true },
+    select: { id: true, opponentName: true, opponentTeamId: true, event: { select: { organisationId: true } } },
   });
   if (!eventMatch) return null;
 
@@ -70,7 +70,7 @@ export async function resolveEventOpponentOnReportCompletion(
 
   const opponentTeam = await db.opponentTeam.upsert({
     where: { normalizedName },
-    create: { displayName, normalizedName },
+    create: { displayName, normalizedName, organisationId: eventMatch.event.organisationId },
     update: { displayName },
   });
 

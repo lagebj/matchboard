@@ -6,6 +6,7 @@ import ExcelJS from 'exceljs';
 
 let testDb: PrismaClient;
 let fixtureIds: TestFixtureIds;
+let _testOrgId = 'org-test';
 
 vi.mock('@/lib/db', () => ({
   get db() { return getTestDb(); },
@@ -26,7 +27,7 @@ vi.mock('@/lib/auth/actor-context', () => {
     userId: 'test-coach',
     email: 'coach@test.com',
     membershipId: 'mem-test',
-    organisationId: 'org-test',
+    organisationId: _testOrgId,
     organisationSlug: 'test-org',
     role: 'COACH',
     delegatedTeamIds: null,
@@ -99,6 +100,7 @@ describe('Event export route', () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 5 });
+    _testOrgId = fixtureIds.organisationId;
   });
 
   afterAll(async () => {
@@ -113,6 +115,7 @@ describe('Event export route', () => {
         gameFormat: 'SEVEN_A_SIDE',
         matchDurationMinutes: 20,
         startsAt: new Date('2026-07-01T10:00:00Z'),
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -123,7 +126,8 @@ describe('Event export route', () => {
         intent: 'COMPETITIVE',
         targetSize: 7,
         generationOrder: 1,
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const squad2 = await testDb.eventSquad.create({
@@ -133,7 +137,8 @@ describe('Event export route', () => {
         intent: 'BALANCED',
         targetSize: 7,
         generationOrder: 2,
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const blaTeamId = fixtureIds.teams['Bla']!;
@@ -143,19 +148,19 @@ describe('Event export route', () => {
 
     for (const p of blaPlayers.slice(0, 3)) {
       await testDb.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
+        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' , organisationId: fixtureIds.organisationId},
       });
       await testDb.eventSquadPlayer.create({
-        data: { eventSquadId: squad1.id, eventId: event.id, playerId: p.id, source: 'AUTO', locked: false },
+        data: { eventSquadId: squad1.id, eventId: event.id, playerId: p.id, source: 'AUTO', locked: false , organisationId: fixtureIds.organisationId},
       });
     }
 
     for (const p of hvitPlayers.slice(0, 3)) {
       await testDb.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
+        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' , organisationId: fixtureIds.organisationId},
       });
       await testDb.eventSquadPlayer.create({
-        data: { eventSquadId: squad2.id, eventId: event.id, playerId: p.id, source: 'AUTO', locked: false },
+        data: { eventSquadId: squad2.id, eventId: event.id, playerId: p.id, source: 'AUTO', locked: false , organisationId: fixtureIds.organisationId},
       });
     }
 
@@ -167,7 +172,8 @@ describe('Event export route', () => {
         opponentName: 'Opponent A',
         startsAt: new Date('2026-07-01T10:00:00Z'),
         status: 'SCHEDULED',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const match2 = await testDb.eventMatch.create({
@@ -178,7 +184,8 @@ describe('Event export route', () => {
         opponentName: 'Opponent B',
         startsAt: new Date('2026-07-01T10:30:00Z'),
         status: 'SCHEDULED',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     return { event, squad1, squad2, match1, match2, blaPlayers, hvitPlayers };
@@ -272,7 +279,8 @@ describe('Event export route', () => {
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
         plannedRole: 'Defender cover',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -298,7 +306,8 @@ describe('Event export route', () => {
         playerId: blaPlayers[0].id,
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -338,6 +347,7 @@ describe('Event export route', () => {
         eventType: 'CUP',
         gameFormat: 'FIVE_A_SIDE',
         startsAt: new Date('2026-07-01T10:00:00Z'),
+        organisationId: fixtureIds.organisationId,
       },
     });
 
@@ -348,7 +358,8 @@ describe('Event export route', () => {
         intent: 'BALANCED',
         targetSize: 5,
         generationOrder: 1,
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const blaTeamId = fixtureIds.teams['Bla']!;
@@ -356,10 +367,10 @@ describe('Event export route', () => {
 
     for (const p of blaPlayers.slice(0, 3)) {
       await testDb.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' },
+        data: { eventId: event.id, playerId: p.id, status: 'AVAILABLE' , organisationId: fixtureIds.organisationId},
       });
       await testDb.eventSquadPlayer.create({
-        data: { eventSquadId: squad.id, eventId: event.id, playerId: p.id, source: 'AUTO', locked: false },
+        data: { eventSquadId: squad.id, eventId: event.id, playerId: p.id, source: 'AUTO', locked: false , organisationId: fixtureIds.organisationId},
       });
     }
 
@@ -371,7 +382,8 @@ describe('Event export route', () => {
         opponentName: 'Test Opponent',
         startsAt: new Date('2026-07-01T10:00:00Z'),
         status: 'SCHEDULED',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -397,7 +409,8 @@ describe('Event export route', () => {
         status: 'CANCELLED',
         cancelledAt: new Date(),
         cancelledReason: 'Weather',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -430,7 +443,8 @@ describe('Event export route', () => {
         playerId: blaPlayers[0].id,
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     await testDb.eventMatch.update({
@@ -493,7 +507,8 @@ describe('Event export route', () => {
         status: 'CANCELLED',
         cancelledAt: new Date(),
         cancelledReason: 'Weather',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -518,7 +533,8 @@ describe('Event export route', () => {
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
         plannedRole: 'GK cover',
-      },
+              organisationId: fixtureIds.organisationId,
+},
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -546,6 +562,7 @@ describe('Event export route', () => {
           gameFormat: 'SEVEN_A_SIDE',
           source: 'CUSTOM',
           isArchived: false,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -565,7 +582,8 @@ describe('Event export route', () => {
             formationId: formation.id,
             ...slot,
             acceptedPositionIds: [],
-          },
+                      organisationId: fixtureIds.organisationId,
+},
         });
       }
 
@@ -578,7 +596,8 @@ describe('Event export route', () => {
           eventMatchId: match!.id,
           formationId: formation.id,
           status: 'DRAFT',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       const firstPlayer = blaPlayers[0];
@@ -591,7 +610,8 @@ describe('Event export route', () => {
           slotLabel: 'GK',
           roleType: 'GOALKEEPER',
           source: 'BASE_SQUAD',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       const { workbook } = await exportWorkbook(event.id);
@@ -612,6 +632,7 @@ describe('Event export route', () => {
           gameFormat: 'SEVEN_A_SIDE',
           source: 'CUSTOM',
           isArchived: false,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
@@ -626,7 +647,8 @@ describe('Event export route', () => {
             formationId: formation.id,
             ...slot,
             acceptedPositionIds: [],
-          },
+                      organisationId: fixtureIds.organisationId,
+},
         });
       }
 
@@ -639,7 +661,8 @@ describe('Event export route', () => {
           eventMatchId: match!.id,
           formationId: formation.id,
           status: 'DRAFT',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       await testDb.eventMatchLineupAssignment.create({
@@ -651,7 +674,8 @@ describe('Event export route', () => {
           slotLabel: 'GK',
           roleType: 'GOALKEEPER',
           source: 'BASE_SQUAD',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       await testDb.eventMatchLineupAssignment.create({
@@ -663,7 +687,8 @@ describe('Event export route', () => {
           slotLabel: 'CM',
           roleType: 'MIDFIELDER',
           source: 'BASE_SQUAD',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       const { workbook } = await exportWorkbook(event.id);
@@ -706,7 +731,8 @@ describe('Event export route', () => {
           sourceEventSquadId: squad1.id,
           targetEventSquadId: squad2.id,
           plannedRole: 'GK cover',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       const formation = await testDb.formation.create({
@@ -715,12 +741,13 @@ describe('Event export route', () => {
           gameFormat: 'SEVEN_A_SIDE',
           source: 'CUSTOM',
           isArchived: false,
+          organisationId: fixtureIds.organisationId,
         },
       });
 
       const slot = { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER' as FormationSlotRoleType, sortOrder: 0 };
       await testDb.formationSlot.create({
-        data: { formationId: formation.id, ...slot, acceptedPositionIds: [] },
+        data: { formationId: formation.id, ...slot, acceptedPositionIds: [] , organisationId: fixtureIds.organisationId},
       });
 
       const lineup = await testDb.eventMatchLineup.create({
@@ -728,7 +755,8 @@ describe('Event export route', () => {
           eventMatchId: match2.id,
           formationId: formation.id,
           status: 'DRAFT',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       await testDb.eventMatchLineupAssignment.create({
@@ -740,7 +768,8 @@ describe('Event export route', () => {
           slotLabel: 'GK',
           roleType: 'GOALKEEPER',
           source: 'HELPER',
-        },
+                  organisationId: fixtureIds.organisationId,
+},
       });
 
       const { workbook } = await exportWorkbook(event.id);

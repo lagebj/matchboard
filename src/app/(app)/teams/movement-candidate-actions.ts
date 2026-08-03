@@ -80,7 +80,7 @@ export async function createMovementCandidateAction(formData: FormData) {
     rationaleCategory: rationaleCategory as MovementCandidateRationale,
     rationaleNote,
     reviewBy,
-    ...(ctx.orgFilter.type === "org" ? { organisationId: ctx.orgFilter.organisationId } : {}),
+    organisationId: ctx.organisationId,
   };
 
   const result = await createMovementCandidate(input);
