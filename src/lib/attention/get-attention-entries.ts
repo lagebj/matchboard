@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
-import { canAdmin } from '@/lib/auth/actor-context';
+import { requireActorContext, canAdmin, hasTeamAccess } from '@/lib/auth/actor-context';
 import { resolveOrganisationAccess } from '@/lib/organisations/organisation-resolver';
 
 export type AttentionCategory =
@@ -167,12 +166,17 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
         opponent: true,
         homeAway: true,
         startsAt: true,
+        teamId: true,
       },
       orderBy: { startsAt: 'desc' },
       take: 20,
     });
 
-    for (const match of recentMatches) {
+    const teamFilteredMatches = recentMatches.filter((match) =>
+      match.teamId ? hasTeamAccess(ctx, match.teamId) : true,
+    );
+
+    for (const match of teamFilteredMatches) {
       if (matchIdsWithReports.has(match.id)) continue;
       if (match.startsAt > now) continue;
 
@@ -241,12 +245,17 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
         id: true,
         opponent: true,
         startsAt: true,
+        teamId: true,
       },
       orderBy: { startsAt: 'asc' },
       take: 10,
     });
 
-    for (const match of upcomingMatches) {
+    const teamFilteredUpcoming = upcomingMatches.filter((match) =>
+      match.teamId ? hasTeamAccess(ctx, match.teamId) : true,
+    );
+
+    for (const match of teamFilteredUpcoming) {
       if (ownedFixtureIds.has(match.id)) continue;
 
       entries.push({
