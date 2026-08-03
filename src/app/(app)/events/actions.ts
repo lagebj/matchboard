@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { supersedePendingReviews } from '@/lib/review/review-service';
+import { enqueueNotification } from '@/lib/email/outbox';
 import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
@@ -928,7 +929,37 @@ export async function generateEventSquadsAction(eventId: string) {
     select: { id: true },
   });
   for (const squad of eventSquadsForReview) {
-    await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    const { superseded } = await supersedePendingReviews("EVENT_SQUAD", squad.id);
+    for (const review of superseded) {
+      const requester = await db.organisationMembership.findUnique({
+        where: { id: review.requestedByMembershipId },
+        include: { user: { select: { email: true } } },
+      });
+      if (requester?.user?.email) {
+        const organisation = await db.organisation.findUnique({
+          where: { id: ctx.organisationId },
+          select: { name: true, slug: true },
+        });
+        await enqueueNotification({
+          organisationId: ctx.organisationId,
+          idempotencyKey: `review-superseded-${review.id}`,
+          template: 'REVIEW_SUPERSEDED',
+          payload: {
+            organisationName: organisation?.name ?? 'Matchboard',
+            requesterName: requester.user.email,
+            requesterEmail: requester.user.email,
+            targetType: review.targetType,
+            targetId: review.targetId,
+            targetLabel: review.targetId,
+            reason: 'Squad regenerated',
+            reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/events/${eventId}`,
+            organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+          },
+          recipientEmail: requester.user.email,
+          recipientUserId: requester.userId,
+        });
+      }
+    }
   }
 
   revalidatePath(`/events/${eventId}`);

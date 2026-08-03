@@ -232,13 +232,16 @@ describe("supersedePendingReviews", () => {
     vi.clearAllMocks();
   });
 
-  it("supersedes pending reviews and returns count", async () => {
-    mocks.findMany.mockResolvedValue([{ id: "review-1" }, { id: "review-2" }]);
+  it("supersedes pending reviews and returns count with superseded info", async () => {
+    mocks.findMany.mockResolvedValue([{ id: "review-1", requestedByMembershipId: "mem-1", reviewerMembershipId: "mem-2", targetType: "EVENT_SQUAD", targetId: "target-1" }, { id: "review-2", requestedByMembershipId: "mem-3", reviewerMembershipId: "mem-4", targetType: "EVENT_SQUAD", targetId: "target-1" }]);
     mocks.updateMany.mockResolvedValue({ count: 2 });
 
-    const count = await supersedePendingReviews("EVENT_SQUAD", "target-1");
+    const result = await supersedePendingReviews("EVENT_SQUAD", "target-1");
 
-    expect(count).toBe(2);
+    expect(result.count).toBe(2);
+    expect(result.superseded).toHaveLength(2);
+    expect(result.superseded[0].id).toBe("review-1");
+    expect(result.superseded[1].id).toBe("review-2");
     expect(mocks.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ["review-1", "review-2"] } },
       data: expect.objectContaining({
@@ -249,7 +252,7 @@ describe("supersedePendingReviews", () => {
   });
 
   it("sets supersededById when provided", async () => {
-    mocks.findMany.mockResolvedValue([{ id: "review-1" }]);
+    mocks.findMany.mockResolvedValue([{ id: "review-1", requestedByMembershipId: "mem-1", reviewerMembershipId: "mem-2", targetType: "EVENT_SQUAD", targetId: "target-1" }]);
     mocks.updateMany.mockResolvedValue({ count: 1 });
 
     await supersedePendingReviews("EVENT_SQUAD", "target-1", "new-review-1");
@@ -264,7 +267,7 @@ describe("supersedePendingReviews", () => {
   });
 
   it("does not set supersededById when not provided", async () => {
-    mocks.findMany.mockResolvedValue([{ id: "review-1" }]);
+    mocks.findMany.mockResolvedValue([{ id: "review-1", requestedByMembershipId: "mem-1", reviewerMembershipId: "mem-2", targetType: "EVENT_SQUAD", targetId: "target-1" }]);
     mocks.updateMany.mockResolvedValue({ count: 1 });
 
     await supersedePendingReviews("EVENT_SQUAD", "target-1");
@@ -273,12 +276,13 @@ describe("supersedePendingReviews", () => {
     expect(callData).not.toHaveProperty("supersededById");
   });
 
-  it("returns 0 when no pending reviews exist", async () => {
+  it("returns empty superseded array when no pending reviews exist", async () => {
     mocks.findMany.mockResolvedValue([]);
 
-    const count = await supersedePendingReviews("EVENT_SQUAD", "nonexistent");
+    const result = await supersedePendingReviews("EVENT_SQUAD", "nonexistent");
 
-    expect(count).toBe(0);
+    expect(result.count).toBe(0);
+    expect(result.superseded).toHaveLength(0);
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 });

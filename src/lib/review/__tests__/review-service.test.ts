@@ -326,9 +326,10 @@ describe("review-service", () => {
         targetRevision: "rev-1",
       }, org.id, membership.id);
 
-      const count = await supersedePendingReviews("EVENT_SQUAD", "squad-super-1");
+      const result = await supersedePendingReviews("EVENT_SQUAD", "squad-super-1");
 
-      expect(count).toBe(1);
+      expect(result.count).toBe(1);
+      expect(result.superseded).toHaveLength(1);
 
       const history = await getReviewHistory("EVENT_SQUAD", "squad-super-1");
       expect(history[0].status).toBe("SUPERSEDED");

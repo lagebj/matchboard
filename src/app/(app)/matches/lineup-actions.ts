@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requireTeamAccess } from "@/lib/auth/actor-context";
 import { supersedePendingReviews } from "@/lib/review/review-service";
+import { enqueueNotification } from "@/lib/email/outbox";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   canModifyLineup,
@@ -194,7 +195,37 @@ export async function confirmLineup(lineupId: string) {
     data: { status: "CONFIRMED" },
   });
 
-  await supersedePendingReviews("MATCH_LINEUP", lineupId);
+  const { superseded } = await supersedePendingReviews("MATCH_LINEUP", lineupId);
+  for (const review of superseded) {
+    const requester = await db.organisationMembership.findUnique({
+      where: { id: review.requestedByMembershipId },
+      include: { user: { select: { email: true } } },
+    });
+    if (requester?.user?.email) {
+      const organisation = await db.organisation.findUnique({
+        where: { id: ctx.organisationId },
+        select: { name: true, slug: true },
+      });
+      await enqueueNotification({
+        organisationId: ctx.organisationId,
+        idempotencyKey: `review-superseded-${review.id}`,
+        template: 'REVIEW_SUPERSEDED',
+        payload: {
+          organisationName: organisation?.name ?? 'Matchboard',
+          requesterName: requester.user.email,
+          requesterEmail: requester.user.email,
+          targetType: review.targetType,
+          targetId: review.targetId,
+          targetLabel: review.targetId,
+          reason: 'Lineup confirmed',
+          reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/matches/${matchId}`,
+          organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+        },
+        recipientEmail: requester.user.email,
+        recipientUserId: requester.userId,
+      });
+    }
+  }
 
   revalidatePath(`/matches/${lineup.matchId}`);
   return updated;

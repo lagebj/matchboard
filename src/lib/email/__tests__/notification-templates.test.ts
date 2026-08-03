@@ -88,6 +88,28 @@ describe("notification templates", () => {
     });
   });
 
+  describe("REVIEW_SUPERSEDED", () => {
+    it("renders with required fields", () => {
+      const result = renderTemplate("REVIEW_SUPERSEDED", {
+        organisationName: "Test FC",
+        requesterName: "Coach Alice",
+        requesterEmail: "alice@testfc.com",
+        targetType: "EVENT_SQUAD",
+        targetId: "squad-1",
+        targetLabel: "squad-1",
+        reason: "Squad regenerated",
+        reviewUrl: "/assistant",
+        organisationSlug: "test-fc",
+      });
+
+      expect(result.subject).toContain("Review superseded");
+      expect(result.subject).toContain("Test FC");
+      expect(result.htmlBody).toContain("superseded");
+      expect(result.htmlBody).toContain("Squad regenerated");
+      expect(result.textBody).toContain("Test FC");
+    });
+  });
+
   describe("OWNERSHIP_ASSIGNED", () => {
     it("renders with required fields", () => {
       const result = renderTemplate("OWNERSHIP_ASSIGNED", {

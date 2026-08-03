@@ -127,21 +127,35 @@ export async function resolveReviewRequest(
   return updated;
 }
 
+export type SupersededReviewInfo = {
+  id: string;
+  requestedByMembershipId: string;
+  reviewerMembershipId: string;
+  targetType: ReviewTargetType;
+  targetId: string;
+};
+
 export async function supersedePendingReviews(
   targetType: ReviewTargetType,
   targetId: string,
   supersededById?: string,
-): Promise<number> {
+): Promise<{ count: number; superseded: SupersededReviewInfo[] }> {
   const pending = await db.reviewRequest.findMany({
     where: {
       targetType,
       targetId,
       status: 'PENDING',
     },
-    select: { id: true },
+    select: {
+      id: true,
+      requestedByMembershipId: true,
+      reviewerMembershipId: true,
+      targetType: true,
+      targetId: true,
+    },
   });
 
-  if (pending.length === 0) return 0;
+  if (pending.length === 0) return { count: 0, superseded: [] };
 
   await db.reviewRequest.updateMany({
     where: {
@@ -154,7 +168,10 @@ export async function supersedePendingReviews(
     },
   });
 
-  return pending.length;
+  return {
+    count: pending.length,
+    superseded: pending,
+  };
 }
 
 export async function getPendingReviewsForReviewer(

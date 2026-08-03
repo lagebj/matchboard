@@ -4,5 +4,6 @@ export { renderTemplate, getRegisteredTemplates, type TemplateKey, type Template
 import "./organisation-invitation";
 import "./review-requested";
 import "./review-changes-requested";
+import "./review-superseded";
 import "./ownership-assigned";
 import "./ownership-handover-requested";
