@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { suggestFormationForMatch, suggestLineupForFormation, type SuggestFormationInput, type SuggestLineupInput } from "@/lib/formations/suggest";
 import { createFormationSnapshot } from "@/lib/formations/snapshot";
@@ -251,6 +251,7 @@ export async function applySuggestedLineup(
   benchPlayerIds: string[],
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findFirst({
@@ -360,6 +361,7 @@ export async function applySuggestedLineup(
 
 export async function clearSuggestedAssignments(lineupId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.matchLineup.findUnique({
@@ -387,6 +389,7 @@ export async function clearSuggestedAssignments(lineupId: string) {
 
 export async function fillEmptySlots(lineupId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.matchLineup.findUnique({

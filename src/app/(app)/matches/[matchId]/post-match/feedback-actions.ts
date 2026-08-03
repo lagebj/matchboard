@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -39,6 +39,7 @@ export async function createMatchFeedbackAction(
   note: string | null,
 ): Promise<{ success: boolean; error?: string; readinessSuggestion?: ReadinessSuggestionFromFeedback | null }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
@@ -98,6 +99,7 @@ export async function updateMatchFeedbackAction(
   },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   if (data.nextAction && !FEEDBACK_NEXT_ACTIONS.includes(data.nextAction as FeedbackNextAction)) {
     return { success: false, error: `Invalid next action: ${data.nextAction}` };
@@ -148,6 +150,7 @@ export async function deleteMatchFeedbackAction(
   feedbackId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   try {
     const feedback = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });

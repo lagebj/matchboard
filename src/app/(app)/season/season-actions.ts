@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 
 export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
@@ -96,6 +97,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
 
 export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import {
   createMovementCandidate,
   updateMovementCandidate,
@@ -45,6 +45,7 @@ async function requireCandidateOrgAccess(candidateId: string, orgFilter: OrgFilt
 
 export async function createMovementCandidateAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const playerId = (formData.get("playerId") as string)?.trim() ?? "";
   const rotationPathId = (formData.get("rotationPathId") as string)?.trim() ?? "";
@@ -88,6 +89,7 @@ export async function createMovementCandidateAction(formData: FormData) {
 
 export async function updateMovementCandidateAction(candidateId: string, formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
 
@@ -125,6 +127,7 @@ export async function updateMovementCandidateAction(candidateId: string, formDat
 
 export async function toggleMovementCandidateStatusAction(candidateId: string, targetStatus: "ACTIVE" | "PAUSED") {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
 
@@ -141,6 +144,7 @@ export async function toggleMovementCandidateStatusAction(candidateId: string, t
 
 export async function deleteMovementCandidateAction(candidateId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
 

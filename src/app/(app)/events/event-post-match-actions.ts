@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchReportStatus } from '@/generated/prisma/client';
 
@@ -37,6 +37,7 @@ async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode
 
 export async function seedEventMatchReportAction(eventMatchId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
@@ -125,6 +126,7 @@ export async function updateEventMatchResultAction(
   data: { ourScore?: number; opponentScore?: number; teamReflection?: string; opponentObservation?: string; notes?: string },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
@@ -158,6 +160,7 @@ export async function updateEventPlayerAttendanceAction(
   attendanceStatus: string,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const playerReport = await db.eventPostMatchPlayer.findUnique({
     where: { id: playerReportId },
@@ -191,6 +194,7 @@ export async function addEventGoalAction(
   data: { playerId?: string; minute?: number; type?: string; note?: string },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
@@ -219,6 +223,7 @@ export async function addEventGoalAction(
 
 export async function removeEventGoalAction(goalId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const goal = await db.eventGoalEvent.findUnique({ where: { id: goalId } });
   if (!goal) throw new Error('Goal not found.');
@@ -246,6 +251,7 @@ export async function addEventAssistAction(
   data: { playerId: string; type?: string },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
@@ -272,6 +278,7 @@ export async function addEventAssistAction(
 
 export async function removeEventAssistAction(assistId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const assist = await db.eventAssistEvent.findUnique({ where: { id: assistId } });
   if (!assist) throw new Error('Assist not found.');
@@ -296,6 +303,7 @@ export async function removeEventAssistAction(assistId: string) {
 
 export async function completeEventMatchReportAction(reportId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
@@ -338,6 +346,7 @@ export async function completeEventMatchReportAction(reportId: string) {
 
 export async function reopenEventMatchReportAction(reportId: string, targetStatus?: 'DRAFT' | 'REPORTED') {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 

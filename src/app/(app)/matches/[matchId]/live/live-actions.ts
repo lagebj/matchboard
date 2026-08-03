@@ -6,10 +6,12 @@ import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/l
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { LiveEventInput } from "@/lib/live-match/live-match-types";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 
 export async function startLiveSessionAction(matchId: string) {
   try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
     const session = await startLiveSession(matchId);
     revalidatePath(`/matches/${matchId}`);
     revalidatePath(`/matches/${matchId}/live`);
@@ -30,6 +32,8 @@ export async function getActiveSessionAction(matchId: string) {
 
 export async function endLiveSessionAction(sessionId: string) {
   try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
     const session = await endLiveSession(sessionId);
     const matchId = session.matchId;
     revalidatePath(`/matches/${matchId}`);
@@ -42,6 +46,8 @@ export async function endLiveSessionAction(sessionId: string) {
 
 export async function heartbeatAction(sessionId: string) {
   try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
     await heartbeatSession(sessionId);
     return { success: true as const };
   } catch (error) {
@@ -63,6 +69,8 @@ export async function recordLiveEventAction(input: {
   correctsEventId?: string;
 }) {
   try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
     const typedInput: LiveEventInput = {
       matchId: input.matchId,
       sessionId: input.sessionId,

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import type { MatchReportStatus, PlannedAbsenceReason } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
@@ -244,6 +244,7 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
 
 export async function seedMatchReport(matchId: string): Promise<{ success: boolean; error?: string; reportId?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const match = await db.match.findFirst({
       where: { id: matchId, ...ctx.orgFilter.filter },
@@ -273,6 +274,7 @@ export async function updateMatchResult(
   data: { homeGoals?: number; awayGoals?: number; teamNote?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -293,6 +295,7 @@ export async function addActualPlayer(
   data: { playerId: string; attendanceStatus?: string; unplannedAppearanceReason?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -310,6 +313,7 @@ export async function addActualPlayer(
 
 export async function removeActualPlayer(appearanceId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const appearance = await db.postMatchPlayerActual.findFirst({
       where: { id: appearanceId, report: ctx.orgFilter.filter },
@@ -336,6 +340,7 @@ export async function updateAttendanceStatus(
   attendanceStatus: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const appearance = await db.postMatchPlayerActual.findFirst({
       where: { id: appearanceId, report: ctx.orgFilter.filter },
@@ -362,6 +367,7 @@ export async function markPlannedAbsence(
   data: { playerId: string; reason: PlannedAbsenceReason; note?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -379,6 +385,7 @@ export async function markPlannedAbsence(
 
 export async function removePlannedAbsence(absenceId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const absence = await db.matchReportAbsence.findFirst({
       where: { id: absenceId, report: ctx.orgFilter.filter },
@@ -405,6 +412,7 @@ export async function updatePlayerStats(
   data: { playerId: string; goals?: number; assists?: number },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -422,6 +430,7 @@ export async function updatePlayerStats(
 
 export async function submitMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -444,6 +453,7 @@ export async function submitMatchReport(reportId: string): Promise<{ success: bo
 
 export async function lockMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -466,6 +476,7 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
 
 export async function completeMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const report = await db.postMatchReport.findFirst({
       where: { id: reportId, ...ctx.orgFilter.filter },
@@ -504,6 +515,7 @@ export async function reopenMatchReport(
   targetStatus?: "DRAFT" | "REPORTED",
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const report = await db.postMatchReport.findFirst({
       where: { id: reportId, ...ctx.orgFilter.filter },
@@ -541,6 +553,7 @@ export async function addGoalToReport(
   data: { playerId?: string; minute?: number; type?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -559,6 +572,7 @@ export async function addGoalToReport(
 
 export async function removeGoalFromReport(goalId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const goal = await db.goal.findFirst({
       where: { id: goalId, report: ctx.orgFilter.filter },
@@ -586,6 +600,7 @@ export async function addAssistToReport(
   data: { playerId: string; type?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
   try {
@@ -604,6 +619,7 @@ export async function addAssistToReport(
 
 export async function removeAssistFromReport(assistId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   if (ctx.orgFilter.type === "org") {
     const assist = await db.assist.findFirst({
       where: { id: assistId, report: ctx.orgFilter.filter },

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { logMutationEvent } from '@/lib/security/audit-log';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
@@ -40,6 +40,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   note?: string;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const { eventMatchId, playerId, plannedRole, note } = input;
 
@@ -159,6 +160,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
 
 export async function removeEventMatchSupportAssignmentAction(assignmentId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const assignment = await db.eventMatchSupportAssignment.findUnique({
     where: { id: assignmentId },
@@ -192,6 +194,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   note?: string;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const { assignmentId, plannedRole, note } = input;
 

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -47,6 +47,7 @@ export async function setCoachingIntentAction(
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
 
   if (!COACHING_INTENT_SCOPE_TYPES.includes(scopeType as CoachingIntentScopeType)) {
@@ -104,6 +105,7 @@ export async function removeCoachingIntentAction(
   intentId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   try {
     const intent = await db.coachingIntent.findFirst({

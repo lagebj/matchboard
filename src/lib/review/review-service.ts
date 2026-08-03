@@ -1,5 +1,4 @@
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { ReviewTargetType, ReviewStatus } from '@/generated/prisma/client';
 
@@ -42,22 +41,9 @@ function requireOrganisationAccess(orgFilter: OrgFilterMode): string {
 
 export async function createReviewRequest(
   input: CreateReviewRequestInput,
+  organisationId: string,
+  requestedByMembershipId: string,
 ): Promise<ReviewRequestWithRelations> {
-  const ctx = await requireActorContext();
-  const organisationId = requireOrganisationAccess(ctx.orgFilter);
-
-  const membership = await db.organisationMembership.findFirst({
-    where: {
-      userId: ctx.userId,
-      organisationId,
-      role: { in: ['OWNER', 'COACH'] },
-    },
-  });
-
-  if (!membership) {
-    throw new Error('Only coaches and owners can request reviews.');
-  }
-
   const existingPending = await db.reviewRequest.findFirst({
     where: {
       targetType: input.targetType,
@@ -70,18 +56,18 @@ export async function createReviewRequest(
     throw new Error('A pending review request already exists for this target.');
   }
 
-  if (input.reviewerMembershipId && input.reviewerMembershipId === membership.id) {
+  if (input.reviewerMembershipId && input.reviewerMembershipId === requestedByMembershipId) {
     throw new Error('Cannot request a review from yourself.');
   }
 
-  const reviewerMembership = input.reviewerMembershipId
-    ? await db.organisationMembership.findUnique({
-        where: { id: input.reviewerMembershipId },
-      })
-    : null;
+  if (input.reviewerMembershipId) {
+    const reviewerMembership = await db.organisationMembership.findUnique({
+      where: { id: input.reviewerMembershipId },
+    });
 
-  if (input.reviewerMembershipId && (!reviewerMembership || reviewerMembership.organisationId !== organisationId)) {
-    throw new Error('Reviewer must be a member of the same organisation.');
+    if (!reviewerMembership || reviewerMembership.organisationId !== organisationId) {
+      throw new Error('Reviewer must be a member of the same organisation.');
+    }
   }
 
   const review = await db.reviewRequest.create({
@@ -90,8 +76,8 @@ export async function createReviewRequest(
       targetType: input.targetType,
       targetId: input.targetId,
       targetRevision: input.targetRevision,
-      requestedByMembershipId: membership.id,
-      reviewerMembershipId: input.reviewerMembershipId ?? membership.id,
+      requestedByMembershipId,
+      reviewerMembershipId: input.reviewerMembershipId ?? requestedByMembershipId,
       requestMessage: input.requestMessage ?? null,
     },
   });
@@ -102,10 +88,9 @@ export async function createReviewRequest(
 export async function resolveReviewRequest(
   reviewId: string,
   input: ResolveReviewRequestInput,
+  organisationId: string,
+  resolvedByMembershipId: string,
 ): Promise<ReviewRequestWithRelations> {
-  const ctx = await requireActorContext();
-  const organisationId = requireOrganisationAccess(ctx.orgFilter);
-
   const existing = await db.reviewRequest.findUnique({
     where: { id: reviewId },
   });
@@ -126,19 +111,7 @@ export async function resolveReviewRequest(
     throw new Error('Cannot review your own request.');
   }
 
-  const membership = await db.organisationMembership.findFirst({
-    where: {
-      userId: ctx.userId,
-      organisationId,
-      role: { in: ['OWNER', 'COACH'] },
-    },
-  });
-
-  if (!membership) {
-    throw new Error('Only coaches and owners can resolve reviews.');
-  }
-
-  if (membership.id !== existing.reviewerMembershipId) {
+  if (resolvedByMembershipId !== existing.reviewerMembershipId && input.status !== 'CANCELLED') {
     throw new Error('Only the assigned reviewer can resolve this review request.');
   }
 
@@ -147,7 +120,6 @@ export async function resolveReviewRequest(
     data: {
       status: input.status,
       reviewerComment: input.reviewerComment ?? null,
-      reviewerMembershipId: membership.id,
       resolvedAt: new Date(),
     },
   });

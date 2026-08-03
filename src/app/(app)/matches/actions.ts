@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
@@ -88,6 +88,7 @@ const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
@@ -206,6 +207,7 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 
 export async function deleteMatchAction(matchId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgId = ctx.orgFilter.type === "org" ? ctx.orgFilter.organisationId : undefined;
   try {
     const guard = await checkMatchDeletionGuard(matchId, orgId);
@@ -239,6 +241,7 @@ export async function updateMatchAction(
   | { success: false; error: string }
 > {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   try {
     const match = await db.match.findFirst({
@@ -403,6 +406,7 @@ export async function updateMatchAction(
 
 export async function finalizeMatchAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
     throw new Error("Match ID is required.");
@@ -449,6 +453,7 @@ export async function finalizeMatchAction(formData: FormData) {
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
@@ -470,6 +475,7 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 
 export async function reopenMatchAction(matchId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 

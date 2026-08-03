@@ -1,6 +1,6 @@
 "use server";
 
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
@@ -174,6 +174,7 @@ export async function validateEventSquadsBeforeCommit(
 
 export async function confirmEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -217,6 +218,7 @@ export async function confirmEventSquadsAction(eventId: string) {
 
 export async function unconfirmEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 

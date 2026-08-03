@@ -8,11 +8,12 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 
 export async function finalizeRoundFromListAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
     throw new Error("Match round ID is required.");
@@ -54,6 +55,7 @@ export async function finalizeRoundFromListAction(formData: FormData) {
 
 export async function clearAllDraftsAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const leagueSeasonId = formData.get("leagueSeasonId");
   if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
     throw new Error("League season ID is required.");
@@ -91,6 +93,7 @@ export async function clearAllDraftsAction(formData: FormData) {
 
 export async function generateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const roundId = formData.get("roundId");
     if (typeof roundId !== "string" || !roundId) {
@@ -147,6 +150,7 @@ export async function generateRoundAction(prevState: { error: string }, formData
 
 export async function populateAllAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const leagueSeasonId = formData.get("leagueSeasonId");
     if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
@@ -178,6 +182,7 @@ export async function populateAllAction(prevState: { error: string }, formData: 
 
 export async function regenerateAllDraftsAction(prevState: { error: string; result?: string }, formData: FormData): Promise<{ error: string; result?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const leagueSeasonId = formData.get("leagueSeasonId");
     if (typeof leagueSeasonId !== "string" || !leagueSeasonId) {
@@ -235,6 +240,7 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
 
 export async function unfinalizeRoundFromListAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const matchRoundId = formData.get("matchRoundId");
     if (typeof matchRoundId !== "string" || !matchRoundId) {
@@ -277,6 +283,7 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
     const result = await regroupMatchesIntoIsoWeekRounds();

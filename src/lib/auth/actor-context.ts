@@ -83,3 +83,57 @@ export async function requireActorContext(
 }
 
 export { MultipleMembershipsError };
+
+const MUTATION_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH"];
+const ADMIN_ROLES: OrganisationRole[] = ["OWNER", "ADMIN"];
+const OWNER_ROLES: OrganisationRole[] = ["OWNER"];
+
+export function requireMutationRole(ctx: ActorContext): void {
+  if (!MUTATION_ROLES.includes(ctx.role)) {
+    throw new AuthorizationError(
+      `Role ${ctx.role} cannot perform this action. Required: ${MUTATION_ROLES.join(" or ")}.`,
+    );
+  }
+}
+
+export function requireAdminRole(ctx: ActorContext): void {
+  if (!ADMIN_ROLES.includes(ctx.role)) {
+    throw new AuthorizationError(
+      `Role ${ctx.role} cannot perform this action. Required: ${ADMIN_ROLES.join(" or ")}.`,
+    );
+  }
+}
+
+export function requireOwnerRole(ctx: ActorContext): void {
+  if (!OWNER_ROLES.includes(ctx.role)) {
+    throw new AuthorizationError(
+      `Role ${ctx.role} cannot perform this action. Required: ${OWNER_ROLES.join(" or ")}.`,
+    );
+  }
+}
+
+export function canMutate(ctx: ActorContext): boolean {
+  return MUTATION_ROLES.includes(ctx.role);
+}
+
+export function canAdmin(ctx: ActorContext): boolean {
+  return ADMIN_ROLES.includes(ctx.role);
+}
+
+export function canOwn(ctx: ActorContext): boolean {
+  return OWNER_ROLES.includes(ctx.role);
+}
+
+export function hasTeamAccess(ctx: ActorContext, teamId: string): boolean {
+  if (ADMIN_ROLES.includes(ctx.role)) return true;
+  if (ctx.delegatedTeamIds === null) return true;
+  return ctx.delegatedTeamIds.includes(teamId);
+}
+
+export function requireTeamAccess(ctx: ActorContext, teamId: string): void {
+  if (ADMIN_ROLES.includes(ctx.role)) return;
+  if (ctx.delegatedTeamIds === null) return;
+  if (!ctx.delegatedTeamIds.includes(teamId)) {
+    throw new AuthorizationError("You do not have access to this team.");
+  }
+}

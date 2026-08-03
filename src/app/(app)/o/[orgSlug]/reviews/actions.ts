@@ -9,28 +9,34 @@ import {
   type CreateReviewRequestInput,
   type ResolveReviewRequestInput,
 } from '@/lib/review/review-service';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
 export async function requestReviewAction(input: CreateReviewRequestInput) {
-  const review = await createReviewRequest(input);
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+  const review = await createReviewRequest(input, ctx.organisationId, ctx.membershipId);
   revalidatePath('/assistant');
   revalidatePath('/events');
   return review;
 }
 
 export async function resolveReviewAction(reviewId: string, input: ResolveReviewRequestInput) {
-  const review = await resolveReviewRequest(reviewId, input);
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+  const review = await resolveReviewRequest(reviewId, input, ctx.organisationId, ctx.membershipId);
   revalidatePath('/assistant');
   revalidatePath('/events');
   return review;
 }
 
 export async function cancelReviewAction(reviewId: string) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const review = await resolveReviewRequest(reviewId, {
     status: 'CANCELLED',
-  });
+  }, ctx.organisationId, ctx.membershipId);
   revalidatePath('/assistant');
   return review;
 }

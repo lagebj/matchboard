@@ -7,35 +7,13 @@ import {
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { movePlannedSelectionWithinRound } from "@/lib/selection/move-planned-selection";
 import { logManualOverride } from "@/lib/security/audit-log";
 import { db } from "@/lib/db";
-
-async function verifyMatchOrgAccess(matchId: string): Promise<void> {
-  const ctx = await requireActorContext();
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) throw new Error("Match not found or access denied.");
-  }
-}
-
-async function verifyRoundOrgAccess(matchRoundId: string): Promise<void> {
-  const ctx = await requireActorContext();
-  if (ctx.orgFilter.type === "org") {
-    const round = await db.matchRound.findFirst({
-      where: { id: matchRoundId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!round) throw new Error("Round not found or access denied.");
-  }
-}
 
 async function reconcileAndRevalidate(matchRoundId: string) {
   try {
@@ -50,6 +28,9 @@ async function reconcileAndRevalidate(matchRoundId: string) {
 }
 
 export async function addPlayerToMatchAction(formData: FormData) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const role = formData.get("role");
@@ -61,7 +42,13 @@ export async function addPlayerToMatchAction(formData: FormData) {
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof role !== "string" || !role) throw new Error("Role is required.");
 
-  await verifyMatchOrgAccess(matchId);
+  if (ctx.orgFilter.type === "org") {
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) throw new Error("Match not found or access denied.");
+  }
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -71,7 +58,6 @@ export async function addPlayerToMatchAction(formData: FormData) {
   const result = await addPlayerToDraftMatch(matchId, playerId, role as SelectionRole, category, detail);
 
   if (result.success && category) {
-    const ctx = await requireActorContext();
     logManualOverride(ctx.email || "unknown", "selection", `${matchId}:${playerId}`, category);
   }
 
@@ -82,6 +68,9 @@ export async function addPlayerToMatchAction(formData: FormData) {
 }
 
 export async function removePlayerFromMatchAction(formData: FormData) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const matchRoundId = formData.get("matchRoundId");
@@ -89,7 +78,13 @@ export async function removePlayerFromMatchAction(formData: FormData) {
   if (typeof matchId !== "string" || !matchId) throw new Error("Match ID is required.");
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
 
-  await verifyMatchOrgAccess(matchId);
+  if (ctx.orgFilter.type === "org") {
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) throw new Error("Match not found or access denied.");
+  }
 
   const result = await removePlayerFromDraftMatch(matchId, playerId);
 
@@ -100,6 +95,9 @@ export async function removePlayerFromMatchAction(formData: FormData) {
 }
 
 export async function changePlayerRoleAction(formData: FormData) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
   const matchId = formData.get("matchId");
   const playerId = formData.get("playerId");
   const role = formData.get("role");
@@ -111,7 +109,13 @@ export async function changePlayerRoleAction(formData: FormData) {
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof role !== "string" || !role) throw new Error("Role is required.");
 
-  await verifyMatchOrgAccess(matchId);
+  if (ctx.orgFilter.type === "org") {
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) throw new Error("Match not found or access denied.");
+  }
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -121,7 +125,6 @@ export async function changePlayerRoleAction(formData: FormData) {
   const result = await changeDraftPlayerRole(matchId, playerId, role as SelectionRole, category, detail);
 
   if (result.success && category) {
-    const ctx = await requireActorContext();
     logManualOverride(ctx.email || "unknown", "selection_role", `${matchId}:${playerId}`, category);
   }
 
@@ -132,6 +135,9 @@ export async function changePlayerRoleAction(formData: FormData) {
 }
 
 export async function movePlayerWithinRoundAction(formData: FormData) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
   const matchRoundId = formData.get("matchRoundId");
   const playerId = formData.get("playerId");
   const fromMatchId = formData.get("fromMatchId");
@@ -146,7 +152,13 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
   if (typeof toMatchId !== "string" || !toMatchId) throw new Error("Target match ID is required.");
   if (typeof targetRole !== "string" || !targetRole) throw new Error("Target role is required.");
 
-  await verifyRoundOrgAccess(matchRoundId);
+  if (ctx.orgFilter.type === "org") {
+    const round = await db.matchRound.findFirst({
+      where: { id: matchRoundId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!round) throw new Error("Round not found or access denied.");
+  }
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)

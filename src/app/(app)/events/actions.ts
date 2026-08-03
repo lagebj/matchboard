@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { supersedePendingReviews } from '@/lib/review/review-service';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
@@ -90,6 +90,7 @@ export async function getEventById(id: string) {
 
 export async function createEventAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -158,6 +159,7 @@ export async function createEventAction(formData: FormData) {
 
 export async function updateEventAction(id: string, formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
   const eventTypeRaw = formData.get('eventType') as string | null;
@@ -216,6 +218,7 @@ export async function updateEventAction(id: string, formData: FormData) {
 
 export async function deleteEventAction(id: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const event = await db.event.findFirst({
     where: {
@@ -238,6 +241,7 @@ export async function updateEventPlayerAvailability(
   status: EventPlayerStatus,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_EVENT_PLAYER_STATUSES.includes(status)) {
@@ -267,6 +271,7 @@ export async function setEventPlayerPool(
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_EVENT_PLAYER_STATUSES.includes(defaultStatus)) {
@@ -298,6 +303,7 @@ export async function addPlayersToEventPoolAction(
   defaultStatus: EventPlayerStatus = 'UNKNOWN',
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
@@ -330,6 +336,7 @@ export async function addPlayersToEventPoolAction(
 
 export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const squadAssignment = await db.eventSquadPlayer.findFirst({
@@ -352,6 +359,7 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
 
 export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
@@ -380,6 +388,7 @@ export async function assignPlayerToEventSquadAction(
   locked: boolean = false,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const existing = await db.eventSquadPlayer.findFirst({
@@ -406,6 +415,7 @@ export async function assignPlayerToEventSquadAction(
 
 export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
@@ -431,6 +441,7 @@ export async function addEventSquadAction(
   formationId?: string,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   if (!VALID_SQUAD_INTENTS.includes(intent)) {
@@ -470,6 +481,7 @@ export async function updateEventSquadAction(
   },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   const updateData: Parameters<typeof db.eventSquad.update>[0]['data'] = {};
@@ -498,6 +510,7 @@ export async function updateEventSquadAction(
 
 export async function updateEventSquadNameAction(squadId: string, name: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   const trimmed = name.trim();
@@ -514,6 +527,7 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
 
 export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const validated = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
@@ -530,6 +544,7 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
 
 export async function removeEventSquadAction(squadId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
   await db.eventSquad.delete({
@@ -545,6 +560,7 @@ export async function movePlayerBetweenSquadsAction(
   toSquadId: string,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const eventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
   await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
 
@@ -586,6 +602,7 @@ export async function togglePlayerLockAction(
   locked: boolean,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: squadPlayerId },
@@ -613,6 +630,7 @@ export async function togglePlayerLockAction(
 
 export async function clearEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const squads = await db.eventSquad.findMany({
@@ -671,6 +689,7 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 
 export async function generateEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   const event = await db.event.findUnique({
     where: {

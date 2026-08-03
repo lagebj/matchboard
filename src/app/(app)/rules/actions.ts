@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getRules } from "@/lib/rules/get-rules";
 
@@ -53,6 +53,7 @@ function validateRole(role: string): RotationPathRole {
 
 export async function saveRulesAction(formData: FormData) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const rules = await getRules();
 
@@ -85,6 +86,7 @@ export async function saveRulesAction(formData: FormData) {
 
 export async function createRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const fromTeamId = readText(formData, "fromTeamId");
     const toTeamId = readText(formData, "toTeamId");
@@ -165,6 +167,7 @@ export async function createRotationPathAction(prevState: ActionState, formData:
 
 export async function updateRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
@@ -219,6 +222,7 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
 
 export async function deleteRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
@@ -249,6 +253,7 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
 
 export async function toggleRotationPathActiveAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   try {
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");

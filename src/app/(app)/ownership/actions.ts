@@ -1,7 +1,7 @@
 "use server";
 
 import { AuthorizationError } from "@/lib/auth";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import {
   assignWorkOwnership,
   handoverWorkOwnership,
@@ -22,6 +22,7 @@ export async function assignWorkOwnerAction(input: {
   dueAt?: Date | null;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   return assignWorkOwnership({
     organisationId: ctx.organisationId,
@@ -39,6 +40,7 @@ export async function handoverWorkOwnerAction(input: {
   handoverNote?: string | null;
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
 
   return handoverWorkOwnership({
     ownershipId: input.ownershipId,
@@ -49,12 +51,14 @@ export async function handoverWorkOwnerAction(input: {
 }
 
 export async function acknowledgeWorkOwnerAction(ownershipId: string) {
-  await requireActorContext();
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   return acknowledgeWorkOwnership(ownershipId);
 }
 
 export async function completeWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
-  await requireActorContext();
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   return completeWorkOwnership(targetType, targetId);
 }
 

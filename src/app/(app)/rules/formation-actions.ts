@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   validateFormationForMatchUse,
@@ -65,6 +65,7 @@ export async function createCustomFormation(data: {
   }[];
 }) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   if (!data.name.trim()) throw new Error("Formation name is required");
@@ -116,6 +117,7 @@ export async function createCustomFormation(data: {
 
 export async function duplicateFormation(formationId: string, newName?: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   const source = await db.formation.findUnique({
@@ -175,6 +177,7 @@ export async function updateCustomFormation(
   },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   const formation = await db.formation.findUnique({
@@ -257,6 +260,7 @@ export async function updateCustomFormation(
 
 export async function archiveFormation(formationId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   const formation = await db.formation.findUnique({
@@ -280,6 +284,7 @@ export async function archiveFormation(formationId: string) {
 
 export async function deleteCustomFormation(formationId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   const formation = await db.formation.findUnique({
@@ -314,6 +319,7 @@ export async function addFormationSlot(
   gridY: number,
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   await requireFormationOrgAccess(formationId, orgFilter);
 
@@ -363,6 +369,7 @@ export async function updateFormationSlot(
   },
 ) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   if (data.roleType && !isValidRoleType(data.roleType)) {
@@ -390,6 +397,7 @@ export async function updateFormationSlot(
 
 export async function removeFormationSlot(slotId: string) {
   const ctx = await requireActorContext();
+  requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
   const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
