@@ -78,6 +78,290 @@ Feature: Matchboard football operations workspace
       And the app must not expose internal planning tags to parent-facing exports
 
 
+  Rule: Football group as operational boundary
+
+    A FootballGroup is the operational, player-pool and permission boundary within an Organisation.
+    The user-facing label is "Group".
+    Organisation remains the tenant and PostgreSQL RLS boundary.
+    FootballGroup is not a nested tenant or sub-organisation.
+
+    The hierarchy is:
+      Organisation
+      └── FootballGroup
+          ├── Shared player pool
+          ├── Coaches and viewers
+          ├── Persistent teams
+          ├── League seasons
+          ├── Fixtures
+          ├── Events
+          │   └── Event squads
+          ├── Selection rules
+          ├── Team rotation paths
+          ├── Reports
+          └── Coaching insights
+
+    Example:
+      Slemmestad Idrettsforening
+      └── Boys 2015
+          ├── Shared player pool
+          ├── Red
+          ├── White
+          ├── Blue
+          └── Sandar Cup
+              ├── Event Squad 1
+              └── Event Squad 2
+
+    The permanent group identity is stable over time.
+    Use "Boys 2015" not "U11" as the group name.
+    Age-category labels such as U11 and U12 belong to a league season or competition context because they change as the cohort ages.
+
+    Scenario: Organisation contains football groups
+      Given an organisation "Slemmestad Idrettsforening"
+      Then the organisation may contain zero, one or many football groups
+      And each group has a stable name like "Boys 2015"
+      And each group has a slug unique within the organisation
+
+    Scenario: Group identity is stable across seasons
+      Given a group "Boys 2015" with cohortYear 2015
+      When the league season changes from "Spring 2025" to "Spring 2026"
+      Then the group name remains "Boys 2015"
+      And the group does not rename to "U11" or "U12"
+
+    Scenario: Seasonal age category is separate from group identity
+      Given a group "Boys 2015"
+      And a league season "Spring 2026" belonging to the group
+      Then the league season may record that players born 2015 are "U11" for this season
+      And the group name remains "Boys 2015"
+
+    Scenario: Group owns a shared player pool
+      Given a group "Boys 2015" with players Alice, Bob, and Charlie
+      Then Alice, Bob, and Charlie are in the active player pool of "Boys 2015"
+      And a player may have at most one active primary group membership
+      And historical inactive memberships remain
+
+    Scenario: Group may contain zero, one or many teams
+      Given a group "Boys 2015"
+      Then the group may contain team "Red"
+      And the group may contain team "White"
+      And the group may contain team "Blue"
+      And a group may exist with zero teams (during setup)
+
+    Scenario: Team belongs to exactly one group
+      Given a team "Red" belonging to group "Boys 2015"
+      Then team "Red" belongs to exactly one group
+      And team "Red" organisation equals group organisation
+      And team "Red" may not move to another group when historical fixtures exist
+
+    Scenario: Event belongs to exactly one group
+      Given an event "Sandar Cup" belonging to group "Boys 2015"
+      Then event "Sandar Cup" belongs to exactly one group
+      And all event squads inherit the group
+      And event player eligibility begins with the group player pool
+
+    Scenario: League season belongs to exactly one group
+      Given a league season "Spring 2026" belonging to group "Boys 2015"
+      Then the league season belongs to exactly one group
+      And all participating teams belong to the same group
+
+    Scenario: Group coach has full operational write access
+      Given a user with COACH access to group "Boys 2015"
+      Then the coach may create players inside the group
+      And the coach may add eligible existing players to the group
+      And the coach may remove players from the active group pool
+      And the coach may create, edit and archive teams
+      And the coach may create and manage league seasons
+      And the coach may create and manage fixtures
+      And the coach may create and manage events
+      And the coach may manage event squads
+      And the coach may manage selection rules
+      And the coach may manage team rotation paths
+      And the coach may run selection generation
+      And the coach may run simulation
+      And the coach may manage review requests
+      And the coach may view reports and insights
+      And the coach may invite coaches and viewers to the same group
+
+    Scenario: Group viewer has read-only access
+      Given a user with VIEWER access to group "Boys 2015"
+      Then the viewer may read all group data
+      And the viewer may not create, edit or delete any group data
+      And the viewer may not manage access
+
+    Scenario: Owner and admin access every group
+      Given an organisation OWNER
+      Then the owner has implicit COACH access to every group in the organisation
+      And the owner does not require GroupAccess rows
+      Given an organisation ADMIN
+      Then the admin has implicit COACH access to every group in the organisation
+      And the admin does not require GroupAccess rows
+
+    Scenario: Support has temporary read-only access
+      Given a user with active SUPPORT membership
+      Then the user has VIEWER access to every group in the organisation
+      And the access is temporary and expires with the SUPPORT membership
+      And the user may not mutate or export
+
+    Scenario: Organisation coach without GroupAccess is denied
+      Given a user with organisation COACH role but no GroupAccess rows
+      Then the user has no operational access to any group
+      And the user may not create players, teams, fixtures, events, or selections
+      And the user may not view group data
+
+    Scenario: Group coach creates a player
+      Given a coach with COACH access to group "Boys 2015"
+      When the coach creates a player "Alice" inside the group
+      Then the system creates a Player with organisationId derived from context
+      And the system creates an active primary FootballGroupPlayer linking Alice to "Boys 2015"
+      And the client must not supply authoritative organisationId or footballGroupId
+
+    Scenario: Group coach adds a player to the group pool
+      Given a coach with COACH access to group "Boys 2015"
+      And an existing player "Bob" in the same organisation but no active group membership
+      When the coach adds Bob to the group pool
+      Then the system creates an active primary FootballGroupPlayer linking Bob to "Boys 2015"
+      And Bob may optionally receive a core team within the group
+
+    Scenario: Group coach removes a player from the active group pool
+      Given a coach with COACH access to group "Boys 2015"
+      And player "Charlie" has active primary membership in "Boys 2015"
+      When the coach removes Charlie from the group pool
+      Then the system sets FootballGroupPlayer.status to INACTIVE
+      And the system sets FootballGroupPlayer.leftAt to now
+      And the Player identity remains in the organisation
+      And historical data is preserved
+
+    Scenario: Removing a player does not delete the Player identity
+      Given a coach with COACH access to group "Boys 2015"
+      And player "Charlie" has active primary membership in "Boys 2015"
+      When the coach removes Charlie from the group pool
+      Then the Player record is not deleted
+      And the FootballGroupPlayer record is preserved as INACTIVE
+      And future selections for Charlie are invalidated
+
+    Scenario: Group coach creates teams
+      Given a coach with COACH access to group "Boys 2015"
+      When the coach creates team "Red" in the group
+      Then the team belongs to "Boys 2015" group
+      And the team organisationId equals the group organisationId
+
+    Scenario: Group coach creates events
+      Given a coach with COACH access to group "Boys 2015"
+      When the coach creates event "Sandar Cup" in the group
+      Then the event belongs to "Boys 2015" group
+      And the event organisationId equals the group organisationId
+
+    Scenario: Group coach creates fixtures
+      Given a coach with COACH access to group "Boys 2015"
+      And a league season "Spring 2026" in the group
+      When the coach creates a match in the league season
+      Then the match belongs to a team in "Boys 2015" group
+
+    Scenario: Group coach manages rules
+      Given a coach with COACH access to group "Boys 2015"
+      Then the coach may create and edit selection rules for the group
+      And selection rules are scoped to the group
+
+    Scenario: Group coach invites another coach
+      Given a coach with COACH access to group "Boys 2015"
+      When the coach invites another user as COACH to the group
+      Then the system creates an OrganisationMembership with role COACH if not existing
+      And the system creates a GroupAccess with role COACH for the group
+      And the invitation does not grant access to other groups
+
+    Scenario: Group coach invites a viewer
+      Given a coach with COACH access to group "Boys 2015"
+      When the coach invites a user as VIEWER to the group
+      Then the system creates an OrganisationMembership with role VIEWER if not existing
+      And the system creates a GroupAccess with role VIEWER for the group
+
+    Scenario: Group coach removes group access
+      Given a coach with COACH access to group "Boys 2015"
+      When the coach removes a GroupAccess entry
+      Then the GroupAccess entry is deleted
+      And the OrganisationMembership is not deleted
+      And access to other groups is not affected
+
+    Scenario: Group coach cannot grant owner, admin or support
+      Given a coach with COACH access to group "Boys 2015"
+      Then the coach may not grant OWNER role
+      And the coach may not grant ADMIN role
+      And the coach may not grant SUPPORT role
+      And the coach may not archive the group
+      And the coach may not delete the group
+
+    Scenario: Player permanent transfer between groups
+      Given a player "Alice" with active primary membership in group "Boys 2015"
+      And a coach with COACH access to both "Boys 2015" and "Girls 2015"
+      When the coach transfers Alice from "Boys 2015" to "Girls 2015"
+      Then the system closes the active membership in "Boys 2015" with leftAt
+      And the system creates an active primary membership in "Girls 2015"
+      And the system clears incompatible core-team references
+      And the system revalidates future selections
+      And historical group context is preserved
+
+    Scenario: Temporary cross-group support
+      Given a GroupMovementPath from "Boys 2015" to "Boys 2014" with type SUPPORT and scope MATCH
+      Then a player from "Boys 2015" may support "Boys 2014" in a match
+      And the support does not change the player's primary group membership
+      And the support does not create a target-group membership
+
+    Scenario: Event-squad eligibility
+      Given an event "Sandar Cup" belonging to group "Boys 2015"
+      Then players in the active pool of "Boys 2015" are eligible for event squads
+      And players from another group require a GroupMovementPath and explicit assignment
+      And the event squad derives its group from the event
+
+    Scenario: Team rotation within one group
+      Given teams "Red" and "White" both in group "Boys 2015"
+      Then a rotation path from "Red" to "White" for SUPPORT is valid
+      And the path source and target teams must belong to the same group
+
+    Scenario: Group movement between groups
+      Given a GroupMovementPath from "Boys 2015" to "Girls 2015" with type SUPPORT and scope MATCH
+      Then the path configures eligibility for cross-group support
+      And the path does not assign a player
+      And permanent player transfer does not use GroupMovementPath
+
+    Scenario: Group route resolution
+      Given an organisation "Slemmestad Idrettsforening" with orgSlug "slemmestad-idrettsforening"
+      And a group "Boys 2015" with groupSlug "boys-2015"
+      Then the group route is "/o/slemmestad-idrettsforening/groups/boys-2015"
+      And the server validates both orgSlug and groupSlug before loading entity IDs
+
+    Scenario: Inaccessible group rejection
+      Given a coach with COACH access to group "Boys 2015" only
+      When the coach requests group "Girls 2015"
+      Then the system denies access with 403 Forbidden
+      And the system does not reveal group internals
+
+    Scenario: Deterministic legacy-route redirects
+      Given legacy route "/teams"
+      And the coach has access to one organisation and one group
+      Then the system redirects to "/o/{orgSlug}/groups/{groupSlug}/teams"
+      Given the coach has access to one organisation and several groups
+      Then the system redirects to the group list or group selection
+      Given the coach has no accessible groups
+      Then the system redirects to the organisation group list
+      And the system never selects the first database row
+
+    Scenario: Organisation Attention aggregation across accessible groups
+      Given an organisation OWNER with access to all groups
+      Then Attention may aggregate entries across all groups
+      And each entry includes group name and group route
+      Given a COACH with access to "Boys 2015" only
+      Then Attention shows only entries from "Boys 2015"
+      And Attention does not show entries from inaccessible groups
+
+    Scenario: Migration from TeamAccess to GroupAccess
+      Given existing TeamAccess rows for teams in "Boys 2015"
+      When the system migrates to GroupAccess
+      Then each TeamAccess COACH entry creates a GroupAccess COACH entry
+      And each TeamAccess read-only entry creates a GroupAccess VIEWER entry
+      And multiple same-group TeamAccess rows are collapsed to one GroupAccess
+      And OWNER and ADMIN do not receive GroupAccess rows (implicit access)
+      And SUPPORT does not receive GroupAccess rows (temporary read-only)
+      And after migration, TeamAccess is removed
+
   Rule: Main domain hierarchy
 
     The app uses Season, LeagueSeason, Match Round, Match, Selection, Movement Ledger, Rule Configuration, Warning, and Manual Override as the core planning hierarchy.
