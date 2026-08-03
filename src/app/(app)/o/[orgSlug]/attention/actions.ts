@@ -2,6 +2,6 @@
 
 import { getAttentionEntries } from '@/lib/attention/get-attention-entries';
 
-export async function getAttentionEntriesAction() {
-  return getAttentionEntries();
+export async function getAttentionEntriesAction(orgSlug: string) {
+  return getAttentionEntries(orgSlug);
 }

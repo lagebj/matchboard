@@ -1,5 +1,7 @@
 import { db } from '@/lib/db';
 import { requireActorContext } from '@/lib/auth/actor-context';
+import { canAdmin } from '@/lib/auth/actor-context';
+import { resolveOrganisationAccess } from '@/lib/organisations/organisation-resolver';
 
 export type AttentionCategory =
   | 'review_assigned'
@@ -25,12 +27,13 @@ export type AttentionEntry = {
   sourceId: string;
 };
 
-export async function getAttentionEntries(): Promise<AttentionEntry[]> {
-  const ctx = await requireActorContext();
+export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEntry[]> {
+  const ctx = await requireActorContext(orgSlug);
 
   if (ctx.orgFilter.type !== 'org') return [];
 
   const organisationId = ctx.organisationId;
+  const isAdmin = canAdmin(ctx);
   const entries: AttentionEntry[] = [];
 
   const membership = await db.organisationMembership.findFirst({
@@ -85,13 +88,15 @@ export async function getAttentionEntries(): Promise<AttentionEntry[]> {
     });
   }
 
-  const pendingInvitations = await db.organisationInvitation.findMany({
-    where: {
-      organisationId,
-      status: 'PENDING',
-    },
-    orderBy: { createdAt: 'asc' },
-  });
+  const pendingInvitations = isAdmin
+    ? await db.organisationInvitation.findMany({
+        where: {
+          organisationId,
+          status: 'PENDING',
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+    : [];
 
   const now = new Date();
   for (const inv of pendingInvitations) {
@@ -110,15 +115,17 @@ export async function getAttentionEntries(): Promise<AttentionEntry[]> {
     });
   }
 
-  const expiringSupportMemberships = await db.organisationMembership.findMany({
-    where: {
-      organisationId,
-      role: 'SUPPORT',
-      expiresAt: { not: null, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
-    },
-    include: { user: { select: { name: true } } },
-    orderBy: { expiresAt: 'asc' },
-  });
+  const expiringSupportMemberships = isAdmin
+    ? await db.organisationMembership.findMany({
+        where: {
+          organisationId,
+          role: 'SUPPORT',
+          expiresAt: { not: null, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+        },
+        include: { user: { select: { name: true } } },
+        orderBy: { expiresAt: 'asc' },
+      })
+    : [];
 
   for (const supportMembership of expiringSupportMemberships) {
     entries.push({
@@ -208,15 +215,17 @@ export async function getAttentionEntries(): Promise<AttentionEntry[]> {
     });
   }
 
-  const upcomingUnownedFixtures = await db.workOwnership.findMany({
-    where: {
-      organisationId,
-      targetType: 'FIXTURE',
-      status: 'ACTIVE',
-      dueAt: { not: null, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
-    },
-    orderBy: { dueAt: 'asc' },
-  });
+  const upcomingUnownedFixtures = isAdmin
+    ? await db.workOwnership.findMany({
+        where: {
+          organisationId,
+          targetType: 'FIXTURE',
+          status: 'ACTIVE',
+          dueAt: { not: null, lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+        },
+        orderBy: { dueAt: 'asc' },
+      })
+    : [];
 
   const ownedFixtureIds = new Set(upcomingUnownedFixtures.map((o) => o.targetId));
 
