@@ -1,68 +1,227 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { setupTestDb, teardownTestDb } from "@/test/test-db";
-import { resolveOrgFilterForUser, orgFilterFromContext } from "@/lib/tenancy/resolve-org-filter";
-import { AuthorizationError } from "@/lib/auth";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+
+vi.mock("@/lib/auth", () => ({
+  AuthorizationError: class AuthorizationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = "AuthorizationError";
+    }
+  },
+  requireCoachAccess: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({
+  db: {},
+}));
+
+import { resolveOrgFilterForUser, orgFilterFromContext, MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
-import type { PrismaClient } from "@/generated/prisma/client";
+import { AuthorizationError } from "@/lib/auth";
 
 describe("resolveOrgFilterForUser", () => {
-  let db: PrismaClient;
-
-  beforeAll(async () => {
-    db = await setupTestDb();
-  });
-
-  afterAll(async () => {
-    await teardownTestDb();
-  });
-
   it("throws AuthorizationError when user has no organisation membership", async () => {
-    const email = `no-org-${Date.now()}@test.com`;
-    const user = await db.user.create({ data: { email, name: "No Org User" } });
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    } as any;
 
-    await expect(resolveOrgFilterForUser(user.id, db)).rejects.toThrow(AuthorizationError);
-    await expect(resolveOrgFilterForUser(user.id, db)).rejects.toThrow("No active organisation membership");
+    await expect(resolveOrgFilterForUser("nonexistent-user", mockClient)).rejects.toThrow(AuthorizationError);
+    await expect(resolveOrgFilterForUser("nonexistent-user", mockClient)).rejects.toThrow("No active organisation membership");
   });
 
-  it("returns org-scoped filter when user has organisation membership", async () => {
-    const slug = `filter-test-org-${Date.now()}`;
-    const org = await db.organisation.create({ data: { name: "Filter Test Org", slug } });
-    const email = `org-user-${Date.now()}@test.com`;
-    const user = await db.user.create({ data: { email, name: "Org User" } });
-    await db.organisationMembership.create({
-      data: { userId: user.id, organisationId: org.id, role: "COACH" },
-    });
+  it("returns org-scoped filter when user has one organisation membership", async () => {
+    const orgId = "org-single-123";
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: orgId,
+            role: "COACH",
+            expiresAt: null,
+            organisation: { id: orgId, name: "Test Org", slug: "test-org", suspendedAt: null },
+          },
+        ]),
+      },
+    } as any;
 
-    const result = await resolveOrgFilterForUser(user.id, db);
+    const result = await resolveOrgFilterForUser("user-single", mockClient);
 
     expect(result.type).toBe("org");
     if (result.type === "org") {
-      expect(result.filter).toEqual({ organisationId: org.id });
-      expect(result.filterNullable).toEqual({ organisationId: org.id });
-      expect(result.organisationId).toBe(org.id);
+      expect(result.filter).toEqual({ organisationId: orgId });
+      expect(result.filterNullable).toEqual({ organisationId: orgId });
+      expect(result.organisationId).toBe(orgId);
     }
   });
 
-  it("returns org filter for first membership when user belongs to multiple orgs", async () => {
-    const slug1 = `multi-org-1-${Date.now()}`;
-    const slug2 = `multi-org-2-${Date.now()}`;
-    const org1 = await db.organisation.create({ data: { name: "Multi Org 1", slug: slug1 } });
-    const org2 = await db.organisation.create({ data: { name: "Multi Org 2", slug: slug2 } });
-    const email = `multi-org-user-${Date.now()}@test.com`;
-    const user = await db.user.create({ data: { email, name: "Multi Org User" } });
-    await db.organisationMembership.create({
-      data: { userId: user.id, organisationId: org1.id, role: "COACH" },
-    });
-    await db.organisationMembership.create({
-      data: { userId: user.id, organisationId: org2.id, role: "VIEWER" },
-    });
+  it("throws MultipleMembershipsError when user belongs to multiple organisations", async () => {
+    const org1Id = "org-multi-1";
+    const org2Id = "org-multi-2";
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: org1Id,
+            role: "COACH",
+            expiresAt: null,
+            organisation: { id: org1Id, name: "Org 1", slug: "org-1", suspendedAt: null },
+          },
+          {
+            organisationId: org2Id,
+            role: "VIEWER",
+            expiresAt: null,
+            organisation: { id: org2Id, name: "Org 2", slug: "org-2", suspendedAt: null },
+          },
+        ]),
+      },
+    } as any;
 
-    const result = await resolveOrgFilterForUser(user.id, db);
+    try {
+      await resolveOrgFilterForUser("user-multi", mockClient);
+      expect.unreachable("Expected MultipleMembershipsError");
+    } catch (error) {
+      expect(error).toBeInstanceOf(MultipleMembershipsError);
+      if (error instanceof MultipleMembershipsError) {
+        expect(error.organisations).toHaveLength(2);
+        expect(error.organisations.map((o) => o.id)).toContain(org1Id);
+        expect(error.organisations.map((o) => o.id)).toContain(org2Id);
+      }
+    }
+  });
+
+  it("excludes expired SUPPORT memberships", async () => {
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: "org-expired",
+            role: "SUPPORT",
+            expiresAt: new Date("2020-01-01"),
+            organisation: { id: "org-expired", name: "Expired Support", slug: "expired", suspendedAt: null },
+          },
+        ]),
+      },
+    } as any;
+
+    await expect(resolveOrgFilterForUser("user-expired-support", mockClient)).rejects.toThrow(AuthorizationError);
+  });
+
+  it("includes active SUPPORT memberships", async () => {
+    const orgId = "org-active-support";
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: orgId,
+            role: "SUPPORT",
+            expiresAt: new Date("2099-12-31"),
+            organisation: { id: orgId, name: "Active Support", slug: "active-support", suspendedAt: null },
+          },
+        ]),
+      },
+    } as any;
+
+    const result = await resolveOrgFilterForUser("user-active-support", mockClient);
 
     expect(result.type).toBe("org");
     if (result.type === "org") {
-      expect(result.organisationId).toBeDefined();
-      expect([org1.id, org2.id]).toContain(result.organisationId);
+      expect(result.organisationId).toBe(orgId);
+    }
+  });
+
+  it("excludes memberships in suspended organisations", async () => {
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: "org-suspended",
+            role: "COACH",
+            expiresAt: null,
+            organisation: { id: "org-suspended", name: "Suspended", slug: "suspended", suspendedAt: new Date() },
+          },
+        ]),
+      },
+    } as any;
+
+    await expect(resolveOrgFilterForUser("user-suspended", mockClient)).rejects.toThrow(AuthorizationError);
+  });
+
+  it("resolves to single active membership when other memberships are expired SUPPORT", async () => {
+    const org1Id = "org-coach-active";
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: org1Id,
+            role: "COACH",
+            expiresAt: null,
+            organisation: { id: org1Id, name: "Active Coach Org", slug: "active-coach", suspendedAt: null },
+          },
+          {
+            organisationId: "org-expired-support",
+            role: "SUPPORT",
+            expiresAt: new Date("2020-01-01"),
+            organisation: { id: "org-expired-support", name: "Expired Support Org", slug: "expired-support", suspendedAt: null },
+          },
+        ]),
+      },
+    } as any;
+
+    const result = await resolveOrgFilterForUser("user-mixed", mockClient);
+
+    expect(result.type).toBe("org");
+    if (result.type === "org") {
+      expect(result.organisationId).toBe(org1Id);
+    }
+  });
+
+  it("MultipleMembershipsError is catchable as AuthorizationError", () => {
+    const error = new MultipleMembershipsError("test", [
+      { id: "org-1", name: "Org 1", slug: "org-1", role: "COACH" },
+    ]);
+    expect(error).toBeInstanceOf(AuthorizationError);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("MultipleMembershipsError");
+    expect(error.organisations).toHaveLength(1);
+  });
+
+  it("throws MultipleMembershipsError when two active memberships exist after filtering expired SUPPORT", async () => {
+    const org1Id = "org-active-1";
+    const org2Id = "org-active-2";
+    const mockClient = {
+      organisationMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            organisationId: org1Id,
+            role: "COACH",
+            expiresAt: null,
+            organisation: { id: org1Id, name: "Active 1", slug: "active-1", suspendedAt: null },
+          },
+          {
+            organisationId: org2Id,
+            role: "COACH",
+            expiresAt: null,
+            organisation: { id: org2Id, name: "Active 2", slug: "active-2", suspendedAt: null },
+          },
+          {
+            organisationId: "org-expired",
+            role: "SUPPORT",
+            expiresAt: new Date("2020-01-01"),
+            organisation: { id: "org-expired", name: "Expired", slug: "expired", suspendedAt: null },
+          },
+        ]),
+      },
+    } as any;
+
+    try {
+      await resolveOrgFilterForUser("user-two-active", mockClient);
+      expect.unreachable("Expected MultipleMembershipsError");
+    } catch (error) {
+      expect(error).toBeInstanceOf(MultipleMembershipsError);
+      if (error instanceof MultipleMembershipsError) {
+        expect(error.organisations).toHaveLength(2);
+      }
     }
   });
 });

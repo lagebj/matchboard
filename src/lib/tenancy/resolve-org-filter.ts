@@ -8,16 +8,54 @@ export type OrgFilterMode =
   | { type: "org"; filter: { organisationId: string }; filterNullable: { organisationId: string | null }; organisationId: string }
   | { type: "unscoped"; filter: {}; filterNullable: {} };
 
+export class MultipleMembershipsError extends AuthorizationError {
+  constructor(
+    message: string,
+    public readonly organisations: Array<{ id: string; name: string; slug: string; role: string }>,
+  ) {
+    super(message);
+    this.name = "MultipleMembershipsError";
+  }
+}
+
 export async function resolveOrgFilterForUser(userId: string, client: PrismaClient = db): Promise<OrgFilterMode> {
-  const membership = await client.organisationMembership.findFirst({
+  const memberships = await client.organisationMembership.findMany({
     where: { userId },
-    select: { organisationId: true },
+    select: {
+      organisationId: true,
+      role: true,
+      expiresAt: true,
+      organisation: { select: { id: true, name: true, slug: true, suspendedAt: true } },
+    },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (!membership) {
+  const now = new Date();
+
+  const eligible = memberships.filter((m) => {
+    if (m.organisation.suspendedAt !== null) return false;
+    if (m.role === "SUPPORT" && m.expiresAt && m.expiresAt < now) return false;
+    return true;
+  });
+
+  if (eligible.length === 0) {
     throw new AuthorizationError("No active organisation membership");
   }
 
+  if (eligible.length > 1) {
+    const orgs = eligible.map((m) => ({
+      id: m.organisation.id,
+      name: m.organisation.name,
+      slug: m.organisation.slug,
+      role: m.role,
+    }));
+    throw new MultipleMembershipsError(
+      "You belong to multiple organisations. Please select an organisation.",
+      orgs,
+    );
+  }
+
+  const membership = eligible[0];
   const organisationId = membership.organisationId;
   return {
     type: "org",

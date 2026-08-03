@@ -1,7 +1,7 @@
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
-import { resolveOrgFilterForUser, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
 
 export type ActorContext = {
   userId: string;
@@ -81,3 +81,5 @@ export async function requireActorContext(
     orgFilter,
   };
 }
+
+export { MultipleMembershipsError };
