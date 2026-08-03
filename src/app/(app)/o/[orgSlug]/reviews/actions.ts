@@ -12,11 +12,48 @@ import {
 import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { enqueueNotification } from '@/lib/email/outbox';
 
 export async function requestReviewAction(input: CreateReviewRequestInput) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   const review = await createReviewRequest(input, ctx.organisationId, ctx.membershipId);
+
+  if (review.reviewerMembershipId && review.reviewerMembershipId !== ctx.membershipId) {
+    const reviewer = await db.organisationMembership.findUnique({
+      where: { id: review.reviewerMembershipId },
+      include: { user: { select: { email: true } } },
+    });
+
+    if (reviewer?.user?.email) {
+      const organisation = await db.organisation.findUnique({
+        where: { id: ctx.organisationId },
+        select: { name: true, slug: true },
+      });
+
+      await enqueueNotification({
+        organisationId: ctx.organisationId,
+        idempotencyKey: `review-requested-${review.id}`,
+        template: 'REVIEW_REQUESTED',
+        payload: {
+          organisationName: organisation?.name ?? 'Matchboard',
+          requesterName: ctx.email,
+          requesterEmail: ctx.email,
+          reviewerName: reviewer.user.email,
+          reviewerEmail: reviewer.user.email,
+          targetType: input.targetType,
+          targetId: input.targetId,
+          targetLabel: input.targetId,
+          requestMessage: input.requestMessage ?? null,
+          reviewUrl: `/assistant`,
+          organisationSlug: organisation?.slug ?? ctx.organisationSlug,
+        },
+        recipientEmail: reviewer.user.email,
+        recipientUserId: reviewer.userId,
+      });
+    }
+  }
+
   revalidatePath('/assistant');
   revalidatePath('/events');
   return review;

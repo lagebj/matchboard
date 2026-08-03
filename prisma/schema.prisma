@@ -2051,6 +2051,10 @@ enum SuggestionStatus {
 
 enum NotificationTemplate {
   ORGANISATION_INVITATION
+  REVIEW_REQUESTED
+  REVIEW_CHANGES_REQUESTED
+  OWNERSHIP_ASSIGNED
+  OWNERSHIP_HANDOVER_REQUESTED
 }
 
 enum NotificationStatus {
