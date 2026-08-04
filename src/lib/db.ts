@@ -15,9 +15,15 @@ if (!connectionString) {
   throw new Error("DATABASE_URL environment variable is not set. Add it to your .env file.");
 }
 
-const adapter = connectionString.includes(".neon.tech")
-  ? new PrismaNeon({ connectionString })
-  : new PrismaPg(new pg.Pool({ connectionString }));
+// Use DIRECT_URL for runtime queries when available, because SET LOCAL
+// (used by the RLS tenant extension) requires a direct PostgreSQL connection
+// and does not work reliably through PgBouncer pooled connections.
+// Migrations use DIRECT_URL via prisma.config.ts independently.
+const runtimeConnectionString = process.env.DIRECT_URL || connectionString;
+
+const adapter = runtimeConnectionString.includes(".neon.tech")
+  ? new PrismaNeon({ connectionString: runtimeConnectionString })
+  : new PrismaPg(new pg.Pool({ connectionString: runtimeConnectionString }));
 
 const rawClient =
   globalForPrisma.prisma ??
