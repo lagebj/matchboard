@@ -1,13 +1,10 @@
+"use server";
+
 import { cookies } from "next/headers";
 
 const ORG_SLUG_COOKIE = "x-matchboard-org-slug";
 
-export async function getOrgSlugFromCookie(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get(ORG_SLUG_COOKIE)?.value;
-}
-
-export async function setOrgSlugCookie(orgSlug: string): Promise<void> {
+export async function setOrgSlugCookieAction(orgSlug: string) {
   const cookieStore = await cookies();
   cookieStore.set(ORG_SLUG_COOKIE, orgSlug, {
     path: "/",

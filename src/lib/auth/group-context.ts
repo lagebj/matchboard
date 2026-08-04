@@ -1,6 +1,7 @@
 import type { GroupAccessRole, OrganisationRole } from "@/generated/prisma/client";
 import { AuthorizationError } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { withTenantContext } from "@/lib/tenancy/tenant-client";
 
 const GROUP_MUTATION_ROLES: GroupAccessRole[] = ["GROUP_COACH"];
 const GROUP_VIEWER_ROLES: GroupAccessRole[] = ["GROUP_COACH", "GROUP_VIEWER"];
@@ -147,9 +148,11 @@ export async function getEffectiveGroupAccess(
   orgRole: OrganisationRole,
 ): Promise<GroupAccessEntry[]> {
   if (ORG_IMPLICIT_ACCESS_ROLES.includes(orgRole)) {
-    const allGroups = await db.footballGroup.findMany({
-      where: { organisationId, isActive: true },
-      select: { id: true },
+    const allGroups = await withTenantContext(db, organisationId, async (tx) => {
+      return tx.footballGroup.findMany({
+        where: { organisationId, isActive: true },
+        select: { id: true },
+      });
     });
     return allGroups.map((g) => ({
       footballGroupId: g.id,
@@ -158,9 +161,11 @@ export async function getEffectiveGroupAccess(
   }
 
   if (orgRole === "SUPPORT") {
-    const allGroups = await db.footballGroup.findMany({
-      where: { organisationId, isActive: true },
-      select: { id: true },
+    const allGroups = await withTenantContext(db, organisationId, async (tx) => {
+      return tx.footballGroup.findMany({
+        where: { organisationId, isActive: true },
+        select: { id: true },
+      });
     });
     return allGroups.map((g) => ({
       footballGroupId: g.id,
@@ -168,9 +173,11 @@ export async function getEffectiveGroupAccess(
     }));
   }
 
-  const groupAccesses = await db.groupAccess.findMany({
-    where: { membershipId },
-    select: { footballGroupId: true, role: true },
+  const groupAccesses = await withTenantContext(db, organisationId, async (tx) => {
+    return tx.groupAccess.findMany({
+      where: { membershipId },
+      select: { footballGroupId: true, role: true },
+    });
   });
 
   return groupAccesses.map((ga) => ({

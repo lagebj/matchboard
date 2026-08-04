@@ -5,6 +5,7 @@ import { canAccessAllTeams, canInviteRole, canManageRole, canCreateTeam, canMana
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { getEffectiveGroupAccess } from "@/lib/auth/group-context";
+import { withTenantContext } from "@/lib/tenancy/tenant-client";
 
 class OrganisationNotFoundError extends AuthorizationError {
   constructor(message: string) {
@@ -60,23 +61,36 @@ export async function resolveOrganisationAccess(
     throw new OrganisationSuspendedError("This organisation is suspended.");
   }
 
-  const membership = await db.organisationMembership.findUnique({
-    where: { userId_organisationId: { userId: coachId, organisationId: org.id } },
-  }) as MembershipRow | null;
+  const membership = await withTenantContext(db, org.id, async (tx) => {
+    return tx.organisationMembership.findUnique({
+      where: { userId_organisationId: { userId: coachId, organisationId: org.id } },
+      select: { id: true, userId: true, organisationId: true, role: true, expiresAt: true, createdAt: true, updatedAt: true },
+    });
+  });
 
   if (!membership) {
     logAccessDenied(coachEmail, `organisation:${org.slug}`, "no_membership");
     throw new OrganisationMembershipError("You are not a member of this organisation.");
   }
 
-  if (membership.role === "SUPPORT" && membership.expiresAt && membership.expiresAt < new Date()) {
+  const typedMembership: MembershipRow = {
+    id: membership.id,
+    userId: membership.userId,
+    organisationId: membership.organisationId,
+    role: membership.role,
+    expiresAt: membership.expiresAt,
+    createdAt: membership.createdAt,
+    updatedAt: membership.updatedAt,
+  };
+
+  if (typedMembership.role === "SUPPORT" && typedMembership.expiresAt && typedMembership.expiresAt < new Date()) {
     logAccessDenied(coachEmail, `organisation:${org.slug}`, "support_expired");
     throw new OrganisationMembershipError("SUPPORT access has expired.");
   }
 
-  const role: OrganisationRole = membership.role;
+  const role: OrganisationRole = typedMembership.role;
 
-  const groupAccesses = await getEffectiveGroupAccess(membership.id, org.id, role);
+  const groupAccesses = await getEffectiveGroupAccess(typedMembership.id, org.id, role);
   const accessibleGroupIds: string[] = groupAccesses.map((ga) => ga.footballGroupId);
 
   return {
