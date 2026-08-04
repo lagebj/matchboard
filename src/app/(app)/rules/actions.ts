@@ -119,8 +119,8 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     if (!fromTeam) throw new Error("Source team not found.");
     if (!toTeam) throw new Error("Target team not found.");
 
-    requireTeamAccess(ctx, fromTeamId);
-    requireTeamAccess(ctx, toTeamId);
+    await requireTeamAccess(ctx, fromTeamId);
+    await requireTeamAccess(ctx, toTeamId);
 
     if (ctx.orgFilter.type === "org") {
       if (fromTeam.organisationId !== ctx.orgFilter.organisationId || toTeam.organisationId !== ctx.orgFilter.organisationId) {
@@ -182,8 +182,8 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
       throw new Error("Rotation path not found or access denied.");
     }
 
-    requireTeamAccess(ctx, existingPath.fromTeamId);
-    requireTeamAccess(ctx, existingPath.toTeamId);
+    await requireTeamAccess(ctx, existingPath.fromTeamId);
+    await requireTeamAccess(ctx, existingPath.toTeamId);
 
     const purpose = readText(formData, "purpose");
     const priority = readOptionalInt(formData, "priority");
@@ -244,8 +244,8 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
       throw new Error("Rotation path not found or access denied.");
     }
 
-    requireTeamAccess(ctx, existingPath.fromTeamId);
-    requireTeamAccess(ctx, existingPath.toTeamId);
+    await requireTeamAccess(ctx, existingPath.fromTeamId);
+    await requireTeamAccess(ctx, existingPath.toTeamId);
 
     await db.rotationPath.delete({ where: { id: pathId } });
 
@@ -278,8 +278,8 @@ export async function toggleRotationPathActiveAction(prevState: ActionState, for
       throw new Error("Rotation path not found or access denied.");
     }
 
-    requireTeamAccess(ctx, existingPath.fromTeamId);
-    requireTeamAccess(ctx, existingPath.toTeamId);
+    await requireTeamAccess(ctx, existingPath.fromTeamId);
+    await requireTeamAccess(ctx, existingPath.toTeamId);
 
     await db.rotationPath.update({
       where: { id: pathId },

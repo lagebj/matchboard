@@ -36,7 +36,6 @@ type MembershipRow = {
   expiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  teamAccesses: Array<{ teamId: string }>;
 };
 
 export async function resolveOrganisationAccess(
@@ -63,7 +62,6 @@ export async function resolveOrganisationAccess(
 
   const membership = await db.organisationMembership.findUnique({
     where: { userId_organisationId: { userId: coachId, organisationId: org.id } },
-    include: { teamAccesses: { select: { teamId: true } } },
   }) as MembershipRow | null;
 
   if (!membership) {
@@ -76,7 +74,6 @@ export async function resolveOrganisationAccess(
     throw new OrganisationMembershipError("SUPPORT access has expired.");
   }
 
-  const permittedTeamIds: string[] = membership.teamAccesses.map((ta) => ta.teamId);
   const role: OrganisationRole = membership.role;
 
   const groupAccesses = await getEffectiveGroupAccess(membership.id, org.id, role);
@@ -90,7 +87,6 @@ export async function resolveOrganisationAccess(
     organisationName: org.name,
     role,
     membershipId: membership.id,
-    permittedTeamIds,
     accessibleGroupIds,
     groupAccesses,
     canAccessAllTeams: canAccessAllTeams(role),

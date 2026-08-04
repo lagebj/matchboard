@@ -17,7 +17,6 @@ describe("tenant-context", () => {
         organisationName: "Test Org",
         role: "OWNER" as const,
         membershipId: "mem-1",
-        permittedTeamIds: [],
         accessibleGroupIds: [],
         groupAccesses: [],
         canAccessAllTeams: true,

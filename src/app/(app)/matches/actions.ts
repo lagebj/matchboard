@@ -93,7 +93,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   const orgId = ctx.organisationId;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
-    requireTeamAccess(ctx, teamId);
+    await requireTeamAccess(ctx, teamId);
     const opponentText = readText(formData, "opponent");
     const opponentTeamIdInput = readText(formData, "opponentTeamId");
     const startsAt = readDate(formData, "startsAt", "Match date");

@@ -39,7 +39,6 @@ model Team {
   groupPlayers             FootballGroupPlayer[] @relation("GroupPlayerCoreTeam")
   group                    FootballGroup        @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation             Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  teamAccesses             TeamAccess[]
 
   @@unique([organisationId, name])
   @@index([archivedAt, name])
@@ -1837,7 +1836,6 @@ model OrganisationMembership {
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  teamAccesses TeamAccess[]
   groupAccesses GroupAccess[]
 
   @@unique([userId, organisationId])
@@ -1869,20 +1867,6 @@ model OrganisationInvitation {
   @@index([organisationId])
   @@index([invitedEmail])
   @@index([expiresAt])
-}
-
-model TeamAccess {
-  id           String   @id @default(cuid())
-  membershipId String
-  teamId       String
-  createdAt    DateTime @default(now())
-
-  membership OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-  team       Team                   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-  @@unique([membershipId, teamId])
-  @@index([teamId])
-  @@index([membershipId])
 }
 
 model MachinePrincipal {

@@ -65,7 +65,6 @@ describe("Simulation run API auth", () => {
       organisationId: "org-1",
       organisationSlug: "test-org",
       role: "COACH",
-      delegatedTeamIds: null,
       orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
     });
     mockRateLimit.mockReturnValue({ allowed: false });
@@ -110,7 +109,6 @@ describe("Simulation apply API auth", () => {
       organisationId: "org-1",
       organisationSlug: "test-org",
       role: "VIEWER",
-      delegatedTeamIds: null,
       orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
     };
     mockRequireActorContext.mockResolvedValue(viewCtx);
@@ -137,7 +135,6 @@ describe("Simulation apply API auth", () => {
       organisationId: "org-1",
       organisationSlug: "test-org",
       role: "SUPPORT",
-      delegatedTeamIds: null,
       orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
     };
     mockRequireActorContext.mockResolvedValue(supportCtx);

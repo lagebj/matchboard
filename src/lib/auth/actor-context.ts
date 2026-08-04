@@ -12,7 +12,6 @@ export type ActorContext = {
   organisationId: string;
   organisationSlug: string;
   role: OrganisationRole;
-  delegatedTeamIds: string[] | null;
   accessibleGroupIds: string[];
   groupAccesses: GroupAccessEntry[];
   orgFilter: OrgFilterMode;
@@ -42,7 +41,6 @@ export async function requireActorContext(
       organisationId: access.organisationId,
       organisationSlug: access.organisationSlug,
       role: access.role,
-      delegatedTeamIds: access.permittedTeamIds ?? null,
       accessibleGroupIds: access.accessibleGroupIds,
       groupAccesses: access.groupAccesses,
       orgFilter: slugOrgFilter,
@@ -73,11 +71,6 @@ export async function requireActorContext(
     throw new AuthorizationError("Organisation not found");
   }
 
-  const teamAccesses = await db.teamAccess.findMany({
-    where: { membershipId: membership.id },
-    select: { teamId: true },
-  });
-
   const groupAccesses = await getEffectiveGroupAccess(
     membership.id,
     membership.organisationId,
@@ -91,7 +84,6 @@ export async function requireActorContext(
     organisationId: membership.organisationId,
     organisationSlug: organisation.slug,
     role: membership.role,
-    delegatedTeamIds: teamAccesses.map((ta) => ta.teamId),
     accessibleGroupIds: groupAccesses.map((ga) => ga.footballGroupId),
     groupAccesses,
     orgFilter,
@@ -140,18 +132,21 @@ export function canOwn(ctx: ActorContext): boolean {
   return OWNER_ROLES.includes(ctx.role);
 }
 
-export function hasTeamAccess(ctx: ActorContext, teamId: string): boolean {
+export async function hasTeamAccess(ctx: ActorContext, teamId: string): Promise<boolean> {
   if (ADMIN_ROLES.includes(ctx.role)) return true;
-  if (ctx.delegatedTeamIds === null) return true;
-  return ctx.delegatedTeamIds.includes(teamId);
+
+  const { db } = await import("@/lib/db");
+  const team = await db.team.findFirst({
+    where: { id: teamId },
+    select: { footballGroupId: true },
+  });
+
+  if (!team) return false;
+  return ctx.accessibleGroupIds.includes(team.footballGroupId);
 }
 
-export function requireTeamAccess(ctx: ActorContext, teamId: string): void {
-  if (ADMIN_ROLES.includes(ctx.role)) return;
-  if (ctx.delegatedTeamIds === null) return;
-  if (!ctx.delegatedTeamIds.includes(teamId)) {
-    throw new AuthorizationError("You do not have access to this team.");
-  }
+export async function requireTeamAccess(ctx: ActorContext, teamId: string): Promise<void> {
+  await requireTeamGroupAccess(ctx, teamId);
 }
 
 export async function requirePlayerTeamAccess(
@@ -159,7 +154,6 @@ export async function requirePlayerTeamAccess(
   playerId: string,
 ): Promise<string | null> {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
-  if (ctx.delegatedTeamIds === null) return null;
 
   const { db } = await import("@/lib/db");
   const player = await db.player.findFirst({
@@ -177,7 +171,18 @@ export async function requirePlayerTeamAccess(
     throw new AuthorizationError("Player not found or access denied.");
   }
 
-  if (player.coreTeamId && !ctx.delegatedTeamIds.includes(player.coreTeamId)) {
+  if (!player.coreTeamId) return null;
+
+  const team = await db.team.findFirst({
+    where: { id: player.coreTeamId },
+    select: { footballGroupId: true },
+  });
+
+  if (!team) {
+    throw new AuthorizationError("Player not found or access denied.");
+  }
+
+  if (!ctx.accessibleGroupIds.includes(team.footballGroupId)) {
     throw new AuthorizationError("You do not have access to this player's team.");
   }
 
@@ -189,7 +194,6 @@ export async function requireMatchTeamAccess(
   matchId: string,
 ): Promise<string | null> {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
-  if (ctx.delegatedTeamIds === null) return null;
 
   const { db } = await import("@/lib/db");
   const match = await db.match.findFirst({
@@ -206,7 +210,18 @@ export async function requireMatchTeamAccess(
     throw new AuthorizationError("Match not found or access denied.");
   }
 
-  if (match.teamId && !ctx.delegatedTeamIds.includes(match.teamId)) {
+  if (!match.teamId) return null;
+
+  const team = await db.team.findFirst({
+    where: { id: match.teamId },
+    select: { footballGroupId: true },
+  });
+
+  if (!team) {
+    throw new AuthorizationError("Match not found or access denied.");
+  }
+
+  if (!ctx.accessibleGroupIds.includes(team.footballGroupId)) {
     throw new AuthorizationError("You do not have access to this match's team.");
   }
 
@@ -229,7 +244,6 @@ export async function requireTeamGroupAccess(
   teamId: string,
 ): Promise<string | null> {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
-  if (ctx.delegatedTeamIds === null) return null;
 
   const { db } = await import("@/lib/db");
   const team = await db.team.findFirst({
@@ -244,20 +258,17 @@ export async function requireTeamGroupAccess(
     throw new AuthorizationError("Team not found or access denied.");
   }
 
-  const hasTeam = ctx.delegatedTeamIds.includes(teamId);
-  const hasGroup = ctx.accessibleGroupIds.includes(team.footballGroupId);
-
-  if (!hasTeam && !hasGroup) {
+  if (!ctx.accessibleGroupIds.includes(team.footballGroupId)) {
     throw new AuthorizationError("You do not have access to this team.");
   }
 
   return team.footballGroupId;
 }
 
-export function teamFilterFromContext(ctx: ActorContext): { teamId: { in: string[] } } | null {
+export function teamFilterFromContext(ctx: ActorContext): { footballGroupId: { in: string[] } } | null {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
-  if (ctx.delegatedTeamIds === null) return null;
-  return { teamId: { in: ctx.delegatedTeamIds } };
+  if (ctx.accessibleGroupIds.length === 0) return { footballGroupId: { in: [] } };
+  return { footballGroupId: { in: ctx.accessibleGroupIds } };
 }
 
 export function groupFilterFromContext(ctx: ActorContext): { footballGroupId: { in: string[] } } | null {
@@ -266,21 +277,8 @@ export function groupFilterFromContext(ctx: ActorContext): { footballGroupId: { 
   return { footballGroupId: { in: ctx.accessibleGroupIds } };
 }
 
-export function teamOrGroupFilter(ctx: ActorContext): { OR: Array<{ teamId: { in: string[] } } | { footballGroupId: { in: string[] } }> } | null {
+export function teamOrGroupFilter(ctx: ActorContext): { footballGroupId: { in: string[] } } | null {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
-  if (ctx.delegatedTeamIds === null) return null;
-
-  const conditions: Array<{ teamId: { in: string[] } } | { footballGroupId: { in: string[] } }> = [];
-  if (ctx.delegatedTeamIds.length > 0) {
-    conditions.push({ teamId: { in: ctx.delegatedTeamIds } });
-  }
-  if (ctx.accessibleGroupIds.length > 0) {
-    conditions.push({ footballGroupId: { in: ctx.accessibleGroupIds } });
-  }
-
-  if (conditions.length === 0) {
-    return { OR: [{ teamId: { in: [] } }] };
-  }
-
-  return { OR: conditions };
+  if (ctx.accessibleGroupIds.length === 0) return { footballGroupId: { in: [] } };
+  return { footballGroupId: { in: ctx.accessibleGroupIds } };
 }

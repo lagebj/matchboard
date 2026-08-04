@@ -76,7 +76,7 @@ export async function createMatchLineup(data: {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(data.matchId, orgFilter);
-  requireTeamAccess(ctx, data.teamId);
+  await requireTeamAccess(ctx, data.teamId);
 
   const lineup = await createLineupFromFormation(data);
 

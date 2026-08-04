@@ -1,5 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    team: {
+      findFirst: vi.fn(),
+    },
+  },
+}));
+
 import { requireRole, requireTeamAccess } from "../organisation-access";
+import { db } from "@/lib/db";
 
 describe("organisation-access", () => {
   const baseCtx = {
@@ -9,14 +19,13 @@ describe("organisation-access", () => {
     organisationSlug: "test-club",
     organisationName: "Test Club",
     membershipId: "mem1",
-    permittedTeamIds: ["team1", "team2"],
-    accessibleGroupIds: [],
+    accessibleGroupIds: ["group1", "group2"],
     groupAccesses: [],
     canAccessAllTeams: false,
     canCreateTeam: false,
     canManageMemberships: false,
-    canInviteRole: () => false,
-    canManageRole: () => false,
+    canInviteRole: () => false as const,
+    canManageRole: () => false as const,
     canDeleteOrganisation: false,
     canTransferOwnership: false,
   };
@@ -49,19 +58,37 @@ describe("organisation-access", () => {
   });
 
   describe("requireTeamAccess", () => {
-    it("passes when user has canAccessAllTeams", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("passes when user has canAccessAllTeams", async () => {
       const adminCtx = { ...baseCtx, role: "ADMIN" as const, canAccessAllTeams: true };
-      expect(() => requireTeamAccess(adminCtx, "any-team-id")).not.toThrow();
+      await expect(requireTeamAccess(adminCtx, "any-team-id")).resolves.toBeUndefined();
     });
 
-    it("passes when team is in permittedTeamIds", () => {
+    it("passes when team's group is in accessibleGroupIds", async () => {
+      (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: "team1",
+        footballGroupId: "group1",
+      });
       const coachCtx = { ...baseCtx, role: "COACH" as const };
-      expect(() => requireTeamAccess(coachCtx, "team1")).not.toThrow();
+      await expect(requireTeamAccess(coachCtx, "team1")).resolves.toBeUndefined();
     });
 
-    it("throws when team is not in permittedTeamIds", () => {
+    it("throws when team's group is not in accessibleGroupIds", async () => {
+      (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: "team3",
+        footballGroupId: "group3",
+      });
       const coachCtx = { ...baseCtx, role: "COACH" as const };
-      expect(() => requireTeamAccess(coachCtx, "team3")).toThrow("You do not have access to this team");
+      await expect(requireTeamAccess(coachCtx, "team3")).rejects.toThrow("You do not have access to this team");
+    });
+
+    it("throws when team not found", async () => {
+      (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const coachCtx = { ...baseCtx, role: "COACH" as const };
+      await expect(requireTeamAccess(coachCtx, "team-missing")).rejects.toThrow("You do not have access to this team");
     });
   });
 });

@@ -32,7 +32,7 @@ import { AuthorizationError } from "@/lib/auth";
 const ORG_ID = "org-test";
 const ORG_SLUG = "test-org";
 
-function makeContext(role: ActorContext["role"], delegatedTeamIds?: string[] | null, accessibleGroupIds?: string[]): ActorContext {
+function makeContext(role: ActorContext["role"], accessibleGroupIds?: string[]): ActorContext {
   return {
     userId: "user-1",
     email: "coach@test.com",
@@ -40,7 +40,6 @@ function makeContext(role: ActorContext["role"], delegatedTeamIds?: string[] | n
     organisationId: ORG_ID,
     organisationSlug: ORG_SLUG,
     role,
-    delegatedTeamIds: delegatedTeamIds ?? null,
     accessibleGroupIds: accessibleGroupIds ?? [],
     groupAccesses: [],
     orgFilter: { type: "org" as const, filter: { organisationId: ORG_ID }, filterNullable: { organisationId: ORG_ID }, organisationId: ORG_ID },
@@ -158,51 +157,83 @@ describe("canOwn", () => {
 });
 
 describe("hasTeamAccess", () => {
-  it("ADMIN has access to any team", () => {
-    expect(hasTeamAccess(makeContext("ADMIN"), "team-1")).toBe(true);
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("OWNER has access to any team", () => {
-    expect(hasTeamAccess(makeContext("OWNER"), "team-1")).toBe(true);
+  it("ADMIN has access to any team", async () => {
+    expect(await hasTeamAccess(makeContext("ADMIN"), "team-1")).toBe(true);
   });
 
-  it("COACH with null delegatedTeamIds has access to any team", () => {
-    expect(hasTeamAccess(makeContext("COACH", null), "team-1")).toBe(true);
+  it("OWNER has access to any team", async () => {
+    expect(await hasTeamAccess(makeContext("OWNER"), "team-1")).toBe(true);
   });
 
-  it("COACH with matching delegatedTeamIds has access", () => {
-    expect(hasTeamAccess(makeContext("COACH", ["team-1", "team-2"]), "team-1")).toBe(true);
+  it("COACH with matching group access has access", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    expect(await hasTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).toBe(true);
   });
 
-  it("COACH with non-matching delegatedTeamIds is denied", () => {
-    expect(hasTeamAccess(makeContext("COACH", ["team-1", "team-2"]), "team-3")).toBe(false);
+  it("COACH with non-matching group access is denied", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-2",
+    });
+    expect(await hasTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).toBe(false);
   });
 
-  it("VIEWER with delegatedTeamIds respects delegation", () => {
-    expect(hasTeamAccess(makeContext("VIEWER", ["team-1"]), "team-1")).toBe(true);
-    expect(hasTeamAccess(makeContext("VIEWER", ["team-1"]), "team-2")).toBe(false);
+  it("COACH with no group access is denied", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    expect(await hasTeamAccess(makeContext("COACH"), "team-1")).toBe(false);
+  });
+
+  it("returns false when team not found", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    expect(await hasTeamAccess(makeContext("COACH", ["group-1"]), "team-missing")).toBe(false);
   });
 });
 
 describe("requireTeamAccess", () => {
-  it("allows ADMIN to any team", () => {
-    expect(() => requireTeamAccess(makeContext("ADMIN"), "team-1")).not.toThrow();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("allows OWNER to any team", () => {
-    expect(() => requireTeamAccess(makeContext("OWNER"), "team-1")).not.toThrow();
+  it("allows ADMIN to any team", async () => {
+    await expect(requireTeamAccess(makeContext("ADMIN"), "team-1")).resolves.toBeUndefined();
   });
 
-  it("allows COACH with null delegation", () => {
-    expect(() => requireTeamAccess(makeContext("COACH", null), "team-1")).not.toThrow();
+  it("allows OWNER to any team", async () => {
+    await expect(requireTeamAccess(makeContext("OWNER"), "team-1")).resolves.toBeUndefined();
   });
 
-  it("allows COACH with matching team", () => {
-    expect(() => requireTeamAccess(makeContext("COACH", ["team-1"]), "team-1")).not.toThrow();
+  it("allows COACH with matching group access", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    await expect(requireTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).resolves.toBeUndefined();
   });
 
-  it("rejects COACH with non-matching team", () => {
-    expect(() => requireTeamAccess(makeContext("COACH", ["team-1"]), "team-2")).toThrow(AuthorizationError);
+  it("rejects COACH with non-matching group access", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-2",
+    });
+    await expect(requireTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("rejects COACH with no group access", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    await expect(requireTeamAccess(makeContext("COACH"), "team-1")).rejects.toThrow(AuthorizationError);
   });
 });
 
@@ -225,33 +256,34 @@ describe("requirePlayerTeamAccess", () => {
     expect(db.player.findFirst).not.toHaveBeenCalled();
   });
 
-  it("allows COACH with null delegatedTeamIds without checking player team", async () => {
-    const ctx = makeContext("COACH", null);
-    const result = await requirePlayerTeamAccess(ctx, "player-1");
-    expect(result).toBeNull();
-    expect(db.player.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("allows COACH with delegated access to player's team", async () => {
+  it("allows COACH with group access to player's team", async () => {
     (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       coreTeamId: "team-1",
     });
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
     const result = await requirePlayerTeamAccess(ctx, "player-1");
     expect(result).toBe("team-1");
   });
 
-  it("rejects COACH without delegated access to player's team", async () => {
+  it("rejects COACH without group access to player's team", async () => {
     (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-      coreTeamId: "team-3",
+      coreTeamId: "team-1",
     });
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-3",
+    });
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
     await expect(requirePlayerTeamAccess(ctx, "player-1")).rejects.toThrow(AuthorizationError);
   });
 
   it("rejects when player not found in org", async () => {
     (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    const ctx = makeContext("COACH", ["team-1"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     await expect(requirePlayerTeamAccess(ctx, "player-missing")).rejects.toThrow(AuthorizationError);
   });
 
@@ -259,7 +291,7 @@ describe("requirePlayerTeamAccess", () => {
     (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       coreTeamId: null,
     });
-    const ctx = makeContext("COACH", ["team-1"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     const result = await requirePlayerTeamAccess(ctx, "player-1");
     expect(result).toBeNull();
   });
@@ -268,7 +300,11 @@ describe("requirePlayerTeamAccess", () => {
     (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       coreTeamId: "team-1",
     });
-    const ctx = makeContext("COACH", ["team-1"]);
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    const ctx = makeContext("COACH", ["group-1"]);
     await requirePlayerTeamAccess(ctx, "player-1");
     expect(db.player.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -299,33 +335,34 @@ describe("requireMatchTeamAccess", () => {
     expect(result).toBeNull();
   });
 
-  it("allows COACH with null delegatedTeamIds without checking match team", async () => {
-    const ctx = makeContext("COACH", null);
-    const result = await requireMatchTeamAccess(ctx, "match-1");
-    expect(result).toBeNull();
-    expect(db.match.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("allows COACH with delegated access to match's team", async () => {
+  it("allows COACH with group access to match's team", async () => {
     (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       teamId: "team-1",
     });
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
     const result = await requireMatchTeamAccess(ctx, "match-1");
     expect(result).toBe("team-1");
   });
 
-  it("rejects COACH without delegated access to match's team", async () => {
+  it("rejects COACH without group access to match's team", async () => {
     (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-      teamId: "team-3",
+      teamId: "team-1",
     });
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-3",
+    });
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
     await expect(requireMatchTeamAccess(ctx, "match-1")).rejects.toThrow(AuthorizationError);
   });
 
   it("rejects when match not found in org", async () => {
     (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    const ctx = makeContext("COACH", ["team-1"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     await expect(requireMatchTeamAccess(ctx, "match-missing")).rejects.toThrow(AuthorizationError);
   });
 
@@ -333,7 +370,7 @@ describe("requireMatchTeamAccess", () => {
     (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       teamId: null,
     });
-    const ctx = makeContext("COACH", ["team-1"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     const result = await requireMatchTeamAccess(ctx, "match-1");
     expect(result).toBeNull();
   });
@@ -358,56 +395,38 @@ describe("requireTeamGroupAccess", () => {
     expect(db.team.findFirst).not.toHaveBeenCalled();
   });
 
-  it("allows COACH with team access (delegatedTeamIds)", async () => {
+  it("allows COACH with group access", async () => {
     (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "team-1",
       footballGroupId: "group-1",
     });
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     const result = await requireTeamGroupAccess(ctx, "team-1");
     expect(result).toBe("group-1");
   });
 
-  it("allows COACH with group access when no team access", async () => {
+  it("rejects COACH without group access", async () => {
     (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "team-1",
-      footballGroupId: "group-1",
+      footballGroupId: "group-2",
     });
-    const ctx = makeContext("COACH", ["team-2"], ["group-1"]);
-    const result = await requireTeamGroupAccess(ctx, "team-1");
-    expect(result).toBe("group-1");
-  });
-
-  it("allows COACH with team access even without group access", async () => {
-    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "team-1",
-      footballGroupId: "group-1",
-    });
-    const ctx = makeContext("COACH", ["team-1"], []);
-    const result = await requireTeamGroupAccess(ctx, "team-1");
-    expect(result).toBe("group-1");
-  });
-
-  it("rejects COACH with neither team nor group access", async () => {
-    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "team-1",
-      footballGroupId: "group-1",
-    });
-    const ctx = makeContext("COACH", ["team-2"], ["group-2"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     await expect(requireTeamGroupAccess(ctx, "team-1")).rejects.toThrow(AuthorizationError);
   });
 
   it("rejects when team not found in org", async () => {
     (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    const ctx = makeContext("COACH", ["team-1"]);
+    const ctx = makeContext("COACH", ["group-1"]);
     await expect(requireTeamGroupAccess(ctx, "team-missing")).rejects.toThrow(AuthorizationError);
   });
 
-  it("allows COACH with null delegatedTeamIds without checking team", async () => {
-    const ctx = makeContext("COACH", null);
-    const result = await requireTeamGroupAccess(ctx, "team-1");
-    expect(result).toBeNull();
-    expect(db.team.findFirst).not.toHaveBeenCalled();
+  it("rejects COACH with no group access at all", async () => {
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "team-1",
+      footballGroupId: "group-1",
+    });
+    const ctx = makeContext("COACH");
+    await expect(requireTeamGroupAccess(ctx, "team-1")).rejects.toThrow(AuthorizationError);
   });
 });
 
@@ -420,13 +439,14 @@ describe("teamFilterFromContext", () => {
     expect(teamFilterFromContext(makeContext("ADMIN"))).toBeNull();
   });
 
-  it("returns null for COACH with null delegatedTeamIds", () => {
-    expect(teamFilterFromContext(makeContext("COACH", null))).toBeNull();
+  it("returns footballGroupId in-filter for COACH with group access", () => {
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
+    expect(teamFilterFromContext(ctx)).toEqual({ footballGroupId: { in: ["group-1", "group-2"] } });
   });
 
-  it("returns in-filter for COACH with delegated team IDs", () => {
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
-    expect(teamFilterFromContext(ctx)).toEqual({ teamId: { in: ["team-1", "team-2"] } });
+  it("returns empty in-filter for COACH with no group access", () => {
+    const ctx = makeContext("COACH");
+    expect(teamFilterFromContext(ctx)).toEqual({ footballGroupId: { in: [] } });
   });
 });
 
@@ -439,14 +459,14 @@ describe("groupFilterFromContext", () => {
     expect(groupFilterFromContext(makeContext("ADMIN"))).toBeNull();
   });
 
-  it("returns empty in-filter for COACH with no groups", () => {
-    const ctx = makeContext("COACH", ["team-1"]);
-    expect(groupFilterFromContext(ctx)).toEqual({ footballGroupId: { in: [] } });
+  it("returns in-filter for COACH with group IDs", () => {
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
+    expect(groupFilterFromContext(ctx)).toEqual({ footballGroupId: { in: ["group-1", "group-2"] } });
   });
 
-  it("returns in-filter for COACH with group IDs", () => {
-    const ctx = makeContext("COACH", ["team-1"], ["group-1", "group-2"]);
-    expect(groupFilterFromContext(ctx)).toEqual({ footballGroupId: { in: ["group-1", "group-2"] } });
+  it("returns empty in-filter for COACH with no groups", () => {
+    const ctx = makeContext("COACH");
+    expect(groupFilterFromContext(ctx)).toEqual({ footballGroupId: { in: [] } });
   });
 });
 
@@ -459,27 +479,13 @@ describe("teamOrGroupFilter", () => {
     expect(teamOrGroupFilter(makeContext("ADMIN"))).toBeNull();
   });
 
-  it("returns null for COACH with null delegatedTeamIds", () => {
-    expect(teamOrGroupFilter(makeContext("COACH", null))).toBeNull();
+  it("returns footballGroupId in-filter for COACH with group access", () => {
+    const ctx = makeContext("COACH", ["group-1", "group-2"]);
+    expect(teamOrGroupFilter(ctx)).toEqual({ footballGroupId: { in: ["group-1", "group-2"] } });
   });
 
-  it("returns team-only OR filter when no group access", () => {
-    const ctx = makeContext("COACH", ["team-1", "team-2"]);
-    expect(teamOrGroupFilter(ctx)).toEqual({ OR: [{ teamId: { in: ["team-1", "team-2"] } }] });
-  });
-
-  it("returns group-only OR filter when no team access but group access", () => {
-    const ctx = makeContext("COACH", [], ["group-1"]);
-    expect(teamOrGroupFilter(ctx)).toEqual({ OR: [{ footballGroupId: { in: ["group-1"] } }] });
-  });
-
-  it("returns both team and group OR filter when both are present", () => {
-    const ctx = makeContext("COACH", ["team-1"], ["group-1"]);
-    expect(teamOrGroupFilter(ctx)).toEqual({ OR: [{ teamId: { in: ["team-1"] } }, { footballGroupId: { in: ["group-1"] } }] });
-  });
-
-  it("returns empty filter when COACH has no team or group access", () => {
-    const ctx = makeContext("COACH", []);
-    expect(teamOrGroupFilter(ctx)).toEqual({ OR: [{ teamId: { in: [] } }] });
+  it("returns empty filter when COACH has no group access", () => {
+    const ctx = makeContext("COACH");
+    expect(teamOrGroupFilter(ctx)).toEqual({ footballGroupId: { in: [] } });
   });
 });

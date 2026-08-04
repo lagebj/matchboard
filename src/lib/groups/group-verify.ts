@@ -4,7 +4,7 @@ export type VerificationCheck = {
   name: string;
   passed: boolean;
   count: number;
-  expected: number;
+  expected?: number;
   details?: string;
 };
 
@@ -26,7 +26,6 @@ export async function verifyBackfill(): Promise<VerificationResult> {
   let totalTeams = 0;
   let totalActivePlayersWithCoreTeam = 0;
   let totalPlayersWithGroupMembership = 0;
-  let totalTeamAccessRows = 0;
   let totalGroupAccessRows = 0;
 
   for (const org of orgs) {
@@ -72,13 +71,6 @@ export async function verifyBackfill(): Promise<VerificationResult> {
     });
     totalPlayersWithGroupMembership += playersWithGroup;
 
-    const teamAccessCount = await db.teamAccess.count({
-      where: {
-        team: { organisationId: org.id },
-      },
-    });
-    totalTeamAccessRows += teamAccessCount;
-
     const groupAccessCount = await db.groupAccess.count({
       where: {
         group: { organisationId: org.id },
@@ -116,12 +108,11 @@ export async function verifyBackfill(): Promise<VerificationResult> {
   });
 
   checks.push({
-    name: "GroupAccess rows exist (mirrored from TeamAccess)",
-    passed: totalGroupAccessRows > 0 || totalTeamAccessRows === 0,
+    name: "GroupAccess rows exist",
+    passed: totalGroupAccessRows > 0,
     count: totalGroupAccessRows,
-    expected: totalTeamAccessRows,
-    details: totalTeamAccessRows > 0 && totalGroupAccessRows === 0
-      ? "No GroupAccess rows found but TeamAccess rows exist"
+    details: totalGroupAccessRows === 0
+      ? "No GroupAccess rows found"
       : undefined,
   });
 

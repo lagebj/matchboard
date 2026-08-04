@@ -51,7 +51,6 @@ describe("Multitenancy isolation", () => {
       organisationName: "Test Club",
       role: "COACH",
       membershipId: "mem-1",
-      permittedTeamIds: ["team-1"],
       accessibleGroupIds: [],
       groupAccesses: [],
       canAccessAllTeams: false,
@@ -123,7 +122,6 @@ describe("Multitenancy isolation", () => {
       organisationName: "Test",
       role: "COACH",
       membershipId: "mem-1",
-      permittedTeamIds: [],
       accessibleGroupIds: [],
       groupAccesses: [],
       canAccessAllTeams: false,
@@ -147,7 +145,7 @@ describe("Multitenancy isolation", () => {
   });
 
   describe("requireTeamAccess", () => {
-    const ctxWithTeamAccess: OrganisationAccessContext = {
+    const coachCtx: OrganisationAccessContext = {
       userId: "user-1",
       userEmail: "coach@test.com",
       organisationId: "org-1",
@@ -155,8 +153,7 @@ describe("Multitenancy isolation", () => {
       organisationName: "Test",
       role: "COACH",
       membershipId: "mem-1",
-      permittedTeamIds: ["team-a", "team-b"],
-      accessibleGroupIds: [],
+      accessibleGroupIds: ["group-a", "group-b"],
       groupAccesses: [],
       canAccessAllTeams: false,
       canCreateTeam: false,
@@ -168,19 +165,10 @@ describe("Multitenancy isolation", () => {
     };
 
     const adminCtx: OrganisationAccessContext = {
-      ...ctxWithTeamAccess,
+      ...coachCtx,
       role: "ADMIN",
       canAccessAllTeams: true,
     };
-
-    it("allows access to permitted teams", () => {
-      expect(() => requireTeamAccess(ctxWithTeamAccess, "team-a")).not.toThrow();
-      expect(() => requireTeamAccess(ctxWithTeamAccess, "team-b")).not.toThrow();
-    });
-
-    it("denies access to non-permitted teams", () => {
-      expect(() => requireTeamAccess(ctxWithTeamAccess, "team-c")).toThrow(OrganisationAccessError);
-    });
 
     it("ADMIN with canAccessAllTeams can access any team", () => {
       expect(() => requireTeamAccess(adminCtx, "team-c")).not.toThrow();

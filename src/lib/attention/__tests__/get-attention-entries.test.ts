@@ -49,7 +49,6 @@ const ADMIN_CTX = {
   organisationId: "org-1",
   organisationSlug: "test-org",
   role: "ADMIN" as const,
-  delegatedTeamIds: null,
   orgFilter: { type: "org" as const, filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
 };
 
@@ -60,7 +59,6 @@ const COACH_CTX = {
   organisationId: "org-1",
   organisationSlug: "test-org",
   role: "COACH" as const,
-  delegatedTeamIds: null,
   orgFilter: { type: "org" as const, filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
 };
 
@@ -71,7 +69,6 @@ const DELEGATED_COACH_CTX = {
   organisationId: "org-1",
   organisationSlug: "test-org",
   role: "COACH" as const,
-  delegatedTeamIds: ["team-A"],
   orgFilter: { type: "org" as const, filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
 };
 

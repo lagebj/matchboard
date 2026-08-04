@@ -101,7 +101,7 @@ export async function updatePlayerFieldAction(
     } else if (field === "coreTeamId" && value === "") {
       parsedValue = null;
     } else if (field === "coreTeamId" && value !== "") {
-      requireTeamAccess(ctx, value);
+      await requireTeamAccess(ctx, value);
       parsedValue = value;
     } else if (field === "primaryPosition") {
       if (!VALID_POSITIONS.has(value)) {

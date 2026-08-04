@@ -32,7 +32,6 @@ vi.mock("@/lib/auth/actor-context", () => {
         footballGroupId: testGroupId,
     organisationSlug: "test-org",
     role: "COACH",
-    delegatedTeamIds: null,
     orgFilter: { type: "all" as const },
   });
   return {

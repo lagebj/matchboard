@@ -99,7 +99,7 @@ export async function getOrganisationBySlug(slug: string) {
       memberships: {
         include: {
           user: { select: { id: true, email: true, name: true, image: true } },
-          teamAccesses: { include: { team: { select: { id: true, name: true } } } },
+          groupAccesses: { include: { group: { select: { id: true, name: true, slug: true } } } },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -111,7 +111,7 @@ export async function getOrganisationMembership(userId: string, organisationId: 
   return db.organisationMembership.findUnique({
     where: { userId_organisationId: { userId, organisationId } },
     include: {
-      teamAccesses: { include: { team: { select: { id: true, name: true } } } },
+      groupAccesses: { include: { group: { select: { id: true, name: true, slug: true } } } },
     },
   });
 }
@@ -124,52 +124,6 @@ export async function getUserOrganisations(userId: string) {
     },
     orderBy: { createdAt: "asc" },
   });
-}
-
-export async function addTeamAccess(
-  membershipId: string,
-  teamId: string,
-): Promise<MembershipResult> {
-  const membership = await db.organisationMembership.findUnique({
-    where: { id: membershipId },
-    select: { role: true, organisationId: true },
-  });
-
-  if (!membership) {
-    return { success: false, error: "Membership not found." };
-  }
-
-  const team = await db.team.findFirst({
-    where: { id: teamId, organisationId: membership.organisationId },
-    select: { id: true },
-  });
-
-  if (!team) {
-    return { success: false, error: "Team not found in this organisation." };
-  }
-
-  if (membership.role !== "COACH" && membership.role !== "VIEWER") {
-    return { success: false, error: "Team access is only for COACH and VIEWER roles." };
-  }
-
-  const teamAccess = await db.teamAccess.upsert({
-    where: { membershipId_teamId: { membershipId, teamId } },
-    update: {},
-    create: { membershipId, teamId },
-  });
-
-  return { success: true, membershipId: teamAccess.membershipId };
-}
-
-export async function removeTeamAccess(
-  membershipId: string,
-  teamId: string,
-): Promise<MembershipResult> {
-  await db.teamAccess.deleteMany({
-    where: { membershipId, teamId },
-  });
-
-  return { success: true, membershipId };
 }
 
 export async function generateOrganisationSlug(name: string, client: PrismaClient = db): Promise<string> {

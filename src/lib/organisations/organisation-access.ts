@@ -9,7 +9,6 @@ export type OrganisationAccessContext = {
   organisationName: string;
   role: OrganisationRole;
   membershipId: string;
-  permittedTeamIds: string[];
   accessibleGroupIds: string[];
   groupAccesses: GroupAccessEntry[];
   canAccessAllTeams: boolean;
@@ -36,9 +35,16 @@ export function requireRole(ctx: OrganisationAccessContext, ...allowedRoles: Org
   }
 }
 
-export function requireTeamAccess(ctx: OrganisationAccessContext, teamId: string): void {
+export async function requireTeamAccess(ctx: OrganisationAccessContext, teamId: string): Promise<void> {
   if (ctx.canAccessAllTeams) return;
-  if (ctx.permittedTeamIds.includes(teamId)) return;
 
-  throw new OrganisationAccessError("You do not have access to this team.");
+  const { db } = await import("@/lib/db");
+  const team = await db.team.findFirst({
+    where: { id: teamId, organisationId: ctx.organisationId },
+    select: { footballGroupId: true },
+  });
+
+  if (!team || !ctx.accessibleGroupIds.includes(team.footballGroupId)) {
+    throw new OrganisationAccessError("You do not have access to this team.");
+  }
 }

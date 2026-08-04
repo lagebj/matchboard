@@ -95,7 +95,7 @@ export async function createTeamAction(formData: FormData) {
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  requireTeamAccess(ctx, teamId);
+  await requireTeamAccess(ctx, teamId);
   const organisationId = ctx.organisationId;
   try {
     const team = await db.team.findFirst({
@@ -204,7 +204,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 export async function deleteTeamAction(teamId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  requireTeamAccess(ctx, teamId);
+  await requireTeamAccess(ctx, teamId);
   const organisationId = ctx.organisationId;
   try {
     const result = await archiveTeam(teamId, organisationId);

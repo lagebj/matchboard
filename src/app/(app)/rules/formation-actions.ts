@@ -67,7 +67,7 @@ export async function createCustomFormation(data: {
 }) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (data.teamId) requireTeamAccess(ctx, data.teamId);
+  if (data.teamId) await requireTeamAccess(ctx, data.teamId);
   const orgFilter = ctx.orgFilter;
 
   if (!data.name.trim()) throw new Error("Formation name is required");
@@ -133,7 +133,7 @@ export async function duplicateFormation(formationId: string, newName?: string) 
     throw new Error("Formation not found or access denied.");
   }
 
-  if (source.teamId) requireTeamAccess(ctx, source.teamId);
+  if (source.teamId) await requireTeamAccess(ctx, source.teamId);
 
   const name = newName?.trim() ?? `${source.name} (copy)`;
 
@@ -196,7 +196,7 @@ export async function updateCustomFormation(
     throw new Error("Formation not found or access denied.");
   }
 
-  if (formation.teamId) requireTeamAccess(ctx, formation.teamId);
+  if (formation.teamId) await requireTeamAccess(ctx, formation.teamId);
 
   const lineupUsage = await db.matchLineup.count({
     where: { formationId },
@@ -280,7 +280,7 @@ export async function archiveFormation(formationId: string) {
     throw new Error("Formation not found or access denied.");
   }
 
-  if (formation.teamId) requireTeamAccess(ctx, formation.teamId);
+  if (formation.teamId) await requireTeamAccess(ctx, formation.teamId);
 
   await db.formation.update({
     where: { id: formationId },
@@ -306,7 +306,7 @@ export async function deleteCustomFormation(formationId: string) {
     throw new Error("Formation not found or access denied.");
   }
 
-  if (formation.teamId) requireTeamAccess(ctx, formation.teamId);
+  if (formation.teamId) await requireTeamAccess(ctx, formation.teamId);
 
   const lineupUsage = await db.matchLineup.count({
     where: { formationId },
@@ -332,7 +332,7 @@ export async function addFormationSlot(
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const formationTeamId = await requireFormationOrgAccess(formationId, orgFilter);
-  if (formationTeamId) requireTeamAccess(ctx, formationTeamId);
+  if (formationTeamId) await requireTeamAccess(ctx, formationTeamId);
 
   const formation = await db.formation.findUnique({
     where: { id: formationId },
@@ -391,7 +391,7 @@ export async function updateFormationSlot(
   const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
   if (!existingSlot) throw new Error("Slot not found");
   const slotFormationTeamId = await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
-  if (slotFormationTeamId) requireTeamAccess(ctx, slotFormationTeamId);
+  if (slotFormationTeamId) await requireTeamAccess(ctx, slotFormationTeamId);
 
   const updateData: Record<string, unknown> = {};
   if (data.label !== undefined) updateData.label = data.label;
@@ -416,7 +416,7 @@ export async function removeFormationSlot(slotId: string) {
   const existingSlot = await db.formationSlot.findUnique({ where: { id: slotId }, select: { formationId: true } });
   if (!existingSlot) throw new Error("Slot not found");
   const slotFormationTeamId = await requireFormationOrgAccess(existingSlot.formationId, orgFilter);
-  if (slotFormationTeamId) requireTeamAccess(ctx, slotFormationTeamId);
+  if (slotFormationTeamId) await requireTeamAccess(ctx, slotFormationTeamId);
 
   await db.formationSlot.delete({ where: { id: slotId } });
   revalidateFormationPaths();

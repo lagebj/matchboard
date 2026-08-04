@@ -30,7 +30,7 @@ export async function GET(
           id: true,
           role: true,
           user: { select: { id: true, email: true, name: true } },
-          teamAccesses: { select: { teamId: true, team: { select: { id: true, name: true } } } },
+          groupAccesses: { select: { footballGroupId: true, role: true, group: { select: { id: true, name: true } } } },
         },
         orderBy: { role: "asc" },
       },
@@ -91,9 +91,10 @@ export async function GET(
       id: m.id,
       role: m.role,
       user: { id: m.user.id, email: m.user.email, name: m.user.name },
-      teamAccess: m.teamAccesses.map((ta) => ({
-        teamId: ta.team.id,
-        teamName: ta.team.name,
+      groupAccess: m.groupAccesses.map((ga) => ({
+        groupId: ga.group.id,
+        groupName: ga.group.name,
+        role: ga.role,
       })),
     })),
     teams: org.teams.map((t) => ({
