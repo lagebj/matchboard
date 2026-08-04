@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — Bundles 1–5 merged, Bundle 6 (enforcement) in progress
+Accepted — Bundles 1–7 merged. Selection engine GroupMovementPath integration complete (group paths merged into path resolution). Remaining: group-scoped player pool filtering in selection engine.
 
 ## Date
 
@@ -137,7 +137,7 @@ Existing TeamAccess rows are collapsed into GroupAccess: multiple TeamAccess ent
 
 - **Nullable group IDs during migration.** During the foundation phase, `footballGroupId` is nullable on models that will eventually require it. Bundle 6 makes `footballGroupId` non-nullable on Team, Event, LeagueSeason, and RuleConfig with a `Restrict` delete policy. This is recorded as ARR-0015.
 - **Dual authorization path.** During enforcement, both TeamAccess and GroupAccess are checked. This is recorded as an ARR.
-- **Direct team-based player eligibility.** Current selection engine uses `player.coreTeamId` directly without group scoping. This must be updated to use group player pool membership. This is recorded as an ARR.
+- **Direct team-based player eligibility.** Current selection engine uses `player.coreTeamId` directly without group scoping. This must be updated to use group player pool membership. This is recorded as an ARR. Partially addressed: `load-rotation-paths.ts` now merges GroupMovementPath edges into team-level RotationPath edges for all selection engine path resolution, manual draft edits, and season overview. The `group-pool-resolver.ts`, `cross-group-movement-authorizer.ts`, and `group-path-bridge.ts` provide group-level pool resolution and movement authorization.
 - **Legacy TeamAccess.** TeamAccess will be removed but must remain operational during migration. This is recorded as an ARR.
 
 ## Alternatives considered
