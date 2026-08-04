@@ -1,13 +1,7 @@
 import { db } from "@/lib/db";
 import type { CoreMatchDropCandidate, GeneratedSelection } from "@/lib/selection/types";
+import { loadRotationPathRowsWithGroupPaths, type RotationPathRow } from "@/lib/selection/load-rotation-paths";
 import { getNeededPositions } from "@/lib/selection/rotation-candidate-ranking";
-
-type RotationPathRow = {
-  id: string;
-  fromTeamId: string;
-  toTeamId: string;
-  role: string;
-};
 
 type DownstreamSlot = {
   matchId: string;
@@ -75,21 +69,14 @@ export async function routeCoreMatchDrops(
     return [];
   }
 
-  const rotationPaths = await db.rotationPath.findMany({
-    where: { active: true },
-    select: {
-      id: true,
-      fromTeamId: true,
-      toTeamId: true,
-      role: true,
-    },
-  });
-
   const matches = await db.match.findMany({
     where: {
       id: { in: matchResults.map((r) => r.matchId) },
     },
-    include: {
+    select: {
+      id: true,
+      teamId: true,
+      organisationId: true,
       team: {
         select: {
           id: true,
@@ -101,6 +88,14 @@ export async function routeCoreMatchDrops(
       },
     },
   });
+
+  const matchOrganisationId = matches[0]?.organisationId;
+  const rotationPaths: RotationPathRow[] = matchOrganisationId
+    ? await loadRotationPathRowsWithGroupPaths(matchOrganisationId, undefined, { scope: "MATCH" })
+    : await db.rotationPath.findMany({
+        where: { active: true },
+        select: { fromTeamId: true, toTeamId: true, role: true },
+      });
 
   const matchById = new Map(matches.map((m) => [m.id, m]));
 

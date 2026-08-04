@@ -1,9 +1,9 @@
 import { type Player, SelectionRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { listGroupMovementPaths } from "@/lib/groups/group-movement-path";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getRules } from "@/lib/rules/get-rules";
 import { getCoreMatchDropHistory } from "@/lib/selection/get-core-match-drop-history";
+import { loadRotationPathsWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 import { getFloatingHistory } from "@/lib/selection/get-floating-history";
 import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
@@ -56,14 +56,7 @@ import type {
   RotationCandidate,
   RotationCandidateCategory,
 } from "@/lib/selection/selection-types";
-
-type RotationPathWithTeamName = {
-  fromTeamId: string;
-  fromTeam: { name: string };
-  toTeamId: string;
-  role: string;
-  cooldownRounds: number | null;
-};
+import type { RotationPathWithTeamName } from "@/lib/selection/load-rotation-paths";
 
 function deriveSourceTeamIdsFromPaths(
   rotationPaths: RotationPathWithTeamName[],
@@ -103,7 +96,7 @@ export type GenerateSelectionOptions = {
 
 export async function generateSelection(matchId: string, options?: GenerateSelectionOptions): Promise<GeneratedSelection> {
   const deferRotation = options?.deferRotation ?? false;
-  const [match, players, rules, registeredMatches, savedSelections, rotationPaths, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
+  const [match, players, rules, registeredMatches, savedSelections, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
     db.match.findUnique({
       where: { id: matchId },
       select: {
@@ -215,22 +208,6 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       },
       orderBy: [{ createdAt: "desc" }],
     }),
-    db.rotationPath.findMany({
-      where: {
-        active: true,
-      },
-      select: {
-        cooldownRounds: true,
-        fromTeamId: true,
-        fromTeam: {
-          select: {
-            name: true,
-          },
-        },
-        role: true,
-        toTeamId: true,
-      },
-    }),
     db.movementLedger.findMany({
       where: {
         isDraft: false,
@@ -264,48 +241,20 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
 
   const candidateRotationPathIds = new Set(activeMovementCandidates.map((mc) => mc.rotationPathId));
 
-  // Load group movement paths and expand them into team-level rotation path edges
-  const matchWithOrg = match;
-  const organisationId = matchWithOrg?.organisationId;
-  let groupPathEdges: RotationPathWithTeamName[] = [];
-
-  if (organisationId) {
-    const [groupPathsRaw, teamsForGroups] = await Promise.all([
-      listGroupMovementPaths(organisationId, { activeOnly: true, scope: "MATCH" }),
-      db.team.findMany({
-        where: { organisationId },
-        select: { id: true, footballGroupId: true, name: true },
-      }),
-    ]);
-
-    const groupTeamsMap = new Map<string, { id: string; name: string }[]>();
-
-    for (const team of teamsForGroups) {
-      const groupTeams = groupTeamsMap.get(team.footballGroupId) ?? [];
-      groupTeams.push({ id: team.id, name: team.name });
-      groupTeamsMap.set(team.footballGroupId, groupTeams);
-    }
-
-    for (const gp of groupPathsRaw) {
-      const sourceTeams = groupTeamsMap.get(gp.fromGroupId) ?? [];
-      const targetTeams = groupTeamsMap.get(gp.toGroupId) ?? [];
-
-      for (const fromTeam of sourceTeams) {
-        for (const toTeam of targetTeams) {
-          groupPathEdges.push({
-            fromTeamId: fromTeam.id,
-            fromTeam: { name: fromTeam.name },
-            toTeamId: toTeam.id,
-            role: gp.role,
-            cooldownRounds: null,
-          });
-        }
-      }
-    }
-  }
-
-  // Merge group-derived edges with existing team-level rotation paths
-  const allRotationPaths: RotationPathWithTeamName[] = [...rotationPaths, ...groupPathEdges];
+  // Load team-level rotation paths and group-level movement paths, merged
+  const organisationId = match?.organisationId;
+  const allRotationPaths = organisationId
+    ? await loadRotationPathsWithGroupPaths(organisationId, { scope: "MATCH" })
+    : await db.rotationPath.findMany({
+        where: { active: true },
+        select: {
+          cooldownRounds: true,
+          fromTeamId: true,
+          fromTeam: { select: { name: true } },
+          role: true,
+          toTeamId: true,
+        },
+      });
 
   const allRotationPathsWithIds = await db.rotationPath.findMany({
     where: { active: true },

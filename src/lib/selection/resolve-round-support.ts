@@ -1,4 +1,6 @@
 import { db } from "@/lib/db";
+import { SelectionRole } from "@/generated/prisma/client";
+import { loadRotationPathRowsWithGroupPaths, type RotationPathRow } from "@/lib/selection/load-rotation-paths";
 import type { GeneratedSelection, SelectedPlayer, ExcludedPlayer, SelectionWarning } from "@/lib/selection/types";
 import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
 import { type ReadinessSignalEntry, getReadinessScoreModifier } from "@/lib/selection/readiness-scoring";
@@ -26,12 +28,6 @@ type DonorSlot = {
   minAcceptedSquadSize: number;
   minCorePlayers: number;
   surplusCorePlayers: Array<SelectedPlayer | ExcludedPlayer>;
-};
-
-type RotationPathRow = {
-  fromTeamId: string;
-  toTeamId: string;
-  role: string;
 };
 
 function buildSupportExplanations(
@@ -68,14 +64,13 @@ export async function resolveRoundSupport(
   const warnings: SelectionWarning[] = [];
   const supportAssignments: Array<{ playerId: string; fromTeamId: string; toTeamId: string }> = [];
 
-  const paths = await db.rotationPath.findMany({
-    where: { active: true, role: "SUPPORT" },
-    select: { fromTeamId: true, toTeamId: true, role: true },
-  });
-
   const matchesRaw = await db.match.findMany({
     where: { id: { in: matchResults.map((r) => r.matchId) } },
-    include: {
+    select: {
+      id: true,
+      matchRoundId: true,
+      teamId: true,
+      organisationId: true,
       team: {
         select: {
           id: true,
@@ -92,6 +87,14 @@ export async function resolveRoundSupport(
       },
     },
   });
+
+  const organisationId = matchesRaw[0]?.organisationId;
+  const paths = organisationId
+    ? await loadRotationPathRowsWithGroupPaths(organisationId, [SelectionRole.SUPPORT], { scope: "MATCH" })
+    : await db.rotationPath.findMany({
+        where: { active: true, role: "SUPPORT" },
+        select: { fromTeamId: true, toTeamId: true, role: true },
+      });
 
   const matches: MatchWithTeam[] = matchesRaw.map((m) => ({
     id: m.id,
@@ -369,14 +372,13 @@ export async function resolveSquadRepair(
   matchResults: GeneratedSelection[];
   warnings: SelectionWarning[];
 }> {
-  const backfillPaths = await db.rotationPath.findMany({
-    where: { active: true, role: { in: ["SUPPORT", "BACKFILL"] } },
-    select: { fromTeamId: true, toTeamId: true, role: true },
-  });
-
-  const matchesRaw = await db.match.findMany({
+  const backfillMatchesRaw = await db.match.findMany({
     where: { id: { in: matchResults.map((r) => r.matchId) } },
-    include: {
+    select: {
+      id: true,
+      matchRoundId: true,
+      teamId: true,
+      organisationId: true,
       team: {
         select: {
           id: true,
@@ -394,7 +396,19 @@ export async function resolveSquadRepair(
     },
   });
 
-  const matches: MatchWithTeam[] = matchesRaw.map((m) => ({
+  const backfillOrganisationId = backfillMatchesRaw[0]?.organisationId;
+  const allPaths = backfillOrganisationId
+    ? await loadRotationPathRowsWithGroupPaths(backfillOrganisationId, undefined, { scope: "MATCH" })
+    : await db.rotationPath.findMany({
+        where: { active: true },
+        select: { fromTeamId: true, toTeamId: true, role: true },
+      });
+
+  const backfillPaths: RotationPathRow[] = allPaths.filter(
+    (p) => p.role === "SUPPORT" || p.role === "BACKFILL",
+  );
+
+  const matches: MatchWithTeam[] = backfillMatchesRaw.map((m) => ({
     id: m.id,
     matchRoundId: m.matchRoundId,
     teamId: m.teamId,
@@ -408,7 +422,7 @@ export async function resolveSquadRepair(
     }
   }
 
-  return resolveSquadRepairInner(matchResults, backfillPaths, matches, updatedAssignedIds, supportAssignments, readinessSignals);
+  return resolveSquadRepairInner(matchResults, allPaths, backfillPaths, matches, updatedAssignedIds, supportAssignments, readinessSignals);
 }
 
 type TeamInfo = {
@@ -433,6 +447,7 @@ type MatchWithTeam = {
 
 async function resolveSquadRepairInner(
   matchResults: GeneratedSelection[],
+  allPaths: RotationPathRow[],
   backfillPaths: RotationPathRow[],
   matches: MatchWithTeam[],
   assignedPlayerIds: Set<string>,
@@ -469,11 +484,11 @@ async function resolveSquadRepairInner(
 
     const shortfall = match.team.targetSquadSize - selectedCount;
     const maxSquadRepair = match.team.maxSquadSize - selectedCount;
-    const devPaths = await db.rotationPath.findMany({
-      where: { active: true, role: "DEVELOPMENT", toTeamId: match.teamId },
-      select: { fromTeamId: true },
-    });
-    const devSourceTeamIds = new Set(devPaths.map((p) => p.fromTeamId));
+    const devSourceTeamIds = new Set(
+      allPaths
+        .filter((p) => p.role === "DEVELOPMENT" && p.toTeamId === match.teamId)
+        .map((p) => p.fromTeamId),
+    );
 
     const ownSupportPlayersMoved: Array<{ playerId: string; playerName: string; primaryPosition: string; coreTeamId: string; coreTeamName: string; nonRotatable: boolean }> = [];
     if (supportAssignments) {
