@@ -117,6 +117,9 @@ type MovementCandidateEntry = {
 type TeamDetailData = {
   teamId: string;
   teamName: string;
+  groupId: string;
+  groupName: string;
+  groupSlug: string;
   targetSquadSize: number;
   minAcceptedSquadSize: number;
   maxSquadSize: number;
@@ -910,6 +913,11 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
       <PageHeader
         title={data.teamName}
         description={`Target ${data.targetSquadSize} · Min ${data.minAcceptedSquadSize} · Max ${data.maxSquadSize} · Min core ${data.minCorePlayers} · Support priority rank (1 is highest): ${data.supportPriority}`}
+        context={
+          <Link href={orgUrl(`/groups/${data.groupSlug}`)} className="hover:underline text-[var(--accent-strong)]">
+            {data.groupName}
+          </Link>
+        }
         icon={<TeamShield teamName={data.teamName} size="lg" />}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -923,8 +931,11 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
                 Next team
               </Button>
             )}
+            <Button variant="ghost" size="sm" as="a" href={orgUrl(`/groups/${data.groupSlug}`)}>
+              Back to group
+            </Button>
             <Button variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>
-              Back to teams
+              All teams
             </Button>
           </div>
         }

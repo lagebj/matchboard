@@ -27,7 +27,7 @@ type PlayerWithTeamAndAttributes = {
   supportSuitability: string | null;
   developmentReadiness: string | null;
   removedAt: Date | null;
-  coreTeam: { id: string; name: string } | null;
+  coreTeam: { id: string; name: string; group: { id: string; name: string; slug: string } } | null;
   ballControl: number | null;
   passing: number | null;
   firstTouch: number | null;
@@ -168,6 +168,15 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
         </div>
 
         <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+          {player.coreTeam?.group && (
+            <Link
+              href={orgUrl(`/groups/${player.coreTeam.group.slug}`)}
+              className="hover:underline text-[var(--accent-strong)]"
+            >
+              {player.coreTeam.group.name}
+            </Link>
+          )}
+          {player.coreTeam?.group && <span>·</span>}
           <span>{player.coreTeam?.name ?? "Unassigned"}</span>
           {positions.map((pos, i) => (
             <span

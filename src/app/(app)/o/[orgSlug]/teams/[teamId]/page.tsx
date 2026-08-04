@@ -25,6 +25,9 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     db.team.findUnique({
       where: { id: teamId, archivedAt: null, ...orgWhere },
       include: {
+        group: {
+          select: { id: true, name: true, slug: true },
+        },
         corePlayers: {
           where: { removedAt: null },
           select: {
@@ -332,6 +335,9 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   const data = {
     teamId: team.id,
     teamName: team.name,
+    groupId: team.group.id,
+    groupName: team.group.name,
+    groupSlug: team.group.slug,
     targetSquadSize: team.targetSquadSize,
     minAcceptedSquadSize: team.minAcceptedSquadSize,
     maxSquadSize: team.maxSquadSize,

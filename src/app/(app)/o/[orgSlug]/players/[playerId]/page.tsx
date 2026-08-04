@@ -48,7 +48,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([
     db.player.findFirst({
       where: { id: playerId, ...orgWhere },
-      include: { coreTeam: { select: { id: true, name: true } } },
+      include: { coreTeam: { include: { group: { select: { id: true, name: true, slug: true } } } } },
     }),
     db.team.findMany({
       where: { archivedAt: null, ...orgWhere },
