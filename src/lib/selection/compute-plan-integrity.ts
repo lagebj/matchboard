@@ -131,7 +131,7 @@ export async function computeRoundPlanIntegrity(
   const playerAvailabilityMap = new Map<string, string>();
 
   const activePlayers = await db.player.findMany({
-    where: { removedAt: null },
+    where: { removedAt: null, coreTeam: { organisationId: round.organisationId } },
     select: { id: true, firstName: true, lastName: true, coreTeamId: true, availabilities: true, removedAt: true },
   });
 

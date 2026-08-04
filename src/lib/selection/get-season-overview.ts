@@ -152,7 +152,7 @@ export async function getSeasonPlayerRoundMatrix(
   }
 
   const players = await db.player.findMany({
-    where: { removedAt: null, active: true },
+    where: { removedAt: null, active: true, coreTeam: { organisationId: leagueSeason.organisationId } },
     select: { id: true, firstName: true, lastName: true, coreTeamId: true, coreTeam: { select: { id: true, name: true } } },
     orderBy: [{ coreTeam: { name: "asc" } }, { firstName: "asc" }],
   });
