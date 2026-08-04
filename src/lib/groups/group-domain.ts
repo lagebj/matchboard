@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import type { FootballGroupType, GroupMembershipType, GroupMembershipStatus, GroupAccessRole } from "@/generated/prisma/client";
+import type { FootballGroupType, GroupMembershipType, GroupAccessRole } from "@/generated/prisma/client";
+import { getActiveGroupPathsForGroup, type GroupMovementPathWithGroups } from "@/lib/groups/group-movement-path";
 import { generateSlug } from "./group-slug";
 
 export type GroupMutationResult =
@@ -387,7 +388,15 @@ export async function getGroupWithDetails(groupSlugOrId: string, organisationId:
 
   const playerCount = group.players.length;
 
-  return { ...group, playerCount };
+  const allPaths: GroupMovementPathWithGroups[] = await getActiveGroupPathsForGroup(group.id, organisationId);
+  const outgoingPaths = allPaths
+    .filter((p: GroupMovementPathWithGroups) => p.fromGroupId === group.id)
+    .map((p: GroupMovementPathWithGroups) => ({ id: p.id, toGroupId: p.toGroupId, toGroupName: p.toGroup.name, role: p.role, isActive: p.isActive }));
+  const incomingPaths = allPaths
+    .filter((p: GroupMovementPathWithGroups) => p.toGroupId === group.id)
+    .map((p: GroupMovementPathWithGroups) => ({ id: p.id, fromGroupId: p.fromGroupId, fromGroupName: p.fromGroup.name, role: p.role, isActive: p.isActive }));
+
+  return { ...group, playerCount, outgoingPaths, incomingPaths };
 }
 
 export async function listGroupsForOrganisation(organisationId: string) {

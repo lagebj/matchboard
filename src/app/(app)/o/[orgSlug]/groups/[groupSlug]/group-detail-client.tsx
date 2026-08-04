@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Shield, Calendar, Settings, UserCheck, ArrowRight } from "lucide-react";
+import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch } from "lucide-react";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
   AGE_GROUP: "Age group",
@@ -14,6 +14,20 @@ const MEMBERSHIP_TYPE_LABELS: Record<string, string> = {
   PRIMARY: "Primary",
   SECONDARY: "Secondary",
   TEMPORARY: "Temporary",
+};
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  CUP: "Cup",
+  TOURNAMENT: "Tournament",
+  FRIENDLY_DAY: "Friendly day",
+  OTHER: "Other",
+};
+
+const PATH_ROLE_LABELS: Record<string, string> = {
+  SUPPORT: "Support",
+  DEVELOPMENT: "Development",
+  CONFIDENCE_REBUILD: "Confidence rebuild",
+  BACKFILL: "Squad repair",
 };
 
 type GroupAccessItem = {
@@ -66,6 +80,8 @@ type GroupDetail = {
   playerCount: number;
   leagueSeasons: { id: string; name: string; status: string }[];
   events: { id: string; name: string; eventType: string }[];
+  outgoingPaths: { id: string; toGroupId: string; toGroupName: string; role: string; isActive: boolean }[];
+  incomingPaths: { id: string; fromGroupId: string; fromGroupName: string; role: string; isActive: boolean }[];
 };
 
 export function GroupDetailClient({
@@ -103,7 +119,7 @@ export function GroupDetailClient({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -124,6 +140,13 @@ export function GroupDetailClient({
             Coaches
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.groupAccesses.length}</p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <GitBranch className="h-4 w-4 text-muted-foreground" />
+            Paths
+          </div>
+          <p className="mt-1 text-2xl font-semibold">{group.outgoingPaths.length + group.incomingPaths.length}</p>
         </div>
       </div>
 
@@ -217,6 +240,70 @@ export function GroupDetailClient({
                 <span className="font-medium">{season.name}</span>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                   {season.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {group.events.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+            Events
+          </h2>
+          <div className="space-y-2">
+            {group.events.map((event) => (
+              <Link
+                key={event.id}
+                href={`/o/${orgSlug}/events/${event.id}`}
+                className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+              >
+                <span className="font-medium">{event.name}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(group.outgoingPaths.length > 0 || group.incomingPaths.length > 0) && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-muted-foreground" />
+            Movement paths
+          </h2>
+          <div className="space-y-2">
+            {group.outgoingPaths.map((path) => (
+              <div
+                key={path.id}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <span className="text-sm">
+                  <span className="font-medium">{group.name}</span>
+                  <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
+                  <span className="font-medium">{path.toGroupName}</span>
+                </span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {PATH_ROLE_LABELS[path.role] ?? path.role}
+                </span>
+              </div>
+            ))}
+            {group.incomingPaths.map((path) => (
+              <div
+                key={path.id}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <span className="text-sm">
+                  <span className="font-medium">{path.fromGroupName}</span>
+                  <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
+                  <span className="font-medium">{group.name}</span>
+                </span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {PATH_ROLE_LABELS[path.role] ?? path.role}
                 </span>
               </div>
             ))}
