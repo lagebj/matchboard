@@ -4,6 +4,8 @@ import { resolveOrganisationAccess } from "@/lib/organisations/organisation-reso
 import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
+import { withTenantContext } from "@/lib/tenancy/tenant-client";
+import { db } from "@/lib/db";
 
 export type ActorContext = {
   userId: string;
@@ -52,10 +54,11 @@ export async function requireActorContext(
     throw new AuthorizationError("No active organisation membership");
   }
 
-  const db = (await import("@/lib/db")).db;
-  const membership = await db.organisationMembership.findFirst({
-    where: { userId, organisationId: orgFilter.organisationId },
-    select: { id: true, role: true, organisationId: true },
+  const membership = await withTenantContext(db, orgFilter.organisationId, async (tx) => {
+    return tx.organisationMembership.findFirst({
+      where: { userId, organisationId: orgFilter.organisationId },
+      select: { id: true, role: true, organisationId: true },
+    });
   });
 
   if (!membership) {
