@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getRules } from "@/lib/rules/get-rules";
 import { getCoreMatchDropHistory } from "@/lib/selection/get-core-match-drop-history";
+import { loadRotationPathsWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { getFinalizedPlayerHistory } from "@/lib/selection/get-finalized-player-history";
 import { getFloatingHistory } from "@/lib/selection/get-floating-history";
 import { getConsecutiveSupportCount } from "@/lib/selection/get-consecutive-support-count";
@@ -55,14 +56,7 @@ import type {
   RotationCandidate,
   RotationCandidateCategory,
 } from "@/lib/selection/selection-types";
-
-type RotationPathWithTeamName = {
-  fromTeamId: string;
-  fromTeam: { name: string };
-  toTeamId: string;
-  role: string;
-  cooldownRounds: number | null;
-};
+import type { RotationPathWithTeamName } from "@/lib/selection/load-rotation-paths";
 
 function deriveSourceTeamIdsFromPaths(
   rotationPaths: RotationPathWithTeamName[],
@@ -102,26 +96,33 @@ export type GenerateSelectionOptions = {
 
 export async function generateSelection(matchId: string, options?: GenerateSelectionOptions): Promise<GeneratedSelection> {
   const deferRotation = options?.deferRotation ?? false;
-  const [match, players, rules, registeredMatches, savedSelections, rotationPaths, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
+  const [match, players, rules, registeredMatches, savedSelections, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
     db.match.findUnique({
       where: { id: matchId },
-      include: {
+      select: {
+        id: true,
+        matchRoundId: true,
+        organisationId: true,
+        opponent: true,
+        startsAt: true,
+        squadSize: true,
+        teamId: true,
         team: {
-           select: {
-             developmentSlots: true,
-             id: true,
-             maxSquadSize: true,
-             maxSupportCount: true,
-             minAcceptedSquadSize: true,
-             minCorePlayers: true,
-             minSupportPlayers: true,
-             name: true,
-             supportPriority: true,
-             targetSupportCount: true,
-           },
-         },
-       },
-     }),
+          select: {
+            developmentSlots: true,
+            id: true,
+            maxSquadSize: true,
+            maxSupportCount: true,
+            minAcceptedSquadSize: true,
+            minCorePlayers: true,
+            minSupportPlayers: true,
+            name: true,
+            supportPriority: true,
+            targetSupportCount: true,
+          },
+        },
+      },
+    }),
       db.player.findMany({
        where: {
          removedAt: null,
@@ -207,22 +208,6 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       },
       orderBy: [{ createdAt: "desc" }],
     }),
-    db.rotationPath.findMany({
-      where: {
-        active: true,
-      },
-      select: {
-        cooldownRounds: true,
-        fromTeamId: true,
-        fromTeam: {
-          select: {
-            name: true,
-          },
-        },
-        role: true,
-        toTeamId: true,
-      },
-    }),
     db.movementLedger.findMany({
       where: {
         isDraft: false,
@@ -255,6 +240,21 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   });
 
   const candidateRotationPathIds = new Set(activeMovementCandidates.map((mc) => mc.rotationPathId));
+
+  // Load team-level rotation paths and group-level movement paths, merged
+  const organisationId = match?.organisationId;
+  const allRotationPaths = organisationId
+    ? await loadRotationPathsWithGroupPaths(organisationId, { scope: "MATCH" })
+    : await db.rotationPath.findMany({
+        where: { active: true },
+        select: {
+          cooldownRounds: true,
+          fromTeamId: true,
+          fromTeam: { select: { name: true } },
+          role: true,
+          toTeamId: true,
+        },
+      });
 
   const allRotationPathsWithIds = await db.rotationPath.findMany({
     where: { active: true },
@@ -352,7 +352,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   const playerPathMap = new Map<string, PathDestination[]>();
 
   for (const player of players) {
-    const pathsForPlayer = rotationPaths.filter(
+    const pathsForPlayer = allRotationPaths.filter(
       (path) => path.fromTeamId === player.coreTeamId && path.toTeamId !== player.coreTeamId,
     );
     playerPathMap.set(player.id, pathsForPlayer as PathDestination[]);
@@ -388,10 +388,10 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       match: {
         developmentSlots: selectionRecord.match.team.developmentSlots,
         id: selectionRecord.match.id,
-        developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, selectionRecord.match.teamId, "DEVELOPMENT"),
+        developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, selectionRecord.match.teamId, "DEVELOPMENT"),
         startsAt: selectionRecord.match.startsAt,
-        supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, selectionRecord.match.teamId, "SUPPORT"),
-        supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, selectionRecord.match.teamId),
+        supportSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, selectionRecord.match.teamId, "SUPPORT"),
+        supportSourceTeamNames: deriveSourceTeamNamesFromPaths(allRotationPaths, selectionRecord.match.teamId),
         team: selectionRecord.match.team,
         teamId: selectionRecord.match.teamId,
       },
@@ -421,26 +421,26 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
 
   const currentMatchRecord: MatchRecord = {
     developmentSlots: match.team.developmentSlots,
-    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, match.teamId, "DEVELOPMENT"),
+    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, match.teamId, "DEVELOPMENT"),
     id: match.id,
     startsAt: match.startsAt,
-    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, match.teamId, "SUPPORT"),
-    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, match.teamId),
+    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, match.teamId, "SUPPORT"),
+    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(allRotationPaths, match.teamId),
     team: match.team,
     teamId: match.teamId,
   };
   const normalizedRegisteredMatches: MatchRecord[] = registeredMatches.map((registeredMatch) => ({
     developmentSlots: registeredMatch.team.developmentSlots,
-    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, registeredMatch.teamId, "DEVELOPMENT"),
+    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, registeredMatch.teamId, "DEVELOPMENT"),
     id: registeredMatch.id,
     startsAt: registeredMatch.startsAt,
-    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, registeredMatch.teamId, "SUPPORT"),
-    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, registeredMatch.teamId),
+    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, registeredMatch.teamId, "SUPPORT"),
+    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(allRotationPaths, registeredMatch.teamId),
     team: registeredMatch.team,
     teamId: registeredMatch.teamId,
   }));
 
-  const allRotationPathDestinations: PathDestination[] = rotationPaths.filter(
+  const allRotationPathDestinations: PathDestination[] = allRotationPaths.filter(
     (path) => path.fromTeamId !== path.toTeamId,
   ) as PathDestination[];
 
@@ -792,7 +792,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       player.coreTeamId ?? "",
       currentMatchRecord.teamId,
       candidateCategory,
-      rotationPaths,
+      allRotationPaths,
       pathHistoryEntries,
       match.startsAt,
     );
