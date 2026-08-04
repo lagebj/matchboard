@@ -351,18 +351,41 @@ export async function getGroupWithDetails(groupSlugOrId: string, organisationId:
       groupAccesses: {
         include: {
           membership: {
-            select: { id: true, userId: true, role: true },
+            select: {
+              id: true,
+              userId: true,
+              role: true,
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
         },
       },
-    },
+      players: {
+        where: { status: "ACTIVE" },
+        select: {
+          id: true,
+          playerId: true,
+          membershipType: true,
+          coreTeamId: true,
+          player: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              active: true,
+              coreTeamId: true,
+              coreTeam: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { player: { firstName: "asc" } },
+      },
     },
   });
 
   if (!group) return null;
 
-  const playerCount = await db.footballGroupPlayer.count({
-    where: { footballGroupId: group.id, status: "ACTIVE" },
-  });
+  const playerCount = group.players.length;
 
   return { ...group, playerCount };
 }

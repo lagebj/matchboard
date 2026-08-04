@@ -23,6 +23,11 @@ type GroupAccessItem = {
     id: string;
     userId: string;
     role: string;
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
   };
 };
 
@@ -43,6 +48,7 @@ type GroupDetail = {
   teams: TeamItem[];
   groupAccesses: GroupAccessItem[];
   playerCount: number;
+  players: unknown[];
 };
 
 export function GroupSettingsClient({
@@ -114,7 +120,7 @@ export function GroupSettingsClient({
               >
                 <div className="flex items-center gap-3">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">{access.membership.userId}</span>
+                  <span className="font-medium">{access.membership.user.name ?? access.membership.user.email}</span>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
                   </span>

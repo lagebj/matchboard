@@ -1,13 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Shield, Calendar, Settings } from "lucide-react";
+import { Users, Shield, Calendar, Settings, UserCheck, ArrowRight } from "lucide-react";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
   AGE_GROUP: "Age group",
   GENDER_GROUP: "Gender group",
   COMPETITIVE_GROUP: "Competitive group",
   CUSTOM: "Custom",
+};
+
+const MEMBERSHIP_TYPE_LABELS: Record<string, string> = {
+  PRIMARY: "Primary",
+  SECONDARY: "Secondary",
+  TEMPORARY: "Temporary",
 };
 
 type GroupAccessItem = {
@@ -17,6 +23,26 @@ type GroupAccessItem = {
     id: string;
     userId: string;
     role: string;
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  };
+};
+
+type PlayerItem = {
+  id: string;
+  playerId: string;
+  membershipType: string;
+  coreTeamId: string | null;
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    active: boolean;
+    coreTeamId: string | null;
+    coreTeam: { id: string; name: string } | null;
   };
 };
 
@@ -36,7 +62,10 @@ type GroupDetail = {
   createdAt: Date;
   teams: TeamItem[];
   groupAccesses: GroupAccessItem[];
+  players: PlayerItem[];
   playerCount: number;
+  leagueSeasons: { id: string; name: string; status: string }[];
+  events: { id: string; name: string; eventType: string }[];
 };
 
 export function GroupDetailClient({
@@ -91,7 +120,7 @@ export function GroupDetailClient({
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
             Coaches
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.groupAccesses.length}</p>
@@ -109,8 +138,48 @@ export function GroupDetailClient({
                 className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
               >
                 <span className="font-medium">{team.name}</span>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {group.players.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Players</h2>
+          <div className="rounded-lg border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-3 py-2 text-left font-medium">Name</th>
+                  <th className="px-3 py-2 text-left font-medium">Core team</th>
+                  <th className="px-3 py-2 text-left font-medium">Membership</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.players.map((gp: PlayerItem) => (
+                  <tr key={gp.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-3 py-2">
+                      <Link
+                        href={`/o/${orgSlug}/players/${gp.player.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {gp.player.firstName}{gp.player.lastName ? ` ${gp.player.lastName}` : ""}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {gp.player.coreTeam?.name ?? "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {MEMBERSHIP_TYPE_LABELS[gp.membershipType] ?? gp.membershipType}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -124,9 +193,30 @@ export function GroupDetailClient({
                 key={access.id}
                 className="flex items-center justify-between rounded-lg border p-3"
               >
-                <span className="font-medium">{access.membership.userId}</span>
+                <span className="font-medium">
+                  {access.membership.user.name ?? access.membership.user.email}
+                </span>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                   {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {group.leagueSeasons.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">League seasons</h2>
+          <div className="space-y-2">
+            {group.leagueSeasons.map((season) => (
+              <div
+                key={season.id}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <span className="font-medium">{season.name}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {season.status}
                 </span>
               </div>
             ))}
