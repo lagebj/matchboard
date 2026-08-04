@@ -5,7 +5,7 @@ import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsEr
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
 import { withTenantContext } from "@/lib/tenancy/tenant-client";
-import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { db } from "@/lib/db";
 
 export type ActorContext = {
@@ -37,6 +37,7 @@ export async function requireActorContext(
       filterNullable: { organisationId: access.organisationId },
       organisationId: access.organisationId,
     };
+    setTenantOrganisationId(access.organisationId);
     return {
       userId: access.userId,
       email,
@@ -81,6 +82,8 @@ export async function requireActorContext(
     membership.role,
   );
 
+  setTenantOrganisationId(membership.organisationId);
+
   return {
     userId,
     email,
@@ -99,7 +102,7 @@ export async function withActorContext<T>(
   fn: (ctx: ActorContext) => Promise<T>,
 ): Promise<T> {
   const ctx = await requireActorContext(organisationSlug);
-  return runWithTenantOrganisationId(ctx.organisationId, () => fn(ctx));
+  return fn(ctx);
 }
 
 export { MultipleMembershipsError };

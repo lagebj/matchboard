@@ -39,7 +39,7 @@ type Org = {
   createdAt: string;
   memberships: Membership[];
   invitations: Invitation[];
-  groups: Group[];
+  footballGroups: Group[];
 };
 
 type Group = { id: string; name: string; slug: string };
@@ -254,11 +254,11 @@ export function OrgDetailClient({
             View all
           </a>
         </div>
-        {org.groups.length === 0 ? (
+        {org.footballGroups.length === 0 ? (
           <p className="text-sm text-muted-foreground">No groups yet. <a href={`/o/${orgSlug}/groups/new`} className="underline hover:text-foreground">Create a group</a>.</p>
         ) : (
           <div className="space-y-1">
-            {org.groups.map((g) => (
+            {org.footballGroups.map((g) => (
               <a
                 key={g.id}
                 href={`/o/${orgSlug}/groups/${g.slug ?? g.id}`}

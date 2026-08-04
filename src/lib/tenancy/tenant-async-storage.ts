@@ -16,3 +16,11 @@ export function runWithTenantOrganisationId<T>(
 ): Promise<T> {
   return tenantAsyncStorage.run({ organisationId }, fn);
 }
+
+export function setTenantOrganisationId(organisationId: string): void {
+  tenantAsyncStorage.enterWith({ organisationId });
+}
+
+export function clearTenantOrganisationId(): void {
+  tenantAsyncStorage.enterWith({ organisationId: "" });
+}

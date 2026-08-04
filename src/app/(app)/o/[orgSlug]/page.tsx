@@ -35,7 +35,7 @@ export default async function OrgDetailPage({
         },
         orderBy: { role: "asc" },
       },
-      groups: {
+      footballGroups: {
         select: { id: true, name: true, slug: true },
         orderBy: { name: "asc" },
       },
