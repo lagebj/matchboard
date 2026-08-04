@@ -5,14 +5,13 @@ import {
   createInvitationAction,
   revokeInvitationAction,
   updateMembershipRoleAction,
-  addTeamAccessAction,
-  removeTeamAccessAction,
 } from "@/app/(app)/organisations/actions";
 
-type TeamAccess = {
+type GroupAccess = {
   id: string;
-  teamId: string;
-  team: { id: string; name: string };
+  footballGroupId: string;
+  role: string;
+  group: { id: string; name: string };
 };
 
 type Membership = {
@@ -20,7 +19,7 @@ type Membership = {
   userId: string;
   role: string;
   user: { id: string; name: string | null; email: string };
-  teamAccesses: TeamAccess[];
+  groupAccesses: GroupAccess[];
 };
 
 type Invitation = {
@@ -40,10 +39,10 @@ type Org = {
   createdAt: string;
   memberships: Membership[];
   invitations: Invitation[];
-  teams: Team[];
+  groups: Group[];
 };
 
-type Team = { id: string; name: string };
+type Group = { id: string; name: string };
 
 export function OrgDetailClient({
   org,
@@ -52,8 +51,7 @@ export function OrgDetailClient({
   currentUserRole,
   canInvite,
   canManageRoles,
-  canManageTeamAccess,
-  teams,
+  canManageGroupAccess,
 }: {
   org: Org;
   orgSlug: string;
@@ -61,8 +59,7 @@ export function OrgDetailClient({
   currentUserRole: string;
   canInvite: boolean;
   canManageRoles: boolean;
-  canManageTeamAccess: boolean;
-  teams: Team[];
+  canManageGroupAccess: boolean;
 }) {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -101,20 +98,6 @@ export function OrgDetailClient({
     setRefreshKey((k) => k + 1);
   }
 
-  async function handleAddTeamAccess(membershipId: string, teamId: string) {
-    const result = await addTeamAccessAction(orgSlug, membershipId, teamId);
-    if (result.success) {
-      setRefreshKey((k) => k + 1);
-    }
-  }
-
-  async function handleRemoveTeamAccess(membershipId: string, teamId: string) {
-    const result = await removeTeamAccessAction(orgSlug, membershipId, teamId);
-    if (result.success) {
-      setRefreshKey((k) => k + 1);
-    }
-  }
-
   const roleOrder = ["OWNER", "ADMIN", "COACH", "VIEWER"];
 
   return (
@@ -123,7 +106,7 @@ export function OrgDetailClient({
         <h1 className="text-2xl font-bold">{org.name}</h1>
         <p className="text-sm text-muted-foreground">
           Slug: {org.slug}
-          {org.isSynthetic ? " \u00b7 Synthetic" : ""}
+          {org.isSynthetic ? " · Synthetic" : ""}
           {(canInvite || canManageRoles) && (
             <a href={`/o/${orgSlug}/settings`} className="ml-2 underline hover:text-foreground">
               Settings
@@ -217,43 +200,18 @@ export function OrgDetailClient({
                   </div>
                 </div>
 
-                {(m.role === "COACH" || m.role === "VIEWER") && canManageTeamAccess && (
+                {(m.role === "COACH" || m.role === "VIEWER") && canManageGroupAccess && (
                   <div className="mt-2 pt-2 border-t border-[var(--border-soft)]">
                     <div className="flex flex-wrap gap-1 mb-2">
-                      {m.teamAccesses.map((ta) => (
+                      {m.groupAccesses.map((ga) => (
                         <span
-                          key={ta.id}
+                          key={ga.id}
                           className="inline-flex items-center gap-1 text-xs bg-[var(--surface-2)] px-2 py-0.5 rounded"
                         >
-                          {ta.team.name}
-                          <button
-                            onClick={() => handleRemoveTeamAccess(m.id, ta.teamId)}
-                            className="text-muted-foreground hover:text-red-500"
-                          >
-                            &times;
-                          </button>
+                          {ga.group.name} ({ga.role})
                         </span>
                       ))}
                     </div>
-                    {teams.length > m.teamAccesses.length && (
-                      <select
-                        className="text-xs border border-[var(--border-soft)] rounded px-2 py-1 bg-[var(--surface-1)]"
-                        defaultValue=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleAddTeamAccess(m.id, e.target.value);
-                            e.target.value = "";
-                          }
-                        }}
-                      >
-                        <option value="">+ Add team access</option>
-                        {teams
-                          .filter((t) => !m.teamAccesses.some((ta) => ta.teamId === t.id))
-                          .map((t) => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
-                      </select>
-                    )}
                   </div>
                 )}
               </div>
@@ -287,13 +245,13 @@ export function OrgDetailClient({
       )}
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">Teams</h2>
-        {org.teams.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No teams yet.</p>
+        <h2 className="text-lg font-semibold mb-3">Groups</h2>
+        {org.groups.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No groups yet.</p>
         ) : (
           <div className="space-y-1">
-            {org.teams.map((t) => (
-              <div key={t.id} className="text-sm">{t.name}</div>
+            {org.groups.map((g) => (
+              <div key={g.id} className="text-sm">{g.name}</div>
             ))}
           </div>
         )}

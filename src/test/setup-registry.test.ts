@@ -39,7 +39,6 @@ vi.mock("@/lib/auth/actor-context", () => {
     organisationId: _testOrgId,
     organisationSlug: "test-org",
     role: "COACH",
-    delegatedTeamIds: null,
     accessibleGroupIds: [],
     groupAccesses: [],
     orgFilter: { type: "all" as const },
@@ -50,8 +49,8 @@ vi.mock("@/lib/auth/actor-context", () => {
     canMutate: vi.fn().mockReturnValue(true),
     canAdmin: vi.fn().mockReturnValue(false),
     canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockReturnValue(true),
-    requireTeamAccess: vi.fn(),
+    hasTeamAccess: vi.fn().mockResolvedValue(true),
+    requireTeamAccess: vi.fn().mockResolvedValue(undefined),
   };
 });
 

@@ -5,15 +5,12 @@ import { requireCoachAccess } from "@/lib/auth";
 import { resolveOrganisationAccess, resolveOrganisationAdminOrOwner, resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
 import { createOrganisation, getOrganisationBySlug, getUserOrganisations, generateOrganisationSlug } from "@/lib/organisations/organisation-domain";
 import { createInvitation, acceptInvitation, revokeInvitation } from "@/lib/organisations/organisation-invitation";
-import { addTeamAccess, removeTeamAccess } from "@/lib/organisations/organisation-domain";
 import {
   logOrganisationCreate,
   logOrganisationInvitationCreate,
   logOrganisationInvitationAccept,
   logOrganisationInvitationRevoke,
   logOrganisationMembershipUpdate,
-  logOrganisationTeamAccessAdd,
-  logOrganisationTeamAccessRemove,
 } from "@/lib/security/audit-log";
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
 import { enqueueNotification } from "@/lib/email/outbox";
@@ -209,57 +206,6 @@ export async function updateMembershipRoleAction(
   });
 
   logOrganisationMembershipUpdate(ctx.userEmail, ctx.organisationId, "success", `${membership.role} → ${targetRole}`);
-  revalidatePath(`/o/${organisationSlug}`);
-
-  return { success: true as const };
-}
-
-export async function addTeamAccessAction(
-  organisationSlug: string,
-  membershipId: string,
-  teamId: string,
-) {
-  const ctx = await resolveOrganisationAdminOrOwner(organisationSlug);
-
-  if (!membershipId?.trim() || !teamId?.trim()) {
-    return { success: false as const, error: "Membership ID and team ID are required." };
-  }
-
-  const result = await addTeamAccess(
-    membershipId.trim(),
-    teamId.trim(),
-  );
-
-  if (!result.success) {
-    logOrganisationTeamAccessAdd(ctx.userEmail, ctx.organisationId, "failure");
-    return { success: false as const, error: result.error };
-  }
-
-  logOrganisationTeamAccessAdd(ctx.userEmail, ctx.organisationId, "success");
-  revalidatePath(`/o/${organisationSlug}`);
-
-  return { success: true as const };
-}
-
-export async function removeTeamAccessAction(
-  organisationSlug: string,
-  membershipId: string,
-  teamId: string,
-) {
-  const ctx = await resolveOrganisationAdminOrOwner(organisationSlug);
-
-  if (!membershipId?.trim() || !teamId?.trim()) {
-    return { success: false as const, error: "Membership ID and team ID are required." };
-  }
-
-  const result = await removeTeamAccess(membershipId.trim(), teamId.trim());
-
-  if (!result.success) {
-    logOrganisationTeamAccessRemove(ctx.userEmail, ctx.organisationId, "failure");
-    return { success: false as const, error: result.error };
-  }
-
-  logOrganisationTeamAccessRemove(ctx.userEmail, ctx.organisationId, "success");
   revalidatePath(`/o/${organisationSlug}`);
 
   return { success: true as const };

@@ -63,7 +63,7 @@ export async function createMovementCandidateAction(formData: FormData) {
 
   const pathTeams = await requireRotationPathOrgAccess(rotationPathId, ctx.orgFilter);
   if (pathTeams) {
-    requireTeamAccess(ctx, pathTeams.fromTeamId);
+    await requireTeamAccess(ctx, pathTeams.fromTeamId);
   }
 
   let reviewBy: Date | null = null;
@@ -97,7 +97,7 @@ export async function updateMovementCandidateAction(candidateId: string, formDat
   requireMutationRole(ctx);
 
   const fromTeamId = await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
-  if (fromTeamId) requireTeamAccess(ctx, fromTeamId);
+  if (fromTeamId) await requireTeamAccess(ctx, fromTeamId);
 
   const status = (formData.get("status") as string)?.trim() || undefined;
   const rationaleCategory = (formData.get("rationaleCategory") as string)?.trim() || undefined;
@@ -136,7 +136,7 @@ export async function toggleMovementCandidateStatusAction(candidateId: string, t
   requireMutationRole(ctx);
 
   const fromTeamId = await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
-  if (fromTeamId) requireTeamAccess(ctx, fromTeamId);
+  if (fromTeamId) await requireTeamAccess(ctx, fromTeamId);
 
   if (!VALID_STATUSES.has(targetStatus)) throw new Error("Invalid status.");
 
@@ -154,7 +154,7 @@ export async function deleteMovementCandidateAction(candidateId: string) {
   requireMutationRole(ctx);
 
   const fromTeamId = await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
-  if (fromTeamId) requireTeamAccess(ctx, fromTeamId);
+  if (fromTeamId) await requireTeamAccess(ctx, fromTeamId);
 
   const result = await deleteMovementCandidate(candidateId);
 

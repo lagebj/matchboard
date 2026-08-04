@@ -429,7 +429,7 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
 export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: string | null) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (coreTeamId) requireTeamAccess(ctx, coreTeamId);
+  if (coreTeamId) await requireTeamAccess(ctx, coreTeamId);
   const organisationId = ctx.organisationId;
   const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId, organisationId);
   if (!result.success) throw new Error(result.error);

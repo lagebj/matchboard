@@ -172,9 +172,11 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
       take: 20,
     });
 
-    const teamFilteredMatches = recentMatches.filter((match) =>
-      match.teamId ? hasTeamAccess(ctx, match.teamId) : true,
-    );
+    const teamFilteredMatches = await Promise.all(
+      recentMatches.map(async (match) =>
+        match.teamId ? await hasTeamAccess(ctx, match.teamId) : true,
+      ),
+    ).then((results) => recentMatches.filter((_, i) => results[i]));
 
     for (const match of teamFilteredMatches) {
       if (matchIdsWithReports.has(match.id)) continue;
@@ -251,9 +253,11 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
       take: 10,
     });
 
-    const teamFilteredUpcoming = upcomingMatches.filter((match) =>
-      match.teamId ? hasTeamAccess(ctx, match.teamId) : true,
-    );
+    const teamFilteredUpcoming = await Promise.all(
+      upcomingMatches.map(async (match) =>
+        match.teamId ? await hasTeamAccess(ctx, match.teamId) : true,
+      ),
+    ).then((results) => upcomingMatches.filter((_, i) => results[i]));
 
     for (const match of teamFilteredUpcoming) {
       if (ownedFixtureIds.has(match.id)) continue;

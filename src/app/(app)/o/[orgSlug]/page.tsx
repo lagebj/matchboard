@@ -31,11 +31,11 @@ export default async function OrgDetailPage({
           userId: true,
           role: true,
           user: { select: { id: true, name: true, email: true } },
-          teamAccesses: { select: { id: true, teamId: true, team: { select: { id: true, name: true } } } },
+          groupAccesses: { select: { id: true, footballGroupId: true, role: true, group: { select: { id: true, name: true } } } },
         },
         orderBy: { role: "asc" },
       },
-      teams: {
+      groups: {
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       },
@@ -66,8 +66,7 @@ export default async function OrgDetailPage({
       currentUserRole={ctx.role}
       canInvite={ctx.canManageMemberships}
       canManageRoles={ctx.role === "OWNER"}
-      canManageTeamAccess={ctx.canManageMemberships}
-      teams={JSON.parse(JSON.stringify(org.teams))}
+      canManageGroupAccess={ctx.canManageMemberships}
     />
   );
 }

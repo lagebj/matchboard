@@ -61,7 +61,7 @@ export async function setCoachingIntentAction(
     await requireScopeOrgAccess(scopeType, scopeId, ctx.orgFilter);
 
     if (scopeType === "TEAM") {
-      requireTeamAccess(ctx, scopeId);
+      await requireTeamAccess(ctx, scopeId);
     }
 
     const existing = await db.coachingIntent.findFirst({
@@ -118,7 +118,7 @@ export async function removeCoachingIntentAction(
     if (!intent) return { success: false, error: "Intent not found." };
 
     if (intent.scopeType === "TEAM") {
-      requireTeamAccess(ctx, intent.scopeId);
+      await requireTeamAccess(ctx, intent.scopeId);
     }
 
     await db.coachingIntent.delete({ where: { id: intentId } });
