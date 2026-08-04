@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Settings, Users, Plus, Trash2, Shield } from "lucide-react";
+import { Settings, Users, Plus, Trash2, Shield, Pencil } from "lucide-react";
 import {
   addGroupAccessAction,
   removeGroupAccessAction,
   deactivateGroupAction,
+  updateGroupAction,
+  addPlayerToGroupAction,
+  removePlayerFromGroupAction,
 } from "@/app/(app)/o/[orgSlug]/groups/actions";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
@@ -14,6 +17,34 @@ const GROUP_TYPE_LABELS: Record<string, string> = {
   GENDER_GROUP: "Gender group",
   COMPETITIVE_GROUP: "Competitive group",
   CUSTOM: "Custom",
+};
+
+const GROUP_TYPE_OPTIONS = [
+  { value: "AGE_GROUP", label: "Age group" },
+  { value: "GENDER_GROUP", label: "Gender group" },
+  { value: "COMPETITIVE_GROUP", label: "Competitive group" },
+  { value: "CUSTOM", label: "Custom" },
+];
+
+const MEMBERSHIP_TYPE_LABELS: Record<string, string> = {
+  PRIMARY: "Primary",
+  SECONDARY: "Secondary",
+  TEMPORARY: "Temporary",
+};
+
+type PlayerItem = {
+  id: string;
+  playerId: string;
+  membershipType: string;
+  coreTeamId: string | null;
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    active: boolean;
+    coreTeamId: string | null;
+    coreTeam: { id: string; name: string } | null;
+  };
 };
 
 type GroupAccessItem = {
@@ -48,7 +79,7 @@ type GroupDetail = {
   teams: TeamItem[];
   groupAccesses: GroupAccessItem[];
   playerCount: number;
-  players: unknown[];
+  players: PlayerItem[];
 };
 
 export function GroupSettingsClient({
@@ -60,7 +91,6 @@ export function GroupSettingsClient({
   orgSlug: string;
   canMutate: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
   return (
@@ -82,22 +112,26 @@ export function GroupSettingsClient({
           <Settings className="h-5 w-5" />
           Group details
         </h2>
-        <div className="rounded-lg border p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">Name</div>
-            <div className="font-medium">{group.name}</div>
-            <div className="text-muted-foreground">Type</div>
-            <div className="font-medium">{GROUP_TYPE_LABELS[group.type] ?? group.type}</div>
-            <div className="text-muted-foreground">Cohort year</div>
-            <div className="font-medium">{group.cohortYear ?? "—"}</div>
-            <div className="text-muted-foreground">Slug</div>
-            <div className="font-medium font-mono text-xs">{group.slug}</div>
-            <div className="text-muted-foreground">Description</div>
-            <div className="font-medium">{group.description ?? "—"}</div>
-            <div className="text-muted-foreground">Created</div>
-            <div className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</div>
+        {canMutate ? (
+          <GroupEditForm group={group} />
+        ) : (
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="text-muted-foreground">Name</div>
+              <div className="font-medium">{group.name}</div>
+              <div className="text-muted-foreground">Type</div>
+              <div className="font-medium">{GROUP_TYPE_LABELS[group.type] ?? group.type}</div>
+              <div className="text-muted-foreground">Cohort year</div>
+              <div className="font-medium">{group.cohortYear ?? "—"}</div>
+              <div className="text-muted-foreground">Slug</div>
+              <div className="font-medium font-mono text-xs">{group.slug}</div>
+              <div className="text-muted-foreground">Description</div>
+              <div className="font-medium">{group.description ?? "—"}</div>
+              <div className="text-muted-foreground">Created</div>
+              <div className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -156,12 +190,49 @@ export function GroupSettingsClient({
           Player pool
         </h2>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-3">
             {group.playerCount} player{group.playerCount !== 1 ? "s" : ""} in this group.
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Player pool management will be available in a future update.
-          </p>
+          {group.players && group.players.length > 0 ? (
+            <div className="space-y-1">
+              {group.players.map((p: PlayerItem) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-muted/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{p.player.firstName}{p.player.lastName ? ` ${p.player.lastName}` : ""}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {MEMBERSHIP_TYPE_LABELS[p.membershipType] ?? p.membershipType}
+                    </span>
+                    {p.player.coreTeam && (
+                      <span className="text-xs text-muted-foreground">{p.player.coreTeam.name}</span>
+                    )}
+                  </div>
+                  {canMutate && (
+                    <form
+                      action={async () => {
+                        await removePlayerFromGroupAction(group.id, p.playerId);
+                      }}
+                    >
+                      <button
+                        type="submit"
+                        className="rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title="Remove from group"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No players in this group yet.</p>
+          )}
+          {canMutate && (
+            <AddPlayerForm groupId={group.id} />
+          )}
         </div>
       </section>
 
@@ -189,6 +260,140 @@ export function GroupSettingsClient({
         </section>
       )}
     </div>
+  );
+}
+
+function GroupEditForm({ group }: { group: GroupDetail }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(group.name);
+  const [type, setType] = useState(group.type);
+  const [cohortYear, setCohortYear] = useState(group.cohortYear?.toString() ?? "");
+  const [description, setDescription] = useState(group.description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  if (!editing) {
+    return (
+      <div className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Group details</span>
+          <button
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="text-muted-foreground">Name</div>
+          <div className="font-medium">{group.name}</div>
+          <div className="text-muted-foreground">Type</div>
+          <div className="font-medium">{GROUP_TYPE_LABELS[group.type] ?? group.type}</div>
+          <div className="text-muted-foreground">Cohort year</div>
+          <div className="font-medium">{group.cohortYear ?? "—"}</div>
+          <div className="text-muted-foreground">Slug</div>
+          <div className="font-medium font-mono text-xs">{group.slug}</div>
+          <div className="text-muted-foreground">Description</div>
+          <div className="font-medium">{group.description ?? "—"}</div>
+          <div className="text-muted-foreground">Created</div>
+          <div className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={async () => {
+        setSaving(true);
+        const formData = new FormData();
+        formData.set("name", name);
+        formData.set("type", type);
+        formData.set("cohortYear", cohortYear);
+        formData.set("description", description);
+        await updateGroupAction(group.id, formData);
+      }}
+      className="rounded-lg border p-4 space-y-4"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">Edit group details</span>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+        >
+          Cancel
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Name</label>
+          <input
+            type="text"
+            name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Type</label>
+          <select
+            name="type"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            {GROUP_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Cohort year</label>
+          <input
+            type="number"
+            name="cohortYear"
+            value={cohortYear}
+            onChange={(e) => setCohortYear(e.target.value)}
+            placeholder="e.g. 2015"
+            min="2000"
+            max="2100"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Slug</label>
+          <input
+            type="text"
+            value={group.slug}
+            disabled
+            className="w-full rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Description</label>
+        <textarea
+          name="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          placeholder="Optional description"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={saving || !name.trim()}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save changes"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -235,6 +440,60 @@ function AddAccessForm({ groupId }: { groupId: string }) {
       >
         <Plus className="inline h-4 w-4 mr-1" />
         Add access
+      </button>
+    </div>
+  );
+}
+
+function AddPlayerForm({ groupId }: { groupId: string }) {
+  const [playerId, setPlayerId] = useState("");
+  const [membershipType, setMembershipType] = useState("PRIMARY");
+  const [adding, setAdding] = useState(false);
+
+  return (
+    <div className="mt-3 rounded-lg border border-dashed p-4 space-y-3">
+      <h3 className="text-sm font-medium">Add player to group</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Player ID</label>
+          <input
+            type="text"
+            value={playerId}
+            onChange={(e) => setPlayerId(e.target.value)}
+            placeholder="Enter player ID"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Membership type</label>
+          <select
+            value={membershipType}
+            onChange={(e) => setMembershipType(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            <option value="PRIMARY">Primary</option>
+            <option value="SECONDARY">Secondary</option>
+            <option value="TEMPORARY">Temporary</option>
+          </select>
+        </div>
+      </div>
+      <button
+        onClick={async () => {
+          if (!playerId.trim()) return;
+          setAdding(true);
+          const formData = new FormData();
+          formData.set("membershipType", membershipType);
+          const result = await addPlayerToGroupAction(groupId, playerId.trim(), formData);
+          if (result?.success) {
+            setPlayerId("");
+          }
+          setAdding(false);
+        }}
+        disabled={!playerId.trim() || adding}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+      >
+        <Plus className="inline h-4 w-4 mr-1" />
+        {adding ? "Adding..." : "Add player"}
       </button>
     </div>
   );
