@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Users, Shield, Calendar } from "lucide-react";
+import { Plus, Users, Shield, Calendar, ArrowRight } from "lucide-react";
+
+const GROUP_TYPE_LABELS: Record<string, string> = {
+  AGE_GROUP: "Age group",
+  GENDER_GROUP: "Gender group",
+  COMPETITIVE_GROUP: "Competitive group",
+  CUSTOM: "Custom",
+};
 
 type GroupListItem = {
   id: string;
@@ -16,13 +23,6 @@ type GroupListItem = {
     players: number;
     groupAccesses: number;
   };
-};
-
-const GROUP_TYPE_LABELS: Record<string, string> = {
-  AGE_GROUP: "Age group",
-  GENDER_GROUP: "Gender group",
-  COMPETITIVE_GROUP: "Competitive group",
-  CUSTOM: "Custom",
 };
 
 export function GroupListClient({
@@ -100,6 +100,7 @@ export function GroupListClient({
                   </span>
                 </div>
               </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </Link>
           ))}
         </div>
