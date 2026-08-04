@@ -490,6 +490,8 @@ Fairness must not override required support. Fairness is a scoring preference, n
 
 RotationPath is the single source of truth for automatic non-core player movement. A player may only be selected outside their core team when an active directed RotationPath exists from the player's core team to the target team for the exact role being assigned, unless a manual override with reason is used.
 
+GroupMovementPath is the group-level authority that expands into team-level RotationPath edges for selection engine consumption. The `load-rotation-paths.ts` helpers merge team-level RotationPaths with group-level GroupMovementPath edges, ensuring the selection engine considers both sources.
+
 Rules:
 - Each RotationPath authorizes exactly one role: SUPPORT, DEVELOPMENT, or BACKFILL
 - A SUPPORT path permits only SUPPORT movement — not DEVELOPMENT or BACKFILL
@@ -862,6 +864,8 @@ Keep these concerns separate:
 - round orchestration (`generate-round.ts`)
 - per-match generation (`generate-selection.ts`)
 - rotation path policy (`rotation-path-policy.ts`)
+- group pool resolution and cross-group movement authorization (`group-pool-resolver.ts`, `cross-group-movement-authorizer.ts`, `group-path-bridge.ts`)
+- group-aware rotation path loading (`load-rotation-paths.ts`)
 - invariant validation (`validate-generated-round-invariants.ts`)
 - round eligibility
 - support selection
@@ -1782,6 +1786,10 @@ Avoid:
 | `src/lib/selection/resolve-round-conflicts.ts` | Same-round player conflicts |
 | `src/lib/selection/route-core-match-drops.ts` | Core match drop routing |
 | `src/lib/selection/rotation-path-policy.ts` | Movement eligibility validation |
+| `src/lib/selection/load-rotation-paths.ts` | Shared helpers: merge team-level RotationPath with group-level GroupMovementPath edges |
+| `src/lib/groups/group-pool-resolver.ts` | Group player pool resolution, group movement path queries, group-based player eligibility |
+| `src/lib/groups/cross-group-movement-authorizer.ts` | Cross-group movement authorization with role compatibility checks |
+| `src/lib/groups/group-path-bridge.ts` | Convert GroupMovementPath edges to team-level RotationPathEdge format for selection engine |
 | `src/lib/selection/validate-generated-round-invariants.ts` | Post-generation invariant checks |
 | `src/lib/selection/save-generated-draft.ts` | Persist draft selections and movement ledger entries |
 | `src/lib/selection/migrate-double-load-roles.ts` | Migration: merge standalone DOUBLE_LOAD rows into base role rows with controlledDoubleLoad=true |
