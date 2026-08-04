@@ -251,8 +251,9 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
           cooldownRounds: true,
           fromTeamId: true,
           fromTeam: { select: { name: true } },
-          role: true,
           toTeamId: true,
+          toTeam: { select: { name: true } },
+          role: true,
         },
       });
 

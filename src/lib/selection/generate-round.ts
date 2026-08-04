@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { generateSelection } from "@/lib/selection/generate-selection";
+import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { resolveRoundSupport, resolveSquadRepair } from "@/lib/selection/resolve-round-support";
 import { routeCoreMatchDrops, type RoutedDrop } from "@/lib/selection/route-core-match-drops";
 import { resolveRoundConflicts } from "@/lib/selection/resolve-round-conflicts";
@@ -151,10 +152,13 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   finalResults = selfSquadRepairBelowTarget(finalResults, sortedMatches, allAssignedPlayerIds);
 
   // Phase 6: Post-pipeline validation and warning persistence
-  const rotationPaths = await db.rotationPath.findMany({
-    where: { active: true },
-    select: { fromTeamId: true, toTeamId: true, role: true, active: true },
-  });
+  const roundOrganisationId = matchRound.organisationId;
+  const rotationPaths = roundOrganisationId
+    ? await loadRotationPathEdgesWithGroupPaths(roundOrganisationId, { scope: "MATCH" })
+    : await db.rotationPath.findMany({
+        where: { active: true },
+        select: { fromTeamId: true, toTeamId: true, role: true, active: true },
+      });
 
   const teamIdByMatchId = new Map<string, string>();
   for (const match of matchRound.matches) {
