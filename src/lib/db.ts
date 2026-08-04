@@ -109,11 +109,17 @@ const RLS_OPS = new Set([
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
+const RLS_DEBUG = process.env.RLS_DEBUG === "1";
+
 const extendedClient = rawClient.$extends({
   name: "tenantRLS",
   query: {
     async $allOperations({ model, operation, args, query }) {
       const orgId = getTenantOrganisationId();
+
+      if (RLS_DEBUG && model && RLS_TABLES.has(model) && RLS_OPS.has(operation)) {
+        console.log(`[RLS] ${model}.${operation} orgId=${orgId ?? "MISSING"}`);
+      }
 
       if (orgId && model && RLS_TABLES.has(model) && RLS_OPS.has(operation) && ORG_ID_PATTERN.test(orgId)) {
         return rawClient.$transaction(async (tx) => {
@@ -122,6 +128,10 @@ const extendedClient = rawClient.$extends({
           const modelDelegate = (tx as any)[model!];
           return modelDelegate[operation](args);
         });
+      }
+
+      if (RLS_DEBUG && model && RLS_TABLES.has(model) && RLS_OPS.has(operation) && !orgId) {
+        console.warn(`[RLS] FALLTHROUGH ${model}.${operation} — no tenant context set`);
       }
 
       return query(args);
