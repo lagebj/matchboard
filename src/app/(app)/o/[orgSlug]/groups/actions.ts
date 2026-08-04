@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
-import { resolveGroupContext, requireGroupAccess, requireGroupMutationRole } from "@/lib/auth/group-context";
+import { resolveGroupContext, requireGroupMutationRole } from "@/lib/auth/group-context";
 import {
   createFootballGroup,
   updateFootballGroup,
@@ -16,6 +16,13 @@ import {
   listGroupsForOrganisation,
   getGroupWithDetails,
 } from "@/lib/groups/group-domain";
+import {
+  createGroupMovementPath,
+  deactivateGroupMovementPath,
+  reactivateGroupMovementPath,
+  listGroupMovementPaths,
+  getGroupMovementPath,
+} from "@/lib/groups/group-movement-path";
 import type { FootballGroupType, GroupAccessRole } from "@/generated/prisma/client";
 
 const VALID_GROUP_TYPES: Set<string> = new Set(["AGE_GROUP", "GENDER_GROUP", "COMPETITIVE_GROUP", "CUSTOM"]);
@@ -225,4 +232,84 @@ export async function getGroupDetailAction(groupId: string) {
   const ctx = await requireActorContext();
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
   return getGroupWithDetails(groupId, ctx.organisationId);
+}
+
+export async function createGroupMovementPathAction(
+  fromGroupId: string,
+  toGroupId: string,
+  role: string,
+  scope: string = "MATCH",
+) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
+  const VALID_ROLES = ["SUPPORT", "DEVELOPMENT", "CONFIDENCE_REBUILD", "BACKFILL"];
+  const VALID_SCOPES = ["MATCH", "EVENT"];
+
+  if (!VALID_ROLES.includes(role)) {
+    return { success: false as const, error: "Invalid role." };
+  }
+  if (!VALID_SCOPES.includes(scope)) {
+    return { success: false as const, error: "Invalid scope." };
+  }
+
+  const result = await createGroupMovementPath({
+    organisationId: ctx.organisationId,
+    fromGroupId,
+    toGroupId,
+    role: role as "SUPPORT" | "DEVELOPMENT" | "CONFIDENCE_REBUILD" | "BACKFILL",
+    scope: scope as "MATCH" | "EVENT",
+  });
+
+  if (!result.success) {
+    return { success: false as const, error: result.error! };
+  }
+
+  revalidatePath(`/o/${ctx.organisationSlug}/groups`);
+  return { success: true as const, pathId: result.pathId };
+}
+
+export async function deactivateGroupMovementPathAction(pathId: string) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
+  const path = await getGroupMovementPath(pathId, ctx.organisationId);
+  if (!path) {
+    return { success: false as const, error: "Movement path not found." };
+  }
+
+  const result = await deactivateGroupMovementPath(pathId, ctx.organisationId);
+  if (!result.success) {
+    return { success: false as const, error: result.error! };
+  }
+
+  revalidatePath(`/o/${ctx.organisationSlug}/groups`);
+  return { success: true as const };
+}
+
+export async function reactivateGroupMovementPathAction(pathId: string) {
+  const ctx = await requireActorContext();
+  requireMutationRole(ctx);
+
+  const result = await reactivateGroupMovementPath(pathId, ctx.organisationId);
+  if (!result.success) {
+    return { success: false as const, error: result.error! };
+  }
+
+  revalidatePath(`/o/${ctx.organisationSlug}/groups`);
+  return { success: true as const };
+}
+
+export async function listGroupMovementPathsAction(options?: {
+  groupId?: string;
+  activeOnly?: boolean;
+  scope?: string;
+}) {
+  const ctx = await requireActorContext();
+
+  return listGroupMovementPaths(ctx.organisationId, {
+    groupId: options?.groupId,
+    activeOnly: options?.activeOnly,
+    scope: options?.scope as "MATCH" | "EVENT" | undefined,
+  });
 }

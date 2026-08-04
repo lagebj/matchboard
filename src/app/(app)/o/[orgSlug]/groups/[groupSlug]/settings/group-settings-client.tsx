@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Settings, Users, Plus, Trash2, Shield, Pencil } from "lucide-react";
+import { Settings, Users, Plus, Trash2, Shield, Pencil, ArrowRight } from "lucide-react";
 import {
   addGroupAccessAction,
   removeGroupAccessAction,
@@ -10,6 +10,9 @@ import {
   updateGroupAction,
   addPlayerToGroupAction,
   removePlayerFromGroupAction,
+  createGroupMovementPathAction,
+  deactivateGroupMovementPathAction,
+  reactivateGroupMovementPathAction,
 } from "@/app/(app)/o/[orgSlug]/groups/actions";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
@@ -30,6 +33,29 @@ const MEMBERSHIP_TYPE_LABELS: Record<string, string> = {
   PRIMARY: "Primary",
   SECONDARY: "Secondary",
   TEMPORARY: "Temporary",
+};
+
+const MOVEMENT_ROLE_LABELS: Record<string, string> = {
+  SUPPORT: "Support",
+  DEVELOPMENT: "Development",
+  CONFIDENCE_REBUILD: "Confidence rebuild",
+  BACKFILL: "Squad repair",
+};
+
+const MOVEMENT_SCOPE_LABELS: Record<string, string> = {
+  MATCH: "Match",
+  EVENT: "Event",
+};
+
+type MovementPathItem = {
+  id: string;
+  fromGroupId: string;
+  toGroupId: string;
+  role: string;
+  scope: string;
+  isActive: boolean;
+  fromGroup: { id: string; name: string; slug: string };
+  toGroup: { id: string; name: string; slug: string };
 };
 
 type PlayerItem = {
@@ -86,10 +112,12 @@ export function GroupSettingsClient({
   group,
   orgSlug,
   canMutate,
+  movementPaths,
 }: {
   group: GroupDetail;
   orgSlug: string;
   canMutate: boolean;
+  movementPaths: MovementPathItem[];
 }) {
   const [deactivating, setDeactivating] = useState(false);
 
@@ -209,7 +237,68 @@ export function GroupSettingsClient({
                       <span className="text-xs text-muted-foreground">{p.player.coreTeam.name}</span>
                     )}
                   </div>
-                  {canMutate && (
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <ArrowRight className="h-5 w-5" />
+          Movement paths
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Movement paths define which groups players can move between and for what role.
+        </p>
+        {movementPaths.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No movement paths configured for this group yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {movementPaths.map((path) => (
+              <div key={path.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">{path.fromGroup.name}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{path.toGroup.name}</span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {MOVEMENT_ROLE_LABELS[path.role] ?? path.role}
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {MOVEMENT_SCOPE_LABELS[path.scope] ?? path.scope}
+                  </span>
+                  {!path.isActive && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-orange-600">Inactive</span>
+                  )}
+                </div>
+                {canMutate && (
+                  <form
+                    action={async () => {
+                      if (path.isActive) {
+                        await deactivateGroupMovementPathAction(path.id);
+                      } else {
+                        await reactivateGroupMovementPathAction(path.id);
+                      }
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className={`rounded-md px-3 py-1 text-xs font-medium ${
+                        path.isActive
+                          ? "text-destructive hover:bg-destructive/10"
+                          : "text-primary hover:bg-primary/10"
+                      }`}
+                    >
+                      {path.isActive ? "Deactivate" : "Reactivate"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {canMutate && (
+          <AddMovementPathForm groupId={group.id} />
+        )}
+      </section>
+
+      {canMutate && (
                     <form
                       action={async () => {
                         await removePlayerFromGroupAction(group.id, p.playerId);
@@ -494,6 +583,74 @@ function AddPlayerForm({ groupId }: { groupId: string }) {
       >
         <Plus className="inline h-4 w-4 mr-1" />
         {adding ? "Adding..." : "Add player"}
+      </button>
+    </div>
+  );
+}
+
+function AddMovementPathForm({ groupId }: { groupId: string }) {
+  const [toGroupId, setToGroupId] = useState("");
+  const [role, setRole] = useState("SUPPORT");
+  const [scope, setScope] = useState("MATCH");
+  const [creating, setCreating] = useState(false);
+
+  return (
+    <div className="mt-3 rounded-lg border border-dashed p-4 space-y-3">
+      <h3 className="text-sm font-medium">Add movement path</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Target group ID</label>
+          <input
+            type="text"
+            value={toGroupId}
+            onChange={(e) => setToGroupId(e.target.value)}
+            placeholder="Enter group ID"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Role</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            {Object.entries(MOVEMENT_ROLE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Scope</label>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            {Object.entries(MOVEMENT_SCOPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        This group will be the source. The target group ID is the group players can move to.
+      </p>
+      <button
+        onClick={async () => {
+          if (!toGroupId.trim()) return;
+          setCreating(true);
+          const result = await createGroupMovementPathAction(groupId, toGroupId.trim(), role, scope);
+          if (result?.success) {
+            setToGroupId("");
+          }
+          setCreating(false);
+        }}
+        disabled={!toGroupId.trim() || creating}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+      >
+        <Plus className="inline h-4 w-4 mr-1" />
+        {creating ? "Creating..." : "Add path"}
       </button>
     </div>
   );
