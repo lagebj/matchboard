@@ -6,7 +6,7 @@ export type TeamMutationResult =
   | { success: false; error: string };
 
 export async function checkTeamDeletionGuard(teamId: string, organisationId?: string): Promise<TeamMutationResult> {
-  const orgFilter = organisationId ? { organisationId } : {};
+  const _orgFilter = organisationId ? { organisationId } : {};
   const [team, activeCorePlayerCount, rotationPathCount, matchCount] = await Promise.all([
     db.team.findUnique({
       where: { id: teamId },

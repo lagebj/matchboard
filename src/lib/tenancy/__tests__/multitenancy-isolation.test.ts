@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { setupTestDb, teardownTestDb, getTestDb, createTestGroup } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, createTestGroup } from "@/test/test-db";
 import { organisationFilter, organisationFilterNullable, requireOrganisationId } from "@/lib/tenancy/tenant-filter";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import { OrganisationAccessError, requireRole, requireTeamAccess } from "@/lib/organisations/organisation-access";
@@ -312,7 +312,7 @@ describe("Multitenancy isolation", () => {
       const org2Season = await db.season.create({
         data: { name: "Zeta 2026", year: 2026, organisationId: org2.id },
       });
-      const org2League = await db.leagueSeason.create({
+      const _org2League = await db.leagueSeason.create({
         data: {
           name: "Zeta Spring",
           part: "SPRING",

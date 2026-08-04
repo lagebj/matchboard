@@ -127,8 +127,8 @@ const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 const RLS_DEBUG = process.env.RLS_DEBUG === "1";
 
-// Log the connection type at startup for diagnostics
-if (typeof window === "undefined") {
+// Log the connection type at startup for diagnostics (dev/test only)
+if (typeof window === "undefined" && process.env.NODE_ENV !== "production") {
   console.log(`[RLS] DB adapter: ${runtimeDirectUrl.includes(".neon.tech") ? "PrismaNeon" : "PrismaPg"}`);
   console.log(`[RLS] DB host: ${runtimeDirectUrl.match(/@([^/]+)\//)?.[1] ?? "unknown"}`);
   console.log(`[RLS] DB uses pooler: ${runtimeDirectUrl.includes("-pooler")}`);

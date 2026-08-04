@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 
 export type OrgFilterMode =
   | { type: "org"; filter: { organisationId: string }; filterNullable: { organisationId: string }; organisationId: string }
-  | { type: "unscoped"; filter: {}; filterNullable: {} };
+  | { type: "unscoped"; filter: Record<string, never>; filterNullable: Record<string, never> };
 
 export class MultipleMembershipsError extends AuthorizationError {
   constructor(
