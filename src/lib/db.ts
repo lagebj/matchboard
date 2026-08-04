@@ -15,25 +15,17 @@ if (!connectionString) {
   throw new Error("DATABASE_URL environment variable is not set. Add it to your .env file.");
 }
 
-// RLS tenant context uses SET LOCAL inside Prisma transactions, which requires
-// a direct PostgreSQL connection. PgBouncer pooled connections (-pooler)
-// do not reliably support SET LOCAL. Use DIRECT_URL with the runtime role
-// (matchboard_app_runtime) for queries that need RLS. The direct connection
-// bypasses PgBouncer while the Neon serverless driver handles connection pooling.
-//
-// IMPORTANT: DIRECT_URL typically uses the admin role (matchboard_admin_migration)
-// which bypasses RLS. We need the runtime role for RLS enforcement.
-// Construct the runtime direct URL by removing -pooler from DATABASE_URL,
-// or use DIRECT_RUNTIME_URL if explicitly set.
-const runtimeDirectUrl =
-  process.env.DIRECT_RUNTIME_URL ||
-  (connectionString.includes("-pooler.")
-    ? connectionString.replace("-pooler.", ".")
-    : connectionString);
+// Use the pooled connection for runtime queries. Application-level tenant
+// isolation is achieved via where-clause injection in the Prisma extension
+// below, not via SET LOCAL RLS session variables. The Neon serverless driver
+// does not reliably share SET LOCAL state between raw SQL and model queries
+// inside the same $transaction, making where-clause injection the correct
+// approach. Database RLS policies serve as a defence-in-depth safety net.
+const runtimeUrl = process.env.DIRECT_RUNTIME_URL || connectionString;
 
-const adapter = runtimeDirectUrl.includes(".neon.tech")
-  ? new PrismaNeon({ connectionString: runtimeDirectUrl })
-  : new PrismaPg(new pg.Pool({ connectionString: runtimeDirectUrl }));
+const adapter = runtimeUrl.includes(".neon.tech")
+  ? new PrismaNeon({ connectionString: runtimeUrl })
+  : new PrismaPg(new pg.Pool({ connectionString: runtimeUrl }));
 
 const rawClient =
   globalForPrisma.prisma ??
@@ -46,8 +38,11 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = rawClient;
 }
 
+// Tables that are organisation-scoped and require tenant filtering.
+// Application-level where-clause injection is the primary tenant isolation mechanism.
+// Database RLS policies serve as defence-in-depth when app.current_organization_id is set.
+// Organisation is excluded because it IS the organisation, not scoped by one.
 const RLS_TABLES = new Set([
-  "organisation",
   "organisationMembership",
   "organisationInvitation",
   "machinePrincipal",
@@ -117,21 +112,24 @@ const RLS_TABLES = new Set([
   "playerProfileSuggestion",
 ]);
 
-const RLS_OPS = new Set([
-  "findMany", "findFirst", "findUnique", "create", "update",
-  "delete", "updateMany", "deleteMany", "count", "aggregate",
-  "groupBy", "upsert",
-]);
-
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 const RLS_DEBUG = process.env.RLS_DEBUG === "1";
 
-// Log the connection type at startup for diagnostics (dev/test only)
-if (typeof window === "undefined" && process.env.NODE_ENV !== "production") {
-  console.log(`[RLS] DB adapter: ${runtimeDirectUrl.includes(".neon.tech") ? "PrismaNeon" : "PrismaPg"}`);
-  console.log(`[RLS] DB host: ${runtimeDirectUrl.match(/@([^/]+)\//)?.[1] ?? "unknown"}`);
-  console.log(`[RLS] DB uses pooler: ${runtimeDirectUrl.includes("-pooler")}`);
+type QueryArgs = Record<string, unknown>;
+
+function withOrgWhere(args: QueryArgs, orgId: string): QueryArgs {
+  const where = (args.where ?? {}) as QueryArgs;
+  return { ...args, where: { ...where, organisationId: orgId } };
+}
+
+function withOrgData(args: QueryArgs, orgId: string): QueryArgs {
+  const data = (args.data ?? {}) as QueryArgs;
+  return { ...args, data: { ...data, organisationId: orgId } };
+}
+
+function withOrgWhereAndData(args: QueryArgs, orgId: string): QueryArgs {
+  return withOrgData(withOrgWhere(args, orgId), orgId);
 }
 
 const extendedClient = rawClient.$extends({
@@ -139,25 +137,65 @@ const extendedClient = rawClient.$extends({
   query: {
     async $allOperations({ model, operation, args, query }) {
       const orgId = getTenantOrganisationId();
+      const isRlsTable = model != null && RLS_TABLES.has(model);
+      const needsFilter = isRlsTable && !!orgId && ORG_ID_PATTERN.test(orgId);
 
-      if (RLS_DEBUG && model && RLS_TABLES.has(model) && RLS_OPS.has(operation)) {
-        console.log(`[RLS] ${model}.${operation} orgId=${orgId ?? "MISSING"}`);
+      if (RLS_DEBUG && isRlsTable) {
+        if (!orgId) {
+          console.warn(`[RLS] FALLTHROUGH ${model}.${operation} — no tenant context set`);
+        } else {
+          console.log(`[RLS] ${model}.${operation} orgId=${orgId}`);
+        }
       }
 
-      if (orgId && model && RLS_TABLES.has(model) && RLS_OPS.has(operation) && ORG_ID_PATTERN.test(orgId)) {
-        return rawClient.$transaction(async (tx) => {
-          await tx.$executeRawUnsafe(`SET LOCAL app.current_organization_id = '${orgId}'`);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const modelDelegate = (tx as any)[model!];
-          return modelDelegate[operation](args);
-        });
+      if (!needsFilter) {
+        return query(args);
       }
 
-      if (RLS_DEBUG && model && RLS_TABLES.has(model) && RLS_OPS.has(operation) && !orgId) {
-        console.warn(`[RLS] FALLTHROUGH ${model}.${operation} — no tenant context set`);
-      }
+      const typedArgs = args as QueryArgs;
 
-      return query(args);
+      switch (operation) {
+        // findUnique requires unique fields in where, so we convert to findFirst
+        // to safely add organisationId filtering without breaking unique constraints.
+        case "findUnique": {
+          const modelDelegate = (rawClient as unknown as Record<string, Record<string, (...a: unknown[]) => Promise<unknown>>>)[model as string];
+          return modelDelegate.findFirst(withOrgWhere(typedArgs, orgId!));
+        }
+
+        case "findMany":
+        case "findFirst":
+        case "count":
+        case "aggregate":
+        case "groupBy":
+          return query(withOrgWhere(typedArgs, orgId!));
+
+        case "create":
+          return query(withOrgData(typedArgs, orgId!));
+
+        case "update":
+          return query(withOrgWhereAndData(typedArgs, orgId!));
+
+        case "upsert": {
+          const withWhere = withOrgWhere(typedArgs, orgId!);
+          const update = (withWhere.update ?? {}) as QueryArgs;
+          const create = (withWhere.create ?? {}) as QueryArgs;
+          return query({
+            ...withWhere,
+            update: { ...update, organisationId: orgId },
+            create: { ...create, organisationId: orgId },
+          });
+        }
+
+        case "delete":
+          return query(withOrgWhere(typedArgs, orgId!));
+
+        case "updateMany":
+        case "deleteMany":
+          return query(withOrgWhere(typedArgs, orgId!));
+
+        default:
+          return query(args);
+      }
     },
   },
 });
