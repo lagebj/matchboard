@@ -3,11 +3,19 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 
 export async function resolveOrgSlugForLayout(): Promise<string> {
+  const slug = await getOrgSlugForUser();
+  if (!slug) {
+    redirect("/organisations");
+  }
+  return slug;
+}
+
+export async function getOrgSlugForUser(): Promise<string | null> {
   const session = await auth();
   const userId = session?.user?.id;
 
   if (!userId) {
-    redirect("/api/auth/signin");
+    return null;
   }
 
   const memberships = await db.organisationMembership.findMany({
@@ -32,11 +40,11 @@ export async function resolveOrgSlugForLayout(): Promise<string> {
   });
 
   if (eligible.length === 0) {
-    redirect("/organisations");
+    return null;
   }
 
   if (eligible.length > 1) {
-    redirect("/organisations");
+    return null;
   }
 
   return eligible[0].organisation.slug;
