@@ -15,15 +15,25 @@ if (!connectionString) {
   throw new Error("DATABASE_URL environment variable is not set. Add it to your .env file.");
 }
 
-// Use DIRECT_URL for runtime queries when available, because SET LOCAL
-// (used by the RLS tenant extension) requires a direct PostgreSQL connection
-// and does not work reliably through PgBouncer pooled connections.
-// Migrations use DIRECT_URL via prisma.config.ts independently.
-const runtimeConnectionString = process.env.DIRECT_URL || connectionString;
+// RLS tenant context uses SET LOCAL inside Prisma transactions, which requires
+// a direct PostgreSQL connection. PgBouncer pooled connections (-pooler)
+// do not reliably support SET LOCAL. Use DIRECT_URL with the runtime role
+// (matchboard_app_runtime) for queries that need RLS. The direct connection
+// bypasses PgBouncer while the Neon serverless driver handles connection pooling.
+//
+// IMPORTANT: DIRECT_URL typically uses the admin role (matchboard_admin_migration)
+// which bypasses RLS. We need the runtime role for RLS enforcement.
+// Construct the runtime direct URL by removing -pooler from DATABASE_URL,
+// or use DIRECT_RUNTIME_URL if explicitly set.
+const runtimeDirectUrl =
+  process.env.DIRECT_RUNTIME_URL ||
+  (connectionString.includes("-pooler.")
+    ? connectionString.replace("-pooler.", ".")
+    : connectionString);
 
-const adapter = runtimeConnectionString.includes(".neon.tech")
-  ? new PrismaNeon({ connectionString: runtimeConnectionString })
-  : new PrismaPg(new pg.Pool({ connectionString: runtimeConnectionString }));
+const adapter = runtimeDirectUrl.includes(".neon.tech")
+  ? new PrismaNeon({ connectionString: runtimeDirectUrl })
+  : new PrismaPg(new pg.Pool({ connectionString: runtimeDirectUrl }));
 
 const rawClient =
   globalForPrisma.prisma ??
