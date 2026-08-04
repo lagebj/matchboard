@@ -1,4 +1,5 @@
 import type { OrganisationRole } from "@/generated/prisma/client";
+import type { GroupAccessEntry } from "@/lib/auth/group-context";
 
 export type OrganisationAccessContext = {
   userId: string;
@@ -9,6 +10,8 @@ export type OrganisationAccessContext = {
   role: OrganisationRole;
   membershipId: string;
   permittedTeamIds: string[];
+  accessibleGroupIds: string[];
+  groupAccesses: GroupAccessEntry[];
   canAccessAllTeams: boolean;
   canCreateTeam: boolean;
   canManageMemberships: boolean;

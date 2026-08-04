@@ -4,6 +4,7 @@ import { logAccessDenied } from "@/lib/security/audit-log";
 import { canAccessAllTeams, canInviteRole, canManageRole, canCreateTeam, canManageMemberships, canDeleteOrganisation, canTransferOwnership } from "@/lib/organisations/organisation-domain";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import type { OrganisationRole } from "@/generated/prisma/client";
+import { getEffectiveGroupAccess } from "@/lib/auth/group-context";
 
 class OrganisationNotFoundError extends AuthorizationError {
   constructor(message: string) {
@@ -78,6 +79,9 @@ export async function resolveOrganisationAccess(
   const permittedTeamIds: string[] = membership.teamAccesses.map((ta) => ta.teamId);
   const role: OrganisationRole = membership.role;
 
+  const groupAccesses = await getEffectiveGroupAccess(membership.id, org.id, role);
+  const accessibleGroupIds: string[] = groupAccesses.map((ga) => ga.footballGroupId);
+
   return {
     userId: coachId,
     userEmail: coachEmail,
@@ -87,6 +91,8 @@ export async function resolveOrganisationAccess(
     role,
     membershipId: membership.id,
     permittedTeamIds,
+    accessibleGroupIds,
+    groupAccesses,
     canAccessAllTeams: canAccessAllTeams(role),
     canCreateTeam: canCreateTeam(role),
     canManageMemberships: canManageMemberships(role),

@@ -81,6 +81,9 @@ export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilter
         where: { active: true },
         include: { fromTeam: { select: { id: true, name: true } } },
       },
+      group: {
+        select: { id: true, name: true, slug: true, type: true },
+      },
     },
   });
 
@@ -104,6 +107,10 @@ export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilter
     targetSquadSize: team.targetSquadSize,
     maxSquadSize: team.maxSquadSize,
     supportPriority: team.supportPriority,
+    footballGroupId: team.footballGroupId,
+    footballGroup: team.group
+      ? { id: team.group.id, name: team.group.name, slug: team.group.slug, type: team.group.type }
+      : null,
     rules,
   };
 }
@@ -116,6 +123,7 @@ export async function updateTeamConfiguration(
     targetSquadSize?: number;
     maxSquadSize?: number;
     supportPriority?: number;
+    footballGroupId?: string | null;
   },
   orgFilter?: OrgFilterMode,
 ): Promise<TeamConfiguration> {
@@ -142,6 +150,7 @@ export async function updateTeamConfiguration(
   if (input.targetSquadSize !== undefined) data.targetSquadSize = input.targetSquadSize;
   if (input.maxSquadSize !== undefined) data.maxSquadSize = input.maxSquadSize;
   if (input.supportPriority !== undefined) data.supportPriority = input.supportPriority;
+  if (input.footballGroupId !== undefined) data.footballGroupId = input.footballGroupId ?? null;
 
   await db.team.update({ where: { id: teamId, ...orgWhere }, data });
 

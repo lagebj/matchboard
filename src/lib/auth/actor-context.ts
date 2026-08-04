@@ -3,6 +3,7 @@ import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
 import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
+import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
 
 export type ActorContext = {
   userId: string;
@@ -12,6 +13,8 @@ export type ActorContext = {
   organisationSlug: string;
   role: OrganisationRole;
   delegatedTeamIds: string[] | null;
+  accessibleGroupIds: string[];
+  groupAccesses: GroupAccessEntry[];
   orgFilter: OrgFilterMode;
 };
 
@@ -40,6 +43,8 @@ export async function requireActorContext(
       organisationSlug: access.organisationSlug,
       role: access.role,
       delegatedTeamIds: access.permittedTeamIds ?? null,
+      accessibleGroupIds: access.accessibleGroupIds,
+      groupAccesses: access.groupAccesses,
       orgFilter: slugOrgFilter,
     };
   }
@@ -73,6 +78,12 @@ export async function requireActorContext(
     select: { teamId: true },
   });
 
+  const groupAccesses = await getEffectiveGroupAccess(
+    membership.id,
+    membership.organisationId,
+    membership.role,
+  );
+
   return {
     userId,
     email,
@@ -81,6 +92,8 @@ export async function requireActorContext(
     organisationSlug: organisation.slug,
     role: membership.role,
     delegatedTeamIds: teamAccesses.map((ta) => ta.teamId),
+    accessibleGroupIds: groupAccesses.map((ga) => ga.footballGroupId),
+    groupAccesses,
     orgFilter,
   };
 }
@@ -198,4 +211,76 @@ export async function requireMatchTeamAccess(
   }
 
   return match.teamId;
+}
+
+export function hasGroupAccess(ctx: ActorContext, groupId: string): boolean {
+  if (ADMIN_ROLES.includes(ctx.role)) return true;
+  return ctx.accessibleGroupIds.includes(groupId);
+}
+
+export function requireGroupAccessFromContext(ctx: ActorContext, groupId: string): void {
+  if (ADMIN_ROLES.includes(ctx.role)) return;
+  if (ctx.accessibleGroupIds.includes(groupId)) return;
+  throw new AuthorizationError("You do not have access to this group.");
+}
+
+export async function requireTeamGroupAccess(
+  ctx: ActorContext,
+  teamId: string,
+): Promise<string | null> {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+
+  const { db } = await import("@/lib/db");
+  const team = await db.team.findFirst({
+    where: {
+      id: teamId,
+      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+    },
+    select: { id: true, footballGroupId: true },
+  });
+
+  if (!team) {
+    throw new AuthorizationError("Team not found or access denied.");
+  }
+
+  const hasTeam = ctx.delegatedTeamIds.includes(teamId);
+  const hasGroup = team.footballGroupId !== null && ctx.accessibleGroupIds.includes(team.footballGroupId);
+
+  if (!hasTeam && !hasGroup) {
+    throw new AuthorizationError("You do not have access to this team.");
+  }
+
+  return team.footballGroupId;
+}
+
+export function teamFilterFromContext(ctx: ActorContext): { teamId: { in: string[] } } | null {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+  return { teamId: { in: ctx.delegatedTeamIds } };
+}
+
+export function groupFilterFromContext(ctx: ActorContext): { footballGroupId: { in: string[] } } | null {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.accessibleGroupIds.length === 0) return { footballGroupId: { in: [] } };
+  return { footballGroupId: { in: ctx.accessibleGroupIds } };
+}
+
+export function teamOrGroupFilter(ctx: ActorContext): { OR: Array<{ teamId: { in: string[] } } | { footballGroupId: { in: string[] } }> } | null {
+  if (ADMIN_ROLES.includes(ctx.role)) return null;
+  if (ctx.delegatedTeamIds === null) return null;
+
+  const conditions: Array<{ teamId: { in: string[] } } | { footballGroupId: { in: string[] } }> = [];
+  if (ctx.delegatedTeamIds.length > 0) {
+    conditions.push({ teamId: { in: ctx.delegatedTeamIds } });
+  }
+  if (ctx.accessibleGroupIds.length > 0) {
+    conditions.push({ footballGroupId: { in: ctx.accessibleGroupIds } });
+  }
+
+  if (conditions.length === 0) {
+    return { OR: [{ teamId: { in: [] } }] };
+  }
+
+  return { OR: conditions };
 }

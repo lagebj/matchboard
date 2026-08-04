@@ -21,6 +21,8 @@ function makeConfig(overrides: Partial<TeamConfiguration> = {}): TeamConfigurati
     targetSquadSize: 11,
     maxSquadSize: 14,
     supportPriority: 3,
+    footballGroupId: null,
+    footballGroup: null,
     rules: [
       { ruleId: "own-core", name: "Own core first", description: "Core first.", scope: "GLOBAL", enabled: true, editable: false },
       { ruleId: "support-priority", name: "Support priority", description: "Lower number wins.", scope: "TEAM", enabled: true, editable: true, value: "Priority 3" },

@@ -6,6 +6,13 @@ export interface TeamConfiguration {
   targetSquadSize: number;
   maxSquadSize: number;
   supportPriority: number;
+  footballGroupId: string | null;
+  footballGroup: {
+    id: string;
+    name: string;
+    slug: string;
+    type: string;
+  } | null;
   rules: TeamRuleConfiguration[];
 }
 
@@ -25,6 +32,7 @@ export interface UpdateTeamConfigurationInput {
   targetSquadSize?: number;
   maxSquadSize?: number;
   supportPriority?: number;
+  footballGroupId?: string | null;
   rules?: Array<{
     ruleId: string;
     enabled?: boolean;

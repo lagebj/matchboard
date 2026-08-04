@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -23,6 +24,7 @@ model Team {
   minSupportPlayers        Int                  @default(0)
   developmentSlots         Int                  @default(0)
   archivedAt               DateTime?
+  footballGroupId          String?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
   formations               Formation[]
@@ -34,12 +36,15 @@ model Team {
   fromRotationPaths        RotationPath[]       @relation("FromTeam")
   toRotationPaths          RotationPath[]       @relation("ToTeam")
   teamSeasonSnapshots      TeamSeasonSnapshot[]
+  groupPlayers             FootballGroupPlayer[] @relation("GroupPlayerCoreTeam")
+  group                    FootballGroup?       @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
   organisation             Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   teamAccesses             TeamAccess[]
 
   @@unique([organisationId, name])
   @@index([archivedAt, name])
   @@index([organisationId])
+  @@index([footballGroupId])
 }
 
 model Player {
@@ -113,6 +118,7 @@ model Player {
   rotationsOut            MatchRotation[]                @relation("RotationOutPlayer")
   rotationsIn             MatchRotation[]                @relation("RotationInPlayer")
   fairPlayObservations    FairPlayObservation[]
+  groupMemberships        FootballGroupPlayer[]
 
   @@unique([organisationId, playerCode])
   @@index([coreTeamId, active, removedAt])
@@ -191,11 +197,14 @@ model RuleConfig {
   name                     String        @default("Default ruleset")
   minDaysBetweenAnyMatches Int           @default(3)
   warningThreshold         Int           @default(5)
+  footballGroupId          String?
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
+  group                    FootballGroup? @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
   organisation             Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([organisationId])
+  @@index([footballGroupId])
 }
 
 model Season {
@@ -951,17 +960,20 @@ model Event {
   matchDurationMinutes Int?
   selectionPattern     EventSelectionPattern?
   notes                String?
+  footballGroupId      String?
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   players              EventPlayerAvailability[]
   squads               EventSquad[]
   squadPlayers         EventSquadPlayer[]
   eventMatches         EventMatch[]
+  group                FootballGroup?            @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
   organisation         Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([startsAt])
   @@index([eventType])
   @@index([organisationId])
+  @@index([footballGroupId])
 }
 
 model EventPlayerAvailability {
@@ -1235,26 +1247,29 @@ model EventMatchLineupAssignment {
 }
 
 model LeagueSeason {
-  id             String                @id @default(cuid())
-  organisationId String
-  name           String
-  seasonId       String
-  part           LeagueSeasonPart
-  startDate      DateTime
-  endDate        DateTime
-  status         LeagueSeasonStatus    @default(OPEN)
-  finalizedAt    DateTime?
-  finalizedBy    String?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  matchRounds    MatchRound[]
-  season         Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  periodSnapshot SeasonPeriodSnapshot?
-  organisation   Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id              String                @id @default(cuid())
+  organisationId  String
+  name            String
+  seasonId        String
+  part            LeagueSeasonPart
+  startDate       DateTime
+  endDate         DateTime
+  status          LeagueSeasonStatus    @default(OPEN)
+  finalizedAt     DateTime?
+  finalizedBy     String?
+  footballGroupId String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  matchRounds     MatchRound[]
+  season          Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  periodSnapshot  SeasonPeriodSnapshot?
+  group           FootballGroup?        @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
+  organisation    Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([organisationId, name])
   @@index([seasonId])
   @@index([organisationId])
+  @@index([footballGroupId])
   @@map("LeagueSeason")
 }
 
@@ -1803,6 +1818,9 @@ model Organisation {
   ruleConfigs                   RuleConfig[]
   reviewRequests                ReviewRequest[]
   workOwnerships                WorkOwnership[]
+  footballGroups                FootballGroup[]
+  groupMovementPaths           GroupMovementPath[]
+  groupPlayerMemberships       FootballGroupPlayer[]
 
   @@index([slug])
   @@index([name])
@@ -1820,6 +1838,7 @@ model OrganisationMembership {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   teamAccesses TeamAccess[]
+  groupAccesses GroupAccess[]
 
   @@unique([userId, organisationId])
   @@index([organisationId])
@@ -2194,6 +2213,42 @@ enum WorkOwnershipStatus {
   COMPLETED
 }
 
+enum FootballGroupType {
+  AGE_GROUP
+  GENDER_GROUP
+  COMPETITIVE_GROUP
+  CUSTOM
+}
+
+enum GroupMembershipType {
+  PRIMARY
+  SECONDARY
+  TEMPORARY
+}
+
+enum GroupMembershipStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+}
+
+enum GroupAccessRole {
+  GROUP_COACH
+  GROUP_VIEWER
+}
+
+enum GroupMovementPathRole {
+  SUPPORT
+  DEVELOPMENT
+  CONFIDENCE_REBUILD
+  BACKFILL
+}
+
+enum GroupMovementPathScope {
+  MATCH
+  EVENT
+}
+
 model WorkOwnership {
   id                     String              @id @default(cuid())
   organisationId         String
@@ -2216,4 +2271,102 @@ model WorkOwnership {
   @@index([targetType, targetId])
   @@index([status])
   @@index([dueAt])
+}
+
+model FootballGroup {
+  id              String           @id @default(cuid())
+  organisationId  String
+  name             String
+  slug             String
+  type             FootballGroupType @default(AGE_GROUP)
+  cohortYear       Int?
+  description      String?
+  isActive         Boolean          @default(true)
+  deactivatedAt    DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organisation     Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  groupAccesses    GroupAccess[]
+  players          FootballGroupPlayer[]
+  teams            Team[]
+  leagueSeasons    LeagueSeason[]
+  events           Event[]
+  ruleConfigs      RuleConfig[]
+  fromMovementPaths GroupMovementPath[] @relation("GroupMovementFrom")
+  toMovementPaths   GroupMovementPath[] @relation("GroupMovementTo")
+  transferredToPlayers FootballGroupPlayer[] @relation("GroupPlayerTransferredTo")
+
+  @@unique([organisationId, slug])
+  @@index([organisationId])
+  @@index([isActive])
+  @@index([cohortYear])
+}
+
+model GroupAccess {
+  id               String         @id @default(cuid())
+  membershipId     String
+  footballGroupId  String
+  role              GroupAccessRole @default(GROUP_COACH)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  membership       OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  group            FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, footballGroupId])
+  @@index([footballGroupId])
+  @@index([membershipId])
+  @@index([role])
+}
+
+model FootballGroupPlayer {
+  id               String             @id @default(cuid())
+  footballGroupId  String
+  playerId         String
+  organisationId   String
+  membershipType   GroupMembershipType @default(PRIMARY)
+  status           GroupMembershipStatus @default(ACTIVE)
+  coreTeamId       String?
+  joinedAt         DateTime           @default(now())
+  deactivatedAt    DateTime?
+  transferredToGroupId String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  group            FootballGroup      @relation(fields: [footballGroupId], references: [id], onDelete: Cascade)
+  player           Player             @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  organisation     Organisation?     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  coreTeam         Team?              @relation("GroupPlayerCoreTeam", fields: [coreTeamId], references: [id], onDelete: SetNull)
+  transferredToGroup FootballGroup?   @relation("GroupPlayerTransferredTo", fields: [transferredToGroupId], references: [id], onDelete: SetNull)
+
+  @@unique([footballGroupId, playerId, membershipType], name: "FootballGroupPlayer_active_primary_unique", where: { status: "ACTIVE", membershipType: "PRIMARY" })
+  @@index([footballGroupId])
+  @@index([playerId])
+  @@index([organisationId])
+  @@index([status])
+  @@index([coreTeamId])
+}
+
+model GroupMovementPath {
+  id               String                @id @default(cuid())
+  organisationId   String
+  fromGroupId      String
+  toGroupId        String
+  role              GroupMovementPathRole
+  scope             GroupMovementPathScope @default(MATCH)
+  isActive          Boolean               @default(true)
+  deactivatedAt    DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  fromGroup        FootballGroup         @relation("GroupMovementFrom", fields: [fromGroupId], references: [id], onDelete: Cascade)
+  toGroup          FootballGroup         @relation("GroupMovementTo", fields: [toGroupId], references: [id], onDelete: Cascade)
+  organisation     Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, fromGroupId, toGroupId, role, scope])
+  @@index([organisationId])
+  @@index([fromGroupId])
+  @@index([toGroupId])
+  @@index([isActive])
 }

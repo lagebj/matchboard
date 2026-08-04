@@ -158,6 +158,11 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
             <div><span className="text-[var(--text-muted)]">Name:</span> <span className="text-[var(--text-soft)]">{config.name}</span></div>
             <div><span className="text-[var(--text-muted)]">Core group:</span> <span className="text-[var(--text-soft)]">{config.coreGroup}</span></div>
             <div><span className="text-[var(--text-muted)]">Status:</span> <span className={config.active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}>{config.active ? "Active" : "Archived"}</span></div>
+            <div><span className="text-[var(--text-muted)]">Group:</span> <span className="text-[var(--text-soft)]">
+              {config.footballGroup
+                ? <a href={orgUrl(`/groups/${config.footballGroup.slug}`)} className="text-[var(--accent-strong)] hover:underline">{config.footballGroup.name}</a>
+                : "No group assigned"}
+            </span></div>
           </div>
         </Surface>
       </section>
