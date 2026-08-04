@@ -3,7 +3,10 @@ import { TopContextBar } from "@/components/shell/top-context-bar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserNav } from "@/components/shell/user-nav";
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
+import { OrgSlugCookieSetter } from "@/components/shell/org-slug-cookie-setter";
 import { getOrgSlugForUser } from "@/lib/auth/resolve-org-slug";
+import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
+import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function AppLayout({
   children,
@@ -32,8 +35,17 @@ export default async function AppLayout({
     );
   }
 
-  return (
+  let organisationId: string | undefined;
+  try {
+    const access = await resolveOrganisationAccess(orgSlug);
+    organisationId = access.organisationId;
+  } catch {
+    // Continue without tenant context; page will handle auth errors
+  }
+
+  const content = (
     <OrgSlugProvider orgSlug={orgSlug}>
+      <OrgSlugCookieSetter orgSlug={orgSlug} />
       <div className="app-shell flex min-h-full">
         <aside className="sticky top-0 z-30 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl lg:flex">
           <SidebarNav orgSlug={orgSlug} />
@@ -57,4 +69,10 @@ export default async function AppLayout({
       </div>
     </OrgSlugProvider>
   );
+
+  if (organisationId) {
+    return runWithTenantOrganisationId(organisationId, async () => content);
+  }
+
+  return content;
 }
