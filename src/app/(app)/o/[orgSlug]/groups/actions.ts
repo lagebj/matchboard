@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { resolveGroupContext, requireGroupMutationRole } from "@/lib/auth/group-context";
 import {
@@ -312,4 +313,32 @@ export async function listGroupMovementPathsAction(options?: {
     activeOnly: options?.activeOnly,
     scope: options?.scope as "MATCH" | "EVENT" | undefined,
   });
+}
+
+export async function listAvailableMembersAction(groupId: string) {
+  const ctx = await requireActorContext();
+
+  const group = await db.footballGroup.findFirst({
+    where: { id: groupId, organisationId: ctx.organisationId, isActive: true },
+    select: { groupAccesses: { select: { membershipId: true } } },
+  });
+
+  if (!group) return [];
+
+  const existingMemberIds = new Set(group.groupAccesses.map((ga) => ga.membershipId));
+
+  const memberships = await db.organisationMembership.findMany({
+    where: {
+      organisationId: ctx.organisationId,
+      role: { in: ["COACH", "VIEWER"] },
+    },
+    select: {
+      id: true,
+      role: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: [{ role: "asc" }, { user: { name: "asc" } }],
+  });
+
+  return memberships.filter((m) => !existingMemberIds.has(m.id));
 }

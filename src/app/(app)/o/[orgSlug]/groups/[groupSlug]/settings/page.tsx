@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { requireActorContext } from "@/lib/auth/actor-context";
-import { getGroupDetailAction, listGroupMovementPathsAction } from "@/app/(app)/o/[orgSlug]/groups/actions";
+import { getGroupDetailAction, listGroupMovementPathsAction, listAvailableMembersAction } from "@/app/(app)/o/[orgSlug]/groups/actions";
 import { notFound } from "next/navigation";
 import { GroupSettingsClient } from "./group-settings-client";
 
@@ -18,10 +18,13 @@ export default async function GroupSettingsPage({
     notFound();
   }
 
-  const movementPaths = await listGroupMovementPathsAction({
-    groupId: group.id,
-    activeOnly: false,
-  });
+  const [movementPaths, availableMembers] = await Promise.all([
+    listGroupMovementPathsAction({
+      groupId: group.id,
+      activeOnly: false,
+    }),
+    listAvailableMembersAction(group.id),
+  ]);
 
-  return <GroupSettingsClient group={group} orgSlug={orgSlug} canMutate={ctx.role === "OWNER" || ctx.role === "ADMIN" || ctx.role === "COACH"} movementPaths={movementPaths} />;
+  return <GroupSettingsClient group={group} orgSlug={orgSlug} canMutate={ctx.role === "OWNER" || ctx.role === "ADMIN" || ctx.role === "COACH"} movementPaths={movementPaths} availableMembers={availableMembers} />;
 }
