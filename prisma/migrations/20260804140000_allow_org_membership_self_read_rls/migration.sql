@@ -13,4 +13,4 @@ CREATE POLICY OrganisationMembership_tenant_self_read
 ON "OrganisationMembership"
 FOR SELECT
 TO matchboard_app_runtime
-USING (current_setting('app.current_organization_id', true) = '');
+USING (current_setting('app.current_organization_id', true) IS NOT DISTINCT FROM '' OR current_setting('app.current_organization_id', true) IS NULL);
