@@ -113,11 +113,13 @@ export function GroupSettingsClient({
   orgSlug,
   canMutate,
   movementPaths,
+  availableMembers,
 }: {
   group: GroupDetail;
   orgSlug: string;
   canMutate: boolean;
   movementPaths: MovementPathItem[];
+  availableMembers: { id: string; role: string; user: { id: string; name: string | null; email: string } }[];
 }) {
   const [deactivating, setDeactivating] = useState(false);
 
@@ -208,7 +210,7 @@ export function GroupSettingsClient({
         )}
 
         {canMutate && (
-          <AddAccessForm groupId={group.id} />
+          <AddAccessForm groupId={group.id} availableMembers={availableMembers} />
         )}
       </section>
 
@@ -486,50 +488,67 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
   );
 }
 
-function AddAccessForm({ groupId }: { groupId: string }) {
-  const [membershipId, setMembershipId] = useState("");
+type AvailableMember = {
+  id: string;
+  role: string;
+  user: { id: string; name: string | null; email: string };
+};
+
+function AddAccessForm({ groupId, availableMembers }: { groupId: string; availableMembers: AvailableMember[] }) {
+  const [selectedMemberId, setSelectedMemberId] = useState("");
   const [role, setRole] = useState("GROUP_COACH");
 
   return (
     <div className="rounded-lg border p-4 space-y-3">
       <h3 className="text-sm font-medium">Add group access</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Membership ID</label>
-          <input
-            type="text"
-            value={membershipId}
-            onChange={(e) => setMembershipId(e.target.value)}
-            placeholder="Enter membership ID"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Role</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+      {availableMembers.length === 0 ? (
+        <p className="text-sm text-muted-foreground">All coaches and viewers already have access to this group.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Member</label>
+              <select
+                value={selectedMemberId}
+                onChange={(e) => setSelectedMemberId(e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select a member</option>
+                {availableMembers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.user.name ?? m.user.email} ({m.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="GROUP_COACH">Coach</option>
+                <option value="GROUP_VIEWER">Viewer</option>
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              if (!selectedMemberId) return;
+              const result = await addGroupAccessAction(groupId, selectedMemberId, role);
+              if (result?.success) {
+                setSelectedMemberId("");
+              }
+            }}
+            disabled={!selectedMemberId}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            <option value="GROUP_COACH">Coach</option>
-            <option value="GROUP_VIEWER">Viewer</option>
-          </select>
-        </div>
-      </div>
-      <button
-        onClick={async () => {
-          if (!membershipId.trim()) return;
-          const result = await addGroupAccessAction(groupId, membershipId.trim(), role);
-          if (result?.success) {
-            setMembershipId("");
-          }
-        }}
-        disabled={!membershipId.trim()}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        <Plus className="inline h-4 w-4 mr-1" />
-        Add access
-      </button>
+            <Plus className="inline h-4 w-4 mr-1" />
+            Add access
+          </button>
+        </>
+      )}
     </div>
   );
 }
