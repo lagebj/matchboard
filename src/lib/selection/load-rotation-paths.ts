@@ -6,6 +6,7 @@ export type RotationPathWithTeamName = {
   fromTeamId: string;
   fromTeam: { name: string };
   toTeamId: string;
+  toTeam: { name: string };
   role: string;
   cooldownRounds: number | null;
 };
@@ -14,6 +15,13 @@ export type RotationPathRow = {
   fromTeamId: string;
   toTeamId: string;
   role: string;
+};
+
+export type RotationPathEdgeWithActive = {
+  fromTeamId: string;
+  toTeamId: string;
+  role: string;
+  active: boolean;
 };
 
 export async function loadRotationPathsWithGroupPaths(
@@ -27,8 +35,9 @@ export async function loadRotationPathsWithGroupPaths(
         cooldownRounds: true,
         fromTeamId: true,
         fromTeam: { select: { name: true } },
-        role: true,
         toTeamId: true,
+        toTeam: { select: { name: true } },
+        role: true,
       },
     }),
     listGroupMovementPaths(organisationId, { activeOnly: true, scope: options?.scope }),
@@ -57,6 +66,7 @@ export async function loadRotationPathsWithGroupPaths(
           fromTeamId: fromTeam.id,
           fromTeam: { name: fromTeam.name },
           toTeamId: toTeam.id,
+          toTeam: { name: toTeam.name },
           role: gp.role,
           cooldownRounds: null,
         });
@@ -114,4 +124,48 @@ export async function loadRotationPathRowsWithGroupPaths(
   }
 
   return [...rotationPaths, ...groupPathRows];
+}
+
+export async function loadRotationPathEdgesWithGroupPaths(
+  organisationId: string,
+  options?: { scope?: "MATCH" },
+): Promise<RotationPathEdgeWithActive[]> {
+  const [rotationPaths, groupPathsRaw, teamsForGroups] = await Promise.all([
+    db.rotationPath.findMany({
+      where: { active: true },
+      select: { fromTeamId: true, toTeamId: true, role: true, active: true },
+    }),
+    listGroupMovementPaths(organisationId, { activeOnly: true, scope: options?.scope }),
+    db.team.findMany({
+      where: { organisationId },
+      select: { id: true, footballGroupId: true },
+    }),
+  ]);
+
+  const groupTeamsMap = new Map<string, string[]>();
+  for (const team of teamsForGroups) {
+    const groupTeams = groupTeamsMap.get(team.footballGroupId) ?? [];
+    groupTeams.push(team.id);
+    groupTeamsMap.set(team.footballGroupId, groupTeams);
+  }
+
+  const edges: RotationPathEdgeWithActive[] = [...rotationPaths];
+
+  for (const gp of groupPathsRaw) {
+    const sourceTeams = groupTeamsMap.get(gp.fromGroupId) ?? [];
+    const targetTeams = groupTeamsMap.get(gp.toGroupId) ?? [];
+
+    for (const fromTeamId of sourceTeams) {
+      for (const toTeamId of targetTeams) {
+        edges.push({
+          fromTeamId,
+          toTeamId,
+          role: gp.role,
+          active: true,
+        });
+      }
+    }
+  }
+
+  return edges;
 }

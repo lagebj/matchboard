@@ -1,5 +1,6 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -119,10 +120,7 @@ export async function movePlannedSelectionWithinRound(input: {
   }
 
   if (!isCoreRole && player.coreTeamId !== targetMatch.teamId) {
-    const activePaths = await db.rotationPath.findMany({
-      where: { active: true },
-      select: { fromTeamId: true, toTeamId: true, role: true, active: true },
-    });
+    const activePaths = await loadRotationPathEdgesWithGroupPaths(targetMatch.organisationId, { scope: "MATCH" });
 
     const pathResult = canMoveForRole(
       player.coreTeamId ?? "",

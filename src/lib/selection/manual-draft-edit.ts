@@ -1,5 +1,6 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { isPlayerActiveCandidate } from "@/lib/selection/movement-candidate";
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
@@ -93,10 +94,7 @@ export async function addPlayerToDraftMatch(
   }
 
   if (!isCoreRole && player.coreTeamId !== match.teamId) {
-    const activePaths = await db.rotationPath.findMany({
-      where: { active: true },
-      select: { fromTeamId: true, toTeamId: true, role: true, active: true },
-    });
+    const activePaths = await loadRotationPathEdgesWithGroupPaths(organisationId, { scope: "MATCH" });
 
     const pathResult = canMoveForRole(
       player.coreTeamId ?? "",
@@ -329,10 +327,7 @@ export async function changeDraftPlayerRole(
   let requiresOverride = false;
 
   if (!isCoreRole && player.coreTeamId !== selection.match.teamId) {
-    const activePaths = await db.rotationPath.findMany({
-      where: { active: true },
-      select: { fromTeamId: true, toTeamId: true, role: true, active: true },
-    });
+    const activePaths = await loadRotationPathEdgesWithGroupPaths(selection.match.organisationId, { scope: "MATCH" });
 
     const pathResult = canMoveForRole(
       player.coreTeamId ?? "",

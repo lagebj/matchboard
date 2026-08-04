@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { loadRotationPathsWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { isCoreRole, isDevelopmentRole } from "./effective-participation";
 
 export type PlayerRoundCell = {
@@ -62,7 +63,7 @@ export async function getSeasonPlayerRoundMatrix(
 ): Promise<SeasonPlayerRoundMatrix> {
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, organisationId: true },
   });
 
   if (!leagueSeason) {
@@ -300,6 +301,11 @@ async function getSeasonFairnessWarningsInternal(
 ): Promise<FairnessWarning[]> {
   const warnings: FairnessWarning[] = [];
 
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
+    select: { id: true, organisationId: true },
+  });
+
   const fairness = await db.selection.findMany({
     where: {
       matchRound: { leagueSeasonId },
@@ -433,15 +439,18 @@ async function getSeasonFairnessWarningsInternal(
     }
   }
 
-  const supportPaths = await db.rotationPath.findMany({
-    where: { active: true, role: "SUPPORT" },
-    select: {
-      fromTeamId: true,
-      toTeamId: true,
-      fromTeam: { select: { name: true } },
-      toTeam: { select: { name: true } },
-    },
-  });
+  const supportPaths = leagueSeason?.organisationId
+    ? (await loadRotationPathsWithGroupPaths(leagueSeason.organisationId, { scope: "MATCH" }))
+        .filter((p) => p.role === "SUPPORT" || p.role === "BACKFILL")
+    : await db.rotationPath.findMany({
+        where: { active: true, role: "SUPPORT" },
+        select: {
+          fromTeamId: true,
+          toTeamId: true,
+          fromTeam: { select: { name: true } },
+          toTeam: { select: { name: true } },
+        },
+      });
 
   const supportMovements = await db.movementLedger.findMany({
     where: {
