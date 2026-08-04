@@ -42,7 +42,7 @@ type Org = {
   groups: Group[];
 };
 
-type Group = { id: string; name: string };
+type Group = { id: string; name: string; slug: string };
 
 export function OrgDetailClient({
   org,
@@ -245,13 +245,27 @@ export function OrgDetailClient({
       )}
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">Groups</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">Groups</h2>
+          <a
+            href={`/o/${orgSlug}/groups`}
+            className="rounded-md bg-[var(--surface-2)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-3)]"
+          >
+            View all
+          </a>
+        </div>
         {org.groups.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No groups yet.</p>
+          <p className="text-sm text-muted-foreground">No groups yet. <a href={`/o/${orgSlug}/groups/new`} className="underline hover:text-foreground">Create a group</a>.</p>
         ) : (
           <div className="space-y-1">
             {org.groups.map((g) => (
-              <div key={g.id} className="text-sm">{g.name}</div>
+              <a
+                key={g.id}
+                href={`/o/${orgSlug}/groups/${g.slug ?? g.id}`}
+                className="block text-sm hover:underline"
+              >
+                {g.name}
+              </a>
             ))}
           </div>
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createGroupAction } from "@/app/(app)/o/[orgSlug]/groups/actions";
 
 const GROUP_TYPES = [
   { value: "AGE_GROUP", label: "Age group" },
@@ -12,6 +13,16 @@ const GROUP_TYPES = [
 export function CreateGroupForm({ orgSlug }: { orgSlug: string }) {
   const [isPending, setIsPending] = useState(false);
 
+  async function handleSubmit(formData: FormData) {
+    setIsPending(true);
+    try {
+      await createGroupAction(formData);
+    } catch {
+      // redirect() throws — that's expected on success
+    }
+    setIsPending(false);
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
@@ -21,7 +32,8 @@ export function CreateGroupForm({ orgSlug }: { orgSlug: string }) {
         </p>
       </div>
 
-      <form action={`/o/${orgSlug}/groups`} method="POST" className="space-y-4" onSubmit={() => setIsPending(true)}>
+      <form action={handleSubmit} className="space-y-4">
+        <input type="hidden" name="orgSlug" value={orgSlug} />
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-1">
             Group name
