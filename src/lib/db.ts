@@ -3,26 +3,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
-
-// Database connection configuration
-//
-// RLS role architecture (per ADR-0037):
-// - DATABASE_URL: Uses matchboard_app_runtime role (restricted by RLS, for runtime queries)
-//   NOBYPASSRLS, NOINHERIT. Tenant context is set via SET LOCAL in transactions.
-//   Neon Console-created roles inherit BYPASSRLS from neon_superuser, making RLS
-//   ineffective. The matchboard_app_runtime role is SQL-managed with correct attributes.
-// - DIRECT_URL: Uses matchboard_admin_migration role (NOBYPASSRLS, for Prisma migrations)
-//   Has admin_all RLS policy granting full access. Does NOT need BYPASSRLS.
-//   Also SQL-managed to avoid neon_superuser BYPASSRLS inheritance.
-//
-// Legacy roles (matchboard_app, matchboard_admin) exist in the database but inherit
-// BYPASSRLS from neon_superuser and must NOT be used for application connections.
-//
-// For local development without RLS roles, the default PostgreSQL user is used
-// and RLS policies are not enforced (superuser bypasses RLS).
-//
-// See: docs/adr/0037-row-level-security-and-database-role-isolation.md
-// See: scripts/create-rls-roles.sh
+import { getTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -38,7 +19,7 @@ const adapter = connectionString.includes(".neon.tech")
   ? new PrismaNeon({ connectionString })
   : new PrismaPg(new pg.Pool({ connectionString }));
 
-export const db =
+const rawClient =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
@@ -46,5 +27,98 @@ export const db =
   });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
+  globalForPrisma.prisma = rawClient;
 }
+
+const RLS_TABLES = new Set([
+  "organisation",
+  "organisationMembership",
+  "organisationInvitation",
+  "machinePrincipal",
+  "footballGroup",
+  "groupAccess",
+  "footballGroupPlayer",
+  "groupMovementPath",
+  "team",
+  "player",
+  "match",
+  "opponentTeam",
+  "ruleConfig",
+  "season",
+  "leagueSeason",
+  "matchRound",
+  "availability",
+  "selection",
+  "rotationPath",
+  "movementLedger",
+  "formation",
+  "formationSlot",
+  "matchLineup",
+  "matchLineupAssignment",
+  "playerPosition",
+  "warning",
+  "playerLock",
+  "selectionAudit",
+  "decisionRecord",
+  "coachingIntent",
+  "postMatchReport",
+  "postMatchPlayerActual",
+  "goal",
+  "assist",
+  "matchReportAbsence",
+  "matchReportPlayerStat",
+  "playerReadinessSignal",
+  "matchExecutionFeedback",
+  "teamReflection",
+  "opponentEncounterObservation",
+  "selectionExplanation",
+  "movementCandidate",
+  "event",
+  "eventPlayerAvailability",
+  "eventSquad",
+  "eventSquadPlayer",
+  "eventMatch",
+  "eventPostMatchReport",
+  "eventPostMatchPlayer",
+  "eventGoalEvent",
+  "eventAssistEvent",
+  "eventMatchSupportAssignment",
+  "eventMatchLineup",
+  "eventMatchLineupAssignment",
+  "seasonPeriodSnapshot",
+  "teamSeasonSnapshot",
+  "teamSeasonSnapshotPlayer",
+  "policyDecisionLog",
+  "reviewRequest",
+  "notificationOutbox",
+]);
+
+const RLS_OPS = new Set([
+  "findMany", "findFirst", "findUnique", "create", "update",
+  "delete", "updateMany", "deleteMany", "count", "aggregate",
+  "groupBy", "upsert",
+]);
+
+const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+const extendedClient = rawClient.$extends({
+  name: "tenantRLS",
+  query: {
+    async $allOperations({ model, operation, args, query }) {
+      const orgId = getTenantOrganisationId();
+
+      if (orgId && model && RLS_TABLES.has(model) && RLS_OPS.has(operation) && ORG_ID_PATTERN.test(orgId)) {
+        return rawClient.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(`SET LOCAL app.current_organization_id = '${orgId}'`);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const modelDelegate = (tx as any)[model!];
+          return modelDelegate[operation](args);
+        });
+      }
+
+      return query(args);
+    },
+  },
+});
+
+export const db = extendedClient as unknown as PrismaClient;

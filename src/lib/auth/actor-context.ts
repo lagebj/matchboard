@@ -5,6 +5,7 @@ import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsEr
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
 import { withTenantContext } from "@/lib/tenancy/tenant-client";
+import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { db } from "@/lib/db";
 
 export type ActorContext = {
@@ -93,6 +94,14 @@ export async function requireActorContext(
   };
 }
 
+export async function withActorContext<T>(
+  organisationSlug: string | undefined,
+  fn: (ctx: ActorContext) => Promise<T>,
+): Promise<T> {
+  const ctx = await requireActorContext(organisationSlug);
+  return runWithTenantOrganisationId(ctx.organisationId, () => fn(ctx));
+}
+
 export { MultipleMembershipsError };
 
 const MUTATION_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH"];
@@ -138,7 +147,6 @@ export function canOwn(ctx: ActorContext): boolean {
 export async function hasTeamAccess(ctx: ActorContext, teamId: string): Promise<boolean> {
   if (ADMIN_ROLES.includes(ctx.role)) return true;
 
-  const { db } = await import("@/lib/db");
   const team = await db.team.findFirst({
     where: { id: teamId },
     select: { footballGroupId: true },
@@ -158,7 +166,6 @@ export async function requirePlayerTeamAccess(
 ): Promise<string | null> {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
 
-  const { db } = await import("@/lib/db");
   const player = await db.player.findFirst({
     where: {
       id: playerId,
@@ -198,7 +205,6 @@ export async function requireMatchTeamAccess(
 ): Promise<string | null> {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
 
-  const { db } = await import("@/lib/db");
   const match = await db.match.findFirst({
     where: {
       id: matchId,
@@ -248,7 +254,6 @@ export async function requireTeamGroupAccess(
 ): Promise<string | null> {
   if (ADMIN_ROLES.includes(ctx.role)) return null;
 
-  const { db } = await import("@/lib/db");
   const team = await db.team.findFirst({
     where: {
       id: teamId,

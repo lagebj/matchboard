@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { AssistantCommandCentre, AssistantWorkItem } from "@/lib/assistant/types";
 import { PageHeader } from "@/components/ui/page-header";

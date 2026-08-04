@@ -21,13 +21,6 @@ function validateOrganisationId(organisationId: string): string {
   return organisationId;
 }
 
-// SET LOCAL is a session configuration command, not a data query.
-// Prisma's tagged template $executeRaw does not support parameterised values
-// in SET commands (PostgreSQL syntax error at "$1"). Using $executeRawUnsafe
-// is safe here because: (1) the organisationId is validated against a strict
-// alphanumeric pattern that prevents SQL injection; (2) this is a
-// transaction-scoped configuration command, not a data query; (3) the value
-// comes from authenticated user membership resolution, not client input.
 export async function setTenantContext(
   tx: TransactionClient,
   organisationId: string,
