@@ -1,5 +1,6 @@
 import { type Player, SelectionRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { listGroupMovementPaths } from "@/lib/groups/group-movement-path";
 import { isFloatingSelectionRole } from "@/lib/match-utils";
 import { getRules } from "@/lib/rules/get-rules";
 import { getCoreMatchDropHistory } from "@/lib/selection/get-core-match-drop-history";
@@ -105,23 +106,30 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   const [match, players, rules, registeredMatches, savedSelections, rotationPaths, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
     db.match.findUnique({
       where: { id: matchId },
-      include: {
+      select: {
+        id: true,
+        matchRoundId: true,
+        organisationId: true,
+        opponent: true,
+        startsAt: true,
+        squadSize: true,
+        teamId: true,
         team: {
-           select: {
-             developmentSlots: true,
-             id: true,
-             maxSquadSize: true,
-             maxSupportCount: true,
-             minAcceptedSquadSize: true,
-             minCorePlayers: true,
-             minSupportPlayers: true,
-             name: true,
-             supportPriority: true,
-             targetSupportCount: true,
-           },
-         },
-       },
-     }),
+          select: {
+            developmentSlots: true,
+            id: true,
+            maxSquadSize: true,
+            maxSupportCount: true,
+            minAcceptedSquadSize: true,
+            minCorePlayers: true,
+            minSupportPlayers: true,
+            name: true,
+            supportPriority: true,
+            targetSupportCount: true,
+          },
+        },
+      },
+    }),
       db.player.findMany({
        where: {
          removedAt: null,
@@ -256,6 +264,49 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
 
   const candidateRotationPathIds = new Set(activeMovementCandidates.map((mc) => mc.rotationPathId));
 
+  // Load group movement paths and expand them into team-level rotation path edges
+  const matchWithOrg = match;
+  const organisationId = matchWithOrg?.organisationId;
+  let groupPathEdges: RotationPathWithTeamName[] = [];
+
+  if (organisationId) {
+    const [groupPathsRaw, teamsForGroups] = await Promise.all([
+      listGroupMovementPaths(organisationId, { activeOnly: true, scope: "MATCH" }),
+      db.team.findMany({
+        where: { organisationId },
+        select: { id: true, footballGroupId: true, name: true },
+      }),
+    ]);
+
+    const groupTeamsMap = new Map<string, { id: string; name: string }[]>();
+
+    for (const team of teamsForGroups) {
+      const groupTeams = groupTeamsMap.get(team.footballGroupId) ?? [];
+      groupTeams.push({ id: team.id, name: team.name });
+      groupTeamsMap.set(team.footballGroupId, groupTeams);
+    }
+
+    for (const gp of groupPathsRaw) {
+      const sourceTeams = groupTeamsMap.get(gp.fromGroupId) ?? [];
+      const targetTeams = groupTeamsMap.get(gp.toGroupId) ?? [];
+
+      for (const fromTeam of sourceTeams) {
+        for (const toTeam of targetTeams) {
+          groupPathEdges.push({
+            fromTeamId: fromTeam.id,
+            fromTeam: { name: fromTeam.name },
+            toTeamId: toTeam.id,
+            role: gp.role,
+            cooldownRounds: null,
+          });
+        }
+      }
+    }
+  }
+
+  // Merge group-derived edges with existing team-level rotation paths
+  const allRotationPaths: RotationPathWithTeamName[] = [...rotationPaths, ...groupPathEdges];
+
   const allRotationPathsWithIds = await db.rotationPath.findMany({
     where: { active: true },
     select: { id: true, fromTeamId: true, toTeamId: true, role: true },
@@ -352,7 +403,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   const playerPathMap = new Map<string, PathDestination[]>();
 
   for (const player of players) {
-    const pathsForPlayer = rotationPaths.filter(
+    const pathsForPlayer = allRotationPaths.filter(
       (path) => path.fromTeamId === player.coreTeamId && path.toTeamId !== player.coreTeamId,
     );
     playerPathMap.set(player.id, pathsForPlayer as PathDestination[]);
@@ -388,10 +439,10 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       match: {
         developmentSlots: selectionRecord.match.team.developmentSlots,
         id: selectionRecord.match.id,
-        developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, selectionRecord.match.teamId, "DEVELOPMENT"),
+        developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, selectionRecord.match.teamId, "DEVELOPMENT"),
         startsAt: selectionRecord.match.startsAt,
-        supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, selectionRecord.match.teamId, "SUPPORT"),
-        supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, selectionRecord.match.teamId),
+        supportSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, selectionRecord.match.teamId, "SUPPORT"),
+        supportSourceTeamNames: deriveSourceTeamNamesFromPaths(allRotationPaths, selectionRecord.match.teamId),
         team: selectionRecord.match.team,
         teamId: selectionRecord.match.teamId,
       },
@@ -421,26 +472,26 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
 
   const currentMatchRecord: MatchRecord = {
     developmentSlots: match.team.developmentSlots,
-    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, match.teamId, "DEVELOPMENT"),
+    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, match.teamId, "DEVELOPMENT"),
     id: match.id,
     startsAt: match.startsAt,
-    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, match.teamId, "SUPPORT"),
-    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, match.teamId),
+    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, match.teamId, "SUPPORT"),
+    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(allRotationPaths, match.teamId),
     team: match.team,
     teamId: match.teamId,
   };
   const normalizedRegisteredMatches: MatchRecord[] = registeredMatches.map((registeredMatch) => ({
     developmentSlots: registeredMatch.team.developmentSlots,
-    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, registeredMatch.teamId, "DEVELOPMENT"),
+    developmentSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, registeredMatch.teamId, "DEVELOPMENT"),
     id: registeredMatch.id,
     startsAt: registeredMatch.startsAt,
-    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(rotationPaths, registeredMatch.teamId, "SUPPORT"),
-    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(rotationPaths, registeredMatch.teamId),
+    supportSourceTeamIds: deriveSourceTeamIdsFromPaths(allRotationPaths, registeredMatch.teamId, "SUPPORT"),
+    supportSourceTeamNames: deriveSourceTeamNamesFromPaths(allRotationPaths, registeredMatch.teamId),
     team: registeredMatch.team,
     teamId: registeredMatch.teamId,
   }));
 
-  const allRotationPathDestinations: PathDestination[] = rotationPaths.filter(
+  const allRotationPathDestinations: PathDestination[] = allRotationPaths.filter(
     (path) => path.fromTeamId !== path.toTeamId,
   ) as PathDestination[];
 
@@ -792,7 +843,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       player.coreTeamId ?? "",
       currentMatchRecord.teamId,
       candidateCategory,
-      rotationPaths,
+      allRotationPaths,
       pathHistoryEntries,
       match.startsAt,
     );
