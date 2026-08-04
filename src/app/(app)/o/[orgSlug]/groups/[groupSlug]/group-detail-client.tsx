@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch } from "lucide-react";
 
@@ -84,6 +85,15 @@ type GroupDetail = {
   incomingPaths: { id: string; fromGroupId: string; fromGroupName: string; role: string; isActive: boolean }[];
 };
 
+type TabId = "overview" | "teams" | "players" | "paths";
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "teams", label: "Teams" },
+  { id: "players", label: "Players" },
+  { id: "paths", label: "Movement paths" },
+];
+
 export function GroupDetailClient({
   group,
   orgSlug,
@@ -91,6 +101,8 @@ export function GroupDetailClient({
   group: GroupDetail;
   orgSlug: string;
 }) {
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -150,164 +162,214 @@ export function GroupDetailClient({
         </div>
       </div>
 
-      {group.teams.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Teams</h2>
-          <div className="space-y-2">
-            {group.teams.map((team: TeamItem) => (
-              <Link
-                key={team.id}
-                href={`/o/${orgSlug}/teams/${team.id}`}
-                className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-              >
-                <span className="font-medium">{team.name}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      <nav className="flex gap-1 border-b" role="tablist">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
-      {group.players.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Players</h2>
-          <div className="rounded-lg border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-3 py-2 text-left font-medium">Name</th>
-                  <th className="px-3 py-2 text-left font-medium">Core team</th>
-                  <th className="px-3 py-2 text-left font-medium">Membership</th>
-                </tr>
-              </thead>
-              <tbody>
-                {group.players.map((gp: PlayerItem) => (
-                  <tr key={gp.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-3 py-2">
-                      <Link
-                        href={`/o/${orgSlug}/players/${gp.player.id}`}
-                        className="text-primary hover:underline"
-                      >
-                        {gp.player.firstName}{gp.player.lastName ? ` ${gp.player.lastName}` : ""}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {gp.player.coreTeam?.name ?? "—"}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                        {MEMBERSHIP_TYPE_LABELS[gp.membershipType] ?? gp.membershipType}
-                      </span>
-                    </td>
-                  </tr>
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {group.groupAccesses.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Coaches</h2>
+              <div className="space-y-2">
+                {group.groupAccesses.map((access: GroupAccessItem) => (
+                  <div
+                    key={access.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <span className="font-medium">
+                      {access.membership.user.name ?? access.membership.user.email}
+                    </span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          )}
+
+          {group.leagueSeasons.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-3">League seasons</h2>
+              <div className="space-y-2">
+                {group.leagueSeasons.map((season) => (
+                  <div
+                    key={season.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <span className="font-medium">{season.name}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {season.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {group.events.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-muted-foreground" />
+                Events
+              </h2>
+              <div className="space-y-2">
+                {group.events.map((event) => (
+                  <Link
+                    key={event.id}
+                    href={`/o/${orgSlug}/events/${event.id}`}
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <span className="font-medium">{event.name}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {group.groupAccesses.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Coaches</h2>
-          <div className="space-y-2">
-            {group.groupAccesses.map((access: GroupAccessItem) => (
-              <div
-                key={access.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <span className="font-medium">
-                  {access.membership.user.name ?? access.membership.user.email}
-                </span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
-                </span>
-              </div>
-            ))}
-          </div>
+      {activeTab === "teams" && (
+        <div className="space-y-4">
+          {group.teams.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No teams in this group yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {group.teams.map((team: TeamItem) => (
+                <Link
+                  key={team.id}
+                  href={`/o/${orgSlug}/teams/${team.id}`}
+                  className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div>
+                    <span className="font-medium">{team.name}</span>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {group.leagueSeasons.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3">League seasons</h2>
-          <div className="space-y-2">
-            {group.leagueSeasons.map((season) => (
-              <div
-                key={season.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <span className="font-medium">{season.name}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {season.status}
-                </span>
-              </div>
-            ))}
-          </div>
+      {activeTab === "players" && (
+        <div className="space-y-4">
+          {group.players.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No players in this group yet.
+            </p>
+          ) : (
+            <div className="rounded-lg border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2 text-left font-medium">Name</th>
+                    <th className="px-3 py-2 text-left font-medium">Core team</th>
+                    <th className="px-3 py-2 text-left font-medium">Membership</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.players.map((gp: PlayerItem) => (
+                    <tr key={gp.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-3 py-2">
+                        <Link
+                          href={`/o/${orgSlug}/players/${gp.player.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {gp.player.firstName}{gp.player.lastName ? ` ${gp.player.lastName}` : ""}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {gp.player.coreTeam?.name ?? "\u2014"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                          {MEMBERSHIP_TYPE_LABELS[gp.membershipType] ?? gp.membershipType}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {group.events.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-            Events
-          </h2>
-          <div className="space-y-2">
-            {group.events.map((event) => (
-              <Link
-                key={event.id}
-                href={`/o/${orgSlug}/events/${event.id}`}
-                className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-              >
-                <span className="font-medium">{event.name}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(group.outgoingPaths.length > 0 || group.incomingPaths.length > 0) && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-muted-foreground" />
-            Movement paths
-          </h2>
-          <div className="space-y-2">
-            {group.outgoingPaths.map((path) => (
-              <div
-                key={path.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <span className="text-sm">
-                  <span className="font-medium">{group.name}</span>
-                  <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
-                  <span className="font-medium">{path.toGroupName}</span>
-                </span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {PATH_ROLE_LABELS[path.role] ?? path.role}
-                </span>
-              </div>
-            ))}
-            {group.incomingPaths.map((path) => (
-              <div
-                key={path.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <span className="text-sm">
-                  <span className="font-medium">{path.fromGroupName}</span>
-                  <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
-                  <span className="font-medium">{group.name}</span>
-                </span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {PATH_ROLE_LABELS[path.role] ?? path.role}
-                </span>
-              </div>
-            ))}
-          </div>
+      {activeTab === "paths" && (
+        <div className="space-y-4">
+          {group.outgoingPaths.length === 0 && group.incomingPaths.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No movement paths configured for this group.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {group.outgoingPaths.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Outgoing</h3>
+                  <div className="space-y-2">
+                    {group.outgoingPaths.map((path) => (
+                      <div
+                        key={path.id}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <span className="text-sm">
+                          <span className="font-medium">{group.name}</span>
+                          <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
+                          <span className="font-medium">{path.toGroupName}</span>
+                        </span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {PATH_ROLE_LABELS[path.role] ?? path.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {group.incomingPaths.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Incoming</h3>
+                  <div className="space-y-2">
+                    {group.incomingPaths.map((path) => (
+                      <div
+                        key={path.id}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <span className="text-sm">
+                          <span className="font-medium">{path.fromGroupName}</span>
+                          <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
+                          <span className="font-medium">{group.name}</span>
+                        </span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {PATH_ROLE_LABELS[path.role] ?? path.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
