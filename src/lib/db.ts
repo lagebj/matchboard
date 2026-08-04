@@ -91,6 +91,14 @@ const RLS_TABLES = new Set([
   "policyDecisionLog",
   "reviewRequest",
   "notificationOutbox",
+  "workOwnership",
+  "liveMatchSession",
+  "liveMatchEvent",
+  "matchRotation",
+  "fairPlayObservation",
+  "opponentSportingEvidence",
+  "playerDevelopmentObservation",
+  "playerProfileSuggestion",
 ]);
 
 const RLS_OPS = new Set([
