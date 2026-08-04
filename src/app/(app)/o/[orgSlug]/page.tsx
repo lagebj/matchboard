@@ -36,7 +36,7 @@ export default async function OrgDetailPage({
         orderBy: { role: "asc" },
       },
       groups: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, slug: true },
         orderBy: { name: "asc" },
       },
       invitations: {
