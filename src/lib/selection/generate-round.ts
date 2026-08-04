@@ -48,6 +48,9 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
   }
 
   const readinessSignalsRaw = await db.playerReadinessSignal.findMany({
+    where: {
+      player: { coreTeam: { organisationId: matchRound.organisationId } },
+    },
     select: {
       playerId: true,
       signalType: true,
@@ -219,7 +222,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
       decisionType: "league_match_selection",
       fairnessScope: "round",
       players: await db.player.findMany({
-        where: { removedAt: null },
+        where: { removedAt: null, coreTeam: { organisationId: matchRound.organisationId } },
         select: {
           id: true, firstName: true, lastName: true, active: true, removedAt: true,
           primaryPosition: true, secondaryPosition: true, tertiaryPosition: true,

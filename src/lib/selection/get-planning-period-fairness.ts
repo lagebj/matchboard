@@ -28,6 +28,12 @@ export type LeagueSeasonFairness = {
 export async function getLeagueSeasonFairness(
   leagueSeasonId: string,
 ): Promise<LeagueSeasonFairness> {
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
+    select: { organisationId: true },
+  });
+  const leagueOrganisationId = leagueSeason?.organisationId;
+
   const [matchRounds, finalizedSelections, players, availabilities, reportedReports] = await Promise.all([
     db.matchRound.findMany({
       where: { leagueSeasonId },
@@ -55,7 +61,11 @@ export async function getLeagueSeasonFairness(
       },
     }),
     db.player.findMany({
-      where: { active: true, removedAt: null },
+      where: {
+        active: true,
+        removedAt: null,
+        ...(leagueOrganisationId ? { coreTeam: { organisationId: leagueOrganisationId } } : {}),
+      },
       select: {
         id: true,
         firstName: true,

@@ -96,17 +96,74 @@ export type GenerateSelectionOptions = {
 
 export async function generateSelection(matchId: string, options?: GenerateSelectionOptions): Promise<GeneratedSelection> {
   const deferRotation = options?.deferRotation ?? false;
-  const [match, players, rules, registeredMatches, savedSelections, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
-    db.match.findUnique({
-      where: { id: matchId },
-      select: {
-        id: true,
-        matchRoundId: true,
-        organisationId: true,
-        opponent: true,
-        startsAt: true,
-        squadSize: true,
-        teamId: true,
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      matchRoundId: true,
+      organisationId: true,
+      opponent: true,
+      startsAt: true,
+      squadSize: true,
+      teamId: true,
+      team: {
+        select: {
+          developmentSlots: true,
+          id: true,
+          maxSquadSize: true,
+          maxSupportCount: true,
+          minAcceptedSquadSize: true,
+          minCorePlayers: true,
+          minSupportPlayers: true,
+          name: true,
+          supportPriority: true,
+          targetSupportCount: true,
+        },
+      },
+    },
+  });
+
+  if (!match) {
+    throw new Error("Match not found.");
+  }
+
+  const organisationId = match.organisationId;
+
+  const [players, rules, registeredMatches, savedSelections, finalizedPathHistory, readinessSignalsRaw] = await Promise.all([
+    db.player.findMany({
+      where: {
+        removedAt: null,
+        coreTeam: { organisationId },
+      },
+      include: {
+        coreTeam: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          coreTeam: {
+            name: "asc",
+          },
+        },
+        { firstName: "asc" },
+        { lastName: "asc" },
+        { playerCode: "asc" },
+      ],
+    }),
+    getRules(),
+    db.match.findMany({
+      where: {
+        id: {
+          not: matchId,
+        },
+        team: { organisationId },
+      },
+      include: {
         team: {
           select: {
             developmentSlots: true,
@@ -122,87 +179,41 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
           },
         },
       },
+      orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
     }),
-      db.player.findMany({
-       where: {
-         removedAt: null,
-       },
-       include: {
-         coreTeam: {
-           select: {
-             id: true,
-             name: true,
-           },
-         },
-       },
-       orderBy: [
-         {
-           coreTeam: {
-             name: "asc",
-           },
-         },
-         { firstName: "asc" },
-         { lastName: "asc" },
-         { playerCode: "asc" },
-       ],
-     }),
-    getRules(),
-    db.match.findMany({
+    db.selection.findMany({
       where: {
-        id: {
+        matchId: {
           not: matchId,
         },
+        match: { team: { organisationId } },
       },
-      include: {
-        team: {
+      select: {
+        matchId: true,
+        status: true,
+        playerId: true,
+        role: true,
+        explanation: true,
+        manuallyRemoved: true,
+        match: {
           select: {
-             developmentSlots: true,
-             id: true,
-             maxSquadSize: true,
-             maxSupportCount: true,
-             minAcceptedSquadSize: true,
-             minCorePlayers: true,
-             minSupportPlayers: true,
-             name: true,
-             supportPriority: true,
-             targetSupportCount: true,
-           },
-         },
-       },
-       orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-     }),
-      db.selection.findMany({
-        where: {
-          matchId: {
-            not: matchId,
-          },
-        },
-        select: {
-          matchId: true,
-          status: true,
-          playerId: true,
-          role: true,
-          explanation: true,
-          manuallyRemoved: true,
-         match: {
-           select: {
-             id: true,
-             startsAt: true,
-             teamId: true,
-         team: {
-           select: {
-             developmentSlots: true,
-             id: true,
-             maxSquadSize: true,
-             maxSupportCount: true,
-             minAcceptedSquadSize: true,
-             minCorePlayers: true,
-             minSupportPlayers: true,
-             name: true,
-             supportPriority: true,
-             targetSupportCount: true,
-           },
-        },
+            id: true,
+            startsAt: true,
+            teamId: true,
+            team: {
+              select: {
+                developmentSlots: true,
+                id: true,
+                maxSquadSize: true,
+                maxSupportCount: true,
+                minAcceptedSquadSize: true,
+                minCorePlayers: true,
+                minSupportPlayers: true,
+                name: true,
+                supportPriority: true,
+                targetSupportCount: true,
+              },
+            },
           },
         },
       },
@@ -211,6 +222,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     db.movementLedger.findMany({
       where: {
         isDraft: false,
+        match: { team: { organisationId } },
       },
       select: {
         fromTeamId: true,
@@ -226,6 +238,9 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       orderBy: [{ createdAt: "desc" }],
     }),
     db.playerReadinessSignal.findMany({
+      where: {
+        player: { coreTeam: { organisationId } },
+      },
       select: {
         playerId: true,
         signalType: true,
@@ -235,30 +250,20 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   ]);
 
   const activeMovementCandidates = await db.movementCandidate.findMany({
-    where: { status: "ACTIVE" },
+    where: {
+      status: "ACTIVE",
+      rotationPath: { organisationId },
+    },
     select: { playerId: true, rotationPathId: true, role: true },
   });
 
   const candidateRotationPathIds = new Set(activeMovementCandidates.map((mc) => mc.rotationPathId));
 
   // Load team-level rotation paths and group-level movement paths, merged
-  const organisationId = match?.organisationId;
-  const allRotationPaths = organisationId
-    ? await loadRotationPathsWithGroupPaths(organisationId, { scope: "MATCH" })
-    : await db.rotationPath.findMany({
-        where: { active: true },
-        select: {
-          cooldownRounds: true,
-          fromTeamId: true,
-          fromTeam: { select: { name: true } },
-          toTeamId: true,
-          toTeam: { select: { name: true } },
-          role: true,
-        },
-      });
+  const allRotationPaths = await loadRotationPathsWithGroupPaths(organisationId, { scope: "MATCH" });
 
   const allRotationPathsWithIds = await db.rotationPath.findMany({
-    where: { active: true },
+    where: { active: true, organisationId },
     select: { id: true, fromTeamId: true, toTeamId: true, role: true },
   });
 
@@ -288,10 +293,6 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     }
 
     return false;
-  }
-
-  if (!match) {
-    throw new Error("Match not found.");
   }
 
   const readinessSignals: ReadinessSignalEntry[] = readinessSignalsRaw.map((s) => ({
