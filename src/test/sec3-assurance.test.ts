@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@/generated/prisma/client";
 import {
@@ -23,7 +24,7 @@ import type { MachineScope } from "@/lib/machine-principal/machine-principal";
 import { authenticateWithBearerToken, hasScope, hasAnyScope, hasAllScopes } from "@/lib/machine-principal/machine-auth";
 import { resolveOrgFilterForMachine, resolveOrgFilterForUser } from "@/lib/tenancy/resolve-org-filter";
 import { AuthorizationError } from "@/lib/auth";
-import { withTenantContext, withUnscopedContext, isValidOrganisationId } from "@/lib/tenancy/tenant-client";
+import { withTenantContext, isValidOrganisationId } from "@/lib/tenancy/tenant-client";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
 import { setupTestDb, teardownTestDb, cleanTestDb, createTestGroup } from "@/test/test-db";
 
@@ -88,10 +89,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine principal cannot switch organisation context", async () => {
       const org1 = await db.organisation.create({ data: { name: "Org Alpha Switch", slug: "org-alpha-switch" } });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Org Beta Switch", slug: "org-beta-switch" } });
 
-      const org2Group = await createTestGroup(db, org2.id);
+      const _org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -116,10 +117,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine principal with forged organisation ID in token fails authentication", async () => {
       const org1 = await db.organisation.create({ data: { name: "Org Alpha Forge", slug: "org-alpha-forge" } });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Org Beta Forge", slug: "org-beta-forge" } });
 
-      const org2Group = await createTestGroup(db, org2.id);
+      const _org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -144,7 +145,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("revoked machine principal kill switch prevents all access", async () => {
       const org = await db.organisation.create({ data: { name: "Kill Switch Org", slug: "kill-switch-org" } });
 
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
 
       const { principal, clientSecret } = await createMachinePrincipal({
         organisationId: org.id,
@@ -199,7 +200,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("machine principal cannot request cross-tenant data scope", async () => {
       const org = await db.organisation.create({ data: { name: "Cross Tenant Org", slug: "cross-tenant-org" } });
 
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
 
       await expect(
         createMachinePrincipal({
@@ -213,7 +214,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("machine token is bound to principal and organisation", async () => {
       const org = await db.organisation.create({ data: { name: "Token Bind Org", slug: "token-bind-org" } });
 
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org.id,
@@ -240,10 +241,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("resolveOrgFilterForMachine returns unscoped when organisation ID does not match", async () => {
       const org1 = await db.organisation.create({ data: { name: "Machine Org 1", slug: "machine-org-1-filter" } });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Machine Org 2", slug: "machine-org-2-filter" } });
 
-      const org2Group = await createTestGroup(db, org2.id);
+      const _org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -315,7 +316,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("tenant context mechanism accepts valid organisation IDs and rejects invalid ones", async () => {
       const org1 = await db.organisation.create({ data: { name: "Leak Org 1", slug: "leak-org-1" } });
 
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
 
       await expect(
         withTenantContext(db, org1.id, async () => "ok"),
@@ -349,7 +350,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
   describe("Cross-tenant attack prevention", () => {
     it("known-ID attack: user from org1 cannot read org2 teams via direct query filter", async () => {
       const org1 = await db.organisation.create({ data: { name: "Attack Org 1", slug: "attack-org-1" } });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Attack Org 2", slug: "attack-org-2" } });
 
       const org2Group = await createTestGroup(db, org2.id);
@@ -367,7 +368,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("forged organisation ID in filter cannot access another org's data", async () => {
       const org1 = await db.organisation.create({ data: { name: "Forge Org 1", slug: "forge-org-1" } });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Forge Org 2", slug: "forge-org-2" } });
 
       const org2Group = await createTestGroup(db, org2.id);
@@ -400,10 +401,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine principal cannot use resolveOrgFilterForMachine to escalate to another org", async () => {
       const org1 = await db.organisation.create({ data: { name: "Escalate Org 1", slug: "escalate-org-1" } });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Escalate Org 2", slug: "escalate-org-2" } });
 
-      const org2Group = await createTestGroup(db, org2.id);
+      const _org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -439,7 +440,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("forbidden scopes cannot be used to create a principal", async () => {
       const org = await db.organisation.create({ data: { name: "Forbidden Scope Org", slug: "forbidden-scope-org" } });
 
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
 
       for (const scope of FORBIDDEN_SCOPE_VALUES) {
         await expect(
@@ -451,7 +452,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("token scope subset matches principal scope subset", async () => {
       const org = await db.organisation.create({ data: { name: "Scope Subset Org", slug: "scope-subset-org" } });
 
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
 
       const { principal, clientSecret } = await createMachinePrincipal({
         organisationId: org.id,
@@ -528,8 +529,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       const normalOrg = await db.organisation.create({
         data: { name: "Normal Club", slug: "normal-club" },
       });
-      const syntheticOrgGroup = await createTestGroup(db, syntheticOrg.id);
-      const normalOrgGroup = await createTestGroup(db, normalOrg.id);
+      const _syntheticOrgGroup = await createTestGroup(db, syntheticOrg.id);
+      const _normalOrgGroup = await createTestGroup(db, normalOrg.id);
 
       expect(syntheticOrg.isSynthetic).toBe(true);
       expect(normalOrg.isSynthetic).toBe(false);
@@ -568,11 +569,11 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       const normalOrg = await db.organisation.create({
         data: { name: "Normal Club Machine", slug: "normal-club-machine" },
       });
-      const syntheticOrgGroup3 = await createTestGroup(db, syntheticOrg.id);
-      const normalOrgGroup3 = await createTestGroup(db, normalOrg.id);
+      const _syntheticOrgGroup3 = await createTestGroup(db, syntheticOrg.id);
+      const _normalOrgGroup3 = await createTestGroup(db, normalOrg.id);
 
       await db.team.create({
-        data: { name: "Canary Machine Team", organisationId: syntheticOrg.id, footballGroupId: syntheticOrgGroup3, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Canary Machine Team", organisationId: syntheticOrg.id, footballGroupId: _syntheticOrgGroup3, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const { principal } = await createMachinePrincipal({

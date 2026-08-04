@@ -6,7 +6,6 @@ import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft"
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
-import { computeSimulationFairness, detectGkCoverageGaps } from "./simulation-fairness";
 import { resolveLeagueSeasonId } from "./simulation-service";
 
 export type ApplySimulationResult = {
@@ -129,7 +128,7 @@ export async function applySimulationAsDrafts(
     throw new Error("League season not found.");
   }
 
-  const sortedRounds = [...leagueSeason.matchRounds].sort((a, b) => {
+  const _sortedRounds = [...leagueSeason.matchRounds].sort((a, b) => {
     const aEarliest = a.matches.length > 0 ? Math.min(...a.matches.map((m) => new Date(m.startsAt).getTime())) : 0;
     const bEarliest = b.matches.length > 0 ? Math.min(...b.matches.map((m) => new Date(m.startsAt).getTime())) : 0;
     return aEarliest - bEarliest;

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
   AuthorizationError: class AuthorizationError extends Error {

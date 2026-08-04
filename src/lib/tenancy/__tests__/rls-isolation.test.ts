@@ -5,7 +5,7 @@ import { AuthorizationError } from "@/lib/auth";
 
 describe("RLS tenant isolation", () => {
   let db: PrismaClient;
-  let fixture: TestFixtureIds;
+  let _fixture: TestFixtureIds;
 
   beforeAll(async () => {
     db = await setupTestDb();
@@ -83,7 +83,7 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Org Isolated", slug: "org-isolated" },
       });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Org Other", slug: "org-other-isolated" },
       });
@@ -110,7 +110,7 @@ describe("RLS tenant isolation", () => {
       const team1 = await db.team.create({
         data: { name: "Match Team 1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
-      const team2 = await db.team.create({
+      const _team2 = await db.team.create({
         data: { name: "Match Team 2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
@@ -142,7 +142,7 @@ describe("RLS tenant isolation", () => {
       const org = await db.organisation.create({
         data: { name: "Membership Org", slug: "membership-org-rls" },
       });
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
       const user = await db.user.create({
         data: { email: "member-rls@example.com", name: "Test Member" },
       });
@@ -162,7 +162,7 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Cross Org 1", slug: "cross-org-1" },
       });
-      const org1Group = await createTestGroup(db, org1.id);
+      const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Cross Org 2", slug: "cross-org-2" },
       });
@@ -274,7 +274,7 @@ describe("RLS tenant isolation", () => {
       const org = await db.organisation.create({
         data: { name: "Scoped Org", slug: "scoped-org-rls" },
       });
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
       const user = await db.user.create({
         data: { email: "scoped-rls@example.com", name: "Scoped User" },
       });
