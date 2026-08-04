@@ -25,7 +25,7 @@ import { resolveOrgFilterForMachine, resolveOrgFilterForUser } from "@/lib/tenan
 import { AuthorizationError } from "@/lib/auth";
 import { withTenantContext, withUnscopedContext, isValidOrganisationId } from "@/lib/tenancy/tenant-client";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
-import { setupTestDb, teardownTestDb, cleanTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, cleanTestDb, createTestGroup } from "@/test/test-db";
 
 describe("SEC-3: Tenant, database and machine-identity assurance", () => {
   let db: PrismaClient;
@@ -47,13 +47,16 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
   describe("Machine-principal tenant containment", () => {
     it("machine principal is bound to its organisation and cannot access another org's data", async () => {
       const org1 = await db.organisation.create({ data: { name: "Org Alpha", slug: "org-alpha-sec3" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Org Beta", slug: "org-beta-sec3" } });
 
+      const org2Group = await createTestGroup(db, org2.id);
+
       const team1 = await db.team.create({
-        data: { name: "Team Alpha", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team Alpha", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       const team2 = await db.team.create({
-        data: { name: "Team Beta", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team Beta", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const { principal } = await createMachinePrincipal({
@@ -65,10 +68,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect(principal.organisationId).toBe(org1.id);
 
       const principalsInOrg1 = await db.machinePrincipal.findMany({
-        where: { organisationId: org1.id },
+        where: { organisationId: org1.id, footballGroupId: org1Group },
       });
       const principalsInOrg2 = await db.machinePrincipal.findMany({
-        where: { organisationId: org2.id },
+        where: { organisationId: org2.id, footballGroupId: org2Group },
       });
 
       expect(principalsInOrg1).toHaveLength(1);
@@ -85,7 +88,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine principal cannot switch organisation context", async () => {
       const org1 = await db.organisation.create({ data: { name: "Org Alpha Switch", slug: "org-alpha-switch" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Org Beta Switch", slug: "org-beta-switch" } });
+
+      const org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -110,7 +116,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine principal with forged organisation ID in token fails authentication", async () => {
       const org1 = await db.organisation.create({ data: { name: "Org Alpha Forge", slug: "org-alpha-forge" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Org Beta Forge", slug: "org-beta-forge" } });
+
+      const org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -134,6 +143,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("revoked machine principal kill switch prevents all access", async () => {
       const org = await db.organisation.create({ data: { name: "Kill Switch Org", slug: "kill-switch-org" } });
+
+      const orgGroup = await createTestGroup(db, org.id);
 
       const { principal, clientSecret } = await createMachinePrincipal({
         organisationId: org.id,
@@ -188,6 +199,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("machine principal cannot request cross-tenant data scope", async () => {
       const org = await db.organisation.create({ data: { name: "Cross Tenant Org", slug: "cross-tenant-org" } });
 
+      const orgGroup = await createTestGroup(db, org.id);
+
       await expect(
         createMachinePrincipal({
           organisationId: org.id,
@@ -199,6 +212,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine token is bound to principal and organisation", async () => {
       const org = await db.organisation.create({ data: { name: "Token Bind Org", slug: "token-bind-org" } });
+
+      const orgGroup = await createTestGroup(db, org.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org.id,
@@ -225,7 +240,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("resolveOrgFilterForMachine returns unscoped when organisation ID does not match", async () => {
       const org1 = await db.organisation.create({ data: { name: "Machine Org 1", slug: "machine-org-1-filter" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Machine Org 2", slug: "machine-org-2-filter" } });
+
+      const org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -240,6 +258,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("resolveOrgFilterForMachine returns org-scoped filter when principal and org match", async () => {
       const org = await db.organisation.create({ data: { name: "Machine Org Match", slug: "machine-org-match" } });
 
+      const orgGroup = await createTestGroup(db, org.id);
+
       const { principal } = await createMachinePrincipal({
         organisationId: org.id,
         name: "Machine Bot Match",
@@ -250,7 +270,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect(result.type).toBe("org");
       if (result.type === "org") {
         expect(result.organisationId).toBe(org.id);
-        expect(result.filter).toEqual({ organisationId: org.id });
+        expect(result.filter).toEqual({ organisationId: org.id, footballGroupId: orgGroup });
       }
     });
   });
@@ -259,12 +279,14 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("withTenantContext sets tenant context within a transaction", async () => {
       const org1 = await db.organisation.create({ data: { name: "Tenant Org 1", slug: "tenant-org-1" } });
 
+      const org1Group = await createTestGroup(db, org1.id);
+
       await db.team.create({
-        data: { name: "Team Tenant 1", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team Tenant 1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const result = await withTenantContext(db, org1.id, async (tx) => {
-        const teams = await tx.team.findMany({ where: { organisationId: org1.id } });
+        const teams = await tx.team.findMany({ where: { organisationId: org1.id, footballGroupId: org1Group } });
         return teams;
       });
 
@@ -274,13 +296,16 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("withUnscopedContext allows querying data from all organisations", async () => {
       const org1 = await db.organisation.create({ data: { name: "Unscoped Org 1", slug: "unscoped-org-1" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Unscoped Org 2", slug: "unscoped-org-2" } });
 
+      const org2Group = await createTestGroup(db, org2.id);
+
       await db.team.create({
-        data: { name: "Unscoped Team 1", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Unscoped Team 1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       await db.team.create({
-        data: { name: "Unscoped Team 2", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Unscoped Team 2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const allTeams = await db.team.findMany();
@@ -289,6 +314,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("tenant context mechanism accepts valid organisation IDs and rejects invalid ones", async () => {
       const org1 = await db.organisation.create({ data: { name: "Leak Org 1", slug: "leak-org-1" } });
+
+      const org1Group = await createTestGroup(db, org1.id);
 
       await expect(
         withTenantContext(db, org1.id, async () => "ok"),
@@ -302,13 +329,15 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("application-level filter and tenant context produce consistent results", async () => {
       const org = await db.organisation.create({ data: { name: "Filter Match Org", slug: "filter-match-org" } });
 
+      const orgGroup = await createTestGroup(db, org.id);
+
       await db.team.create({
-        data: { name: "Filter Match Team", organisationId: org.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Filter Match Team", organisationId: org.id, footballGroupId: orgGroup, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const filterResult = await db.team.findMany({ where: organisationFilter(org.id) });
       const contextResult = await withTenantContext(db, org.id, async (tx) => {
-        return tx.team.findMany({ where: { organisationId: org.id } });
+        return tx.team.findMany({ where: { organisationId: org.id, footballGroupId: orgGroup } });
       });
 
       expect(filterResult).toHaveLength(1);
@@ -320,10 +349,13 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
   describe("Cross-tenant attack prevention", () => {
     it("known-ID attack: user from org1 cannot read org2 teams via direct query filter", async () => {
       const org1 = await db.organisation.create({ data: { name: "Attack Org 1", slug: "attack-org-1" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Attack Org 2", slug: "attack-org-2" } });
 
+      const org2Group = await createTestGroup(db, org2.id);
+
       const team2 = await db.team.create({
-        data: { name: "Attack Target Team", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Attack Target Team", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const user1Filter = organisationFilter(org1.id);
@@ -335,10 +367,13 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("forged organisation ID in filter cannot access another org's data", async () => {
       const org1 = await db.organisation.create({ data: { name: "Forge Org 1", slug: "forge-org-1" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Forge Org 2", slug: "forge-org-2" } });
 
+      const org2Group = await createTestGroup(db, org2.id);
+
       await db.team.create({
-        data: { name: "Forge Target", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Forge Target", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const forgedFilter = organisationFilter(org1.id);
@@ -350,8 +385,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("nullable organisation filter correctly excludes null org data when scoping", async () => {
       const org = await db.organisation.create({ data: { name: "Nullable Filter Org", slug: "nullable-filter-org" } });
 
+      const orgGroup = await createTestGroup(db, org.id);
+
       await db.team.create({
-        data: { name: "Org Team", organisationId: org.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Org Team", organisationId: org.id, footballGroupId: orgGroup, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const nullOrgFilter = organisationFilterNullable(org.id);
@@ -363,7 +400,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("machine principal cannot use resolveOrgFilterForMachine to escalate to another org", async () => {
       const org1 = await db.organisation.create({ data: { name: "Escalate Org 1", slug: "escalate-org-1" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Escalate Org 2", slug: "escalate-org-2" } });
+
+      const org2Group = await createTestGroup(db, org2.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org1.id,
@@ -399,6 +439,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("forbidden scopes cannot be used to create a principal", async () => {
       const org = await db.organisation.create({ data: { name: "Forbidden Scope Org", slug: "forbidden-scope-org" } });
 
+      const orgGroup = await createTestGroup(db, org.id);
+
       for (const scope of FORBIDDEN_SCOPE_VALUES) {
         await expect(
           createMachinePrincipal({ organisationId: org.id, name: `Bot ${scope}`, scopes: [scope] }, db),
@@ -408,6 +450,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
 
     it("token scope subset matches principal scope subset", async () => {
       const org = await db.organisation.create({ data: { name: "Scope Subset Org", slug: "scope-subset-org" } });
+
+      const orgGroup = await createTestGroup(db, org.id);
 
       const { principal, clientSecret } = await createMachinePrincipal({
         organisationId: org.id,
@@ -484,6 +528,8 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       const normalOrg = await db.organisation.create({
         data: { name: "Normal Club", slug: "normal-club" },
       });
+      const syntheticOrgGroup = await createTestGroup(db, syntheticOrg.id);
+      const normalOrgGroup = await createTestGroup(db, normalOrg.id);
 
       expect(syntheticOrg.isSynthetic).toBe(true);
       expect(normalOrg.isSynthetic).toBe(false);
@@ -496,12 +542,14 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       const normalOrg = await db.organisation.create({
         data: { name: "Normal Club Iso", slug: "normal-club-iso" },
       });
+      const syntheticOrgGroup2 = await createTestGroup(db, syntheticOrg.id);
+      const normalOrgGroup2 = await createTestGroup(db, normalOrg.id);
 
       await db.team.create({
-        data: { name: "Canary Team", organisationId: syntheticOrg.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Canary Team", organisationId: syntheticOrg.id, footballGroupId: syntheticOrgGroup2, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       await db.team.create({
-        data: { name: "Normal Team", organisationId: normalOrg.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Normal Team", organisationId: normalOrg.id, footballGroupId: normalOrgGroup2, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const syntheticTeams = await db.team.findMany({ where: organisationFilter(syntheticOrg.id) });
@@ -520,9 +568,11 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       const normalOrg = await db.organisation.create({
         data: { name: "Normal Club Machine", slug: "normal-club-machine" },
       });
+      const syntheticOrgGroup3 = await createTestGroup(db, syntheticOrg.id);
+      const normalOrgGroup3 = await createTestGroup(db, normalOrg.id);
 
       await db.team.create({
-        data: { name: "Canary Machine Team", organisationId: syntheticOrg.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Canary Machine Team", organisationId: syntheticOrg.id, footballGroupId: syntheticOrgGroup3, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const { principal } = await createMachinePrincipal({
@@ -542,13 +592,16 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
   describe("Export and data isolation", () => {
     it("organisation filter prevents cross-tenant data leakage in queries", async () => {
       const org1 = await db.organisation.create({ data: { name: "Export Org 1", slug: "export-org-1" } });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Export Org 2", slug: "export-org-2" } });
 
+      const org2Group = await createTestGroup(db, org2.id);
+
       const team1 = await db.team.create({
-        data: { name: "Export Team 1", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Export Team 1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       const team2 = await db.team.create({
-        data: { name: "Export Team 2", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Export Team 2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const player1 = await db.player.create({

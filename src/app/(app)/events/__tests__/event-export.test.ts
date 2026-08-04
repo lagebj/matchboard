@@ -116,6 +116,7 @@ describe('Event export route', () => {
         matchDurationMinutes: 20,
         startsAt: new Date('2026-07-01T10:00:00Z'),
         organisationId: fixtureIds.organisationId,
+        footballGroupId: fixtureIds.footballGroupId,
       },
     });
 
@@ -348,6 +349,7 @@ describe('Event export route', () => {
         gameFormat: 'FIVE_A_SIDE',
         startsAt: new Date('2026-07-01T10:00:00Z'),
         organisationId: fixtureIds.organisationId,
+        footballGroupId: fixtureIds.footballGroupId,
       },
     });
 

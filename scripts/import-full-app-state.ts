@@ -13,6 +13,7 @@
 
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { getOrCreateDefaultGroup } from "../src/lib/groups/group-domain";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -114,9 +115,11 @@ async function main() {
     }
     console.log(`Using organisationId: ${organisationId}`);
 
+    const footballGroupId = await getOrCreateDefaultGroup(organisationId);
+
     console.log("Importing rule configs...");
     for (const rc of data.ruleConfigs) {
-      await db.ruleConfig.create({ data: { organisationId, name: rc.name, minDaysBetweenAnyMatches: rc.minDaysBetweenAnyMatches, warningThreshold: rc.warningThreshold } });
+      await db.ruleConfig.create({ data: { organisationId, footballGroupId, name: rc.name, minDaysBetweenAnyMatches: rc.minDaysBetweenAnyMatches, warningThreshold: rc.warningThreshold } });
     }
 
     console.log("Importing seasons...");
@@ -132,6 +135,7 @@ async function main() {
       const created = await db.leagueSeason.create({
         data: {
           organisationId,
+          footballGroupId,
           id: p.id,
           name: p.name,
           part: p.part ?? 'SPRING',
@@ -148,6 +152,7 @@ async function main() {
       await db.team.create({
         data: {
           organisationId,
+          footballGroupId,
           id: t.id,
           name: t.name,
           targetSquadSize: t.targetSquadSize ?? 11,

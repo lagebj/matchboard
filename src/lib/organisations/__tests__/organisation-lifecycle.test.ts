@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@/generated/prisma/client";
 import { suspendOrganisation, reactivateOrganisation, isOrganisationSuspended, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
-import { setupTestDb, teardownTestDb, cleanTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, cleanTestDb, createTestGroup } from "@/test/test-db";
 
 describe("organisation-lifecycle", () => {
   let db: PrismaClient;
@@ -154,7 +154,7 @@ describe("organisation-lifecycle", () => {
         data: { userId: user.id, organisationId: org.id, role: "COACH" },
       });
       await db.team.create({
-        data: { name: "Cascade Team", organisationId: org.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Cascade Team", organisationId: org.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14, footballGroupId: await createTestGroup(db, org.id) },
       });
 
       const result = await deleteOrganisation(org.id, db);

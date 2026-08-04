@@ -4,6 +4,7 @@ import {
   setupTestDb,
   teardownTestDb,
   getTestDb,
+  createTestGroup,
 } from "@/test/test-db";
 import {
   validateEventSquadsBeforeCommit,
@@ -28,6 +29,7 @@ vi.mock("@/lib/auth/actor-context", () => {
     email: "test@matchboard.test",
     membershipId: "mem-test",
     organisationId: testOrgId,
+        footballGroupId: testGroupId,
     organisationSlug: "test-org",
     role: "COACH",
     delegatedTeamIds: null,
@@ -59,6 +61,7 @@ vi.mock("@/lib/db", () => {
 let db: PrismaClient;
 let playerCodeCounter = 10000;
 let testOrgId: string;
+let testGroupId: string;
 
 async function cleanEventTables(db: PrismaClient) {
   await db.eventSquadPlayer.deleteMany();
@@ -72,7 +75,7 @@ async function cleanEventTables(db: PrismaClient) {
 
 async function createPlayer(db: PrismaClient, overrides: Record<string, unknown> = {}) {
   const team = await db.team.create({
-    data: { name: `Team-${Math.random().toString(36).slice(2, 8)}`, organisationId: testOrgId },
+    data: { name: `Team-${Math.random().toString(36).slice(2, 8)}`, organisationId: testOrgId, footballGroupId: testGroupId },
   });
   const player = await db.player.create({
     data: {
@@ -100,6 +103,7 @@ describe("event-squad-commit-actions", () => {
       create: { name: "Test Org Commit", slug: "test-org-commit" },
     });
     testOrgId = org.id;
+    testGroupId = await createTestGroup(db, testOrgId);
   });
 
   afterAll(async () => {
@@ -122,6 +126,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-01-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
 
@@ -142,6 +147,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-02-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const squadA = await db.eventSquad.create({
@@ -170,6 +176,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-03-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       await db.eventPlayerAvailability.create({
@@ -196,6 +203,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-04-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       await db.eventSquad.create({
@@ -219,6 +227,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-05-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const squad = await db.eventSquad.create({
@@ -243,6 +252,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-06-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const squad = await db.eventSquad.create({
@@ -267,6 +277,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-07-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const squad = await db.eventSquad.create({
@@ -292,6 +303,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-08-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const { player: gk } = await createPlayer(db, { goalkeeperAbility: "YES", primaryPosition: "GK" });
@@ -321,6 +333,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-09-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       await db.eventSquad.create({
@@ -344,6 +357,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-10-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
                   organisationId: testOrgId,
+        footballGroupId: testGroupId,
 },
       });
       await db.eventSquad.create({
@@ -371,6 +385,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-11-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
                   organisationId: testOrgId,
+        footballGroupId: testGroupId,
 },
       });
       await db.eventSquad.create({
@@ -394,6 +409,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2028-12-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
                   organisationId: testOrgId,
+        footballGroupId: testGroupId,
 },
       });
       await db.eventSquad.create({
@@ -420,6 +436,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2029-01-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
                   organisationId: testOrgId,
+        footballGroupId: testGroupId,
 },
       });
       await db.eventSquad.create({
@@ -443,6 +460,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2029-02-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
                   organisationId: testOrgId,
+        footballGroupId: testGroupId,
 },
       });
       await db.eventSquad.create({
@@ -468,6 +486,7 @@ describe("event-squad-commit-actions", () => {
           endsAt: new Date("2029-03-01T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
 

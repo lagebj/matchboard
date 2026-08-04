@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
 
 const defaultRuleConfigData = {
   minDaysBetweenAnyMatches: 3,
@@ -38,8 +39,19 @@ export async function getRules(orgFilter?: OrgFilterMode): Promise<MatchboardRul
     return existingRules;
   }
 
+  const organisationId = orgFilter?.type === 'org' ? orgFilter.organisationId : undefined;
+  if (!organisationId) {
+    throw new Error('Organisation context is required to create default rules.');
+  }
+
+  const footballGroupId = await getOrCreateDefaultGroup(organisationId);
+
   return db.ruleConfig.create({
-    data: defaultRuleConfigData,
+    data: {
+      ...defaultRuleConfigData,
+      organisationId,
+      footballGroupId,
+    },
     select: {
       id: true,
       minDaysBetweenAnyMatches: true,

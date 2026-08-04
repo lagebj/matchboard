@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { formatIsoWeekKey, formatIsoWeekLabel } from "@/lib/date-utils";
+import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
 import {
   getLeagueSeasonPartForDate,
   getLeagueSeasonDateRange,
@@ -78,6 +79,7 @@ async function createFullHierarchy(startsAt: Date, weekLabel: string): Promise<s
     });
 
     if (!period) {
+      const footballGroupId = await getOrCreateDefaultGroup(season.organisationId);
       period = await tx.leagueSeason.create({
         data: {
           name,
@@ -86,6 +88,7 @@ async function createFullHierarchy(startsAt: Date, weekLabel: string): Promise<s
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
           organisationId: season.organisationId,
+          footballGroupId,
         },
       });
     }

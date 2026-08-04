@@ -245,7 +245,7 @@ export async function requireTeamGroupAccess(
   }
 
   const hasTeam = ctx.delegatedTeamIds.includes(teamId);
-  const hasGroup = team.footballGroupId !== null && ctx.accessibleGroupIds.includes(team.footballGroupId);
+  const hasGroup = ctx.accessibleGroupIds.includes(team.footballGroupId);
 
   if (!hasTeam && !hasGroup) {
     throw new AuthorizationError("You do not have access to this team.");

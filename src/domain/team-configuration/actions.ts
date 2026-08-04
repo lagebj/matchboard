@@ -17,7 +17,7 @@ export async function updateTeamConfigurationAction(
     targetSquadSize?: number;
     maxSquadSize?: number;
     supportPriority?: number;
-    footballGroupId?: string | null;
+    footballGroupId?: string;
   },
 ) {
   const ctx = await requireActorContext();

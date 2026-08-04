@@ -24,7 +24,7 @@ model Team {
   minSupportPlayers        Int                  @default(0)
   developmentSlots         Int                  @default(0)
   archivedAt               DateTime?
-  footballGroupId          String?
+  footballGroupId          String
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
   formations               Formation[]
@@ -37,7 +37,7 @@ model Team {
   toRotationPaths          RotationPath[]       @relation("ToTeam")
   teamSeasonSnapshots      TeamSeasonSnapshot[]
   groupPlayers             FootballGroupPlayer[] @relation("GroupPlayerCoreTeam")
-  group                    FootballGroup?       @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
+  group                    FootballGroup        @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation             Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   teamAccesses             TeamAccess[]
 
@@ -197,11 +197,11 @@ model RuleConfig {
   name                     String        @default("Default ruleset")
   minDaysBetweenAnyMatches Int           @default(3)
   warningThreshold         Int           @default(5)
-  footballGroupId          String?
-  createdAt                DateTime      @default(now())
-  updatedAt                DateTime      @updatedAt
-  group                    FootballGroup? @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
-  organisation             Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+   footballGroupId          String
+   createdAt                DateTime      @default(now())
+   updatedAt                DateTime      @updatedAt
+   group                    FootballGroup @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
+   organisation             Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([organisationId])
   @@index([footballGroupId])
@@ -960,14 +960,14 @@ model Event {
   matchDurationMinutes Int?
   selectionPattern     EventSelectionPattern?
   notes                String?
-  footballGroupId      String?
+  footballGroupId      String
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   players              EventPlayerAvailability[]
   squads               EventSquad[]
   squadPlayers         EventSquadPlayer[]
   eventMatches         EventMatch[]
-  group                FootballGroup?            @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
+  group                FootballGroup             @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation         Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([startsAt])
@@ -1257,14 +1257,14 @@ model LeagueSeason {
   status          LeagueSeasonStatus    @default(OPEN)
   finalizedAt     DateTime?
   finalizedBy     String?
-  footballGroupId String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  matchRounds     MatchRound[]
-  season          Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  periodSnapshot  SeasonPeriodSnapshot?
-  group           FootballGroup?        @relation(fields: [footballGroupId], references: [id], onDelete: SetNull)
-  organisation    Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+   footballGroupId String
+   createdAt       DateTime              @default(now())
+   updatedAt       DateTime              @updatedAt
+   matchRounds     MatchRound[]
+   season          Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+   periodSnapshot  SeasonPeriodSnapshot?
+   group           FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
+   organisation    Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([organisationId, name])
   @@index([seasonId])

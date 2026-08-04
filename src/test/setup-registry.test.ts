@@ -29,6 +29,7 @@ vi.mock("@/auth", () => ({
 }));
 
 let _testOrgId = "test-org-id";
+let _testGroupId = "test-group-id";
 
 vi.mock("@/lib/auth/actor-context", () => {
   const makeCtx = () => ({
@@ -67,7 +68,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
       playersPerTeam: 0,
       rotationPaths: [],
     });
-    _testOrgId = _fixtureIds.organisationId;
+    _testOrgId = _fixtureIds.organisationId;_testGroupId = _fixtureIds.footballGroupId;
   });
   afterAll(async () => { await teardownTestDb(); });
 
@@ -126,7 +127,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
 
   it("restores archived team with same name instead of creating duplicate", async () => {
     const existingTeam = await testDb.team.create({
-      data: { name: "Archived Team", archivedAt: new Date(), targetSquadSize: 11, organisationId: _testOrgId },
+      data: { name: "Archived Team", archivedAt: new Date(), targetSquadSize: 11, organisationId: _testOrgId, footballGroupId: _testGroupId },
     });
 
     const formData = new FormData();
@@ -167,7 +168,7 @@ describe("Setup registry: create match action assigns match to round by date", (
       playersPerTeam: 0,
       rotationPaths: [],
     });
-    _testOrgId = _fixtureIds.organisationId;
+    _testOrgId = _fixtureIds.organisationId;_testGroupId = _fixtureIds.footballGroupId;
   });
   afterAll(async () => { await teardownTestDb(); });
 

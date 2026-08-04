@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@/generated/prisma/client";
-import { setupTestDb, teardownTestDb, cleanTestDb, type TestFixtureIds } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, cleanTestDb, createTestGroup, type TestFixtureIds } from "@/test/test-db";
 import { AuthorizationError } from "@/lib/auth";
 
 describe("RLS tenant isolation", () => {
@@ -24,15 +24,17 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Org One", slug: "org-one-rls" },
       });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Org Two", slug: "org-two-rls" },
       });
+      const org2Group = await createTestGroup(db, org2.id);
 
       const team1 = await db.team.create({
-        data: { name: "Team Alpha", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team Alpha", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       const team2 = await db.team.create({
-        data: { name: "Team Beta", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team Beta", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const org1Teams = await db.team.findMany({ where: { organisationId: org1.id } });
@@ -48,15 +50,17 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Org One Players", slug: "org-one-players" },
       });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Org Two Players", slug: "org-two-players" },
       });
+      const org2Group = await createTestGroup(db, org2.id);
 
       const team1 = await db.team.create({
-        data: { name: "Team A", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team A", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       const team2 = await db.team.create({
-        data: { name: "Team B", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team B", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const player1 = await db.player.create({
@@ -79,12 +83,14 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Org Isolated", slug: "org-isolated" },
       });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Org Other", slug: "org-other-isolated" },
       });
+      const org2Group = await createTestGroup(db, org2.id);
 
       await db.team.create({
-        data: { name: "Secret Team", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Secret Team", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const org1Teams = await db.team.findMany({ where: { organisationId: org1.id } });
@@ -95,22 +101,24 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Match Org 1", slug: "match-org-1" },
       });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Match Org 2", slug: "match-org-2" },
       });
+      const org2Group = await createTestGroup(db, org2.id);
 
       const team1 = await db.team.create({
-        data: { name: "Match Team 1", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Match Team 1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       const team2 = await db.team.create({
-        data: { name: "Match Team 2", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Match Team 2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const season1 = await db.season.create({
         data: { name: "Season 1", year: 2026, organisationId: org1.id },
       });
       const period1 = await db.leagueSeason.create({
-        data: { name: "Period 1", part: "SPRING", seasonId: season1.id, startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30"), organisationId: org1.id },
+        data: { name: "Period 1", part: "SPRING", seasonId: season1.id, startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30"), organisationId: org1.id, footballGroupId: org1Group },
       });
       const round1 = await db.matchRound.create({
         data: { name: "R1", leagueSeasonId: period1.id, status: "DRAFT", organisationId: org1.id },
@@ -134,6 +142,7 @@ describe("RLS tenant isolation", () => {
       const org = await db.organisation.create({
         data: { name: "Membership Org", slug: "membership-org-rls" },
       });
+      const orgGroup = await createTestGroup(db, org.id);
       const user = await db.user.create({
         data: { email: "member-rls@example.com", name: "Test Member" },
       });
@@ -153,11 +162,13 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Cross Org 1", slug: "cross-org-1" },
       });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Cross Org 2", slug: "cross-org-2" },
       });
+      const org2Group = await createTestGroup(db, org2.id);
       const team2 = await db.team.create({
-        data: { name: "Cross Team 2", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Cross Team 2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       await db.player.create({
@@ -199,8 +210,9 @@ describe("RLS tenant isolation", () => {
       const org = await db.organisation.create({
         data: { name: "Tenant Context Org", slug: "tenant-context-org" },
       });
+      const orgGroup = await createTestGroup(db, org.id);
       const team = await db.team.create({
-        data: { name: "Context Team", organisationId: org.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Context Team", organisationId: org.id, footballGroupId: orgGroup, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const teams = await withTenantContext(db, org.id, async (tx) => {
@@ -227,14 +239,16 @@ describe("RLS tenant isolation", () => {
       const org1 = await db.organisation.create({
         data: { name: "Unscoped Org 1", slug: "unscoped-org-1" },
       });
+      const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({
         data: { name: "Unscoped Org 2", slug: "unscoped-org-2" },
       });
+      const org2Group = await createTestGroup(db, org2.id);
       await db.team.create({
-        data: { name: "Team U1", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team U1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       await db.team.create({
-        data: { name: "Team U2", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Team U2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const teams = await withUnscopedContext(db, async (tx) => {
@@ -260,6 +274,7 @@ describe("RLS tenant isolation", () => {
       const org = await db.organisation.create({
         data: { name: "Scoped Org", slug: "scoped-org-rls" },
       });
+      const orgGroup = await createTestGroup(db, org.id);
       const user = await db.user.create({
         data: { email: "scoped-rls@example.com", name: "Scoped User" },
       });

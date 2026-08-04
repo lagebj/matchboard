@@ -5,6 +5,7 @@ import {
   teardownTestDb,
   getTestDb,
   seedTestFixture,
+  createTestGroup,
   type TestFixtureIds,
 } from "@/test/test-db";
 import { getAssistantCommandCentre } from "../get-assistant-command-centre";
@@ -266,6 +267,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     const org = await setupDb.organisation.create({
       data: { name: "Setup Test Org", slug: `setup-test-org-${Date.now()}` },
     });
+    const setupGroup1 = await createTestGroup(setupDb, org.id);
     const season = await setupDb.season.create({
       data: { name: "Setup Season", year: 2026, organisationId: org.id },
     });
@@ -277,6 +279,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
         organisationId: org.id,
+        footballGroupId: setupGroup1,
       },
     });
 
@@ -298,6 +301,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     const org = await setupDb.organisation.create({
       data: { name: "Setup Test Org 2", slug: `setup-test-org2-${Date.now()}` },
     });
+    const setupGroup2 = await createTestGroup(setupDb, org.id);
     const season = await setupDb.season.create({
       data: { name: "Setup Season 2", year: 2026, organisationId: org.id },
     });
@@ -309,10 +313,11 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
         organisationId: org.id,
+        footballGroupId: setupGroup2,
       },
     });
     const team = await setupDb.team.create({
-      data: { name: "Team A", targetSquadSize: 11, organisationId: org.id },
+      data: { name: "Team A", targetSquadSize: 11, organisationId: org.id, footballGroupId: setupGroup2 },
     });
 
     const result = await getAssistantCommandCentre();
@@ -334,6 +339,7 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     const org = await setupDb.organisation.create({
       data: { name: "Setup Test Org 3", slug: `setup-test-org3-${Date.now()}` },
     });
+    const setupGroup3 = await createTestGroup(setupDb, org.id);
     const season = await setupDb.season.create({
       data: { name: "Setup Season 3", year: 2026, organisationId: org.id },
     });
@@ -345,10 +351,11 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         startDate: new Date("2025-01-06"),
         endDate: new Date("2025-06-30"),
         organisationId: org.id,
+        footballGroupId: setupGroup3,
       },
     });
     const team = await setupDb.team.create({
-      data: { name: "Team A3", targetSquadSize: 11, organisationId: org.id },
+      data: { name: "Team A3", targetSquadSize: 11, organisationId: org.id, footballGroupId: setupGroup3 },
     });
     await setupDb.player.create({
       data: {

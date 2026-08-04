@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { setupTestDb, teardownTestDb, getTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, getTestDb, createTestGroup } from "@/test/test-db";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { resolveOpponentOnReportCompletion, resolveEventOpponentOnReportCompletion } from "@/lib/opponents/resolve-opponent";
 
 let testDb: PrismaClient;
 let testOrgId: string;
+let testGroupId: string;
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -22,7 +23,7 @@ vi.mock("@/lib/auth", () => ({
 
 async function createTestRound(testDb: PrismaClient) {
   const season = await testDb.season.create({
-    data: { name: "Test Season 2026", year: 2026 , organisationId: testOrgId },
+    data: { name: "Test Season 2026", year: 2026 , organisationId: testOrgId, footballGroupId: testGroupId },
   });
   const leagueSeason = await testDb.leagueSeason.create({
     data: {
@@ -32,6 +33,7 @@ async function createTestRound(testDb: PrismaClient) {
       endDate: new Date("2026-09-30"),
       seasonId: season.id,
       organisationId: testOrgId,
+        footballGroupId: testGroupId,
     },
   });
   const round = await testDb.matchRound.create({
@@ -52,6 +54,7 @@ describe("Opponent resolution on report completion", () => {
       data: { name: "Test Org", slug: `test-org-resolve-${Date.now()}` },
     });
     testOrgId = org.id;
+    testGroupId = await createTestGroup(testDb, testOrgId);
   });
   afterAll(async () => { await teardownTestDb(); });
 
@@ -59,7 +62,7 @@ describe("Opponent resolution on report completion", () => {
     it("creates a canonical opponent when match has no opponentTeamId", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Resolution Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
+        data: { name: "Resolution Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const match = await testDb.match.create({
         data: {
@@ -96,10 +99,10 @@ describe("Opponent resolution on report completion", () => {
     it("reuses existing canonical opponent by normalised name", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Reuse Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
+        data: { name: "Reuse Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Existing FC", normalizedName: "existing fc" , organisationId: testOrgId },
+        data: { displayName: "Existing FC", normalizedName: "existing fc" , organisationId: testOrgId, footballGroupId: testGroupId },
       });
 
       const match = await testDb.match.create({
@@ -130,10 +133,10 @@ describe("Opponent resolution on report completion", () => {
     it("keeps existing opponentTeamId if already set", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Already Linked Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
+        data: { name: "Already Linked Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Already Linked FC", normalizedName: "already linked fc" , organisationId: testOrgId },
+        data: { displayName: "Already Linked FC", normalizedName: "already linked fc" , organisationId: testOrgId, footballGroupId: testGroupId },
       });
 
       const match = await testDb.match.create({
@@ -163,7 +166,7 @@ describe("Opponent resolution on report completion", () => {
     it("returns null when opponent name is empty", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Empty Opponent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
+        data: { name: "Empty Opponent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const match = await testDb.match.create({
         data: {
@@ -186,7 +189,7 @@ describe("Opponent resolution on report completion", () => {
     it("is idempotent — calling twice produces the same result", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "Idempotent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
+        data: { name: "Idempotent Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const match = await testDb.match.create({
         data: {
@@ -211,10 +214,10 @@ describe("Opponent resolution on report completion", () => {
     it("uses exact normalised matching — no fuzzy merge", async () => {
       const { round } = await createTestRound(testDb);
       const team = await testDb.team.create({
-        data: { name: "No Fuzzy Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId },
+        data: { name: "No Fuzzy Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Slemmestad Blå", normalizedName: "slemmestad blå" , organisationId: testOrgId },
+        data: { displayName: "Slemmestad Blå", normalizedName: "slemmestad blå" , organisationId: testOrgId, footballGroupId: testGroupId },
       });
 
       const match = await testDb.match.create({
@@ -253,6 +256,7 @@ describe("Opponent resolution on report completion", () => {
           endsAt: new Date("2026-08-10T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const squad = await testDb.eventSquad.create({
@@ -297,7 +301,7 @@ describe("Opponent resolution on report completion", () => {
 
     it("keeps existing opponentTeamId if already set", async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Linked Event FC", normalizedName: "linked event fc" , organisationId: testOrgId },
+        data: { displayName: "Linked Event FC", normalizedName: "linked event fc" , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const event = await testDb.event.create({
         data: {
@@ -307,6 +311,7 @@ describe("Opponent resolution on report completion", () => {
           endsAt: new Date("2026-08-11T17:00:00Z"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: testOrgId,
+        footballGroupId: testGroupId,
         },
       });
       const squad = await testDb.eventSquad.create({

@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { supersedePendingReviews } from '@/lib/review/review-service';
 import { enqueueNotification } from '@/lib/email/outbox';
 import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
+import { getOrCreateDefaultGroup } from '@/lib/groups/group-domain';
 import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
 import {
@@ -134,6 +135,11 @@ export async function createEventAction(formData: FormData) {
   const squadCount = parseInt(formData.get('squadCount') as string) || 2;
   const targetSize = parseInt(formData.get('targetSize') as string) || 7;
 
+  if (ctx.orgFilter.type !== 'org') {
+    throw new Error('Organisation context is required to create an event.');
+  }
+  const footballGroupId = await getOrCreateDefaultGroup(ctx.orgFilter.organisationId);
+
   const event = await db.event.create({
     data: {
       name,
@@ -145,7 +151,8 @@ export async function createEventAction(formData: FormData) {
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
       notes,
-      ...(ctx.orgFilter.type === 'org' ? { organisationId: ctx.orgFilter.organisationId } : {}),
+      organisationId: ctx.orgFilter.organisationId,
+      footballGroupId,
       squads: {
         create: Array.from({ length: squadCount }, (_, i) => ({
           name: i === 0 ? 'Squad 1' : `Squad ${i + 1}`,

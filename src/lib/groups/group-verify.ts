@@ -43,10 +43,10 @@ export async function verifyBackfill(): Promise<VerificationResult> {
     });
     totalTeams += teamsInOrg;
 
-    const teamsWithGroup = await db.team.count({
-      where: { organisationId: org.id, footballGroupId: { not: null } },
-    });
-    totalTeamsWithGroups += teamsWithGroup;
+    const teamsWithGroup = await db.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::int as count FROM "Team" WHERE "organisationId" = ${org.id} AND "footballGroupId" IS NOT NULL
+    `;
+    totalTeamsWithGroups += Number(teamsWithGroup[0]?.count ?? 0);
 
     const activePlayersWithCoreTeam = await db.player.count({
       where: {
@@ -125,22 +125,20 @@ export async function verifyBackfill(): Promise<VerificationResult> {
       : undefined,
   });
 
-  const orphanedTeams = await db.team.count({
-    where: {
-      footballGroupId: null,
-      organisation: {
-        footballGroups: { some: { isActive: true } },
-      },
-    },
-  });
+  const orphanedTeams = await db.$queryRaw<Array<{ count: bigint }>>`
+    SELECT COUNT(*)::int as count FROM "Team" t
+    WHERE t."footballGroupId" IS NULL
+    AND EXISTS (SELECT 1 FROM "FootballGroup" fg WHERE fg."organisationId" = t."organisationId" AND fg."isActive" = true)
+  `;
+  const orphanedCount = Number(orphanedTeams[0]?.count ?? 0);
 
   checks.push({
     name: "No orphaned teams (teams in orgs with groups but without group assignment)",
-    passed: orphanedTeams === 0,
-    count: orphanedTeams,
+    passed: orphanedCount === 0,
+    count: orphanedCount,
     expected: 0,
-    details: orphanedTeams > 0
-      ? `${orphanedTeams} teams in orgs with groups but without group assignment`
+    details: orphanedCount > 0
+      ? `${orphanedCount} teams in orgs with groups but without group assignment`
       : undefined,
   });
 

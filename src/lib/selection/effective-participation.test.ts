@@ -4,6 +4,7 @@ import {
   setupTestDb,
   teardownTestDb,
   getTestDb,
+  createTestGroup,
 } from "@/test/test-db";
 import {
   isCoreRole,
@@ -18,6 +19,7 @@ import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents
 
 let testDb: PrismaClient;
 let testOrgId: string;
+let testGroupId: string;
 
 vi.mock("@/lib/db", () => ({
   get db() {
@@ -131,6 +133,7 @@ describe("Effective participation database queries", () => {
     testDb = await setupTestDb();
     const org = await testDb.organisation.create({ data: { name: "EffPart Test Org", slug: `effpart-org-${Date.now()}` } });
     testOrgId = org.id;
+    testGroupId = await createTestGroup(testDb, testOrgId);
     testOpponentTeamId = await ensureTestOpponentTeam(testDb, "Test Opponent Team");
   });
 
@@ -141,7 +144,7 @@ describe("Effective participation database queries", () => {
   describe("match with no report", () => {
     it("returns finalized selections as PLANNED_FINALIZED", async () => {
       await testDb.ruleConfig.create({
-        data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId: testOrgId },
+        data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const season = await testDb.season.create({ data: { name: "Test Season", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
@@ -152,6 +155,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -170,6 +174,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -265,7 +270,7 @@ describe("Effective participation database queries", () => {
   describe("match with REPORTED status", () => {
     it("uses actuals as source of truth", async () => {
       await testDb.ruleConfig.create({
-        data: { name: "Test rules 2", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId: testOrgId },
+        data: { name: "Test rules 2", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const season = await testDb.season.create({ data: { name: "Test Season 2", year: 2026, organisationId: testOrgId } });
       const period = await testDb.leagueSeason.create({
@@ -276,6 +281,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -294,6 +300,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -484,6 +491,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -502,6 +510,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -590,6 +599,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -608,6 +618,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -680,6 +691,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -698,6 +710,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -771,6 +784,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -789,6 +803,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -876,6 +891,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -894,6 +910,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({
@@ -980,6 +997,7 @@ describe("Effective participation database queries", () => {
           startDate: new Date("2025-01-06"),
           endDate: new Date("2025-06-30"),
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const round = await testDb.matchRound.create({
@@ -998,6 +1016,7 @@ describe("Effective participation database queries", () => {
           minAcceptedSquadSize: 5,
           maxSquadSize: 14,
           organisationId: testOrgId,
+          footballGroupId: testGroupId,
         },
       });
       const match = await testDb.match.create({

@@ -8,6 +8,7 @@ import { requireActorContext, requireMutationRole, requireTeamAccess, requirePla
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
+import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import {
   resolveOrCreateMatchRoundForDate,
@@ -186,8 +187,9 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
     const created = await db.season.create({
       data: { name: `${startsAt.getUTCFullYear()} Season`, year: startsAt.getUTCFullYear(), organisationId },
     });
+    const footballGroupId = await getOrCreateDefaultGroup(organisationId);
     const period = await db.leagueSeason.create({
-      data: { ...periodData, part, seasonId: created.id, organisationId },
+      data: { ...periodData, part, seasonId: created.id, organisationId, footballGroupId },
     });
     const resolved = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: period.id,
@@ -196,8 +198,9 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
     return resolved.roundId;
   }
 
+  const footballGroupId = await getOrCreateDefaultGroup(organisationId);
   const period = await db.leagueSeason.create({
-    data: { ...periodData, part, seasonId: season.id, organisationId },
+    data: { ...periodData, part, seasonId: season.id, organisationId, footballGroupId },
   });
   const resolved = await resolveOrCreateMatchRoundForDate({
     leagueSeasonId: period.id,
