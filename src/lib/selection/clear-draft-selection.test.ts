@@ -5,12 +5,14 @@ import {
   setupTestDb,
   teardownTestDb,
   getTestDb,
+  createTestGroup,
   type TestFixtureIds,
 } from "@/test/test-db";
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
 let testDb: PrismaClient;
 let testOrgId: string;
+let testGroupId: string;
 
 vi.mock("@/lib/db", () => {
   return {
@@ -27,6 +29,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
     data: { name: `Org ${Date.now()}`, slug: `org-clear-${Date.now()}` },
   });
   testOrgId = org.id;
+  testGroupId = await createTestGroup(testDb, testOrgId);
 
   const season = await testDb.season.create({
     data: { name: `Season ${Date.now()}`, year: 2026, organisationId: testOrgId },
@@ -39,6 +42,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
       organisationId: testOrgId,
+        footballGroupId: testGroupId,
     },
   });
   const round = await testDb.matchRound.create({
@@ -70,6 +74,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
         minAcceptedSquadSize: 9,
         maxSquadSize: 14,
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     teamIds[t.name] = team.id;
@@ -144,6 +149,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
 
   return {
     organisationId: testOrgId,
+    footballGroupId: testGroupId,
     seasonId: season.id,
     leagueSeasonId: period.id,
     matchRoundId: round.id,
@@ -342,14 +348,14 @@ describe("clear-draft-selection", () => {
         },
       });
 
-      const secondRound = await testDb.matchRound.create({
-        data: {
-          name: "W20 Other",
-          leagueSeasonId: fx.leagueSeasonId,
-          status: "DRAFT",
-          organisationId: testOrgId,
-        },
-      });
+       const secondRound = await testDb.matchRound.create({
+         data: {
+           name: "W20 Other",
+           leagueSeasonId: fx.leagueSeasonId,
+           status: "DRAFT",
+           organisationId: testOrgId,
+         },
+       });
       const secondMatch = await testDb.match.create({
         data: {
           matchRoundId: secondRound.id,

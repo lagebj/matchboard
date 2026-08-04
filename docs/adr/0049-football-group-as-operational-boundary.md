@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted — Bundles 1–5 merged, Bundle 6 (enforcement) in progress
 
 ## Date
 
@@ -135,7 +135,7 @@ Existing TeamAccess rows are collapsed into GroupAccess: multiple TeamAccess ent
 
 ### Risks
 
-- **Nullable group IDs during migration.** During the foundation phase, `footballGroupId` is nullable on models that will eventually require it. This is recorded as an ARR.
+- **Nullable group IDs during migration.** During the foundation phase, `footballGroupId` is nullable on models that will eventually require it. Bundle 6 makes `footballGroupId` non-nullable on Team, Event, LeagueSeason, and RuleConfig with a `Restrict` delete policy. This is recorded as ARR-0015.
 - **Dual authorization path.** During enforcement, both TeamAccess and GroupAccess are checked. This is recorded as an ARR.
 - **Direct team-based player eligibility.** Current selection engine uses `player.coreTeamId` directly without group scoping. This must be updated to use group player pool membership. This is recorded as an ARR.
 - **Legacy TeamAccess.** TeamAccess will be removed but must remain operational during migration. This is recorded as an ARR.

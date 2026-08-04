@@ -106,8 +106,21 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.user.deleteMany().catch(() => {});
 }
 
+export async function createTestGroup(db: PrismaClient, organisationId: string): Promise<string> {
+  const group = await db.footballGroup.create({
+    data: {
+      name: "Test Group",
+      slug: `test-group-${Date.now()}`,
+      type: "AGE_GROUP",
+      organisationId,
+    },
+  });
+  return group.id;
+}
+
 export type TestFixtureIds = {
   organisationId: string;
+  footballGroupId: string;
   seasonId: string;
   leagueSeasonId: string;
   matchRoundId: string;
@@ -177,8 +190,12 @@ export async function seedTestFixture(
     organisationId = org.id;
   }
 
+  const group = await db.footballGroup.create({
+    data: { name: "Test Group", slug: `test-group-${Date.now()}`, type: "AGE_GROUP", organisationId },
+  });
+
   await db.ruleConfig.create({
-    data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId },
+    data: { name: "Test rules", minDaysBetweenAnyMatches: 3, warningThreshold: 5, organisationId, footballGroupId: group.id },
   });
 
   const season = await db.season.create({
@@ -193,6 +210,7 @@ export async function seedTestFixture(
       startDate: new Date("2025-01-06"),
       endDate: new Date("2025-06-30"),
       organisationId,
+      footballGroupId: group.id,
     },
   });
 
@@ -220,6 +238,7 @@ export async function seedTestFixture(
         minAcceptedSquadSize: team.minAcceptedSquadSize ?? 9,
         maxSquadSize: team.maxSquadSize ?? 14,
         organisationId,
+        footballGroupId: group.id,
       },
     });
     teamIds[team.name] = created.id;
@@ -326,6 +345,7 @@ export async function seedTestFixture(
 
   return {
     organisationId,
+    footballGroupId: group.id,
     seasonId: season.id,
     leagueSeasonId: period.id,
     matchRoundId: round.id,

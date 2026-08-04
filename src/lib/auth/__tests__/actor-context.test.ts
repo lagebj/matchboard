@@ -87,11 +87,12 @@ describe("requireMutationRole", () => {
   it("error message includes role and allowed roles", () => {
     try {
       requireMutationRole(makeContext("VIEWER"));
-    } catch (e: any) {
-      expect(e.message).toContain("VIEWER");
-      expect(e.message).toContain("OWNER");
-      expect(e.message).toContain("ADMIN");
-      expect(e.message).toContain("COACH");
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      expect(error.message).toContain("VIEWER");
+      expect(error.message).toContain("OWNER");
+      expect(error.message).toContain("ADMIN");
+      expect(error.message).toContain("COACH");
     }
   });
 });
@@ -360,11 +361,11 @@ describe("requireTeamGroupAccess", () => {
   it("allows COACH with team access (delegatedTeamIds)", async () => {
     (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "team-1",
-      footballGroupId: null,
+      footballGroupId: "group-1",
     });
     const ctx = makeContext("COACH", ["team-1", "team-2"]);
     const result = await requireTeamGroupAccess(ctx, "team-1");
-    expect(result).toBeNull();
+    expect(result).toBe("group-1");
   });
 
   it("allows COACH with group access when no team access", async () => {

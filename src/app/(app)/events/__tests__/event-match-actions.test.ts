@@ -80,6 +80,8 @@ describe('Event match CRUD actions', () => {
         eventType: 'CUP',
         startsAt: new Date('2026-08-01'),
         gameFormat: 'SEVEN_A_SIDE',
+        organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
         squads: {
           create: { name: 'Competitive Squad', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0 },
         },
@@ -240,6 +242,8 @@ describe('Event match CRUD actions', () => {
           startsAt: new Date('2026-10-01'),
           gameFormat: 'SEVEN_A_SIDE',
           matchDurationMinutes: 25,
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
           squads: {
             create: [
               { name: 'Red Team', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0 },
@@ -312,6 +316,8 @@ describe('Event match CRUD actions', () => {
           eventType: 'CUP',
           startsAt: new Date('2026-11-01'),
           gameFormat: 'SEVEN_A_SIDE',
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
           squads: {
             create: { name: 'Other Squad', intent: 'BALANCED', targetSize: 7, generationOrder: 0 },
           },
@@ -388,6 +394,8 @@ describe('Event post-match report actions', () => {
         eventType: 'CUP',
         startsAt: new Date('2026-09-01'),
         gameFormat: 'SEVEN_A_SIDE',
+        organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
         squads: {
           create: {
             name: 'Test Squad',
@@ -483,6 +491,8 @@ describe('Event post-match report actions', () => {
           eventType: 'CUP',
           startsAt: new Date('2026-09-15'),
           gameFormat: 'SEVEN_A_SIDE',
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
           squads: {
             create: {
               name: 'Attendance Squad',

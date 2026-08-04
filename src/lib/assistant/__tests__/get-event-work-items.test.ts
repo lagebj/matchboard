@@ -4,6 +4,7 @@ import {
   setupTestDb,
   teardownTestDb,
   getTestDb,
+  createTestGroup,
 } from "@/test/test-db";
 import { getEventWorkItems } from "../get-event-work-items";
 
@@ -22,6 +23,7 @@ vi.mock("@/lib/db", () => {
 let db: PrismaClient;
 let opponentTeamId: string;
 let testOrgId: string;
+let testGroupId: string;
 
 async function cleanEventTables(db: PrismaClient) {
   await db.eventGoalEvent.deleteMany();
@@ -46,6 +48,7 @@ describe("getEventWorkItems", () => {
       data: { name: "Event Test Org", slug: `event-test-org-${Date.now()}` },
     });
     testOrgId = org.id;
+    testGroupId = await createTestGroup(db, testOrgId);
     const opp = await db.opponentTeam.create({
       data: { displayName: "Event Test Opponent", normalizedName: "event-test-opponent", organisationId: testOrgId },
     });
@@ -66,6 +69,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2026-08-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
 
@@ -90,6 +94,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2026-08-15T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -131,6 +136,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2028-06-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -174,6 +180,7 @@ describe("getEventWorkItems", () => {
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -224,6 +231,7 @@ describe("getEventWorkItems", () => {
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -281,6 +289,7 @@ describe("getEventWorkItems", () => {
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -332,6 +341,7 @@ describe("getEventWorkItems", () => {
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -372,6 +382,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2028-09-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -416,6 +427,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2028-10-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({
@@ -458,6 +470,7 @@ describe("getEventWorkItems", () => {
         endsAt: new Date("2028-11-01T17:00:00Z"),
         gameFormat: "SEVEN_A_SIDE",
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     await db.eventSquad.create({
@@ -500,6 +513,7 @@ describe("getEventWorkItems", () => {
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 20,
         organisationId: testOrgId,
+        footballGroupId: testGroupId,
       },
     });
     const squad = await db.eventSquad.create({

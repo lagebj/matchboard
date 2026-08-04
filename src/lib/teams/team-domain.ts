@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
 
 export type TeamMutationResult =
   | { success: true; teamId: string }
@@ -85,6 +86,13 @@ export async function createOrRestoreTeam(data: {
     return { success: false, error: "A team with this name already exists." };
   }
 
+  const organisationId = data.organisationId;
+  if (!organisationId) {
+    return { success: false, error: "Organisation ID is required to create a team." };
+  }
+
+  const footballGroupId = await getOrCreateDefaultGroup(organisationId);
+
   const team = await db.team.create({
     data: {
       developmentSlots: data.developmentSlots,
@@ -95,7 +103,8 @@ export async function createOrRestoreTeam(data: {
       name: data.name,
       supportPriority: data.supportPriority,
       targetSquadSize: data.targetSquadSize,
-      ...(data.organisationId ? { organisationId: data.organisationId } : {}),
+      organisationId,
+      footballGroupId,
     },
   });
 

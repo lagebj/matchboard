@@ -436,3 +436,30 @@ async function ensureUniqueSlug(
     counter++;
   }
 }
+
+const DEFAULT_GROUP_NAME = "Default Group";
+
+export async function getOrCreateDefaultGroup(organisationId: string): Promise<string> {
+  const existing = await db.footballGroup.findFirst({
+    where: {
+      organisationId,
+      isActive: true,
+    },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+
+  if (existing) return existing.id;
+
+  const slug = generateSlug(DEFAULT_GROUP_NAME);
+  const group = await db.footballGroup.create({
+    data: {
+      name: DEFAULT_GROUP_NAME,
+      slug,
+      type: "AGE_GROUP",
+      organisationId,
+    },
+  });
+
+  return group.id;
+}

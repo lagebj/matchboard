@@ -62,18 +62,15 @@ export async function backfillOrganisation(organisationId: string): Promise<Back
     result.groupsCreated++;
   }
 
-  const teamsWithoutGroup = await db.team.findMany({
-    where: {
-      organisationId,
-      footballGroupId: null,
-    },
-    select: { id: true },
-  });
+  const teamsResult = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM "Team" WHERE "organisationId" = ${organisationId} AND "footballGroupId" IS NULL
+  `;
 
-  if (teamsWithoutGroup.length > 0) {
+  if (teamsResult.length > 0) {
+    const teamIds = teamsResult.map((t) => t.id);
     const updateResult = await db.team.updateMany({
       where: {
-        id: { in: teamsWithoutGroup.map((t) => t.id) },
+        id: { in: teamIds },
       },
       data: { footballGroupId: defaultGroupId },
     });
@@ -91,7 +88,6 @@ export async function backfillOrganisation(organisationId: string): Promise<Back
 
   for (const ta of teamAccesses) {
     const groupId = ta.team.footballGroupId;
-    if (!groupId) continue;
 
     const existing = await db.groupAccess.findUnique({
       where: {
@@ -132,7 +128,7 @@ export async function backfillOrganisation(organisationId: string): Promise<Back
       select: { footballGroupId: true },
     });
 
-    if (!team?.footballGroupId) continue;
+    if (!team) continue;
 
     const existingMembership = await db.footballGroupPlayer.findFirst({
       where: {

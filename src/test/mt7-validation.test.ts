@@ -6,7 +6,7 @@ import { suspendOrganisation, reactivateOrganisation, deleteOrganisation, isOrga
 import { resolveOrgFilterForUser, resolveOrgFilterForMachine } from "@/lib/tenancy/resolve-org-filter";
 import { organisationFilter } from "@/lib/tenancy/tenant-filter";
 import { createMachinePrincipal } from "@/lib/machine-principal/machine-principal";
-import { setupTestDb, teardownTestDb, cleanTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, cleanTestDb, createTestGroup } from "@/test/test-db";
 
 describe("MT-7: First-tenant and synthetic-tenant validation", () => {
   let db: PrismaClient;
@@ -46,10 +46,12 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       expect(membership).not.toBeNull();
       expect(membership!.role).toBe("OWNER");
 
+      const org1Group = await createTestGroup(db, orgId);
       const team = await db.team.create({
         data: {
           name: "First Team",
           organisationId: orgId,
+          footballGroupId: org1Group,
           targetSquadSize: 11,
           minCorePlayers: 8,
           targetSupportCount: 2,
@@ -157,12 +159,14 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       const org2 = await db.organisation.create({
         data: { name: "Isolation Org 2", slug: "isolation-org-2-val" },
       });
+      const org1Group2 = await createTestGroup(db, org1.id);
+      const org2Group2 = await createTestGroup(db, org2.id);
 
       const team1 = await db.team.create({
-        data: { name: "Isolated Team 1", organisationId: org1.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Isolated Team 1", organisationId: org1.id, footballGroupId: org1Group2, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       const team2 = await db.team.create({
-        data: { name: "Isolated Team 2", organisationId: org2.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Isolated Team 2", organisationId: org2.id, footballGroupId: org2Group2, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       await db.player.create({
@@ -242,9 +246,10 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       const org = await db.organisation.create({
         data: { name: "Delete Org", slug: "delete-org-val", suspendedAt: new Date(), suspendedReason: "Deletion test" },
       });
+      const orgGroup3 = await createTestGroup(db, org.id);
 
       const team = await db.team.create({
-        data: { name: "Delete Team", organisationId: org.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Delete Team", organisationId: org.id, footballGroupId: orgGroup3, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       await db.player.create({
@@ -273,6 +278,8 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       const normalOrg = await db.organisation.create({
         data: { name: "Normal Test", slug: "normal-test-val" },
       });
+      const syntheticGroup = await createTestGroup(db, syntheticOrg.id);
+      const normalGroup = await createTestGroup(db, normalOrg.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: syntheticOrg.id,
@@ -297,10 +304,10 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       expect(normalTeams).toHaveLength(0);
 
       await db.team.create({
-        data: { name: "Canary Team", organisationId: syntheticOrg.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Canary Team", organisationId: syntheticOrg.id, footballGroupId: syntheticGroup, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
       await db.team.create({
-        data: { name: "Normal Team", organisationId: normalOrg.id, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+        data: { name: "Normal Team", organisationId: normalOrg.id, footballGroupId: normalGroup, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
       });
 
       const syntheticTeamsAfter = await db.team.findMany({ where: { organisationId: syntheticOrg.id } });

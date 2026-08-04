@@ -67,6 +67,7 @@ async function createEventWithMatches(testDb: PrismaClient, options?: { matchDur
       gameFormat: "SEVEN_A_SIDE",
       matchDurationMinutes,
       organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
       squads: {
         create: [
           { name: "Red Squad", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
@@ -192,6 +193,7 @@ describe("Event support actions", () => {
           gameFormat: "SEVEN_A_SIDE",
           matchDurationMinutes: null,
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: {
             create: [
               { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
@@ -493,6 +495,7 @@ describe("Event support actions", () => {
           gameFormat: "SEVEN_A_SIDE",
           matchDurationMinutes: null,
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: {
             create: [
               { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
@@ -585,6 +588,7 @@ describe("Event support actions", () => {
           gameFormat: "SEVEN_A_SIDE",
           matchDurationMinutes: null,
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: {
             create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
           },

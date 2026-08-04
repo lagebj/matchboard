@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { setupTestDb, teardownTestDb, getTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb, getTestDb, createTestGroup } from "@/test/test-db";
 import { organisationFilter, organisationFilterNullable, requireOrganisationId } from "@/lib/tenancy/tenant-filter";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import { OrganisationAccessError, requireRole, requireTeamAccess } from "@/lib/organisations/organisation-access";
@@ -195,15 +195,17 @@ describe("Multitenancy isolation", () => {
       const org2 = await db.organisation.create({
         data: { name: "Club Beta", slug: `club-beta-${Date.now()}` },
       });
+      const org1Group = await createTestGroup(db, org1.id);
+      const org2Group = await createTestGroup(db, org2.id);
 
       await db.team.create({
-        data: { name: "Alpha Team 1", organisationId: org1.id },
+        data: { name: "Alpha Team 1", organisationId: org1.id, footballGroupId: org1Group },
       });
       await db.team.create({
-        data: { name: "Alpha Team 2", organisationId: org1.id },
+        data: { name: "Alpha Team 2", organisationId: org1.id, footballGroupId: org1Group },
       });
       await db.team.create({
-        data: { name: "Beta Team 1", organisationId: org2.id },
+        data: { name: "Beta Team 1", organisationId: org2.id, footballGroupId: org2Group },
       });
 
       const org1Teams = await db.team.findMany({
@@ -229,12 +231,14 @@ describe("Multitenancy isolation", () => {
       const org2 = await db.organisation.create({
         data: { name: "Club Delta", slug: `club-delta-${Date.now()}` },
       });
+      const org1Group2 = await createTestGroup(db, org1.id);
+      const org2Group2 = await createTestGroup(db, org2.id);
 
       const org1Team = await db.team.create({
-        data: { name: "Gamma Team", organisationId: org1.id },
+        data: { name: "Gamma Team", organisationId: org1.id, footballGroupId: org1Group2 },
       });
       const org2Team = await db.team.create({
-        data: { name: "Delta Team", organisationId: org2.id },
+        data: { name: "Delta Team", organisationId: org2.id, footballGroupId: org2Group2 },
       });
 
       await db.player.create({
@@ -288,6 +292,8 @@ describe("Multitenancy isolation", () => {
       const org2 = await db.organisation.create({
         data: { name: "Club Zeta", slug: `club-zeta-${Date.now()}` },
       });
+      const org1Group3 = await createTestGroup(db, org1.id);
+      const org2Group3 = await createTestGroup(db, org2.id);
 
       const org1Season = await db.season.create({
         data: { name: "Epsilon 2026", year: 2026, organisationId: org1.id },
@@ -300,6 +306,7 @@ describe("Multitenancy isolation", () => {
           startDate: new Date("2026-04-01"),
           endDate: new Date("2026-06-30"),
           organisationId: org1.id,
+          footballGroupId: org1Group3,
         },
       });
       const org1Round = await db.matchRound.create({
@@ -311,7 +318,7 @@ describe("Multitenancy isolation", () => {
         },
       });
       const org1Team = await db.team.create({
-        data: { name: "Epsilon Team", organisationId: org1.id },
+        data: { name: "Epsilon Team", organisationId: org1.id, footballGroupId: org1Group3 },
       });
 
       const org2Season = await db.season.create({
@@ -325,6 +332,7 @@ describe("Multitenancy isolation", () => {
           startDate: new Date("2026-04-01"),
           endDate: new Date("2026-06-30"),
           organisationId: org2.id,
+          footballGroupId: org2Group3,
         },
       });
 
@@ -358,9 +366,10 @@ describe("Multitenancy isolation", () => {
       const org = await db.organisation.create({
         data: { name: "Club Eta", slug: `club-eta-${Date.now()}` },
       });
+      const orgGroup4 = await createTestGroup(db, org.id);
 
-      await db.team.create({ data: { name: "Active Team", organisationId: org.id } });
-      await db.team.create({ data: { name: "Archived Team", organisationId: org.id, archivedAt: new Date() } });
+      await db.team.create({ data: { name: "Active Team", organisationId: org.id, footballGroupId: orgGroup4 } });
+      await db.team.create({ data: { name: "Archived Team", organisationId: org.id, archivedAt: new Date(), footballGroupId: orgGroup4 } });
 
       const activeOrgTeams = await db.team.findMany({
         where: { ...organisationFilter(org.id), archivedAt: null },

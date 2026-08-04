@@ -76,6 +76,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -102,6 +103,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -127,6 +129,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -147,6 +150,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -194,6 +198,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -221,6 +226,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -247,6 +253,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: {
             create: [
               { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
@@ -276,6 +283,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -317,6 +325,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });
@@ -334,6 +343,7 @@ describe("Event pool and squad actions", () => {
           startsAt: new Date("2026-07-01"),
           gameFormat: "SEVEN_A_SIDE",
           organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
           squads: { create: { name: "Squad 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId } },
         },
       });

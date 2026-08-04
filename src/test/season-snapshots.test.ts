@@ -203,6 +203,7 @@ describe("League season finalization", () => {
         startDate: new Date("2027-01-01"),
         endDate: new Date("2027-06-30"),
         organisationId: fixture.organisationId,
+        footballGroupId: fixture.footballGroupId,
       },
     });
 
