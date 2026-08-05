@@ -6,34 +6,35 @@ import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
 
-async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type === 'org') {
-    const event = await db.event.findFirst({
-      where: { id: eventId, ...orgFilter.filter },
-      select: { id: true },
-    });
-    if (!event) throw new Error('Event not found or access denied.');
-  } else {
-    const event = await db.event.findUnique({
-      where: { id: eventId },
-      select: { id: true },
-    });
-    if (!event) throw new Error('Event not found.');
+async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
+  if (orgFilter.type !== 'org') {
+    const match = await db.eventMatch.findUnique({ where: { id: eventMatchId }, select: { eventId: true } });
+    if (!match) throw new Error('Event match not found.');
+    return { eventId: match.eventId };
   }
+  const match = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: orgFilter.filter },
+    select: { eventId: true },
+  });
+  if (!match) throw new Error('Event match not found or access denied.');
+  return { eventId: match.eventId };
 }
 
-async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode): Promise<string> {
+async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode): Promise<{ eventMatchId: string; eventId: string }> {
   if (orgFilter.type === 'org') {
     const lineup = await db.eventMatchLineup.findFirst({
       where: { id: lineupId, eventMatch: { event: orgFilter.filter } },
-      select: { eventMatchId: true },
+      select: { eventMatchId: true, eventMatch: { select: { eventId: true } } },
     });
     if (!lineup) throw new Error('Lineup not found or access denied.');
-    return lineup.eventMatchId;
+    return { eventMatchId: lineup.eventMatchId, eventId: lineup.eventMatch.eventId };
   }
-  const lineup = await db.eventMatchLineup.findUnique({ where: { id: lineupId }, select: { eventMatchId: true } });
+  const lineup = await db.eventMatchLineup.findUnique({
+    where: { id: lineupId },
+    select: { eventMatchId: true, eventMatch: { select: { eventId: true } } },
+  });
   if (!lineup) throw new Error('Lineup not found.');
-  return lineup.eventMatchId;
+  return { eventMatchId: lineup.eventMatchId, eventId: lineup.eventMatch.eventId };
 }
 
 export async function getEventMatchLineup(eventMatchId: string) {
@@ -67,7 +68,7 @@ export async function createEventMatchLineup(input: {
 }) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireEventOrgAccess(input.eventMatchId, ctx.orgFilter);
+  const { eventId } = await requireMatchOrgAccess(input.eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatchLineup.findUnique({
     where: { eventMatchId: input.eventMatchId },
@@ -128,7 +129,7 @@ export async function createEventMatchLineup(input: {
     },
   });
 
-  revalidatePath(`/events/${input.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return lineup;
 }
 
@@ -139,7 +140,7 @@ export async function assignPlayerToLineupSlot(
 ) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -183,7 +184,7 @@ export async function assignPlayerToLineupSlot(
     data: { playerId, source },
   });
 
-  revalidatePath(`/events/${lineup.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return assignment;
 }
 
@@ -193,26 +194,28 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
 
   const assignment = await db.eventMatchLineupAssignment.findUnique({
     where: { id: assignmentId },
-    include: { lineup: true },
+    include: { lineup: { include: { eventMatch: { select: { eventId: true } } } } },
   });
 
   if (!assignment) throw new Error('Assignment not found');
   if (assignment.lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
   await requireLineupOrgAccess(assignment.lineupId, ctx.orgFilter);
 
+  const eventId = assignment.lineup.eventMatch.eventId;
+
   const updated = await db.eventMatchLineupAssignment.update({
     where: { id: assignmentId },
     data: { playerId: null },
   });
 
-  revalidatePath(`/events/${assignment.lineup.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return updated;
 }
 
 export async function saveEventMatchLineup(lineupId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -226,14 +229,14 @@ export async function saveEventMatchLineup(lineupId: string) {
     data: { status: 'DRAFT' },
   });
 
-  revalidatePath(`/events/${updated.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return updated;
 }
 
 export async function clearEventMatchLineup(lineupId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -247,14 +250,14 @@ export async function clearEventMatchLineup(lineupId: string) {
     data: { playerId: null },
   });
 
-  revalidatePath(`/events/${lineup.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return { success: true };
 }
 
 export async function deleteEventMatchLineup(lineupId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -271,14 +274,14 @@ export async function deleteEventMatchLineup(lineupId: string) {
     where: { id: lineupId },
   });
 
-  revalidatePath(`/events/${lineup.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return { success: true };
 }
 
 export async function changeEventMatchLineupFormation(lineupId: string, formationId: string | null) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -335,14 +338,14 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
     data: { formationId },
   });
 
-  revalidatePath(`/events/${updated.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return updated;
 }
 
 export async function autoFillEventMatchLineup(lineupId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -442,7 +445,7 @@ export async function autoFillEventMatchLineup(lineupId: string) {
     });
   }
 
-  revalidatePath(`/events/${lineup.eventMatchId}`);
+  revalidatePath(`/events/${eventId}`);
   return { assigned: updates.length };
 }
 
