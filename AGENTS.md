@@ -1735,6 +1735,18 @@ Matchboard is deployed to **Vercel** with **Neon Postgres**. SQLite is not used 
 - `prisma.config.ts` configures the datasource URL from `DIRECT_URL` for CLI operations
 - `src/lib/db.ts` auto-detects Neon from the connection string and uses the appropriate adapter
 
+### Tenant isolation (critical — do not regress)
+
+**The Neon WebSocket adapter (`PrismaNeon`) does NOT preserve `SET LOCAL` session state between raw SQL and model queries inside `$transaction()`.** This was verified in production: `SET LOCAL` + `SHOW` works for raw SQL, but model queries inside `rawClient.$transaction()` lose the session variable and return 0 rows from all RLS-protected tables.
+
+**Do not use `SET LOCAL app.current_organization_id` inside Prisma transactions for tenant isolation.** It does not work with the Neon adapter.
+
+The primary tenant isolation mechanism is **Prisma where-clause injection** in `src/lib/db.ts` (`tenantRLS` extension). Every query on an RLS-scoped table has `organisationId` injected into its `where` clause (and `data` for creates). `findUnique` converts to `findFirst` to allow additional filtering.
+
+Database RLS policies serve as defence-in-depth. They are **permissive when `app.current_organization_id` is not set** (null or empty), trusting application-layer filtering. When the session variable IS set, RLS still enforces as an additional layer.
+
+See ADR-0057 for the full decision record.
+
 ### Production migrations
 
 - **Never run `prisma migrate dev` against production.**
