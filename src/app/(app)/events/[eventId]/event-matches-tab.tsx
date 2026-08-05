@@ -479,6 +479,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
               {squadMatches.map((m) => (
                 <EventMatchCard
                   key={m.id}
+                  eventId={eventId}
                   match={m}
                   matchDurationMinutes={matchDurationMinutes}
                   isPending={isPending}
@@ -583,6 +584,7 @@ function SupportLoadSummary({
 }
 
 function EventMatchCard({
+  eventId,
   match,
   matchDurationMinutes,
   isPending,
@@ -623,6 +625,7 @@ function EventMatchCard({
   gameFormat,
   playerProfiles,
 }: {
+  eventId: string;
   match: EventMatchWithReport;
   matchDurationMinutes: number | null;
   isPending: boolean;
@@ -836,6 +839,14 @@ function EventMatchCard({
             >
               {lineupMatchId === match.id ? '▼ Lineup' : '▶ Lineup'}
             </button>
+          )}
+          {match.status !== 'CANCELLED' && !match.report?.status?.includes('LOCKED') && (
+            <a
+              href={`/events/${eventId}/matches/${match.id}/live`}
+              className="text-[10px] text-emerald-400 hover:underline ml-1"
+            >
+              Live
+            </a>
           )}
         </div>
       </div>
