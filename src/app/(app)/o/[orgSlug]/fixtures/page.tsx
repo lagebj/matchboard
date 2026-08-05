@@ -8,7 +8,7 @@ export default async function FixturesRoute({ params }: { params: Promise<{ orgS
 
   return (
     <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading fixtures...</div>}>
-      <FixturesPage />
+      <FixturesPage orgSlug={orgSlug} />
     </Suspense>
   );
 }
