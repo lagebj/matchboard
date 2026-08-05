@@ -6,12 +6,12 @@ import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
 import { getEventPeriodConfig } from "@/lib/live-match/period-config";
 import {
   startEventLiveSessionAction,
-  endEventLiveSessionAction,
   heartbeatEventAction,
   recordEventLiveEventAction,
   getRecentEventEventsAction,
   getEventLiveMatchPreMatchPackageAction,
 } from "@/app/(app)/events/[eventId]/event-live-actions";
+import { endEventLiveSessionAndCreateReportAction } from "@/app/(app)/events/[eventId]/event-live-report-handoff";
 
 interface EventLiveMatchClientProps {
   eventMatchId: string;
@@ -20,9 +20,10 @@ interface EventLiveMatchClientProps {
   eventName: string;
   matchDurationMinutes: number | null;
   coachId: string;
+  eventId: string;
 }
 
-function createEventActions(): LiveMatchActions {
+function createEventActions(eventMatchId: string, eventId: string): LiveMatchActions {
   return {
     startSession: async (matchId) => {
       const result = await startEventLiveSessionAction(matchId);
@@ -32,9 +33,9 @@ function createEventActions(): LiveMatchActions {
       return { success: false, error: result.success === false ? result.error : "Failed to start session" };
     },
     endSession: async (sessionId) => {
-      const result = await endEventLiveSessionAction(sessionId);
-      if (result.success) {
-        return { success: true };
+      const result = await endEventLiveSessionAndCreateReportAction(sessionId, eventMatchId);
+      if (result.success && result.data) {
+        return { success: true, data: { reportId: result.data.reportId, reportStatus: result.data.reportStatus } };
       }
       return { success: false, error: result.success === false ? result.error : "Failed to end session" };
     },
@@ -68,13 +69,13 @@ function createEventActions(): LiveMatchActions {
       }
       return { success: false, error: result.success === false ? result.error : "Failed to load event match data" };
     },
+    reportUrl: (_reportId: string) => `/events/${eventId}`,
   };
 }
 
-const eventActions = createEventActions();
-
-export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eventName, matchDurationMinutes, coachId }: EventLiveMatchClientProps) {
+export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eventName, matchDurationMinutes, coachId, eventId }: EventLiveMatchClientProps) {
   const periodConfig = getEventPeriodConfig(matchDurationMinutes);
+  const eventActions = createEventActions(eventMatchId, eventId);
 
   return (
     <LiveMatchClient

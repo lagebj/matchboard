@@ -27,7 +27,7 @@ export interface SquadPlayer {
 
 export interface LiveMatchActions {
   startSession: (matchId: string) => Promise<{ success: boolean; data?: { id: string }; error?: string }>;
-  endSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  endSession: (sessionId: string) => Promise<{ success: boolean; data?: { reportId?: string; reportStatus?: string }; error?: string }>;
   heartbeat: (sessionId: string) => Promise<void>;
   recordEvent: (input: {
     matchId: string;
@@ -51,6 +51,7 @@ export interface LiveMatchActions {
     };
     error?: string;
   }>;
+  reportUrl?: (reportId: string) => string;
 }
 
 export interface LiveMatchClientProps {
@@ -200,6 +201,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     if (result.success) {
       setSessionActive(false);
       setSessionId(null);
+      if (result.data?.reportId && actions.reportUrl) {
+        window.location.href = actions.reportUrl(result.data.reportId);
+      }
     } else {
       setError(result.error ?? "Failed to end session");
     }

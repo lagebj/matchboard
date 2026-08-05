@@ -9,7 +9,7 @@ interface EventLiveMatchPageProps {
 }
 
 export default async function EventLiveMatchPage({ params }: EventLiveMatchPageProps) {
-  const { orgSlug, eventMatchId } = await params;
+  const { orgSlug, eventId, eventMatchId } = await params;
   const ctx = await requireActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
@@ -55,6 +55,7 @@ export default async function EventLiveMatchPage({ params }: EventLiveMatchPageP
       eventName={match.event.name}
       matchDurationMinutes={match.event.matchDurationMinutes}
       coachId={ctx.userId}
+      eventId={eventId}
     />
   );
 }
