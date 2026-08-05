@@ -99,17 +99,11 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
       const liveEvents = await db.liveMatchEvent.findMany({
         where: {
           matchId,
-          correctionType: { not: "REVERSAL" },
           OR: [
-            { eventType: "GOAL_FOR" },
-            { eventType: "GOAL_AGAINST" },
-            { eventType: "SCORER_SET" },
-            { eventType: "ASSIST_SET" },
-            { eventType: "FAIR_PLAY_POSITIVE" },
-            { eventType: "FAIR_PLAY_CONCERN" },
-            { eventType: "ROTATION_OUT" },
-            { eventType: "ROTATION_IN" },
+            { correctionType: null },
+            { correctionType: "CORRECTION" },
           ],
+          eventType: { in: ["GOAL_FOR", "GOAL_AGAINST", "SCORER_SET", "ASSIST_SET", "FAIR_PLAY_POSITIVE", "FAIR_PLAY_CONCERN", "ROTATION_OUT", "ROTATION_IN"] },
         },
         select: {
           id: true,
