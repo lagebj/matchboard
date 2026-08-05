@@ -238,7 +238,7 @@ None.
 
 ## Superseded by
 
-None.
+ADR-0057 (Prisma where-clause injection for tenant isolation). The `SET LOCAL` approach described in sections 3–5 of this ADR does not work with the Neon WebSocket adapter, which does not preserve session state between raw SQL and model queries inside `$transaction()`. ADR-0057 replaces `SET LOCAL` with where-clause injection as the primary tenant isolation mechanism. RLS policies remain as defence-in-depth but are permissive when `app.current_organization_id` is not set.
 
 ## History
 

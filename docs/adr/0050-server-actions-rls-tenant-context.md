@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Partially resolved
 
 ## Identified
 
@@ -45,15 +45,15 @@ Every `db` query against an RLS-protected table must have `app.current_organizat
 
 ## Disposition
 
-Pending. Current `enterWith()` approach works for request-scoped operations. Background processing will need explicit context setup when implemented.
+Partially resolved. The where-clause injection approach (ADR-0057) reduces the dependency on `AsyncLocalStorage.enterWith()` for RLS enforcement — queries are filtered by `organisationId` in the Prisma extension regardless of whether PostgreSQL session state is set. However, background operations that bypass `requireActorContext()` still need explicit `runWithTenantOrganisationId()` to ensure the correct `organisationId` is injected into queries. Database RLS policies are permissive when context is not set, so missing context does not cause 0-row returns, but it does mean the query is not scoped to the correct organisation.
 
 ## Related decisions
 
-ADR-0037
+ADR-0037 (superseded), ADR-0057 (current approach), ADR-0035 (multitenancy architecture)
 
 ## Related implementation
 
-PR #192, PR #193
+PR #202 (where-clause injection)
 
 ## Supersedes
 
@@ -64,6 +64,10 @@ None
 None
 
 ## History
+
+### 2026-08-05
+
+Updated. Where-clause injection (ADR-0057) reduces the impact of missing `enterWith()` context — queries still get `organisationId` injected if context is set. Missing context now returns unscoped results (all organisations) instead of 0 rows, which is less dangerous but still incorrect. Background operations still need explicit context setup.
 
 ### 2026-08-04
 
