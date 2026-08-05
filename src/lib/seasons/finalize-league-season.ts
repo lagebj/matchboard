@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export type SnapshotTeam = {
@@ -24,15 +23,97 @@ export type LeagueSeasonSnapshot = {
   teams: SnapshotTeam[];
 };
 
-export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
+export type FinalizeValidationResult = {
+  canFinalize: boolean;
+  errors: string[];
+  warnings: string[];
+};
 
+export async function validateLeagueSeasonFinalization(
+  leagueSeasonId: string,
+): Promise<FinalizeValidationResult> {
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
     include: {
-      matchRounds: { select: { id: true } },
-      periodSnapshot: true,
+      matchRounds: {
+        select: { id: true, status: true },
+      },
     },
+  });
+
+  if (!leagueSeason) {
+    return { canFinalize: false, errors: ["League season not found."], warnings: [] };
+  }
+
+  if (leagueSeason.status === "FINALIZED") {
+    return { canFinalize: false, errors: ["League season is already finalised."], warnings: [] };
+  }
+
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (leagueSeason.matchRounds.length === 0) {
+    warnings.push("League season has no rounds.");
+  }
+
+  const nonFinalizedRounds = leagueSeason.matchRounds.filter(
+    (r) => r.status !== "FINALIZED",
+  );
+  if (nonFinalizedRounds.length > 0) {
+    errors.push(
+      `${nonFinalizedRounds.length} round(s) are not finalised. All rounds must be finalised before the league season can be finalised.`,
+    );
+  }
+
+  if (leagueSeason.matchRounds.length > 0) {
+    const roundsWithMatches = await db.matchRound.findMany({
+      where: { leagueSeasonId },
+      include: {
+        matches: {
+          select: { id: true, status: true },
+        },
+      },
+    });
+
+    const allMatchIds = roundsWithMatches.flatMap((r) =>
+      r.matches.filter((m) => m.status !== "CANCELLED").map((m) => m.id),
+    );
+
+    if (allMatchIds.length > 0) {
+      const completedReports = await db.postMatchReport.findMany({
+        where: {
+          matchId: { in: allMatchIds },
+          status: { in: ["REPORTED", "LOCKED"] },
+        },
+        select: { matchId: true },
+      });
+
+      const matchesWithCompletedReports = new Set(completedReports.map((r) => r.matchId));
+      const matchesWithoutCompletedReports = allMatchIds.filter(
+        (id) => !matchesWithCompletedReports.has(id),
+      );
+
+      if (matchesWithoutCompletedReports.length > 0) {
+        warnings.push(
+          `${matchesWithoutCompletedReports.length} match(es) do not have completed post-match reports.`,
+        );
+      }
+    }
+  }
+
+  return {
+    canFinalize: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+export async function finalizeLeagueSeason(
+  leagueSeasonId: string,
+  finalisedBy: string | null = null,
+): Promise<{ success: boolean; error?: string }> {
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
   });
 
   if (!leagueSeason) {
@@ -43,12 +124,10 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
     return { success: false, error: "League season is already finalised." };
   }
 
-  if (leagueSeason.periodSnapshot) {
-    return { success: false, error: "Snapshot already exists for this league season." };
-  }
+  const orgFilter = { organisationId: leagueSeason.organisationId };
 
   const teamsWithPlayers = await db.team.findMany({
-    where: { archivedAt: null },
+    where: { archivedAt: null, ...orgFilter },
     include: {
       corePlayers: {
         where: { removedAt: null },
@@ -71,19 +150,37 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
   const now = new Date();
 
   await db.$transaction(async (tx) => {
+    const existingSnapshot = await tx.seasonPeriodSnapshot.findUnique({
+      where: { leagueSeasonId },
+    });
+
+    if (existingSnapshot) {
+      await tx.teamSeasonSnapshotPlayer.deleteMany({
+        where: { teamSeasonSnapshot: { seasonPeriodSnapshot: { leagueSeasonId } } },
+      });
+      await tx.teamSeasonSnapshot.deleteMany({
+        where: { seasonPeriodSnapshot: { leagueSeasonId } },
+      });
+      await tx.seasonPeriodSnapshot.delete({
+        where: { leagueSeasonId },
+      });
+    }
+
     await tx.leagueSeason.update({
       where: { id: leagueSeasonId },
       data: {
         status: "FINALIZED",
         finalizedAt: now,
+        finalizedBy: finalisedBy,
       },
     });
 
-    const snapshot = await tx.seasonPeriodSnapshot.create({
+    await tx.seasonPeriodSnapshot.create({
       data: {
         organisationId: leagueSeason.organisationId,
         leagueSeasonId,
         finalizedAt: now,
+        finalizedBy: finalisedBy,
         teamSnapshots: {
           create: teamsWithPlayers.map((team) => ({
             organisationId: leagueSeason.organisationId,
@@ -110,8 +207,6 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
         },
       },
     });
-
-    return snapshot;
   });
 
   revalidatePath("/season");
@@ -120,12 +215,11 @@ export async function finalizeLeagueSeason(leagueSeasonId: string): Promise<{ su
   return { success: true };
 }
 
-export async function unfinalizeLeagueSeason(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
-  await requireCoachAccess();
-
+export async function unfinalizeLeagueSeason(
+  leagueSeasonId: string,
+): Promise<{ success: boolean; error?: string }> {
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
-    include: { periodSnapshot: true },
   });
 
   if (!leagueSeason) {
@@ -136,13 +230,31 @@ export async function unfinalizeLeagueSeason(leagueSeasonId: string): Promise<{ 
     return { success: false, error: "League season is not finalised." };
   }
 
-  await db.leagueSeason.update({
-    where: { id: leagueSeasonId },
-    data: {
-      status: "OPEN",
-      finalizedAt: null,
-      finalizedBy: null,
-    },
+  await db.$transaction(async (tx) => {
+    await tx.leagueSeason.update({
+      where: { id: leagueSeasonId },
+      data: {
+        status: "OPEN",
+        finalizedAt: null,
+        finalizedBy: null,
+      },
+    });
+
+    const existingSnapshot = await tx.seasonPeriodSnapshot.findUnique({
+      where: { leagueSeasonId },
+    });
+
+    if (existingSnapshot) {
+      await tx.teamSeasonSnapshotPlayer.deleteMany({
+        where: { teamSeasonSnapshot: { seasonPeriodSnapshotId: existingSnapshot.id } },
+      });
+      await tx.teamSeasonSnapshot.deleteMany({
+        where: { seasonPeriodSnapshotId: existingSnapshot.id },
+      });
+      await tx.seasonPeriodSnapshot.delete({
+        where: { id: existingSnapshot.id },
+      });
+    }
   });
 
   revalidatePath("/season");
@@ -186,5 +298,33 @@ export async function getLeagueSeasonSnapshot(leagueSeasonId: string): Promise<L
         activeAtSnapshot: ps.activeAtSnapshot,
       })),
     })),
+  };
+}
+
+export async function getLeagueSeasonFinalizationStatus(leagueSeasonId: string): Promise<{
+  status: string;
+  finalizedAt: Date | null;
+  finalizedBy: string | null;
+  snapshotExists: boolean;
+}> {
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
+    select: { status: true, finalizedAt: true, finalizedBy: true },
+  });
+
+  if (!leagueSeason) {
+    return { status: "NOT_FOUND", finalizedAt: null, finalizedBy: null, snapshotExists: false };
+  }
+
+  const snapshot = await db.seasonPeriodSnapshot.findUnique({
+    where: { leagueSeasonId },
+    select: { id: true },
+  });
+
+  return {
+    status: leagueSeason.status,
+    finalizedAt: leagueSeason.finalizedAt,
+    finalizedBy: leagueSeason.finalizedBy,
+    snapshotExists: snapshot !== null,
   };
 }

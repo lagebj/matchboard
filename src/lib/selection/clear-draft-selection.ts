@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireOpenLeagueSeason, requireOpenLeagueSeasonForRound, requireOpenLeagueSeasonForMatch } from "@/lib/seasons/require-open-league-season";
 
 export type ClearDraftResult = {
   selectionsDeleted: number;
@@ -10,6 +11,8 @@ export type ClearDraftResult = {
 export async function clearAllDraftSelections(
   leagueSeasonId: string,
 ): Promise<ClearDraftResult> {
+  await requireOpenLeagueSeason(leagueSeasonId);
+
   const matchRounds = await db.matchRound.findMany({
     where: {
       leagueSeasonId,
@@ -54,6 +57,8 @@ export async function clearAllDraftSelections(
 export async function clearRoundDraftSelection(
   matchRoundId: string,
 ): Promise<ClearDraftResult> {
+  await requireOpenLeagueSeasonForRound(matchRoundId);
+
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId },
     select: { status: true },
@@ -97,6 +102,8 @@ export async function clearRoundDraftSelection(
 export async function clearMatchDraftSelection(
   matchId: string,
 ): Promise<ClearDraftResult> {
+  await requireOpenLeagueSeasonForMatch(matchId);
+
   const match = await db.match.findUnique({
     where: { id: matchId },
     include: { matchRound: { select: { id: true, status: true } } },

@@ -7,6 +7,7 @@ import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
+import { requireOpenLeagueSeasonForMatch } from "@/lib/seasons/require-open-league-season";
 
 type SelectionRow = { manuallyAdded: boolean; manuallyRemoved: boolean; explanation: Prisma.JsonValue };
 
@@ -95,6 +96,8 @@ async function cloneDraftSelection(matchId: string) {
 }
 
 export async function refreshDraftSelection(matchId: string) {
+  await requireOpenLeagueSeasonForMatch(matchId);
+
   const match = await db.match.findUnique({
     where: {
       id: matchId,

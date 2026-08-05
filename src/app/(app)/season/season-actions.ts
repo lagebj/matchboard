@@ -1,134 +1,78 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  finalizeLeagueSeason,
+  unfinalizeLeagueSeason,
+  validateLeagueSeasonFinalization,
+} from "@/lib/seasons/finalize-league-season";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
-import { db } from "@/lib/db";
 
-export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
+export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{
+  success: boolean;
+  error?: string;
+  validation?: { canFinalize: boolean; errors: string[]; warnings: string[] };
+}> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const leagueSeason = await db.leagueSeason.findUnique({
-    where: { id: leagueSeasonId },
-    include: {
-      matchRounds: { select: { id: true } },
-      periodSnapshot: true,
-    },
+  const validation = await validateLeagueSeasonFinalization(leagueSeasonId);
+
+  if (!validation.canFinalize) {
+    return { success: false, validation };
+  }
+
+  const orgFilter = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const { db } = await import("@/lib/db");
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...orgFilter },
+    select: { id: true },
   });
 
   if (!leagueSeason) {
-    return { success: false, error: "League season not found." };
-  }
-
-  if (leagueSeason.organisationId !== ctx.organisationId) {
     return { success: false, error: "League season not found or access denied." };
   }
 
-  if (leagueSeason.status === "FINALIZED") {
-    return { success: false, error: "League season is already finalised." };
-  }
-
-  if (leagueSeason.periodSnapshot) {
-    return { success: false, error: "Snapshot already exists for this league season." };
-  }
-
-  const teamsWithPlayers = await db.team.findMany({
-    where: { archivedAt: null, ...ctx.orgFilter.filter },
-    include: {
-      corePlayers: {
-        where: { removedAt: null },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          primaryPosition: true,
-          secondaryPosition: true,
-          tertiaryPosition: true,
-          shirtNumber: true,
-          active: true,
-        },
-        orderBy: [{ playerCode: "asc" }],
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  const now = new Date();
-
-  await db.$transaction(async (tx) => {
-    await tx.leagueSeason.update({
-      where: { id: leagueSeasonId },
-      data: {
-        status: "FINALIZED",
-        finalizedAt: now,
-      },
-    });
-
-    await tx.seasonPeriodSnapshot.create({
-      data: {
-        leagueSeasonId,
-        finalizedAt: now,
-        organisationId: ctx.organisationId,
-        teamSnapshots: {
-          create: teamsWithPlayers.map((team) => ({
-            teamId: team.id,
-            teamNameSnapshot: team.name,
-            organisationId: ctx.organisationId,
-            playerSnapshots: {
-              create: team.corePlayers.map((player) => ({
-                playerId: player.id,
-                playerNameSnapshot: [player.firstName, player.lastName].filter(Boolean).join(" "),
-                primaryPositionSnapshot: player.primaryPosition,
-                secondaryPositionSnapshot: player.secondaryPosition,
-                tertiaryPositionSnapshot: player.tertiaryPosition,
-                shirtNumberSnapshot: player.shirtNumber,
-                activeAtSnapshot: player.active,
-                organisationId: ctx.organisationId,
-              })),
-            },
-          })),
-        },
-      },
-    });
-  });
-
-  revalidatePath("/season");
-  revalidatePath("/fixtures");
-
-  return { success: true };
+  const result = await finalizeLeagueSeason(leagueSeasonId, ctx.userId);
+  return result;
 }
 
-export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{ success: boolean; error?: string }> {
+export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const leagueSeason = await db.leagueSeason.findUnique({
-    where: { id: leagueSeasonId },
+  const orgFilter = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const { db } = await import("@/lib/db");
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...orgFilter },
+    select: { id: true },
   });
 
   if (!leagueSeason) {
-    return { success: false, error: "League season not found." };
-  }
-
-  if (leagueSeason.organisationId !== ctx.organisationId) {
     return { success: false, error: "League season not found or access denied." };
   }
 
-  if (leagueSeason.status !== "FINALIZED") {
-    return { success: false, error: "League season is not finalised." };
-  }
+  return unfinalizeLeagueSeason(leagueSeasonId);
+}
 
-  await db.leagueSeason.update({
-    where: { id: leagueSeasonId },
-    data: {
-      status: "OPEN",
-      finalizedAt: null,
-      finalizedBy: null,
-    },
+export async function getFinalizationValidationAction(leagueSeasonId: string): Promise<{
+  validation: { canFinalize: boolean; errors: string[]; warnings: string[] };
+}> {
+  const ctx = await requireActorContext();
+
+  const orgFilter = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const { db } = await import("@/lib/db");
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...orgFilter },
+    select: { id: true },
   });
 
-  revalidatePath("/season");
-  revalidatePath("/fixtures");
+  if (!leagueSeason) {
+    return { validation: { canFinalize: false, errors: ["Access denied."], warnings: [] } };
+  }
 
-  return { success: true };
+  const validation = await validateLeagueSeasonFinalization(leagueSeasonId);
+  return { validation };
 }

@@ -4,6 +4,7 @@ import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft"
 import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/persist-warnings";
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
+import { requireOpenLeagueSeason } from "@/lib/seasons/require-open-league-season";
 
 export type PopulateAllResult = {
   leagueSeasonId: string;
@@ -28,6 +29,8 @@ export type PopulateRoundResult = {
 export async function populateAllDrafts(
   leagueSeasonId: string,
 ): Promise<PopulateAllResult> {
+  await requireOpenLeagueSeason(leagueSeasonId);
+
   const leagueSeason = await db.leagueSeason.findUnique({
     where: { id: leagueSeasonId },
     include: {
