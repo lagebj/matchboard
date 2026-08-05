@@ -76,6 +76,7 @@ function getFilteredCommands(canCreate: boolean, canManageOrg: boolean, orgSlug:
       { id: "create-player", label: "Create player", description: "Add a new player", href: `${prefix}/players/new`, category: "create", keywords: ["create", "new", "add", "player"] },
       { id: "create-fixture", label: "Create fixture", description: "Add a new match", href: `${prefix}/matches/new`, category: "create", keywords: ["create", "new", "add", "match", "fixture"] },
       { id: "create-event", label: "Create event", description: "Add a new event", href: `${prefix}/events/new`, category: "create", keywords: ["create", "new", "add", "event", "cup", "tournament"] },
+      { id: "create-league-season", label: "Create league season", description: "Set up a new league season for planning", href: `${prefix}/season/new`, category: "create", keywords: ["create", "new", "add", "season", "league", "spring", "fall"] },
     );
   }
 
