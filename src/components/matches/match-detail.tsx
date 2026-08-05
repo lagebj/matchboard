@@ -24,6 +24,7 @@ import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
+import { PreviousEncountersDisplay } from "@/components/opponents/previous-encounters-display";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
 import { PageHeader } from "@/components/ui/page-header";
@@ -39,6 +40,7 @@ import { TeamShield } from "@/components/ui/team-shield";
 import { IntentCard } from "@/components/ui/intent-card";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { COACHING_INTENT_LABELS, type CoachingIntentCategory } from "@/lib/coaching/types";
+import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type SelectionRow = {
@@ -90,6 +92,10 @@ type MatchData = {
   coachingIntentId?: string;
   inheritedIntentScope?: "round" | "league season";
   opponentTeamId?: string | null;
+  footballGroupId?: string;
+  opponentHistory?: OpponentHistoryData | null;
+  opponentConcernCount?: number;
+  opponentLatestConcernDate?: string | null;
   phaseStartDate?: Date;
   phaseEndDate?: Date;
 };
@@ -690,22 +696,32 @@ export function MatchDetail({ match }: { match: MatchData }) {
       {selectedTab === "opponent" && (
         <div className="flex flex-col gap-4">
           {match.opponentTeamId ? (
-            <Surface padding="md" className="flex flex-col gap-3">
-              <SectionHeader
-                title="Opponent context"
-                description="Previous encounters, sporting fit, and post-match observations."
-              />
-              <Button
-                as={Link}
-                href={`/opponents/${match.opponentTeamId}`}
-                variant="primary"
-                size="md"
-                leadingIcon={<Eye className="h-4 w-4" aria-hidden="true" />}
-                className="self-start"
-              >
-                View opponent detail
-              </Button>
-            </Surface>
+            <>
+              {match.opponentHistory && (
+                <PreviousEncountersDisplay
+                  history={match.opponentHistory}
+                  concernCount={match.opponentConcernCount ?? 0}
+                  latestConcernDate={match.opponentLatestConcernDate ?? null}
+                  opponentTeamId={match.opponentTeamId}
+                />
+              )}
+              <Surface padding="md" className="flex flex-col gap-3">
+                <SectionHeader
+                  title="Opponent context"
+                  description="Sporting fit, post-match observations, and full encounter history."
+                />
+                <Button
+                  as={Link}
+                  href={`/opponents/${match.opponentTeamId}`}
+                  variant="primary"
+                  size="md"
+                  leadingIcon={<Eye className="h-4 w-4" aria-hidden="true" />}
+                  className="self-start"
+                >
+                  View opponent detail
+                </Button>
+              </Surface>
+            </>
           ) : (
             <EmptyState
               title="No opponent profile linked yet."

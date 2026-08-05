@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 import { requireActorContext } from "@/lib/auth/actor-context";
+import { getOpponentHistory } from "@/lib/audit/opponent-history";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function MatchDetailPage({
   const match = await db.match.findUnique({
     where: { id: matchId, ...orgWhere },
     include: {
-      team: { select: { id: true, name: true } },
+      team: { select: { id: true, name: true, footballGroupId: true } },
       matchRound: { select: { id: true, name: true, status: true, leagueSeasonId: true, leagueSeason: { select: { id: true, startDate: true, endDate: true } } } },
       selections: {
         where: { status: { in: ["DRAFT", "FINALIZED"] } },
@@ -88,6 +89,28 @@ export default async function MatchDetailPage({
     take: 1,
   });
 
+  let opponentHistory: Awaited<ReturnType<typeof getOpponentHistory>> = null;
+  let opponentConcernCount = 0;
+  let opponentLatestConcernDate: string | null = null;
+
+  if (match.opponentTeamId && match.team.footballGroupId) {
+    opponentHistory = await getOpponentHistory(match.opponentTeamId, match.team.footballGroupId);
+    if (match.opponentTeamId) {
+      const [cc, lcd] = await Promise.all([
+        db.opponentEncounterObservation.count({
+          where: { opponentTeamId: match.opponentTeamId, overallEnvironment: { in: ["CONCERN", "SERIOUS_CONCERN"] } },
+        }),
+        db.opponentEncounterObservation.findFirst({
+          where: { opponentTeamId: match.opponentTeamId, overallEnvironment: { in: ["CONCERN", "SERIOUS_CONCERN"] } },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        }),
+      ]);
+      opponentConcernCount = cc;
+      opponentLatestConcernDate = lcd?.createdAt.toISOString() ?? null;
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
@@ -126,6 +149,11 @@ export default async function MatchDetailPage({
           inheritedIntentScope: activeIntent && activeIntent.scopeType !== "MATCH"
             ? (activeIntent.scopeType === "MATCH_ROUND" ? "round" : "league season")
             : undefined,
+          opponentTeamId: match.opponentTeamId ?? null,
+          footballGroupId: match.team.footballGroupId,
+          opponentHistory,
+          opponentConcernCount,
+          opponentLatestConcernDate,
           phaseStartDate: match.matchRound.leagueSeason.startDate,
           phaseEndDate: match.matchRound.leagueSeason.endDate,
         }}

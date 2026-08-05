@@ -160,6 +160,7 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode = { type: "un
             teamId: match.teamId,
             teamName: match.team.name,
             opponent: match.opponent,
+            opponentTeamId: match.opponentTeamId ?? null,
             startsAt: match.startsAt?.toISOString(),
             venue: match.homeAway === "HOME" ? "Home" : match.homeAway === "AWAY" ? "Away" : undefined,
             readinessState: mapReadiness(matchBlockerCount, matchDecisionCount),
