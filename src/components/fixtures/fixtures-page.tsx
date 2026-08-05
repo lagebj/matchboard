@@ -326,14 +326,22 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
 
 export function FixturesPage({ orgSlug }: { orgSlug: string }) {
   const [data, setData] = useState<FixturesOverview | null>(null);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     startTransition(async () => {
       const result = await fetchFixturesOverview();
       setData(result);
+      if (result.periods.length > 0 && !selectedPeriodId) {
+        setSelectedPeriodId(result.periods[0].id);
+      }
     });
   }, [startTransition]);
+
+  const displayedPeriods = selectedPeriodId && data
+    ? data.periods.filter((p) => p.id === selectedPeriodId)
+    : data?.periods ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -341,6 +349,43 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
         title="Fixtures"
         description="League seasons, rounds, and matches. Open a round for squad work."
       />
+
+      {data && data.periods.length > 1 && (
+        <div className="flex items-center gap-3">
+          <label htmlFor="league-season-select" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+            League season
+          </label>
+          <select
+            id="league-season-select"
+            value={selectedPeriodId ?? ""}
+            onChange={(e) => setSelectedPeriodId(e.target.value)}
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+          >
+            {data.periods.map((period) => (
+              <option key={period.id} value={period.id}>
+                {period.title}{period.dateRange ? ` · ${period.dateRange}` : ""}
+              </option>
+            ))}
+          </select>
+          <a
+            href={`/o/${orgSlug}/matches/new`}
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+          >
+            Create match
+          </a>
+        </div>
+      )}
+
+      {data && data.periods.length === 1 && (
+        <div className="flex items-center gap-3">
+          <a
+            href={`/o/${orgSlug}/matches/new`}
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+          >
+            Create match
+          </a>
+        </div>
+      )}
 
       {isPending && !data ? (
         <Surface padding="md">
@@ -359,7 +404,7 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
         />
       ) : (
         <div className="flex flex-col gap-8">
-          {data.periods.map((period) => (
+          {displayedPeriods.map((period) => (
             <PeriodSection key={period.id} period={period} />
           ))}
         </div>
