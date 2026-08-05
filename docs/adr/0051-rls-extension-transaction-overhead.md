@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -42,15 +42,15 @@ RLS tenant context should be set with minimal overhead. The ideal approach would
 
 ## Disposition
 
-Pending. Deploy first, measure, then decide.
+Resolved. The `$transaction` wrapper has been removed. The Prisma extension now uses where-clause injection (injecting `organisationId` into `where` and `data` clauses) instead of `SET LOCAL` inside transactions. This eliminates the per-query transaction overhead entirely. See ADR-0057.
 
 ## Related decisions
 
-ADR-0037
+ADR-0037 (superseded), ADR-0057 (replacement)
 
 ## Related implementation
 
-PR #192
+PR #202 (where-clause injection), migration 20260804160000 (permissive RLS policies)
 
 ## Supersedes
 
@@ -61,6 +61,10 @@ None
 None
 
 ## History
+
+### 2026-08-05
+
+Resolved. The `$transaction` + `SET LOCAL` approach was replaced with where-clause injection (ADR-0057). Transaction overhead is eliminated; no query wrapping is needed.
 
 ### 2026-08-04
 
