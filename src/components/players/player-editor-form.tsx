@@ -70,23 +70,15 @@ function RatingField({
   return (
     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
-      <select
-        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
+      <input
+        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
         defaultValue={defaultValue ?? ""}
+        min={1}
+        max={10}
         name={name}
-      >
-        <option value="">Not rated</option>
-        <option value="1">1 — Needs support</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5 — Steady</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8 — Strong</option>
-        <option value="9">9</option>
-        <option value="10">10 — Standout</option>
-      </select>
+        placeholder="1–10 or leave blank"
+        type="number"
+      />
     </label>
   );
 }
