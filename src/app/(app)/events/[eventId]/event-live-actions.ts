@@ -182,6 +182,49 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
       return { success: false as const, error: "Event match not found." };
     }
 
+    const lineup = await db.eventMatchLineup.findUnique({
+      where: { eventMatchId },
+      select: {
+        id: true,
+        status: true,
+        assignments: {
+          select: {
+            id: true,
+            playerId: true,
+            slotId: true,
+            slotLabel: true,
+            roleType: true,
+            source: true,
+          },
+        },
+        formation: {
+          select: {
+            id: true,
+            name: true,
+            slots: {
+              select: {
+                id: true,
+                roleType: true,
+                label: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const onFieldPlayerIds = new Set<string>();
+    const slotLabels = new Map<string, string>();
+    if (lineup && lineup.formation) {
+      for (const slot of lineup.formation.slots) {
+        slotLabels.set(slot.id, slot.label);
+        const assignment = lineup.assignments.find((a) => a.slotId === slot.id && a.playerId);
+        if (assignment && assignment.playerId) {
+          onFieldPlayerIds.add(assignment.playerId);
+        }
+      }
+    }
+
     const activeSession = await getEventActiveSession(eventMatchId);
 
     return {
@@ -206,6 +249,13 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
               shirtNumber: sp.player.shirtNumber,
               role: sp.assignedRoleType ?? sp.source,
               availability: sp.player.currentAvailability,
+              startingOnField: onFieldPlayerIds.has(sp.player.id),
+              slotLabel: (() => {
+                if (!lineup || !lineup.formation) return null;
+                const assignment = lineup.assignments.find((a) => a.playerId === sp.player.id);
+                if (!assignment) return null;
+                return assignment.slotLabel ?? (assignment.slotId ? slotLabels.get(assignment.slotId) : null) ?? null;
+              })(),
             }))
           : [],
         activeSession: activeSession

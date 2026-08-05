@@ -117,7 +117,6 @@ export async function getRecentEventsAction(matchId: string, limit?: number) {
 export async function getLiveMatchPreMatchPackageAction(matchId: string) {
   try {
     const ctx = await requireActorContext();
-    const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
 
     const match = await db.match.findUnique({
       where: { id: matchId },
@@ -170,6 +169,54 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
       },
     });
 
+    const lineup = await db.matchLineup.findFirst({
+      where: {
+        matchId,
+        teamId: match.teamId,
+        status: { in: ["CONFIRMED", "DRAFT"] },
+      },
+      select: {
+        id: true,
+        status: true,
+        benchPlayerIds: true,
+        assignments: {
+          select: {
+            id: true,
+            slotId: true,
+            playerId: true,
+            locked: true,
+            source: true,
+          },
+        },
+        formation: {
+          select: {
+            id: true,
+            name: true,
+            slots: {
+              select: {
+                id: true,
+                roleType: true,
+                label: true,
+                acceptedPositionIds: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const onFieldPlayerIds = new Set<string>();
+    const slotLabels = new Map<string, string>();
+    if (lineup && lineup.formation) {
+      for (const slot of lineup.formation.slots) {
+        slotLabels.set(slot.id, slot.label);
+        const assignment = lineup.assignments.find((a) => a.slotId === slot.id && a.playerId);
+        if (assignment && assignment.playerId) {
+          onFieldPlayerIds.add(assignment.playerId);
+        }
+      }
+    }
+
     const activeSession = await getActiveSession(matchId);
 
     return {
@@ -193,6 +240,13 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
           shirtNumber: s.player.shirtNumber,
           role: s.role,
           availability: s.player.currentAvailability,
+          startingOnField: onFieldPlayerIds.has(s.player.id),
+          slotLabel: (() => {
+            if (!lineup || !lineup.formation) return null;
+            const assignment = lineup.assignments.find((a) => a.playerId === s.player.id);
+            if (!assignment) return null;
+            return slotLabels.get(assignment.slotId) ?? null;
+          })(),
         })),
         activeSession: activeSession
           ? {
