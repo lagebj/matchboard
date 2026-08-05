@@ -56,19 +56,58 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
         select: { playerId: true },
       });
 
+      const liveEvents = await db.liveMatchEvent.findMany({
+        where: {
+          matchId,
+          correctionType: { not: "REVERSAL" },
+          OR: [
+            { eventType: "GOAL_FOR" },
+            { eventType: "GOAL_AGAINST" },
+            { eventType: "SCORER_SET" },
+            { eventType: "ASSIST_SET" },
+          ],
+        },
+        select: {
+          eventType: true,
+          playerId: true,
+          secondaryPlayerId: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const goalsFor = liveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
+      const goalsAgainst = liveEvents.filter((e) => e.eventType === "GOAL_AGAINST").length;
+
+      const scorerEvents = liveEvents.filter((e) => e.eventType === "SCORER_SET" && e.playerId !== null);
+      const assistEvents = liveEvents.filter((e) => e.eventType === "ASSIST_SET" && e.playerId !== null);
+
       const report = await db.postMatchReport.create({
         data: {
           matchId,
           status: "DRAFT",
-          homeGoals: 0,
-          awayGoals: 0,
+          homeGoals: goalsFor,
+          awayGoals: goalsAgainst,
           organisationId: session.organisationId,
           playerActuals: {
             create: selections.map((s) => ({
               matchId,
               playerId: s.playerId,
               source: "PLANNED",
-              attendanceStatus: "UNKNOWN",
+              attendanceStatus: "PRESENT",
+              organisationId: session.organisationId,
+            })),
+          },
+          goals: {
+            create: scorerEvents.map((e) => ({
+              playerId: e.playerId!,
+              type: "NORMAL",
+              organisationId: session.organisationId,
+            })),
+          },
+          assists: {
+            create: assistEvents.map((e) => ({
+              playerId: e.playerId!,
+              type: "NORMAL",
               organisationId: session.organisationId,
             })),
           },

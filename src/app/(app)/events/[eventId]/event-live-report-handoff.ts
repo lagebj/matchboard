@@ -4,6 +4,24 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 
+async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
+    const match = await db.eventMatch.findFirst({
+      where: { id: eventMatchId, event: ctx.orgFilter.filter },
+      select: { eventId: true },
+    });
+    if (!match) throw new Error("Event match not found or access denied.");
+    return { eventId: match.eventId };
+  }
+  const match = await db.eventMatch.findUnique({
+    where: { id: eventMatchId },
+    select: { eventId: true },
+  });
+  if (!match) throw new Error("Event match not found.");
+  return { eventId: match.eventId };
+}
+
 export async function endEventLiveSessionAndCreateReportAction(sessionId: string, eventMatchId: string) {
   try {
     const ctx = await requireActorContext();
@@ -32,7 +50,23 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
 
     const eventMatch = await db.eventMatch.findUnique({
       where: { id: eventMatchId },
-      select: { eventId: true, eventSquadId: true },
+      select: {
+        eventId: true,
+        eventSquadId: true,
+        eventSquad: {
+          select: {
+            id: true,
+            name: true,
+            players: {
+              select: {
+                playerId: true,
+                assignedRoleType: true,
+                source: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!eventMatch) {
@@ -58,32 +92,75 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
         eventMatchId,
       };
     } else {
-      const squadPlayers = await db.eventSquadPlayer.findMany({
-        where: { eventSquadId: eventMatch.eventSquadId },
-        select: { playerId: true },
-      });
-
       const supportAssignments = await db.eventMatchSupportAssignment.findMany({
         where: { eventMatchId },
-        select: { playerId: true },
+        select: { playerId: true, plannedRole: true },
       });
 
-      const playerIds = new Set<string>([
-        ...squadPlayers.map((sp) => sp.playerId),
+      const squadPlayerIds = new Set(eventMatch.eventSquad.players.map((sp) => sp.playerId));
+      const allPlayerIds = new Set<string>([
+        ...squadPlayerIds,
         ...supportAssignments.map((sa) => sa.playerId),
       ]);
+
+      const supportPlayerRoles = new Map<string, string>();
+      for (const sa of supportAssignments) {
+        if (sa.plannedRole) {
+          supportPlayerRoles.set(sa.playerId, sa.plannedRole);
+        }
+      }
+
+      const liveEvents = await db.eventLiveMatchEvent.findMany({
+        where: {
+          eventMatchId,
+          correctionType: { not: "REVERSAL" },
+          OR: [
+            { eventType: "GOAL_FOR" },
+            { eventType: "GOAL_AGAINST" },
+            { eventType: "SCORER_SET" },
+            { eventType: "ASSIST_SET" },
+          ],
+        },
+        select: {
+          eventType: true,
+          playerId: true,
+          secondaryPlayerId: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const goalsFor = liveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
+      const goalsAgainst = liveEvents.filter((e) => e.eventType === "GOAL_AGAINST").length;
+
+      const scorerEvents = liveEvents.filter((e) => e.eventType === "SCORER_SET" && e.playerId !== null);
+      const assistEvents = liveEvents.filter((e) => e.eventType === "ASSIST_SET" && e.playerId !== null);
 
       const report = await db.eventPostMatchReport.create({
         data: {
           eventMatchId,
           status: "DRAFT",
-          ourScore: 0,
-          opponentScore: 0,
+          ourScore: goalsFor,
+          opponentScore: goalsAgainst,
           organisationId: session.organisationId,
           playerReports: {
-            create: Array.from(playerIds).map((playerId) => ({
+            create: Array.from(allPlayerIds).map((playerId) => ({
               playerId,
-              attendanceStatus: "UNKNOWN",
+              attendanceStatus: "PRESENT",
+              role: supportPlayerRoles.get(playerId) ?? undefined,
+              organisationId: session.organisationId,
+            })),
+          },
+          goalEvents: {
+            create: scorerEvents.map((e) => ({
+              playerId: e.playerId!,
+              type: "NORMAL",
+              organisationId: session.organisationId,
+            })),
+          },
+          assistEvents: {
+            create: assistEvents.map((e) => ({
+              playerId: e.playerId!,
+              type: "NORMAL",
               organisationId: session.organisationId,
             })),
           },
@@ -97,8 +174,9 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       };
     }
 
-    revalidatePath(`/events/${eventMatch.eventId}`);
-    revalidatePath(`/events/${eventMatch.eventId}/matches/${eventMatchId}/live`);
+    const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/matches/${eventMatchId}/live`);
 
     return {
       success: true as const,

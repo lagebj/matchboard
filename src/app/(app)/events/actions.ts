@@ -286,7 +286,7 @@ export async function updateEventPlayerAvailability(
 export async function setEventPlayerPool(
   eventId: string,
   playerIds: string[],
-  defaultStatus: EventPlayerStatus = 'UNKNOWN',
+  defaultStatus: EventPlayerStatus = 'AVAILABLE',
 ) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
@@ -319,7 +319,7 @@ export async function setEventPlayerPool(
 export async function addPlayersToEventPoolAction(
   eventId: string,
   playerIds: string[],
-  defaultStatus: EventPlayerStatus = 'UNKNOWN',
+  defaultStatus: EventPlayerStatus = 'AVAILABLE',
 ) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
