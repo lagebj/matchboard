@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { GOAL_DETAIL_INACTIVITY_TIMEOUT_MS } from "@/lib/live-match/live-match-types";
 import {
   createInitialClockState,
@@ -21,6 +21,8 @@ export interface SquadPlayer {
   shirtNumber: number | null;
   role: string;
   availability: string;
+  startingOnField: boolean;
+  slotLabel: string | null;
 }
 
 export interface LiveMatchActions {
@@ -87,6 +89,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [sessionActive, setSessionActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
+  const [onFieldIds, setOnFieldIds] = useState<Set<string>>(new Set());
   const [clock, setClock] = useState(createInitialClockState());
   const [goalsFor, setGoalsFor] = useState(0);
   const [goalsAgainst, setGoalsAgainst] = useState(0);
@@ -108,7 +111,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       setLoading(true);
       const result = await actions.getPreMatchPackage(matchId);
       if (result.success && result.data) {
-        setSquad(result.data.squad);
+        const loadedSquad = result.data.squad;
+        setSquad(loadedSquad);
+        setOnFieldIds(new Set(loadedSquad.filter((p) => p.startingOnField).map((p) => p.playerId)));
         if (result.data.activeSession) {
           setSessionId(result.data.activeSession.id);
           setSessionActive(true);
@@ -159,6 +164,21 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     const interval = setInterval(fetchEvents, 5_000);
     return () => clearInterval(interval);
   }, [sessionActive, matchId, actions]);
+
+  const onFieldPlayers = useMemo(
+    () => squad.filter((p) => onFieldIds.has(p.playerId)),
+    [squad, onFieldIds],
+  );
+
+  const benchPlayers = useMemo(
+    () => squad.filter((p) => !onFieldIds.has(p.playerId)),
+    [squad, onFieldIds],
+  );
+
+  const sortedPlayersForScorer = useMemo(
+    () => [...onFieldPlayers, ...benchPlayers],
+    [onFieldPlayers, benchPlayers],
+  );
 
   const handleStartSession = useCallback(async () => {
     setIsPending(true);
@@ -330,6 +350,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       if (!outPlayerId) return;
       await recordEvent("ROTATION_OUT", { playerId: outPlayerId, period: clock.period, matchSeconds: getElapsedMs(clock, Date.now()) });
       await recordEvent("ROTATION_IN", { playerId: inPlayerId, period: clock.period, matchSeconds: getElapsedMs(clock, Date.now()) });
+      setOnFieldIds((prev) => {
+        const next = new Set(prev);
+        next.delete(outPlayerId);
+        next.add(inPlayerId);
+        return next;
+      });
       setOutPlayerId(null);
       setRotationMode(false);
     },
@@ -345,6 +371,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     return labels[clock.period] ?? clock.period;
   })();
   const isOver = isMatchOver(clock.period);
+  const hasLineup = onFieldPlayers.length > 0;
 
   if (loading) {
     return (
@@ -417,6 +444,24 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </div>
       </div>
 
+      {/* On-field / Bench overview */}
+      {hasLineup && (
+        <div className="px-4 py-2 border-b border-zinc-800">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">On field ({onFieldPlayers.length})</h3>
+            <span className="text-xs text-zinc-500">{benchPlayers.length} bench</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {onFieldPlayers.map((p) => (
+              <span key={p.playerId} className="inline-flex items-center px-2 py-0.5 text-xs bg-emerald-900/40 text-emerald-200 rounded">
+                {p.shirtNumber != null && <span className="mr-1 opacity-70">{p.shirtNumber}</span>}
+                {p.playerName}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Primary Actions */}
       <div className="px-4 py-3 grid grid-cols-5 gap-2">
         <button
@@ -464,12 +509,13 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             <button onClick={() => { setFairPlayFlow("idle"); setFairPlayPlayerId(null); }} className="text-xs text-zinc-400 hover:text-zinc-200">Skip</button>
           </div>
           <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
-            {squad.map((p) => (
+            {sortedPlayersForScorer.map((p) => (
               <button
                 key={p.playerId}
                 onClick={() => handleFairPlayPlayer(p.playerId)}
-                className="px-2 py-1.5 text-xs bg-zinc-800 text-zinc-200 rounded hover:bg-green-800/50 truncate"
+                className={`px-2 py-1.5 text-xs rounded hover:bg-green-800/50 truncate ${onFieldIds.has(p.playerId) ? "bg-zinc-800 text-zinc-200" : "bg-zinc-800/60 text-zinc-400"}`}
               >
+                {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
                 {p.playerName}
               </button>
             ))}
@@ -484,13 +530,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             <h3 className="text-sm font-semibold text-emerald-300">Who scored?</h3>
             <button onClick={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); }} className="text-xs text-zinc-400 hover:text-zinc-200">Skip</button>
           </div>
+          {hasLineup && <p className="text-xs text-zinc-500 mb-1">On-field players shown first</p>}
           <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
-            {squad.map((p) => (
+            {sortedPlayersForScorer.map((p, i) => (
               <button
                 key={p.playerId}
                 onClick={() => handleScorerSelect(p.playerId)}
-                className="px-2 py-1.5 text-xs bg-zinc-800 text-zinc-200 rounded hover:bg-emerald-800/50 truncate"
+                className={`px-2 py-1.5 text-xs rounded hover:bg-emerald-800/50 truncate ${i < onFieldPlayers.length ? "bg-zinc-800 text-zinc-200" : "bg-zinc-800/60 text-zinc-400"}`}
               >
+                {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
                 {p.playerName}
               </button>
             ))}
@@ -506,15 +554,19 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             <button onClick={handleNoAssist} className="text-xs text-zinc-400 hover:text-zinc-200">No assist</button>
           </div>
           <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
-            {squad.filter((p) => p.playerId !== goalFlowPlayerId).map((p) => (
-              <button
-                key={p.playerId}
-                onClick={() => handleAssistSelect(p.playerId)}
-                className="px-2 py-1.5 text-xs bg-zinc-800 text-zinc-200 rounded hover:bg-emerald-800/50 truncate"
-              >
-                {p.playerName}
-              </button>
-            ))}
+            {sortedPlayersForScorer.filter((p) => p.playerId !== goalFlowPlayerId).map((p, i) => {
+              const onFieldCount = sortedPlayersForScorer.filter((sp) => sp.playerId !== goalFlowPlayerId && onFieldIds.has(sp.playerId)).length;
+              return (
+                <button
+                  key={p.playerId}
+                  onClick={() => handleAssistSelect(p.playerId)}
+                  className={`px-2 py-1.5 text-xs rounded hover:bg-emerald-800/50 truncate ${i < onFieldCount ? "bg-zinc-800 text-zinc-200" : "bg-zinc-800/60 text-zinc-400"}`}
+                >
+                  {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
+                  {p.playerName}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -531,19 +583,52 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {rotationMode && (
         <div className="px-4 py-2 bg-blue-950/30 border-t border-b border-zinc-800">
           <h3 className="text-sm font-semibold text-blue-300 mb-2">
-            {outPlayerId ? "Player coming on" : "Player going off"}
+            {outPlayerId ? "Player coming on (from bench)" : "Player going off (from field)"}
           </h3>
-          <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
-            {squad.map((p) => (
-              <button
-                key={p.playerId}
-                onClick={() => (outPlayerId ? handleRotationIn(p.playerId) : handleRotationOut(p.playerId))}
-                className="px-2 py-1.5 text-xs bg-zinc-800 text-zinc-200 rounded hover:bg-blue-800/50 truncate"
-              >
-                {p.playerName}
-              </button>
-            ))}
-          </div>
+          {outPlayerId ? (
+            <>
+              <p className="text-xs text-zinc-500 mb-1">
+                Replacing: <span className="text-blue-300">{squad.find((p) => p.playerId === outPlayerId)?.playerName}</span>
+              </p>
+              <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
+                {benchPlayers.map((p) => (
+                  <button
+                    key={p.playerId}
+                    onClick={() => handleRotationIn(p.playerId)}
+                    className="px-2 py-1.5 text-xs bg-zinc-800 text-zinc-200 rounded hover:bg-blue-800/50 truncate"
+                  >
+                    {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
+                    {p.playerName}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
+              {onFieldPlayers.length > 0 ? (
+                onFieldPlayers.map((p) => (
+                  <button
+                    key={p.playerId}
+                    onClick={() => handleRotationOut(p.playerId)}
+                    className="px-2 py-1.5 text-xs bg-emerald-900/40 text-emerald-200 rounded hover:bg-blue-800/50 truncate"
+                  >
+                    {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
+                    {p.playerName}
+                  </button>
+                ))
+              ) : (
+                squad.map((p) => (
+                  <button
+                    key={p.playerId}
+                    onClick={() => handleRotationOut(p.playerId)}
+                    className="px-2 py-1.5 text-xs bg-zinc-800 text-zinc-200 rounded hover:bg-blue-800/50 truncate"
+                  >
+                    {p.playerName}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
           {outPlayerId && (
             <button onClick={() => setOutPlayerId(null)} className="mt-2 text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
           )}
