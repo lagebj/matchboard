@@ -50,6 +50,6 @@ export function sumCategoryStatLines(...lines: CategoryStatLine[]): CategoryStat
 }
 
 export function getDefaultEventMatchCategory(eventType: string): MatchCategory {
-  if (eventType === 'CUP' || eventType === 'TOURNAMENT') return 'CUP';
+  if (eventType === 'CUP') return 'CUP';
   return 'OTHER';
 }

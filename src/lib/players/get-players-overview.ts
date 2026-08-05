@@ -268,6 +268,52 @@ export async function getPlayersSeasonOverview(
     }
   }
 
+  // --- Event match goals/assists (cup, tournament, friendly, other) ---
+
+  const eventReports = await db.eventPostMatchReport.findMany({
+    where: {
+      status: { in: ["REPORTED", "LOCKED"] },
+      ...orgWhere,
+    },
+    select: {
+      id: true,
+      goalEvents: {
+        where: { playerId: { in: playerIds } },
+        select: { playerId: true },
+      },
+      assistEvents: {
+        where: { playerId: { in: playerIds } },
+        select: { playerId: true },
+      },
+      playerReports: {
+        where: { playerId: { in: playerIds }, attendanceStatus: "PRESENT" },
+        select: { playerId: true },
+      },
+    },
+  });
+
+  const eventAppearancesByPlayer = new Map<string, number>();
+
+  for (const report of eventReports) {
+    for (const goal of report.goalEvents) {
+      if (goal.playerId) {
+        const existing = statsByPlayer.get(goal.playerId) ?? { goals: 0, assists: 0 };
+        existing.goals += 1;
+        statsByPlayer.set(goal.playerId, existing);
+      }
+    }
+
+    for (const assist of report.assistEvents) {
+      const existing = statsByPlayer.get(assist.playerId) ?? { goals: 0, assists: 0 };
+      existing.assists += 1;
+      statsByPlayer.set(assist.playerId, existing);
+    }
+
+    for (const pr of report.playerReports) {
+      eventAppearancesByPlayer.set(pr.playerId, (eventAppearancesByPlayer.get(pr.playerId) ?? 0) + 1);
+    }
+  }
+
   // --- Planned selections ---
 
   const selections = matchIds.length > 0
@@ -362,6 +408,7 @@ export async function getPlayersSeasonOverview(
     const playerStats = statsByPlayer.get(player.id) ?? { goals: 0, assists: 0 };
     const playerSelections = selectionsByPlayer.get(player.id) ?? [];
     const playerUnavailableRounds = unavailableRoundCountByPlayer.get(player.id) ?? 0;
+    const playerEventAppearances = eventAppearancesByPlayer.get(player.id) ?? 0;
 
     let actualAppearances = 0;
     let coreAppearances = 0;
@@ -372,7 +419,7 @@ export async function getPlayersSeasonOverview(
     let plannedButAbsent = 0;
     let finalisedUpcomingAppearances = 0;
 
-    // Actual appearances
+    // Actual appearances (league)
     for (const actual of playerActuals) {
       actualAppearances++;
 
@@ -517,7 +564,7 @@ export async function getPlayersSeasonOverview(
       playerId: player.id,
       displayName: `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`,
       coreTeam: player.coreTeam ? { id: player.coreTeam.id, name: player.coreTeam.name } : null,
-      actualAppearances,
+      actualAppearances: actualAppearances + playerEventAppearances,
       goals: playerStats.goals,
       assists: playerStats.assists,
       coreAppearances,
