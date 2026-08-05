@@ -57,6 +57,7 @@ export interface FixtureMatch {
   teamId: string;
   teamName: string;
   opponent?: string;
+  opponentTeamId?: string | null;
   startsAt?: string;
   venue?: string;
   readinessState?: "READY" | "WATCH" | "AT_RISK" | "NOT_PLAYABLE";

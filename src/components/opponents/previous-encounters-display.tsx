@@ -1,16 +1,36 @@
-import { db } from "@/lib/db";
+"use client";
+
 import Link from "next/link";
+import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import { PREVIOUS_ENCOUNTERS_DISCLAIMER } from "@/lib/opponents/observation-labels";
-import { getOpponentHistory } from "@/lib/audit/opponent-history";
 
 type Props = {
+  history: OpponentHistoryData | null;
+  concernCount: number;
+  latestConcernDate: string | null;
   opponentTeamId: string;
-  footballGroupId: string;
 };
 
-export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId }: Props) {
-  const history = await getOpponentHistory(opponentTeamId, footballGroupId);
+function formatResult(result: "won" | "drawn" | "lost" | null): string {
+  if (result === "won") return "W";
+  if (result === "drawn") return "D";
+  if (result === "lost") return "L";
+  return "—";
+}
 
+function resultColour(result: "won" | "drawn" | "lost" | null): string {
+  if (result === "won") return "text-emerald-400";
+  if (result === "lost") return "text-red-400";
+  if (result === "drawn") return "text-zinc-400";
+  return "text-zinc-500";
+}
+
+function formatScore(homeGoals: number | null, awayGoals: number | null): string {
+  if (homeGoals === null || awayGoals === null) return "—";
+  return `${homeGoals}–${awayGoals}`;
+}
+
+export function PreviousEncountersDisplay({ history, concernCount, latestConcernDate, opponentTeamId }: Props) {
   if (!history || history.matches.length === 0) {
     return (
       <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-5 space-y-3">
@@ -20,42 +40,7 @@ export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId 
     );
   }
 
-  const concernCount = await db.opponentEncounterObservation.count({
-    where: {
-      opponentTeamId,
-      overallEnvironment: { in: ["CONCERN", "SERIOUS_CONCERN"] },
-    },
-  });
-
-  const latestConcern = await db.opponentEncounterObservation.findFirst({
-    where: {
-      opponentTeamId,
-      overallEnvironment: { in: ["CONCERN", "SERIOUS_CONCERN"] },
-    },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
   const recentMatches = history.matches.slice(0, 5);
-
-  function formatResult(result: "won" | "drawn" | "lost" | null): string {
-    if (result === "won") return "W";
-    if (result === "drawn") return "D";
-    if (result === "lost") return "L";
-    return "—";
-  }
-
-  function resultColour(result: "won" | "drawn" | "lost" | null): string {
-    if (result === "won") return "text-emerald-400";
-    if (result === "lost") return "text-red-400";
-    if (result === "drawn") return "text-zinc-400";
-    return "text-zinc-500";
-  }
-
-  function formatScore(match: { homeGoals: number | null; awayGoals: number | null; homeAway: string; result: "won" | "drawn" | "lost" | null }): string {
-    if (match.homeGoals === null || match.awayGoals === null) return "—";
-    return `${match.homeGoals}–${match.awayGoals}`;
-  }
 
   return (
     <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-5 space-y-4">
@@ -91,7 +76,7 @@ export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId 
         {concernCount > 0 && (
           <div>
             <p className="text-xs text-zinc-500">Environment concerns</p>
-            <p className="text-amber-400 font-medium">{concernCount}{latestConcern && ` · ${latestConcern.createdAt.toLocaleDateString()}`}</p>
+            <p className="text-amber-400 font-medium">{concernCount}{latestConcernDate ? ` · ${latestConcernDate}` : ""}</p>
           </div>
         )}
       </div>
@@ -109,12 +94,12 @@ export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId 
                 <span className={`text-xs font-bold w-5 text-center shrink-0 ${resultColour(m.result)}`}>
                   {formatResult(m.result)}
                 </span>
-                <span className="text-zinc-400 shrink-0">{m.matchDate ? m.matchDate.toLocaleDateString() : "—"}</span>
+                <span className="text-zinc-400 shrink-0">{m.matchDate ? new Date(m.matchDate).toLocaleDateString() : "—"}</span>
                 <span className="text-zinc-200 truncate">{m.teamName}</span>
                 <span className="text-zinc-500 shrink-0">{m.homeAway === "HOME" ? "H" : "A"}</span>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <span className="text-zinc-300 tabular-nums">{formatScore(m)}</span>
+                <span className="text-zinc-300 tabular-nums">{formatScore(m.homeGoals, m.awayGoals)}</span>
                 {m.isCancelled && <span className="text-xs text-zinc-500">Cancelled</span>}
               </div>
             </Link>

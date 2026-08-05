@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 export type OpponentMatchRecord = {
   matchId: string;
   matchDate: Date | null;
+  teamName: string;
   opponent: string;
   homeAway: string;
   isCancelled: boolean;
@@ -28,7 +29,7 @@ export type OpponentHistoryData = {
 
 export async function getOpponentHistory(
   opponentTeamId: string,
-  leagueSeasonId: string,
+  footballGroupId: string,
 ): Promise<OpponentHistoryData | null> {
   const opponentTeam = await db.opponentTeam.findUnique({
     where: { id: opponentTeamId },
@@ -37,22 +38,16 @@ export async function getOpponentHistory(
 
   if (!opponentTeam) return null;
 
-  const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId },
-    select: { id: true },
-  });
-
-  const matchRoundIds = rounds.map((r) => r.id);
-
   const matches = await db.match.findMany({
     where: {
-      matchRoundId: { in: matchRoundIds },
       opponentTeamId,
+      team: { footballGroupId },
     },
     include: {
+      team: { select: { name: true } },
       opponentTeam: { select: { displayName: true } },
     },
-    orderBy: { startsAt: "asc" },
+    orderBy: { startsAt: "desc" },
   });
 
   const matchIds = matches.map((m) => m.id);
@@ -110,6 +105,7 @@ export async function getOpponentHistory(
     records.push({
       matchId: match.id,
       matchDate: match.startsAt,
+      teamName: match.team.name,
       opponent: match.opponentTeam?.displayName ?? match.opponent,
       homeAway: match.homeAway,
       isCancelled: match.status === "CANCELLED",
@@ -131,4 +127,16 @@ export async function getOpponentHistory(
     goalsFor,
     goalsAgainst,
   };
+}
+
+export async function getOpponentEncounterCount(
+  opponentTeamId: string,
+  footballGroupId: string,
+): Promise<number> {
+  return db.match.count({
+    where: {
+      opponentTeamId,
+      team: { footballGroupId },
+    },
+  });
 }
