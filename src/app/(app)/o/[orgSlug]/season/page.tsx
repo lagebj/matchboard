@@ -75,14 +75,14 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
           League season created.
         </div>
       )}
-      {!activeLeagueSeason && (
+      <div className="flex items-center gap-3">
         <a
           href={`/o/${orgSlug}/season/new`}
           className="inline-flex items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 py-1 text-xs font-medium text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors"
         >
           Create league season
         </a>
-      )}
+      </div>
       {activeLeagueSeason && (
         <SeasonFinalizeControls
           leagueSeasonId={activeLeagueSeason.id}

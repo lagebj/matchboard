@@ -16,7 +16,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   const leagueSeason = await db.leagueSeason.findFirst({
     where: { ...orgWhere },
     orderBy: { startDate: "desc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, startDate: true, status: true },
   });
 
   if (!leagueSeason) {
@@ -26,8 +26,8 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
         matchRoundId: "none",
         title: "No league season exists",
         summary: "Create a league season to get started.",
-        primaryActionLabel: "View Fixtures",
-        primaryActionHref: "/fixtures",
+        primaryActionLabel: "Create league season",
+        primaryActionHref: "/season/new",
         affectedTeamIds: [],
         affectedPlayerIds: [],
       }),
@@ -115,6 +115,28 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   const existingReports = new Set(reportStatuses.keys());
 
   const items: AssistantWorkItem[] = [];
+
+  if (leagueSeason.status === "FINALIZED") {
+    const upcomingLeagueSeason = await db.leagueSeason.findFirst({
+      where: { ...orgWhere, status: "OPEN", startDate: { gt: leagueSeason.startDate } },
+      select: { id: true },
+    });
+    if (!upcomingLeagueSeason) {
+      items.push(
+        makeItem({
+          category: "setup_missing",
+          matchRoundId: "none",
+          title: "League season finalised — create next season",
+          summary: "The current league season is finalised. Create the next league season to continue planning.",
+          primaryActionLabel: "Create league season",
+          primaryActionHref: "/season/new",
+          affectedTeamIds: [],
+          affectedPlayerIds: [],
+        }),
+      );
+    }
+  }
+
   let hasUngenerated = false;
 
   for (const round of rounds) {
