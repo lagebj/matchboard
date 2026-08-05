@@ -15,8 +15,9 @@ const READINESS_LABELS: Record<string, string> = {
   COACH_TRUST: "Low coach trust",
 };
 
-export default async function SeasonPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+export default async function SeasonPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: Promise<{ created?: string }> }) {
   const { orgSlug } = await params;
+  const { created } = await searchParams;
   const ctx = await requireActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
 
@@ -69,6 +70,19 @@ export default async function SeasonPage({ params }: { params: Promise<{ orgSlug
 
   return (
     <div className="flex flex-col gap-3">
+      {created && (
+        <div className="rounded-md border border-emerald-700/40 bg-emerald-950/20 px-3 py-2 text-xs font-medium text-emerald-300">
+          League season created.
+        </div>
+      )}
+      {!activeLeagueSeason && (
+        <a
+          href={`/o/${orgSlug}/season/new`}
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 py-1 text-xs font-medium text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors"
+        >
+          Create league season
+        </a>
+      )}
       {activeLeagueSeason && (
         <SeasonFinalizeControls
           leagueSeasonId={activeLeagueSeason.id}

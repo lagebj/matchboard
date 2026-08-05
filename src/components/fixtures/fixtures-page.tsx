@@ -324,7 +324,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
   );
 }
 
-export function FixturesPage() {
+export function FixturesPage({ orgSlug }: { orgSlug: string }) {
   const [data, setData] = useState<FixturesOverview | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -351,6 +351,11 @@ export function FixturesPage() {
           title="No league seasons found."
           description="Create a season and league season to start planning rounds."
           illustration="emptyMatches"
+          action={
+            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/season/new`}>
+              Create league season
+            </Button>
+          }
         />
       ) : (
         <div className="flex flex-col gap-8">

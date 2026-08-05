@@ -81,7 +81,7 @@ describe("FixturesPage", () => {
     });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
@@ -95,7 +95,7 @@ describe("FixturesPage", () => {
     fetchFixturesOverview.mockResolvedValue({ periods: [] });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
@@ -118,7 +118,7 @@ describe("FixturesPage", () => {
     });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
@@ -140,7 +140,7 @@ describe("FixturesPage", () => {
     });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe("FixturesPage", () => {
     });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
@@ -184,7 +184,7 @@ describe("FixturesPage", () => {
     });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
@@ -210,7 +210,7 @@ describe("FixturesPage", () => {
     });
 
     await act(() => {
-      render(<FixturesPage />);
+      render(<FixturesPage orgSlug="test-org" />);
     });
 
     await waitFor(() => {
