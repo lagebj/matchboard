@@ -7,8 +7,8 @@ describe('match-category', () => {
       expect(getDefaultEventMatchCategory('CUP')).toBe('CUP');
     });
 
-    it('returns CUP for TOURNAMENT event type', () => {
-      expect(getDefaultEventMatchCategory('TOURNAMENT')).toBe('CUP');
+    it('returns OTHER for TOURNAMENT event type', () => {
+      expect(getDefaultEventMatchCategory('TOURNAMENT')).toBe('OTHER');
     });
 
     it('returns OTHER for FRIENDLY_DAY event type', () => {

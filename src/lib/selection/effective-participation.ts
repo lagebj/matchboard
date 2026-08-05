@@ -463,6 +463,22 @@ export async function getPlayerAllTimeStats(
   assists: number;
   plannedButAbsent: number;
 }> {
+  const [leagueStats, eventStats] = await Promise.all([
+    getLeaguePlayerAllTimeStats(playerId),
+    getEventPlayerAllTimeStats(playerId),
+  ]);
+
+  return {
+    actualAppearances: leagueStats.actualAppearances + eventStats.actualAppearances,
+    goals: leagueStats.goals + eventStats.goals,
+    assists: leagueStats.assists + eventStats.assists,
+    plannedButAbsent: leagueStats.plannedButAbsent + eventStats.plannedButAbsent,
+  };
+}
+
+async function getLeaguePlayerAllTimeStats(
+  playerId: string,
+): Promise<{ actualAppearances: number; goals: number; assists: number; plannedButAbsent: number }> {
   const reports = await db.postMatchReport.findMany({
     where: { status: { in: ["REPORTED", "LOCKED"] } },
     select: { id: true, matchId: true },
@@ -506,13 +522,57 @@ export async function getPlayerAllTimeStats(
     }),
   ]);
 
-  const goals = goalEvents.length;
-  const assists = assistEvents.length;
+  return {
+    actualAppearances: actuals.length,
+    goals: goalEvents.length,
+    assists: assistEvents.length,
+    plannedButAbsent: absences.length,
+  };
+}
+
+async function getEventPlayerAllTimeStats(
+  playerId: string,
+): Promise<{ actualAppearances: number; goals: number; assists: number; plannedButAbsent: number }> {
+  const eventReports = await db.eventPostMatchReport.findMany({
+    where: { status: { in: ["REPORTED", "LOCKED"] } },
+    select: { id: true },
+  });
+
+  if (eventReports.length === 0) {
+    return { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 };
+  }
+
+  const eventReportIds = eventReports.map((r) => r.id);
+
+  const [actuals, goalEvents, assistEvents] = await Promise.all([
+    db.eventPostMatchPlayer.findMany({
+      where: {
+        reportId: { in: eventReportIds },
+        playerId,
+        attendanceStatus: "PRESENT",
+      },
+      select: { id: true },
+    }),
+    db.eventGoalEvent.findMany({
+      where: {
+        reportId: { in: eventReportIds },
+        playerId,
+      },
+      select: { id: true },
+    }),
+    db.eventAssistEvent.findMany({
+      where: {
+        reportId: { in: eventReportIds },
+        playerId,
+      },
+      select: { id: true },
+    }),
+  ]);
 
   return {
     actualAppearances: actuals.length,
-    goals,
-    assists,
-    plannedButAbsent: absences.length,
+    goals: goalEvents.length,
+    assists: assistEvents.length,
+    plannedButAbsent: 0,
   };
 }
