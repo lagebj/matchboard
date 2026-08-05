@@ -50,7 +50,10 @@ function createLeagueActions(matchId: string): LiveMatchActions {
     },
     recordEvent: async (input) => {
       const result = await recordLiveEventAction(input);
-      return result;
+      if (result.success && result.data) {
+        return { success: true as const, data: { id: result.data.eventId } };
+      }
+      return { success: false as const, error: result.success === false ? result.error : "Failed to record event" };
     },
     getRecentEvents: async (matchId, limit) => {
       const result = await getRecentEventsAction(matchId, limit);

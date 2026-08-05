@@ -11,6 +11,7 @@ import {
   isBreakPeriod,
   isMatchOver,
   getPeriodNumber,
+  getPeriodAfter,
 } from "../match-clock";
 
 describe("createInitialClockState", () => {
@@ -203,5 +204,30 @@ describe("getPeriodNumber", () => {
     expect(getPeriodNumber("HALF_TIME")).toBe(2);
     expect(getPeriodNumber("SECOND_HALF")).toBe(3);
     expect(getPeriodNumber("FULL_TIME")).toBe(7);
+  });
+});
+
+describe("getPeriodAfter", () => {
+  it("returns next period for BEFORE", () => {
+    expect(getPeriodAfter("BEFORE")).toBe("FIRST_HALF");
+  });
+
+  it("returns next period for FIRST_HALF", () => {
+    expect(getPeriodAfter("FIRST_HALF")).toBe("HALF_TIME");
+  });
+
+  it("returns null for FULL_TIME", () => {
+    expect(getPeriodAfter("FULL_TIME")).toBeNull();
+  });
+
+  it("respects custom period config", () => {
+    const config = [
+      { key: "BEFORE" as const, label: "Before", type: "break" as const, durationMs: null },
+      { key: "MATCH" as const, label: "Match", type: "playing" as const, durationMs: 1800000 },
+      { key: "FULL_TIME" as const, label: "Full Time", type: "break" as const, durationMs: null },
+    ];
+    expect(getPeriodAfter("BEFORE", config)).toBe("MATCH");
+    expect(getPeriodAfter("MATCH", config)).toBe("FULL_TIME");
+    expect(getPeriodAfter("FULL_TIME", config)).toBeNull();
   });
 });
