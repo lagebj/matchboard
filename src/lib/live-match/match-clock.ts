@@ -92,6 +92,13 @@ export function adjustClock(clock: MatchClockState, adjustmentMs: number): Match
   };
 }
 
+export function getPeriodAfter(period: MatchPeriod, periodConfig?: PeriodConfig[]): MatchPeriod | null {
+  const order = periodConfig ? periodConfig.map((p) => p.key) : MATCH_PERIOD_ORDER;
+  const currentIdx = order.indexOf(period);
+  if (currentIdx < 0 || currentIdx >= order.length - 1) return null;
+  return order[currentIdx + 1];
+}
+
 export function isPlayingPeriod(period: MatchPeriod, periodConfig?: PeriodConfig[]): boolean {
   if (periodConfig) {
     return periodConfig.some((p) => p.key === period && p.type === "playing");

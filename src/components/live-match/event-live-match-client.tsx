@@ -47,7 +47,10 @@ function createEventActions(eventMatchId: string, eventId: string): LiveMatchAct
         ...input,
         eventMatchId: input.matchId,
       });
-      return result;
+      if (result.success && result.data) {
+        return { success: true as const, data: { id: result.data.id } };
+      }
+      return { success: false as const, error: result.success === false ? result.error : "Failed to record event" };
     },
     getRecentEvents: async (matchId, limit) => {
       const result = await getRecentEventEventsAction(matchId, limit);
