@@ -139,6 +139,7 @@ export async function createEventAction(formData: FormData) {
     throw new Error('Organisation context is required to create an event.');
   }
   const footballGroupId = await getOrCreateDefaultGroup(ctx.orgFilter.organisationId);
+  const organisationId = ctx.orgFilter.organisationId;
 
   const event = await db.event.create({
     data: {
@@ -159,6 +160,7 @@ export async function createEventAction(formData: FormData) {
           intent: i === 0 && selectionPattern === 'ONE_COMPETITIVE_BALANCED_REMAINDER' ? 'COMPETITIVE' as const : 'BALANCED' as const,
           targetSize,
           generationOrder: i,
+          organisationId,
         })),
       },
     },
