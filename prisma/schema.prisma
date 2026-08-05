@@ -114,6 +114,8 @@ model Player {
   playerSeasonSnapshots   TeamSeasonSnapshotPlayer[]
   liveEventsScorer        LiveMatchEvent[]               @relation("LiveEventScorer")
   liveEventsSecondary     LiveMatchEvent[]               @relation("LiveEventSecondaryPlayer")
+  eventLiveEventsScorer   EventLiveMatchEvent[]          @relation("EventLiveEventScorer")
+  eventLiveEventsSecondary EventLiveMatchEvent[]         @relation("EventLiveEventSecondaryPlayer")
   rotationsOut            MatchRotation[]                @relation("RotationOutPlayer")
   rotationsIn             MatchRotation[]                @relation("RotationInPlayer")
   fairPlayObservations    FairPlayObservation[]
@@ -1083,6 +1085,61 @@ model EventMatch {
   @@index([status])
   @@index([opponentTeamId])
   @@index([organisationId])
+
+  liveSession EventLiveMatchSession?
+  liveEvents  EventLiveMatchEvent[]
+}
+
+model EventLiveMatchSession {
+  id              String            @id @default(cuid())
+  organisationId  String
+  eventMatchId    String            @unique
+  coachId         String
+  status          LiveSessionStatus @default(ACTIVE)
+  startedAt       DateTime          @default(now())
+  endedAt         DateTime?
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  eventMatch    EventMatch           @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  organisation  Organisation?       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  events        EventLiveMatchEvent[]
+
+  @@index([organisationId])
+  @@index([coachId])
+  @@index([status])
+}
+
+model EventLiveMatchEvent {
+  id                String                   @id @default(cuid())
+  organisationId    String
+  eventMatchId      String
+  sessionId         String
+  eventType         LiveMatchEventType
+  period            MatchPeriod?
+  matchSeconds      Int?
+  wallClockTime     DateTime?
+  playerId          String?
+  secondaryPlayerId String?
+  payload           Json?
+  correctionType    LiveEventCorrectionType?
+  correctsEventId   String?
+  clientEventId     String?
+  createdAt         DateTime                 @default(now())
+
+  eventMatch      EventMatch            @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  session         EventLiveMatchSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  scorer          Player?               @relation("EventLiveEventScorer", fields: [playerId], references: [id], onDelete: Restrict)
+  secondaryPlayer Player?               @relation("EventLiveEventSecondaryPlayer", fields: [secondaryPlayerId], references: [id], onDelete: Restrict)
+  organisation    Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([clientEventId])
+  @@index([eventMatchId, createdAt])
+  @@index([eventMatchId, period])
+  @@index([sessionId])
+  @@index([playerId])
+  @@index([organisationId])
 }
 
 model EventPostMatchReport {
@@ -1807,6 +1864,8 @@ model Organisation {
   eventMatchSupportAssignments  EventMatchSupportAssignment[]
   eventMatchLineups             EventMatchLineup[]
   eventMatchLineupAssignments   EventMatchLineupAssignment[]
+  eventLiveSessions             EventLiveMatchSession[]
+  eventLiveEvents               EventLiveMatchEvent[]
   seasonPeriodSnapshots         SeasonPeriodSnapshot[]
   teamSeasonSnapshots           TeamSeasonSnapshot[]
   teamSeasonSnapshotPlayers     TeamSeasonSnapshotPlayer[]

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
-import { LiveMatchClient } from "@/app/(app)/matches/[matchId]/live/live-client";
+import { LeagueLiveMatchClient } from "@/components/live-match/league-live-match-client";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,7 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
   }
 
   return (
-    <LiveMatchClient
+    <LeagueLiveMatchClient
       matchId={match.id}
       matchInfo={{
         id: match.id,
