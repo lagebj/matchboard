@@ -13,6 +13,8 @@ type InlineEditFieldProps = {
   disabled?: boolean;
   emptyLabel?: string;
   inputType?: "text" | "number";
+  min?: number;
+  max?: number;
   className?: string;
 };
 
@@ -25,6 +27,8 @@ export function InlineEditField({
   disabled = false,
   emptyLabel = "Not set",
   inputType = "text",
+  min,
+  max,
   className,
 }: InlineEditFieldProps) {
   const [editing, setEditing] = useState(false);
@@ -94,6 +98,8 @@ export function InlineEditField({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={pending}
+            min={min}
+            max={max}
             className="rounded-md border border-[var(--accent)]/50 bg-[var(--surface-base)] px-2 py-1 text-sm text-zinc-100 outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 min-w-[80px]"
             aria-label={label}
           />

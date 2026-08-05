@@ -135,10 +135,9 @@ export async function updatePlayerFieldAction(
         } else {
           const num = parseInt(value, 10);
           if (isNaN(num) || num < 1 || num > 10) {
-            parsedValue = null;
-          } else {
-            parsedValue = num;
+            return { success: false, error: "Rating must be between 1 and 10, or left blank for not rated." };
           }
+          parsedValue = num;
         }
     } else {
       parsedValue = value;

@@ -2,17 +2,9 @@
 
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { SectionHeader } from "@/components/ui/section-header";
-import { InlineEditSelect } from "@/components/ui/inline-edit-select";
+import { InlineEditField } from "@/components/ui/inline-edit-field";
 import { getPlayerAttributeAverages } from "@/lib/player-metrics";
-
-const RATING_OPTIONS = [
-  { label: "—", value: "" },
-  { label: "1", value: "1" },
-  { label: "2", value: "2" },
-  { label: "3", value: "3" },
-  { label: "4", value: "4" },
-  { label: "5", value: "5" },
-];
+import { RATING_SCALE_LABELS } from "@/lib/ratings/player-rating";
 
 const RATING_LABELS: Record<string, string> = {
   ballControl: "Ball Control",
@@ -62,9 +54,20 @@ function formatAvg(val: number | null): string {
   return val.toFixed(1);
 }
 
+function formatRatingDisplay(value: string | number | null): string {
+  if (value == null || value === "") return "—";
+  const num = typeof value === "number" ? value : Number(value);
+  if (isNaN(num) || num < 1 || num > 10) return "—";
+  const label = RATING_SCALE_LABELS[num];
+  return label ? `${num} — ${label}` : `${num}`;
+}
+
 export function PlayerAttributesPanel({ player, updateFieldAction }: PlayerAttributesPanelProps) {
   const handleSave = (field: string) => async (value: string) => {
-    await updateFieldAction(player.id, field, value);
+    const result = await updateFieldAction(player.id, field, value);
+    if (!result.success) {
+      throw new Error(result.error ?? "Save failed");
+    }
   };
 
   const averages = getPlayerAttributeAverages(player);
@@ -84,13 +87,16 @@ export function PlayerAttributesPanel({ player, updateFieldAction }: PlayerAttri
               <div className="flex flex-col gap-px">
                 {cat.keys.map((key) => (
                   <div key={key} className="flex items-center justify-between gap-2 py-0.5">
-                    <span className="text-[11px] text-zinc-400 whitespace-nowrap">{RATING_LABELS[key]}</span>
-                    <InlineEditSelect
+                    <InlineEditField
                       label={RATING_LABELS[key]}
-                      value={player[key] != null ? String(player[key]) : ""}
-                      options={RATING_OPTIONS}
+                      value={player[key]}
+                      renderValue={formatRatingDisplay}
                       onSave={handleSave(key)}
+                      inputType="number"
+                      min={1}
+                      max={10}
                       emptyLabel="—"
+                      className="flex-1"
                     />
                   </div>
                 ))}
