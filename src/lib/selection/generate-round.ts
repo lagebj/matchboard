@@ -19,8 +19,11 @@ import { evaluateSelectionPolicy } from "@/lib/policies/policy-evaluation";
 import { coachFacingBlockedReason, coachFacingWarningMessage } from "@/lib/policies/policy-evaluation";
 import { getLeagueSeasonFairness } from "@/lib/selection/get-planning-period-fairness";
 import { type LeagueSeasonRoleCounts } from "@/lib/selection/selection-fairness";
+import { requireOpenLeagueSeasonForRound } from "@/lib/seasons/require-open-league-season";
 
 export async function generateMatchRound(matchRoundId: string): Promise<GeneratedRound> {
+  await requireOpenLeagueSeasonForRound(matchRoundId);
+
   const matchRound = await db.matchRound.findUnique({
     where: { id: matchRoundId },
     include: {

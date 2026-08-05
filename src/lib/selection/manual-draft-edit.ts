@@ -6,6 +6,7 @@ import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { AutomaticSelectionCategory, OverrideReasonCategory } from "@/lib/selection/types";
 import { HARD_RULE_OVERRIDE_CATEGORIES, OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
+import { requireOpenLeagueSeasonForMatch } from "@/lib/seasons/require-open-league-season";
 
 export type ManualEditResult = {
   success: boolean;
@@ -51,6 +52,7 @@ export async function addPlayerToDraftMatch(
   overrideReasonCategory?: OverrideReasonCategory,
   overrideReasonDetail?: string,
 ): Promise<ManualEditResult> {
+  await requireOpenLeagueSeasonForMatch(matchId);
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -237,6 +239,7 @@ export async function removePlayerFromDraftMatch(
   matchId: string,
   playerId: string,
 ): Promise<ManualEditResult> {
+  await requireOpenLeagueSeasonForMatch(matchId);
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -285,6 +288,7 @@ export async function changeDraftPlayerRole(
   overrideReasonCategory?: OverrideReasonCategory,
   overrideReasonDetail?: string,
 ): Promise<ManualEditResult> {
+  await requireOpenLeagueSeasonForMatch(matchId);
   const errors: string[] = [];
   const warnings: string[] = [];
 

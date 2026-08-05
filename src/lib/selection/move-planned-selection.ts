@@ -4,6 +4,7 @@ import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotati
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { requireOpenLeagueSeasonForRound } from "@/lib/seasons/require-open-league-season";
 
 export type MoveResult = {
   success: boolean;
@@ -21,6 +22,8 @@ export async function movePlannedSelectionWithinRound(input: {
   overrideReasonDetail?: string;
 }): Promise<MoveResult> {
   const { matchRoundId, playerId, fromMatchId, toMatchId, targetRole, overrideReasonCategory, overrideReasonDetail } = input;
+
+  await requireOpenLeagueSeasonForRound(matchRoundId);
 
   if (fromMatchId === toMatchId) {
     return { success: false, errors: ["Source and target match are the same. No move needed."] };

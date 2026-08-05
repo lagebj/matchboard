@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
+import { finalizeLeagueSeason, unfinalizeLeagueSeason, validateLeagueSeasonFinalization } from "@/lib/seasons/finalize-league-season";
 
 let testDb: PrismaClient;
 let fixture: TestFixtureIds;
@@ -18,100 +19,9 @@ afterAll(async () => {
   await teardownTestDb();
 });
 
-async function finalizeSeason(leagueSeasonId: string) {
-  const leagueSeason = await testDb.leagueSeason.findUniqueOrThrow({
-    where: { id: leagueSeasonId },
-    include: { periodSnapshot: true },
-  });
-
-  if (leagueSeason.status === "FINALIZED") {
-    return { success: false, error: "Already finalized." };
-  }
-
-  if (leagueSeason.periodSnapshot) {
-    return { success: false, error: "Snapshot already exists." };
-  }
-
-  const teamsWithPlayers = await testDb.team.findMany({
-    where: { archivedAt: null },
-    include: {
-      corePlayers: {
-        where: { removedAt: null },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          primaryPosition: true,
-          secondaryPosition: true,
-          tertiaryPosition: true,
-          shirtNumber: true,
-          active: true,
-        },
-        orderBy: [{ playerCode: "asc" }],
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  const now = new Date();
-
-  await testDb.$transaction(async (tx) => {
-    await tx.leagueSeason.update({
-      where: { id: leagueSeasonId },
-      data: { status: "FINALIZED", finalizedAt: now },
-    });
-
-    await tx.seasonPeriodSnapshot.create({
-      data: {
-        leagueSeasonId,
-        finalizedAt: now,
-        teamSnapshots: {
-          create: teamsWithPlayers.map((team) => ({
-            teamId: team.id,
-            teamNameSnapshot: team.name,
-            organisationId: fixture.organisationId,
-            playerSnapshots: {
-              create: team.corePlayers.map((player) => ({
-                playerId: player.id,
-                playerNameSnapshot: [player.firstName, player.lastName].filter(Boolean).join(" "),
-                primaryPositionSnapshot: player.primaryPosition,
-                secondaryPositionSnapshot: player.secondaryPosition,
-                tertiaryPositionSnapshot: player.tertiaryPosition,
-                shirtNumberSnapshot: player.shirtNumber,
-                activeAtSnapshot: player.active,
-                organisationId: fixture.organisationId,
-              })),
-            },
-          })),
-        },
-        organisationId: fixture.organisationId,
-      },
-    });
-  });
-
-  return { success: true };
-}
-
-async function unfinalizeSeason(leagueSeasonId: string) {
-  const leagueSeason = await testDb.leagueSeason.findUniqueOrThrow({
-    where: { id: leagueSeasonId },
-  });
-
-  if (leagueSeason.status !== "FINALIZED") {
-    return { success: false, error: "Not finalized." };
-  }
-
-  await testDb.leagueSeason.update({
-    where: { id: leagueSeasonId },
-    data: { status: "OPEN", finalizedAt: null, finalizedBy: null },
-  });
-
-  return { success: true };
-}
-
 describe("League season finalization", () => {
   it("finalizes an OPEN league season and creates a snapshot", async () => {
-    const result = await finalizeSeason(fixture.leagueSeasonId);
+    const result = await finalizeLeagueSeason(fixture.leagueSeasonId);
     expect(result.success).toBe(true);
 
     const leagueSeason = await testDb.leagueSeason.findUniqueOrThrow({
@@ -134,10 +44,9 @@ describe("League season finalization", () => {
   });
 
   it("rejects finalization of an already-finalized league season", async () => {
-    await finalizeSeason(fixture.leagueSeasonId);
-    const result = await finalizeSeason(fixture.leagueSeasonId);
+    const result = await finalizeLeagueSeason(fixture.leagueSeasonId);
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Already finalized");
+    expect(result.error).toContain("already finalised");
   });
 
   it("snapshot preserves team names and player details", async () => {
@@ -162,15 +71,13 @@ describe("League season finalization", () => {
     expect(firstPlayer.primaryPositionSnapshot).not.toBeNull();
   });
 
-  it("unfinalizes a FINALIZED league season without deleting snapshots", async () => {
-    await finalizeSeason(fixture.leagueSeasonId);
-
+  it("unfinalizes a FINALIZED league season and deletes the snapshot", async () => {
     const snapshotBefore = await testDb.seasonPeriodSnapshot.findUnique({
       where: { leagueSeasonId: fixture.leagueSeasonId },
     });
     expect(snapshotBefore).not.toBeNull();
 
-    const result = await unfinalizeSeason(fixture.leagueSeasonId);
+    const result = await unfinalizeLeagueSeason(fixture.leagueSeasonId);
     expect(result.success).toBe(true);
 
     const leagueSeason = await testDb.leagueSeason.findUniqueOrThrow({
@@ -178,22 +85,35 @@ describe("League season finalization", () => {
     });
     expect(leagueSeason.status).toBe("OPEN");
     expect(leagueSeason.finalizedAt).toBeNull();
+    expect(leagueSeason.finalizedBy).toBeNull();
 
     const snapshotAfter = await testDb.seasonPeriodSnapshot.findUnique({
       where: { leagueSeasonId: fixture.leagueSeasonId },
     });
-    expect(snapshotAfter).not.toBeNull();
+    expect(snapshotAfter).toBeNull();
+  });
+
+  it("allows re-finalization after unfinalizing", async () => {
+    const result = await finalizeLeagueSeason(fixture.leagueSeasonId);
+    expect(result.success).toBe(true);
+
+    const snapshot = await testDb.seasonPeriodSnapshot.findUnique({
+      where: { leagueSeasonId: fixture.leagueSeasonId },
+    });
+    expect(snapshot).not.toBeNull();
   });
 
   it("rejects un-finalization of an OPEN league season", async () => {
-    const result = await unfinalizeSeason(fixture.leagueSeasonId);
+    await unfinalizeLeagueSeason(fixture.leagueSeasonId);
+
+    const result = await unfinalizeLeagueSeason(fixture.leagueSeasonId);
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Not finalized");
+    expect(result.error).toContain("not finalised");
   });
 
   it("getLeagueSeasonSnapshot returns null for a league season that was never finalized", async () => {
     const newSeason = await testDb.season.create({
-      data: { name: "Test Season 2027", year: 2027 , organisationId: fixture.organisationId },
+      data: { name: "Test Season 2027", year: 2027, organisationId: fixture.organisationId },
     });
     const newLeagueSeason = await testDb.leagueSeason.create({
       data: {
@@ -207,9 +127,8 @@ describe("League season finalization", () => {
       },
     });
 
-    const snapshot = await testDb.seasonPeriodSnapshot.findUnique({
-      where: { leagueSeasonId: newLeagueSeason.id },
-    });
+    const { getLeagueSeasonSnapshot } = await import("@/lib/seasons/finalize-league-season");
+    const snapshot = await getLeagueSeasonSnapshot(newLeagueSeason.id);
     expect(snapshot).toBeNull();
 
     await testDb.leagueSeason.delete({ where: { id: newLeagueSeason.id } });
@@ -217,7 +136,7 @@ describe("League season finalization", () => {
   });
 
   it("roster changes after finalization do not affect the snapshot", async () => {
-    await finalizeSeason(fixture.leagueSeasonId);
+    await finalizeLeagueSeason(fixture.leagueSeasonId);
 
     const snapshotBefore = await testDb.seasonPeriodSnapshot.findUnique({
       where: { leagueSeasonId: fixture.leagueSeasonId },
@@ -250,5 +169,61 @@ describe("League season finalization", () => {
     expect(playerCountAfter).toBe(playerCountBefore);
 
     await testDb.player.delete({ where: { id: newPlayer.id } });
+  });
+
+  it("sets finalizedBy when provided", async () => {
+    await unfinalizeLeagueSeason(fixture.leagueSeasonId);
+
+    const result = await finalizeLeagueSeason(fixture.leagueSeasonId, "user-123");
+    expect(result.success).toBe(true);
+
+    const leagueSeason = await testDb.leagueSeason.findUniqueOrThrow({
+      where: { id: fixture.leagueSeasonId },
+    });
+    expect(leagueSeason.finalizedBy).toBe("user-123");
+
+    const snapshot = await testDb.seasonPeriodSnapshot.findUniqueOrThrow({
+      where: { leagueSeasonId: fixture.leagueSeasonId },
+    });
+    expect(snapshot.finalizedBy).toBe("user-123");
+  });
+
+  it("snapshot is recreated correctly after unfinalize and re-finalize", async () => {
+    const result1 = await finalizeLeagueSeason(fixture.leagueSeasonId);
+    expect(result1.success).toBe(true);
+
+    const snapshot1 = await testDb.seasonPeriodSnapshot.findUniqueOrThrow({
+      where: { leagueSeasonId: fixture.leagueSeasonId },
+    });
+
+    const unfinalizeResult = await unfinalizeLeagueSeason(fixture.leagueSeasonId);
+    expect(unfinalizeResult.success).toBe(true);
+
+    const result2 = await finalizeLeagueSeason(fixture.leagueSeasonId);
+    expect(result2.success).toBe(true);
+
+    const snapshot2 = await testDb.seasonPeriodSnapshot.findUniqueOrThrow({
+      where: { leagueSeasonId: fixture.leagueSeasonId },
+    });
+
+    expect(snapshot2.id).not.toBe(snapshot1.id);
+    expect(snapshot2.finalizedAt.getTime()).toBeGreaterThanOrEqual(snapshot1.finalizedAt.getTime());
+  });
+
+  it("validateLeagueSeasonFinalization returns errors for non-finalized rounds", async () => {
+    await unfinalizeLeagueSeason(fixture.leagueSeasonId);
+
+    const leagueSeason = await testDb.leagueSeason.findUniqueOrThrow({
+      where: { id: fixture.leagueSeasonId },
+      include: { matchRounds: { select: { id: true, status: true } } },
+    });
+
+    const hasNonFinalizedRounds = leagueSeason.matchRounds.some((r) => r.status !== "FINALIZED");
+
+    if (hasNonFinalizedRounds) {
+      const validation = await validateLeagueSeasonFinalization(fixture.leagueSeasonId);
+      expect(validation.canFinalize).toBe(false);
+      expect(validation.errors.length).toBeGreaterThan(0);
+    }
   });
 });

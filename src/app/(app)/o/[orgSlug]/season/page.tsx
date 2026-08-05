@@ -23,7 +23,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ orgSlug
   const leagueSeasons = await db.leagueSeason.findMany({
     where: orgWhere,
     orderBy: { startDate: "desc" },
-    select: { id: true, name: true, startDate: true, endDate: true, status: true, finalizedAt: true },
+    select: { id: true, name: true, startDate: true, endDate: true, status: true, finalizedAt: true, finalizedBy: true },
   });
 
   const activeLeagueSeason = leagueSeasons[0] ?? null;
@@ -75,6 +75,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ orgSlug
           leagueSeasonName={activeLeagueSeason.name}
           status={activeLeagueSeason.status}
           finalizedAt={activeLeagueSeason.finalizedAt}
+          finalizedBy={activeLeagueSeason.finalizedBy}
         />
       )}
       {activeLeagueSeason && (
