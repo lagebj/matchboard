@@ -1,0 +1,224 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { startEventLiveSession, endEventLiveSession, getEventActiveSession, heartbeatEventSession } from "@/lib/live-match/event-live-match-session";
+import { recordEventEvent, getEventMatchEvents, getRecentEventEvents } from "@/lib/live-match/event-live-match-event-store";
+import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
+import type { EventLiveEventInput } from "@/lib/live-match/event-live-match-event-store";
+import { db } from "@/lib/db";
+import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+
+async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
+  const ctx = await requireActorContext();
+  if (ctx.orgFilter.type === "org") {
+    const match = await db.eventMatch.findFirst({
+      where: { id: eventMatchId, event: ctx.orgFilter.filter },
+      select: { eventId: true },
+    });
+    if (!match) throw new Error("Event match not found or access denied.");
+    return { eventId: match.eventId };
+  }
+  const match = await db.eventMatch.findUnique({
+    where: { id: eventMatchId },
+    select: { eventId: true },
+  });
+  if (!match) throw new Error("Event match not found.");
+  return { eventId: match.eventId };
+}
+
+export async function startEventLiveSessionAction(eventMatchId: string) {
+  try {
+    const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
+    const session = await startEventLiveSession(eventMatchId);
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/matches/${eventMatchId}/live`);
+    return { success: true as const, data: session };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to start live session." };
+  }
+}
+
+export async function getEventActiveSessionAction(eventMatchId: string) {
+  try {
+    const session = await getEventActiveSession(eventMatchId);
+    return { success: true as const, data: session };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to get active session." };
+  }
+}
+
+export async function endEventLiveSessionAction(sessionId: string) {
+  try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
+    const session = await endEventLiveSession(sessionId);
+    const { eventId } = await requireEventMatchOrgAccess(session.eventMatchId);
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/matches/${session.eventMatchId}/live`);
+    return { success: true as const, data: session };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to end live session." };
+  }
+}
+
+export async function heartbeatEventAction(sessionId: string) {
+  try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
+    await heartbeatEventSession(sessionId);
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Heartbeat failed." };
+  }
+}
+
+export async function recordEventLiveEventAction(input: {
+  eventMatchId: string;
+  sessionId: string;
+  eventType: string;
+  period?: string;
+  matchSeconds?: number;
+  playerId?: string;
+  secondaryPlayerId?: string;
+  payload?: Record<string, unknown>;
+  clientEventId: string;
+  correctionType?: string;
+  correctsEventId?: string;
+}) {
+  try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
+    await requireEventMatchOrgAccess(input.eventMatchId);
+    const typedInput: EventLiveEventInput = {
+      eventMatchId: input.eventMatchId,
+      sessionId: input.sessionId,
+      eventType: input.eventType as LiveMatchEventType,
+      period: input.period as MatchPeriod | undefined,
+      matchSeconds: input.matchSeconds,
+      playerId: input.playerId,
+      secondaryPlayerId: input.secondaryPlayerId,
+      payload: input.payload,
+      clientEventId: input.clientEventId,
+      correctionType: input.correctionType as "CORRECTION" | "REVERSAL" | undefined,
+      correctsEventId: input.correctsEventId,
+    };
+
+    const result = await recordEventEvent(typedInput);
+    revalidatePath(`/events/${(await requireEventMatchOrgAccess(input.eventMatchId)).eventId}/matches/${input.eventMatchId}/live`);
+    return { success: true as const, data: result };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to record event." };
+  }
+}
+
+export async function getEventMatchEventsAction(eventMatchId: string) {
+  try {
+    const events = await getEventMatchEvents(eventMatchId);
+    return { success: true as const, data: events };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to get events." };
+  }
+}
+
+export async function getRecentEventEventsAction(eventMatchId: string, limit?: number) {
+  try {
+    const events = await getRecentEventEvents(eventMatchId, limit);
+    return { success: true as const, data: events };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to get recent events." };
+  }
+}
+
+export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: string) {
+  try {
+    const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
+
+    const match = await db.eventMatch.findUnique({
+      where: { id: eventMatchId },
+      select: {
+        id: true,
+        opponentName: true,
+        category: true,
+        startsAt: true,
+        status: true,
+        eventSquadId: true,
+        event: {
+          select: {
+            id: true,
+            name: true,
+            gameFormat: true,
+            matchDurationMinutes: true,
+            organisationId: true,
+          },
+        },
+        eventSquad: {
+          select: {
+            id: true,
+            name: true,
+            players: {
+              where: { locked: { not: false } },
+              select: {
+                playerId: true,
+                player: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    primaryPosition: true,
+                    shirtNumber: true,
+                    currentAvailability: true,
+                  },
+                },
+                assignedRoleType: true,
+                source: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!match) {
+      return { success: false as const, error: "Event match not found." };
+    }
+
+    const activeSession = await getEventActiveSession(eventMatchId);
+
+    return {
+      success: true as const,
+      data: {
+        match: {
+          id: match.id,
+          opponentName: match.opponentName,
+          category: match.category,
+          startsAt: match.startsAt.toISOString(),
+          status: match.status,
+          squadName: match.eventSquad?.name ?? "",
+          eventName: match.event.name,
+          gameFormat: match.event.gameFormat,
+          matchDurationMinutes: match.event.matchDurationMinutes,
+        },
+        squad: match.eventSquad
+          ? match.eventSquad.players.map((sp) => ({
+              playerId: sp.player.id,
+              playerName: [sp.player.firstName, sp.player.lastName].filter(Boolean).join(" "),
+              position: sp.player.primaryPosition,
+              shirtNumber: sp.player.shirtNumber,
+              role: sp.assignedRoleType ?? sp.source,
+              availability: sp.player.currentAvailability,
+            }))
+          : [],
+        activeSession: activeSession
+          ? {
+              id: activeSession.id,
+              coachId: activeSession.coachId,
+              startedAt: activeSession.startedAt.toISOString(),
+            }
+          : null,
+        eventId,
+      },
+    };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to load event match data." };
+  }
+}

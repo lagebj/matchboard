@@ -2031,11 +2031,18 @@ Avoid:
 | `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
 | `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions |
 | `src/lib/live-match/live-match-event-store.ts` | Server functions: record events (idempotent), get events, get recent events |
+| `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
+| `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |
 | `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |
-| `src/app/(app)/matches/[matchId]/live/page.tsx` | Live match server page (auth, org-scoped match data) |
-| `src/app/(app)/matches/[matchId]/live/live-client.tsx` | Live match client component (score, clock, goal/rotation/fair play/marked moment) |
+| `src/lib/live-match/period-config.ts` | Period configuration: league and event period models, labels, durations |
+| `src/lib/live-match/live-match-context.ts` | Shared context types for LiveMatchClient (league and event) |
+| `src/components/live-match/live-match-client.tsx` | Shared live match client component (score, clock, goal/rotation/fair play/marked moment) |
+| `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config) |
+| `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) |
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
 | `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action: end session and create/seed post-match report |
+| `src/app/(app)/events/[eventId]/event-live-actions.ts` | Server actions: event live session lifecycle, event recording, pre-match package |
+| `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action: end event live session and create/seed event post-match report |
 | `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
 | `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 

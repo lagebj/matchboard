@@ -1,5 +1,6 @@
 import type { MatchClockState, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
+import type { PeriodConfig } from "./period-config";
 
 export function createInitialClockState(): MatchClockState {
   return {
@@ -28,14 +29,19 @@ export function formatPeriodTime(period: MatchPeriod, elapsedMs: number): string
   return `${formatElapsedMs(elapsedMs)}`;
 }
 
-export function advancePeriod(clock: MatchClockState): MatchClockState {
-  const currentIdx = MATCH_PERIOD_ORDER.indexOf(clock.period);
-  if (currentIdx < 0 || currentIdx >= MATCH_PERIOD_ORDER.length - 1) {
+export function advancePeriod(clock: MatchClockState, periodConfig?: PeriodConfig[]): MatchClockState {
+  const order = periodConfig ? periodConfig.map((p) => p.key) : MATCH_PERIOD_ORDER;
+  const playingKeys = periodConfig
+    ? new Set(periodConfig.filter((p) => p.type === "playing").map((p) => p.key))
+    : new Set(["FIRST_HALF", "SECOND_HALF", "EXTRA_FIRST_HALF", "EXTRA_SECOND_HALF"] as MatchPeriod[]);
+
+  const currentIdx = order.indexOf(clock.period);
+  if (currentIdx < 0 || currentIdx >= order.length - 1) {
     return { ...clock, running: false };
   }
 
-  const nextPeriod = MATCH_PERIOD_ORDER[currentIdx + 1];
-  const isPlayingPeriod = nextPeriod === "FIRST_HALF" || nextPeriod === "SECOND_HALF" || nextPeriod === "EXTRA_FIRST_HALF" || nextPeriod === "EXTRA_SECOND_HALF";
+  const nextPeriod = order[currentIdx + 1];
+  const isPlayingPeriod = playingKeys.has(nextPeriod);
 
   if (isPlayingPeriod) {
     return {
@@ -86,11 +92,17 @@ export function adjustClock(clock: MatchClockState, adjustmentMs: number): Match
   };
 }
 
-export function isPlayingPeriod(period: MatchPeriod): boolean {
+export function isPlayingPeriod(period: MatchPeriod, periodConfig?: PeriodConfig[]): boolean {
+  if (periodConfig) {
+    return periodConfig.some((p) => p.key === period && p.type === "playing");
+  }
   return period === "FIRST_HALF" || period === "SECOND_HALF" || period === "EXTRA_FIRST_HALF" || period === "EXTRA_SECOND_HALF";
 }
 
-export function isBreakPeriod(period: MatchPeriod): boolean {
+export function isBreakPeriod(period: MatchPeriod, periodConfig?: PeriodConfig[]): boolean {
+  if (periodConfig) {
+    return periodConfig.some((p) => p.key === period && p.type === "break");
+  }
   return period === "BEFORE" || period === "HALF_TIME" || period === "EXTRA_HALF_TIME";
 }
 
@@ -98,6 +110,9 @@ export function isMatchOver(period: MatchPeriod): boolean {
   return period === "FULL_TIME";
 }
 
-export function getPeriodNumber(period: MatchPeriod): number {
+export function getPeriodNumber(period: MatchPeriod, periodConfig?: PeriodConfig[]): number {
+  if (periodConfig) {
+    return periodConfig.findIndex((p) => p.key === period);
+  }
   return MATCH_PERIOD_ORDER.indexOf(period);
 }
