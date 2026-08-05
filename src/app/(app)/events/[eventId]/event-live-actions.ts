@@ -156,7 +156,6 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
             id: true,
             name: true,
             players: {
-              where: { locked: { not: false } },
               select: {
                 playerId: true,
                 player: {
