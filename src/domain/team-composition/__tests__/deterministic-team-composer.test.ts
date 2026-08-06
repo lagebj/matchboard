@@ -1535,6 +1535,149 @@ describe("deterministic-team-composer", () => {
     });
   });
 
+  describe("BALANCED produces strength-balanced teams", () => {
+    it("distributes players so no team's average strength is far below others", () => {
+      const teams = [
+        makeTeam({ id: "t1", name: "Team 1", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "t2", name: "Team 2", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "t3", name: "Team 3", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+      ];
+
+      // 21 players with varied strengths (3 GKs, 6 DEF, 6 MID, 6 ATT)
+      const players: CompositionPlayer[] = [];
+      for (let i = 0; i < 21; i++) {
+        const isGk = i < 3;
+        const pos: BroadPosition = isGk ? "goalkeeper" : i < 9 ? "defender" : i < 15 ? "midfielder" : "forward";
+        // Varying strengths: some strong (8-9), some medium (5-6), some weaker (3-4)
+        const strength = i < 3 ? 7 : i < 6 ? 8 : i < 9 ? 6 : i < 12 ? 9 : i < 15 ? 5 : i < 18 ? 4 : 3;
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          overallStrength: strength,
+          primaryBroadPosition: pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", attack: "SECONDARY", flexible: "TERTIARY" }
+                  : { attack: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: create7v7Structure(),
+      }));
+
+      // Calculate average strength per team
+      const teamStrengths = teams.map((team) => {
+        const assignments = result.assignments.filter((a) => a.teamId === team.id);
+        const totalStrength = assignments.reduce((sum, a) => sum + a.overallStrength, 0);
+        return { id: team.id, name: team.name, avg: totalStrength / assignments.length, count: assignments.length };
+      });
+
+      // All teams must have players
+      for (const ts of teamStrengths) {
+        expect(ts.count).toBeGreaterThan(0);
+      }
+
+      // The max average strength difference between any two teams should be reasonable
+      // With BALANCED, no team should have more than 2.0 average strength difference from the mean
+      const avgStrength = teamStrengths.reduce((sum, ts) => sum + ts.avg, 0) / teamStrengths.length;
+      for (const ts of teamStrengths) {
+        expect(Math.abs(ts.avg - avgStrength)).toBeLessThan(2.0);
+      }
+    });
+
+    it("does not leave the last team with only weak players in a 3-team scenario", () => {
+      const teams = [
+        makeTeam({ id: "bla", name: "Blå", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "hvit", name: "Hvit", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "rod", name: "Rød", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+      ];
+
+      // 21 players with a realistic distribution of strengths
+      const players: CompositionPlayer[] = [];
+      // 3 GKs with strength 6
+      for (let i = 0; i < 3; i++) {
+        players.push(makePlayer({
+          id: `gk${i + 1}`,
+          displayName: `GK ${i + 1}`,
+          overallStrength: 6,
+          primaryBroadPosition: "goalkeeper",
+          roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY", flexible: "TERTIARY" }),
+          goalkeeperAbility: "YES",
+        }));
+      }
+      // 6 defenders: 2 strong (8), 2 medium (6), 2 weaker (4)
+      const defStrengths = [8, 8, 6, 6, 4, 4];
+      for (let i = 0; i < 6; i++) {
+        players.push(makePlayer({
+          id: `def${i + 1}`,
+          displayName: `Def ${i + 1}`,
+          overallStrength: defStrengths[i],
+          primaryBroadPosition: "defender",
+          roleSuitability: makeRoleSuitability({ defence: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" }),
+          goalkeeperAbility: "NO",
+        }));
+      }
+      // 6 midfielders: 2 strong (8), 2 medium (6), 2 weaker (4)
+      const midStrengths = [8, 8, 6, 6, 4, 4];
+      for (let i = 0; i < 6; i++) {
+        players.push(makePlayer({
+          id: `mid${i + 1}`,
+          displayName: `Mid ${i + 1}`,
+          overallStrength: midStrengths[i],
+          primaryBroadPosition: "midfielder",
+          roleSuitability: makeRoleSuitability({ midfield: "PRIMARY", attack: "SECONDARY", flexible: "TERTIARY" }),
+          goalkeeperAbility: "NO",
+        }));
+      }
+      // 6 forwards: 2 strong (8), 2 medium (6), 2 weaker (4)
+      const fwdStrengths = [8, 8, 6, 6, 4, 4];
+      for (let i = 0; i < 6; i++) {
+        players.push(makePlayer({
+          id: `fwd${i + 1}`,
+          displayName: `Fwd ${i + 1}`,
+          overallStrength: fwdStrengths[i],
+          primaryBroadPosition: "forward",
+          roleSuitability: makeRoleSuitability({ attack: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" }),
+          goalkeeperAbility: "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: create7v7Structure(),
+      }));
+
+      // Calculate average strength per team
+      const teamStrengths = teams.map((team) => {
+        const assignments = result.assignments.filter((a) => a.teamId === team.id);
+        const totalStrength = assignments.reduce((sum, a) => sum + a.overallStrength, 0);
+        return { id: team.id, name: team.name, avg: totalStrength / assignments.length, count: assignments.length };
+      });
+
+      // The weakest team's average should not be more than 1.5 below the strongest
+      const strengths = teamStrengths.map((ts) => ts.avg);
+      const maxDiff = Math.max(...strengths) - Math.min(...strengths);
+      expect(maxDiff).toBeLessThan(1.5);
+
+      // No team should have average below 4.5 (with average player strength ~6)
+      for (const ts of teamStrengths) {
+        expect(ts.avg).toBeGreaterThan(4.5);
+      }
+    });
+  });
+
   describe("deterministic reproducibility", () => {
     it("produces identical results with the same deterministic seed", () => {
       const teams = [
