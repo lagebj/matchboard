@@ -89,6 +89,7 @@ describe("Player Assignment Service", () => {
         playerId,
         targetTeamId,
         reason: "Coach decision",
+        organisationId: "test-org",
       });
 
       expect(recordDecision).toHaveBeenCalledWith(

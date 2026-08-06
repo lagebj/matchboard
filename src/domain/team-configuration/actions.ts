@@ -36,6 +36,7 @@ export async function updateTeamConfigurationAction(
     reason: "Team configuration updated by coach",
     beforeSnapshot: before ?? undefined,
     afterSnapshot: result,
+    organisationId: ctx.organisationId,
   });
 
   return result;

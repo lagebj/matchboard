@@ -39,5 +39,5 @@ export async function movePlayerToTeamAction(input: {
   if (input.targetTeamId) {
     await requireTeamOrgAccess(input.targetTeamId, ctx.orgFilter);
   }
-  return movePlayerToTeam(input);
+  return movePlayerToTeam({ ...input, organisationId: ctx.organisationId });
 }

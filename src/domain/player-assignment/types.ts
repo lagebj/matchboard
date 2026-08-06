@@ -23,4 +23,5 @@ export interface MovePlayerToTeamInput {
   targetTeamId: string | null;
   previousTeamId?: string | null;
   reason?: string;
+  organisationId: string;
 }

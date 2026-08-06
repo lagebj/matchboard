@@ -1,6 +1,5 @@
 "use server";
 
-import { requireCoachAccess } from "@/lib/auth";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { db } from "@/lib/db";
@@ -80,9 +79,9 @@ export async function fetchSelectionExplanation(scopeType: "ROUND" | "TEAM" | "M
   return getSelectionExplanation(scopeType, scopeId);
 }
 
-export async function createDecision(input: Parameters<typeof recordDecision>[0]) {
-  await requireCoachAccess();
-  return recordDecision(input);
+export async function createDecision(input: Omit<Parameters<typeof recordDecision>[0], "organisationId">) {
+  const ctx = await requireActorContext();
+  return recordDecision({ ...input, organisationId: ctx.organisationId });
 }
 
 export async function fetchPostMatchReport(matchId: string) {

@@ -357,9 +357,11 @@ export async function recordDecision(input: {
   reason?: string;
   beforeSnapshot?: unknown;
   afterSnapshot?: unknown;
+  organisationId: string;
 }): Promise<DecisionRecord> {
   const decision = await db.decisionRecord.create({
     data: {
+      organisationId: input.organisationId,
       decisionType: input.decisionType,
       entityType: input.entityType,
       entityId: input.entityId,
