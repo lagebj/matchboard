@@ -21,7 +21,7 @@ import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-conte
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { composeTeams } from "@/domain/team-composition/deterministic-team-composer";
 import { getSystemScenario } from "@/domain/team-composition/scenario-catalogue";
-import { getFallbackStructure } from "@/domain/team-composition/structural-requirements";
+import { getFallbackStructure, type GameFormat } from "@/domain/team-composition/structural-requirements";
 import { checkScenarioPermission, checkCompositionProposalPolicy } from "@/lib/policies/composition-policy";
 import type {
   CompositionPlayer,
@@ -33,6 +33,8 @@ import type {
   RoleSuitabilityProfile,
   RoleStrengthProfile,
   BroadPosition,
+  StructuralSlotRequirement,
+  StructuralRole,
 } from "@/domain/team-composition/team-composition-types";
 import { computeCompositeRatings, type PlayerAttributeProfile } from "@/lib/events/event-types";
 import { mapPositionCodeToBroad } from "@/domain/team-composition/position-suitability";
@@ -88,6 +90,7 @@ interface LeagueTeamCompositionInput {
   leagueSeasonId: string;
   scenario: SystemTeamScenario;
   deterministicSeed: string;
+  gameFormat: GameFormat;
   formationId?: string;
   coachAcknowledgedPolicyGate?: boolean;
 }
@@ -254,7 +257,9 @@ export async function generateLeagueTeamPreview(
     throw new Error(policyCheck.reason ?? "Scenario not permitted by policy.");
   }
 
-  const structure = getFallbackStructure("ELEVEN_A_SIDE");
+  const structure = input.formationId
+    ? await resolveFormationStructure(input.formationId, input.gameFormat, ctx.orgFilter)
+    : getFallbackStructure(input.gameFormat);
 
   const problem: TeamCompositionProblem = {
     contractVersion: 1,
@@ -316,7 +321,9 @@ export async function applyLeagueTeamProposal(
   }
 
   const scenario = getSystemScenario(input.scenario);
-  const structure = getFallbackStructure("ELEVEN_A_SIDE");
+  const structure = input.formationId
+    ? await resolveFormationStructure(input.formationId, input.gameFormat, ctx.orgFilter)
+    : getFallbackStructure(input.gameFormat);
 
   const problem: TeamCompositionProblem = {
     contractVersion: 1,
@@ -331,7 +338,7 @@ export async function applyLeagueTeamProposal(
 
   const proposal = composeTeams(problem);
 
-  const currentFingerprint = computeInputFingerprint(players, targetTeams, lockedAssignments, input.scenario);
+  const currentFingerprint = computeInputFingerprint(players, targetTeams, lockedAssignments, input.scenario, input.gameFormat, input.formationId);
   if (proposal.inputFingerprint !== currentFingerprint) {
     throw new Error("Proposal is stale — player or team data has changed since generation. Please regenerate.");
   }
@@ -405,14 +412,77 @@ export async function applyLeagueTeamProposal(
   };
 }
 
+async function resolveFormationStructure(
+  formationId: string,
+  fallbackFormat: GameFormat,
+  orgFilter: OrgFilterMode,
+): Promise<TeamCompositionProblem["structure"]> {
+  const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
+  const formation = await db.formation.findUnique({
+    where: { id: formationId, ...orgWhere, isArchived: false },
+    include: { slots: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  if (!formation) {
+    return getFallbackStructure(fallbackFormat);
+  }
+
+  const slots: StructuralSlotRequirement[] = formation.slots.map((slot) => ({
+    role: formationSlotRoleToStructuralRole(slot.roleType),
+    count: 1,
+    acceptedPositions: (slot.acceptedPositionIds as string[]).map((p) => p as BroadPosition),
+    label: slot.label ?? slot.shortLabel ?? formationSlotRoleToStructuralRole(slot.roleType),
+  }));
+
+  const consolidated = consolidateSlots(slots);
+
+  return {
+    slots: consolidated,
+    requireGoalkeeper: consolidated.some((s) => s.role === "GOALKEEPER"),
+    source: "FORMATION" as const,
+    formationId: formation.id,
+    formationName: formation.name,
+  };
+}
+
+function formationSlotRoleToStructuralRole(roleType: string): StructuralRole {
+  switch (roleType) {
+    case "GOALKEEPER": return "GOALKEEPER";
+    case "DEFENDER":
+    case "DEFENSIVE_MIDFIELDER": return "DEFENCE";
+    case "MIDFIELDER":
+    case "ATTACKING_MIDFIELDER": return "MIDFIELD";
+    case "FORWARD": return "ATTACK";
+    default: return "FLEXIBLE";
+  }
+}
+
+function consolidateSlots(slots: StructuralSlotRequirement[]): StructuralSlotRequirement[] {
+  const map = new Map<string, StructuralSlotRequirement>();
+  for (const slot of slots) {
+    const key = `${slot.role}:${slot.acceptedPositions.sort().join(",")}`;
+    const existing = map.get(key);
+    if (existing) {
+      map.set(key, { ...existing, count: existing.count + slot.count });
+    } else {
+      map.set(key, { ...slot, count: slot.count });
+    }
+  }
+  return Array.from(map.values());
+}
+
 function computeInputFingerprint(
   players: CompositionPlayer[],
   targetTeams: CompositionTargetTeam[],
   lockedAssignments: LockedCompositionAssignment[],
   scenarioCode: SystemTeamScenario,
+  gameFormat: GameFormat,
+  formationId?: string,
 ): string {
   const parts: string[] = [
     scenarioCode,
+    gameFormat,
+    formationId ?? "fallback",
     targetTeams.map((t) => `${t.id}:${t.targetSize}:${t.minimumSize}:${t.maximumSize}`).join(","),
     players.map((p) => `${p.id}:${p.overallStrength}:${p.active}:${p.available}:${p.primaryBroadPosition}`).sort().join(","),
     lockedAssignments.map((l) => `${l.playerId}:${l.teamId}`).sort().join(","),

@@ -785,6 +785,14 @@ export function composeTeams(
 
   // Compute metrics
   const playerMap = new Map(players.map((p) => [p.id, p]));
+
+  // Populate player display names
+  for (const a of finalAssignments) {
+    const player = playerMap.get(a.playerId);
+    if (player) {
+      a.playerDisplayName = player.displayName;
+    }
+  }
   const teamMetrics: ProposedTeamMetrics[] = targetTeams.map((team) => {
     const teamAssignmentList = finalAssignments.filter((a) => a.teamId === team.id);
     return computeTeamMetrics(team.id, team.name, teamAssignmentList, players);
@@ -805,7 +813,8 @@ export function composeTeams(
   const explanations = generateExplanations(finalAssignments, players, scenario);
 
   // Fingerprint
-  const fingerprint = computeInputFingerprint(players, targetTeams, lockedAssignments, scenario.code);
+  const structureHash = structure.source + ":" + structure.slots.map((s) => `${s.role}:${s.count}:${s.acceptedPositions.join("+")}`).join("|") + ":" + (structure.formationId ?? "none");
+  const fingerprint = computeInputFingerprint(players, targetTeams, lockedAssignments, scenario.code, structureHash);
 
   return {
     assignments: finalAssignments,

@@ -389,9 +389,11 @@ export function computeInputFingerprint(
   targetTeams: CompositionTargetTeam[],
   lockedAssignments: { playerId: string; teamId: string }[],
   scenarioCode: SystemTeamScenario,
+  structureHash?: string,
 ): string {
   const parts: string[] = [
     scenarioCode,
+    structureHash ?? "default",
     targetTeams.map((t) => `${t.id}:${t.targetSize}:${t.minimumSize}:${t.maximumSize}`).join(","),
     players.map((p) => `${p.id}:${p.overallStrength}:${p.active}:${p.available}:${p.primaryBroadPosition}`).sort().join(","),
     lockedAssignments.map((l) => `${l.playerId}:${l.teamId}`).sort().join(","),
