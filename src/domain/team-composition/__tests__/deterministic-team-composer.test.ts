@@ -1587,5 +1587,67 @@ describe("deterministic-team-composer", () => {
         expect(result1.assignments[i].assignedRole).toBe(result2.assignments[i].assignedRole);
       }
     });
+
+    it("produces different team assignments with different deterministic seeds", () => {
+      const teams = [
+        makeTeam({ id: "t1", name: "Team 1", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+        makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+      ];
+
+      const players: CompositionPlayer[] = [];
+      for (let i = 0; i < 14; i++) {
+        const isGk = i < 2;
+        const pos: BroadPosition = isGk ? "goalkeeper" : i < 6 ? "defender" : i < 10 ? "midfielder" : "forward";
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          overallStrength: 5,
+          primaryBroadPosition: pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", attack: "SECONDARY", flexible: "TERTIARY" }
+                  : { attack: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result1 = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: getFallbackStructure("FIVE_A_SIDE"),
+        deterministicSeed: "seed-alpha",
+      }));
+
+      const result2 = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: getFallbackStructure("FIVE_A_SIDE"),
+        deterministicSeed: "seed-beta",
+      }));
+
+      // Both must produce valid results
+      expect(result1.assignments.length).toBe(players.length);
+      expect(result2.assignments.length).toBe(players.length);
+
+      // With tied player strengths, different seeds should produce at least
+      // some different team assignments
+      const assignments1 = result1.assignments
+        .sort((a, b) => a.playerId.localeCompare(b.playerId))
+        .map((a) => `${a.playerId}:${a.teamId}`);
+      const assignments2 = result2.assignments
+        .sort((a, b) => a.playerId.localeCompare(b.playerId))
+        .map((a) => `${a.playerId}:${a.teamId}`);
+
+      // At least one player should be on a different team
+      const differences = assignments1.filter((a, i) => a !== assignments2[i]);
+      expect(differences.length).toBeGreaterThan(0);
+    });
   });
 });
