@@ -4,8 +4,12 @@ export interface TeamConfiguration {
   coreGroup: string;
   active: boolean;
   targetSquadSize: number;
+  minAcceptedSquadSize: number;
   maxSquadSize: number;
+  minCorePlayers: number;
   supportPriority: number;
+  minSupportPlayers: number;
+  developmentSlots: number;
   footballGroupId: string;
   footballGroup: {
     id: string;
@@ -30,8 +34,12 @@ export interface UpdateTeamConfigurationInput {
   name?: string;
   active?: boolean;
   targetSquadSize?: number;
+  minAcceptedSquadSize?: number;
   maxSquadSize?: number;
+  minCorePlayers?: number;
   supportPriority?: number;
+  minSupportPlayers?: number;
+  developmentSlots?: number;
   footballGroupId?: string;
   rules?: Array<{
     ruleId: string;

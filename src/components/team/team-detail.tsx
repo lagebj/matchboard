@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { formatSeverity, formatSelectionRole } from "@/lib/match-utils";
 import type { SelectionRole } from "@/generated/prisma/client";
@@ -30,6 +31,7 @@ import {
   deleteMovementCandidateAction,
   toggleMovementCandidateStatusAction,
 } from "@/app/(app)/teams/movement-candidate-actions";
+import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type PlayerSummary = {
@@ -174,6 +176,7 @@ type TeamDetailData = {
   outgoingCandidates: MovementCandidateEntry[];
   eligibleCandidates: Array<{ id: string; firstName: string; lastName: string | null; coreTeamId: string | null; nonRotatable: boolean }>;
   teamOptions: Array<{ id: string; name: string }>;
+  unassignedPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null }>;
   previousTeamId: string | null;
   nextTeamId: string | null;
 };
@@ -226,7 +229,12 @@ function severityToBannerVariant(severity: string): SeverityVariant {
 }
 
 
-function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
+function SquadTab({ corePlayers, teamId, unassignedPlayers }: { corePlayers: PlayerSummary[]; teamId: string; unassignedPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null }> }) {
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const orgUrl = useOrgUrl();
+  const router = useRouter();
+
   const groups = {
     available: corePlayers.filter((p) => p.currentAvailability === "AVAILABLE"),
     tentative: corePlayers.filter((p) => p.currentAvailability === "TENTATIVE"),
@@ -247,6 +255,22 @@ function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
     ),
   };
 
+  function handleRemovePlayer(playerId: string, playerName: string) {
+    if (!confirm(`Remove ${playerName} from this team? Their core team will be unset.`)) return;
+    startTransition(async () => {
+      await updatePlayerCoreTeamAction(playerId, null);
+      router.refresh();
+    });
+  }
+
+  function handleAddPlayer(playerId: string) {
+    startTransition(async () => {
+      await updatePlayerCoreTeamAction(playerId, teamId);
+      setShowAddPlayer(false);
+      router.refresh();
+    });
+  }
+
   const renderGroup = (label: string, players: PlayerSummary[]) => {
     if (players.length === 0) return null;
     return (
@@ -256,23 +280,34 @@ function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
         </p>
         <div className="mt-2 flex flex-col gap-1.5">
            {players.map((p) => (
-            <Link key={p.id} href={`/players/${p.id}`}>
-              <PlayerMagnet
-                name={formatPlayerName(p)}
-                position={p.primaryPosition}
-                status={
-                  p.currentAvailability === "AVAILABLE" ? "available"
-                    : p.currentAvailability === "INJURED" ? "injured"
-                    : p.currentAvailability === "SICK" ? "sick"
-                    : p.currentAvailability === "AWAY" ? "away"
-                    : p.currentAvailability === "TENTATIVE" ? "available"
-                    : "unknown"
-                }
-                warning={p.nonRotatable || !!p.reducedMatchLoadAllowed}
-                movement={!!(p.supportSuitability && p.supportSuitability !== "neutral")}
-                compact
-              />
-            </Link>
+            <div key={p.id} className="group/player flex items-center gap-2">
+              <Link href={orgUrl(`/players/${p.id}`)} className="flex-1 min-w-0">
+                <PlayerMagnet
+                  name={formatPlayerName(p)}
+                  position={p.primaryPosition}
+                  status={
+                    p.currentAvailability === "AVAILABLE" ? "available"
+                      : p.currentAvailability === "INJURED" ? "injured"
+                      : p.currentAvailability === "SICK" ? "sick"
+                      : p.currentAvailability === "AWAY" ? "away"
+                      : p.currentAvailability === "TENTATIVE" ? "available"
+                      : "unknown"
+                  }
+                  warning={p.nonRotatable || !!p.reducedMatchLoadAllowed}
+                  movement={!!(p.supportSuitability && p.supportSuitability !== "neutral")}
+                  compact
+                />
+              </Link>
+              <button
+                type="button"
+                onClick={() => handleRemovePlayer(p.id, formatPlayerName(p))}
+                disabled={isPending}
+                className="shrink-0 opacity-0 group-hover/player:opacity-100 text-[10px] text-[var(--danger)] hover:text-[var(--danger)] transition-opacity"
+                title="Remove from team"
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -280,31 +315,71 @@ function SquadTab({ corePlayers }: { corePlayers: PlayerSummary[] }) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
-        <SectionHeader title="Availability" />
-        <Surface variant="default" padding="md" className="mt-2">
-          {renderGroup("Available", groups.available)}
-          {renderGroup("Tentative", groups.tentative)}
-          {renderGroup("Unknown", groups.unknown)}
-          {renderGroup("Unavailable", groups.unavailable)}
-          {groups.available.length === 0 && groups.tentative.length === 0 && groups.unknown.length === 0 && groups.unavailable.length === 0 && (
-            <p className="text-sm text-[var(--text-soft)]">No core players assigned.</p>
-          )}
-        </Surface>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <SectionHeader title="Core players" description={`${corePlayers.length} players assigned to this team`} />
+        <Button variant="secondary" size="sm" onClick={() => setShowAddPlayer(!showAddPlayer)}>
+          {showAddPlayer ? "Cancel" : "Add player"}
+        </Button>
       </div>
 
-      <div>
-        <SectionHeader title="Planning groups" />
-        <Surface variant="default" padding="md" className="mt-2">
-          {renderGroup("Non-rotatable", groups.nonRotatable)}
-          {renderGroup("Reduced match load", groups.reducedLoad)}
-          {renderGroup("Support candidates", groups.supportCandidates)}
-          {renderGroup("Development candidates", groups.devCandidates)}
-          {groups.nonRotatable.length === 0 && groups.reducedLoad.length === 0 && groups.supportCandidates.length === 0 && groups.devCandidates.length === 0 && (
-            <p className="text-sm text-[var(--text-soft)]">No special planning groups.</p>
+      {showAddPlayer && (
+        <Surface variant="default" padding="md">
+          <h3 className="text-sm font-semibold text-zinc-100">Add player to team</h3>
+          <p className="mt-1 mb-3 text-xs text-[var(--text-soft)]">
+            Select an unassigned player to add to this team as a core player. This sets their core team assignment.
+          </p>
+          {unassignedPlayers.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">No unassigned players available.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
+              {unassignedPlayers.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleAddPlayer(p.id)}
+                  className="group/add flex items-center justify-between rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                >
+                  <span className="font-medium text-zinc-100 group-hover/add:text-[var(--accent-strong)]">
+                    {formatPlayerName(p)}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    {p.primaryPosition ?? "No position"}
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
         </Surface>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <SectionHeader title="Availability" />
+          <Surface variant="default" padding="md" className="mt-2">
+            {renderGroup("Available", groups.available)}
+            {renderGroup("Tentative", groups.tentative)}
+            {renderGroup("Unknown", groups.unknown)}
+            {renderGroup("Unavailable", groups.unavailable)}
+            {groups.available.length === 0 && groups.tentative.length === 0 && groups.unknown.length === 0 && groups.unavailable.length === 0 && (
+              <p className="text-sm text-[var(--text-soft)]">No core players assigned.</p>
+            )}
+          </Surface>
+        </div>
+
+        <div>
+          <SectionHeader title="Planning groups" />
+          <Surface variant="default" padding="md" className="mt-2">
+            {renderGroup("Non-rotatable", groups.nonRotatable)}
+            {renderGroup("Reduced match load", groups.reducedLoad)}
+            {renderGroup("Support candidates", groups.supportCandidates)}
+            {renderGroup("Development candidates", groups.devCandidates)}
+            {groups.nonRotatable.length === 0 && groups.reducedLoad.length === 0 && groups.supportCandidates.length === 0 && groups.devCandidates.length === 0 && (
+              <p className="text-sm text-[var(--text-soft)]">No special planning groups.</p>
+            )}
+          </Surface>
+        </div>
       </div>
     </div>
   );
@@ -984,7 +1059,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
       />
 
       <Surface variant="default" padding="lg">
-        {activeTab === "squad" && <SquadTab corePlayers={data.corePlayers} />}
+        {activeTab === "squad" && <SquadTab corePlayers={data.corePlayers} teamId={data.teamId} unassignedPlayers={data.unassignedPlayers} />}
         {activeTab === "current-round" && (
           <CurrentRoundTab
             droppedPlayers={data.droppedPlayers}

@@ -15,8 +15,12 @@ export async function updateTeamConfigurationAction(
     name?: string;
     active?: boolean;
     targetSquadSize?: number;
+    minAcceptedSquadSize?: number;
     maxSquadSize?: number;
+    minCorePlayers?: number;
     supportPriority?: number;
+    minSupportPlayers?: number;
+    developmentSlots?: number;
     footballGroupId?: string;
   },
 ) {

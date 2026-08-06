@@ -105,8 +105,12 @@ export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilter
     coreGroup: `${team.corePlayers.length} active players`,
     active: !team.archivedAt,
     targetSquadSize: team.targetSquadSize,
+    minAcceptedSquadSize: team.minAcceptedSquadSize,
     maxSquadSize: team.maxSquadSize,
+    minCorePlayers: team.minCorePlayers,
     supportPriority: team.supportPriority,
+    minSupportPlayers: team.minSupportPlayers,
+    developmentSlots: team.developmentSlots,
     footballGroupId: team.footballGroupId,
     footballGroup: { id: team.group.id, name: team.group.name, slug: team.group.slug, type: team.group.type },
     rules,
@@ -119,8 +123,12 @@ export async function updateTeamConfiguration(
     name?: string;
     active?: boolean;
     targetSquadSize?: number;
+    minAcceptedSquadSize?: number;
     maxSquadSize?: number;
+    minCorePlayers?: number;
     supportPriority?: number;
+    minSupportPlayers?: number;
+    developmentSlots?: number;
     footballGroupId?: string;
   },
   orgFilter?: OrgFilterMode,
@@ -130,15 +138,17 @@ export async function updateTeamConfiguration(
   if (input.targetSquadSize !== undefined && input.targetSquadSize <= 0) {
     throw new Error("Target squad size must be greater than 0.");
   }
-  if (input.maxSquadSize !== undefined && input.targetSquadSize !== undefined && input.maxSquadSize < input.targetSquadSize) {
-    throw new Error("Max squad size must be >= target squad size.");
+
+  const existing = await db.team.findUniqueOrThrow({ where: { id: teamId, ...orgWhere }, select: { targetSquadSize: true, minAcceptedSquadSize: true, maxSquadSize: true } });
+  const effectiveTarget = input.targetSquadSize ?? existing.targetSquadSize;
+  const effectiveMin = input.minAcceptedSquadSize ?? existing.minAcceptedSquadSize;
+  const effectiveMax = input.maxSquadSize ?? existing.maxSquadSize;
+
+  if (effectiveMin > effectiveTarget) {
+    throw new Error("Min accepted squad size must be <= target squad size.");
   }
-  if (input.maxSquadSize !== undefined && input.targetSquadSize === undefined) {
-    const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
-    const team = await db.team.findUniqueOrThrow({ where: { id: teamId, ...orgWhere }, select: { targetSquadSize: true } });
-    if (input.maxSquadSize < team.targetSquadSize) {
-      throw new Error("Max squad size must be >= target squad size.");
-    }
+  if (effectiveMax < effectiveTarget) {
+    throw new Error("Max squad size must be >= target squad size.");
   }
 
   const data: Record<string, unknown> = {};
@@ -146,8 +156,12 @@ export async function updateTeamConfiguration(
   if (input.active === false) data.archivedAt = new Date();
   if (input.active === true) data.archivedAt = null;
   if (input.targetSquadSize !== undefined) data.targetSquadSize = input.targetSquadSize;
+  if (input.minAcceptedSquadSize !== undefined) data.minAcceptedSquadSize = input.minAcceptedSquadSize;
   if (input.maxSquadSize !== undefined) data.maxSquadSize = input.maxSquadSize;
+  if (input.minCorePlayers !== undefined) data.minCorePlayers = input.minCorePlayers;
   if (input.supportPriority !== undefined) data.supportPriority = input.supportPriority;
+  if (input.minSupportPlayers !== undefined) data.minSupportPlayers = input.minSupportPlayers;
+  if (input.developmentSlots !== undefined) data.developmentSlots = input.developmentSlots;
   if (input.footballGroupId !== undefined) data.footballGroupId = input.footballGroupId;
 
   await db.team.update({ where: { id: teamId, ...orgWhere }, data });

@@ -437,4 +437,7 @@ export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: s
   revalidatePath("/players");
   revalidatePath(`/players/${playerId}`);
   revalidatePath("/teams");
+  if (coreTeamId) revalidatePath(`/teams/${coreTeamId}`);
+  revalidatePath("/o/[orgSlug]/teams");
+  if (coreTeamId) revalidatePath(`/o/[orgSlug]/teams/${coreTeamId}`);
 }
