@@ -70,12 +70,22 @@ describe("Assistant Manager Service (DB)", () => {
   });
 
   describe("recordDecision", () => {
+    let testOrgId: string;
+
+    beforeAll(async () => {
+      const org = await testDb.organisation.create({
+        data: { name: "Test Org", slug: "test-org-decision" },
+      });
+      testOrgId = org.id;
+    });
+
     it("persists decision to database", async () => {
       const decision = await recordDecision({
         decisionType: "ROUND_REVIEW",
         entityType: "ROUND",
         entityId: "round-test",
         action: "FINALIZE",
+        organisationId: testOrgId,
       });
 
       expect(decision.id).toBeDefined();
@@ -94,6 +104,7 @@ describe("Assistant Manager Service (DB)", () => {
         entityId: "match-test",
         action: "OVERRIDE_BLOCKER",
         reason: "Coach decided to publish despite blocker",
+        organisationId: testOrgId,
       });
 
       expect(decision.reason).toBe("Coach decided to publish despite blocker");

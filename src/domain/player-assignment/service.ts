@@ -93,6 +93,7 @@ export async function movePlayerToTeam(input: MovePlayerToTeamInput): Promise<Pl
     reason: input.reason ?? `Moved player from ${previousTeamId ? "previous team" : "unassigned"} to ${targetTeam?.name ?? "unassigned"}`,
     beforeSnapshot: { previousTeamId },
     afterSnapshot: { newTeamId: input.targetTeamId },
+    organisationId: input.organisationId,
   });
 
   const updatedPlayer = await db.player.findUniqueOrThrow({ where: { id: input.playerId } });
