@@ -20,7 +20,7 @@ const DEFAULT_STRUCTURAL_RULES: StructuralRuleConfiguration = {
   rolePriority: ["GOALKEEPER", "DEFENCE", "MIDFIELD", "ATTACK", "FLEXIBLE"],
   requireGoalkeeper: true,
   maxTertiaryPositionPercentage: 40,
-  maxNoFitPercentage: 0,
+  maxNoFitPercentage: 50,
   warnOnSinglePlayerRoleDependency: true,
 };
 

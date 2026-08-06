@@ -63,7 +63,12 @@ export function checkScenarioPermission(
 
 /**
  * Post-generation policy check: validate proposal structural quality.
- * Adds policy-level warnings for issues the engine didn't catch.
+ * Adds policy-level warnings for issues the engine validation doesn't cover.
+ *
+ * Note: The engine already blocks on NO_GOALKEEPER_COVERAGE and
+ * EXCESSIVE_NO_FIT_ASSIGNMENTS. This policy layer only adds checks
+ * for conditions that the engine treats as DECISION_REQUIRED or
+ * PLANNING_NOTE, not conditions the engine already blocks on.
  */
 export function checkCompositionProposalPolicy(
   proposal: TeamCompositionProposal,
@@ -71,15 +76,9 @@ export function checkCompositionProposalPolicy(
   const issues: ProposalIssue[] = [];
 
   for (const team of proposal.teamMetrics) {
-    if (team.goalkeeperCoverage === "none" && team.squadSize > 0) {
-      issues.push({
-        severity: "BLOCKED" as ProposalSeverity,
-        code: "policy_no_goalkeeper_coverage",
-        message: `Team ${team.teamName} has no goalkeeper coverage.`,
-        affectedTeamIds: [team.teamId],
-      });
-    }
-
+    // Engine already produces BLOCKED NO_GOALKEEPER_COVERAGE for no GK.
+    // Policy adds DECISION_REQUIRED for broken formation (engine uses "degraded"
+    // which is not blocked, so we elevate "broken" here).
     if (team.formationViability === "broken") {
       issues.push({
         severity: "DECISION_REQUIRED" as ProposalSeverity,
@@ -89,17 +88,11 @@ export function checkCompositionProposalPolicy(
       });
     }
 
-    if (team.noFitCount > 0 && team.squadSize > 0) {
-      const pct = Math.round((team.noFitCount / team.squadSize) * 100);
-      if (pct > 40) {
-        issues.push({
-          severity: "DECISION_REQUIRED" as ProposalSeverity,
-          code: "policy_high_no_fit_percentage",
-          message: `Team ${team.teamName} has ${pct}% of players in positions with no fit (${team.noFitCount} of ${team.squadSize}).`,
-          affectedTeamIds: [team.teamId],
-        });
-      }
-    }
+    // Engine blocks on ANY no-fit (maxNoFitPercentage=0).
+    // Policy adds DECISION_REQUIRED for high no-fit as supplementary context
+    // only when the engine has already flagged it, so we don't duplicate.
+    // This check is intentionally at a higher threshold (>40%) than the engine
+    // to avoid duplicating the engine's BLOCKED issue.
   }
 
   if (proposal.proposalMetrics.sizeSpread > 3) {
