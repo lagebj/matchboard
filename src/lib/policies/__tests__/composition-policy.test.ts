@@ -99,7 +99,10 @@ describe("composition-policy", () => {
       expect(issues).toHaveLength(0);
     });
 
-    it("flags no GK coverage as BLOCKED", () => {
+    it("does not add redundant GK coverage BLOCKED (engine handles this)", () => {
+      // Engine already produces NO_GOALKEEPER_COVERAGE BLOCKED in validation.
+      // Policy should not duplicate it. With goalkeeperCoverage="none" but
+      // squadSize > 0, policy previously added a second BLOCKED — now removed.
       const proposal = makeProposal({
         teamMetrics: [
           {
@@ -124,9 +127,8 @@ describe("composition-policy", () => {
         ],
       });
       const issues = checkCompositionProposalPolicy(proposal);
-      const blocked = issues.filter((i) => i.severity === "BLOCKED");
-      expect(blocked).toHaveLength(1);
-      expect(blocked[0].code).toBe("policy_no_goalkeeper_coverage");
+      // No policy-level BLOCKED for GK coverage — engine handles this
+      expect(issues.filter((i) => i.code === "policy_no_goalkeeper_coverage")).toHaveLength(0);
     });
 
     it("flags broken formation as DECISION_REQUIRED", () => {
@@ -157,35 +159,6 @@ describe("composition-policy", () => {
       const decisions = issues.filter((i) => i.severity === "DECISION_REQUIRED");
       expect(decisions).toHaveLength(1);
       expect(decisions[0].code).toBe("policy_broken_formation");
-    });
-
-    it("flags high no-fit percentage as DECISION_REQUIRED", () => {
-      const proposal = makeProposal({
-        teamMetrics: [
-          {
-            teamId: "t1",
-            teamName: "Team A",
-            squadSize: 5,
-            averageOverall: 5.0,
-            goalkeeperCoverage: "full",
-            goalkeeperQuality: 5,
-            defensiveStrength: 5,
-            midfieldStrength: 5,
-            attackingStrength: 5,
-            primaryPositionCount: 2,
-            secondaryPositionCount: 1,
-            tertiaryPositionCount: 0,
-            noFitCount: 3,
-            flexiblePlayerCount: 0,
-            playersMovedFromCurrentTeam: 0,
-            formationViability: "viable",
-            structuralWarnings: [],
-          },
-        ],
-      });
-      const issues = checkCompositionProposalPolicy(proposal);
-      const decisions = issues.filter((i) => i.severity === "DECISION_REQUIRED");
-      expect(decisions.some((i) => i.code === "policy_high_no_fit_percentage")).toBe(true);
     });
 
     it("flags large size spread as DECISION_REQUIRED", () => {
@@ -242,32 +215,35 @@ describe("composition-policy", () => {
       expect(issues).toHaveLength(0);
     });
 
-    it("skips GK check for empty teams", () => {
+    it("does not duplicate engine no-fit blocking (engine handles this)", () => {
+      // Engine already produces EXCESSIVE_NO_FIT_ASSIGNMENTS BLOCKED
+      // and NO_POSITIONAL_FIT DECISION_REQUIRED per-player.
+      // Policy no longer adds a redundant policy_high_no_fit_percentage.
       const proposal = makeProposal({
         teamMetrics: [
           {
             teamId: "t1",
             teamName: "Team A",
-            squadSize: 0,
-            averageOverall: null,
-            goalkeeperCoverage: "none",
-            goalkeeperQuality: null,
-            defensiveStrength: null,
-            midfieldStrength: null,
-            attackingStrength: null,
-            primaryPositionCount: 0,
-            secondaryPositionCount: 0,
+            squadSize: 5,
+            averageOverall: 5.0,
+            goalkeeperCoverage: "full",
+            goalkeeperQuality: 5,
+            defensiveStrength: 5,
+            midfieldStrength: 5,
+            attackingStrength: 5,
+            primaryPositionCount: 2,
+            secondaryPositionCount: 1,
             tertiaryPositionCount: 0,
-            noFitCount: 0,
+            noFitCount: 3,
             flexiblePlayerCount: 0,
             playersMovedFromCurrentTeam: 0,
-            formationViability: "broken",
+            formationViability: "viable",
             structuralWarnings: [],
           },
         ],
       });
       const issues = checkCompositionProposalPolicy(proposal);
-      expect(issues.filter((i) => i.code === "policy_no_goalkeeper_coverage")).toHaveLength(0);
+      expect(issues.filter((i) => i.code === "policy_high_no_fit_percentage")).toHaveLength(0);
     });
   });
 });

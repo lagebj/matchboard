@@ -115,11 +115,14 @@ function allocateScarceRoles(
 
   for (const role of sortedRoles) {
     const count = requiredRoles[role] || 0;
-    const rolePlayers = sortByRoleRelevantStrength(
-      eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id) && !lockedAssignments.has(p.id)),
-      role,
-      seed,
-    );
+    let candidates = eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id) && !lockedAssignments.has(p.id));
+
+    // Only GK-capable players can be assigned the GOALKEEPER role
+    if (role === "GOALKEEPER") {
+      candidates = candidates.filter((p) => isGoalkeeperCapable(p));
+    }
+
+    const rolePlayers = sortByRoleRelevantStrength(candidates, role, seed);
 
     // Distribute players for this role across teams using snake draft
     let teamIndex = 0;
