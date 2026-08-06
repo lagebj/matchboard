@@ -319,15 +319,79 @@ function distributePreserveAndRepair(
     }
   }
 
-  // Second: fill teams that are below minimum
+  // Second: redistribute from over-capacity teams to under-minimum teams
+  // This handles the case where all players are preserved to 1-2 teams,
+  // leaving another team below minimum. We move the weakest players first.
+  let redistributed = true;
+  while (redistributed) {
+    redistributed = false;
+    const teamsBelowMin = targetTeams
+      .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.minimumSize)
+      .sort((a, b) => (teamAssignments.get(a.id) ?? new Set()).size - (teamAssignments.get(b.id) ?? new Set()).size);
+
+    if (teamsBelowMin.length === 0) break;
+
+    const teamsOverCapacity = targetTeams
+      .filter((t) => {
+        const size = (teamAssignments.get(t.id) ?? new Set()).size;
+        return size > t.minimumSize;
+      })
+      .sort((a, b) => (teamAssignments.get(b.id) ?? new Set()).size - (teamAssignments.get(a.id) ?? new Set()).size);
+
+    if (teamsOverCapacity.length === 0) break;
+
+    const targetTeam = teamsBelowMin[0];
+    const sourceTeam = teamsOverCapacity[0];
+
+    // Find the weakest player on the source team to move
+    const sourcePlayerIds = teamAssignments.get(sourceTeam.id) ?? new Set();
+    const sourcePlayers = [...sourcePlayerIds]
+      .map((id) => eligiblePlayers.find((p) => p.id === id))
+      .filter((p): p is CompositionPlayer => p !== undefined)
+      .sort((a, b) => a.overallStrength - b.overallStrength);
+
+    if (sourcePlayers.length > 0) {
+      const playerToMove = sourcePlayers[0];
+      const oldAssignment = assignments.get(playerToMove.id);
+      if (oldAssignment) {
+        // Remove from source team
+        assignments.delete(playerToMove.id);
+        teamAssignments.get(sourceTeam.id)?.delete(playerToMove.id);
+
+        // Add to target team
+        const role = determineBestRole(playerToMove);
+        const fit = playerToMove.roleSuitability[roleToKey(role)];
+        const assignedPosition = playerToMove.primaryBroadPosition ?? "flexible" as BroadPosition;
+        assignments.set(playerToMove.id, {
+          playerId: playerToMove.id,
+          teamId: targetTeam.id,
+          assignedRole: role,
+          assignedBroadPosition: assignedPosition,
+          positionFit: fit,
+          source: "BALANCE_FILL",
+          selectionReason: `Moved to ${targetTeam.name} to repair squad`,
+          overallStrength: playerToMove.overallStrength,
+          isGoalkeeper: isGoalkeeperCapable(playerToMove),
+        });
+        if (!teamAssignments.has(targetTeam.id)) teamAssignments.set(targetTeam.id, new Set());
+        teamAssignments.get(targetTeam.id)!.add(playerToMove.id);
+        redistributed = true;
+      }
+    }
+  }
+
+  // Third: fill teams that are still below minimum using remaining unassigned players
   const remaining = unassigned.filter((p) => !assignedPlayerIds.has(p.id));
   const sorted = sortByOverallStrength(remaining, input.seed);
 
   for (const player of sorted) {
     if (assignedPlayerIds.has(player.id)) continue;
-    // Find smallest team below minimum
+    // Find smallest team below minimum, respecting maximum size
     const smallTeams = targetTeams
-      .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.minimumSize)
+      .filter((t) => {
+        const size = (teamAssignments.get(t.id) ?? new Set()).size;
+        return size < t.minimumSize && size < t.maximumSize;
+      })
       .sort((a, b) => (teamAssignments.get(a.id) ?? new Set()).size - (teamAssignments.get(b.id) ?? new Set()).size);
 
     if (smallTeams.length > 0) {
@@ -336,14 +400,17 @@ function distributePreserveAndRepair(
     }
   }
 
-  // Third: fill remaining spots on teams below target
+  // Fourth: fill remaining spots on teams below target, respecting maximum size
   const stillRemaining = unassigned.filter((p) => !assignedPlayerIds.has(p.id));
   const stillSorted = sortByOverallStrength(stillRemaining, input.seed);
 
   for (const player of stillSorted) {
     if (assignedPlayerIds.has(player.id)) continue;
     const teamsBelowTarget = targetTeams
-      .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.targetSize)
+      .filter((t) => {
+        const size = (teamAssignments.get(t.id) ?? new Set()).size;
+        return size < t.targetSize && size < t.maximumSize;
+      })
       .sort((a, b) => {
         const sizeA = (teamAssignments.get(a.id) ?? new Set()).size;
         const sizeB = (teamAssignments.get(b.id) ?? new Set()).size;
