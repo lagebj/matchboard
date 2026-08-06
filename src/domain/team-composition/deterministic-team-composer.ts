@@ -115,11 +115,22 @@ function allocateScarceRoles(
 
   for (const role of sortedRoles) {
     const count = requiredRoles[role] || 0;
-    let candidates = eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id) && !lockedAssignments.has(p.id));
+    const allUnassigned = eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id) && !lockedAssignments.has(p.id));
 
-    // Only GK-capable players can be assigned the GOALKEEPER role
+    let candidates: CompositionPlayer[];
     if (role === "GOALKEEPER") {
-      candidates = candidates.filter((p) => isGoalkeeperCapable(p));
+      candidates = allUnassigned.filter((p) => isGoalkeeperCapable(p));
+    } else {
+      // Prefer PRIMARY/SECONDARY candidates; fall back to TERTIARY; never assign NO_FIT
+      const primarySecondary = allUnassigned.filter((p) => {
+        const fit = getRoleFit(p, role);
+        return fit === "PRIMARY" || fit === "SECONDARY";
+      });
+      const tertiary = allUnassigned.filter((p) => getRoleFit(p, role) === "TERTIARY");
+      const needed = count * targetTeams.length;
+      candidates = primarySecondary.length >= needed
+        ? primarySecondary
+        : [...primarySecondary, ...tertiary];
     }
 
     const rolePlayers = sortByRoleRelevantStrength(candidates, role, seed);
@@ -402,7 +413,7 @@ function distributePreserveAndRepair(
 
     if (smallTeams.length > 0) {
       const team = smallTeams[0];
-      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, input.seed);
+      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, input.seed, input.structure);
     }
   }
 
@@ -426,7 +437,7 @@ function distributePreserveAndRepair(
 
     if (teamsBelowTarget.length > 0) {
       const team = teamsBelowTarget[0];
-      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, input.seed);
+      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, input.seed, input.structure);
     }
   }
 }
@@ -457,14 +468,14 @@ function distributeBalanced(
     const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
 
     if (teamSize < team.maximumSize) {
-      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed);
+      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
     } else {
       // Find smallest team
       const smallestTeam = targetTeams
         .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.maximumSize)
         .sort((a, b) => (teamAssignments.get(a.id) ?? new Set()).size - (teamAssignments.get(b.id) ?? new Set()).size)[0];
       if (smallestTeam) {
-        assignPlayerToTeam(player, smallestTeam, assignments, teamAssignments, assignedPlayerIds, seed);
+        assignPlayerToTeam(player, smallestTeam, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
       }
     }
 
@@ -505,7 +516,7 @@ function distributeOneStrong(
     const strongSize = (teamAssignments.get(strongTeam.id) ?? new Set()).size;
 
     if (strongSize < strongTarget) {
-      assignPlayerToTeam(player, strongTeam, assignments, teamAssignments, assignedPlayerIds, seed);
+      assignPlayerToTeam(player, strongTeam, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
     } else {
       break;
     }
@@ -513,7 +524,7 @@ function distributeOneStrong(
 
   // Then balance remaining teams
   const remaining = sorted.filter((p) => !assignedPlayerIds.has(p.id));
-  distributeBalancedToTeams(remaining, otherTeams, assignments, teamAssignments, assignedPlayerIds, seed);
+  distributeBalancedToTeams(remaining, otherTeams, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
 }
 
 // ── Tiered descending distribution ─────────────────────────────────
@@ -547,7 +558,7 @@ function distributeTiered(
         const player = rolePlayers[playerIndex];
         const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
         if (teamSize < team.maximumSize && !assignedPlayerIds.has(player.id)) {
-          assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed);
+          assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
         }
         playerIndex++;
       }
@@ -566,7 +577,7 @@ function distributeTiered(
       })[0];
 
     if (smallestTeam) {
-      assignPlayerToTeam(player, smallestTeam, assignments, teamAssignments, assignedPlayerIds, seed);
+      assignPlayerToTeam(player, smallestTeam, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
     }
   }
 }
@@ -756,12 +767,79 @@ function determineBestRole(player: CompositionPlayer): StructuralRole {
   const roles: StructuralRole[] = ["GOALKEEPER", "DEFENCE", "MIDFIELD", "ATTACK", "FLEXIBLE"];
   for (const role of roles) {
     const fit = suitability[roleToKey(role)];
-    if (FIT_TIER_PRIORITY[fit] > FIT_TIER_PRIORITY[bestFit]) {
+    const priority = FIT_TIER_PRIORITY[fit];
+    if (priority > FIT_TIER_PRIORITY[bestFit]) {
       bestFit = fit;
       bestRole = role;
+    } else if (priority === FIT_TIER_PRIORITY[bestFit] && priority > 1) {
+      // Tie-break: prefer the role matching the player's primary broad position
+      const expectedRole = broadPositionToRole(player.primaryBroadPosition);
+      if (role === expectedRole) {
+        bestRole = role;
+      }
     }
   }
   return bestRole;
+}
+
+function determineBestRoleForTeam(
+  player: CompositionPlayer,
+  teamId: string,
+  assignments: Map<string, ProposedTeamAssignment>,
+  structure: TeamStructuralRequirements,
+): StructuralRole {
+  const suitability = player.roleSuitability;
+  const requiredRoles = countRoleRequirements(structure.slots);
+  const currentRoleCounts: Record<StructuralRole, number> = {
+    GOALKEEPER: 0, DEFENCE: 0, MIDFIELD: 0, ATTACK: 0, FLEXIBLE: 0,
+  };
+  for (const a of assignments.values()) {
+    if (a.teamId === teamId) {
+      currentRoleCounts[a.assignedRole] = (currentRoleCounts[a.assignedRole] || 0) + 1;
+    }
+  }
+
+  // Find roles where this team still has unfilled slots
+  const unfilledRoles: StructuralRole[] = [];
+  for (const [role, required] of Object.entries(requiredRoles)) {
+    if (required > 0 && (currentRoleCounts[role as StructuralRole] || 0) < required) {
+      unfilledRoles.push(role as StructuralRole);
+    }
+  }
+
+  // Among unfilled roles, pick the best fit for this player
+  let bestRole: StructuralRole | null = null;
+  let bestFit: PositionFitTier = "NO_FIT";
+  for (const role of unfilledRoles) {
+    const fit = suitability[roleToKey(role)];
+    const priority = FIT_TIER_PRIORITY[fit];
+    if (priority > FIT_TIER_PRIORITY[bestFit]) {
+      bestFit = fit;
+      bestRole = role;
+    } else if (priority === FIT_TIER_PRIORITY[bestFit] && priority > 1) {
+      const expectedRole = broadPositionToRole(player.primaryBroadPosition);
+      if (role === expectedRole) {
+        bestRole = role;
+      }
+    }
+  }
+
+  if (bestRole && bestFit !== "NO_FIT") {
+    return bestRole;
+  }
+
+  // Fall back to the player's best role regardless of team needs
+  return determineBestRole(player);
+}
+
+function broadPositionToRole(position: BroadPosition | undefined): StructuralRole {
+  switch (position) {
+    case "goalkeeper": return "GOALKEEPER";
+    case "defender": return "DEFENCE";
+    case "midfielder": return "MIDFIELD";
+    case "forward": return "ATTACK";
+    default: return "FLEXIBLE";
+  }
 }
 
 function assignPlayerToTeam(
@@ -771,8 +849,11 @@ function assignPlayerToTeam(
   teamAssignments: Map<string, Set<string>>,
   assignedPlayerIds: Set<string>,
   seed: string,
+  structure?: TeamStructuralRequirements,
 ): void {
-  const role = determineBestRole(player);
+  const role = structure
+    ? determineBestRoleForTeam(player, team.id, assignments, structure)
+    : determineBestRole(player);
   const fit = player.roleSuitability[roleToKey(role)];
   const assignedPosition = player.primaryBroadPosition ?? "flexible" as BroadPosition;
 
@@ -810,6 +891,7 @@ function distributeBalancedToTeams(
   teamAssignments: Map<string, Set<string>>,
   assignedPlayerIds: Set<string>,
   seed: string,
+  structure?: TeamStructuralRequirements,
 ): void {
   const sorted = sortByOverallStrength(players, seed);
   let direction = 1;
@@ -820,13 +902,13 @@ function distributeBalancedToTeams(
     const team = teams[teamIndex % teams.length];
     const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
     if (teamSize < team.maximumSize) {
-      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed);
+      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed, structure);
     } else {
       const smallest = teams
         .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.maximumSize)
         .sort((a, b) => (teamAssignments.get(a.id) ?? new Set()).size - (teamAssignments.get(b.id) ?? new Set()).size)[0];
       if (smallest) {
-        assignPlayerToTeam(player, smallest, assignments, teamAssignments, assignedPlayerIds, seed);
+        assignPlayerToTeam(player, smallest, assignments, teamAssignments, assignedPlayerIds, seed, structure);
       }
     }
     teamIndex += direction;

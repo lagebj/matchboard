@@ -1122,6 +1122,127 @@ describe("deterministic-team-composer", () => {
       expect(getPositionFit("flexible", undefined, undefined, ["goalkeeper"])).toBe("TERTIARY");
     });
 
+    it("getPositionFit does not inflate non-matching positions to PRIMARY via flexible accepted", () => {
+      // A forward should NOT be PRIMARY for defence just because defence accepts "flexible"
+      expect(getPositionFit("forward", undefined, undefined, ["defender", "flexible"])).toBe("TERTIARY");
+    });
+
+    it("getPositionFit returns PRIMARY for direct position match even with flexible in accepted", () => {
+      // A defender IS PRIMARY for defence (direct match), not because of flexible
+      expect(getPositionFit("defender", undefined, undefined, ["defender", "flexible"])).toBe("PRIMARY");
+    });
+
+    it("getPositionFit returns TERTIARY for non-matching position with flexible accepted", () => {
+      // A midfielder is not PRIMARY for defence, but TERTIARY because defence accepts flexible
+      expect(getPositionFit("midfielder", undefined, undefined, ["defender", "flexible"])).toBe("TERTIARY");
+    });
+
+    it("getPositionFit returns PRIMARY for flexible-primary player when role accepts flexible", () => {
+      expect(getPositionFit("flexible", undefined, undefined, ["defender", "flexible"])).toBe("PRIMARY");
+    });
+
+    it("forward gets PRIMARY for attack and TERTIARY for other field roles", () => {
+      expect(getPositionFit("forward", undefined, undefined, ["forward", "flexible"])).toBe("PRIMARY");
+      expect(getPositionFit("forward", undefined, undefined, ["defender", "flexible"])).toBe("TERTIARY");
+      expect(getPositionFit("forward", undefined, undefined, ["midfielder", "flexible"])).toBe("TERTIARY");
+    });
+
+    it("determineBestRole prefers role matching primary position — verified through composition", () => {
+      const teams = [
+        makeTeam({ id: "t1", name: "Team 1", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+        makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+      ];
+      const players: CompositionPlayer[] = [];
+      for (let i = 0; i < 14; i++) {
+        const isGk = i < 2;
+        const pos: BroadPosition = isGk ? "goalkeeper" : i < 4 ? "defender" : i < 8 ? "midfielder" : "forward";
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          overallStrength: 5,
+          primaryBroadPosition: pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", attack: "SECONDARY", flexible: "TERTIARY" }
+                  : { attack: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: getFallbackStructure("FIVE_A_SIDE"),
+      }));
+
+      // Forwards should be assigned ATTACK or FLEXIBLE, never DEFENCE
+      for (const fwdPlayer of players.filter((p) => p.primaryBroadPosition === "forward")) {
+        const assignment = result.assignments.find((a) => a.playerId === fwdPlayer.id);
+        expect(assignment).toBeDefined();
+        expect(assignment!.assignedRole).not.toBe("DEFENCE");
+      }
+
+      // Defenders should be assigned DEFENCE, not ATTACK
+      for (const defPlayer of players.filter((p) => p.primaryBroadPosition === "defender")) {
+        const assignment = result.assignments.find((a) => a.playerId === defPlayer.id);
+        expect(assignment).toBeDefined();
+        expect(assignment!.assignedRole).not.toBe("ATTACK");
+      }
+    });
+
+    it("composeTeams assigns positions correctly — forwards to ATTACK, defenders to DEFENCE", () => {
+      const teams = [
+        makeTeam({ id: "t1", name: "Team 1", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+        makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+      ];
+      const players: CompositionPlayer[] = [];
+      // 2 GKs, 4 defenders, 4 midfielders, 4 forwards = 14 players
+      for (let i = 0; i < 14; i++) {
+        const isGk = i < 2;
+        const pos: BroadPosition = isGk ? "goalkeeper" : i < 4 ? "defender" : i < 8 ? "midfielder" : "forward";
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          overallStrength: 5,
+          primaryBroadPosition: pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", attack: "SECONDARY", flexible: "TERTIARY" }
+                  : { attack: "PRIMARY", midfield: "SECONDARY", flexible: "TERTIARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: getFallbackStructure("FIVE_A_SIDE"),
+      }));
+
+      // Count ATTACK-role assignments (should be non-zero)
+      const attackAssignments = result.assignments.filter((a) => a.assignedRole === "ATTACK");
+      expect(attackAssignments.length).toBeGreaterThan(0);
+
+      // Forwards should be assigned ATTACK or FLEXIBLE, never DEFENCE
+      for (const fwdPlayer of players.filter((p) => p.primaryBroadPosition === "forward")) {
+        const assignment = result.assignments.find((a) => a.playerId === fwdPlayer.id);
+        expect(assignment).toBeDefined();
+        expect(assignment!.assignedRole).not.toBe("DEFENCE");
+      }
+    });
+
     it("sortByOverallStrength orders players by strength descending", () => {
       const players = [
         makePlayer({ id: "a", overallStrength: 3 }),
@@ -1410,6 +1531,60 @@ describe("deterministic-team-composer", () => {
         const teamSize = result.assignments.filter((a) => a.teamId === team.id).length;
         expect(teamSize).toBeGreaterThan(0);
         expect(teamSize).toBeLessThanOrEqual(team.maximumSize);
+      }
+    });
+  });
+
+  describe("deterministic reproducibility", () => {
+    it("produces identical results with the same deterministic seed", () => {
+      const teams = [
+        makeTeam({ id: "t1", name: "Team 1", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+        makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 5, maximumSize: 7 }),
+      ];
+
+      const players: CompositionPlayer[] = [];
+      for (let i = 0; i < 14; i++) {
+        const isGk = i < 2;
+        const pos: BroadPosition = isGk ? "goalkeeper" : i < 6 ? "defender" : i < 10 ? "midfielder" : "forward";
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          overallStrength: 5,
+          primaryBroadPosition: pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", flexible: "SECONDARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", flexible: "SECONDARY" }
+                  : { attack: "PRIMARY", flexible: "SECONDARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result1 = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: getFallbackStructure("FIVE_A_SIDE"),
+        deterministicSeed: "same-seed",
+      }));
+
+      const result2 = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: getFallbackStructure("FIVE_A_SIDE"),
+        deterministicSeed: "same-seed",
+      }));
+
+      expect(result1.assignments.length).toBe(result2.assignments.length);
+      for (let i = 0; i < result1.assignments.length; i++) {
+        expect(result1.assignments[i].playerId).toBe(result2.assignments[i].playerId);
+        expect(result1.assignments[i].teamId).toBe(result2.assignments[i].teamId);
+        expect(result1.assignments[i].assignedRole).toBe(result2.assignments[i].assignedRole);
       }
     });
   });

@@ -64,11 +64,21 @@ export function getPositionFit(
 ): PositionFitTier {
   if (!acceptedPositions || acceptedPositions.length === 0) return "NO_FIT";
   const accepted = new Set(acceptedPositions);
-  if (accepted.has("flexible")) return "PRIMARY";
+  // A player whose primary position directly matches gets PRIMARY
   if (primaryPosition && accepted.has(primaryPosition)) return "PRIMARY";
+  // A flexible-primary player in a role that accepts flexible gets PRIMARY
+  if (primaryPosition === "flexible" && accepted.has("flexible")) return "PRIMARY";
+  // Secondary position match gets SECONDARY
   if (secondaryPosition && accepted.has(secondaryPosition)) return "SECONDARY";
+  // Tertiary position match gets TERTIARY
   if (tertiaryPosition && accepted.has(tertiaryPosition)) return "TERTIARY";
-  if (primaryPosition === "flexible" || secondaryPosition === "flexible" || tertiaryPosition === "flexible") return "TERTIARY";
+  // A flexible-primary player can fill any role at TERTIARY level
+  if (primaryPosition === "flexible") return "TERTIARY";
+  // A player with flexible as secondary/tertiary trait gets TERTIARY for any role that accepts flexible
+  if (secondaryPosition === "flexible" || tertiaryPosition === "flexible") return "TERTIARY";
+  // A role that accepts "flexible" can be filled by any player, but at TERTIARY fit — not PRIMARY
+  // This prevents attackers from being PRIMARY fit for defence just because the role accepts flexible players
+  if (accepted.has("flexible")) return "TERTIARY";
   return "NO_FIT";
 }
 
