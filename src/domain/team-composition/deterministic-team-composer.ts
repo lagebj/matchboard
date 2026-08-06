@@ -132,16 +132,16 @@ function allocateScarceRoles(
     for (const player of rolePlayers) {
       if (placed >= count * targetTeams.length) break;
 
-      // Find next team that needs this role
+      // Find next team that needs this role and has capacity
       let attempts = 0;
       while (attempts < targetTeams.length) {
         const team = targetTeams[teamIndex % targetTeams.length];
-        const teamPlayers = teamAssignments.get(team.id) ?? new Set<string>();
+        const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
         const currentRoleCount = [...assignments.values()]
           .filter((a) => a.teamId === team.id && a.assignedRole === role)
           .length;
 
-        if (currentRoleCount < count) {
+        if (currentRoleCount < count && teamSize < team.maximumSize) {
           const positionFit = player.roleSuitability[roleToKey(role)];
           const assignedPosition = broadPositionForRole(role);
           const assignment: ProposedTeamAssignment = {
@@ -181,11 +181,14 @@ function buildViableSpine(
 
   // Ensure every team has minimum required roles filled
   for (const team of targetTeams) {
-    const teamPlayers = teamAssignments.get(team.id) ?? new Set<string>();
+    const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
+    // Skip teams already at maximum capacity
+    if (teamSize >= team.maximumSize) continue;
+
     const currentAssignments = [...assignments.values()].filter((a) => a.teamId === team.id);
 
     // Check goalkeeper requirement
-    if (structure.requireGoalkeeper) {
+    if (structure.requireGoalkeeper && (teamAssignments.get(team.id) ?? new Set()).size < team.maximumSize) {
       const hasGk = currentAssignments.some((a) => a.assignedRole === "GOALKEEPER");
       if (!hasGk) {
         // Find best available GK
@@ -231,6 +234,9 @@ function buildViableSpine(
       for (let i = currentCount; i < requiredCount && i - currentCount < available.length; i++) {
         const player = available[i - currentCount];
         if (!player) break;
+        // Respect maximum team size
+        const currentTeamSize = (teamAssignments.get(team.id) ?? new Set()).size;
+        if (currentTeamSize >= team.maximumSize) break;
         const fit = player.roleSuitability[roleToKey(role as StructuralRole)];
         const assignedPosition = broadPositionForRole(role as StructuralRole);
         assignments.set(player.id, {
