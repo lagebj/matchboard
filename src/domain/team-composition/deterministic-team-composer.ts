@@ -585,7 +585,29 @@ function improveProposal(
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   let currentAssignments = new Map(assignments);
-  const currentTeamAssignments = new Map(teamAssignments);
+  // Deep-copy team assignments so mutations are independent
+  const currentTeamAssignments = new Map<string, Set<string>>();
+  for (const [teamId, playerIds] of teamAssignments) {
+    currentTeamAssignments.set(teamId, new Set(playerIds));
+  }
+
+  function getTeamSize(teamId: string): number {
+    return currentTeamAssignments.get(teamId)?.size ?? 0;
+  }
+
+  function movePlayer(playerId: string, fromTeamId: string, toTeamId: string, reason: string): void {
+    const existing = currentAssignments.get(playerId);
+    if (!existing) return;
+    currentAssignments.set(playerId, { ...existing, teamId: toTeamId, source: "BALANCE_FILL" as AssignmentSource, selectionReason: reason });
+    const fromSet = currentTeamAssignments.get(fromTeamId);
+    if (fromSet) fromSet.delete(playerId);
+    let toSet = currentTeamAssignments.get(toTeamId);
+    if (!toSet) {
+      toSet = new Set();
+      currentTeamAssignments.set(toTeamId, toSet);
+    }
+    toSet.add(playerId);
+  }
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     let improved = false;
@@ -596,6 +618,16 @@ function improveProposal(
       for (let j = i + 1; j < teamIds.length; j++) {
         const teamA = teamIds[i];
         const teamB = teamIds[j];
+        const sizeA = getTeamSize(teamA);
+        const sizeB = getTeamSize(teamB);
+        const teamAConfig = targetTeams.find((t) => t.id === teamA);
+        const teamBConfig = targetTeams.find((t) => t.id === teamB);
+        if (!teamAConfig || !teamBConfig) continue;
+
+        // Skip swaps that would violate size constraints
+        if (sizeA <= teamAConfig.minimumSize && sizeB >= teamBConfig.maximumSize) continue;
+        if (sizeB <= teamBConfig.minimumSize && sizeA >= teamAConfig.maximumSize) continue;
+
         const playersA = [...(currentAssignments.values())].filter((a) => a.teamId === teamA && a.source !== "LOCKED");
         const playersB = [...(currentAssignments.values())].filter((a) => a.teamId === teamB && a.source !== "LOCKED");
 
@@ -608,6 +640,10 @@ function improveProposal(
             // Don't swap primary-fit players
             if (a.positionFit === "PRIMARY" || b.positionFit === "PRIMARY") continue;
 
+            // Don't swap if either team would violate size constraints
+            if (sizeA <= teamAConfig.minimumSize && sizeB > teamAConfig.maximumSize) continue;
+            if (sizeB <= teamBConfig.minimumSize && sizeA > teamBConfig.maximumSize) continue;
+
             const currentSpread = computeSpread(currentAssignments, playerMap, teamA, teamB);
 
             // Try swap
@@ -618,7 +654,9 @@ function improveProposal(
             const newSpread = computeSpread(newAssignments, playerMap, teamA, teamB);
 
             if (currentSpread !== null && newSpread !== null && newSpread < currentSpread - IMPROVEMENT_THRESHOLD) {
-              currentAssignments = newAssignments;
+              // Apply swap and update team assignment tracking
+              movePlayer(a.playerId, teamA, teamB, "Swapped to balance squad strength");
+              movePlayer(b.playerId, teamB, teamA, "Swapped to balance squad strength");
               improved = true;
               break;
             }
@@ -633,7 +671,7 @@ function improveProposal(
     // Try single moves (if a team has too many players)
     if (!improved) {
       for (const team of targetTeams) {
-        const teamSize = (currentTeamAssignments.get(team.id) ?? new Set()).size;
+        const teamSize = getTeamSize(team.id);
         if (teamSize > team.targetSize) {
           const excessPlayers = [...currentAssignments.values()]
             .filter((a) => a.teamId === team.id && a.source !== "LOCKED")
@@ -645,16 +683,11 @@ function improveProposal(
 
           for (const excess of excessPlayers) {
             const smallestTeam = targetTeams
-              .filter((t) => t.id !== team.id && (currentTeamAssignments.get(t.id) ?? new Set()).size < t.maximumSize)
-              .sort((a, b) => (currentTeamAssignments.get(a.id) ?? new Set()).size - (currentTeamAssignments.get(b.id) ?? new Set()).size)[0];
+              .filter((t) => t.id !== team.id && getTeamSize(t.id) < t.maximumSize)
+              .sort((a, b) => getTeamSize(a.id) - getTeamSize(b.id))[0];
 
             if (smallestTeam) {
-              currentAssignments.set(excess.playerId, {
-                ...excess,
-                teamId: smallestTeam.id,
-                source: "BALANCE_FILL" as AssignmentSource,
-                selectionReason: `Moved to balance squad sizes`,
-              });
+              movePlayer(excess.playerId, team.id, smallestTeam.id, "Moved to balance squad sizes");
               improved = true;
               break;
             }

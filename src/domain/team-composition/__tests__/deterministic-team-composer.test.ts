@@ -1263,4 +1263,154 @@ describe("deterministic-team-composer", () => {
       }
     });
   });
+
+  describe("maximum size and distribution across all scenarios", () => {
+    it("respects maximumSize for all teams in BALANCED scenario with uneven current assignments", () => {
+      const teams = [
+        makeTeam({ id: "bla", name: "Blå", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "hvit", name: "Hvit", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "rod", name: "Rød", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+      ];
+
+      // 23 players: 8 on Hvit, 15 on Rød, 0 on Blå
+      const players: CompositionPlayer[] = [];
+      const positions: BroadPosition[] = ["goalkeeper", "defender", "midfielder", "forward"];
+      for (let i = 0; i < 23; i++) {
+        const teamId = i < 8 ? "hvit" : "rod";
+        const pos = positions[i % 4 === 0 ? 0 : i % 4];
+        const isGk = i === 0 || i === 8;
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          currentTeamId: teamId,
+          overallStrength: 4 + (i % 5),
+          primaryBroadPosition: isGk ? "goalkeeper" : pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", flexible: "SECONDARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", flexible: "SECONDARY" }
+                  : pos === "forward"
+                    ? { attack: "PRIMARY", flexible: "SECONDARY" }
+                    : { flexible: "PRIMARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: create7v7Structure(),
+      }));
+
+      for (const team of teams) {
+        const teamSize = result.assignments.filter((a) => a.teamId === team.id).length;
+        expect(teamSize).toBeLessThanOrEqual(team.maximumSize);
+      }
+
+      // No team should have 0 players when there are enough for all
+      for (const team of teams) {
+        const teamSize = result.assignments.filter((a) => a.teamId === team.id).length;
+        expect(teamSize).toBeGreaterThan(0);
+      }
+    });
+
+    it("respects maximumSize for all teams in PRESERVE_AND_REPAIR scenario", () => {
+      const teams = [
+        makeTeam({ id: "bla", name: "Blå", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "hvit", name: "Hvit", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "rod", name: "Rød", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+      ];
+
+      // 35 players: all on Hvit and Rød, none on Blå
+      const players: CompositionPlayer[] = [];
+      const positions: BroadPosition[] = ["goalkeeper", "defender", "midfielder", "forward"];
+      for (let i = 0; i < 35; i++) {
+        const teamId = i < 15 ? "hvit" : "rod";
+        const isGk = i === 0 || i === 15;
+        const pos = positions[i % 4 === 0 ? 0 : i % 4];
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          currentTeamId: teamId,
+          overallStrength: 4 + (i % 5),
+          primaryBroadPosition: isGk ? "goalkeeper" : pos,
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : pos === "defender"
+                ? { defence: "PRIMARY", flexible: "SECONDARY" }
+                : pos === "midfielder"
+                  ? { midfield: "PRIMARY", flexible: "SECONDARY" }
+                  : pos === "forward"
+                    ? { attack: "PRIMARY", flexible: "SECONDARY" }
+                    : { flexible: "PRIMARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("PRESERVE_AND_REPAIR"),
+        players,
+        targetTeams: teams,
+        structure: create7v7Structure(),
+      }));
+
+      for (const team of teams) {
+        const teamSize = result.assignments.filter((a) => a.teamId === team.id).length;
+        expect(teamSize).toBeLessThanOrEqual(team.maximumSize);
+        expect(teamSize).toBeGreaterThan(0);
+      }
+    });
+
+    it("distributes players across all teams in BALANCED regardless of currentTeamId", () => {
+      const teams = [
+        makeTeam({ id: "bla", name: "Blå", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "hvit", name: "Hvit", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+        makeTeam({ id: "rod", name: "Rød", targetSize: 7, minimumSize: 7, maximumSize: 13 }),
+      ];
+
+      // 24 players: ALL with currentTeamId "hvit" but should be distributed evenly
+      const players: CompositionPlayer[] = [];
+      for (let i = 0; i < 24; i++) {
+        const isGk = i === 0;
+        players.push(makePlayer({
+          id: `p${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          currentTeamId: "hvit",
+          overallStrength: 5,
+          primaryBroadPosition: isGk ? "goalkeeper" : i % 3 === 0 ? "defender" : i % 3 === 1 ? "midfielder" : "forward",
+          roleSuitability: makeRoleSuitability(
+            isGk
+              ? { goalkeeper: "PRIMARY", flexible: "TERTIARY" }
+              : i % 3 === 0
+                ? { defence: "PRIMARY", flexible: "SECONDARY" }
+                : i % 3 === 1
+                  ? { midfield: "PRIMARY", flexible: "SECONDARY" }
+                  : { attack: "PRIMARY", flexible: "SECONDARY" },
+          ),
+          goalkeeperAbility: isGk ? "YES" : "NO",
+        }));
+      }
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("BALANCED"),
+        players,
+        targetTeams: teams,
+        structure: create7v7Structure(),
+      }));
+
+      // All teams must have players
+      for (const team of teams) {
+        const teamSize = result.assignments.filter((a) => a.teamId === team.id).length;
+        expect(teamSize).toBeGreaterThan(0);
+        expect(teamSize).toBeLessThanOrEqual(team.maximumSize);
+      }
+    });
+  });
 });
