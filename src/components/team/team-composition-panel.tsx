@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect } from "react";
 import type { SystemTeamScenario } from "@/domain/team-composition/team-composition-types";
 import type { TeamCompositionProposal, ProposedTeamAssignment, ProposalIssue } from "@/domain/team-composition/team-composition-types";
 import { getAllSystemScenarios, isScenarioPolicyGated } from "@/domain/team-composition/scenario-catalogue";
-import { generateLeagueTeamPreviewAction, applyLeagueTeamProposalAction } from "@/app/(app)/o/[orgSlug]/teams/team-composition-actions";
+import type { GameFormat } from "@/domain/team-composition/structural-requirements";
+import { GAME_FORMAT_PLAYER_COUNT } from "@/domain/team-composition/structural-requirements";
+import { generateLeagueTeamPreviewAction, applyLeagueTeamProposalAction, getCompositionFormationOptionsAction, type FormationOption } from "@/app/(app)/o/[orgSlug]/teams/team-composition-actions";
+import { formatGameFormat } from "@/lib/formatters/game-format";
 import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -14,6 +17,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Shuffle, CheckCircle2 } from "lucide-react";
 
 const SCENARIOS = getAllSystemScenarios();
+
+const GAME_FORMATS: GameFormat[] = ["THREE_A_SIDE", "FIVE_A_SIDE", "SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"];
 
 const ROLE_LABELS: Record<string, string> = {
   GOALKEEPER: "GK",
@@ -50,6 +55,7 @@ type TeamCompositionPanelProps = {
   teamCount: number;
   playerCount: number;
   orgSlug: string;
+  defaultGameFormat?: GameFormat;
 };
 
 export function TeamCompositionPanel({
@@ -58,9 +64,14 @@ export function TeamCompositionPanel({
   teamCount,
   playerCount,
   orgSlug,
+  defaultGameFormat = "SEVEN_A_SIDE",
 }: TeamCompositionPanelProps) {
   const [step, setStep] = useState<Step>("select");
   const [selectedScenario, setSelectedScenario] = useState<SystemTeamScenario>("BALANCED");
+  const [selectedGameFormat, setSelectedGameFormat] = useState<GameFormat>(defaultGameFormat);
+  const [selectedFormationId, setSelectedFormationId] = useState<string>("");
+  const [formationOptions, setFormationOptions] = useState<FormationOption[]>([]);
+  const [loadingFormations, setLoadingFormations] = useState(false);
   const [proposal, setProposal] = useState<TeamCompositionProposal | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +84,24 @@ export function TeamCompositionPanel({
   const isFinalized = selectedSeason?.status === "FINALIZED";
 
   const isPolicyGated = isScenarioPolicyGated(selectedScenario);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingFormations(true);
+    setFormationOptions([]);
+    setSelectedFormationId("");
+    getCompositionFormationOptionsAction(selectedGameFormat)
+      .then((options) => {
+        if (!cancelled) {
+          setFormationOptions(options);
+          setLoadingFormations(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadingFormations(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedGameFormat]);
 
   const handleScenarioChange = useCallback((scenario: SystemTeamScenario) => {
     setSelectedScenario(scenario);
@@ -89,6 +118,8 @@ export function TeamCompositionPanel({
           footballGroupId,
           leagueSeasonId: selectedSeasonId,
           scenario: selectedScenario,
+          gameFormat: selectedGameFormat,
+          formationId: selectedFormationId || undefined,
           coachAcknowledgedPolicyGate: isPolicyGated ? policyAcknowledged : undefined,
         });
         setProposal(result);
@@ -97,7 +128,7 @@ export function TeamCompositionPanel({
         setError(e instanceof Error ? e.message : "Failed to generate preview");
       }
     });
-  }, [footballGroupId, selectedSeasonId, selectedScenario, isPolicyGated, policyAcknowledged]);
+  }, [footballGroupId, selectedSeasonId, selectedScenario, selectedGameFormat, selectedFormationId, isPolicyGated, policyAcknowledged]);
 
   const handleApply = useCallback(() => {
     if (!proposal) return;
@@ -108,6 +139,8 @@ export function TeamCompositionPanel({
           footballGroupId,
           leagueSeasonId: selectedSeasonId,
           scenario: selectedScenario,
+          gameFormat: selectedGameFormat,
+          formationId: selectedFormationId || undefined,
           deterministicSeed: proposal.deterministicSeed,
           proposalIdempotencyKey: proposal.inputFingerprint,
         });
@@ -117,7 +150,7 @@ export function TeamCompositionPanel({
         setError(e instanceof Error ? e.message : "Failed to apply composition");
       }
     });
-  }, [footballGroupId, selectedSeasonId, selectedScenario, proposal]);
+  }, [footballGroupId, selectedSeasonId, selectedScenario, selectedGameFormat, selectedFormationId, proposal]);
 
   const handleReset = useCallback(() => {
     setStep("select");
@@ -196,6 +229,12 @@ export function TeamCompositionPanel({
           isPolicyGated={isPolicyGated}
           policyAcknowledged={policyAcknowledged}
           onPolicyAcknowledgedChange={setPolicyAcknowledged}
+          selectedGameFormat={selectedGameFormat}
+          onGameFormatChange={setSelectedGameFormat}
+          selectedFormationId={selectedFormationId}
+          onFormationChange={setSelectedFormationId}
+          formationOptions={formationOptions}
+          loadingFormations={loadingFormations}
         />
       )}
 
@@ -240,6 +279,12 @@ function ScenarioSelector({
   isPolicyGated,
   policyAcknowledged,
   onPolicyAcknowledgedChange,
+  selectedGameFormat,
+  onGameFormatChange,
+  selectedFormationId,
+  onFormationChange,
+  formationOptions,
+  loadingFormations,
 }: {
   selectedScenario: SystemTeamScenario;
   onSelectScenario: (s: SystemTeamScenario) => void;
@@ -254,8 +299,16 @@ function ScenarioSelector({
   isPolicyGated: boolean;
   policyAcknowledged: boolean;
   onPolicyAcknowledgedChange: (v: boolean) => void;
+  selectedGameFormat: GameFormat;
+  onGameFormatChange: (f: GameFormat) => void;
+  selectedFormationId: string;
+  onFormationChange: (id: string) => void;
+  formationOptions: FormationOption[];
+  loadingFormations: boolean;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const fallbackSlotCount = GAME_FORMAT_PLAYER_COUNT[selectedGameFormat];
 
   return (
     <div className="flex flex-col gap-4">
@@ -280,6 +333,42 @@ function ScenarioSelector({
           </select>
         </div>
       )}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Game format</label>
+          <select
+            value={selectedGameFormat}
+            onChange={(e) => onGameFormatChange(e.target.value as GameFormat)}
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+          >
+            {GAME_FORMATS.map((f) => (
+              <option key={f} value={f}>{formatGameFormat(f)} ({GAME_FORMAT_PLAYER_COUNT[f]} players)</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Formation (optional)</label>
+          <select
+            value={selectedFormationId}
+            onChange={(e) => onFormationChange(e.target.value)}
+            disabled={loadingFormations}
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)] disabled:opacity-50"
+          >
+            <option value="">Default {formatGameFormat(selectedGameFormat)} formation</option>
+            {formationOptions.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name} {f.source === "SYSTEM" ? "" : "(Custom)"}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <p className="text-xs text-[var(--text-muted)]">
+        Structure: {fallbackSlotCount} players per team{selectedFormationId ? " (formation override)" : " (default)"}.
+        The engine fills role requirements based on the selected format{selectedFormationId ? " and formation" : ""}.
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {SCENARIOS.map((scenario) => {
@@ -394,6 +483,8 @@ function ProposalPreview({
     assignmentsByTeam.set(a.teamId, list);
   }
 
+  const playerNameMap = new Map(proposal.assignments.map((a) => [a.playerId, a.playerDisplayName ?? a.playerId]));
+
   return (
     <div className="flex flex-col gap-5">
       <SectionHeader
@@ -438,6 +529,10 @@ function ProposalPreview({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {proposal.teamMetrics.map((team) => {
           const teamAssignments = assignmentsByTeam.get(team.teamId) ?? [];
+          const sortedAssignments = [...teamAssignments].sort((a, b) => {
+            const roleOrder: Record<string, number> = { GOALKEEPER: 0, DEFENCE: 1, MIDFIELD: 2, ATTACK: 3, FLEXIBLE: 4 };
+            return (roleOrder[a.assignedRole] ?? 5) - (roleOrder[b.assignedRole] ?? 5);
+          });
           return (
             <Surface key={team.teamId} variant="default" padding="md">
               <div className="flex flex-col gap-2">
@@ -462,18 +557,23 @@ function ProposalPreview({
                     ))}
                   </div>
                 )}
-                <div className="flex flex-wrap gap-1">
-                  {teamAssignments.map((a) => (
-                    <span
+                <div className="flex flex-col gap-1">
+                  {sortedAssignments.map((a) => (
+                    <div
                       key={a.playerId}
-                      className="inline-flex items-center gap-1 rounded bg-[var(--surface-muted)] px-2 py-0.5 text-[11px] text-[var(--text-soft)]"
+                      className="flex items-center gap-2 text-xs"
                       title={a.selectionReason}
                     >
-                      <span className="text-[9px] font-medium uppercase text-[var(--text-muted)]">
+                      <span className="inline-flex items-center justify-center rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[9px] font-medium uppercase text-[var(--text-muted)] min-w-[28px]">
                         {ROLE_LABELS[a.assignedRole] ?? a.assignedRole}
                       </span>
-                      {FIT_LABELS[a.positionFit] ?? "?"}
-                    </span>
+                      <span className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[9px] font-medium text-[var(--text-muted)]">
+                        {FIT_LABELS[a.positionFit] ?? "?"}
+                      </span>
+                      <span className="text-[var(--text-soft)] truncate">
+                        {playerNameMap.get(a.playerId) ?? a.playerId}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>

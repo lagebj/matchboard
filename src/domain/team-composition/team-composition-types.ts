@@ -249,6 +249,7 @@ export type ProposalSeverity = "BLOCKED" | "DECISION_REQUIRED" | "PLANNING_NOTE"
 
 export interface ProposedTeamAssignment {
   playerId: string;
+  playerDisplayName?: string;
   teamId: string;
   assignedRole: StructuralRole;
   assignedBroadPosition: BroadPosition;
