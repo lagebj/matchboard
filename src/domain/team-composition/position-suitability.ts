@@ -263,7 +263,26 @@ export function sortByOverallStrength(
 }
 
 export function stableCompare(a: string, b: string, seed: string): number {
-  const combinedA = seed + ":" + a;
-  const combinedB = seed + ":" + b;
-  return combinedA < combinedB ? -1 : combinedA > combinedB ? 1 : 0;
+  // Seed-dependent ordering: hash each ID with the seed to produce
+  // a seed-dependent sort key. Different seeds produce different
+  // relative orderings for tied players, enabling regeneration to
+  // produce varied team suggestions.
+  const hashA = seedDependentHash(seed, a);
+  const hashB = seedDependentHash(seed, b);
+  if (hashA !== hashB) return hashA < hashB ? -1 : 1;
+  // Fall back to lexicographic for true ties (same hash)
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function seedDependentHash(seed: string, id: string): number {
+  // FNV-1a hash for well-distributed seed-dependent ordering.
+  // Different seeds produce meaningfully different sort orders,
+  // enabling regeneration to yield varied team compositions.
+  const combined = seed + ":" + id;
+  let hash = 2166136261;
+  for (let i = 0; i < combined.length; i++) {
+    hash ^= combined.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
