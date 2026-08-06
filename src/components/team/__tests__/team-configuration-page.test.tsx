@@ -19,8 +19,12 @@ function makeConfig(overrides: Partial<TeamConfiguration> = {}): TeamConfigurati
     coreGroup: "12 active players",
     active: true,
     targetSquadSize: 11,
+    minAcceptedSquadSize: 7,
     maxSquadSize: 14,
+    minCorePlayers: 5,
     supportPriority: 3,
+    minSupportPlayers: 1,
+    developmentSlots: 2,
     footballGroupId: "group-1",
     footballGroup: { id: "group-1", name: "Boys 2015", slug: "boys-2015", type: "AGE_GROUP" },
     rules: [

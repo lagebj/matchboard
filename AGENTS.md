@@ -1597,6 +1597,23 @@ Rules:
 | `src/lib/formatters/event-export-filename.ts` | Safe event export filename generation |
 | `src/app/(app)/events/[eventId]/export/route.ts` | GET route: Excel workbook export with Squads, Match call-out, and optional Conflicts sheets |
 
+### Team composition engine files
+
+| File | Purpose |
+|------|---------|
+| `src/domain/team-composition/team-composition-types.ts` | Shared contract: TeamCompositionProblem, TeamCompositionProposal, CompositionPlayer, RoleSuitabilityProfile, all scenario/metric/validation types |
+| `src/domain/team-composition/position-suitability.ts` | Position mapping, fit tiers, role-relevant strength, scarcity, deterministic sorting |
+| `src/domain/team-composition/structural-requirements.ts` | Fallback formation structures per game format, slot requirements |
+| `src/domain/team-composition/scenario-catalogue.ts` | Four system scenarios (PRESERVE_AND_REPAIR, BALANCED, ONE_STRONG_REST_BALANCED, TIERED_DESCENDING) with versioned definitions |
+| `src/domain/team-composition/proposal-validation.ts` | Hard constraint validation, team metrics, proposal metrics, explanation generation, input fingerprinting |
+| `src/domain/team-composition/deterministic-team-composer.ts` | 6-phase composition engine (normalize → scarce roles → spine → scenario distribution → fill → improve) |
+| `src/domain/team-composition/league-team-adapter.ts` | Application service: data loading, policy checks, proposal generation, transactional apply, decision recording |
+| `src/domain/team-composition/index.ts` | Barrel exports |
+| `src/lib/policies/composition-policy.ts` | Pre-generation scenario permission check (TIERED_DESCENDING policy gate) and post-generation structural validation |
+| `src/app/(app)/o/[orgSlug]/teams/team-composition-actions.ts` | Server actions: generateLeagueTeamPreviewAction, applyLeagueTeamProposalAction |
+| `src/app/(app)/o/[orgSlug]/groups/group-composition-actions.ts` | Server action: getGroupCompositionData (group, teams, players, league seasons) |
+| `src/components/team/team-composition-panel.tsx` | UI: scenario selector, proposal preview, apply flow, policy acknowledgement |
+
 ## Testing requirements
 
 Any change to selection behavior must include tests.
@@ -1642,6 +1659,17 @@ Required test coverage should include:
 - consecutive support rotation penalizes repeated support assignments
 - consecutive support penalty increases with more consecutive rounds
 - consecutive support does not prevent selection when no other candidate exists
+- team composition: PRESERVE_AND_REPAIR preserves current assignments and repairs gaps
+- team composition: BALANCED distributes players across teams by overall strength
+- team composition: ONE_STRONG_REST_BALANCED creates one strong team and balances the rest
+- team composition: TIERED_DESCENDING creates teams in descending strength order
+- team composition: TIERED_DESCENDING requires coach acknowledgement (policy-gated)
+- team composition: deterministic output for identical inputs
+- team composition: locked assignments are preserved
+- team composition: unavailable and inactive players are excluded
+- team composition: goalkeeper coverage is validated
+- team composition: structural validity is checked (broken formation, no-fit percentage)
+- team composition: composition policy blocks TIERED_DESCENDING without acknowledgement
 - event squad: all balanced with full ratings and positions
 - event squad: all balanced with unrated players
 - event squad: one competitive + two balanced remainder

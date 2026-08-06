@@ -5,7 +5,8 @@ export type AssistantIssueEntityType =
   | "PLAYER"
   | "AVAILABILITY"
   | "SELECTION"
-  | "POST_MATCH";
+  | "POST_MATCH"
+  | "LEAGUE_SEASON";
 
 import type { SignalCategory } from "@/lib/selection/signal-category";
 
@@ -30,7 +31,9 @@ export type DecisionAction =
   | "DISMISS"
   | "MARK_MATCH_COMPLETE"
   | "MOVE_PLAYER_TO_TEAM"
-  | "UPDATE_TEAM_CONFIGURATION";
+  | "UPDATE_TEAM_CONFIGURATION"
+  | "GENERATE_TEAM_PREVIEW"
+  | "APPLY_TEAM_COMPOSITION";
 
 export type DecisionType =
   | "ASSISTANT_ISSUE"
@@ -40,7 +43,8 @@ export type DecisionType =
   | "PLAYER_EXCEPTION"
   | "POST_MATCH"
   | "PLAYER_ASSIGNMENT"
-  | "TEAM_CONFIGURATION";
+  | "TEAM_CONFIGURATION"
+  | "TEAM_COMPOSITION";
 
 export type AttendanceStatus =
   | "PRESENT"

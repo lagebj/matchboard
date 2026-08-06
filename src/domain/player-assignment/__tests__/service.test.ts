@@ -71,6 +71,7 @@ describe("Player Assignment Service", () => {
         playerId,
         targetTeamId,
         reason: "Reassigning for balance",
+        organisationId: "test-org",
       });
 
       expect(result.teamId).toBe(targetTeamId);
@@ -103,7 +104,7 @@ describe("Player Assignment Service", () => {
 
     it("throws for nonexistent player", async () => {
       await expect(
-        movePlayerToTeam({ playerId: "nonexistent", targetTeamId: "some-team" }),
+        movePlayerToTeam({ playerId: "nonexistent", targetTeamId: "some-team", organisationId: "test-org" }),
       ).rejects.toThrow();
     });
   });

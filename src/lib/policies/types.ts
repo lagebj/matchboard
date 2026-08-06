@@ -6,7 +6,8 @@ export type PolicyDecisionType =
   | "event_squad_generation"
   | "event_helper_selection"
   | "event_lineup_planning"
-  | "post_match_report_availability";
+  | "post_match_report_availability"
+  | "league_team_composition";
 
 export type PolicyFairnessScope =
   | "match"
