@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch } from "lucide-react";
+import { TeamCompositionPanel } from "@/components/team/team-composition-panel";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
   AGE_GROUP: "Age group",
@@ -85,13 +86,14 @@ type GroupDetail = {
   incomingPaths: { id: string; fromGroupId: string; fromGroupName: string; role: string; isActive: boolean }[];
 };
 
-type TabId = "overview" | "teams" | "players" | "paths";
+type TabId = "overview" | "teams" | "players" | "paths" | "composition";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "teams", label: "Teams" },
   { id: "players", label: "Players" },
   { id: "paths", label: "Movement paths" },
+  { id: "composition", label: "Auto-select teams" },
 ];
 
 export function GroupDetailClient({
@@ -371,6 +373,17 @@ export function GroupDetailClient({
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === "composition" && (
+        <TeamCompositionPanel
+          footballGroupId={group.id}
+          leagueSeasonId={group.leagueSeasons[0]?.id ?? ""}
+          leagueSeasonName={group.leagueSeasons[0]?.name ?? "No season"}
+          teamCount={group.teams.length}
+          playerCount={group.playerCount}
+          orgSlug={orgSlug}
+        />
       )}
     </div>
   );

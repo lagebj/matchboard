@@ -27,6 +27,7 @@ describe("Player Assignment types", () => {
       playerId: "p1",
       targetTeamId: null,
       reason: "Unassigning",
+      organisationId: "test-org",
     };
     expect(input.targetTeamId).toBeNull();
   });
@@ -36,6 +37,7 @@ describe("Player Assignment types", () => {
       playerId: "p1",
       targetTeamId: "team-1",
       reason: "Reassigning",
+      organisationId: "test-org",
     };
     expect(input.targetTeamId).toBe("team-1");
   });
@@ -44,6 +46,7 @@ describe("Player Assignment types", () => {
     const input: MovePlayerToTeamInput = {
       playerId: "p1",
       targetTeamId: "team-1",
+      organisationId: "test-org",
     };
     expect(input.reason).toBeUndefined();
   });
