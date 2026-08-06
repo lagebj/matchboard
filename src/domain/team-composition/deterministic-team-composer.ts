@@ -135,10 +135,26 @@ function allocateScarceRoles(
 
     const rolePlayers = sortByRoleRelevantStrength(candidates, role, seed);
 
-    // Distribute players for this role across teams using snake draft
+    // Distribute players for this role across teams, starting from the
+    // team with the lowest current total strength to balance overall
+    // team strength across all phases.
     let teamIndex = 0;
-    const direction = 1;
     let placed = 0;
+
+    // Find starting team: the one with lowest current total strength
+    const startTeam = targetTeams
+      .slice()
+      .sort((a, b) => {
+        const strengthA = [...assignments.values()].filter((a2) => a2.teamId === a.id)
+          .reduce((sum, a2) => sum + a2.overallStrength, 0);
+        const strengthB = [...assignments.values()].filter((a2) => a2.teamId === b.id)
+          .reduce((sum, a2) => sum + a2.overallStrength, 0);
+        if (strengthA !== strengthB) return strengthA - strengthB;
+        const sizeA = (teamAssignments.get(a.id) ?? new Set()).size;
+        const sizeB = (teamAssignments.get(b.id) ?? new Set()).size;
+        return sizeA - sizeB;
+      })[0];
+    teamIndex = targetTeams.indexOf(startTeam);
 
     for (const player of rolePlayers) {
       if (placed >= count * targetTeams.length) break;
@@ -190,8 +206,21 @@ function buildViableSpine(
   const { eligiblePlayers, targetTeams, structure, seed, scarcity, lockedAssignments } = input;
   const assignedPlayerIds = new Set(assignments.keys());
 
+  // Process teams in order of lowest current total strength first
+  // to balance overall team strength across phases
+  const teamsByStrength = [...targetTeams].sort((a, b) => {
+    const strengthA = [...assignments.values()].filter((asgn) => asgn.teamId === a.id)
+      .reduce((sum, asgn) => sum + asgn.overallStrength, 0);
+    const strengthB = [...assignments.values()].filter((asgn) => asgn.teamId === b.id)
+      .reduce((sum, asgn) => sum + asgn.overallStrength, 0);
+    if (strengthA !== strengthB) return strengthA - strengthB;
+    const sizeA = (teamAssignments.get(a.id) ?? new Set()).size;
+    const sizeB = (teamAssignments.get(b.id) ?? new Set()).size;
+    return sizeA - sizeB;
+  });
+
   // Ensure every team has minimum required roles filled
-  for (const team of targetTeams) {
+  for (const team of teamsByStrength) {
     const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
     // Skip teams already at maximum capacity
     if (teamSize >= team.maximumSize) continue;
@@ -452,38 +481,51 @@ function distributeBalanced(
   assignedPlayerIds: Set<string>,
 ): void {
   const { targetTeams, seed } = input;
+  const playerMap = new Map(unassigned.map((p) => [p.id, p]));
 
-  // Sort players by overall strength
+  // Sort players by overall strength descending
   const sorted = sortByOverallStrength(unassigned, seed);
 
-  // Snake draft: distribute by alternating direction
-  let direction = 1;
-  let teamIndex = 0;
-
+  // Strength-aware greedy: assign each player to the team with the lowest
+  // current total strength that hasn't reached maximum size.
+  // This produces balanced teams even when Phases 2-3 have already assigned
+  // structural players unevenly.
   for (const player of sorted) {
     if (assignedPlayerIds.has(player.id)) continue;
 
-    // Try to place in a role-appropriate team
-    const team = targetTeams[teamIndex % targetTeams.length];
-    const teamSize = (teamAssignments.get(team.id) ?? new Set()).size;
+    const teamsWithCapacity = targetTeams
+      .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.maximumSize)
+      .sort((a, b) => {
+        // Prefer team with lowest total strength
+        const strengthA = computeTeamTotalStrength(assignments, playerMap, a.id);
+        const strengthB = computeTeamTotalStrength(assignments, playerMap, b.id);
+        if (strengthA !== strengthB) return strengthA - strengthB;
+        // Tie-break: prefer team with fewest players
+        const sizeA = (teamAssignments.get(a.id) ?? new Set()).size;
+        const sizeB = (teamAssignments.get(b.id) ?? new Set()).size;
+        if (sizeA !== sizeB) return sizeA - sizeB;
+        // Final tie-break: deterministic
+        return stableCompare(a.id, b.id, seed);
+      });
 
-    if (teamSize < team.maximumSize) {
-      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
-    } else {
-      // Find smallest team
-      const smallestTeam = targetTeams
-        .filter((t) => (teamAssignments.get(t.id) ?? new Set()).size < t.maximumSize)
-        .sort((a, b) => (teamAssignments.get(a.id) ?? new Set()).size - (teamAssignments.get(b.id) ?? new Set()).size)[0];
-      if (smallestTeam) {
-        assignPlayerToTeam(player, smallestTeam, assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
-      }
-    }
-
-    teamIndex += direction;
-    if (teamIndex >= targetTeams.length - 1 || teamIndex <= 0) {
-      direction *= -1;
+    if (teamsWithCapacity.length > 0) {
+      assignPlayerToTeam(player, teamsWithCapacity[0], assignments, teamAssignments, assignedPlayerIds, seed, input.structure);
     }
   }
+}
+
+function computeTeamTotalStrength(
+  assignments: Map<string, ProposedTeamAssignment>,
+  playerMap: Map<string, CompositionPlayer>,
+  teamId: string,
+): number {
+  let total = 0;
+  for (const a of assignments.values()) {
+    if (a.teamId !== teamId) continue;
+    const player = playerMap.get(a.playerId);
+    if (player) total += player.overallStrength;
+  }
+  return total;
 }
 
 // ── One strong, rest balanced distribution ────────────────────────
