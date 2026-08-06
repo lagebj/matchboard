@@ -381,8 +381,7 @@ export function GroupDetailClient({
       {activeTab === "composition" && (
         <TeamCompositionPanel
           footballGroupId={group.id}
-          leagueSeasonId={group.leagueSeasons[0]?.id ?? ""}
-          leagueSeasonName={group.leagueSeasons[0]?.name ?? "No season"}
+          leagueSeasons={group.leagueSeasons}
           teamCount={group.teams.length}
           playerCount={group.playerCount}
           orgSlug={orgSlug}

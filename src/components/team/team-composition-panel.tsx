@@ -46,8 +46,7 @@ type Step = "select" | "preview" | "apply";
 
 type TeamCompositionPanelProps = {
   footballGroupId: string;
-  leagueSeasonId: string;
-  leagueSeasonName: string;
+  leagueSeasons: { id: string; name: string; status: string }[];
   teamCount: number;
   playerCount: number;
   orgSlug: string;
@@ -55,8 +54,7 @@ type TeamCompositionPanelProps = {
 
 export function TeamCompositionPanel({
   footballGroupId,
-  leagueSeasonId,
-  leagueSeasonName,
+  leagueSeasons,
   teamCount,
   playerCount,
   orgSlug,
@@ -67,6 +65,12 @@ export function TeamCompositionPanel({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [policyAcknowledged, setPolicyAcknowledged] = useState(false);
+
+  const draftSeasons = leagueSeasons.filter((s) => s.status !== "FINALIZED");
+  const defaultSeason = draftSeasons[0] ?? leagueSeasons[0];
+  const [selectedSeasonId, setSelectedSeasonId] = useState(defaultSeason?.id ?? "");
+  const selectedSeason = leagueSeasons.find((s) => s.id === selectedSeasonId);
+  const isFinalized = selectedSeason?.status === "FINALIZED";
 
   const isPolicyGated = isScenarioPolicyGated(selectedScenario);
 
@@ -83,7 +87,7 @@ export function TeamCompositionPanel({
       try {
         const result = await generateLeagueTeamPreviewAction({
           footballGroupId,
-          leagueSeasonId,
+          leagueSeasonId: selectedSeasonId,
           scenario: selectedScenario,
           coachAcknowledgedPolicyGate: isPolicyGated ? policyAcknowledged : undefined,
         });
@@ -93,7 +97,7 @@ export function TeamCompositionPanel({
         setError(e instanceof Error ? e.message : "Failed to generate preview");
       }
     });
-  }, [footballGroupId, leagueSeasonId, selectedScenario, isPolicyGated, policyAcknowledged]);
+  }, [footballGroupId, selectedSeasonId, selectedScenario, isPolicyGated, policyAcknowledged]);
 
   const handleApply = useCallback(() => {
     if (!proposal) return;
@@ -102,7 +106,7 @@ export function TeamCompositionPanel({
       try {
         await applyLeagueTeamProposalAction({
           footballGroupId,
-          leagueSeasonId,
+          leagueSeasonId: selectedSeasonId,
           scenario: selectedScenario,
           deterministicSeed: proposal.deterministicSeed,
           proposalIdempotencyKey: proposal.inputFingerprint,
@@ -113,7 +117,7 @@ export function TeamCompositionPanel({
         setError(e instanceof Error ? e.message : "Failed to apply composition");
       }
     });
-  }, [footballGroupId, leagueSeasonId, selectedScenario, proposal]);
+  }, [footballGroupId, selectedSeasonId, selectedScenario, proposal]);
 
   const handleReset = useCallback(() => {
     setStep("select");
@@ -137,13 +141,38 @@ export function TeamCompositionPanel({
     );
   }
 
-  if (!leagueSeasonId) {
+  if (leagueSeasons.length === 0) {
     return (
       <Surface variant="subtle" padding="md">
         <SectionHeader
           title="Auto-select teams"
           description="Create a league season for this group before using auto-select."
         />
+      </Surface>
+    );
+  }
+
+  if (isFinalized) {
+    return (
+      <Surface variant="subtle" padding="md">
+        <SectionHeader
+          title="Auto-select teams"
+          description={`The league season "${selectedSeason?.name ?? ""}" is finalized. Select an active season to generate team assignments.`}
+        />
+        <div className="mt-3">
+          <label className="block text-xs text-[var(--text-muted)] mb-1">League season</label>
+          <select
+            value={selectedSeasonId}
+            onChange={(e) => setSelectedSeasonId(e.target.value)}
+            className="w-full max-w-xs rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+          >
+            {leagueSeasons.map((s) => (
+              <option key={s.id} value={s.id} disabled={s.status === "FINALIZED"}>
+                {s.name} {s.status === "FINALIZED" ? "(Finalized)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
       </Surface>
     );
   }
@@ -160,7 +189,10 @@ export function TeamCompositionPanel({
           isPending={isPending}
           teamCount={teamCount}
           playerCount={playerCount}
-          leagueSeasonName={leagueSeasonName}
+          leagueSeasonName={selectedSeason?.name ?? "No season"}
+          leagueSeasons={leagueSeasons}
+          selectedSeasonId={selectedSeasonId}
+          onSeasonChange={setSelectedSeasonId}
           isPolicyGated={isPolicyGated}
           policyAcknowledged={policyAcknowledged}
           onPolicyAcknowledgedChange={setPolicyAcknowledged}
@@ -202,6 +234,9 @@ function ScenarioSelector({
   teamCount,
   playerCount,
   leagueSeasonName,
+  leagueSeasons,
+  selectedSeasonId,
+  onSeasonChange,
   isPolicyGated,
   policyAcknowledged,
   onPolicyAcknowledgedChange,
@@ -213,6 +248,9 @@ function ScenarioSelector({
   teamCount: number;
   playerCount: number;
   leagueSeasonName: string;
+  leagueSeasons: { id: string; name: string; status: string }[];
+  selectedSeasonId: string;
+  onSeasonChange: (id: string) => void;
   isPolicyGated: boolean;
   policyAcknowledged: boolean;
   onPolicyAcknowledgedChange: (v: boolean) => void;
@@ -225,6 +263,23 @@ function ScenarioSelector({
         title="Auto-select teams"
         description={`Generate team assignments for ${leagueSeasonName} using a composition scenario. This will preview proposed assignments before applying.`}
       />
+
+      {leagueSeasons.length > 1 && (
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">League season</label>
+          <select
+            value={selectedSeasonId}
+            onChange={(e) => onSeasonChange(e.target.value)}
+            className="w-full max-w-xs rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+          >
+            {leagueSeasons.map((s) => (
+              <option key={s.id} value={s.id} disabled={s.status === "FINALIZED"}>
+                {s.name} {s.status === "FINALIZED" ? "(Finalized)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {SCENARIOS.map((scenario) => {
