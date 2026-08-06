@@ -23,6 +23,7 @@ import { composeTeams } from "@/domain/team-composition/deterministic-team-compo
 import { getSystemScenario } from "@/domain/team-composition/scenario-catalogue";
 import { getFallbackStructure, type GameFormat } from "@/domain/team-composition/structural-requirements";
 import { checkScenarioPermission, checkCompositionProposalPolicy } from "@/lib/policies/composition-policy";
+import { computeInputFingerprint } from "@/domain/team-composition/proposal-validation";
 import type {
   CompositionPlayer,
   CompositionTargetTeam,
@@ -37,26 +38,10 @@ import type {
   StructuralRole,
 } from "@/domain/team-composition/team-composition-types";
 import { computeCompositeRatings, type PlayerAttributeProfile } from "@/lib/events/event-types";
-import { mapPositionCodeToBroad } from "@/domain/team-composition/position-suitability";
+import { mapPositionCodeToBroad, getPositionFit } from "@/domain/team-composition/position-suitability";
 import { recordDecision } from "@/domain/assistant-manager/service";
 
 // ── Position mapping ──────────────────────────────────────────────
-
-function getPositionFitTier(
-  primaryPosition: BroadPosition | undefined,
-  secondaryPosition: BroadPosition | undefined,
-  tertiaryPosition: BroadPosition | undefined,
-  acceptedPositions: BroadPosition[],
-): "PRIMARY" | "SECONDARY" | "TERTIARY" | "NO_FIT" {
-  if (!acceptedPositions || acceptedPositions.length === 0) return "NO_FIT";
-  const accepted = new Set(acceptedPositions);
-  if (accepted.has("flexible")) return "PRIMARY";
-  if (primaryPosition && accepted.has(primaryPosition)) return "PRIMARY";
-  if (secondaryPosition && accepted.has(secondaryPosition)) return "SECONDARY";
-  if (tertiaryPosition && accepted.has(tertiaryPosition)) return "TERTIARY";
-  if (primaryPosition === "flexible" || secondaryPosition === "flexible" || tertiaryPosition === "flexible") return "TERTIARY";
-  return "NO_FIT";
-}
 
 function buildRoleSuitability(player: PlayerAttributeProfile): RoleSuitabilityProfile {
   const primary = mapPositionCodeToBroad(player.primaryPosition ?? "") as BroadPosition;
@@ -64,11 +49,11 @@ function buildRoleSuitability(player: PlayerAttributeProfile): RoleSuitabilityPr
   const tertiary = player.tertiaryPosition ? (mapPositionCodeToBroad(player.tertiaryPosition) as BroadPosition) : undefined;
 
   return {
-    goalkeeper: getPositionFitTier(primary, secondary, tertiary, ["goalkeeper"]),
-    defence: getPositionFitTier(primary, secondary, tertiary, ["defender", "flexible"]),
-    midfield: getPositionFitTier(primary, secondary, tertiary, ["midfielder", "flexible"]),
-    attack: getPositionFitTier(primary, secondary, tertiary, ["forward", "flexible"]),
-    flexible: getPositionFitTier(primary, secondary, tertiary, ["defender", "midfielder", "forward", "goalkeeper", "flexible"]),
+    goalkeeper: getPositionFit(primary, secondary, tertiary, ["goalkeeper"]),
+    defence: getPositionFit(primary, secondary, tertiary, ["defender", "flexible"]),
+    midfield: getPositionFit(primary, secondary, tertiary, ["midfielder", "flexible"]),
+    attack: getPositionFit(primary, secondary, tertiary, ["forward", "flexible"]),
+    flexible: getPositionFit(primary, secondary, tertiary, ["defender", "midfielder", "forward", "goalkeeper", "flexible"]),
   };
 }
 
@@ -338,7 +323,12 @@ export async function applyLeagueTeamProposal(
 
   const proposal = composeTeams(problem);
 
-  const currentFingerprint = computeInputFingerprint(players, targetTeams, lockedAssignments, input.scenario, input.gameFormat, input.formationId);
+  // Compute structure hash the same way composeTeams does for fingerprint consistency
+  const structureHash = structure.source + ":"
+    + structure.slots.map((s) => `${s.role}:${s.count}:${s.acceptedPositions.join("+")}`).join("|")
+    + ":" + (structure.formationId ?? "none");
+
+  const currentFingerprint = computeInputFingerprint(players, targetTeams, lockedAssignments, input.scenario, structureHash);
   if (proposal.inputFingerprint !== currentFingerprint) {
     throw new Error("Proposal is stale — player or team data has changed since generation. Please regenerate.");
   }
@@ -469,29 +459,4 @@ function consolidateSlots(slots: StructuralSlotRequirement[]): StructuralSlotReq
     }
   }
   return Array.from(map.values());
-}
-
-function computeInputFingerprint(
-  players: CompositionPlayer[],
-  targetTeams: CompositionTargetTeam[],
-  lockedAssignments: LockedCompositionAssignment[],
-  scenarioCode: SystemTeamScenario,
-  gameFormat: GameFormat,
-  formationId?: string,
-): string {
-  const parts: string[] = [
-    scenarioCode,
-    gameFormat,
-    formationId ?? "fallback",
-    targetTeams.map((t) => `${t.id}:${t.targetSize}:${t.minimumSize}:${t.maximumSize}`).join(","),
-    players.map((p) => `${p.id}:${p.overallStrength}:${p.active}:${p.available}:${p.primaryBroadPosition}`).sort().join(","),
-    lockedAssignments.map((l) => `${l.playerId}:${l.teamId}`).sort().join(","),
-  ];
-  let hash = 0;
-  const combined = parts.join("|");
-  for (let i = 0; i < combined.length; i++) {
-    const char = combined.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  return `v1:${hash.toString(36)}`;
 }
