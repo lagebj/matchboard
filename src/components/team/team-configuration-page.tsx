@@ -199,8 +199,8 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
           <h1 className="text-lg font-semibold text-zinc-100">{config.name}</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">Configure squad settings and selection rules for this team.</p>
         </div>
-        <Button variant="ghost" size="sm" as="a" href={`/teams/${teamId}/review`}>
-          Review
+        <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${teamId}`)}>
+          Back to team
         </Button>
       </div>
 

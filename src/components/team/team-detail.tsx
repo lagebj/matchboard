@@ -649,9 +649,14 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <SectionHeader title="Rotation paths" />
-        <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
-          {showCreateForm ? "Cancel" : "Add path"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${teamId}/configuration`)}>
+            Edit squad settings
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
+            {showCreateForm ? "Cancel" : "Add path"}
+          </Button>
+        </div>
       </div>
 
       {showCreateForm && (
@@ -996,6 +1001,9 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
         icon={<TeamShield teamName={data.teamName} size="lg" />}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" as="a" href={orgUrl(`/teams/${data.teamId}/configuration`)}>
+              Squad settings
+            </Button>
             {data.previousTeamId && (
               <Button variant="ghost" size="sm" as="a" href={`/teams/${data.previousTeamId}`}>
                 Previous team
