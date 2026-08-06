@@ -10,6 +10,7 @@ import {
   Shield,
   Swords,
   LayoutGrid,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 import { MatchboardLogo } from "@/components/shell/matchboard-logo";
@@ -27,6 +28,7 @@ function navItems(orgSlug: string): NavItem[] {
     { href: `/o/${orgSlug}/fixtures`, label: "Fixtures", icon: CalendarRange },
     { href: `/o/${orgSlug}/events`, label: "Events", icon: CalendarDays },
     { href: `/o/${orgSlug}/teams`, label: "Teams", icon: Shield },
+    { href: `/o/${orgSlug}/groups`, label: "Groups", icon: Layers },
     { href: `/o/${orgSlug}/players`, label: "Players", icon: Users },
     { href: `/o/${orgSlug}/opponents`, label: "Opponents", icon: Swords },
     { href: `/o/${orgSlug}/formations`, label: "Formations", icon: LayoutGrid },
@@ -43,6 +45,9 @@ function isActive(pathname: string, href: string): boolean {
     );
   }
   if (href.includes("/opponents")) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href.includes("/groups")) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
   if (href.includes("/formations")) {
