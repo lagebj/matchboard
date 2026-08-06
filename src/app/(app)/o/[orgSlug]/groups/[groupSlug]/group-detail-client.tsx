@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch } from "lucide-react";
 import { TeamCompositionPanel } from "@/components/team/team-composition-panel";
 
@@ -103,7 +104,9 @@ export function GroupDetailClient({
   group: GroupDetail;
   orgSlug: string;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "composition" ? "composition" : "overview";
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
     <div className="space-y-6">

@@ -137,6 +137,17 @@ export function TeamCompositionPanel({
     );
   }
 
+  if (!leagueSeasonId) {
+    return (
+      <Surface variant="subtle" padding="md">
+        <SectionHeader
+          title="Auto-select teams"
+          description="Create a league season for this group before using auto-select."
+        />
+      </Surface>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {error && <DecisionBanner variant="blocked" title={error} />}

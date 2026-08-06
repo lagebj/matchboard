@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import {
   Bot,
   CalendarRange,
-  CalendarDays,
   Users,
   Shield,
   Swords,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,8 +22,8 @@ function mobileNavItems(orgSlug: string): MobileNavItem[] {
   return [
     { href: `/o/${orgSlug}/assistant`, label: "Assistant", icon: Bot },
     { href: `/o/${orgSlug}/fixtures`, label: "Fixtures", icon: CalendarRange },
-    { href: `/o/${orgSlug}/events`, label: "Events", icon: CalendarDays },
     { href: `/o/${orgSlug}/teams`, label: "Teams", icon: Shield },
+    { href: `/o/${orgSlug}/groups`, label: "Groups", icon: Layers },
     { href: `/o/${orgSlug}/players`, label: "Players", icon: Users },
     { href: `/o/${orgSlug}/opponents`, label: "Opponents", icon: Swords },
   ];

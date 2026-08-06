@@ -1001,6 +1001,9 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
         icon={<TeamShield teamName={data.teamName} size="lg" />}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" as="a" href={orgUrl(`/groups/${data.groupSlug}?tab=composition`)}>
+              Auto-select teams
+            </Button>
             <Button variant="secondary" size="sm" as="a" href={orgUrl(`/teams/${data.teamId}/configuration`)}>
               Squad settings
             </Button>
