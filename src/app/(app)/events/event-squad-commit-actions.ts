@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
 import { supersedePendingReviews } from "@/lib/review/review-service";
-import { enqueueNotification } from "@/lib/email/outbox";
+import { enqueueAndSendNotification } from "@/lib/email/outbox";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -216,7 +216,7 @@ export async function confirmEventSquadsAction(eventId: string) {
           where: { id: ctx.organisationId },
           select: { name: true, slug: true },
         });
-        await enqueueNotification({
+        await enqueueAndSendNotification({
           organisationId: ctx.organisationId,
           idempotencyKey: `review-superseded-${review.id}`,
           template: 'REVIEW_SUPERSEDED',
@@ -287,7 +287,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
           where: { id: ctx.organisationId },
           select: { name: true, slug: true },
         });
-        await enqueueNotification({
+        await enqueueAndSendNotification({
           organisationId: ctx.organisationId,
           idempotencyKey: `review-superseded-${review.id}`,
           template: 'REVIEW_SUPERSEDED',
