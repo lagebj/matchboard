@@ -15,7 +15,7 @@ import {
 } from "@/lib/ownership/work-ownership";
 import type { WorkTargetType } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { enqueueNotification } from "@/lib/email/outbox";
+import { enqueueAndSendNotification } from "@/lib/email/outbox";
 
 export async function assignWorkOwnerAction(input: {
   targetType: WorkTargetType;
@@ -46,7 +46,7 @@ export async function assignWorkOwnerAction(input: {
       select: { name: true, slug: true },
     });
 
-    await enqueueNotification({
+    await enqueueAndSendNotification({
       organisationId: ctx.organisationId,
       idempotencyKey: `ownership-assigned-${ownership.id}`,
       template: 'OWNERSHIP_ASSIGNED',
@@ -97,7 +97,7 @@ export async function handoverWorkOwnerAction(input: {
       select: { name: true, slug: true },
     });
 
-    await enqueueNotification({
+    await enqueueAndSendNotification({
       organisationId: ctx.organisationId,
       idempotencyKey: `ownership-handover-${ownership.id}`,
       template: 'OWNERSHIP_HANDOVER_REQUESTED',

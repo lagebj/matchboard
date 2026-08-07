@@ -1,4 +1,5 @@
 import type { TransactionalEmailProvider } from "./provider";
+import { BrevoEmailProvider } from "./brevo-provider";
 import { ConsoleEmailProvider } from "./console-provider";
 
 let providerInstance: TransactionalEmailProvider | null = null;
@@ -9,13 +10,7 @@ export function getEmailProvider(): TransactionalEmailProvider {
   const brevoApiKey = process.env.BREVO_API_KEY;
 
   if (brevoApiKey) {
-    try {
-      const { BrevoEmailProvider } = require("./brevo-provider");
-      providerInstance = new BrevoEmailProvider(brevoApiKey) as TransactionalEmailProvider;
-    } catch {
-      console.warn("[email] Brevo SDK not available, falling back to console provider");
-      providerInstance = new ConsoleEmailProvider();
-    }
+    providerInstance = new BrevoEmailProvider(brevoApiKey);
   } else {
     providerInstance = new ConsoleEmailProvider();
   }

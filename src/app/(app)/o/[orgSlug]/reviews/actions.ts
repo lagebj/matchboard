@@ -12,7 +12,7 @@ import {
 import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { enqueueNotification } from '@/lib/email/outbox';
+import { enqueueAndSendNotification } from '@/lib/email/outbox';
 
 export async function requestReviewAction(input: CreateReviewRequestInput) {
   const ctx = await requireActorContext();
@@ -31,7 +31,7 @@ export async function requestReviewAction(input: CreateReviewRequestInput) {
         select: { name: true, slug: true },
       });
 
-      await enqueueNotification({
+      await enqueueAndSendNotification({
         organisationId: ctx.organisationId,
         idempotencyKey: `review-requested-${review.id}`,
         template: 'REVIEW_REQUESTED',
@@ -81,7 +81,7 @@ export async function resolveReviewAction(reviewId: string, input: ResolveReview
         include: { user: { select: { email: true, name: true } } },
       });
 
-      await enqueueNotification({
+      await enqueueAndSendNotification({
         organisationId: ctx.organisationId,
         idempotencyKey: `review-changes-requested-${review.id}`,
         template: 'REVIEW_CHANGES_REQUESTED',

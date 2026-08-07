@@ -13,7 +13,7 @@ import {
   logOrganisationMembershipUpdate,
 } from "@/lib/security/audit-log";
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
-import { enqueueNotification } from "@/lib/email/outbox";
+import { enqueueNotification, sendNotificationNow } from "@/lib/email/outbox";
 import { db } from "@/lib/db";
 import type { OrganisationRole } from "@/generated/prisma/client";
 
@@ -78,6 +78,7 @@ export async function createInvitationAction(
 
   let invitationId = "";
   let invitationToken = "";
+  let outboxId = "";
 
   try {
     await db.$transaction(async (tx) => {
@@ -99,7 +100,7 @@ export async function createInvitationAction(
       invitationId = result.invitationId;
       invitationToken = result.token ?? "";
 
-      await enqueueNotification(
+      const notificationId = await enqueueNotification(
         {
           organisationId: ctx.organisationId,
           idempotencyKey: `invitation-${result.invitationId}`,
@@ -117,6 +118,8 @@ export async function createInvitationAction(
         },
         tx as any,
       );
+
+      outboxId = notificationId;
     });
   } catch (err: any) {
     logOrganisationInvitationCreate(ctx.userEmail, ctx.organisationId, "failure", err.message || "Unknown error");
@@ -125,6 +128,10 @@ export async function createInvitationAction(
 
   logOrganisationInvitationCreate(ctx.userEmail, ctx.organisationId, "success");
   revalidatePath(`/o/${organisationSlug}`);
+
+  sendNotificationNow(outboxId).catch((err) => {
+    console.error("[invitation] Immediate send failed, will retry via cron:", err);
+  });
 
   return { success: true as const, invitationId };
 }

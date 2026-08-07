@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requireTeamAccess } from "@/lib/auth/actor-context";
 import { supersedePendingReviews } from "@/lib/review/review-service";
-import { enqueueNotification } from "@/lib/email/outbox";
+import { enqueueAndSendNotification } from "@/lib/email/outbox";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   canModifyLineup,
@@ -206,7 +206,7 @@ export async function confirmLineup(lineupId: string) {
         where: { id: ctx.organisationId },
         select: { name: true, slug: true },
       });
-      await enqueueNotification({
+      await enqueueAndSendNotification({
         organisationId: ctx.organisationId,
         idempotencyKey: `review-superseded-${review.id}`,
         template: 'REVIEW_SUPERSEDED',
