@@ -62,6 +62,20 @@ export default async function InvitePage({
     );
   }
 
+  if (invitation.status === "DECLINED") {
+    return (
+      <div className="mx-auto max-w-md space-y-4 py-12">
+        <h1 className="text-xl font-bold">Invitation Declined</h1>
+        <p className="text-sm text-muted-foreground">
+          You have already declined this invitation. Contact the organisation to request a new one.
+        </p>
+        <a href="/organisations" className="text-sm underline">
+          View your organisations
+        </a>
+      </div>
+    );
+  }
+
   if (invitation.status === "EXPIRED" || new Date(invitation.expiresAt) < new Date()) {
     if (invitation.status === "PENDING") {
       await db.organisationInvitation.update({

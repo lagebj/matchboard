@@ -187,3 +187,38 @@ export async function revokeInvitation(data: {
 
   return { success: true, invitationId: data.invitationId };
 }
+
+export async function declineInvitation(data: {
+  token: string;
+  userId: string;
+  userEmail: string;
+}, client: PrismaClient = db): Promise<InvitationResult> {
+  const invitation = await client.organisationInvitation.findUnique({
+    where: { token: data.token },
+    select: {
+      id: true,
+      invitedEmail: true,
+      status: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!invitation) {
+    return { success: false, error: "Invitation not found." };
+  }
+
+  if (invitation.status !== "PENDING") {
+    return { success: false, error: `Invitation is ${invitation.status.toLowerCase()}.` };
+  }
+
+  if (invitation.invitedEmail !== data.userEmail.toLowerCase()) {
+    return { success: false, error: "This invitation was sent to a different email address." };
+  }
+
+  await client.organisationInvitation.update({
+    where: { id: invitation.id },
+    data: { status: "DECLINED", revokedAt: new Date() },
+  });
+
+  return { success: true, invitationId: invitation.id };
+}

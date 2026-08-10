@@ -1721,6 +1721,7 @@ enum OrganisationRole {
 enum InvitationStatus {
   PENDING
   ACCEPTED
+  DECLINED
   REVOKED
   EXPIRED
 }

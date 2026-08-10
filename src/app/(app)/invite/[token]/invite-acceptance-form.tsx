@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { acceptInvitationAction } from "@/app/(app)/organisations/actions";
+import { acceptInvitationAction, declineInvitationAction } from "@/app/(app)/organisations/actions";
 
 export function InviteAcceptanceForm({
   token,
@@ -13,8 +13,10 @@ export function InviteAcceptanceForm({
   organisationSlug: string;
 }) {
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const [declined, setDeclined] = useState(false);
 
   async function handleAccept() {
     setIsAccepting(true);
@@ -33,6 +35,20 @@ export function InviteAcceptanceForm({
     }
   }
 
+  async function handleDecline() {
+    setIsDeclining(true);
+    setError(null);
+
+    const result = await declineInvitationAction(token);
+
+    if (result.success) {
+      setDeclined(true);
+    } else {
+      setError(result.error);
+      setIsDeclining(false);
+    }
+  }
+
   if (accepted) {
     return (
       <div className="rounded-md border border-[var(--border-soft)] p-4">
@@ -40,6 +56,23 @@ export function InviteAcceptanceForm({
         <p className="text-xs text-muted-foreground mt-1">
           Redirecting to {organisationName}...
         </p>
+      </div>
+    );
+  }
+
+  if (declined) {
+    return (
+      <div className="rounded-md border border-[var(--border-soft)] p-4">
+        <p className="text-sm font-medium">Invitation declined</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          You can request a new invitation if you change your mind.
+        </p>
+        <a
+          href="/organisations"
+          className="mt-3 inline-block text-sm text-[var(--accent-strong)] hover:underline"
+        >
+          View organisations
+        </a>
       </div>
     );
   }
@@ -52,17 +85,18 @@ export function InviteAcceptanceForm({
       <div className="flex gap-3">
         <button
           onClick={handleAccept}
-          disabled={isAccepting}
+          disabled={isAccepting || isDeclining}
           className="rounded-md bg-[var(--surface-2)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-3)] disabled:opacity-50"
         >
           {isAccepting ? "Accepting..." : "Accept Invitation"}
         </button>
-        <a
-          href="/organisations"
-          className="rounded-md border border-[var(--border-soft)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)]"
+        <button
+          onClick={handleDecline}
+          disabled={isAccepting || isDeclining}
+          className="rounded-md border border-[var(--border-soft)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)] disabled:opacity-50"
         >
-          Decline
-        </a>
+          {isDeclining ? "Declining..." : "Decline"}
+        </button>
       </div>
     </div>
   );
