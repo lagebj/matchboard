@@ -312,3 +312,17 @@ export async function cancelNotification(outboxId: string): Promise<boolean> {
 
   return true;
 }
+
+export async function cancelNotificationByIdempotencyKey(idempotencyKey: string): Promise<boolean> {
+  const entry = await db.notificationOutbox.findUnique({ where: { idempotencyKey } });
+  if (!entry) return false;
+
+  if (entry.status === "SENT") return false;
+
+  await db.notificationOutbox.update({
+    where: { id: entry.id },
+    data: { status: "CANCELLED" as NotificationStatus },
+  });
+
+  return true;
+}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
 import { resolveOrganisationAccess, resolveOrganisationAdminOrOwner, resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
 import { createOrganisation, getOrganisationBySlug, getUserOrganisations, generateOrganisationSlug } from "@/lib/organisations/organisation-domain";
-import { createInvitation, acceptInvitation, revokeInvitation } from "@/lib/organisations/organisation-invitation";
+import { createInvitation, acceptInvitation, revokeInvitation, declineInvitation } from "@/lib/organisations/organisation-invitation";
 import {
   logOrganisationCreate,
   logOrganisationInvitationCreate,
@@ -13,7 +13,7 @@ import {
   logOrganisationMembershipUpdate,
 } from "@/lib/security/audit-log";
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
-import { enqueueNotification, sendNotificationNow } from "@/lib/email/outbox";
+import { enqueueNotification, sendNotificationNow, cancelNotificationByIdempotencyKey } from "@/lib/email/outbox";
 import { db } from "@/lib/db";
 import type { OrganisationRole, PrismaClient } from "@/generated/prisma/client";
 
@@ -59,7 +59,9 @@ export async function createInvitationAction(
   inviteeEmail: string,
   role: string,
 ) {
+  const coach = await requireCoachAccess();
   const ctx = await resolveOrganisationAdminOrOwner(organisationSlug);
+  const inviterName = coach.name || ctx.userEmail;
 
   if (!role || !VALID_ORGANISATION_ROLES.has(role)) {
     return { success: false as const, error: "Valid role is required (OWNER, ADMIN, COACH, VIEWER)." };
@@ -106,7 +108,7 @@ export async function createInvitationAction(
           template: "ORGANISATION_INVITATION",
           payload: {
             organisationName: ctx.organisationName,
-            inviterName: ctx.userEmail,
+            inviterName: inviterName,
             inviterEmail: ctx.userEmail,
             inviteeEmail: trimmedEmail,
             role: targetRole,
@@ -176,7 +178,35 @@ export async function revokeInvitationAction(organisationSlug: string, invitatio
   logOrganisationInvitationRevoke(ctx.userEmail, ctx.organisationId, "success");
   revalidatePath(`/o/${organisationSlug}`);
 
+  cancelNotificationByIdempotencyKey(`invitation-${invitationId.trim()}`).catch((err) => {
+    console.error("[invitation] Failed to cancel notification on revoke:", err);
+  });
+
   return { success: true as const };
+}
+
+export async function declineInvitationAction(token: string) {
+  const coach = await requireCoachAccess();
+  const coachEmail: string = coach.email ?? "unknown";
+  const coachId: string = coach.id ?? "";
+
+  if (!token?.trim()) {
+    return { success: false as const, error: "Invitation token is required." };
+  }
+
+  const result = await declineInvitation({ token: token.trim(), userId: coachId, userEmail: coachEmail });
+
+  if (!result.success) {
+    return { success: false as const, error: result.error };
+  }
+
+  cancelNotificationByIdempotencyKey(`invitation-${result.invitationId}`).catch((err) => {
+    console.error("[invitation] Failed to cancel notification on decline:", err);
+  });
+
+  revalidatePath("/organisations");
+
+  return { success: true as const, invitationId: result.invitationId };
 }
 
 export async function updateMembershipRoleAction(
