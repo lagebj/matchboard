@@ -265,14 +265,13 @@ Feature: Matchboard football operations workspace
       Given a coach with COACH access to group "Boys 2015"
       When the coach invites another user as COACH to the group
       Then the system creates an OrganisationMembership with role COACH if not existing
-      And the system creates a GroupAccess with role COACH for the group
-      And the invitation does not grant access to other groups
+      And group access is managed separately through GroupAccess
 
     Scenario: Group coach invites a viewer
       Given a coach with COACH access to group "Boys 2015"
       When the coach invites a user as VIEWER to the group
       Then the system creates an OrganisationMembership with role VIEWER if not existing
-      And the system creates a GroupAccess with role VIEWER for the group
+      And group access is managed separately through GroupAccess
 
     Scenario: Group coach removes group access
       Given a coach with COACH access to group "Boys 2015"
@@ -352,15 +351,12 @@ Feature: Matchboard football operations workspace
       Then Attention shows only entries from "Boys 2015"
       And Attention does not show entries from inaccessible groups
 
-    Scenario: Migration from TeamAccess to GroupAccess
-      Given existing TeamAccess rows for teams in "Boys 2015"
-      When the system migrates to GroupAccess
-      Then each TeamAccess COACH entry creates a GroupAccess COACH entry
-      And each TeamAccess read-only entry creates a GroupAccess VIEWER entry
-      And multiple same-group TeamAccess rows are collapsed to one GroupAccess
-      And OWNER and ADMIN do not receive GroupAccess rows (implicit access)
-      And SUPPORT does not receive GroupAccess rows (temporary read-only)
-      And after migration, TeamAccess is removed
+    Scenario: TeamAccess has been replaced by GroupAccess
+      Given the TeamAccess table has been removed from the schema
+      When any access check is performed
+      Then only GroupAccess rows drive group-level permissions
+      And OWNER and ADMIN roles receive implicit COACH access to every group
+      And SUPPORT role does not receive GroupAccess rows (temporary read-only access via org role)
 
   Rule: Main domain hierarchy
 
@@ -410,7 +406,7 @@ Feature: Matchboard football operations workspace
 
     Scenario: Per-match finalization respects match-scoped hard blockers
       Given match round "R1" contains matches "M1" and "M2"
-      And match "M1" has a HARD_BLOCK warning
+      And match "M1" has a BLOCKED condition
       And match "M2" has no blockers
       When the coach finalizes match "M2"
       Then the app must finalize match "M2" successfully
@@ -418,7 +414,7 @@ Feature: Matchboard football operations workspace
 
     Scenario: Per-match finalization with hard blockers requires override reason
       Given match round "R1" contains matches "M1" and "M2"
-      And match "M1" has a HARD_BLOCK warning
+      And match "M1" has a BLOCKED condition
       When the coach finalizes match "M1" without an override reason
       Then the app must require an override reason
       When the coach provides an override reason and finalizes match "M1"
@@ -1175,7 +1171,7 @@ Feature: Matchboard football operations workspace
     Paths are directional: from_team to to_team only.
     No configured path means no non-core automatic selection.
     Fairness scoring cannot make an invalid path valid.
-    The legacy TeamSupportSource and TeamDevelopmentSource relationship tables must not drive selection eligibility or movement decisions. They exist for backward-compatible UI configuration display only and are scheduled for removal.
+    The legacy TeamSupportSource and TeamDevelopmentSource relationship tables have been removed. Selection eligibility and movement decisions use RotationPath and GroupMovementPath exclusively.
 
     Player movement between teams must follow configured rotation paths.
     Teams are nodes and paths are directed edges.
@@ -1222,11 +1218,10 @@ Feature: Matchboard football operations workspace
       When Team C needs support
       Then Team A players must not be automatically selected for Team C in any non-core role
 
-    Scenario: Legacy support relationship tables must not drive selection
-      Given Team A has a TeamSupportSource relationship to Team C
-      And no active RotationPath with role SUPPORT exists from Team A to Team C
-      When Team C needs support
-      Then Team A players must not be selected as support for Team C based on the legacy relationship alone
+    Scenario: No legacy relationship tables drive selection
+      Given the TeamSupportSource and TeamDevelopmentSource tables have been removed from the schema
+      When any selection or movement decision is made
+      Then only RotationPath and GroupMovementPath edges drive eligibility
 
     Scenario: Fairness scoring cannot override path validity
       Given player "p1" has high fairness need
@@ -2793,28 +2788,28 @@ Feature: Matchboard football operations workspace
       And each warning must include severity, rule, message, and affected entities
       And the coach must be able to view warnings without regenerating
 
-    Scenario: Warnings are read during finalization
-      Given match round "R1" has persisted warnings
-      And at least one warning has severity "HARD_BLOCK"
+    Scenario: Blocked conditions require override reason during finalization
+      Given match round "R1" has persisted plan integrity signals
+      And at least one signal has category "BLOCKED"
       When the coach attempts to finalize match round "R1" without an override reason
       Then the app must require an override reason
-      And must show the blocking warnings
+      And must show the blocking conditions
       When the coach provides an override reason and finalizes
       Then the app must allow finalization with the override reason stored
 
-    Scenario: Warnings are read during finalization with override
-      Given match round "R1" has persisted warnings
-      And all warnings have severity below "HARD_BLOCK"
+    Scenario: Decision required conditions allow finalization with acknowledgment
+      Given match round "R1" has persisted plan integrity signals
+      And all signals have category below "BLOCKED" (i.e., DECISION_REQUIRED or PLANNING_NOTE)
       When the coach finalizes match round "R1"
       Then the app must allow finalization with acknowledgment
       And must record the acknowledgment
 
-    Scenario: Actionable warnings show as per-player icons on round board
-      Given match round "R1" has HARD_BLOCK and REQUIRES_OVERRIDE and WARNING and SCORING_PREFERENCE warnings
+    Scenario: Plan integrity signals show appropriately on round board
+      Given match round "R1" has BLOCKED and DECISION_REQUIRED and PLANNING_NOTE signals
       When the coach views the round board
-      Then the app must show a warning count summary at the top
-      And the app must show warning icons on player chips for players with warnings
-      And WARNING and SCORING_PREFERENCE warnings must be hidden behind a toggle
+      Then the app must show a count summary of Blocked and Decision required conditions at the top
+      And the app must show signal icons on player chips for players with Blocked or Decision required conditions
+      And PLANNING_NOTE signals must be hidden behind a toggle
 
     Scenario: Setup progress shows which rounds need action
       Given an active league season contains match rounds
@@ -4510,20 +4505,20 @@ Feature: Matchboard football operations workspace
 
     Blocking issues must dominate warnings. Warnings must dominate informational explanations. One primary action must be visually dominant per workflow context.
 
-    Scenario: Blocking issues are visually dominant
-      Given match round "R1" has HARD_BLOCK warnings
+    Scenario: Blocked conditions are visually dominant
+      Given match round "R1" has BLOCKED conditions
       When the coach views the round
-      Then blocking warnings must be visually dominant over review-required and informational warnings
+      Then Blocked conditions must be visually dominant over Decision required and Planning notes
 
-    Scenario: Review-required warnings are visible without opening technical detail
-      Given match round "R1" has REQUIRES_OVERRIDE warnings
+    Scenario: Decision required conditions are visible without opening technical detail
+      Given match round "R1" has DECISION_REQUIRED conditions
       When the coach views the round
-      Then the warnings must be visible without opening a hidden drawer or toggle
+      Then Decision required conditions must be visible without opening a hidden drawer or toggle
 
-    Scenario: Informational warnings may be progressively disclosed
-      Given match round "R1" has SCORING_PREFERENCE warnings
+    Scenario: Planning notes may be progressively disclosed
+      Given match round "R1" has PLANNING_NOTE signals only
       When the coach views the round
-      Then the warnings may be shown behind a toggle or details inspector
+      Then Planning notes may be shown behind a toggle or details inspector
 
     Scenario: One primary action per workflow context
       Given the coach is on a page with workflow actions

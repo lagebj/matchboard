@@ -273,17 +273,31 @@ The season overview (`/season`) is the fairness control surface for the league s
 
 ## Access model
 
-Matchboard is a **private coaching app**. Access is restricted to authenticated coaches on an email allowlist. Internal planning notes, readiness signals, feedback, and selection reasoning remain private coach-facing data by default.
+Matchboard is a **private coaching app**. Access is restricted to authenticated coaches on an organisation basis. Internal planning notes, readiness signals, feedback, and selection reasoning remain private coach-facing data by default.
 
 - Users must authenticate (Google OAuth) before accessing any app data
 - Access is controlled by `ALLOWED_COACH_EMAILS` — a comma-separated list of coach email addresses
 - No public signup exists or should be added unless explicitly requested
 - Authenticated users not on the allowlist see an access-denied page
-- All server actions and API routes enforce authorization server-side
+- All server actions and API routes enforce authorisation server-side
 - UI-only protection is insufficient — every mutation and data read requires a verified coach session
 - Database access is server-side only — no direct client database access
+- Organisation membership and group access control which data a coach can see and modify
+- Routes use the pattern `/o/{orgSlug}/...` with organisation context resolution
 - Readiness signals, coaching intent, matchday responsibilities, execution feedback, and internal explanations must not appear in parent-facing exports
 - Player names and personal data must not be sent to external AI services
+
+## Organisation and group model
+
+Matchboard uses a multi-tenant organisation model with group-level access:
+
+- **Organisation**: top-level tenant boundary. All data is scoped to an organisation.
+- **FootballGroup**: operational group within an organisation (e.g., "Boys 2015", "Girls 2016"). Teams, players, league seasons, and rotation paths belong to groups.
+- **GroupAccess**: links an organisation membership to a group with a role (COACH or VIEWER).
+- **OrganisationMembership**: links a user to an organisation with a role (OWNER, ADMIN, COACH, VIEWER, SUPPORT).
+- OWNER and ADMIN roles receive implicit COACH access to every group in their organisation.
+- SUPPORT is a time-limited, organisation-scoped role that cannot be invited — it is assigned directly.
+- Invitation creates OrganisationMembership only. Group access is managed separately.
 
 ## Local development setup
 
@@ -389,10 +403,12 @@ Runs on `http://localhost:3333`.
 | `npm run dev` | Start dev server on port 3333 |
 | `npm run build` | Production build |
 | `npm run lint` | Lint source files |
+| `npm run typecheck` | Type check source files |
 | `npm run test` | Run test suite (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
+| `npm run test:components` | Run component tests |
 | `npm run db:generate` | Generate Prisma client |
-| `npm run db:migrate` | Apply schema migrations |
+| `npm run db:migrate` | Apply schema migrations (production) |
 | `npm run db:migrate:dev` | Create and apply a new migration |
 | `npm run db:seed:demo` | Seed fake demo data |
 | `npm run db:export` | Export all app state to JSON |
@@ -400,6 +416,15 @@ Runs on `http://localhost:3333`.
 | `npm run docker:up` | Start local Postgres via Docker Compose |
 | `npm run docker:down` | Stop local Postgres |
 | `npm run docker:reset` | Reset local Postgres (destroys data) |
+| `npm run policy:test` | Run policy pack tests |
+| `npm run policy:build` | Build Rego policy to Wasm |
+| `npm run policy:verify` | Verify policy artifacts |
+| `npm run policy:validate` | Validate policy pack structure |
+| `npm run terminology:check` | Check terminology compliance |
+| `npm run security:check-sql` | Check for forbidden SQL patterns |
+| `npm run security:check-supply-chain` | Check supply chain security |
+| `npm run docs:check` | Check documentation consistency |
+| `npm run validate` | Run full validation suite |
 
 ## Source of truth
 
@@ -593,7 +618,9 @@ This repo is intended to stay safe for a public remote:
 
 ## Vercel deployment
 
-Matchboard is deployed to **Vercel** with **Neon PostgreSQL** as the production database. It is a hosted private web app with PostgreSQL backend persistence. SQLite is not used for production persistence — only PostgreSQL is supported.
+Matchboard is deployed to **Vercel** with **Neon PostgreSQL** as the production database. The canonical application URL is `https://app.matchboard.football`.
+
+It is a hosted private web app with PostgreSQL backend persistence. SQLite is not used for production persistence — only PostgreSQL is supported.
 
 Do not deploy without auth enabled. All server actions and API routes must enforce `requireCoachAccess()`.
 

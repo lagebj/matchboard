@@ -1,8 +1,10 @@
 # OWASP ASVS 5.0 Level 2 Applicability Matrix — Matchboard
 
-Version: 1.0
-Date: 2026-07-29
-Status: Active
+Version: 1.1
+Date: 2026-08-10
+Status: Active (partially updated — resolved items marked)
+
+> **Note:** Several gaps identified in version 1.0 have been resolved. V4 Access Control gaps (IDOR, role granularity, admin route auth) are now substantially resolved. V5 Validation has partial Zod coverage. The summary counts below reflect the original assessment and have not been fully recalculated.
 
 This is an engineering aid, not a certification claim.
 
@@ -70,21 +72,21 @@ This is an engineering aid, not a certification claim.
 |---------|-------------|--------|---------------------|
 | V4.1.1 | Access control by trusted service | Implemented | `requireCoachAccess()` server-side |
 | V4.1.2 | Deny by default | Partial | Middleware denies unauthenticated; but all authenticated users have same access |
-| V4.1.3 | Access control not bypassable | Gap | IDOR: resource IDs not checked against user's organisation |
+| V4.1.3 | Access control not bypassable | **Resolved** | Organisation-scoped query filters via Prisma where clauses (ADR-0036, ADR-0057) |
 | V4.1.4 | Access control fail secure | Implemented | Redirects to sign-in/access-denied |
-| V4.2.1 | Role definitions | Gap | Only COACH role; no OWNER/ADMIN/VIEWER |
-| V4.2.2 | Role hierarchy | Gap | No role hierarchy |
-| V4.3.1 | Resource-level access control | Gap | No resource ownership checks (multitenancy prerequisite) |
-| V4.3.2 | IDOR protection | Gap | No verification that authenticated user owns accessed resource |
-| V4.4.1 | Administrative access | Gap | No separate admin interface or controls |
+| V4.2.1 | Role definitions | **Resolved** | OWNER/ADMIN/COACH/VIEWER/SUPPORT roles implemented |
+| V4.2.2 | Role hierarchy | **Resolved** | Role hierarchy enforced in `requireCoachAccess()` |
+| V4.3.1 | Resource-level access control | **Resolved** | Organisation membership + query scoping (ADR-0036) |
+| V4.3.2 | IDOR protection | **Resolved** | Resource IDs checked against user's organisation via query filters |
+| V4.4.1 | Administrative access | **Resolved** | Admin routes require OWNER/ADMIN role |
 | V4.5.1 | Access control logging | Gap | No structured access denial logging |
 
 ## V5: Validation and Sanitisation
 
 | ASVS ID | Requirement | Status | Implementation/Notes |
 |---------|-------------|--------|---------------------|
-| V5.1.1 | Input validation on server | Partial | Manual validation in routes/actions; no central schema |
-| V5.1.2 | Input validation framework | Gap | No Zod or equivalent |
+| V5.1.1 | Input validation on server | Partial | Manual validation in routes/actions; Zod on many mutations |
+| V5.1.2 | Input validation framework | **Partially Resolved** | Zod now used on mutation endpoints; coverage expanding |
 | V5.1.3 | Positive validation (allowlist) | Partial | Some enum checks; many fields accept any string |
 | V5.2.1 | Output encoding | Implemented | Next.js JSX escaping |
 | V5.2.2 | No unsanitised HTML | Gap | No rich text sanitiser for any free-text fields |
@@ -219,11 +221,11 @@ This is an engineering aid, not a certification claim.
 
 ### Priority gaps (highest impact)
 
-1. **V4 Access Control**: No resource-level authorization, no IDOR protection, no role granularity — foundational for multitenancy
-2. **V5 Validation**: No central schema validation, no CSV injection prevention — input attack surface
+1. **V4 Access Control**: ~~No resource-level authorization, no IDOR protection, no role granularity~~ — **Substantially resolved**: org membership + query filters (ADR-0036, ADR-0057), OWNER/ADMIN/COACH/VIEWER/SUPPORT roles, `/api/admin/policy` auth
+2. **V5 Validation**: Partial Zod coverage on mutations, no CSV injection prevention — input attack surface
 3. **V9/V13 Security Headers**: No CSP, no security headers — browser attack surface
 4. **V7/V14 Logging and Infrastructure**: No security event logging, no DB role separation — detection and defence in depth
-5. **V12 API Security**: Unauthenticated admin route, no per-user rate limiting — API abuse surface
+5. **V12 API Security**: ~~Unauthenticated admin route~~ — **Resolved**: `/api/admin/policy` now requires auth. No per-user rate limiting — API abuse surface
 
 ### Planned remediation tracking
 
