@@ -411,6 +411,13 @@ Runs on `http://localhost:3333`.
 | `npm run db:migrate` | Apply schema migrations (production) |
 | `npm run db:migrate:dev` | Create and apply a new migration |
 | `npm run db:seed:demo` | Seed fake demo data |
+| `npm run security:tools` | Verify security tools and versions |
+| `npm run security:review` | Run non-destructive security review |
+| `npm run security:static` | Run static security scanners |
+| `npm run security:authz` | Run authorization security test suite |
+| `npm run security:semgrep` | Run Semgrep SAST |
+| `npm run security:deps` | Run OSV dependency vulnerability scan |
+| `npm run security:secrets` | Run Gitleaks secret detection |
 | `npm run db:export` | Export all app state to JSON |
 | `npm run db:import` | Import app state from JSON export |
 | `npm run docker:up` | Start local Postgres via Docker Compose |
@@ -875,6 +882,14 @@ Each PR should:
 - Mention any behavior changes against `features/matchboard.feature`
 - List verification performed (lint, typecheck, manual checks)
 - Note anything not verified
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the security development workflow, tooling, and policies.
+
+Security commands: `pnpm security:review` (non-destructive), `pnpm security:authz` (authorization tests), `pnpm security:static` (SAST + deps + secrets).
+
+Active DAST requires explicit opt-in and an isolated environment. Never run active scans against production.
 
 ## Licensing
 

@@ -1,0 +1,8 @@
+version: "2"
+allowlist:
+  - id: GO-2024-2687
+    reason: "Not applicable to Matchboard's runtime; net/http HTTP/2 CONTINUATION flood requires specific HTTP/2 server usage"
+    expires: "2027-01-01"
+scan:
+  - lockfile: "package-lock.json"
+    path: "."

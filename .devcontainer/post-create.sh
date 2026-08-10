@@ -47,6 +47,11 @@ printf 'vercel: %s\n' "$(vercel --version)"
 printf 'brevo: %s\n' "$(brevo --version)"
 printf 'OpenCode: %s\n' "$(opencode --version)"
 
+# Verify security tools
+printf 'semgrep: %s\n' "$(semgrep --version 2>/dev/null | head -1 || echo 'not installed')"
+printf 'osv-scanner: %s\n' "$(osv-scanner --version 2>/dev/null || echo 'not installed')"
+printf 'gitleaks: %s\n' "$(gitleaks version 2>/dev/null || echo 'not installed')"
+
 skills_file="${XDG_DATA_HOME:-$HOME/.local/share}/matchboard-agent-skills/managed-skills.txt"
 
 if [[ -f "$skills_file" ]]; then

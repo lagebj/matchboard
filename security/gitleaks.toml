@@ -1,0 +1,53 @@
+title = "Matchboard Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "matchboard-neon-connection-string"
+description = "Neon PostgreSQL connection string"
+regex = '''postgres(ql)?://[^\s]+\.neon\.tech[^\s]*'''
+tags = ["secret", "database"]
+
+[[rules]]
+id = "matchboard-auth-secret"
+description = "Auth.js secret"
+regex = '''AUTH_SECRET\s*=\s*['"][^'"]{8,}['"]'''
+tags = ["secret", "auth"]
+
+[[rules]]
+id = "matchboard-google-oauth-secret"
+description = "Google OAuth client secret"
+regex = '''AUTH_GOOGLE_SECRET\s*=\s*['"][^'"]+['"]'''
+tags = ["secret", "oauth"]
+
+[[rules]]
+id = "matchboard-brevo-api-key"
+description = "Brevo API key"
+regex = '''BREVO_API_KEY\s*=\s*['"][^'"]+['"]'''
+tags = ["secret", "api-key"]
+
+[[allowlist]]
+paths = [
+  '''\.env\.example$''',
+  '''\.env\.example''',
+  '''package-lock\.json$''',
+  '''pnpm-lock\.yaml$''',
+  '''\.gitignore$''',
+]
+
+[[allowlist]]
+regexes = [
+  '''placeholder''',
+  '''your-secret-here''',
+  '''change-me''',
+  '''xxx''',
+  '''\{\{.*\}\}''',
+  '''<.*>''',
+]
+
+[[allowlist]]
+description = "Allow test database URLs in test setup"
+regexes = [
+  '''TEST_DATABASE_URL\s*=\s*['"]postgres(ql)?://[^'"]+@localhost[^'"]*['"]''',
+]

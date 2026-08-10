@@ -1,0 +1,32 @@
+# ZAP Automation Framework context for Matchboard
+# This file configures ZAP for scanning the local Matchboard instance.
+
+context:
+  name: "matchboard-local"
+  urls:
+    - "http://host.docker.internal:3333"
+    - "http://localhost:3333"
+  excludeUrls:
+    # Never crawl external auth providers
+    - ".*accounts.google.com.*"
+    - ".*google.com/oauth.*"
+    # Never crawl infrastructure
+    - ".*neon.tech.*"
+    - ".*vercel.app.*"
+    - ".*cloudflare.com.*"
+    - ".*brevo.com.*"
+    - ".*github.com.*"
+  includeUrls:
+    - "http://host.docker.internal:3333/.*"
+    - "http://localhost:3333/.*"
+
+spider:
+  maxDuration: 120
+  maxDepth: 5
+
+passiveScan:
+  maxAlertsPerRule: 10
+
+activeScan:
+  maxDuration: 300
+  maxRuleDuration: 60
