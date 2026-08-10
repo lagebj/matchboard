@@ -291,9 +291,9 @@ describe("Season overview service", () => {
 
       const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId);
 
-      const burdenWarning = warnings.find((w) => w.rule === "high_support_burden" && w.playerId === blaPlayer.id);
+      const burdenWarning = warnings.find((w) => w.rule === "support_count_exceeds_core" && w.playerId === blaPlayer.id);
       expect(burdenWarning).toBeDefined();
-      expect(burdenWarning!.severity).toBe("WARNING");
+      expect(burdenWarning!.severity).toBe("Planning note");
     });
 
     it("flags repeated double-load", async () => {
@@ -311,7 +311,7 @@ describe("Season overview service", () => {
 
       const doubleLoadWarning = warnings.find((w) => w.rule === "repeated_double_load" && w.playerId === blaPlayer.id);
       expect(doubleLoadWarning).toBeDefined();
-      expect(doubleLoadWarning!.severity).toBe("WARNING");
+      expect(doubleLoadWarning!.severity).toBe("Planning note");
     });
 
     it("excludes draft data when includeDrafts is false", async () => {
@@ -358,7 +358,7 @@ describe("Season overview service", () => {
       const draftWarningExcluded = warningsExcluded.find((w) => w.playerId === rodPlayer.id);
 
       const warningsIncluded = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
-      const draftWarningIncluded = warningsIncluded.find((w) => w.playerId === rodPlayer.id && w.rule === "high_support_burden");
+      const draftWarningIncluded = warningsIncluded.find((w) => w.playerId === rodPlayer.id && w.rule === "support_count_exceeds_core");
 
       expect(draftWarningExcluded).toBeUndefined();
       expect(draftWarningIncluded).toBeDefined();

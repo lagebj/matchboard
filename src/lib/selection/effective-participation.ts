@@ -52,8 +52,10 @@ export type PlayerSeasonStats = {
 };
 
 export type SeasonFlag =
-  | "high_support_burden"
-  | "low_development_exposure"
+  | "support_count_exceeds_core"
+  | "development_count_exceeds_core"
+  | "support_without_core_appearances"
+  | "development_without_core_appearances"
   | "actual_double_load"
   | "planned_but_absent_recent"
   | "high_emergency_backfill";
@@ -406,14 +408,15 @@ export async function getEffectiveSeasonStats(
   }
 
   // Flags are factual context, not negative labels.
-  // high_support_burden: player has more support than core appearances (requires at least some core context)
-  // low_development_exposure: renamed to match semantics — player has more development than core appearances
-  //   but this does not indicate "low exposure"; it is factual role distribution context only.
+  // support_count_exceeds_core: player has more support than core appearances (requires at least some core context)
+  // development_count_exceeds_core: player has more development than core appearances — factual role distribution context.
   // A player with zero core appearances and some support/development appearances is not automatically
-  // a problem. These flags should not be surfaced as automatic badges in the overview.
+  // a problem. These flags must not be surfaced as automatic badges in the overview.
   const flags: SeasonFlag[] = [];
-  if (supportCount > coreCount && coreCount > 0) flags.push("high_support_burden");
-  if (developmentCount > coreCount && coreCount > 0) flags.push("low_development_exposure");
+  if (supportCount > coreCount && coreCount > 0) flags.push("support_count_exceeds_core");
+  if (developmentCount > coreCount && coreCount > 0) flags.push("development_count_exceeds_core");
+  if (coreCount === 0 && supportCount > 0) flags.push("support_without_core_appearances");
+  if (coreCount === 0 && developmentCount > 0) flags.push("development_without_core_appearances");
   if (actualDoubleLoads > 0) flags.push("actual_double_load");
   if (plannedButAbsent > 0) flags.push("planned_but_absent_recent");
   if (emergencyBackfill > 0) flags.push("high_emergency_backfill");

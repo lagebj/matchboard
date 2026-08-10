@@ -92,9 +92,8 @@ export type MovementPathSummary = {
 };
 
 export type SeasonFairnessWarning = {
-  type: "high_support_burden" | "low_development_exposure" | "repeated_additional_appearances" | "dropped_before_playing_again" | "consecutive_movement" | "disproportionate_support_source" | "expected_support_path_unused";
+  type: "support_count_exceeds_core" | "development_count_exceeds_core" | "support_without_core_appearances" | "development_without_core_appearances" | "repeated_additional_appearances" | "dropped_before_playing_again" | "consecutive_movement" | "disproportionate_support_source" | "expected_support_path_unused";
   playerId: string;
-  playerName: string;
   teamId: string | null;
   teamName: string | null;
   reason: string;
@@ -697,12 +696,11 @@ export async function getPlayersSeasonOverview(
   }
 
   for (const row of seasonRows) {
-    // high_support_burden: player has more support than core appearances, with at least some core context
+    // support_count_exceeds_core: player has more support than core appearances, with at least some core context
     if (row.supportAppearances > row.coreAppearances && row.coreAppearances > 0) {
       fairnessWarnings.push({
-        type: "high_support_burden",
+        type: "support_count_exceeds_core",
         playerId: row.playerId,
-        playerName: row.displayName,
         teamId: row.coreTeam?.id ?? null,
         teamName: row.coreTeam?.name ?? null,
         reason: `${row.supportAppearances} support vs ${row.coreAppearances} core appearances`,
@@ -710,15 +708,38 @@ export async function getPlayersSeasonOverview(
       });
     }
 
-    // low_development_exposure: player has more development than core, with some core context
+    // support_without_core_appearances: player has support appearances but zero core appearances
+    if (row.coreAppearances === 0 && row.supportAppearances > 0) {
+      fairnessWarnings.push({
+        type: "support_without_core_appearances",
+        playerId: row.playerId,
+        teamId: row.coreTeam?.id ?? null,
+        teamName: row.coreTeam?.name ?? null,
+        reason: `${row.supportAppearances} support appearances with 0 core appearances`,
+        data: { supportCount: row.supportAppearances, coreCount: row.coreAppearances },
+      });
+    }
+
+    // development_count_exceeds_core: player has more development than core, with some core context
     if (row.developmentAppearances > row.coreAppearances && row.coreAppearances > 0) {
       fairnessWarnings.push({
-        type: "low_development_exposure",
+        type: "development_count_exceeds_core",
         playerId: row.playerId,
-        playerName: row.displayName,
         teamId: row.coreTeam?.id ?? null,
         teamName: row.coreTeam?.name ?? null,
         reason: `${row.developmentAppearances} development vs ${row.coreAppearances} core appearances`,
+        data: { developmentCount: row.developmentAppearances, coreCount: row.coreAppearances },
+      });
+    }
+
+    // development_without_core_appearances: player has development appearances but zero core appearances
+    if (row.coreAppearances === 0 && row.developmentAppearances > 0) {
+      fairnessWarnings.push({
+        type: "development_without_core_appearances",
+        playerId: row.playerId,
+        teamId: row.coreTeam?.id ?? null,
+        teamName: row.coreTeam?.name ?? null,
+        reason: `${row.developmentAppearances} development appearances with 0 core appearances`,
         data: { developmentCount: row.developmentAppearances, coreCount: row.coreAppearances },
       });
     }
@@ -728,7 +749,6 @@ export async function getPlayersSeasonOverview(
       fairnessWarnings.push({
         type: "repeated_additional_appearances",
         playerId: row.playerId,
-        playerName: row.displayName,
         teamId: row.coreTeam?.id ?? null,
         teamName: row.coreTeam?.name ?? null,
         reason: `${row.actualAdditionalAppearances} additional actual appearances`,
@@ -741,7 +761,6 @@ export async function getPlayersSeasonOverview(
       fairnessWarnings.push({
         type: "dropped_before_playing_again",
         playerId: row.playerId,
-        playerName: row.displayName,
         teamId: row.coreTeam?.id ?? null,
         teamName: row.coreTeam?.name ?? null,
         reason: `Dropped ${row.dropsCount} rounds with no appearances`,
@@ -756,7 +775,6 @@ export async function getPlayersSeasonOverview(
         fairnessWarnings.push({
           type: "consecutive_movement",
           playerId: row.playerId,
-          playerName: row.displayName,
           teamId: row.coreTeam?.id ?? null,
           teamName: row.coreTeam?.name ?? null,
           reason: `${movementCount} non-core rounds, last in ${row.lastMovement}`,
@@ -776,7 +794,6 @@ export async function getPlayersSeasonOverview(
       fairnessWarnings.push({
         type: "disproportionate_support_source",
         playerId: "",
-        playerName: "",
         teamId: teamId === "unassigned" ? null : teamId,
         teamName: teamId === "unassigned" ? null : teamName,
         reason: `Team supplies ${totals.supportCount} support across ${totals.playerCount} players (avg: ${avg.toFixed(1)})`,
@@ -798,7 +815,6 @@ export async function getPlayersSeasonOverview(
       fairnessWarnings.push({
         type: "expected_support_path_unused",
         playerId: "",
-        playerName: "",
         teamId: path.fromTeamId,
         teamName: path.fromTeam?.name ?? null,
         reason: `Active path ${path.fromTeam?.name ?? "Unknown"} → ${path.toTeam?.name ?? "Unknown"} (${path.role.toLowerCase()}) not used this period`,

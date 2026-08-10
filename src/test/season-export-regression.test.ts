@@ -146,7 +146,7 @@ describe("Season export regression", () => {
     });
 
     const warnings = await getSeasonFairnessWarnings(fixtureIds.leagueSeasonId, true);
-    const burdenWarning = warnings.find((w) => w.rule === "high_support_burden" && w.playerId === blaPlayer.id);
+    const burdenWarning = warnings.find((w) => w.rule === "support_count_exceeds_core" && w.playerId === blaPlayer.id);
 
     expect(burdenWarning).toBeDefined();
   });

@@ -284,12 +284,13 @@ export async function getSeasonPlayerRoundMatrix(
   };
 }
 
+type FairnessSignalCategory = "Planning note";
+
 type FairnessWarning = {
-  severity: "WARNING" | "SCORING_PREFERENCE";
+  severity: FairnessSignalCategory;
   rule: string;
   message: string;
   playerId?: string;
-  playerName?: string;
   teamId?: string;
   teamName?: string;
   basedOnDraft: boolean;
@@ -362,11 +363,22 @@ async function getSeasonFairnessWarningsInternal(
   for (const [playerId, stats] of playerStats) {
     if (stats.support > stats.core && stats.core > 0) {
       warnings.push({
-        severity: "WARNING",
-        rule: "high_support_burden",
-        message: `${stats.playerName} has ${stats.support} support matches versus ${stats.core} core matches — high support burden.`,
+        severity: "Planning note",
+        rule: "support_count_exceeds_core",
+        message: `Player has ${stats.support} support matches versus ${stats.core} core matches — more support than core appearances.`,
         playerId,
-        playerName: stats.playerName,
+        teamId: stats.teamId,
+        teamName: stats.teamName,
+        basedOnDraft: includeDrafts,
+      });
+    }
+
+    if (stats.core === 0 && stats.support > 0) {
+      warnings.push({
+        severity: "Planning note",
+        rule: "support_without_core_appearances",
+        message: `Player has ${stats.support} support matches with 0 core appearances — factual load context, not an automatic negative flag.`,
+        playerId,
         teamId: stats.teamId,
         teamName: stats.teamName,
         basedOnDraft: includeDrafts,
@@ -375,11 +387,22 @@ async function getSeasonFairnessWarningsInternal(
 
     if (stats.development > stats.core && stats.core > 0) {
       warnings.push({
-        severity: "SCORING_PREFERENCE",
-        rule: "low_core_exposure_during_development",
-        message: `${stats.playerName} has ${stats.development} development matches versus ${stats.core} core matches — low core exposure during development.`,
+        severity: "Planning note",
+        rule: "development_count_exceeds_core",
+        message: `Player has ${stats.development} development matches versus ${stats.core} core matches — more development than core appearances.`,
         playerId,
-        playerName: stats.playerName,
+        teamId: stats.teamId,
+        teamName: stats.teamName,
+        basedOnDraft: includeDrafts,
+      });
+    }
+
+    if (stats.core === 0 && stats.development > 0) {
+      warnings.push({
+        severity: "Planning note",
+        rule: "development_without_core_appearances",
+        message: `Player has ${stats.development} development matches with 0 core appearances — factual context, not an automatic negative flag.`,
+        playerId,
         teamId: stats.teamId,
         teamName: stats.teamName,
         basedOnDraft: includeDrafts,
@@ -388,11 +411,10 @@ async function getSeasonFairnessWarningsInternal(
 
     if (stats.doubleLoad >= 2) {
       warnings.push({
-        severity: "WARNING",
+        severity: "Planning note",
         rule: "repeated_double_load",
-        message: `${stats.playerName} has ${stats.doubleLoad} double-load rounds — repeated high load.`,
+        message: `Player has ${stats.doubleLoad} double-load rounds — repeated high load.`,
         playerId,
-        playerName: stats.playerName,
         teamId: stats.teamId,
         teamName: stats.teamName,
         basedOnDraft: includeDrafts,
@@ -401,12 +423,11 @@ async function getSeasonFairnessWarningsInternal(
 
     if (stats.core === 0 && (stats.support + stats.development) >= 2) {
       warnings.push({
-        severity: "WARNING",
+        severity: "Planning note",
         rule: "low_core_belonging",
-        message: `${stats.playerName} has 0 core matches with ${stats.support + stats.development} non-core assignments — low core belonging.`,
+        message: `Player has 0 core matches with ${stats.support + stats.development} non-core assignments — low core belonging.`,
         playerId,
-        playerName: stats.playerName,
-         teamId: stats.teamId,
+        teamId: stats.teamId,
         teamName: stats.teamName,
         basedOnDraft: includeDrafts,
       });
@@ -426,11 +447,10 @@ async function getSeasonFairnessWarningsInternal(
     for (const [playerId, stats] of playerStats) {
       if (stats.teamId === teamId && stats.support > avgSupport * 2 && stats.support >= 2) {
         warnings.push({
-          severity: "WARNING",
+          severity: "Planning note",
           rule: "team_disproportionate_support",
-          message: `${stats.playerName} has ${stats.support} support assignments versus team average of ${avgSupport.toFixed(1)} — disproportionate support burden.`,
+          message: `Player has ${stats.support} support assignments versus team average of ${avgSupport.toFixed(1)} — disproportionate support burden.`,
           playerId,
-          playerName: stats.playerName,
           teamId,
           teamName: stats.teamName,
           basedOnDraft: includeDrafts,
@@ -469,7 +489,7 @@ async function getSeasonFairnessWarningsInternal(
     const key = `${path.fromTeamId}:${path.toTeamId}`;
     if (!usedPathKeys.has(key)) {
       warnings.push({
-        severity: "SCORING_PREFERENCE",
+        severity: "Planning note",
         rule: "expected_support_path_unused",
         message: `Active support path from ${path.fromTeam.name} to ${path.toTeam.name} has no support selections this league season.`,
         teamId: path.fromTeamId,
@@ -538,18 +558,14 @@ async function getSeasonFairnessWarningsInternal(
 
       if (maxConsecutive >= 3) {
         const playerInfo = selectionsByRound.find((s) => s.playerId === playerId);
-        const playerName = playerInfo
-          ? `${playerInfo.player.firstName}${playerInfo.player.lastName ? ` ${playerInfo.player.lastName}` : ""}`
-          : playerId;
         const teamId = playerInfo?.player.coreTeam?.id ?? "";
         const teamName = playerInfo?.player.coreTeam?.name ?? "";
 
         warnings.push({
-          severity: "WARNING",
+          severity: "Planning note",
           rule: "player_moved_consecutive_rounds",
-          message: `${playerName} has been moved (non-core) for ${maxConsecutive} consecutive rounds — consider rotation.`,
+          message: `Player has been moved (non-core) for ${maxConsecutive} consecutive rounds — consider rotation.`,
           playerId,
-          playerName,
           teamId,
           teamName,
           basedOnDraft: includeDrafts,
@@ -584,13 +600,11 @@ async function getSeasonFairnessWarningsInternal(
 
         const playerAllRoundSupport = playerStats.get(sel.playerId)?.support ?? 0;
         if (playerAllRoundSupport > avgSupportPerPlayer * 2 && playerAllRoundSupport >= 2) {
-          const playerName = `${sel.player.firstName}${sel.player.lastName ? ` ${sel.player.lastName}` : ""}`;
           warnings.push({
-            severity: "SCORING_PREFERENCE",
+            severity: "Planning note",
             rule: "team_round_disproportionate_support",
-            message: `${playerName} is sent as support in round ${round.name} — team has ${teamData.supportCount} support assignment${teamData.supportCount !== 1 ? "s" : ""} across ${teamData.playerCount} player${teamData.playerCount !== 1 ? "s" : ""}.`,
+            message: `Player is sent as support in round ${round.name} — team has ${teamData.supportCount} support assignment${teamData.supportCount !== 1 ? "s" : ""} across ${teamData.playerCount} player${teamData.playerCount !== 1 ? "s" : ""}.`,
             playerId: sel.playerId,
-            playerName,
             teamId,
             teamName: teamData.teamName,
             basedOnDraft: includeDrafts,

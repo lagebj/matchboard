@@ -84,6 +84,7 @@ describe("formatSeverity", () => {
     expect(formatSeverity("REQUIRES_OVERRIDE")).toBe("Decision required");
     expect(formatSeverity("WARNING")).toBe("Planning note");
     expect(formatSeverity("SCORING_PREFERENCE")).toBe("Explanation");
+    expect(formatSeverity("Planning note")).toBe("Planning note");
   });
 
   it("returns unknown severity as-is", () => {
