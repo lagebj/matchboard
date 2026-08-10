@@ -31,6 +31,18 @@ All coding-agent work must follow the working-session contract.
 
 For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the domain rules in this AGENTS.md are mandatory.
 
+## Licensing rules
+
+- Matchboard is licensed under Elastic License 2.0 (`Elastic-2.0`). Do not replace or weaken the root LICENSE.
+- Do not describe Matchboard as MIT licensed or OSI Open Source. Use "source available" or "publicly developed".
+- New Matchboard-owned code follows the repository license unless explicitly stated otherwise.
+- Preserve third-party license and copyright notices. Do not remove them during changes.
+- Do not copy third-party code with unclear or incompatible licensing. Surface licensing uncertainty instead of silently deciding.
+- Keep `README.md`, `package.json` license field, `LICENSING.md`, `CONTRIBUTING.md`, and `TRADEMARKS.md` consistent with the current license.
+- Do not change CLA requirements casually. Follow the contributor agreement process in `CONTRIBUTING.md`.
+- Do not accept substantive external code outside the defined contribution/CLA process.
+- Licensing and commercial decisions remain with the Matchboard maintainer/copyright holder.
+
 ## Security rules
 
 Every operation is denied by default and receives only the verified actor, tenant, input, data, network and dependency capabilities it needs.
