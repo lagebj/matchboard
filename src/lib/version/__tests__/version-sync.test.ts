@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  classifyCommitMessage,
-  calculateBump,
-  applyBump,
   parseVersion,
   formatVersion,
+  isValidSemVer,
+  isPreOneZero,
+  applyBump,
 } from "../version-sync";
 
 describe("version-sync", () => {
@@ -33,117 +33,29 @@ describe("version-sync", () => {
     });
   });
 
-  describe("classifyCommitMessage", () => {
-    it("classifies fix commits as patch", () => {
-      expect(classifyCommitMessage("fix: correct typo")).toEqual({ type: "fix", bump: "patch" });
+  describe("isValidSemVer", () => {
+    it("returns true for valid versions", () => {
+      expect(isValidSemVer("0.1.0")).toBe(true);
+      expect(isValidSemVer("1.0.0")).toBe(true);
+      expect(isValidSemVer("0.0.1")).toBe(true);
     });
 
-    it("classifies perf commits as patch", () => {
-      expect(classifyCommitMessage("perf: optimize loop")).toEqual({ type: "perf", bump: "patch" });
-    });
-
-    it("classifies feat commits as minor", () => {
-      expect(classifyCommitMessage("feat: add new feature")).toEqual({ type: "feat", bump: "minor" });
-    });
-
-    it("classifies feat with scope as minor", () => {
-      expect(classifyCommitMessage("feat(auth): add login")).toEqual({ type: "feat", bump: "minor" });
-    });
-
-    it("classifies docs commits as none", () => {
-      expect(classifyCommitMessage("docs: update readme")).toEqual({ type: "docs", bump: "none" });
-    });
-
-    it("classifies test commits as none", () => {
-      expect(classifyCommitMessage("test: add unit test")).toEqual({ type: "test", bump: "none" });
-    });
-
-    it("classifies chore commits as none", () => {
-      expect(classifyCommitMessage("chore: update deps")).toEqual({ type: "chore", bump: "none" });
-    });
-
-    it("classifies ci commits as none", () => {
-      expect(classifyCommitMessage("ci: configure pipeline")).toEqual({ type: "ci", bump: "none" });
-    });
-
-    it("classifies build commits as none", () => {
-      expect(classifyCommitMessage("build: update config")).toEqual({ type: "build", bump: "none" });
-    });
-
-    it("classifies refactor commits as none", () => {
-      expect(classifyCommitMessage("refactor: simplify logic")).toEqual({ type: "refactor", bump: "none" });
-    });
-
-    it("classifies breaking change with bang as major", () => {
-      expect(classifyCommitMessage("feat!: breaking api change")).toEqual({ type: "feat", bump: "major" });
-    });
-
-    it("classifies breaking change with scope and bang as major", () => {
-      expect(classifyCommitMessage("fix(api)!: breaking fix")).toEqual({ type: "fix", bump: "major" });
-    });
-
-    it("classifies breaking change with footer as major", () => {
-      const msg = "feat: add new api\n\nBREAKING CHANGE: old api removed";
-      expect(classifyCommitMessage(msg)).toEqual({ type: "feat", bump: "major" });
-    });
-
-    it("throws for malformed commit messages", () => {
-      expect(() => classifyCommitMessage("random commit message")).toThrow("Malformed conventional commit message");
-    });
-
-    it("throws for unknown commit type", () => {
-      expect(() => classifyCommitMessage("unknown: something")).toThrow("Unknown conventional commit type");
+    it("returns false for invalid versions", () => {
+      expect(isValidSemVer("abc")).toBe(false);
+      expect(isValidSemVer("1.2")).toBe(false);
+      expect(isValidSemVer("")).toBe(false);
     });
   });
 
-  describe("calculateBump", () => {
-    it("returns none for empty commit list", () => {
-      expect(calculateBump([], 0)).toBe("none");
+  describe("isPreOneZero", () => {
+    it("returns true for 0.x.y versions", () => {
+      expect(isPreOneZero("0.1.0")).toBe(true);
+      expect(isPreOneZero("0.99.99")).toBe(true);
     });
 
-    it("returns patch for fix-only commits", () => {
-      const messages = ["fix: bug one", "fix(scope): bug two", "perf: speed improvement"];
-      expect(calculateBump(messages, 0)).toBe("patch");
-    });
-
-    it("returns minor for feature commits", () => {
-      const messages = ["feat: new feature"];
-      expect(calculateBump(messages, 0)).toBe("minor");
-    });
-
-    it("returns minor for mixed fix+feature commits", () => {
-      const messages = ["fix: bug one", "feat: new feature", "perf: speed improvement"];
-      expect(calculateBump(messages, 0)).toBe("minor");
-    });
-
-    it("downgrades major to minor when major is locked at 0", () => {
-      const messages = ["feat!: breaking change"];
-      expect(calculateBump(messages, 0)).toBe("minor");
-    });
-
-    it("returns major when major is not locked", () => {
-      const messages = ["feat!: breaking change"];
-      expect(calculateBump(messages, null)).toBe("major");
-    });
-
-    it("returns none for documentation-only commits", () => {
-      const messages = ["docs: update readme", "test: add tests", "chore: cleanup"];
-      expect(calculateBump(messages, 0)).toBe("none");
-    });
-
-    it("returns patch when fix commits appear alongside docs/test/chore", () => {
-      const messages = ["docs: update readme", "fix: bug fix", "chore: cleanup"];
-      expect(calculateBump(messages, 0)).toBe("patch");
-    });
-
-    it("returns minor when feat commits appear alongside fix/docs/chore", () => {
-      const messages = ["docs: update readme", "fix: bug fix", "feat: new thing", "chore: cleanup"];
-      expect(calculateBump(messages, 0)).toBe("minor");
-    });
-
-    it("handles breaking change footer correctly with major lock", () => {
-      const messages = ["feat: new api\n\nBREAKING CHANGE: removed old api"];
-      expect(calculateBump(messages, 0)).toBe("minor");
+    it("returns false for 1.x.y and higher", () => {
+      expect(isPreOneZero("1.0.0")).toBe(false);
+      expect(isPreOneZero("2.3.4")).toBe(false);
     });
   });
 
@@ -180,15 +92,19 @@ describe("version-sync", () => {
       expect(applyBump("0.5.3", "major", 0)).toBe("0.6.0");
     });
 
-    it("is idempotent: no change when version already matches", () => {
-      expect(applyBump("0.1.0", "none", 0)).toBe("0.1.0");
-    });
-
     it("enforces major lock at 0 even if current major differs", () => {
       expect(applyBump("1.2.3", "patch", 0)).toBe("0.2.4");
     });
 
-    it("repeated idempotent sync: applying none twice yields same version", () => {
+    it("increments patch correctly from 0.2.0", () => {
+      expect(applyBump("0.2.0", "patch", 0)).toBe("0.2.1");
+    });
+
+    it("increments minor correctly from 0.2.1", () => {
+      expect(applyBump("0.2.1", "minor", 0)).toBe("0.3.0");
+    });
+
+    it("is idempotent: no change when bump is none", () => {
       const v1 = applyBump("0.1.0", "none", 0);
       const v2 = applyBump(v1, "none", 0);
       expect(v1).toBe("0.1.0");

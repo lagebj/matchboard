@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -23,7 +23,6 @@
     "db:seed:demo": "node prisma/seed-demo.cjs",
     "db:export": "npx tsx scripts/export-full-app-state.ts",
     "db:import": "npx tsx scripts/import-full-app-state.ts",
-
     "seed:demo": "node prisma/seed-demo.cjs",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
@@ -40,9 +39,10 @@
     "policy:dry-run": "node scripts/policy-dry-run.mjs",
     "policy:dry-run:pack": "node scripts/policy-dry-run.mjs --pack matchboard-default",
     "workbench:dry-run": "node scripts/workbench-dry-run.mjs",
-    "version:sync": "node scripts/version-sync.mjs && node scripts/sync-version-module.mjs",
+    "version:patch": "node scripts/version-bump.mjs patch",
+    "version:minor": "node scripts/version-bump.mjs minor",
     "version:verify": "node scripts/verify-version.mjs",
-    "version:dry-run": "node scripts/version-sync.mjs --dry-run",
+    "version:sync": "node scripts/sync-version-module.mjs",
     "prebuild": "node scripts/sync-version-module.mjs",
     "terminology:check": "node scripts/check-terminology.mjs",
     "security:check-sql": "npx tsx scripts/check-forbidden-sql.ts",

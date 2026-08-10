@@ -2161,6 +2161,34 @@ Rules:
 - Future idea: document as future/roadmap only if the repo has a deliberate place for it.
 - Removed behavior: remove or rewrite stale docs.
 
+### Version management is mandatory
+
+Every substantive Matchboard change must include a version-impact assessment before completion. If the change is releasable product/platform work, increment the canonical application version exactly once according to `docs/VERSIONING.md`. Matchboard remains in the `0.x.y` range until the product owner explicitly authorises `1.0.0`.
+
+Canonical version source: `package.json` → `version`. All other consumers derive from this value.
+
+Version bump commands:
+- `npm run version:patch` — PATCH increment (0.x.y → 0.x.(y+1))
+- `npm run version:minor` — MINOR increment (0.x.y → 0.(x+1).0)
+
+These update `package.json`, `src/lib/version/index.ts`, and `package-lock.json`. They do NOT create commits, tags, or releases.
+
+Classification:
+- **Minor**: new feature, new workflow, new domain concept, breaking pre-1.0 change, significant behaviour change, schema change with new product capability.
+- **Patch**: bug fix, security hardening, performance improvement, routing fix, UI correction, accessibility fix, test improvement, dependency upgrade, internal refactoring, small UX refinement, tooling/CI change.
+- **None**: typo-only docs, comment-only changes, formatting, purely explanatory ADR/documentation.
+
+Mixed change sets use the highest applicable increment. One bump per change set, not per commit.
+
+Coding-agent completion workflow:
+1. Determine the current version from `package.json`.
+2. Classify the change set as `none`, `patch`, or `minor`.
+3. Apply exactly one version bump if needed using `npm run version:patch` or `npm run version:minor`.
+4. Run the normal validation/tests.
+5. Report the previous and new versions in the completion summary.
+
+CI validates version format, pre-1.0 guard, and `package.json`/module consistency via `npm run version:verify`.
+
 ### Quality checks must pass before completion
 
 Every change must leave the repo in a clean state. Pre-existing failures are not acceptable just because the current change did not introduce them.
@@ -2170,6 +2198,7 @@ Required before completion:
 - `npm run typecheck` passes
 - `npm test` passes
 - `npm run build` passes
+- `npm run version:verify` passes
 
 If a check cannot run, document why.
 
