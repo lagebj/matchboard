@@ -1110,7 +1110,7 @@ describe("Effective participation database queries", () => {
       expect(stats.developmentCount).toBe(0);
       expect(stats.goals).toBe(1);
       expect(stats.assists).toBe(2);
-      expect(stats.flags).not.toContain("high_support_burden");
+      expect(stats.flags).not.toContain("support_count_exceeds_core");
     });
   });
 });

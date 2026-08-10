@@ -96,6 +96,7 @@ export function formatSeverity(severity: string): string {
     case "REQUIRES_OVERRIDE": return "Decision required";
     case "WARNING": return "Planning note";
     case "SCORING_PREFERENCE": return "Explanation";
+    case "Planning note": return "Planning note";
     default: return severity;
   }
 }
