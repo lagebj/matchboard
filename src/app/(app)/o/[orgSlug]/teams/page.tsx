@@ -13,6 +13,7 @@ import { DecisionBanner } from "@/components/ui/decision-banner";
 import { PageHeader } from "@/components/ui/page-header";
 import { TeamShield } from "@/components/ui/team-shield";
 import { RatingBadge } from "@/components/ratings/rating-badge";
+import { Download } from "lucide-react";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -129,9 +130,17 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
         title="Teams"
         description={`Results and match record for ${periodLabel}.`}
         actions={
-          <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
-            Add team
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedPeriodId && (
+              <Button variant="secondary" size="sm" as="a" href={`/o/${orgSlug}/teams/export?leagueSeasonId=${selectedPeriodId}`} download>
+                <Download className="mr-1 h-4 w-4" />
+                Export teams
+              </Button>
+            )}
+            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
+              Add team
+            </Button>
+          </div>
         }
       />
 

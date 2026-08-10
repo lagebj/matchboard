@@ -12,6 +12,7 @@ import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill"
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { GAME_FORMAT_PLAYERS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
+import { Copy } from "lucide-react";
 
 type LineupData = {
   id: string;
@@ -237,6 +238,25 @@ export function MatchTacticsPanel({
       }
     });
   }, [lineup, refreshLineup]);
+
+  const handleUseBestLineup = useCallback(() => {
+    if (!lineup) return;
+    startTransition(async () => {
+      try {
+        setError(null);
+        const { copyBestLineupToMatchAction } = await import("@/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions");
+        const result = await copyBestLineupToMatchAction(teamId, matchId);
+        if (result.skipped > 0) {
+          setError(`Applied ${result.applied} player(s) from team best lineup. ${result.skipped} player(s) skipped: ${result.skippedReasons.map((r: { reason: string }) => r.reason).join(', ')}`);
+        } else {
+          setError(null);
+        }
+        await refreshLineup();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to apply best lineup");
+      }
+    });
+  }, [teamId, matchId, lineup, refreshLineup]);
 
   const slots = (lineup?.formation?.slots ?? []).map((s) => ({
     id: s.id,
@@ -480,6 +500,10 @@ export function MatchTacticsPanel({
             <>
               <Button variant="secondary" size="sm" disabled={isPending} onClick={handleSuggestLineup}>
                 Suggest lineup
+              </Button>
+              <Button variant="ghost" size="sm" disabled={isPending} onClick={handleUseBestLineup}>
+                <Copy className="mr-1 h-3.5 w-3.5" />
+                Use team best lineup
               </Button>
               <Button variant="ghost" size="sm" disabled={isPending} onClick={handleFillEmpty}>
                 Fill empty slots

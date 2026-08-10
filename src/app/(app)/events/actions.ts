@@ -242,14 +242,19 @@ export async function deleteEventAction(id: string) {
       id,
       ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
-    select: { id: true },
+    select: { id: true, footballGroupId: true },
   });
 
   if (!event) {
     throw new Error('Event not found or access denied.');
   }
 
+  await db.event.delete({
+    where: { id: event.id },
+  });
+
   revalidatePath('/events');
+  revalidatePath(`/o/${ctx.organisationSlug}/events`);
 }
 
 export async function updateEventPlayerAvailability(

@@ -37,6 +37,7 @@ model Team {
   toRotationPaths          RotationPath[]       @relation("ToTeam")
   teamSeasonSnapshots      TeamSeasonSnapshot[]
   groupPlayers             FootballGroupPlayer[] @relation("GroupPlayerCoreTeam")
+  bestLineup               TeamBestLineup?
   group                    FootballGroup        @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation             Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -111,6 +112,7 @@ model Player {
   eventAssistEvents       EventAssistEvent[]             @relation("EventAssistProvider")
   eventSupportAssignments EventMatchSupportAssignment[]
   eventLineupAssignments  EventMatchLineupAssignment[]
+  bestLineupAssignments   TeamBestLineupAssignment[]
   playerSeasonSnapshots   TeamSeasonSnapshotPlayer[]
   liveEventsScorer        LiveMatchEvent[]               @relation("LiveEventScorer")
   liveEventsSecondary     LiveMatchEvent[]               @relation("LiveEventSecondaryPlayer")
@@ -365,6 +367,7 @@ model Formation {
   slots           FormationSlot[]
   lineups         MatchLineup[]
   eventLineups    EventMatchLineup[]
+  bestLineups     TeamBestLineup[]
   organisation    Organisation?      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([gameFormat])
@@ -1880,6 +1883,8 @@ model Organisation {
   footballGroups                FootballGroup[]
   groupMovementPaths           GroupMovementPath[]
   groupPlayerMemberships       FootballGroupPlayer[]
+  bestLineups                   TeamBestLineup[]
+  bestLineupAssignments         TeamBestLineupAssignment[]
 
   @@index([slug])
   @@index([name])
@@ -2413,4 +2418,43 @@ model GroupMovementPath {
   @@index([fromGroupId])
   @@index([toGroupId])
   @@index([isActive])
+}
+
+model TeamBestLineup {
+  id                String   @id @default(cuid())
+  organisationId    String
+  teamId            String   @unique
+  formationId       String?
+  formationSnapshot Json?
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  team        Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  formation   Formation?            @relation(fields: [formationId], references: [id])
+  assignments TeamBestLineupAssignment[]
+  organisation Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([organisationId])
+}
+
+model TeamBestLineupAssignment {
+  id             String   @id @default(cuid())
+  organisationId String
+  bestLineupId   String
+  slotId         String
+  playerId       String?
+  locked         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bestLineup  TeamBestLineup  @relation(fields: [bestLineupId], references: [id], onDelete: Cascade)
+  player      Player?         @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  organisation Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([bestLineupId, slotId])
+  @@unique([bestLineupId, playerId])
+  @@index([bestLineupId])
+  @@index([playerId])
+  @@index([organisationId])
 }

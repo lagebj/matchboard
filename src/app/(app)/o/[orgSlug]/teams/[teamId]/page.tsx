@@ -7,6 +7,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/lib/selection/movement-candidate";
+import { getBestLineup, getFormationsForTeam } from "@/lib/best-lineup/best-lineup";
 
 type TeamPageProps = {
   params: Promise<{
@@ -35,6 +36,9 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
             firstName: true,
             lastName: true,
             primaryPosition: true,
+            secondaryPosition: true,
+            tertiaryPosition: true,
+            goalkeeperAbility: true,
             nonRotatable: true,
             reducedMatchLoadAllowed: true,
             currentAvailability: true,
@@ -64,6 +68,11 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   if (!team) {
     notFound();
   }
+
+  const [bestLineup, teamFormations] = await Promise.all([
+    getBestLineup(teamId),
+    getFormationsForTeam(teamId),
+  ]);
 
   const teamIds = orderedTeamIds.map((t) => t.id);
   const currentIndex = teamIds.indexOf(team.id);
@@ -383,6 +392,17 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     unassignedPlayers,
     previousTeamId,
     nextTeamId,
+    bestLineup,
+    bestLineupFormations: teamFormations,
+    bestLineupPlayers: team.corePlayers.map((p) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      primaryPosition: p.primaryPosition,
+      secondaryPosition: p.secondaryPosition,
+      tertiaryPosition: p.tertiaryPosition,
+      goalkeeperAbility: p.goalkeeperAbility,
+    })),
   };
 
   return <TeamDetail data={data} />;
