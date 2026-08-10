@@ -3,7 +3,6 @@ import {
   evaluateAttributeEvidence,
   computeAttributeProposal,
   type AttributeEvidenceResult,
-  type AttributeSuggestion,
   type EvidenceConfidence,
 } from "../evidence";
 

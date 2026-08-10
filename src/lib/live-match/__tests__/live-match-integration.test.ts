@@ -8,7 +8,6 @@ import { validateLiveEventInput, isValidEventType, isGoalEventType, isPeriodTran
 import type { LiveMatchEventType } from "@/generated/prisma/client";
 import {
   createInitialClockState,
-  getElapsedMs,
   formatElapsedMs,
   advancePeriod,
   pauseClock,

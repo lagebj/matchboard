@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { signMachineToken, verifyMachineToken } from "../machine-token";
 
 describe("machine token", () => {

@@ -3,11 +3,11 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { authenticateWithBearerToken, hasScope, hasAnyScope, hasAllScopes } from "../machine-auth";
 import { signMachineToken } from "../machine-token";
 import { createMachinePrincipal } from "../machine-principal";
-import { setupTestDb, teardownTestDb, cleanTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb } from "@/test/test-db";
 
 describe("machine auth", () => {
   let db: PrismaClient;
-  let organisationId: string;
+  let _organisationId: string;
   const originalAuthSecret = process.env.AUTH_SECRET;
 
   beforeAll(async () => {
@@ -16,7 +16,7 @@ describe("machine auth", () => {
     const org = await db.organisation.create({
       data: { name: "Machine Auth Org", slug: "machine-auth-org" },
     });
-    organisationId = org.id;
+    _organisationId = org.id;
   });
 
   afterAll(async () => {

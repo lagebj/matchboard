@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@/generated/prisma/client";
-import { setupTestDb, teardownTestDb, cleanTestDb } from "@/test/test-db";
+import { setupTestDb, teardownTestDb } from "@/test/test-db";
 import {
   isValidScope,
   isForbiddenScope,
@@ -14,7 +14,6 @@ import {
   reactivateMachinePrincipal,
   authenticateMachinePrincipal,
   rotateClientSecret,
-  MACHINE_SCOPES,
 } from "../machine-principal";
 
 describe("machine principal domain logic", () => {

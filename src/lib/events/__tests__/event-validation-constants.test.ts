@@ -2,9 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   VALID_EVENT_TYPES,
   VALID_GAME_FORMATS,
-  VALID_EVENT_PLAYER_STATUSES,
-  VALID_SQUAD_INTENTS,
-  VALID_SELECTION_PATTERNS,
   parseEnum,
   isValidEventStatus,
   requireValidEventStatus,

@@ -112,6 +112,7 @@ describe("Fixtures Service", () => {
         data: {
           matchId,
           status: "LOCKED",
+          organisationId: fixture.organisationId,
         },
       });
 

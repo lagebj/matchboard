@@ -7,7 +7,6 @@ import {
   validateSportingLevel,
   formatSportingLevel,
   DEFAULT_CHALLENGE_MARGIN,
-  MAX_SPORTING_LEVEL,
   type OpponentEncounterAssessment,
 } from "../opponent-estimate";
 import {

@@ -10,8 +10,8 @@ vi.mock("@/lib/auth", () => {
   return { AuthorizationError, requireCoachAccess: vi.fn() };
 });
 
-vi.mock("@/lib/db", () => ({
-  db: {
+vi.mock("@/lib/db", () => {
+  const db = {
     footballGroup: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
@@ -19,8 +19,11 @@ vi.mock("@/lib/db", () => ({
     groupAccess: {
       findMany: vi.fn(),
     },
-  },
-}));
+    $executeRawUnsafe: vi.fn(),
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(db)),
+  };
+  return { db };
+});
 
 import {
   resolveGroupContext,
