@@ -118,5 +118,17 @@ describe("Team Configuration Service", () => {
       expect(result.targetSquadSize).toBe(11);
       expect(result.maxSquadSize).toBe(11);
     });
+
+    it("renames a team", async () => {
+      const teamId = fixture.teams["Bla"];
+      const result = await updateTeamConfiguration(teamId, { name: "Bla Updated" });
+      expect(result.name).toBe("Bla Updated");
+    });
+
+    it("rejects duplicate team name within same organisation", async () => {
+      const _blaId = fixture.teams["Bla"];
+      const hvitId = fixture.teams["Hvit"];
+      await expect(updateTeamConfiguration(hvitId, { name: "Bla Updated" })).rejects.toThrow();
+    });
   });
 });

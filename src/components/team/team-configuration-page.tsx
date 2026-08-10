@@ -38,6 +38,56 @@ function RuleRow({ rule, onEdit }: { rule: TeamConfiguration["rules"][0]; onEdit
   );
 }
 
+function TeamNameForm({ teamId, currentName, onRenamed }: { teamId: string; currentName: string; onRenamed?: () => void }) {
+  const [name, setName] = useState(currentName);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  function handleSave() {
+    setError(null);
+    setSuccess(false);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Team name is required.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await updateTeamConfigurationAction(teamId, { name: trimmed });
+        setName(trimmed);
+        setSuccess(true);
+        onRenamed?.();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to rename team");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-end gap-2">
+        <div className="flex-1 max-w-xs">
+          <label htmlFor="team-name-input" className="block text-xs text-[var(--text-muted)] mb-1">Team name</label>
+          <input
+            id="team-name-input"
+            type="text"
+            value={name}
+            onChange={(e) => { setName(e.target.value); setSuccess(false); setError(null); }}
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+          />
+        </div>
+        <Button variant="secondary" size="sm" disabled={isPending || name.trim() === currentName} onClick={handleSave}>
+          {isPending ? "Saving..." : "Rename"}
+        </Button>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {success && <p className="text-xs text-[var(--accent-strong)]">Team renamed.</p>}
+    </div>
+  );
+}
+
 function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
   const [targetSquadSize, setTargetSquadSize] = useState(config.targetSquadSize);
   const [minAcceptedSquadSize, setMinAcceptedSquadSize] = useState(config.minAcceptedSquadSize);
@@ -174,6 +224,13 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
 
   const squadSettingsRef = useRef<HTMLDivElement>(null);
 
+  function refreshConfig() {
+    startTransition(async () => {
+      const result = await fetchTeamConfiguration(teamId);
+      setConfig(result);
+    });
+  }
+
   function scrollToSquadSettings() {
     squadSettingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -208,7 +265,9 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
         <SectionHeader title="Identity" />
         <Surface variant="default" padding="md">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-            <div><span className="text-[var(--text-muted)]">Name:</span> <span className="text-[var(--text-soft)]">{config.name}</span></div>
+            <div className="col-span-2 sm:col-span-1">
+              <TeamNameForm teamId={config.teamId} currentName={config.name} onRenamed={refreshConfig} />
+            </div>
             <div><span className="text-[var(--text-muted)]">Core group:</span> <span className="text-[var(--text-soft)]">{config.coreGroup}</span></div>
             <div><span className="text-[var(--text-muted)]">Status:</span> <span className={config.active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}>{config.active ? "Active" : "Archived"}</span></div>
             <div><span className="text-[var(--text-muted)]">Group:</span> <span className="text-[var(--text-soft)]">
