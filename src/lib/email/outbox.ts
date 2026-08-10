@@ -4,7 +4,6 @@ import { getEmailProvider } from "./provider-factory";
 import { renderTemplate } from "./templates/index";
 import { logNotificationSent } from "@/lib/security/audit-log";
 
-const MAX_RETRY_ATTEMPTS = 5;
 const RETRY_BASE_DELAY_MS = 60_000;
 const MAX_AGE_HOURS = 72;
 const BATCH_SIZE = 25;

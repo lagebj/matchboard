@@ -1,5 +1,4 @@
 import { type OpponentSportingEvidence } from "@/generated/prisma/client";
-import { calculateEncounterEstimate } from "./sporting-level-calculation";
 
 export type SportingLevelConfidence = "unknown" | "low" | "medium" | "high";
 

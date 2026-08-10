@@ -1,5 +1,4 @@
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
-import { redirect } from "next/navigation";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 
 export async function getOrgContext(orgSlug: string): Promise<OrganisationAccessContext> {

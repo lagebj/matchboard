@@ -60,7 +60,7 @@ export async function createDevelopmentObservation(
     throw new Error("Organisation access required");
   }
 
-  const kind = input.kind;
+  const _kind = input.kind;
   const attributeKey = validateAttributeKey(input.attributeKey, input.kind);
   const positionId = validatePositionId(input.positionId, input.kind);
   const observableNote = validateObservableNote(input.observableNote);

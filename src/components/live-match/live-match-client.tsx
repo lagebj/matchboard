@@ -86,7 +86,6 @@ export interface LiveMatchClientProps {
   contextLabel: string | null;
   periodConfig: PeriodConfig[];
   actions: LiveMatchActions;
-  coachId: string;
 }
 
 const FAIR_PLAY_POSITIVE_CATEGORIES = [

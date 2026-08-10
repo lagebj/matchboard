@@ -1,6 +1,5 @@
 "use server";
 
-import { AuthorizationError } from "@/lib/auth";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import {
   assignWorkOwnership,

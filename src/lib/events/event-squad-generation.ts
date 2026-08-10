@@ -325,7 +325,7 @@ function distributeGoalkeepers(
   gameFormat: GameFormat,
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
-  eventId: string,
+  _eventId: string,
 ): void {
   const gkPlayers = players.filter((p) => !assignedGlobal.has(p.playerId) && p.isGoalkeeper);
   gkPlayers.sort((a, b) => {
@@ -485,7 +485,7 @@ function distributeRemainingByBalance(
   squads: GenerationInput['squads'],
   assignments: InternalAssignment[],
   assignedGlobal: Set<string>,
-  eventId: string,
+  _eventId: string,
 ): void {
   const sorted = [...players].sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
 

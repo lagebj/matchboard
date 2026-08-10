@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       expires_in: 600,
       scope: result.grantedScopes.join(" "),
     });
-  } catch (error) {
+  } catch {
     logMachineTokenAuthFailure(clientId, "token_signing_failure");
     return NextResponse.json(
       { error: "server_error", error_description: "Failed to sign token" },

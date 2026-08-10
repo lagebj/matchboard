@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { isAllowedCoach } from "@/lib/allowlist";
 import { AppError } from "@/lib/security/errors";
-import { logAuthSuccess, logAuthFailure, logAccessDenied } from "@/lib/security/audit-log";
+import { logAuthFailure } from "@/lib/security/audit-log";
 
 export { isAllowedCoach };
 

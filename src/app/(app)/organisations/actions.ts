@@ -77,7 +77,6 @@ export async function createInvitationAction(
   }
 
   let invitationId = "";
-  let invitationToken = "";
   let outboxId = "";
 
   try {
@@ -98,7 +97,7 @@ export async function createInvitationAction(
       }
 
       invitationId = result.invitationId;
-      invitationToken = result.token ?? "";
+
 
       const notificationId = await enqueueNotification(
         {

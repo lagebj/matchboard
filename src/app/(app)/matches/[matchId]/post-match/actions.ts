@@ -25,15 +25,6 @@ import {
 import { logReportComplete, logReportReopen } from "@/lib/security/audit-log";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== "org") return;
-  const match = await db.match.findFirst({
-    where: { id: matchId, ...orgFilter.filter },
-    select: { id: true },
-  });
-  if (!match) throw new Error("Match not found or access denied.");
-}
-
 async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode): Promise<string | null> {
   if (orgFilter.type !== "org") return null;
   const report = await db.postMatchReport.findFirst({

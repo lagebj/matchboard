@@ -1,4 +1,3 @@
-import { db } from "@/lib/db";
 import { type DevelopmentAttributeKey } from "./constants";
 
 export type EvidenceConfidence = "LOW" | "MEDIUM" | "HIGH";

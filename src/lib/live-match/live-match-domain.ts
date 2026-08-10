@@ -1,6 +1,5 @@
 import type {
   LiveMatchEventType,
-  LiveEventCorrectionType,
   MatchPeriod,
   FairPlayCategory,
   LiveEventInput,

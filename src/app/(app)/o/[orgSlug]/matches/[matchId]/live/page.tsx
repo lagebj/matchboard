@@ -10,8 +10,7 @@ interface LiveMatchPageProps {
 
 export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
   const { orgSlug, matchId } = await params;
-  const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  await requireActorContext(orgSlug);
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -46,7 +45,6 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
         teamId: match.teamId,
         roundName: match.matchRound?.name ?? null,
       }}
-      coachId={ctx.userId}
     />
   );
 }

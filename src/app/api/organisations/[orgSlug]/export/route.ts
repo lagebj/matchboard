@@ -126,7 +126,6 @@ export async function GET(
     })),
   };
 
-  const accept = request.headers.get("accept") ?? "";
   const format = new URL(request.url).searchParams.get("format") ?? "json";
 
   if (format === "csv") {

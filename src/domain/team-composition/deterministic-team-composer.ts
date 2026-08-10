@@ -18,21 +18,17 @@ import type {
   ResolvedTeamScenario,
   ProposedTeamAssignment,
   ProposedTeamMetrics,
-  TeamCompositionProposal,
   StructuralRole,
   BroadPosition,
   PositionFitTier,
   AssignmentSource,
-  ProposalSeverity,
 } from "./team-composition-types";
 
 import { FIT_TIER_PRIORITY } from "./team-composition-types";
 
 import {
   computePositionScarcity,
-  getPositionFit,
   getRoleFit,
-  computeRoleStrength,
   isGoalkeeperCapable,
   sortByRoleRelevantStrength,
   sortByOverallStrength,
@@ -203,7 +199,7 @@ function buildViableSpine(
   assignments: Map<string, ProposedTeamAssignment>,
   teamAssignments: Map<string, Set<string>>,
 ): void {
-  const { eligiblePlayers, targetTeams, structure, seed, scarcity, lockedAssignments } = input;
+  const { eligiblePlayers, targetTeams, structure, seed, scarcity: _scarcity, lockedAssignments } = input;
   const assignedPlayerIds = new Set(assignments.keys());
 
   // Process teams in order of lowest current total strength first
@@ -305,7 +301,7 @@ function applyScenarioDistribution(
   assignments: Map<string, ProposedTeamAssignment>,
   teamAssignments: Map<string, Set<string>>,
 ): void {
-  const { scenario, eligiblePlayers, targetTeams, seed, lockedAssignments } = input;
+  const { scenario, eligiblePlayers, lockedAssignments } = input;
   const assignedPlayerIds = new Set(assignments.keys());
   const unassigned = eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id) && !lockedAssignments.has(p.id));
 
@@ -631,7 +627,7 @@ function improveProposal(
   teamAssignments: Map<string, Set<string>>,
   players: CompositionPlayer[],
   targetTeams: CompositionTargetTeam[],
-  input: NormalizedInput,
+  _input: NormalizedInput,
 ): Map<string, ProposedTeamAssignment> {
   const MAX_ITERATIONS = 50;
   const IMPROVEMENT_THRESHOLD = 0.01;
@@ -963,7 +959,7 @@ function distributeBalancedToTeams(
 export function composeTeams(
   problem: import("./team-composition-types").TeamCompositionProblem,
 ): import("./team-composition-types").TeamCompositionProposal {
-  const { context, scenario, players, targetTeams, lockedAssignments, structure, deterministicSeed } = problem;
+  const { context: _context, scenario, players, targetTeams, lockedAssignments, structure, deterministicSeed } = problem;
 
   // Phase 1: Normalize inputs
   const input = normalizeInputs(players, targetTeams, lockedAssignments, structure, scenario, deterministicSeed);

@@ -3,7 +3,6 @@
 import {
   createReviewRequest,
   resolveReviewRequest,
-  supersedePendingReviews,
   getPendingReviewsForReviewer,
   getReviewHistory,
   type CreateReviewRequestInput,

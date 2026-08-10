@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   let ctx;
   try {
     ctx = await requireActorContext();
@@ -46,16 +46,6 @@ export async function GET(request: NextRequest) {
     })),
     commands: getFilteredCommands(canCreate, canManageOrg, ctx.organisationSlug),
   });
-}
-
-function getPublicCommands(orgSlug: string): CommandItem[] {
-  const prefix = `/o/${orgSlug}`;
-  return [
-    { id: "nav-assistant", label: "Assistant", href: `${prefix}/assistant`, category: "navigate", keywords: ["assistant", "dashboard"] },
-    { id: "nav-fixtures", label: "Fixtures", href: `${prefix}/fixtures`, category: "navigate", keywords: ["fixtures", "matches"] },
-    { id: "nav-teams", label: "Teams", href: `${prefix}/teams`, category: "navigate", keywords: ["teams"] },
-    { id: "nav-players", label: "Players", href: `${prefix}/players`, category: "navigate", keywords: ["players"] },
-  ];
 }
 
 function getFilteredCommands(canCreate: boolean, canManageOrg: boolean, orgSlug: string): CommandItem[] {

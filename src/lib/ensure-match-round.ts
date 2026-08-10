@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { formatIsoWeekKey, formatIsoWeekLabel } from "@/lib/date-utils";
+import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
 import {
   getLeagueSeasonPartForDate,
@@ -9,7 +9,6 @@ import {
 } from "@/lib/seasons/league-season";
 
 export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string> {
-  const weekKey = formatIsoWeekKey(startsAt);
   const weekLabel = formatIsoWeekLabel(startsAt);
 
   const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });

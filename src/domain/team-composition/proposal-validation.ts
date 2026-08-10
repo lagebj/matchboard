@@ -12,15 +12,9 @@ import type {
   ProposalIssue,
   ProposalExplanation,
   TeamStructuralRequirements,
-  StructuralRole,
-  PositionFitTier,
-  ProposalSeverity,
   ResolvedTeamScenario,
-  BroadPosition,
   SystemTeamScenario,
 } from "./team-composition-types";
-
-import { BROAD_POSITION_TO_STRUCTURAL_ROLE } from "./team-composition-types";
 
 import { isGoalkeeperCapable, getGkCoverageTier, computeRoleStrength } from "./position-suitability";
 
@@ -323,7 +317,7 @@ export function computeProposalMetrics(
 export function generateExplanations(
   assignments: ProposedTeamAssignment[],
   players: CompositionPlayer[],
-  scenario: ResolvedTeamScenario,
+  _scenario: ResolvedTeamScenario,
 ): ProposalExplanation[] {
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const explanations: ProposalExplanation[] = [];

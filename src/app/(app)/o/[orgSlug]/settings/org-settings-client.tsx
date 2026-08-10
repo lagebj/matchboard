@@ -6,7 +6,6 @@ import {
   revokeMachinePrincipalAction,
   reactivateMachinePrincipalAction,
   rotateMachinePrincipalSecretAction,
-  listMachinePrincipalsAction,
 } from "@/app/(app)/organisations/machine-principal-actions";
 import {
   suspendOrganisationAction,

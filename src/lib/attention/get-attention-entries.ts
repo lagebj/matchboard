@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
 import { requireActorContext, canAdmin, hasTeamAccess } from '@/lib/auth/actor-context';
-import { resolveOrganisationAccess } from '@/lib/organisations/organisation-resolver';
 
 export type AttentionCategory =
   | 'review_assigned'

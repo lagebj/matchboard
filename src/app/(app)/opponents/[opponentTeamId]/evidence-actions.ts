@@ -5,7 +5,6 @@ import {
   getOpponentSportingEvidence as getEvidence,
 } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
-import { db } from "@/lib/db";
 
 export async function excludeSportingEvidenceAction(
   evidenceId: string,

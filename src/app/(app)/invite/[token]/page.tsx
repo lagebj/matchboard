@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { acceptInvitation } from "@/lib/organisations/organisation-invitation";
+
 import { InviteAcceptanceForm } from "./invite-acceptance-form";
 
 export default async function InvitePage({

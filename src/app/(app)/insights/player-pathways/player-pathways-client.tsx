@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import type { PathwayCellStatus, PathwayContext, PlayerPathwayRow } from "@/lib/pathways/pathways-types";
+import type { PathwayCellStatus, PlayerPathwayRow } from "@/lib/pathways/pathways-types";
 
 interface LeagueSeasonOption {
   id: string;
@@ -52,14 +52,7 @@ const CELL_STATUS_STYLES: Record<PathwayCellStatus, string> = {
   no_data: "bg-zinc-900 text-zinc-600",
 };
 
-const CONTEXT_LABELS: Record<PathwayContext, string> = {
-  core: "Core",
-  support: "Support",
-  development: "Development",
-  squad_repair: "Squad repair",
-  core_match_drop: "Dropped",
-  unknown: "—",
-};
+
 
 interface PlayerPathwaysClientProps {
   leagueSeasons: LeagueSeasonOption[];

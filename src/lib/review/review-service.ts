@@ -33,7 +33,7 @@ export type ReviewRequestWithRelations = {
   updatedAt: Date;
 };
 
-function requireOrganisationAccess(orgFilter: OrgFilterMode): string {
+function _requireOrganisationAccess(orgFilter: OrgFilterMode): string {
   if (orgFilter.type !== 'org') {
     throw new Error('Review requires an active organisation membership.');
   }

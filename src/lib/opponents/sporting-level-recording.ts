@@ -159,7 +159,7 @@ export async function recordOpponentSportingEvidence(
 
   const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : match.organisationId;
 
-  const gameFormat = match.gameFormat as string | null;
+  const _gameFormat = match.gameFormat as string | null;
 
   const evidence = await db.opponentSportingEvidence.upsert({
     where: { matchId },

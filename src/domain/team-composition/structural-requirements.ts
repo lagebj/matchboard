@@ -4,14 +4,12 @@
 // ─────────────────────────────────────────────────────────────────
 
 import type {
-  BroadPosition,
-  StructuralRole,
   StructuralSlotRequirement,
   TeamStructuralRequirements,
   CompositionTargetTeam,
+  StructuralRole,
+  BroadPosition,
 } from "./team-composition-types";
-
-import { BROAD_POSITION_TO_STRUCTURAL_ROLE } from "./team-composition-types";
 
 export type GameFormat = "THREE_A_SIDE" | "FIVE_A_SIDE" | "SEVEN_A_SIDE" | "NINE_A_SIDE" | "ELEVEN_A_SIDE";
 
