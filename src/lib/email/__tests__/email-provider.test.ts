@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { NotificationTemplate } from "@/generated/prisma/client";
 import { FakeEmailProvider } from "../fake-provider";
 import { renderTemplate } from "../templates/index";
 import "../templates/organisation-invitation";
@@ -81,7 +82,7 @@ describe("FakeEmailProvider", () => {
 describe("renderTemplate", () => {
   it("should throw for unknown template", () => {
     expect(() =>
-      renderTemplate("ORGANISATION_INVITATION" as any, {}),
+      renderTemplate("ORGANISATION_INVITATION" as NotificationTemplate, {} as Record<string, unknown>),
     ).not.toThrow();
   });
 

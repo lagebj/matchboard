@@ -5,7 +5,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId: string } | {}) {
+async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId: string } | Record<string, never>) {
   if ("organisationId" in orgFilter) {
     const round = await db.matchRound.findUnique({
       where: { id: roundId },
@@ -17,7 +17,7 @@ async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId
   }
 }
 
-async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId: string } | {}) {
+async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId: string } | Record<string, never>) {
   if ("organisationId" in orgFilter) {
     const match = await db.match.findUnique({
       where: { id: matchId },
@@ -29,7 +29,7 @@ async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId
   }
 }
 
-async function verifyLeagueSeasonOrgAccess(leagueSeasonId: string, orgFilter: { organisationId: string } | {}) {
+async function verifyLeagueSeasonOrgAccess(leagueSeasonId: string, orgFilter: { organisationId: string } | Record<string, never>) {
   if ("organisationId" in orgFilter) {
     const leagueSeason = await db.leagueSeason.findUnique({
       where: { id: leagueSeasonId },

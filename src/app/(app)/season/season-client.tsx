@@ -120,7 +120,7 @@ export function SeasonOverviewClient({
 
   useEffect(() => {
     if (!selectedPlayerId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clearing stale state when player is deselected
+      // Clearing stale state when player is deselected
       setPlayerTimeline(null);
       return;
     }
@@ -133,7 +133,7 @@ export function SeasonOverviewClient({
         setPlayerTimeline(data);
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedPeriodId change refetches via the matrix effect
+    // selectedPeriodId change refetches via the matrix effect
   }, [selectedPlayerId, includeDrafts]);
 
   const filteredPlayers = applyFilter(matrix?.players ?? [], filter);

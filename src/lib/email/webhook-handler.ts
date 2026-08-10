@@ -1,5 +1,5 @@
-import crypto from "crypto";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 
 interface BrevoWebhookEvent {
   event: string;
@@ -41,7 +41,7 @@ export async function processBrevoWebhookEvents(
         eventType,
         providerMessageId: providerMessageId ?? null,
         recipientEmail: recipientEmail ?? null,
-        payload: event as unknown as Record<string, unknown> as any,
+        payload: event as unknown as Prisma.InputJsonValue,
         processed: false,
       },
     });

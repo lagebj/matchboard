@@ -637,7 +637,7 @@ function improveProposal(
   const IMPROVEMENT_THRESHOLD = 0.01;
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
-  let currentAssignments = new Map(assignments);
+  const currentAssignments = new Map(assignments);
   // Deep-copy team assignments so mutations are independent
   const currentTeamAssignments = new Map<string, Set<string>>();
   for (const [teamId, playerIds] of teamAssignments) {

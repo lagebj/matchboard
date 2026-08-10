@@ -565,7 +565,7 @@ export function RoundBoard({
         });
       } catch {}
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
+    // initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
     [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 
@@ -681,7 +681,7 @@ export function RoundBoard({
       setTouchDragPlayerId(null);
       setTouchDropTarget(null);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
+    // initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
     [matchRoundId, overrideReason, startTransition, determineRole, router],
   );
 

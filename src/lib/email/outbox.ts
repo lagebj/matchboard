@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { PrismaClient, NotificationTemplate, NotificationStatus } from "@/generated/prisma/client";
+import type { PrismaClient, NotificationTemplate, NotificationStatus, Prisma } from "@/generated/prisma/client";
 import { getEmailProvider } from "./provider-factory";
 import { renderTemplate } from "./templates/index";
 import { logNotificationSent } from "@/lib/security/audit-log";
@@ -41,7 +41,7 @@ export async function enqueueNotification(
       organisationId: input.organisationId,
       idempotencyKey: input.idempotencyKey,
       template: input.template,
-      payload: input.payload as any,
+      payload: input.payload as Prisma.InputJsonValue,
       status: "PENDING" as NotificationStatus,
     },
   });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateMachinePrincipal, validateScopes } from "@/lib/machine-principal/machine-principal";
+import { authenticateMachinePrincipal, validateScopes, type MachineScope } from "@/lib/machine-principal/machine-principal";
 import { signMachineToken } from "@/lib/machine-principal/machine-token";
 import { rateLimit } from "@/lib/rate-limit";
 import { logMachineTokenIssued, logMachineTokenAuthFailure } from "@/lib/security/audit-log";
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const token = await signMachineToken({
       principalId: result.principal!.id,
       organisationId: result.principal!.organisationId,
-      scopes: result.grantedScopes as any[],
+      scopes: result.grantedScopes as MachineScope[],
     });
 
     logMachineTokenIssued(clientId, `scopes=${result.grantedScopes.join(",")}`);

@@ -97,11 +97,11 @@ describe("group-context", () => {
     it("resolves group context for OWNER with implicit access", async () => {
       vi.mocked(db.footballGroup.findFirst).mockResolvedValue({
         id: mockGroupId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof db.footballGroup.findFirst>>);
       vi.mocked(db.footballGroup.findMany).mockResolvedValue([
         { id: mockGroupId },
         { id: "group-2" },
-      ] as any);
+      ] as unknown as Awaited<ReturnType<typeof db.footballGroup.findMany>>);
 
       const ctx = await resolveGroupContext(
         mockOrgId,
@@ -120,10 +120,10 @@ describe("group-context", () => {
     it("resolves group context for COACH with explicit GroupAccess", async () => {
       vi.mocked(db.footballGroup.findFirst).mockResolvedValue({
         id: mockGroupId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof db.footballGroup.findFirst>>);
       vi.mocked(db.groupAccess.findMany).mockResolvedValue([
         { footballGroupId: mockGroupId, role: "GROUP_COACH" },
-      ] as any);
+      ] as unknown as Awaited<ReturnType<typeof db.groupAccess.findMany>>);
 
       const ctx = await resolveGroupContext(
         mockOrgId,
@@ -140,7 +140,7 @@ describe("group-context", () => {
     it("throws for COACH without GroupAccess", async () => {
       vi.mocked(db.footballGroup.findFirst).mockResolvedValue({
         id: mockGroupId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof db.footballGroup.findFirst>>);
       vi.mocked(db.groupAccess.findMany).mockResolvedValue([]);
 
       await expect(
@@ -159,10 +159,10 @@ describe("group-context", () => {
     it("resolves group context for VIEWER with GROUP_VIEWER access", async () => {
       vi.mocked(db.footballGroup.findFirst).mockResolvedValue({
         id: mockGroupId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof db.footballGroup.findFirst>>);
       vi.mocked(db.groupAccess.findMany).mockResolvedValue([
         { footballGroupId: mockGroupId, role: "GROUP_VIEWER" },
-      ] as any);
+      ] as unknown as Awaited<ReturnType<typeof db.groupAccess.findMany>>);
 
       const ctx = await resolveGroupContext(
         mockOrgId,
@@ -272,7 +272,7 @@ describe("group-context", () => {
       vi.mocked(db.footballGroup.findMany).mockResolvedValue([
         { id: "group-1" },
         { id: "group-2" },
-      ] as any);
+      ] as unknown as Awaited<ReturnType<typeof db.footballGroup.findMany>>);
 
       const accesses = await getEffectiveGroupAccess(
         mockMembershipId,
@@ -287,7 +287,7 @@ describe("group-context", () => {
     it("returns GROUP_VIEWER for all groups when SUPPORT", async () => {
       vi.mocked(db.footballGroup.findMany).mockResolvedValue([
         { id: "group-1" },
-      ] as any);
+      ] as unknown as Awaited<ReturnType<typeof db.footballGroup.findMany>>);
 
       const accesses = await getEffectiveGroupAccess(
         mockMembershipId,
@@ -303,7 +303,7 @@ describe("group-context", () => {
       vi.mocked(db.groupAccess.findMany).mockResolvedValue([
         { footballGroupId: "group-1", role: "GROUP_COACH" },
         { footballGroupId: "group-2", role: "GROUP_VIEWER" },
-      ] as any);
+      ] as unknown as Awaited<ReturnType<typeof db.groupAccess.findMany>>);
 
       const accesses = await getEffectiveGroupAccess(
         mockMembershipId,

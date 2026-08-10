@@ -144,7 +144,7 @@ export async function deleteDevelopmentObservation(
 export async function getDevelopmentObservationsForPlayer(
   playerId: string,
   orgFilter: OrgFilterMode,
-): Promise<Prisma.PlayerDevelopmentObservationGetPayload<{}>[]> {
+): Promise<Prisma.PlayerDevelopmentObservationGetPayload<Record<string, never>>[]> {
   if (orgFilter.type !== "org") return [];
 
   return db.playerDevelopmentObservation.findMany({
@@ -159,7 +159,7 @@ export async function getDevelopmentObservationsForPlayer(
 export async function getDevelopmentObservationsForMatch(
   matchId: string,
   orgFilter: OrgFilterMode,
-): Promise<Prisma.PlayerDevelopmentObservationGetPayload<{}>[]> {
+): Promise<Prisma.PlayerDevelopmentObservationGetPayload<Record<string, never>>[]> {
   if (orgFilter.type !== "org") return [];
 
   return db.playerDevelopmentObservation.findMany({

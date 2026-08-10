@@ -277,7 +277,7 @@ export async function includeOpponentSportingEvidence(
 export async function getOpponentSportingEvidence(
   opponentTeamId: string,
   orgFilter: OrgFilterMode,
-): Promise<Prisma.OpponentSportingEvidenceGetPayload<{}>[]> {
+): Promise<Prisma.OpponentSportingEvidenceGetPayload<Record<string, never>>[]> {
   if (orgFilter.type !== "org") return [];
 
   return db.opponentSportingEvidence.findMany({

@@ -181,7 +181,7 @@ export async function decideSuggestion(
 }
 
 async function decideAttributeSuggestion(
-  suggestion: Prisma.PlayerProfileSuggestionGetPayload<{}>,
+  suggestion: Prisma.PlayerProfileSuggestionGetPayload<Record<string, never>>,
   decision: SuggestionDecision,
   adjustedValue: number | undefined,
   coachId: string,
@@ -272,7 +272,7 @@ async function decideAttributeSuggestion(
 export async function getPendingSuggestions(
   playerId: string,
   orgFilter: OrgFilterMode,
-): Promise<Prisma.PlayerProfileSuggestionGetPayload<{}>[]> {
+): Promise<Prisma.PlayerProfileSuggestionGetPayload<Record<string, never>>[]> {
   if (orgFilter.type !== "org") return [];
 
   return db.playerProfileSuggestion.findMany({
@@ -288,7 +288,7 @@ export async function getPendingSuggestions(
 export async function getSuggestionHistory(
   playerId: string,
   orgFilter: OrgFilterMode,
-): Promise<Prisma.PlayerProfileSuggestionGetPayload<{}>[]> {
+): Promise<Prisma.PlayerProfileSuggestionGetPayload<Record<string, never>>[]> {
   if (orgFilter.type !== "org") return [];
 
   return db.playerProfileSuggestion.findMany({
