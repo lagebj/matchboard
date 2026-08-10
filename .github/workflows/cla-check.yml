@@ -1,0 +1,93 @@
+name: CLA Check
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  check-cla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check CLA acceptance
+        id: cla-check
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          # Repository owner's own contributions do not require CLA
+          if [ "$PR_AUTHOR" = "lagebj" ]; then
+            echo "cla-status=owner" >> "$GITHUB_OUTPUT"
+            echo "Repository owner contribution - CLA not required"
+            exit 0
+          fi
+
+          # Dependabot PRs do not require CLA
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            echo "cla-status=bot" >> "$GITHUB_OUTPUT"
+            echo "Dependabot contribution - CLA not required"
+            exit 0
+          fi
+
+          # Check if the contributor has an accepted CLA record
+          CLA_RECORDS="cla/cla-records.json"
+
+          if [ ! -f "$CLA_RECORDS" ]; then
+            echo "cla-status=missing" >> "$GITHUB_OUTPUT"
+            echo "CLA records file not found"
+            exit 1
+          fi
+
+          # Check for accepted CLA record for this GitHub user
+          ACCEPTED=$(python3 -c "
+          import json, sys
+          with open('$CLA_RECORDS') as f:
+              data = json.load(f)
+          records = data.get('acceptanceRecords', [])
+          found = [r for r in records if r.get('githubUsername') == '$PR_AUTHOR' and r.get('status') == 'accepted']
+          print('yes' if found else 'no')
+          " 2>/dev/null || echo "error")
+
+          if [ "$ACCEPTED" = "yes" ]; then
+            echo "cla-status=accepted" >> "$GITHUB_OUTPUT"
+            echo "CLA accepted for $PR_AUTHOR"
+          else
+            echo "cla-status=not-accepted" >> "$GITHUB_OUTPUT"
+            echo "No accepted CLA record found for $PR_AUTHOR"
+          fi
+
+      - name: Comment on PR if CLA not accepted
+        if: steps.cla-check.outputs.cla-status == 'not-accepted' || steps.cla-check.outputs.cla-status == 'missing'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `**CLA Required**
+
+              Thank you for your contribution to Matchboard! Before this pull request can be merged, you need to accept the Contributor License Agreement.
+
+              Please review and accept the CLA:
+
+              - **Individual contributors**: [Matchboard Individual CLA](https://github.com/lagebj/matchboard/blob/main/cla/matchboard-individual-cla.md)
+              - **Entity/corporate contributors**: [Matchboard Entity CLA](https://github.com/lagebj/matchboard/blob/main/cla/matchboard-entity-cla.md)
+
+              After reviewing the appropriate CLA, submit your acceptance by opening an issue using the [CLA Acceptance template](https://github.com/lagebj/matchboard/issues/new?template=cla-acceptance.md) or by adding your details to \`cla/cla-records.json\` in a separate PR.
+
+              Opening or submitting this pull request does not constitute CLA acceptance.
+
+              See [CONTRIBUTING.md](https://github.com/lagebj/matchboard/blob/main/CONTRIBUTING.md) for details.`
+            })
+
+      - name: Fail if CLA not accepted
+        if: steps.cla-check.outputs.cla-status == 'not-accepted' || steps.cla-check.outputs.cla-status == 'missing'
+        run: |
+          echo "::error::CLA acceptance required before merge. See CONTRIBUTING.md for instructions."
+          exit 1

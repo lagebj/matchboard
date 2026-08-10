@@ -34,6 +34,8 @@ Current and future development is distributed under Elastic License 2.0. Git his
 
 ## Contributions
 
-Contributions are welcome but are subject to the repository's contributor agreement requirements described in [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome but require an accepted Contributor License Agreement (CLA) before substantive changes can be merged. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution policy and CLA acceptance process.
 
-External contribution does not grant contributors decision rights over the Matchboard product, roadmap, architecture, licensing, or commercial direction.
+The Matchboard CLA is based on the Harmony Project CLA v1.0 with Option Five, which grants broad outbound licensing rights including the right to distribute contributions under ELv2, future licenses, and commercial terms. Contributors retain ownership of their original contributions.
+
+External contribution does not grant contributors decision rights over the Matchboard product, roadmap, licensing, or commercial direction.

@@ -1,50 +1,67 @@
 # Contributor License Agreement
 
-## Status: Pending legal review
+## Status: Active
 
-This CLA is **not yet active**. Substantive external contributions must not be merged until the CLA has been legally reviewed and activated. See [CONTRIBUTING.md](../CONTRIBUTING.md) for current contribution policy.
+The Matchboard CLA is active. Substantive external contributions require affirmative CLA acceptance before merge.
 
 ## Purpose
 
 The Matchboard CLA ensures that the project copyright holder has sufficient rights to use, modify, distribute, sublicense, relicense, and commercialize contributions as part of the Matchboard product, while contributors retain ownership of their original contributions.
 
-This is not a copyright assignment agreement.
+This is not a copyright assignment agreement. Contributors retain copyright in their original contributions.
 
 ## Framework
 
-The intended CLA model is based on the [Harmony Project CLA](https://www.harmonyagreements.org/) framework — a non-exclusive contributor license agreement with broad outbound licensing rights.
+The Matchboard CLA is based on the [Harmony Project CLA](https://www.harmonyagreements.org/) v1.0 — a non-exclusive contributor license agreement with broad outbound licensing rights.
 
-### Selected Harmony options (pending legal review)
-
-The intended configuration, subject to legal review, is:
+### Selected Harmony options
 
 - **Grant scope**: Non-exclusive, worldwide, perpetual, irrevocable, royalty-free, transferable, sublicensable
-- **Outbound license**: Broad — including the right to distribute contributions under Elastic License 2.0, under future licenses, and under commercial or proprietary terms
+- **Outbound license**: Harmony Option Five — broad outbound licensing including the right to distribute contributions under Elastic License 2.0, under future licenses, and under commercial or proprietary terms
 - **Patent grant**: Yes, consistent with Harmony's patent grant provisions
-- **Moral rights waiver**: Where applicable and enforceable
+- **Moral rights waiver**: Where applicable and enforceable, with "maximum extent permitted by law" qualification
 - **Contributor warranties**: Confirmation of right to submit; identification of employer-owned IP where applicable
+- **Governing law**: Norway
+- **Current outbound license**: Elastic License 2.0 (Elastic-2.0)
+- **Additional outbound media license**: None at this time
 
 ## Individual CLA
 
-A Harmony-based Individual CLA will be added here after legal review.
+For individuals contributing on their own behalf or with employer authorization.
 
-**Current state:** Placeholder. Not yet legally reviewed.
+**Current version:** 1.0
 
-## Entity/Corporate CLA
+**File:** [matchboard-individual-cla.md](matchboard-individual-cla.md)
 
-A Harmony-based Corporate CLA (or employer authorization framework) will be added here after legal review.
+## Entity CLA
 
-**Current state:** Placeholder. Not yet legally reviewed.
+For legal entities (companies, organizations) contributing on behalf of their employees or affiliates.
+
+**Current version:** 1.0
+
+**File:** [matchboard-entity-cla.md](matchboard-entity-cla.md)
 
 ## Employer-owned contributions
 
-If a contributor's contribution is owned by their employer or another legal entity, the contributor must ensure they have authorization to submit the contribution under the terms of the CLA. The eventual CLA process will document how employer authorization is confirmed.
+If a contributor's contribution is owned by their employer or another legal entity, the contributor must ensure they have authorization to submit the contribution under the terms of the CLA. Individuals contributing employer-owned work should sign the Individual CLA with employer authorization, or the employer should sign the Entity CLA.
 
-## Activation
+## Acceptance and records
 
-When the CLA documents have been legally reviewed and approved:
+CLA acceptance is recorded in `cla/cla-records.json`. Each record includes:
 
-1. The finalized Individual CLA and Corporate CLA will be placed in this directory.
-2. The pending-review notice will be removed from this file.
-3. The CLA enforcement workflow will be activated in the repository.
-4. [CONTRIBUTING.md](../CONTRIBUTING.md) will be updated to reflect active CLA status.
+- GitHub identity (username)
+- Stated legal name
+- CLA type (Individual or Entity)
+- CLA version
+- Explicit affirmative acceptance
+- Acceptance timestamp
+
+Opening or submitting a pull request is **not** implicit CLA acceptance. Acceptance must be affirmative and recorded separately.
+
+## Version history
+
+| Version | Date | Description |
+|---------|------|-------------|
+| 1.0 | 2026-08-10 | Initial CLA: Harmony v1.0 Individual and Entity, Option Five, Norway governing law |
+
+Material future changes to the agreement will require fresh acceptance.

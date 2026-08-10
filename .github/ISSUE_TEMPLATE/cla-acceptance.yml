@@ -1,0 +1,65 @@
+name: CLA Acceptance
+description: Accept the Matchboard Contributor License Agreement
+title: "[CLA] Acceptance from "
+labels: ["cla"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        By submitting this issue, you are affirmatively accepting the Matchboard Contributor License Agreement.
+
+        Please review the applicable CLA before proceeding:
+
+        - **Individual contributors**: [Matchboard Individual CLA](https://github.com/lagebj/matchboard/blob/main/cla/matchboard-individual-cla.md)
+        - **Entity/corporate contributors**: [Matchboard Entity CLA](https://github.com/lagebj/matchboard/blob/main/cla/matchboard-entity-cla.md)
+
+  - type: input
+    id: github-username
+    attributes:
+      label: GitHub username
+      description: Your GitHub username (must match the account submitting contributions)
+      placeholder: e.g. octocat
+    validations:
+      required: true
+  - type: input
+    id: legal-name
+    attributes:
+      label: Legal name
+      description: Your legal name or the legal name of the entity on whose behalf you are contributing
+      placeholder: e.g. Jane Doe or Example Corp
+    validations:
+      required: true
+  - type: dropdown
+    id: cla-type
+    attributes:
+      label: CLA type
+      description: Select the CLA you are accepting
+      options:
+        - Individual CLA (contributing on your own behalf)
+        - Entity CLA (contributing on behalf of an employer or organization)
+    validations:
+      required: true
+  - type: input
+    id: cla-version
+    attributes:
+      label: CLA version
+      description: The version of the CLA you are accepting (currently 1.0)
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: checkboxes
+    id: affirmation
+    attributes:
+      label: Affirmation
+      description: By checking this box, you affirm that you have read, understood, and agree to be bound by the Matchboard Contributor License Agreement (version as indicated above)
+      options:
+        - label: I have read, understood, and agree to be bound by the Matchboard CLA
+          required: true
+  - type: checkboxes
+    id: authority
+    attributes:
+      label: Authority (for Entity CLA only)
+      description: If you are accepting the Entity CLA, confirm you have authority to bind the entity
+      options:
+        - label: I have the legal authority to enter into this Agreement on behalf of the entity named above
+          required: false
