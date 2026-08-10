@@ -875,3 +875,16 @@ Each PR should:
 - Mention any behavior changes against `features/matchboard.feature`
 - List verification performed (lint, typecheck, manual checks)
 - Note anything not verified
+
+## Licensing
+
+Matchboard is publicly developed source-available software, licensed under the [Elastic License 2.0](LICENSE) (SPDX: `Elastic-2.0`).
+
+- **Self-hosting** is supported subject to ELv2 terms.
+- **Providing Matchboard itself as a third-party hosted or managed service** is restricted by ELv2.
+- **External contributions** are welcome subject to the terms in [CONTRIBUTING.md](CONTRIBUTING.md).
+- The project was previously distributed under the MIT License. See [LICENSING.md](LICENSING.md) for details on the licensing transition and historical rights.
+
+Matchboard is source available, not OSI Open Source.
+
+See also: [LICENSING.md](LICENSING.md), [CONTRIBUTING.md](CONTRIBUTING.md), [TRADEMARKS.md](TRADEMARKS.md).
