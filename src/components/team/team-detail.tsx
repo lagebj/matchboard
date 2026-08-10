@@ -33,6 +33,7 @@ import {
 } from "@/app/(app)/teams/movement-candidate-actions";
 import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { BestLineupTab } from "@/components/team/best-lineup-tab";
 
 type PlayerSummary = {
   id: string;
@@ -179,13 +180,17 @@ type TeamDetailData = {
   unassignedPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string | null }>;
   previousTeamId: string | null;
   nextTeamId: string | null;
+  bestLineup: import('@/lib/best-lineup/best-lineup').BestLineupData | null;
+  bestLineupFormations: Array<{ id: string; name: string; gameFormat: string; source: string; isArchived: boolean }>;
+  bestLineupPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string; secondaryPosition: string | null; tertiaryPosition: string | null; goalkeeperAbility: string }>;
 };
 
-type TabKey = "squad" | "current-round" | "movement" | "candidates" | "history" | "rules";
+type TabKey = "squad" | "current-round" | "movement" | "candidates" | "history" | "rules" | "best-lineup";
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
   { key: "current-round", label: "Current Round" },
+  { key: "best-lineup", label: "Best lineup" },
   { key: "movement", label: "Movement" },
   { key: "candidates", label: "Possible movement" },
   { key: "history", label: "History" },
@@ -1091,6 +1096,14 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
             eligibleCandidates={data.eligibleCandidates}
             teamId={data.teamId}
             teamOptions={data.teamOptions}
+          />
+        )}
+        {activeTab === "best-lineup" && (
+          <BestLineupTab
+            teamId={data.teamId}
+            lineup={data.bestLineup}
+            formations={data.bestLineupFormations}
+            players={data.bestLineupPlayers}
           />
         )}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}

@@ -19,6 +19,7 @@ import {
 } from '../actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
+import { useOrgSlug } from '@/components/shell/org-slug-context';
 import type { FormationSlotRoleType } from '@/lib/formations/types';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -238,11 +239,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     });
   }
 
+  const orgSlug = useOrgSlug();
+
   function handleDelete() {
     if (!confirm(`Delete "${data.name}"? This cannot be undone.`)) return;
     startTransition(async () => {
       await deleteEventAction(data.id);
-      router.push('/events');
+      router.push(`/o/${orgSlug}/events`);
     });
   }
 
