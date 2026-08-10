@@ -1,0 +1,102 @@
+rules:
+  - id: matchboard-missing-require-coach-access
+    patterns:
+      - pattern: "export async function $NAME(...) { ... }"
+      - pattern-not-inside: "requireCoachAccess()"
+      - pattern-not-inside: "requireActorContext()"
+      - pattern-not-inside: "export async function $NAME(_, ...)"
+      - metavariable-regex:
+          metavariable: NAME
+          regex: "^(?!.*(?:login|signin|callback|logout|auth|health|webhook)).*$"
+    message: >
+      Server action or route handler may be missing authorization.
+      All protected server actions must call requireCoachAccess() or requireActorContext().
+      Public endpoints (auth, health, webhooks) are exempt.
+    severity: WARNING
+    languages: [typescript]
+    paths:
+      include:
+        - "src/app/**/actions.ts"
+        - "src/app/**/route.ts"
+
+  - id: matchboard-unsafe-raw-sql
+    patterns:
+      - pattern-either:
+          - pattern: "$DB.$queryRawUnsafe(...)"
+          - pattern: "$DB.$executeRawUnsafe(...)"
+    message: >
+      Unsafe raw SQL method detected. $queryRawUnsafe and $executeRawUnsafe are
+      forbidden in application code per AGENTS.md security rules. Use parameterized
+      $queryRaw or $executeRaw with tagged template literals instead.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include:
+        - "src/**"
+
+  - id: matchboard-auth-secret-in-frontend
+    patterns:
+      - pattern: "process.env.NEXT_PUBLIC_AUTH_SECRET"
+      - pattern-not: "process.env.NEXT_PUBLIC_AUTH_SECRET === undefined"
+    message: >
+      AUTH_SECRET must never be exposed as NEXT_PUBLIC_.
+      It must only be accessed server-side without the NEXT_PUBLIC_ prefix.
+    severity: ERROR
+    languages: [typescript]
+
+  - id: matchboard-database-url-in-frontend
+    patterns:
+      - pattern: "process.env.NEXT_PUBLIC_DATABASE_URL"
+    message: >
+      DATABASE_URL must never be exposed as NEXT_PUBLIC_.
+      It contains connection credentials and must only be accessed server-side.
+    severity: ERROR
+    languages: [typescript]
+
+  - id: matchboard-object-id-without-auth-check
+    patterns:
+      - pattern: |
+          await db.$MODEL.findUnique({ where: { id: $ID } })
+      - pattern-not-inside: |
+          requireCoachAccess()
+      - pattern-not-inside: |
+          requireActorContext()
+      - pattern-not-inside: |
+          requireTeamAccess(...)
+      - pattern-not-inside: |
+          requireMutationRole(...)
+    message: >
+      Prisma findUnique by ID may be missing authorization context.
+      Ensure object IDs are validated through organisation/team membership
+      before returning data. Use requireCoachAccess/requireActorContext/requireTeamAccess.
+    severity: WARNING
+    languages: [typescript]
+    paths:
+      include:
+        - "src/app/**"
+        - "src/lib/**"
+
+  - id: matchboard-player-name-in-assistant-payload
+    patterns:
+      - pattern-either:
+          - pattern: "playerName: $PLAYER.firstName"
+          - pattern: "playerName: `$${$PLAYER.firstName} $${$PLAYER.lastName}`"
+    message: >
+      Player names must not be stored in assistant issues, explanations,
+      recommendations, decision records, or cross-team impact payloads.
+      Use stable player IDs only.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include:
+        - "src/lib/assistant/**"
+        - "src/lib/selection/**"
+
+  - id: matchboard-next-public-secret-env
+    patterns:
+      - pattern-regex: "NEXT_PUBLIC_(AUTH_SECRET|DATABASE_URL|DIRECT_URL|GOOGLE_SECRET|BREVO_API_KEY)"
+    message: >
+      Sensitive environment variables must never be prefixed with NEXT_PUBLIC_.
+      This would expose them to the browser. Keep secrets server-side only.
+    severity: ERROR
+    languages: [typescript]

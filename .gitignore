@@ -75,3 +75,7 @@ pnpm-workspace.yaml
 
 # Local task plans
 tasks/
+
+# Security tool generated results (never commit scanner output)
+.security/results/
+.security/tmp/

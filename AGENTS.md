@@ -90,6 +90,31 @@ Before adding or changing an operation, determine and verify:
 - Ordinary users cannot be restricted by IP, VPN or country as a normal access model.
 - Visible friction is reserved for high-risk privileged operations.
 
+### Security engineering programme
+
+Matchboard has a local security engineering workflow: find → triage → verify → reproduce → regression test → fix → rescan.
+
+Available commands:
+- `pnpm security:tools` — verify required tools and versions
+- `pnpm security:semgrep` — run SAST with custom Matchboard rules
+- `pnpm security:deps` — run OSV dependency vulnerability scan
+- `pnpm security:secrets` — run Gitleaks secret detection
+- `pnpm security:authz` — run Matchboard authorization security test suite
+- `pnpm security:static` — run all non-runtime security scanners
+- `pnpm security:dast:baseline` — passive ZAP scan (safe)
+- `pnpm security:dast:active` — active ZAP scan (requires opt-in, isolated env)
+- `pnpm security:review` — run full non-destructive security review
+
+Rules:
+- A scanner finding is evidence, not proof. Do not modify code merely to silence scanners.
+- Credible findings must be reproduced, regression-tested, and verified.
+- Never run active security scans against production (app.matchboard.football).
+- Active DAST requires explicit opt-in and an isolated Neon security branch.
+- Never commit generated security reports (SARIF, ZAP output, etc.) to the repository.
+- Never commit real credentials or exploit artifacts.
+- CodeQL is excluded because Matchboard's ELv2 license is not OSI Open Source. Do not add CodeQL unless entitlement is confirmed.
+- See SECURITY.md for full documentation.
+
 ### Security finding, ARR and ADR boundaries
 
 - Security finding: a specific vulnerability or failed control.
