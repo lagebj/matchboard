@@ -69,3 +69,9 @@ npm-debug.log*
 pnpm-lock.yaml
 pnpm-workspace.yaml
 .matchboard-work/
+
+# Local package store
+.pnpm-store/
+
+# Local task plans
+tasks/

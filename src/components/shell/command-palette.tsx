@@ -7,15 +7,11 @@ import {
   Search,
   Users,
   Trophy,
-  Calendar,
-  Flag,
-  Settings,
   Plus,
   LayoutDashboard,
   ArrowRight,
   Command,
   Building2,
-  FlaskConical,
   Wrench,
 } from "lucide-react";
 import { useOrgSlug } from "@/components/shell/org-slug-context";
@@ -51,14 +47,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   switch: <Building2 className="h-4 w-4" />,
   admin: <Wrench className="h-4 w-4" />,
   search: <Search className="h-4 w-4" />,
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  navigate: "Navigate",
-  create: "Create",
-  switch: "Switch organisation",
-  admin: "Admin",
-  search: "Search",
 };
 
 type SearchResult = {

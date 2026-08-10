@@ -3,6 +3,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 
 let testDb: PrismaClient;
+let fixtureIds: TestFixtureIds;
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -18,6 +19,12 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue({ value: "test-org" }),
+  }),
+}));
+
 vi.mock("@/auth", () => ({
   auth: vi.fn(),
   signIn: vi.fn(),
@@ -28,13 +35,31 @@ vi.mock("@/auth", () => ({
   isAllowedCoach: vi.fn().mockReturnValue(true),
 }));
 
+vi.mock("@/lib/auth/actor-context", () => ({
+  requireActorContext: vi.fn().mockImplementation(() => {
+    if (!fixtureIds) throw new Error("Fixture not initialized");
+    return Promise.resolve({
+      userId: "test-coach",
+      email: "test@example.com",
+      membershipId: "test-membership",
+      organisationId: fixtureIds.organisationId,
+      organisationSlug: "test-org",
+      role: "COACH",
+      accessibleGroupIds: [fixtureIds.footballGroupId],
+      groupAccesses: [{ footballGroupId: fixtureIds.footballGroupId, role: "GROUP_COACH" }],
+      orgFilter: { type: "org", filter: { organisationId: fixtureIds.organisationId }, filterNullable: { organisationId: fixtureIds.organisationId }, organisationId: fixtureIds.organisationId },
+    });
+  }),
+  requireMutationRole: vi.fn().mockImplementation((ctx: unknown) => ctx),
+  requireTeamAccess: vi.fn().mockImplementation((ctx: unknown) => ctx),
+  requireMatchTeamAccess: vi.fn().mockResolvedValue(null),
+}));
+
 function isRedirectError(error: unknown): boolean {
   return error instanceof Error && error.message === "NEXT_REDIRECT";
 }
 
 describe("Rotation path server actions", () => {
-  let fixtureIds: TestFixtureIds;
-
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixtureIds = await seedTestFixture(testDb, {

@@ -23,7 +23,6 @@ import {
   ArrowRight,
   ShieldAlert,
   Eye,
-  MessageSquareWarning,
 } from "lucide-react";
 
 /**

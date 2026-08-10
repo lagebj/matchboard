@@ -26,7 +26,6 @@ interface LiveMatchClientProps {
     teamId: string;
     roundName: string | null;
   };
-  coachId: string;
 }
 
 function createLeagueActions(matchId: string): LiveMatchActions {
@@ -79,7 +78,7 @@ function createLeagueActions(matchId: string): LiveMatchActions {
   };
 }
 
-export function LeagueLiveMatchClient({ matchId, matchInfo, coachId }: LiveMatchClientProps) {
+export function LeagueLiveMatchClient({ matchId, matchInfo }: LiveMatchClientProps) {
   const leagueActions = createLeagueActions(matchId);
 
   return (
@@ -90,7 +89,6 @@ export function LeagueLiveMatchClient({ matchId, matchInfo, coachId }: LiveMatch
       contextLabel={matchInfo.roundName}
       periodConfig={LEAGUE_PERIOD_CONFIG}
       actions={leagueActions}
-      coachId={coachId}
     />
   );
 }

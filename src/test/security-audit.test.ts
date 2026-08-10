@@ -173,6 +173,9 @@ describe("Security audit: forbidden SQL methods", () => {
     // Prisma's tagged template $executeRaw does not support parameterised values
     // in SET commands (PostgreSQL syntax error at "$1").
     "src/lib/tenancy/tenant-client.ts",
+    // Test mock: db mock includes $executeRawUnsafe and $transaction for Prisma client
+    // interface compliance in group-context authorization tests.
+    "src/lib/auth/__tests__/group-context.test.ts",
   ];
 
   it("application code must not use $queryRawUnsafe or $executeRawUnsafe except in allowed files", async () => {

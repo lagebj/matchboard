@@ -1,66 +1,65 @@
 # Navigation Model
 
-## Product intent
-
-Matchboard should have one coherent operational path for coaches. Menu labels must match the user's mental model and must not redirect to unrelated concepts.
+> **Status:** This document is a historical product framing reference. The canonical navigation model is defined in `AGENTS.md`.
 
 ## Primary navigation
 
-Use these primary entries:
+The canonical primary navigation (from AGENTS.md) has four items in this order:
 
-- **Assistant** `/assistant`
-- **Fixtures** `/fixtures`
-- **Teams** `/teams`
-- **Players** `/players`
+1. **Assistant** (`/o/{orgSlug}/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work
+2. **Fixtures** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions
+3. **Teams** (`/o/{orgSlug}/teams`) — team registry and access to team detail
+4. **Players** (`/o/{orgSlug}/players`) — season participation, current planning attention, and base-group administration
 
-Remove from primary left menu:
+## Canonical redirects
 
-- **Today** — replaced by Assistant
-- **Matches** — was a redirect to Rounds, now replaced by Fixtures
-- **Rounds** — remains as an internal route for round review, not a primary navigation entry
-- **Rules** — merged into Team Configuration
-- **Season** — demoted to Reports if Reports is added, otherwise accessible from Fixtures
+- `/` → `/o/{orgSlug}/assistant` (resolves orgSlug from session)
+- `/today` → `/o/{orgSlug}/assistant`
+- `/matches` → `/o/{orgSlug}/fixtures`
+- Global routes redirect to `/o/{orgSlug}/` equivalents
 
-## Assistant
+## Not primary navigation
 
-Assistant is the default workflow surface. It replaces Today.
+The following must not be primary sidebar items:
+- `/o/{orgSlug}/rounds`
+- `/o/{orgSlug}/matches`
+- `/o/{orgSlug}/season`
+- `/o/{orgSlug}/history`
+- `/o/{orgSlug}/rules`
 
-- `/assistant` is the default landing page.
-- `/` (root) redirects to `/assistant`.
-- `/today` redirects to `/assistant`.
-- The Assistant page shows the issue inbox and workflow guidance.
+These remain accessible through contextually appropriate links, buttons, tabs, or secondary navigation.
 
 ## Fixtures
 
-Fixtures is the one-stop shop for periods, rounds, and matches.
-
-- `/fixtures` shows matches grouped by planning period and round.
-- Coaches operate auto-selection at round level, but they must see individual matches in a grouped fixture list.
-- Round-level actions (generate, review, finalize) link to `/rounds/[roundId]/review`.
-- Match-level actions (review, post-match) link to `/matches/[matchId]/review` and `/matches/[matchId]/post-match`.
-
-## Teams
-
-Teams is the home for team setup, squad configuration, and rule configuration.
-
-- `/teams` lists teams with "Configure" and "Review" actions.
-- `/teams/[teamId]/configuration` is the Team Configuration page.
-- `/teams/[teamId]/review` remains for team readiness review.
-- Rules are surfaced through Team Configuration, not a separate nav item.
+Fixtures provides the league-season and round hierarchy. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade.
 
 ## Players
 
-Players is the team assignment board.
+The Players page has three internal modes:
+1. **Season overview** (default) — factual player matrix with actual participation and recorded match statistics
+2. **Current round attention** — canonical live plan-integrity state for a selected round
+3. **Manage base groups** — stable core-team assignment and player registry administration
 
-- `/players` shows a drag-and-drop board with columns per team plus Unassigned.
-- Dropping a player persists the assignment to the backend.
-- Player cards show ID, name, position, and open issue count.
-- No ability scores, ranking, best-XI language, weak/strong labels, or judgement wording.
+Players is not a drag-and-drop board. It is a table-first registry with actionable empty states.
+
+## Teams
+
+Teams is a selected-league-season completed-results overview. Team rules, squad limits, support priority, and rotation paths belong in team detail (`/teams/[teamId]`), not in the main overview table.
 
 ## No duplicate paths
 
-Do not create multiple left-menu choices that point to the same concept under different names.
+- `/matches` redirects to `/o/{orgSlug}/fixtures`, not `/rounds`
+- `/rounds` works internally but is not a primary navigation entry
+- `/rules` works internally but is not a primary navigation entry
 
-- `/matches` redirects to `/fixtures`, not `/rounds`.
-- `/rounds` works internally but is not a primary navigation entry.
-- `/rules` works internally but is not a primary navigation entry.
+## Active navigation state
+
+- `/o/{orgSlug}/assistant` visibly activates Assistant
+- `/o/{orgSlug}/fixtures` and fixture child/detail contexts visibly activate Fixtures
+- `/o/{orgSlug}/teams` and `/o/{orgSlug}/teams/[teamId]` contexts visibly activate Teams
+- `/o/{orgSlug}/players` and `/o/{orgSlug}/players/[playerId]` contexts visibly activate Players
+- Redirected routes do not produce an unselected or misleading sidebar state
+
+## Status vocabulary
+
+The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.

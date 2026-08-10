@@ -1,7 +1,59 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn(),
+vi.mock("@/lib/auth", () => {
+  class AuthorizationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = "AuthorizationError";
+    }
+  }
+  return { AuthorizationError, requireCoachAccess: vi.fn() };
+});
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue({ value: "test-org" }),
+  }),
+}));
+
+vi.mock("@/lib/auth/actor-context", () => ({
+  requireActorContext: vi.fn().mockResolvedValue({
+    userId: "test-user",
+    email: "test@example.com",
+    membershipId: "mem-1",
+    organisationId: "org-1",
+    organisationSlug: "test-org",
+    role: "COACH",
+    accessibleGroupIds: ["group-1"],
+    groupAccesses: [{ footballGroupId: "group-1", role: "GROUP_COACH" }],
+    orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
+  }),
+  requireMutationRole: vi.fn().mockResolvedValue({
+    userId: "test-user",
+    email: "test@example.com",
+    membershipId: "mem-1",
+    organisationId: "org-1",
+    organisationSlug: "test-org",
+    role: "COACH",
+    accessibleGroupIds: ["group-1"],
+    groupAccesses: [{ footballGroupId: "group-1", role: "GROUP_COACH" }],
+    orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
+  }),
+  requireMatchTeamAccess: vi.fn().mockResolvedValue({
+    userId: "test-user",
+    email: "test@example.com",
+    membershipId: "mem-1",
+    organisationId: "org-1",
+    organisationSlug: "test-org",
+    role: "COACH",
+    accessibleGroupIds: ["group-1"],
+    groupAccesses: [{ footballGroupId: "group-1", role: "GROUP_COACH" }],
+    orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
+  }),
 }));
 
 vi.mock("next/cache", () => ({
@@ -37,7 +89,7 @@ describe("updateMatchAction automatic round placement", () => {
 
     vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
     vi.mocked(isSameIsoWeek).mockReturnValue(false);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-27T15:00:00Z"),
       matchRoundId: "r1",
@@ -47,7 +99,7 @@ describe("updateMatchAction automatic round placement", () => {
         leagueSeasonId: "p1",
         leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
     vi.spyOn(db.selection, "findFirst").mockResolvedValue(null);
 
@@ -59,7 +111,7 @@ describe("updateMatchAction automatic round placement", () => {
     const { db } = await import("@/lib/db");
 
     vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
       matchRoundId: "r1",
@@ -69,7 +121,7 @@ describe("updateMatchAction automatic round placement", () => {
         leagueSeasonId: "p1",
         leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
     vi.spyOn(db.match, "update").mockResolvedValue({ id: "m1" } as unknown as Awaited<ReturnType<typeof db.match.update>>);
 
@@ -184,7 +236,7 @@ describe("updateMatchAction automatic round placement", () => {
     const { db } = await import("@/lib/db");
 
     vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-27T15:00:00Z"),
       matchRoundId: "r1",
@@ -194,7 +246,7 @@ describe("updateMatchAction automatic round placement", () => {
         leagueSeasonId: "p1",
         leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue({
       id: "pm1",
       status: "LOCKED",
@@ -215,7 +267,7 @@ describe("updateMatchAction automatic round placement", () => {
     const { db } = await import("@/lib/db");
 
     vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-27T15:00:00Z"),
       matchRoundId: "r1",
@@ -225,7 +277,7 @@ describe("updateMatchAction automatic round placement", () => {
         leagueSeasonId: "p1",
         leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");

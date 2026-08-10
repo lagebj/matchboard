@@ -54,7 +54,6 @@ export default async function EventLiveMatchPage({ params }: EventLiveMatchPageP
       opponentName={match.opponentName}
       eventName={match.event.name}
       matchDurationMinutes={match.event.matchDurationMinutes}
-      coachId={ctx.userId}
       eventId={eventId}
     />
   );

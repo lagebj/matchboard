@@ -1,8 +1,10 @@
 # Threat Model — Matchboard
 
-Version: 1.0
-Date: 2026-07-29
-Status: Active
+Version: 1.1
+Date: 2026-08-10
+Status: Active (partially updated — resolved gaps marked)
+
+> **Note:** Several gaps identified in version 1.0 have been resolved since the initial assessment. Resolved gaps are noted inline. The gap classification table (Section 7) has been updated with resolution status where applicable.
 Owner: Matchboard security programme
 
 ## 1. Purpose
@@ -104,9 +106,9 @@ This document describes the threat model for Matchboard as a hosted web applicat
 |---------|--------|----------|
 | `requireCoachAccess()` on all server actions | Active | `src/lib/auth.ts` |
 | `requireCoachAccess()` on most API routes | Active | Various route files |
-| `/api/admin/policy` has no auth | **Gap** | `src/app/api/admin/policy/route.ts` |
-| No resource-level authorization (IDOR) | **Gap** | All data access |
-| No role granularity (COACH/ADMIN/OWNER/VIEWER) | **Gap** | All data access |
+| `/api/admin/policy` has auth | **Resolved** (G-01) | `src/app/api/admin/policy/route.ts` |
+| Organisation-scoped resource authorization (IDOR) | **Resolved** — org membership + query filters | ADR-0036, ADR-0057 |
+| Role granularity (OWNER/ADMIN/COACH/VIEWER/SUPPORT) | **Resolved** | ADR-0035 |
 
 ### 6.3 Input Validation
 
@@ -115,7 +117,7 @@ This document describes the threat model for Matchboard as a hosted web applicat
 | Manual validation in API routes | Partial | Various route files |
 | Manual validation in server actions | Partial | Various action files |
 | Observation content validation (email/phone/URL rejection) | Active | `src/lib/opponents/validate-observation.ts` |
-| No central schema validation (Zod or equivalent) | **Gap** | All inputs |
+| Zod schema validation on mutations | **Partially Resolved** — Zod now used on many mutations | Various action files |
 | No request body size limits | **Gap** | API routes |
 
 ### 6.4 Output and Browser
@@ -183,14 +185,14 @@ This document describes the threat model for Matchboard as a hosted web applicat
 
 | Gap ID | Category | Classification | Notes |
 |--------|----------|----------------|-------|
-| G-01 | Auth: `/api/admin/policy` missing auth | Code work | Add `requireCoachAccess()` |
-| G-02 | Auth: `event-squad-commit-actions.ts` missing `"use server"` | Code work | Add directive |
-| G-03 | Auth: No resource-level authorization (IDOR) | Code work (multitenancy) | Requires organisation membership model |
-| G-04 | Auth: No role granularity | Code work (multitenancy) | Requires OWNER/ADMIN/COACH/VIEWER roles |
+| G-01 | Auth: `/api/admin/policy` missing auth | **Resolved** | Added `requireCoachAccess()` |
+| G-02 | Auth: `event-squad-commit-actions.ts` missing `"use server"` | **Resolved** | Added directive |
+| G-03 | Auth: No resource-level authorization (IDOR) | **Resolved** — org membership + query filters | ADR-0036, ADR-0057 |
+| G-04 | Auth: No role granularity | **Resolved** | OWNER/ADMIN/COACH/VIEWER/SUPPORT roles |
 | G-05 | Auth: Edge auth duplicates allowlist logic | Code work | Extract shared module |
 | G-06 | Headers: No CSP | Code work | Deploy report-only first, then enforce |
 | G-07 | Headers: No security headers (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy, Permissions-Policy) | Code work | Add Next.js headers config or middleware |
-| G-08 | Validation: No central schema validation library | Code work | Introduce Zod |
+| G-08 | Validation: No central schema validation library | **Partially Resolved** — Zod on mutations | Continue expanding Zod coverage |
 | G-09 | Validation: No CSV formula injection prevention | Code work | Escape formula prefixes in exports |
 | G-10 | Rate Limit: Non-functional on serverless | ADR (defer Redis) | Document compensating controls |
 | G-11 | Rate Limit: Not per-user | Code work | Requires user identity in rate limit key |
@@ -217,7 +219,5 @@ This threat model must be updated when:
 
 ## 9. References
 
-- OWASP ASVS 5.0.0 Level 2 (see ASVS applicability matrix)
-- Matchboard security hardening specification (`.matchboard-work/specifications/matchboard-security-hardening-spec.md`)
-- Matchboard multitenancy specification (`.matchboard-work/specifications/matchboard-multitenancy-spec.md`)
+- OWASP ASVS 5.0.0 Level 2 (see ASVS applicability matrix at `docs/security/asvs-matrix.md`)
 - Existing ADRs in `docs/adr/`

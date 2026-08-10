@@ -120,7 +120,7 @@ export async function rotateMachinePrincipalSecretAction(
 }
 
 export async function listMachinePrincipalsAction(organisationSlug: string) {
-  const coach = await requireCoachAccess();
+  const _coach = await requireCoachAccess();
 
   const ctx = await resolveOrganisationOwner(organisationSlug);
 

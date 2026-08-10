@@ -6,7 +6,6 @@ import {
   type OpponentSportingEstimate,
   type OpponentEncounterAssessment,
   buildOpponentEstimate,
-  validateSportingLevel,
 } from "@/lib/opponent/opponent-estimate";
 
 export async function getOpponentSportingEstimate(

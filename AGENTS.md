@@ -2172,3 +2172,7 @@ Check for: meaningful files not tracked, generated junk accidentally tracked, lo
 8. Ensure no local/generated junk is committed.
 9. Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 10. Report what changed and what was cleaned up.
+
+### README maintenance
+
+The root README is part of the definition of done. Before completing any implementation task, compare the resulting application, architecture, development workflow, deployment model and supported operations against `README.md`. Update it whenever the implementation changes what is currently true. Never leave README describing superseded behavior as current behavior.

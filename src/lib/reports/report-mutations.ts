@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason } from "@/generated/prisma/client";
 import {
   VALID_UNPLANNED_APPEARANCE_REASONS,
-  VALID_PLANNED_ABSENCE_REASONS,
   DEFAULT_GOAL_TYPE,
   DEFAULT_ASSIST_TYPE,
   canTransitionTo,

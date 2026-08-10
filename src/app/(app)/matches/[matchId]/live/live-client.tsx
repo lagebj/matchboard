@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { MatchPeriod } from "@/lib/live-match/live-match-types";
 import {
   GOAL_DETAIL_INACTIVITY_TIMEOUT_MS,
-  MATCH_PERIOD_ORDER,
 } from "@/lib/live-match/live-match-types";
 import {
   createInitialClockState,
@@ -49,7 +47,6 @@ interface SquadPlayer {
 interface LiveMatchClientProps {
   matchId: string;
   matchInfo: MatchInfo;
-  coachId: string;
 }
 
 const FAIR_PLAY_POSITIVE_CATEGORIES = [
@@ -73,7 +70,7 @@ const FAIR_PLAY_CONCERN_CATEGORIES = [
 type GoalFlowStep = "idle" | "scorer_select" | "assist_select";
 type FairPlayFlowStep = "idle" | "player_select" | "category_select";
 
-export function LiveMatchClient({ matchId, matchInfo, coachId }: LiveMatchClientProps) {
+export function LiveMatchClient({ matchId, matchInfo }: LiveMatchClientProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -275,13 +272,7 @@ export function LiveMatchClient({ matchId, matchInfo, coachId }: LiveMatchClient
     setFairPlayFlow("player_select");
   }, []);
 
-  const handleFairPlayPlayer = useCallback(
-    (playerId: string | null) => {
-      setFairPlayPlayerId(playerId);
-      setFairPlayFlow("category_select");
-    },
-    [],
-  );
+
 
   const handleFairPlayCategory = useCallback(
     (category: string) => {

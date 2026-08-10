@@ -116,7 +116,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+  const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -185,7 +185,7 @@ export async function deleteEventMatchAction(eventMatchId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+  const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -208,7 +208,7 @@ export async function cancelEventMatchAction(eventMatchId: string, reason?: stri
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+  const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -249,7 +249,7 @@ export async function reopenEventMatchAction(eventMatchId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+  const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');

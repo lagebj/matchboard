@@ -56,8 +56,8 @@ describe("organisation-invitation", () => {
     });
 
     it("rejects when active invitation already exists", async () => {
-      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as any);
-      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({ id: "inv1" } as any);
+      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findUnique>>);
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({ id: "inv1" } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
       const result = await createInvitation({
         organisationId: "org1",
         invitedEmail: "new@example.com",
@@ -70,9 +70,9 @@ describe("organisation-invitation", () => {
     });
 
     it("rejects when user is already a member", async () => {
-      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as any);
+      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findUnique>>);
       vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
-      vi.mocked(db.organisationMembership.findFirst).mockResolvedValue({ id: "mem2" } as any);
+      vi.mocked(db.organisationMembership.findFirst).mockResolvedValue({ id: "mem2" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findFirst>>);
       const result = await createInvitation({
         organisationId: "org1",
         invitedEmail: "existing@example.com",
@@ -85,10 +85,10 @@ describe("organisation-invitation", () => {
     });
 
     it("creates invitation when valid", async () => {
-      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as any);
+      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findUnique>>);
       vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
       vi.mocked(db.organisationMembership.findFirst).mockResolvedValue(null);
-      vi.mocked(db.organisationInvitation.create).mockResolvedValue({ id: "inv-new" } as any);
+      vi.mocked(db.organisationInvitation.create).mockResolvedValue({ id: "inv-new" } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.create>>);
       const result = await createInvitation({
         organisationId: "org1",
         invitedEmail: "new@example.com",
@@ -116,12 +116,12 @@ describe("organisation-invitation", () => {
     it("rejects when invitation is already accepted", async () => {
       vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
         id: "inv1",
-        status: "ACCEPTED",
+        status: "ACCEPTED" as const,
         invitedEmail: "new@example.com",
-        intendedRole: "COACH",
+        intendedRole: "COACH" as const,
         organisationId: "org1",
         expiresAt: new Date(Date.now() + 86400000),
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
       const result = await acceptInvitation({
         token: "token1",
         userId: "user1",
@@ -134,12 +134,12 @@ describe("organisation-invitation", () => {
     it("rejects when email does not match", async () => {
       vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
         id: "inv1",
-        status: "PENDING",
+        status: "PENDING" as const,
         invitedEmail: "correct@example.com",
-        intendedRole: "COACH",
+        intendedRole: "COACH" as const,
         organisationId: "org1",
         expiresAt: new Date(Date.now() + 86400000),
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
       const result = await acceptInvitation({
         token: "token1",
         userId: "user1",
@@ -163,8 +163,8 @@ describe("organisation-invitation", () => {
     it("rejects when invitation is not PENDING", async () => {
       vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
         id: "inv1",
-        status: "ACCEPTED",
-      } as any);
+        status: "ACCEPTED" as const,
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
       const result = await revokeInvitation({
         invitationId: "inv1",
         revokerRole: "OWNER",
@@ -176,9 +176,9 @@ describe("organisation-invitation", () => {
     it("revokes a PENDING invitation", async () => {
       vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
         id: "inv1",
-        status: "PENDING",
-      } as any);
-      vi.mocked(db.organisationInvitation.update).mockResolvedValue({ id: "inv1" } as any);
+        status: "PENDING" as const,
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      vi.mocked(db.organisationInvitation.update).mockResolvedValue({ id: "inv1" } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.update>>);
       const result = await revokeInvitation({
         invitationId: "inv1",
         revokerRole: "OWNER",

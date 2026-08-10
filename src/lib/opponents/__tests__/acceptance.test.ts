@@ -4,11 +4,9 @@ import {
   computeFieldedRating,
   shouldAutoExcludeEncounter,
   FORMULA_VERSION,
-  ESTIMATE_MIN_10,
-  ESTIMATE_MAX_10,
   ADJUSTMENT_CAP_10,
 } from "../sporting-level-calculation";
-import { aggregateSportingLevel, classifyConfidence, recencyWeight } from "../sporting-level-aggregation";
+import { aggregateSportingLevel, classifyConfidence } from "../sporting-level-aggregation";
 import { evaluateAttributeEvidence } from "../../player-development/evidence";
 import { isParentExcludedField } from "../../export/parent-safe-filter";
 import type { OpponentSportingEvidence } from "@/generated/prisma/client";

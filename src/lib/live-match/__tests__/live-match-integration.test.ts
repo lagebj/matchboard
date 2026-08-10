@@ -5,9 +5,9 @@ import type { TestFixtureIds } from "@/test/test-db";
 import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession } from "../live-match-session";
 import { recordEvent, getMatchEvents, getRecentEvents } from "../live-match-event-store";
 import { validateLiveEventInput, isValidEventType, isGoalEventType, isPeriodTransition } from "../live-match-domain";
+import type { LiveMatchEventType } from "@/generated/prisma/client";
 import {
   createInitialClockState,
-  getElapsedMs,
   formatElapsedMs,
   advancePeriod,
   pauseClock,
@@ -191,7 +191,7 @@ describe("Live match domain validation", () => {
   it("validates required fields", () => {
     expect(validateLiveEventInput({ matchId: "", sessionId: "s1", eventType: "GOAL_FOR", clientEventId: "c1" })).toBe("matchId is required");
     expect(validateLiveEventInput({ matchId: "m1", sessionId: "", eventType: "GOAL_FOR", clientEventId: "c1" })).toBe("sessionId is required");
-    expect(validateLiveEventInput({ matchId: "m1", sessionId: "s1", eventType: "" as any, clientEventId: "c1" })).toBe("eventType is required");
+    expect(validateLiveEventInput({ matchId: "m1", sessionId: "s1", eventType: "" as LiveMatchEventType, clientEventId: "c1" })).toBe("eventType is required");
     expect(validateLiveEventInput({ matchId: "m1", sessionId: "s1", eventType: "GOAL_FOR", clientEventId: "" })).toBe("clientEventId is required");
   });
 

@@ -10,6 +10,16 @@ vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue({ value: "test-org" }),
+  }),
+}));
+
 beforeAll(async () => {
   testDb = await setupTestDb();
   fixture = await seedTestFixture(testDb);
@@ -189,6 +199,9 @@ describe("League season finalization", () => {
   });
 
   it("snapshot is recreated correctly after unfinalize and re-finalize", async () => {
+    const unfinalizePrep = await unfinalizeLeagueSeason(fixture.leagueSeasonId);
+    expect(unfinalizePrep.success).toBe(true);
+
     const result1 = await finalizeLeagueSeason(fixture.leagueSeasonId);
     expect(result1.success).toBe(true);
 
@@ -207,7 +220,7 @@ describe("League season finalization", () => {
     });
 
     expect(snapshot2.id).not.toBe(snapshot1.id);
-    expect(snapshot2.finalizedAt.getTime()).toBeGreaterThanOrEqual(snapshot1.finalizedAt.getTime());
+    expect(snapshot2.finalizedAt!.getTime()).toBeGreaterThanOrEqual(snapshot1.finalizedAt!.getTime());
   });
 
   it("validateLeagueSeasonFinalization returns errors for non-finalized rounds", async () => {

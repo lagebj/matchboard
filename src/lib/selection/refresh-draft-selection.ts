@@ -48,7 +48,7 @@ async function cloneDraftSelection(matchId: string) {
     throw new Error("Draft selection not found.");
   }
 
-  const matchRoundId = latestSelections[0]!.matchRoundId;
+  const _matchRoundId = latestSelections[0]!.matchRoundId;
 
   const existingDraftPlayerIds = new Set(latestSelections.map((s) => s.playerId));
 

@@ -38,7 +38,7 @@ export class BrevoEmailProvider implements TransactionalEmailProvider {
     }
 
     try {
-      const response = await this.client.transactionalEmails.sendTransacEmail(emailRequest as any);
+      const response = await this.client.transactionalEmails.sendTransacEmail(emailRequest as Parameters<typeof this.client.transactionalEmails.sendTransacEmail>[0]);
 
       const messageId = response?.messageId;
       if (!messageId) {

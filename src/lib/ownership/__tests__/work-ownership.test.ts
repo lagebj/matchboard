@@ -162,7 +162,7 @@ describe("work-ownership handover atomicity", () => {
       return fn(tx);
     });
 
-    const result = await handoverWorkOwnership({
+    const _result = await handoverWorkOwnership({
       ownershipId: "own-1",
       newOwnerMembershipId: "mem-2",
       assignedByMembershipId: "mem-admin",
@@ -244,7 +244,7 @@ describe("assignWorkOwnership duplicate prevention", () => {
       status: "ACTIVE",
     });
 
-    const result = await assignWorkOwnership({
+    const _result = await assignWorkOwnership({
       organisationId: "org-1",
       targetType: "EVENT_SQUAD_PREPARATION",
       targetId: "target-1",

@@ -15,7 +15,7 @@ import {
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
 import { enqueueNotification, sendNotificationNow } from "@/lib/email/outbox";
 import { db } from "@/lib/db";
-import type { OrganisationRole } from "@/generated/prisma/client";
+import type { OrganisationRole, PrismaClient } from "@/generated/prisma/client";
 
 const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER", "SUPPORT"]);
 
@@ -77,7 +77,6 @@ export async function createInvitationAction(
   }
 
   let invitationId = "";
-  let invitationToken = "";
   let outboxId = "";
 
   try {
@@ -90,7 +89,7 @@ export async function createInvitationAction(
           invitedByUserId: ctx.userId,
           inviterRole: ctx.role,
         },
-        tx as any,
+        tx as unknown as PrismaClient,
       );
 
       if (!result.success) {
@@ -98,7 +97,7 @@ export async function createInvitationAction(
       }
 
       invitationId = result.invitationId;
-      invitationToken = result.token ?? "";
+
 
       const notificationId = await enqueueNotification(
         {
@@ -116,14 +115,14 @@ export async function createInvitationAction(
           },
           recipientEmail: trimmedEmail,
         },
-        tx as any,
+        tx as unknown as PrismaClient,
       );
 
       outboxId = notificationId;
     });
-  } catch (err: any) {
-    logOrganisationInvitationCreate(ctx.userEmail, ctx.organisationId, "failure", err.message || "Unknown error");
-    return { success: false as const, error: err.message || "Failed to create invitation." };
+  } catch (err: unknown) {
+    logOrganisationInvitationCreate(ctx.userEmail, ctx.organisationId, "failure", err instanceof Error ? err.message : "Unknown error");
+    return { success: false as const, error: err instanceof Error ? err.message : "Failed to create invitation." };
   }
 
   logOrganisationInvitationCreate(ctx.userEmail, ctx.organisationId, "success");

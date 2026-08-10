@@ -22,23 +22,24 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 async function createTestRound(testDb: PrismaClient) {
+  const suffix = Date.now() + Math.random().toString(36).slice(2, 6);
   const season = await testDb.season.create({
-    data: { name: "Test Season 2026", year: 2026 , organisationId: testOrgId, footballGroupId: testGroupId },
+    data: { name: `Test Season ${suffix}`, year: 2026, organisationId: testOrgId },
   });
   const leagueSeason = await testDb.leagueSeason.create({
     data: {
-      name: "Spring 2026",
+      name: `Spring ${suffix}`,
       part: "SPRING",
       startDate: new Date("2026-04-01"),
       endDate: new Date("2026-09-30"),
       seasonId: season.id,
       organisationId: testOrgId,
-        footballGroupId: testGroupId,
+      footballGroupId: testGroupId,
     },
   });
   const round = await testDb.matchRound.create({
     data: {
-      name: "W1",
+      name: `W1-${suffix}`,
       leagueSeasonId: leagueSeason.id,
       status: "DRAFT",
       organisationId: testOrgId,
@@ -102,7 +103,7 @@ describe("Opponent resolution on report completion", () => {
         data: { name: "Reuse Test Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Existing FC", normalizedName: "existing fc" , organisationId: testOrgId, footballGroupId: testGroupId },
+        data: { displayName: "Existing FC", normalizedName: "existing fc", organisationId: testOrgId },
       });
 
       const match = await testDb.match.create({
@@ -136,7 +137,7 @@ describe("Opponent resolution on report completion", () => {
         data: { name: "Already Linked Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Already Linked FC", normalizedName: "already linked fc" , organisationId: testOrgId, footballGroupId: testGroupId },
+        data: { displayName: "Already Linked FC", normalizedName: "already linked fc", organisationId: testOrgId },
       });
 
       const match = await testDb.match.create({
@@ -217,7 +218,7 @@ describe("Opponent resolution on report completion", () => {
         data: { name: "No Fuzzy Team", targetSquadSize: 11, minAcceptedSquadSize: 9, maxSquadSize: 14, supportPriority: 1 , organisationId: testOrgId, footballGroupId: testGroupId },
       });
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Slemmestad Blå", normalizedName: "slemmestad blå" , organisationId: testOrgId, footballGroupId: testGroupId },
+        data: { displayName: "Slemmestad Blå", normalizedName: "slemmestad blå", organisationId: testOrgId },
       });
 
       const match = await testDb.match.create({
@@ -301,7 +302,7 @@ describe("Opponent resolution on report completion", () => {
 
     it("keeps existing opponentTeamId if already set", async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: "Linked Event FC", normalizedName: "linked event fc" , organisationId: testOrgId, footballGroupId: testGroupId },
+        data: { displayName: "Linked Event FC", normalizedName: "linked event fc", organisationId: testOrgId },
       });
       const event = await testDb.event.create({
         data: {

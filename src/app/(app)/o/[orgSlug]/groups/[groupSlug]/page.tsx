@@ -11,7 +11,7 @@ export default async function GroupDetailPage({
   params: Promise<{ orgSlug: string; groupSlug: string }>;
 }) {
   const { orgSlug, groupSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  await requireActorContext(orgSlug);
   const group = await getGroupDetailAction(groupSlug);
 
   if (!group) {

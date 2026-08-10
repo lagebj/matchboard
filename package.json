@@ -22,7 +22,7 @@
     "db:seed:demo": "node prisma/seed-demo.cjs",
     "db:export": "npx tsx scripts/export-full-app-state.ts",
     "db:import": "npx tsx scripts/import-full-app-state.ts",
-    "db:migrate-sqlite": "SQLITE_DATABASE_URL=\"file:./prisma/matchboard.local.db\" npx tsx scripts/migrate-sqlite-to-postgres.ts",
+
     "seed:demo": "node prisma/seed-demo.cjs",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

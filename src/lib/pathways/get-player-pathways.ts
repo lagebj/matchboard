@@ -222,13 +222,13 @@ export async function getPlayerPathways(
       }
 
       let playerSelection: (typeof selections)[number] | null = null;
-      let playerMatch: (typeof matches)[number] | null = null;
+      let _playerMatch: (typeof matches)[number] | null = null;
 
       for (const match of roundMatches) {
         const sel = selectionByPlayerMatch.get(`${player.id}:${match.id}`);
         if (sel) {
           playerSelection = sel;
-          playerMatch = match;
+          _playerMatch = match;
           break;
         }
       }

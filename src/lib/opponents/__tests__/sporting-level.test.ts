@@ -18,6 +18,7 @@ import {
   classifyConfidence,
   aggregateSportingLevel,
 } from "../sporting-level-aggregation";
+
 import type { OpponentSportingEvidence } from "@/generated/prisma/client";
 
 import { Prisma } from "@/generated/prisma/client";
@@ -66,7 +67,6 @@ describe("Opponent Sporting Level Formula", () => {
 
     it("adjustment is capped on the upside", () => {
       const result = calculateEncounterEstimate5(3.0, 0, 50);
-      const uncapped = 3.0 + ADJUSTMENT_CAP_5;
       expect(result).toBeLessThanOrEqual(3.0 + ADJUSTMENT_CAP_5 + 0.01);
     });
 

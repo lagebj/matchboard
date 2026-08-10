@@ -1,10 +1,9 @@
 import { db } from "@/lib/db";
-import type { PrismaClient, NotificationTemplate, NotificationStatus } from "@/generated/prisma/client";
+import type { PrismaClient, NotificationTemplate, NotificationStatus, Prisma } from "@/generated/prisma/client";
 import { getEmailProvider } from "./provider-factory";
 import { renderTemplate } from "./templates/index";
 import { logNotificationSent } from "@/lib/security/audit-log";
 
-const MAX_RETRY_ATTEMPTS = 5;
 const RETRY_BASE_DELAY_MS = 60_000;
 const MAX_AGE_HOURS = 72;
 const BATCH_SIZE = 25;
@@ -41,7 +40,7 @@ export async function enqueueNotification(
       organisationId: input.organisationId,
       idempotencyKey: input.idempotencyKey,
       template: input.template,
-      payload: input.payload as any,
+      payload: input.payload as Prisma.InputJsonValue,
       status: "PENDING" as NotificationStatus,
     },
   });

@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ error: "Invalid view parameter. Use 'pending', 'history', or 'evaluate'" }, { status: 400 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

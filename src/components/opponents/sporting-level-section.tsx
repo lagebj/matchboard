@@ -38,7 +38,7 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   high: "High",
 };
 
-export function SportingLevelSection({ opponentTeamId, initialAggregate, initialEvidence }: Props) {
+export function SportingLevelSection({ initialAggregate, initialEvidence }: Props) {
   const [evidence, setEvidence] = useState<EvidenceRow[]>(initialEvidence);
   const [excluding, setExcluding] = useState<string | null>(null);
   const [including, setIncluding] = useState<string | null>(null);

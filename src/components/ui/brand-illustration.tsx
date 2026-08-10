@@ -23,14 +23,14 @@ export function BrandIllustration({
 
   return (
     <>
-      {/* eslint-disable-next-line @next/next/no-img-element -- decorative illustration with light/dark toggle */}
+      {/* decorative illustration with light/dark toggle */}
       <img
         src={lightSrc}
         alt={resolvedAlt}
         aria-hidden={decorative}
         className={cn("dark:hidden", className)}
       />
-      {/* eslint-disable-next-line @next/next/no-img-element -- decorative illustration with light/dark toggle */}
+      {/* decorative illustration with light/dark toggle */}
       <img
         src={darkSrc}
         alt={resolvedAlt}

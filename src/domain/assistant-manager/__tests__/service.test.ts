@@ -49,6 +49,9 @@ describe("Assistant Manager Service (DB)", () => {
     });
 
     it("returns explanation from database", async () => {
+      const org = await testDb.organisation.create({
+        data: { name: "Test Org Expl", slug: `test-org-expl-${Date.now()}` },
+      });
       await testDb.selectionExplanation.create({
         data: {
           scopeType: "MATCH",
@@ -59,6 +62,7 @@ describe("Assistant Manager Service (DB)", () => {
           warnings: [],
           recommendations: [],
           crossTeamImpacts: [],
+          organisationId: org.id,
         },
       });
 

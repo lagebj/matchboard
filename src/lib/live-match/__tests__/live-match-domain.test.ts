@@ -72,7 +72,7 @@ describe("validateLiveEventInput", () => {
   });
 
   it("requires correctsEventId when correctionType is set", () => {
-    expect(validateLiveEventInput({ ...validBase, correctionType: "CORRECTION" as const, correctsEventId: undefined })).toBe("correctsEventId requires correctionType");
+    expect(validateLiveEventInput({ ...validBase, correctionType: "CORRECTION" as const, correctsEventId: undefined })).toBe("correctionType requires correctsEventId");
   });
 
   it("requires correctionType when correctsEventId is set", () => {
