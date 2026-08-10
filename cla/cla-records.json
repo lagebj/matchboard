@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "effectiveDate": "2026-08-10",
+  "agreements": {
+    "individual": {
+      "file": "matchboard-individual-cla.md",
+      "name": "Matchboard Individual Contributor License Agreement",
+      "outboundLicense": "Elastic-2.0",
+      "harmonyOption": "Option Five",
+      "governingLaw": "Norway"
+    },
+    "entity": {
+      "file": "matchboard-entity-cla.md",
+      "name": "Matchboard Entity Contributor License Agreement",
+      "outboundLicense": "Elastic-2.0",
+      "harmonyOption": "Option Five",
+      "governingLaw": "Norway"
+    }
+  },
+  "acceptanceRecords": []
+}

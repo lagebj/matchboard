@@ -882,7 +882,7 @@ Matchboard is publicly developed source-available software, licensed under the [
 
 - **Self-hosting** is supported subject to ELv2 terms.
 - **Providing Matchboard itself as a third-party hosted or managed service** is restricted by ELv2.
-- **External contributions** are welcome subject to the terms in [CONTRIBUTING.md](CONTRIBUTING.md).
+- **External contributions** are welcome subject to an accepted CLA (see [CONTRIBUTING.md](CONTRIBUTING.md)). The CLA is based on Harmony v1.0 Option Five and is active.
 - The project was previously distributed under the MIT License. See [LICENSING.md](LICENSING.md) for details on the licensing transition and historical rights.
 
 Matchboard is source available, not OSI Open Source.

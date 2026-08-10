@@ -40,7 +40,10 @@ For product, workflow, UX, navigation, selection, fixtures, teams, players, matc
 - Do not copy third-party code with unclear or incompatible licensing. Surface licensing uncertainty instead of silently deciding.
 - Keep `README.md`, `package.json` license field, `LICENSING.md`, `CONTRIBUTING.md`, and `TRADEMARKS.md` consistent with the current license.
 - Do not change CLA requirements casually. Follow the contributor agreement process in `CONTRIBUTING.md`.
-- Do not accept substantive external code outside the defined contribution/CLA process.
+- Do not accept substantive external code without an accepted CLA record. The CLA check workflow enforces this on pull requests.
+- The Matchboard CLA is based on Harmony v1.0 Option Five. It is active, not pending review.
+- CLA acceptance must be affirmative and recorded (GitHub username, legal name, CLA type, version, timestamp). Opening a PR is not implicit acceptance.
+- Trivial contributions (typo fixes, formatting, mechanical dependency updates) may not require a CLA. When uncertain, require the CLA.
 - Licensing and commercial decisions remain with the Matchboard maintainer/copyright holder.
 
 ## Security rules
