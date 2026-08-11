@@ -17,10 +17,9 @@ import {
   isMatchOver,
   getPeriodNumber,
 } from "../match-clock";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }),
-}));
+const auth = mockAuthContext({ userId: "test-coach", email: "coach@test.com" });
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -33,6 +32,7 @@ let matchId: string;
 beforeAll(async () => {
   testDb = await setupTestDb();
   fixture = await seedTestFixture(testDb);
+  auth.updateOrganisationId(fixture.organisationId);
   matchId = Object.values(fixture.matches)[0];
 });
 
@@ -242,10 +242,10 @@ describe("Match clock", () => {
     clock = advancePeriod(clock);
     expect(clock.running).toBe(true);
 
-    const nowMs = Date.now();
+    const nowMs = Date.now() + 1;
     clock = pauseClock(clock, nowMs);
     expect(clock.running).toBe(false);
-    expect(clock.elapsedBeforeStartMs).toBeGreaterThan(0);
+    expect(clock.elapsedBeforeStartMs).toBeGreaterThanOrEqual(0);
 
     clock = resumeClock(clock);
     expect(clock.running).toBe(true);

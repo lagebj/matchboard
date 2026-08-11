@@ -7,6 +7,9 @@ import { resolveOrgFilterForUser, resolveOrgFilterForMachine } from "@/lib/tenan
 import { organisationFilter } from "@/lib/tenancy/tenant-filter";
 import { createMachinePrincipal } from "@/lib/machine-principal/machine-principal";
 import { setupTestDb, teardownTestDb, cleanTestDb, createTestGroup } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
+
+mockAuthContext();
 
 describe("MT-7: First-tenant and synthetic-tenant validation", () => {
   let db: PrismaClient;

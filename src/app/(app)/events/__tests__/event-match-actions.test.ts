@@ -2,37 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from '@/test/test-db';
 import type { TestFixtureIds } from '@/test/test-db';
+import { mockAuthContext } from '@/test/support/auth-mock';
 
-vi.mock('@/lib/auth', () => {
-  class AuthorizationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = 'AuthorizationError';
-    }
-  }
-  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: 'test-coach', email: 'coach@test.com' }) };
-});
-
-vi.mock('@/lib/auth/actor-context', () => {
-  const makeCtx = () => ({
-    userId: 'test-coach',
-    email: 'coach@test.com',
-    membershipId: 'mem-test',
-    organisationId: 'org-test',
-    organisationSlug: 'test-org',
-    role: 'COACH',
-    orgFilter: { type: 'all' as const },
-  });
-  return {
-    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
-    requireMutationRole: vi.fn(),
-    canMutate: vi.fn().mockReturnValue(true),
-    canAdmin: vi.fn().mockReturnValue(false),
-    canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockReturnValue(true),
-    requireTeamAccess: vi.fn(),
-  };
-});
+const auth = mockAuthContext({ role: 'COACH' });
 
 vi.mock('@/lib/db', () => ({
   get db() { return getTestDb(); },
@@ -72,6 +44,7 @@ describe('Event match CRUD actions', () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixture.organisationId);
 
     const event = await testDb.event.create({
       data: {
@@ -82,7 +55,7 @@ describe('Event match CRUD actions', () => {
         organisationId: fixture.organisationId,
         footballGroupId: fixture.footballGroupId,
         squads: {
-          create: { name: 'Competitive Squad', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0 },
+          create: { name: 'Competitive Squad', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
         },
       },
       include: { squads: true },
@@ -148,7 +121,7 @@ describe('Event match CRUD actions', () => {
 
     it('links to existing opponent team when opponentTeamId is provided', async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: 'Existing FC', normalizedName: 'existing fc', organisationId: 'org-test' },
+        data: { displayName: 'Existing FC', normalizedName: 'existing fc', organisationId: fixture.organisationId },
       });
 
       const formData = new FormData();
@@ -245,8 +218,8 @@ describe('Event match CRUD actions', () => {
           footballGroupId: fixture.footballGroupId,
           squads: {
             create: [
-              { name: 'Red Team', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0 },
-              { name: 'Blue Team', intent: 'BALANCED', targetSize: 7, generationOrder: 1 },
+              { name: 'Red Team', intent: 'COMPETITIVE', targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: 'Blue Team', intent: 'BALANCED', targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
             ],
           },
         },
@@ -318,7 +291,7 @@ describe('Event match CRUD actions', () => {
           organisationId: fixture.organisationId,
           footballGroupId: fixture.footballGroupId,
           squads: {
-            create: { name: 'Other Squad', intent: 'BALANCED', targetSize: 7, generationOrder: 0 },
+            create: { name: 'Other Squad', intent: 'BALANCED', targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
           },
         },
         include: { squads: true },
@@ -352,7 +325,7 @@ describe('Event match CRUD actions', () => {
 
     it('links to existing opponent team when updating with opponentTeamId', async () => {
       const existing = await testDb.opponentTeam.create({
-        data: { displayName: 'Linked FC', normalizedName: 'linked fc', organisationId: 'org-test' },
+        data: { displayName: 'Linked FC', normalizedName: 'linked fc', organisationId: fixture.organisationId },
       });
 
       const updated = await updateEventMatchAction(updateMatchId, {
@@ -384,6 +357,7 @@ describe('Event post-match report actions', () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixture.organisationId);
     player1Id = fixture.players[0]!.id;
     player2Id = fixture.players[1]!.id;
 
@@ -401,6 +375,7 @@ describe('Event post-match report actions', () => {
             intent: 'BALANCED',
             targetSize: 7,
             generationOrder: 0,
+            organisationId: fixture.organisationId,
           },
         },
       },
@@ -411,8 +386,8 @@ describe('Event post-match report actions', () => {
 
     await testDb.eventSquadPlayer.createMany({
       data: [
-        { eventSquadId: squadId, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
-        { eventSquadId: squadId, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
+        { eventSquadId: squadId, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false , organisationId: fixture.organisationId},
+        { eventSquadId: squadId, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false , organisationId: fixture.organisationId},
       ],
     });
 
@@ -498,6 +473,7 @@ describe('Event post-match report actions', () => {
               intent: 'BALANCED',
               targetSize: 7,
               generationOrder: 0,
+              organisationId: fixture.organisationId,
             },
           },
         },
@@ -507,8 +483,8 @@ describe('Event post-match report actions', () => {
 
       await testDb.eventSquadPlayer.createMany({
         data: [
-          { eventSquadId: squad!.id, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
-          { eventSquadId: squad!.id, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false , organisationId: 'org-test'},
+          { eventSquadId: squad!.id, eventId: event.id, playerId: player1Id, source: 'MANUAL', locked: false , organisationId: fixture.organisationId},
+          { eventSquadId: squad!.id, eventId: event.id, playerId: player2Id, source: 'MANUAL', locked: false , organisationId: fixture.organisationId},
         ],
       });
 

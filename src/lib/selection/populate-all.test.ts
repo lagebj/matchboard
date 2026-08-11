@@ -7,6 +7,9 @@ import { generateMatchRound } from "@/lib/selection/generate-round";
 import { createGeneratedDraftRound } from "@/lib/selection/save-generated-draft";
 import { populateAllDrafts } from "@/lib/selection/populate-all-drafts";
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
+import { mockAuthContext } from "@/test/support/auth-mock";
+
+const auth = mockAuthContext();
 
 let testDb: PrismaClient;
 
@@ -54,6 +57,7 @@ describe("Warning persistence", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixtureIds = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixtureIds.organisationId);
   });
 
   afterAll(async () => {
@@ -135,6 +139,7 @@ describe("Populate all workflow", () => {
         { from: "TeamB", to: "TeamA", role: "BACKFILL" },
       ],
     });
+    auth.updateOrganisationId(fixtureIds.organisationId);
   });
 
   afterAll(async () => {

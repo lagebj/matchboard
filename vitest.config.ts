@@ -23,5 +23,10 @@ export default defineConfig({
     env: {
       BYPASS_AUTH: "true",
     },
+    server: {
+      deps: {
+        inline: ["next-auth"],
+      },
+    },
   },
 });

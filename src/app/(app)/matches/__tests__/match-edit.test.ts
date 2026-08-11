@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn(),
-}));
+const auth = mockAuthContext();
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -10,15 +9,28 @@ vi.mock("next/cache", () => ({
 
 describe("updateMatchAction validation", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    auth.mockRequireActorContext.mockResolvedValue({
+      userId: "test-user-id",
+      email: "test@example.com",
+      membershipId: "test-membership-id",
+      organisationId: "test-org-id",
+      organisationSlug: "test-org",
+      role: "ADMIN",
+      accessibleGroupIds: [],
+      groupAccesses: [],
+      orgFilter: {
+        type: "org",
+        filter: { organisationId: "test-org-id" },
+        filterNullable: { organisationId: "test-org-id" },
+        organisationId: "test-org-id",
+      },
+    });
   });
 
   it("rejects update for match with completed report", async () => {
-    const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
-    
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
       matchRoundId: "r1",
@@ -32,7 +44,7 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue({ id: "pm1", status: "LOCKED" } as unknown as Awaited<ReturnType<typeof db.postMatchReport.findFirst>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
@@ -46,11 +58,9 @@ describe("updateMatchAction validation", () => {
   });
 
   it("rejects date outside phase range", async () => {
-    const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
-    
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
       matchRoundId: "r1",
@@ -64,7 +74,7 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
@@ -78,11 +88,9 @@ describe("updateMatchAction validation", () => {
   });
 
   it("allows same-week date change within phase range", async () => {
-    const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
-    
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-15T15:00:00Z"),
       matchRoundId: "r1",
@@ -96,7 +104,7 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
     vi.spyOn(db.match, "update").mockResolvedValue({ id: "m1" } as unknown as Awaited<ReturnType<typeof db.match.update>>);
 
@@ -111,11 +119,9 @@ describe("updateMatchAction validation", () => {
   });
 
   it("rejects finalised selection on cross-round move", async () => {
-    const { requireCoachAccess } = await import("@/lib/auth");
     const { db } = await import("@/lib/db");
-    
-    vi.mocked(requireCoachAccess).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof requireCoachAccess>>);
-    vi.spyOn(db.match, "findUnique").mockResolvedValue({
+
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
       id: "m1",
       startsAt: new Date("2026-04-27T15:00:00Z"),
       matchRoundId: "r1",
@@ -129,9 +135,9 @@ describe("updateMatchAction validation", () => {
           endDate: new Date("2026-06-30"),
         },
       },
-    } as unknown as Awaited<ReturnType<typeof db.match.findUnique>>);
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
     vi.spyOn(db.postMatchReport, "findFirst").mockResolvedValue(null);
-    vi.spyOn(db.selection, "findFirst").mockResolvedValue({ id: "s1" } as unknown as Awaited<ReturnType<typeof db.selection.findFirst>>);
+    vi.spyOn(db.selection, "findFirst").mockResolvedValue({ id: "s1", status: "FINALIZED" } as unknown as Awaited<ReturnType<typeof db.selection.findFirst>>);
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
     const result = await updateMatchAction("m1", "2026-05-11T15:00:00.000Z");

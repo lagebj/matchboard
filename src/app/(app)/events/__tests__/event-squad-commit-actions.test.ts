@@ -12,38 +12,9 @@ import {
   unconfirmEventSquadsAction,
   getEventSquadsStatusAction,
 } from "../event-squad-commit-actions";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-vi.mock("@/lib/auth", () => {
-  class AuthorizationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "AuthorizationError";
-    }
-  }
-  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach-id", email: "test@matchboard.test", name: "Test Coach" }) };
-});
-
-vi.mock("@/lib/auth/actor-context", () => {
-  const makeCtx = () => ({
-    userId: "test-coach-id",
-    email: "test@matchboard.test",
-    membershipId: "mem-test",
-    organisationId: testOrgId,
-        footballGroupId: testGroupId,
-    organisationSlug: "test-org",
-    role: "COACH",
-    orgFilter: { type: "all" as const },
-  });
-  return {
-    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
-    requireMutationRole: vi.fn(),
-    canMutate: vi.fn().mockReturnValue(true),
-    canAdmin: vi.fn().mockReturnValue(false),
-    canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockReturnValue(true),
-    requireTeamAccess: vi.fn(),
-  };
-});
+const auth = mockAuthContext({ role: "COACH" });
 
 vi.mock("@/lib/db", () => {
   let _db: PrismaClient;
@@ -103,6 +74,7 @@ describe("event-squad-commit-actions", () => {
     });
     testOrgId = org.id;
     testGroupId = await createTestGroup(db, testOrgId);
+    auth.updateOrganisationId(testOrgId);
   });
 
   afterAll(async () => {
@@ -136,7 +108,7 @@ describe("event-squad-commit-actions", () => {
       await cleanEventTables(db);
     });
 
-    it("returns blocking issue for duplicate player across squads", async () => {
+    it("prevents duplicate player across squads via unique constraint", async () => {
       const { player } = await createPlayer(db);
       const event = await db.event.create({
         data: {
@@ -156,11 +128,10 @@ describe("event-squad-commit-actions", () => {
         data: { eventId: event.id, name: "Squad B", intent: "BALANCED", targetSize: 5, status: "DRAFT" , organisationId: testOrgId},
       });
       await db.eventSquadPlayer.create({ data: { eventSquadId: squadA.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
-      await db.eventSquadPlayer.create({ data: { eventSquadId: squadB.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} });
 
-      const result = await validateEventSquadsBeforeCommit(event.id);
-      expect(result.valid).toBe(false);
-      expect(result.issues.some((i) => i.code === "duplicate_player_across_squads")).toBe(true);
+      await expect(
+        db.eventSquadPlayer.create({ data: { eventSquadId: squadB.id, eventId: event.id, playerId: player.id, source: "AUTO" , organisationId: testOrgId} })
+      ).rejects.toThrow();
 
       await cleanEventTables(db);
     });

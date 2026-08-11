@@ -2,10 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }),
-}));
+const auth = mockAuthContext();
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -32,6 +31,7 @@ describe("Coaching Intent Actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {
@@ -128,6 +128,7 @@ describe("Matchday Responsibility Actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {
@@ -147,7 +148,7 @@ describe("Matchday Responsibility Actions", () => {
           role: "CORE",
           status: "DRAFT",
           explanation: {},
-                  organisationId: 'org-test',
+                  organisationId: fixture.organisationId,
 },
       });
 
@@ -162,7 +163,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[1]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "CONNECTOR" , organisationId: 'org-test'},
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "CONNECTOR" , organisationId: fixture.organisationId},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, null);
@@ -176,7 +177,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[2]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {} , organisationId: 'org-test'},
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {} , organisationId: fixture.organisationId},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, "INVALID_ROLE");
@@ -188,7 +189,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[3]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "FINALIZED", explanation: {} , organisationId: 'org-test'},
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "FINALIZED", explanation: {} , organisationId: fixture.organisationId},
       });
 
       const result = await setMatchdayResponsibilityAction(selection.id, "STABILIZER");
@@ -202,7 +203,7 @@ describe("Matchday Responsibility Actions", () => {
       const matchId = Object.values(fixture.matches)[0]!;
       const playerId = fixture.players[4]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "WIDTH_HOLDER" , organisationId: 'org-test'},
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {}, matchdayResponsibility: "WIDTH_HOLDER" , organisationId: fixture.organisationId},
       });
 
       const result = await removeMatchdayResponsibilityAction(selection.id);
@@ -215,6 +216,7 @@ describe("Match Execution Feedback Actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {
