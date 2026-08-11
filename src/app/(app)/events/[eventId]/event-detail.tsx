@@ -17,6 +17,7 @@ import {
   updateEventSquadNameAction,
   updateEventMatchDurationAction,
 } from '../actions';
+import { finalizeEventAction, unfinalizeEventAction } from '../event-finalization-actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
 import { useOrgSlug } from '@/components/shell/org-slug-context';
@@ -145,6 +146,9 @@ type EventDetailData = {
   selectionPattern: string | null;
   notes: string | null;
   defaultFormationId: string | null;
+  status: string;
+  finalizedAt: string | null;
+  finalizedBy: string | null;
   squads: EventSquad[];
   players: EventPlayer[];
   availablePlayers: EventPlayer[];
@@ -193,6 +197,11 @@ function formatName(p: { firstName: string; lastName: string | null }): string {
 
 import { formatGameFormat } from "@/lib/formatters/game-format";
 
+const EVENT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  FINALIZED: 'Finalized',
+};
+
 export function EventDetail({ data }: { data: EventDetailData }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -206,6 +215,8 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [editingDuration, setEditingDuration] = useState(false);
   const [durationValue, setDurationValue] = useState('');
   const [localDuration, setLocalDuration] = useState<number | null | undefined>(undefined);
+
+  const isFinalized = data.status === 'FINALIZED';
 
   const totalAssigned = data.squads.reduce((sum, s) => sum + s.players.length, 0);
   const totalAvailable = data.availablePlayers.length;
@@ -246,6 +257,28 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     startTransition(async () => {
       await deleteEventAction(data.id);
       router.push(`/o/${orgSlug}/events`);
+    });
+  }
+
+  function handleFinalize() {
+    if (!confirm('Finalize this event? This locks the event for further changes. You can unfinalize later.')) return;
+    startTransition(async () => {
+      const result = await finalizeEventAction(data.id);
+      if (!result.success) {
+        alert(result.error ?? 'Finalization failed.');
+      }
+      router.refresh();
+    });
+  }
+
+  function handleUnfinalize() {
+    if (!confirm('Unfinalize this event? This will allow changes to squads and match data again.')) return;
+    startTransition(async () => {
+      const result = await unfinalizeEventAction(data.id);
+      if (!result.success) {
+        alert(result.error ?? 'Unfinalization failed.');
+      }
+      router.refresh();
     });
   }
 
@@ -309,9 +342,28 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     <div className="space-y-6">
       <PageHeader
         title={data.name}
-        description={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${new Date(data.startsAt).toLocaleDateString()}`}
+        description={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${new Date(data.startsAt).toLocaleDateString()} · ${EVENT_STATUS_LABELS[data.status] ?? data.status}`}
         actions={
           <div className="flex gap-2">
+            {isFinalized ? (
+              <Button variant="secondary" onClick={handleUnfinalize} disabled={isPending}>
+                {isPending ? 'Unfinalizing...' : 'Unfinalize'}
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={handleFinalize} disabled={isPending}>
+                {isPending ? 'Finalizing...' : 'Finalize'}
+              </Button>
+            )}
+            {!isFinalized && (
+              <>
+                <Button variant="primary" onClick={handleGenerate} disabled={isPending}>
+                  {isPending ? 'Generating...' : 'Generate squads'}
+                </Button>
+                <Button variant="secondary" onClick={handleClear} disabled={isPending}>
+                  Clear
+                </Button>
+              </>
+            )}
             <a
               href={`/events/${data.id}/export`}
               download
@@ -319,21 +371,25 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             >
               Export event
             </a>
-            <Button variant="primary" onClick={handleGenerate} disabled={isPending}>
-              {isPending ? 'Generating...' : 'Generate squads'}
-            </Button>
-            <Button variant="secondary" onClick={handleClear} disabled={isPending}>
-              Clear
-            </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={isPending}>
-              Delete
-            </Button>
+            {!isFinalized && (
+              <Button variant="danger" onClick={handleDelete} disabled={isPending}>
+                Delete
+              </Button>
+            )}
             <Link href="/events">
               <Button variant="ghost">Back</Button>
             </Link>
           </div>
         }
       />
+
+      {isFinalized && (
+        <DecisionBanner
+          variant="note"
+          title="Event is finalized"
+          description={`This event is finalized and locked for changes. Unfinalize to edit squads, matches, or player assignments.${data.finalizedAt ? ` Finalized on ${new Date(data.finalizedAt).toLocaleDateString()}.` : ''}`}
+        />
+      )}
 
       {data.squads.length === 0 ? (
         <BrandIllustration name="eventHeaderSketch" className="h-24 md:h-32 w-auto opacity-70 dark:opacity-60" />
@@ -711,7 +767,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             {p.positionFitTier && FIT_TIER_LABELS[p.positionFitTier] && (
                               <span className="text-[10px] text-[var(--text-muted)]">{FIT_TIER_LABELS[p.positionFitTier]}</span>
                             )}
-                            <div className="invisible group-hover:visible flex gap-1 ml-1">
+                            <div className={`${isFinalized ? 'hidden' : 'invisible group-hover:visible'} flex gap-1 ml-1`}>
                               {!p.locked && (
                                 <button
                                   onClick={() => handleToggleLock(p.id, true)}
@@ -851,7 +907,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                   </table>
                 </div>
                 <div className="mt-3 flex items-center gap-3">
-                  <Button variant="primary" onClick={handleAddPlayers} disabled={isPending || selectedToAdd.size === 0}>
+                  <Button variant="primary" onClick={handleAddPlayers} disabled={isPending || isFinalized || selectedToAdd.size === 0}>
                     {isPending ? 'Adding...' : `Add ${selectedToAdd.size} player${selectedToAdd.size !== 1 ? 's' : ''} to pool`}
                   </Button>
                   {selectedToAdd.size > 0 && (
@@ -929,9 +985,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         <td className="py-2 px-2">
                           <div className="flex items-center gap-2">
                             <select
-                              className="text-xs bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1.5 py-0.5"
+                              className="text-xs bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1.5 py-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                               value={p.status}
                               onChange={(e) => handleAvailabilityChange(p.playerId, e.target.value)}
+                              disabled={isFinalized}
                             >
                               <option value="AVAILABLE">Available</option>
                               <option value="UNAVAILABLE">Unavailable</option>
@@ -942,8 +999,9 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             </select>
                             <button
                               onClick={() => handleRemovePlayer(p.playerId)}
-                              className="text-[10px] text-[var(--danger)] hover:underline"
+                              className="text-[10px] text-[var(--danger)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Remove from pool"
+                              disabled={isFinalized}
                             >
                               Remove
                             </button>

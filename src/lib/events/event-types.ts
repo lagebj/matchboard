@@ -7,6 +7,8 @@ import { getPlayerBroadPositions as canonicalGetPlayerBroadPositions } from '@/l
 
 export type GameFormat = 'THREE_A_SIDE' | 'FIVE_A_SIDE' | 'SEVEN_A_SIDE' | 'NINE_A_SIDE' | 'ELEVEN_A_SIDE';
 
+export type EventStatusType = 'DRAFT' | 'FINALIZED';
+
 export type EventSelectionPattern = 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE';
 
 export type EventSquadIntent = 'COMPETITIVE' | 'BALANCED' | 'MANUAL';

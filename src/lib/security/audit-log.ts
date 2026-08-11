@@ -27,6 +27,8 @@ type SecurityEventAction =
   | "event_squad_unconfirm"
   | "event_squad_lock"
   | "event_squad_unlock"
+  | "event_finalize"
+  | "event_unfinalize"
   | "data_export"
   | "policy_evaluation"
   | "session_revoked"
@@ -277,6 +279,30 @@ export function logEventSquadUnlock(actor: string, eventId: string, result: "suc
 }
 
 export const logEventSquadUnconfirm = logEventSquadUnlock;
+
+export function logEventFinalize(actor: string, eventId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "event_finalize",
+    actor,
+    resource: "event",
+    resourceId: eventId,
+    result,
+    reason,
+  });
+}
+
+export function logEventUnfinalize(actor: string, eventId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "event_unfinalize",
+    actor,
+    resource: "event",
+    resourceId: eventId,
+    result,
+    reason,
+  });
+}
 
 export function logOrganisationCreate(actor: string, organisationId: string, result: "success" | "failure"): void {
   logSecurityEvent({

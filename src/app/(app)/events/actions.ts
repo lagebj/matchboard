@@ -35,6 +35,16 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
   }
 }
 
+async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    select: { status: true },
+  });
+  if (event?.status === 'FINALIZED') {
+    throw new Error('Cannot modify a finalized event. Unfinalize the event first.');
+  }
+}
+
 async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode): Promise<string> {
   if (orgFilter.type === 'org') {
     const squad = await db.eventSquad.findFirst({
@@ -242,11 +252,15 @@ export async function deleteEventAction(id: string) {
       id,
       ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
-    select: { id: true, footballGroupId: true },
+    select: { id: true, footballGroupId: true, status: true },
   });
 
   if (!event) {
     throw new Error('Event not found or access denied.');
+  }
+
+  if (event.status === 'FINALIZED') {
+    throw new Error('Cannot delete a finalized event. Unfinalize the event first.');
   }
 
   await db.event.delete({
@@ -329,6 +343,7 @@ export async function addPlayersToEventPoolAction(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
 
@@ -363,6 +378,7 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const squadAssignment = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -415,6 +431,7 @@ export async function assignPlayerToEventSquadAction(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const squad = await db.eventSquad.findFirst({
     where: { id: squadId, eventId },
@@ -453,10 +470,12 @@ export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: str
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
-    select: { eventSquadId: true },
+    select: { eventSquadId: true, eventId: true },
   });
 
   if (!squadPlayer) throw new Error('Squad assignment not found.');
+
+  await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
 
   const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
@@ -603,6 +622,8 @@ export async function movePlayerBetweenSquadsAction(
     throw new Error('Cannot move a player between squads in different events.');
   }
 
+  await requireEventNotFinalized(fromEventId, ctx.orgFilter);
+
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquadId: fromSquadId },
   });
@@ -639,10 +660,12 @@ export async function togglePlayerLockAction(
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: squadPlayerId },
-    select: { eventSquadId: true },
+    select: { eventSquadId: true, eventId: true },
   });
 
   if (!squadPlayer) throw new Error('Squad player assignment not found.');
+
+  await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
 
   const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
@@ -664,6 +687,7 @@ export async function clearEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const squads = await db.eventSquad.findMany({
     where: { eventId },
@@ -722,6 +746,8 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 export async function generateEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const event = await db.event.findUnique({
     where: {

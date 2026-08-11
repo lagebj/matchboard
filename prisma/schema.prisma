@@ -964,6 +964,9 @@ model Event {
   matchDurationMinutes Int?
   selectionPattern     EventSelectionPattern?
   notes                String?
+  status               EventStatus               @default(DRAFT)
+  finalizedAt          DateTime?
+  finalizedBy          String?
   footballGroupId      String
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
@@ -1693,6 +1696,11 @@ enum EventSquadIntent {
 enum EventSquadStatus {
   DRAFT
   LOCKED
+}
+
+enum EventStatus {
+  DRAFT
+  FINALIZED
 }
 
 enum EventSelectionPattern {
