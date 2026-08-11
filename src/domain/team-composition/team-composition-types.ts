@@ -15,6 +15,7 @@ export type TeamCompositionContext = "EVENT_SQUADS" | "LEAGUE_TEAMS";
 
 export type SystemTeamScenario =
   | "PRESERVE_AND_REPAIR"
+  | "PRESERVE_AND_FILL"
   | "BALANCED"
   | "ONE_STRONG_REST_BALANCED"
   | "TIERED_DESCENDING";
@@ -172,7 +173,8 @@ export interface ResolvedTeamScenario {
     | BalancedStrengthProfile
     | OneStrongStrengthProfile
     | TieredStrengthProfile
-    | PreserveAndRepairProfile;
+    | PreserveAndRepairProfile
+    | PreserveAndFillProfile;
   structuralRules: StructuralRuleConfiguration;
   objectives: ScenarioObjectiveConfiguration;
 }
@@ -193,6 +195,10 @@ export interface TieredStrengthProfile {
 
 export interface PreserveAndRepairProfile {
   type: "PRESERVE_AND_REPAIR";
+}
+
+export interface PreserveAndFillProfile {
+  type: "PRESERVE_AND_FILL";
 }
 
 export interface StructuralRuleConfiguration {

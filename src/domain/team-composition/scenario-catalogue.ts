@@ -53,6 +53,23 @@ export const SYSTEM_SCENARIOS: Record<SystemTeamScenario, ResolvedTeamScenario> 
       maxSizeSpread: 2,
     },
   },
+  PRESERVE_AND_FILL: {
+    code: "PRESERVE_AND_FILL",
+    version: SCENARIO_VERSION,
+    displayName: "Preserve teams and fill empty slots",
+    description: "Keep all current team assignments exactly as they are. Only distribute unassigned players to fill empty squad slots. No players are moved between teams, even for repair.",
+    strengthProfile: { type: "PRESERVE_AND_FILL" },
+    structuralRules: {
+      ...DEFAULT_STRUCTURAL_RULES,
+      requireGoalkeeper: true,
+    },
+    objectives: {
+      ...DEFAULT_OBJECTIVES,
+      continuityWeight: 1.0,
+      minimumMovesForRepair: 0,
+      maxSizeSpread: 2,
+    },
+  },
   BALANCED: {
     code: "BALANCED",
     version: SCENARIO_VERSION,

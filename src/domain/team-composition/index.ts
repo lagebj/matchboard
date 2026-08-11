@@ -16,6 +16,7 @@ export type {
   OneStrongStrengthProfile,
   TieredStrengthProfile,
   PreserveAndRepairProfile,
+  PreserveAndFillProfile,
   StructuralRuleConfiguration,
   ScenarioObjectiveConfiguration,
   AssignmentSource,
