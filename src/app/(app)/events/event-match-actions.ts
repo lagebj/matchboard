@@ -19,6 +19,16 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
   if (!event) throw new Error('Event not found or access denied.');
 }
 
+async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    select: { status: true },
+  });
+  if (event?.status === 'FINALIZED') {
+    throw new Error('Cannot modify matches of a finalized event. Unfinalize the event first.');
+  }
+}
+
 async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
   if (orgFilter.type !== 'org') {
     const match = await db.eventMatch.findUnique({ where: { id: eventMatchId }, select: { eventId: true } });
@@ -64,6 +74,7 @@ export async function createEventMatchAction(formData: FormData) {
   }
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const { opponentTeamId, opponentName } = await resolveOpponent(opponentNameInput, opponentTeamIdInput);
 
@@ -116,7 +127,9 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -185,7 +198,9 @@ export async function deleteEventMatchAction(eventMatchId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+  const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
   if (!existing) throw new Error('Event match not found.');
@@ -200,7 +215,7 @@ export async function deleteEventMatchAction(eventMatchId: string) {
 
   await db.eventMatch.delete({ where: { id: eventMatchId } });
 
-  revalidatePath(`/events/${existing.eventId}`);
+  revalidatePath(`/events/${eventId}`);
   return { success: true };
 }
 

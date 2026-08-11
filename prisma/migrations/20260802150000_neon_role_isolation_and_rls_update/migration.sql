@@ -51,23 +51,32 @@ END $$;
 -- ============================================================
 -- Required so that neondb_owner (which runs Prisma migrations) can transfer
 -- object ownership to matchboard_admin_migration.
+-- Only applies when neondb_owner exists (Neon-hosted environments).
 
 DO $$
 BEGIN
-  -- Grant membership so ownership transfer works
-  PERFORM dblink_exec(format('grant_%s', gen_random_uuid()), '');
-EXCEPTION WHEN OTHERS THEN NULL;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'neondb_owner') THEN
+    GRANT matchboard_admin_migration TO neondb_owner;
+    GRANT matchboard_app_runtime TO neondb_owner;
+    RAISE NOTICE 'Granted membership in new roles to neondb_owner';
+  ELSE
+    RAISE NOTICE 'neondb_owner role not found, skipping membership grants';
+  END IF;
 END $$;
-
-GRANT matchboard_admin_migration TO neondb_owner;
-GRANT matchboard_app_runtime TO neondb_owner;
 
 -- ============================================================
 -- 3. Grant database and schema access
 -- ============================================================
 
-GRANT CONNECT ON DATABASE neondb TO matchboard_app_runtime;
-GRANT CONNECT ON DATABASE neondb TO matchboard_admin_migration;
+DO $$
+DECLARE
+  db_name TEXT;
+BEGIN
+  db_name := current_database();
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO matchboard_app_runtime', db_name);
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO matchboard_admin_migration', db_name);
+END $$;
+
 GRANT USAGE ON SCHEMA public TO matchboard_app_runtime;
 GRANT USAGE, CREATE ON SCHEMA public TO matchboard_admin_migration;
 
@@ -78,37 +87,51 @@ GRANT USAGE, CREATE ON SCHEMA public TO matchboard_admin_migration;
 -- matchboard_admin_migration. This ensures that FORCE ROW LEVEL SECURITY
 -- applies to the owner, and the admin role relies on its admin_all policy
 -- rather than ownership bypass.
+-- Only transfers objects owned by neondb_owner when that role exists.
 
 DO $$
 DECLARE
   tbl TEXT;
   seq RECORD;
   typ TEXT;
+  neon_owner_exists BOOLEAN;
 BEGIN
-  -- Transfer table ownership
-  FOR tbl IN
-    SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tableowner = 'neondb_owner'
-  LOOP
-    EXECUTE format('ALTER TABLE %I.%I OWNER TO matchboard_admin_migration', 'public', tbl);
-  END LOOP;
+  SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'neondb_owner') INTO neon_owner_exists;
 
-  -- Transfer enum type ownership
-  FOR typ IN
-    SELECT t.typname
-    FROM pg_type t
-    JOIN pg_namespace n ON n.oid = t.typnamespace
-    WHERE n.nspname = 'public' AND t.typtype = 'e'
-      AND pg_get_userbyid(t.typowner) = 'neondb_owner'
-  LOOP
-    EXECUTE format('ALTER TYPE %I.%I OWNER TO matchboard_admin_migration', 'public', typ);
-  END LOOP;
+  IF neon_owner_exists THEN
+    -- Transfer table ownership
+    FOR tbl IN
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tableowner = 'neondb_owner'
+    LOOP
+      EXECUTE format('ALTER TABLE %I.%I OWNER TO matchboard_admin_migration', 'public', tbl);
+    END LOOP;
 
-  -- Transfer sequence ownership
-  FOR seq IN
-    SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'
-  LOOP
-    EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO matchboard_admin_migration', 'public', seq);
-  END LOOP;
+    -- Transfer enum type ownership
+    FOR typ IN
+      SELECT t.typname
+      FROM pg_type t
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public' AND t.typtype = 'e'
+        AND pg_get_userbyid(t.typowner) = 'neondb_owner'
+    LOOP
+      EXECUTE format('ALTER TYPE %I.%I OWNER TO matchboard_admin_migration', 'public', typ);
+    END LOOP;
+
+    -- Transfer sequence ownership
+    FOR seq IN
+      SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'
+    LOOP
+      BEGIN
+        EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO matchboard_admin_migration', 'public', seq);
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'Skipped sequence ownership transfer: %', seq.sequencename;
+      END;
+    END LOOP;
+
+    RAISE NOTICE 'Transferred ownership from neondb_owner to matchboard_admin_migration';
+  ELSE
+    RAISE NOTICE 'neondb_owner role not found, skipping ownership transfer';
+  END IF;
 END $$;
 
 -- ============================================================
@@ -318,14 +341,19 @@ ALTER DEFAULT PRIVILEGES FOR ROLE matchboard_admin_migration IN SCHEMA public
   GRANT USAGE ON TYPES TO matchboard_app_runtime;
 
 -- Also for neondb_owner (in case migrations run as neondb_owner)
-ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO matchboard_app_runtime;
+-- Only applies when neondb_owner exists (Neon-hosted environments).
 
-ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO matchboard_app_runtime;
-
-ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public
-  GRANT USAGE ON TYPES TO matchboard_app_runtime;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'neondb_owner') THEN
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO matchboard_app_runtime';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO matchboard_app_runtime';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT USAGE ON TYPES TO matchboard_app_runtime';
+    RAISE NOTICE 'Set default privileges for neondb_owner';
+  ELSE
+    RAISE NOTICE 'neondb_owner role not found, skipping default privileges';
+  END IF;
+END $$;
 
 -- ============================================================
 -- 9. Non-tenant tables: NO RLS policies

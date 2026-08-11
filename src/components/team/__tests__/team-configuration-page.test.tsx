@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { TeamConfigurationPage } from "../team-configuration-page";
+import { OrgSlugProvider } from "@/components/shell/org-slug-context";
 import type { TeamConfiguration } from "@/domain/team-configuration/types";
 
 vi.mock("@/domain/team-configuration/actions", () => ({
@@ -45,7 +46,11 @@ describe("TeamConfigurationPage", () => {
     fetchTeamConfiguration.mockResolvedValue(makeConfig());
 
     await act(() => {
-      render(<TeamConfigurationPage teamId="team-1" />);
+      render(
+        <OrgSlugProvider orgSlug="test-org">
+          <TeamConfigurationPage teamId="team-1" />
+        </OrgSlugProvider>,
+      );
     });
 
     await waitFor(() => {
@@ -60,7 +65,11 @@ describe("TeamConfigurationPage", () => {
     fetchTeamConfiguration.mockResolvedValue(makeConfig());
 
     await act(() => {
-      render(<TeamConfigurationPage teamId="team-1" />);
+      render(
+        <OrgSlugProvider orgSlug="test-org">
+          <TeamConfigurationPage teamId="team-1" />
+        </OrgSlugProvider>,
+      );
     });
 
     await waitFor(() => {
@@ -74,7 +83,11 @@ describe("TeamConfigurationPage", () => {
     fetchTeamConfiguration.mockResolvedValue(makeConfig());
 
     await act(() => {
-      render(<TeamConfigurationPage teamId="team-1" />);
+      render(
+        <OrgSlugProvider orgSlug="test-org">
+          <TeamConfigurationPage teamId="team-1" />
+        </OrgSlugProvider>,
+      );
     });
 
     await waitFor(() => {
@@ -88,7 +101,11 @@ describe("TeamConfigurationPage", () => {
     fetchTeamConfiguration.mockResolvedValue(makeConfig());
 
     await act(() => {
-      render(<TeamConfigurationPage teamId="team-1" />);
+      render(
+        <OrgSlugProvider orgSlug="test-org">
+          <TeamConfigurationPage teamId="team-1" />
+        </OrgSlugProvider>,
+      );
     });
 
     await waitFor(() => {
@@ -101,7 +118,11 @@ describe("TeamConfigurationPage", () => {
     fetchTeamConfiguration.mockResolvedValue(null);
 
     await act(() => {
-      render(<TeamConfigurationPage teamId="nonexistent" />);
+      render(
+        <OrgSlugProvider orgSlug="test-org">
+          <TeamConfigurationPage teamId="nonexistent" />
+        </OrgSlugProvider>,
+      );
     });
 
     await waitFor(() => {

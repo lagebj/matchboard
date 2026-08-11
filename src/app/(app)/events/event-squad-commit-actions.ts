@@ -179,6 +179,18 @@ export async function confirmEventSquadsAction(eventId: string) {
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    select: { id: true, status: true },
+  });
+
+  if (event?.status === "FINALIZED") {
+    return {
+      success: false as const,
+      error: "Cannot modify squads of a finalized event. Unfinalize the event first.",
+    };
+  }
+
   const validation = await validateEventSquadsBeforeCommit(eventId);
 
   if (!validation.valid) {
@@ -252,6 +264,18 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    select: { id: true, status: true },
+  });
+
+  if (event?.status === "FINALIZED") {
+    return {
+      success: false as const,
+      error: "Cannot modify squads of a finalized event. Unfinalize the event first.",
+    };
+  }
 
   const confirmedCount = await db.eventSquad.count({
     where: { eventId, status: "LOCKED", ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },

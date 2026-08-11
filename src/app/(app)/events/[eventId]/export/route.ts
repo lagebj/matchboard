@@ -13,6 +13,7 @@ import { computeLineupRating, formatStarRating } from '@/lib/events/event-lineup
 
 type SquadPlayer = {
   playerId: string;
+  assignedRoleType: string | null;
   player: {
     id: string;
     firstName: string;
@@ -55,6 +56,40 @@ type EventMatchData = {
   cancelledAt: Date | null;
   eventSquad: { id: string; name: string };
   supportAssignments: SupportAssignment[];
+};
+
+type PostMatchReportData = {
+  id: string;
+  eventMatchId: string;
+  status: string;
+  ourScore: number | null;
+  opponentScore: number | null;
+  playerReports: {
+    playerId: string;
+    attendanceStatus: string;
+    minutesPlayed: number | null;
+    role: string | null;
+    note: string | null;
+    player: { id: string; firstName: string; lastName: string | null };
+  }[];
+  goalEvents: {
+    playerId: string | null;
+    minute: number | null;
+    type: string;
+    note: string | null;
+    scorer: { id: string; firstName: string; lastName: string | null } | null;
+  }[];
+  assistEvents: {
+    playerId: string;
+    type: string;
+    assist: { id: string; firstName: string; lastName: string | null } | null;
+  }[];
+  eventMatch: {
+    id: string;
+    opponentName: string;
+    eventSquadId: string;
+    eventSquad: { id: string; name: string };
+  };
 };
 
 function roleGroup(roleType: string | null): string {
@@ -120,6 +155,8 @@ export async function GET(
   if (!event) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
   }
+
+  const isFinalized = event.status === 'FINALIZED';
 
   const eventMatches: EventMatchData[] = await db.eventMatch.findMany({
     where: { eventId },
@@ -250,6 +287,39 @@ export async function GET(
   buildMatchCallOutSheet(workbook, eventMatches, matchDurationMinutes, squadPlayerMap, supportConflictData);
   buildConflictsSheet(workbook, supportConflictData, eventMatches, matchDurationMinutes);
   buildLineupsSheet(workbook, lineupData, eventMatches, event.squads);
+
+  if (isFinalized) {
+    const postMatchReports = await db.eventPostMatchReport.findMany({
+      where: { eventMatch: { eventId } },
+      include: {
+        playerReports: {
+          include: {
+            player: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        goalEvents: {
+          include: {
+            scorer: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        assistEvents: {
+          include: {
+            assist: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        eventMatch: {
+          select: {
+            id: true,
+            opponentName: true,
+            eventSquadId: true,
+            eventSquad: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    buildPlannedVsActualSheet(workbook, event.squads, eventMatches, postMatchReports as unknown as PostMatchReportData[]);
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = safeEventExportFilename(event.name, event.startsAt);
@@ -697,4 +767,137 @@ function buildLineupsSheet(
   ws.getColumn(3).width = 16;
   ws.getColumn(4).width = 16;
   ws.getColumn(5).width = 16;
+}
+
+function buildPlannedVsActualSheet(
+  workbook: ExcelJS.Workbook,
+  squads: EventSquadData[],
+  matches: EventMatchData[],
+  postMatchReports: PostMatchReportData[],
+): void {
+  const ws = workbook.addWorksheet('Planned vs Actual');
+
+  const headers = [
+    'Squad', 'Player', 'Planned role', 'Actual attendance', 'Minutes played',
+    'Actual role', 'Goals', 'Assists', 'Match', 'Result',
+  ];
+  addHeaderRow(ws, headers, [14, 22, 14, 16, 14, 14, 8, 8, 22, 10]);
+
+  for (const squad of squads) {
+    for (const sp of squad.players) {
+      const playerName = formatPlayerName(sp.player.firstName, sp.player.lastName);
+
+      const plannedRole = sp.assignedRoleType
+        ? roleGroup(sp.assignedRoleType)
+        : 'Squad';
+
+      const matchingReports = postMatchReports.filter((r) =>
+        r.eventMatch.eventSquadId === squad.id,
+      );
+
+      for (const report of matchingReports) {
+        const playerReport = report.playerReports.find((pr) => pr.playerId === sp.playerId);
+
+        const actualAttendance = playerReport
+          ? (playerReport.attendanceStatus === 'PRESENT' ? 'Present'
+             : playerReport.attendanceStatus === 'NO_SHOW' ? 'No show'
+             : playerReport.attendanceStatus === 'LATE' ? 'Late'
+             : playerReport.attendanceStatus)
+          : '';
+
+        const minutesPlayed = playerReport?.minutesPlayed?.toString() ?? '';
+        const actualRole = playerReport?.role ?? '';
+
+        const goals = report.goalEvents.filter(
+          (g) => g.playerId === sp.playerId,
+        ).length;
+
+        const assists = report.assistEvents.filter(
+          (a) => a.playerId === sp.playerId,
+        ).length;
+
+        const matchLabel = report.eventMatch.eventSquad.name + ' vs ' + report.eventMatch.opponentName;
+
+        let result = '';
+        if (report.ourScore !== null && report.opponentScore !== null) {
+          if (report.ourScore > report.opponentScore) result = 'Won';
+          else if (report.ourScore < report.opponentScore) result = 'Lost';
+          else result = 'Drawn';
+        }
+
+        ws.addRow([
+          squad.name,
+          playerName,
+          plannedRole,
+          actualAttendance,
+          minutesPlayed,
+          actualRole,
+          goals,
+          assists,
+          matchLabel,
+          result,
+        ]);
+      }
+
+      if (matchingReports.length === 0) {
+        ws.addRow([
+          squad.name,
+          playerName,
+          plannedRole,
+          '',
+          '',
+          '',
+          0,
+          0,
+          '',
+          '',
+        ]);
+      }
+    }
+  }
+
+  for (const report of postMatchReports) {
+    for (const pr of report.playerReports) {
+      const isPlanned = squads.some((s) =>
+        s.players.some((sp) => sp.playerId === pr.playerId),
+      );
+      if (isPlanned) continue;
+
+      const playerName = formatPlayerName(pr.player.firstName, pr.player.lastName);
+      const actualAttendance = pr.attendanceStatus === 'PRESENT' ? 'Present'
+        : pr.attendanceStatus === 'NO_SHOW' ? 'No show'
+        : pr.attendanceStatus === 'LATE' ? 'Late'
+        : pr.attendanceStatus;
+
+      const goals = report.goalEvents.filter(
+        (g) => g.playerId === pr.playerId,
+      ).length;
+
+      const assists = report.assistEvents.filter(
+        (a) => a.playerId === pr.playerId,
+      ).length;
+
+      const matchLabel = report.eventMatch.eventSquad.name + ' vs ' + report.eventMatch.opponentName;
+
+      let result = '';
+      if (report.ourScore !== null && report.opponentScore !== null) {
+        if (report.ourScore > report.opponentScore) result = 'Won';
+        else if (report.ourScore < report.opponentScore) result = 'Lost';
+        else result = 'Drawn';
+      }
+
+      ws.addRow([
+        report.eventMatch.eventSquad.name,
+        playerName,
+        'Unplanned',
+        actualAttendance,
+        pr.minutesPlayed?.toString() ?? '',
+        pr.role ?? '',
+        goals,
+        assists,
+        matchLabel,
+        result,
+      ]);
+    }
+  }
 }

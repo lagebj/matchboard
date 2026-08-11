@@ -35,6 +35,16 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
   }
 }
 
+async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    select: { status: true },
+  });
+  if (event?.status === 'FINALIZED') {
+    throw new Error('Cannot modify a finalized event. Unfinalize the event first.');
+  }
+}
+
 async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode): Promise<string> {
   if (orgFilter.type === 'org') {
     const squad = await db.eventSquad.findFirst({
@@ -242,11 +252,15 @@ export async function deleteEventAction(id: string) {
       id,
       ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
     },
-    select: { id: true, footballGroupId: true },
+    select: { id: true, footballGroupId: true, status: true },
   });
 
   if (!event) {
     throw new Error('Event not found or access denied.');
+  }
+
+  if (event.status === 'FINALIZED') {
+    throw new Error('Cannot delete a finalized event. Unfinalize the event first.');
   }
 
   await db.event.delete({
@@ -329,6 +343,7 @@ export async function addPlayersToEventPoolAction(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
 
@@ -363,6 +378,7 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const squadAssignment = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId } },
@@ -415,6 +431,7 @@ export async function assignPlayerToEventSquadAction(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const squad = await db.eventSquad.findFirst({
     where: { id: squadId, eventId },
@@ -453,10 +470,12 @@ export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: str
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: eventSquadPlayerId },
-    select: { eventSquadId: true },
+    select: { eventSquadId: true, eventId: true },
   });
 
   if (!squadPlayer) throw new Error('Squad assignment not found.');
+
+  await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
 
   const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
@@ -603,6 +622,8 @@ export async function movePlayerBetweenSquadsAction(
     throw new Error('Cannot move a player between squads in different events.');
   }
 
+  await requireEventNotFinalized(fromEventId, ctx.orgFilter);
+
   const existing = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquadId: fromSquadId },
   });
@@ -639,10 +660,12 @@ export async function togglePlayerLockAction(
 
   const squadPlayer = await db.eventSquadPlayer.findUnique({
     where: { id: squadPlayerId },
-    select: { eventSquadId: true },
+    select: { eventSquadId: true, eventId: true },
   });
 
   if (!squadPlayer) throw new Error('Squad player assignment not found.');
+
+  await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
 
   const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
 
@@ -664,6 +687,7 @@ export async function clearEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const squads = await db.eventSquad.findMany({
     where: { eventId },
@@ -722,6 +746,8 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 export async function generateEventSquadsAction(eventId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
+
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   const event = await db.event.findUnique({
     where: {
@@ -792,10 +818,14 @@ export async function generateEventSquadsAction(eventId: string) {
     };
   });
 
+  const selectionPattern = (event.selectionPattern ?? 'ALL_BALANCED') as 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE' | 'PRESERVE_AND_FILL';
+
   const lockedAssignments = new Map<string, string>();
   for (const squad of event.squads) {
     for (const sp of squad.players) {
-      if (sp.locked) {
+      if (selectionPattern === 'PRESERVE_AND_FILL') {
+        lockedAssignments.set(sp.playerId, squad.id);
+      } else if (sp.locked) {
         lockedAssignments.set(sp.playerId, squad.id);
       }
     }
@@ -905,7 +935,7 @@ export async function generateEventSquadsAction(eventId: string) {
     formations: defaultFormation ? [defaultFormation] : [],
     defaultFormationId: event.defaultFormationId,
     squads,
-    selectionPattern: (event.selectionPattern ?? 'ALL_BALANCED') as 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE',
+    selectionPattern,
     lockedAssignments,
     includeReserves,
     includeLateAdditions: includeLate,
@@ -916,32 +946,61 @@ export async function generateEventSquadsAction(eventId: string) {
   const mergedWarnings = [...result.warnings, ...policyWarnings];
 
   await db.$transaction(async (tx) => {
-    for (const squad of event.squads) {
-      await tx.eventSquadPlayer.deleteMany({
-        where: { eventSquadId: squad.id, locked: false },
-      });
-    }
+    if (selectionPattern === 'PRESERVE_AND_FILL') {
+      const existingPlayerIds = new Set(
+        event.squads.flatMap((s) => s.players.map((sp) => sp.playerId)),
+      );
+      const newAssignments = result.assignments.filter(
+        (a) => a.source !== 'LOCKED' && !existingPlayerIds.has(a.playerId),
+      );
+      if (newAssignments.length > 0) {
+        await tx.eventSquadPlayer.createMany({
+          data: newAssignments.map((assignment) => ({
+            eventId,
+            eventSquadId: assignment.eventSquadId,
+            playerId: assignment.playerId,
+            assignedSlotIndex: assignment.assignedSlotIndex,
+            assignedSlotLabel: assignment.assignedSlotLabel,
+            assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
+            assignedPositionId: assignment.assignedPositionId,
+            lineupOrder: assignment.lineupOrder,
+            source: assignment.source,
+            locked: assignment.locked,
+            positionFitTier: assignment.positionFitTier,
+            selectionReason: assignment.selectionReason,
+            organisationId: ctx.organisationId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    } else {
+      for (const squad of event.squads) {
+        await tx.eventSquadPlayer.deleteMany({
+          where: { eventSquadId: squad.id, locked: false },
+        });
+      }
 
-    const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED');
-    if (newAssignments.length > 0) {
-      await tx.eventSquadPlayer.createMany({
-        data: newAssignments.map((assignment) => ({
-          eventId,
-          eventSquadId: assignment.eventSquadId,
-          playerId: assignment.playerId,
-          assignedSlotIndex: assignment.assignedSlotIndex,
-          assignedSlotLabel: assignment.assignedSlotLabel,
-          assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
-          assignedPositionId: assignment.assignedPositionId,
-          lineupOrder: assignment.lineupOrder,
-          source: assignment.source,
-          locked: assignment.locked,
-          positionFitTier: assignment.positionFitTier,
-          selectionReason: assignment.selectionReason,
-          organisationId: ctx.organisationId,
-        })),
-        skipDuplicates: true,
-      });
+      const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED');
+      if (newAssignments.length > 0) {
+        await tx.eventSquadPlayer.createMany({
+          data: newAssignments.map((assignment) => ({
+            eventId,
+            eventSquadId: assignment.eventSquadId,
+            playerId: assignment.playerId,
+            assignedSlotIndex: assignment.assignedSlotIndex,
+            assignedSlotLabel: assignment.assignedSlotLabel,
+            assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
+            assignedPositionId: assignment.assignedPositionId,
+            lineupOrder: assignment.lineupOrder,
+            source: assignment.source,
+            locked: assignment.locked,
+            positionFitTier: assignment.positionFitTier,
+            selectionReason: assignment.selectionReason,
+            organisationId: ctx.organisationId,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
   }, { timeout: 15000 });
 

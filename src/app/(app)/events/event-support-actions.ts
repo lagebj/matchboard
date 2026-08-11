@@ -18,6 +18,16 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
   if (!event) throw new Error('Event not found or access denied.');
 }
 
+async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    select: { status: true },
+  });
+  if (event?.status === 'FINALIZED') {
+    throw new Error('Cannot modify support assignments of a finalized event. Unfinalize the event first.');
+  }
+}
+
 const VALID_PLANNED_ROLES = [
   'GK cover',
   'Defender cover',
@@ -59,6 +69,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   if (!eventMatch) throw new Error('Event match not found.');
 
   await requireEventOrgAccess(eventMatch.eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventMatch.eventId, ctx.orgFilter);
 
   if (eventMatch.status === 'CANCELLED') {
     throw new Error('Cannot add support to a cancelled match.');
@@ -170,6 +181,7 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
   if (!assignment) throw new Error('Support assignment not found.');
 
   await requireEventOrgAccess(assignment.eventMatch.eventId, ctx.orgFilter);
+  await requireEventNotFinalized(assignment.eventMatch.eventId, ctx.orgFilter);
 
   await db.$transaction(async (tx) => {
     await tx.eventMatchSupportAssignment.delete({ where: { id: assignmentId } });
@@ -210,6 +222,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   if (!assignment) throw new Error('Support assignment not found.');
 
   await requireEventOrgAccess(assignment.eventMatch.eventId, ctx.orgFilter);
+  await requireEventNotFinalized(assignment.eventMatch.eventId, ctx.orgFilter);
 
   const updated = await db.eventMatchSupportAssignment.update({
     where: { id: assignmentId },

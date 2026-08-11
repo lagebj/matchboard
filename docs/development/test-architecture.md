@@ -35,8 +35,11 @@ Tests must never accidentally target production or development Neon databases.
 
 ## Test database configuration
 
-- `TEST_DATABASE_URL` — required for all database-backed tests
-- `DATABASE_URL` — must NOT be used as a fallback
+- `TEST_DATABASE_URL` — required for all database-backed tests (runtime queries)
+- `TEST_DATABASE_DIRECT_URL` — direct connection for Prisma migrations in test/CI (falls back to `TEST_DATABASE_URL` if not set)
+- `DATABASE_URL` — must NOT be used as a fallback for tests
+- `DIRECT_URL` — dev/production direct connection for Prisma CLI (migrations)
+- `PRODUCTION_DATABASE_URL` — production database URL (Vercel secret, used in deployment workflows)
 - `setupTestDb()` — creates/reuses the test PrismaClient singleton
 - `cleanTestDb()` — deletes all rows in dependency-safe order (used in `beforeAll`)
 - `teardownTestDb()` — disconnects the client (used in `afterAll`)
@@ -186,6 +189,7 @@ Unique values use deterministic counters, not random generators.
 8. Remove superseded helpers when consolidating test infrastructure.
 9. Do not secretly create parent entities in child factories — pass dependencies explicitly.
 10. Tests must never fall back to `DATABASE_URL` if `TEST_DATABASE_URL` is not set.
+11. Prisma CLI migrations in test/CI use `TEST_DATABASE_DIRECT_URL` (falls back to `TEST_DATABASE_URL`).
 
 ## Pre-existing test failures
 

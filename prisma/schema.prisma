@@ -964,6 +964,9 @@ model Event {
   matchDurationMinutes Int?
   selectionPattern     EventSelectionPattern?
   notes                String?
+  status               EventStatus               @default(DRAFT)
+  finalizedAt          DateTime?
+  finalizedBy          String?
   footballGroupId      String
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
@@ -1695,10 +1698,16 @@ enum EventSquadStatus {
   LOCKED
 }
 
+enum EventStatus {
+  DRAFT
+  FINALIZED
+}
+
 enum EventSelectionPattern {
   ALL_BALANCED
   ONE_COMPETITIVE_BALANCED_REMAINDER
   MANUAL_SEED_AUTO_BALANCE
+  PRESERVE_AND_FILL
 }
 
 enum EventSquadPlayerSource {

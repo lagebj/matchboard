@@ -361,6 +361,116 @@ describe('event-squad-generation', () => {
     });
   });
 
+  describe('preserve-and-fill mode', () => {
+    it('preserves locked assignments and fills empty slots', () => {
+      const lockedAssignments = new Map<string, string>();
+      lockedAssignments.set('p1', 's1');
+      lockedAssignments.set('p2', 's1');
+
+      const input = makeInput({
+        selectionPattern: 'PRESERVE_AND_FILL',
+        players: [
+          makePlayer({ playerId: 'p1', primaryPosition: 'GK', goalkeeperAbility: 'YES' }),
+          makePlayer({ playerId: 'p2' }),
+          makePlayer({ playerId: 'p3' }),
+          makePlayer({ playerId: 'p4' }),
+          makePlayer({ playerId: 'p5' }),
+          makePlayer({ playerId: 'p6' }),
+        ],
+        lockedAssignments,
+      });
+
+      const result = generateEventSquads(input);
+
+      const s1Assignments = result.assignments.filter((a) => a.eventSquadId === 's1');
+      const s2Assignments = result.assignments.filter((a) => a.eventSquadId === 's2');
+
+      expect(s1Assignments.find((a) => a.playerId === 'p1')).toBeDefined();
+      expect(s1Assignments.find((a) => a.playerId === 'p1')!.source).toBe('LOCKED');
+      expect(s1Assignments.find((a) => a.playerId === 'p2')).toBeDefined();
+      expect(s1Assignments.find((a) => a.playerId === 'p2')!.source).toBe('LOCKED');
+
+      expect(result.assignments.length).toBe(6);
+      expect(s2Assignments.length).toBeGreaterThan(0);
+    });
+
+    it('fills goalkeepers first in squads that need them', () => {
+      const lockedAssignments = new Map<string, string>();
+      lockedAssignments.set('p1', 's1');
+
+      const input = makeInput({
+        selectionPattern: 'PRESERVE_AND_FILL',
+        players: [
+          makePlayer({ playerId: 'p1', primaryPosition: 'GK', goalkeeperAbility: 'YES' }),
+          makePlayer({ playerId: 'p2', primaryPosition: 'GK', goalkeeperAbility: 'YES' }),
+          makePlayer({ playerId: 'p3' }),
+          makePlayer({ playerId: 'p4' }),
+          makePlayer({ playerId: 'p5' }),
+          makePlayer({ playerId: 'p6' }),
+          makePlayer({ playerId: 'p7' }),
+          makePlayer({ playerId: 'p8' }),
+          makePlayer({ playerId: 'p9' }),
+          makePlayer({ playerId: 'p10' }),
+        ],
+        lockedAssignments,
+      });
+
+      const result = generateEventSquads(input);
+
+      const s2Assignments = result.assignments.filter((a) => a.eventSquadId === 's2');
+      const gkInS2 = s2Assignments.find((a) => a.assignedRoleType === 'GOALKEEPER');
+      expect(gkInS2).toBeDefined();
+    });
+
+    it('does not reassign preserved players', () => {
+      const lockedAssignments = new Map<string, string>();
+      lockedAssignments.set('p1', 's1');
+      lockedAssignments.set('p2', 's2');
+
+      const input = makeInput({
+        selectionPattern: 'PRESERVE_AND_FILL',
+        players: [
+          makePlayer({ playerId: 'p1' }),
+          makePlayer({ playerId: 'p2' }),
+          makePlayer({ playerId: 'p3' }),
+        ],
+        lockedAssignments,
+      });
+
+      const result = generateEventSquads(input);
+
+      expect(result.assignments.find((a) => a.playerId === 'p1')!.eventSquadId).toBe('s1');
+      expect(result.assignments.find((a) => a.playerId === 'p2')!.eventSquadId).toBe('s2');
+    });
+
+    it('distributes unassigned players to squads with most space', () => {
+      const lockedAssignments = new Map<string, string>();
+      lockedAssignments.set('p1', 's1');
+
+      const input = makeInput({
+        selectionPattern: 'PRESERVE_AND_FILL',
+        players: [
+          makePlayer({ playerId: 'p1' }),
+          makePlayer({ playerId: 'p2' }),
+          makePlayer({ playerId: 'p3' }),
+          makePlayer({ playerId: 'p4' }),
+          makePlayer({ playerId: 'p5' }),
+          makePlayer({ playerId: 'p6' }),
+        ],
+        squads: [
+          { id: 's1', name: 'Squad 1', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: 5, formationId: null, generationOrder: 0 },
+          { id: 's2', name: 'Squad 2', intent: 'BALANCED', targetSize: 5, minSize: null, maxSize: 5, formationId: null, generationOrder: 1 },
+        ],
+        lockedAssignments,
+      });
+
+      const result = generateEventSquads(input);
+
+      expect(result.assignments.length).toBe(6);
+      expect(result.assignments.every((a) => ['s1', 's2'].includes(a.eventSquadId))).toBe(true);
+    });
+  });
+
   describe('getDefaultTargetSize', () => {
     it('returns correct sizes for each format', () => {
       expect(getDefaultTargetSize('THREE_A_SIDE')).toBe(3);
