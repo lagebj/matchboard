@@ -247,6 +247,119 @@ describe("deterministic-team-composer", () => {
     });
   });
 
+  // ── PRESERVE_AND_FILL ────────────────────────────────────────────
+
+  describe("PRESERVE_AND_FILL scenario", () => {
+    it("preserves all current team assignments and fills unassigned players", () => {
+      const players = [
+        makePlayer({ id: "p1", currentTeamId: "t1", primaryBroadPosition: "goalkeeper", roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY" }), goalkeeperAbility: "YES", overallStrength: 7 }),
+        makePlayer({ id: "p2", currentTeamId: "t1", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 6 }),
+        makePlayer({ id: "p3", currentTeamId: "t1", primaryBroadPosition: "midfielder", roleSuitability: makeRoleSuitability({ midfield: "PRIMARY" }), overallStrength: 5 }),
+        makePlayer({ id: "p4", currentTeamId: "t2", primaryBroadPosition: "goalkeeper", roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY" }), goalkeeperAbility: "YES", overallStrength: 6 }),
+        makePlayer({ id: "p5", currentTeamId: "t2", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 5 }),
+        makePlayer({ id: "p6", currentTeamId: "t2", primaryBroadPosition: "forward", roleSuitability: makeRoleSuitability({ attack: "PRIMARY" }), overallStrength: 7 }),
+        makePlayer({ id: "p7", primaryBroadPosition: "midfielder", roleSuitability: makeRoleSuitability({ midfield: "PRIMARY" }), overallStrength: 5 }),
+        makePlayer({ id: "p8", primaryBroadPosition: "forward", roleSuitability: makeRoleSuitability({ attack: "PRIMARY" }), overallStrength: 4 }),
+      ];
+      const teams = [makeTeam({ id: "t1", targetSize: 5, minimumSize: 4, maximumSize: 6 }), makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 4, maximumSize: 6 })];
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("PRESERVE_AND_FILL"),
+        players,
+        targetTeams: teams,
+        structure: create5v5Structure(),
+      }));
+
+      expect(result.assignments.length).toBe(8);
+
+      const t1Assignments = result.assignments.filter((a) => a.teamId === "t1");
+      const t2Assignments = result.assignments.filter((a) => a.teamId === "t2");
+
+      expect(t1Assignments.some((a) => a.playerId === "p1")).toBe(true);
+      expect(t1Assignments.some((a) => a.playerId === "p2")).toBe(true);
+      expect(t1Assignments.some((a) => a.playerId === "p3")).toBe(true);
+      expect(t2Assignments.some((a) => a.playerId === "p4")).toBe(true);
+      expect(t2Assignments.some((a) => a.playerId === "p5")).toBe(true);
+      expect(t2Assignments.some((a) => a.playerId === "p6")).toBe(true);
+    });
+
+    it("does not move players between teams even when one team is over capacity", () => {
+      const players = [
+        makePlayer({ id: "p1", currentTeamId: "t1", primaryBroadPosition: "goalkeeper", roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY" }), goalkeeperAbility: "YES", overallStrength: 8 }),
+        makePlayer({ id: "p2", currentTeamId: "t1", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 7 }),
+        makePlayer({ id: "p3", currentTeamId: "t1", primaryBroadPosition: "midfielder", roleSuitability: makeRoleSuitability({ midfield: "PRIMARY" }), overallStrength: 6 }),
+        makePlayer({ id: "p4", currentTeamId: "t1", primaryBroadPosition: "forward", roleSuitability: makeRoleSuitability({ attack: "PRIMARY" }), overallStrength: 5 }),
+        makePlayer({ id: "p5", currentTeamId: "t1", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 7 }),
+        makePlayer({ id: "p6", currentTeamId: "t2", primaryBroadPosition: "goalkeeper", roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY" }), goalkeeperAbility: "YES", overallStrength: 4 }),
+      ];
+      const teams = [makeTeam({ id: "t1", targetSize: 5, minimumSize: 4, maximumSize: 6 }), makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 4, maximumSize: 6 })];
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("PRESERVE_AND_FILL"),
+        players,
+        targetTeams: teams,
+        structure: create5v5Structure(),
+      }));
+
+      const t1Assignments = result.assignments.filter((a) => a.teamId === "t1");
+      const t2Assignments = result.assignments.filter((a) => a.teamId === "t2");
+
+      expect(t1Assignments.length).toBe(5);
+      expect(t2Assignments.length).toBe(1);
+
+      for (const a of t1Assignments) {
+        const player = players.find((p) => p.id === a.playerId);
+        expect(player?.currentTeamId).toBe("t1");
+      }
+    });
+
+    it("distributes unassigned players to teams with the most space", () => {
+      const players = [
+        makePlayer({ id: "p1", currentTeamId: "t1", primaryBroadPosition: "goalkeeper", roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY" }), goalkeeperAbility: "YES", overallStrength: 7 }),
+        makePlayer({ id: "p2", currentTeamId: "t1", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 6 }),
+        makePlayer({ id: "p3", currentTeamId: "t1", primaryBroadPosition: "midfielder", roleSuitability: makeRoleSuitability({ midfield: "PRIMARY" }), overallStrength: 5 }),
+        makePlayer({ id: "p4", currentTeamId: "t2", primaryBroadPosition: "goalkeeper", roleSuitability: makeRoleSuitability({ goalkeeper: "PRIMARY" }), goalkeeperAbility: "YES", overallStrength: 6 }),
+        makePlayer({ id: "p5", primaryBroadPosition: "forward", roleSuitability: makeRoleSuitability({ attack: "PRIMARY" }), overallStrength: 8 }),
+        makePlayer({ id: "p6", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 4 }),
+      ];
+      const teams = [makeTeam({ id: "t1", targetSize: 5, minimumSize: 4, maximumSize: 6 }), makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 4, maximumSize: 6 })];
+
+      const result = composeTeams(makeProblem({
+        scenario: getSystemScenario("PRESERVE_AND_FILL"),
+        players,
+        targetTeams: teams,
+        structure: create5v5Structure(),
+      }));
+
+      const t1Assignments = result.assignments.filter((a) => a.teamId === "t1");
+      const t2Assignments = result.assignments.filter((a) => a.teamId === "t2");
+
+      expect(t1Assignments.length).toBe(3);
+      expect(t2Assignments.length).toBe(3);
+
+      expect(t2Assignments.some((a) => a.playerId === "p5")).toBe(true);
+      expect(t2Assignments.some((a) => a.playerId === "p6")).toBe(true);
+    });
+
+    it("produces deterministic output for identical inputs", () => {
+      const players = [
+        makePlayer({ id: "p1", currentTeamId: "t1", primaryBroadPosition: "defender", roleSuitability: makeRoleSuitability({ defence: "PRIMARY" }), overallStrength: 7 }),
+        makePlayer({ id: "p2", currentTeamId: "t2", primaryBroadPosition: "midfielder", roleSuitability: makeRoleSuitability({ midfield: "PRIMARY" }), overallStrength: 6 }),
+        makePlayer({ id: "p3", primaryBroadPosition: "forward", roleSuitability: makeRoleSuitability({ attack: "PRIMARY" }), overallStrength: 5 }),
+      ];
+      const teams = [makeTeam({ id: "t1", targetSize: 5, minimumSize: 3, maximumSize: 6 }), makeTeam({ id: "t2", name: "Team 2", targetSize: 5, minimumSize: 3, maximumSize: 6 })];
+
+      const result1 = composeTeams(makeProblem({ scenario: getSystemScenario("PRESERVE_AND_FILL"), players, targetTeams: teams, structure: create5v5Structure() }));
+      const result2 = composeTeams(makeProblem({ scenario: getSystemScenario("PRESERVE_AND_FILL"), players, targetTeams: teams, structure: create5v5Structure() }));
+
+      expect(result1.assignments).toEqual(result2.assignments);
+    });
+
+    it("is not policy-gated", () => {
+      expect(isScenarioPolicyGated("PRESERVE_AND_FILL")).toBe(false);
+    });
+  });
+
   // ── BALANCED ────────────────────────────────────────────────────────
 
   describe("BALANCED scenario", () => {
@@ -1259,10 +1372,10 @@ describe("deterministic-team-composer", () => {
   // ── Scenario catalogue ───────────────────────────────────────────────
 
   describe("scenario catalogue", () => {
-    it("provides all four system scenarios", () => {
+    it("provides all five system scenarios", () => {
       const scenarios = getAllSystemScenarios();
-      expect(scenarios).toHaveLength(4);
-      expect(scenarios.map((s) => s.code).sort()).toEqual(["BALANCED", "ONE_STRONG_REST_BALANCED", "PRESERVE_AND_REPAIR", "TIERED_DESCENDING"]);
+      expect(scenarios).toHaveLength(5);
+      expect(scenarios.map((s) => s.code).sort()).toEqual(["BALANCED", "ONE_STRONG_REST_BALANCED", "PRESERVE_AND_FILL", "PRESERVE_AND_REPAIR", "TIERED_DESCENDING"]);
     });
 
     it("returns correct scenario by code", () => {

@@ -1700,6 +1700,7 @@ Required test coverage should include:
 - consecutive support penalty increases with more consecutive rounds
 - consecutive support does not prevent selection when no other candidate exists
 - team composition: PRESERVE_AND_REPAIR preserves current assignments and repairs gaps
+- team composition: PRESERVE_AND_FILL preserves all current team assignments strictly and only distributes unassigned players to fill empty slots
 - team composition: BALANCED distributes players across teams by overall strength
 - team composition: ONE_STRONG_REST_BALANCED creates one strong team and balances the rest
 - team composition: TIERED_DESCENDING creates teams in descending strength order

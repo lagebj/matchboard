@@ -73,6 +73,19 @@ function normalizeInputs(
   for (const la of lockedAssignments) {
     locked.set(la.playerId, la.teamId);
   }
+
+  // PRESERVE_AND_FILL treats all players with a currentTeamId matching
+  // a target team as implicitly locked. They must not be moved during
+  // scarce role allocation or any other phase.
+  if (scenario.code === "PRESERVE_AND_FILL") {
+    const targetTeamIds = new Set(targetTeams.map((t) => t.id));
+    for (const player of eligiblePlayers) {
+      if (player.currentTeamId && targetTeamIds.has(player.currentTeamId) && !locked.has(player.id)) {
+        locked.set(player.id, player.currentTeamId);
+      }
+    }
+  }
+
   const scarcity = computePositionScarcity(eligiblePlayers, targetTeams.length);
   return {
     eligiblePlayers,
@@ -309,6 +322,9 @@ function applyScenarioDistribution(
     case "PRESERVE_AND_REPAIR":
       distributePreserveAndRepair(input, unassigned, assignments, teamAssignments, assignedPlayerIds);
       break;
+    case "PRESERVE_AND_FILL":
+      distributePreserveAndFill(input, unassigned, assignments, teamAssignments, assignedPlayerIds);
+      break;
     case "BALANCED":
       distributeBalanced(input, unassigned, assignments, teamAssignments, assignedPlayerIds);
       break;
@@ -443,6 +459,100 @@ function distributePreserveAndRepair(
   }
 
   // Fourth: fill remaining spots on teams below target, respecting maximum size
+  const stillRemaining = unassigned.filter((p) => !assignedPlayerIds.has(p.id));
+  const stillSorted = sortByOverallStrength(stillRemaining, input.seed);
+
+  for (const player of stillSorted) {
+    if (assignedPlayerIds.has(player.id)) continue;
+    const teamsBelowTarget = targetTeams
+      .filter((t) => {
+        const size = (teamAssignments.get(t.id) ?? new Set()).size;
+        return size < t.targetSize && size < t.maximumSize;
+      })
+      .sort((a, b) => {
+        const sizeA = (teamAssignments.get(a.id) ?? new Set()).size;
+        const sizeB = (teamAssignments.get(b.id) ?? new Set()).size;
+        if (sizeA !== sizeB) return sizeA - sizeB;
+        return stableCompare(a.id, b.id, input.seed);
+      });
+
+    if (teamsBelowTarget.length > 0) {
+      const team = teamsBelowTarget[0];
+      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, input.seed, input.structure);
+    }
+  }
+}
+
+// ── Preserve and fill distribution (strict keep, fill unassigned only) ──────
+
+function distributePreserveAndFill(
+  input: NormalizedInput,
+  unassigned: CompositionPlayer[],
+  assignments: Map<string, ProposedTeamAssignment>,
+  teamAssignments: Map<string, Set<string>>,
+  assignedPlayerIds: Set<string>,
+): void {
+  const { targetTeams } = input;
+
+  // Step 1: Preserve all current team assignments for unassigned players
+  // Unlike PRESERVE_AND_REPAIR, we do NOT redistribute or move players
+  // for repair purposes. Players stay on their current team, period.
+  for (const player of unassigned) {
+    if (player.currentTeamId) {
+      const targetTeam = targetTeams.find((t) => t.id === player.currentTeamId);
+      if (targetTeam) {
+        const teamSize = (teamAssignments.get(targetTeam.id) ?? new Set()).size;
+        if (teamSize < targetTeam.maximumSize) {
+          const role = determineBestRole(player);
+          const fit = player.roleSuitability[roleToKey(role)];
+          const assignedPosition = player.primaryBroadPosition ?? "flexible" as BroadPosition;
+          assignments.set(player.id, {
+            playerId: player.id,
+            teamId: targetTeam.id,
+            assignedRole: role,
+            assignedBroadPosition: assignedPosition,
+            positionFit: fit,
+            source: "PRESERVED",
+            selectionReason: `Retained in current team as ${role.toLowerCase()}`,
+            overallStrength: player.overallStrength,
+            isGoalkeeper: isGoalkeeperCapable(player),
+          });
+          if (!teamAssignments.has(targetTeam.id)) teamAssignments.set(targetTeam.id, new Set());
+          teamAssignments.get(targetTeam.id)!.add(player.id);
+          assignedPlayerIds.add(player.id);
+        }
+      }
+    }
+  }
+
+  // Step 2: No repair phase. We do NOT move players between teams.
+  // This is the key difference from PRESERVE_AND_REPAIR.
+
+  // Step 3: Fill teams below minimum size using remaining unassigned players
+  const remaining = unassigned.filter((p) => !assignedPlayerIds.has(p.id));
+  const sorted = sortByOverallStrength(remaining, input.seed);
+
+  for (const player of sorted) {
+    if (assignedPlayerIds.has(player.id)) continue;
+    const smallTeams = targetTeams
+      .filter((t) => {
+        const size = (teamAssignments.get(t.id) ?? new Set()).size;
+        return size < t.minimumSize && size < t.maximumSize;
+      })
+      .sort((a, b) => {
+        const sizeA = (teamAssignments.get(a.id) ?? new Set()).size;
+        const sizeB = (teamAssignments.get(b.id) ?? new Set()).size;
+        if (sizeA !== sizeB) return sizeA - sizeB;
+        return stableCompare(a.id, b.id, input.seed);
+      });
+
+    if (smallTeams.length > 0) {
+      const team = smallTeams[0];
+      assignPlayerToTeam(player, team, assignments, teamAssignments, assignedPlayerIds, input.seed, input.structure);
+    }
+  }
+
+  // Step 4: Fill remaining spots on teams below target, respecting maximum size
   const stillRemaining = unassigned.filter((p) => !assignedPlayerIds.has(p.id));
   const stillSorted = sortByOverallStrength(stillRemaining, input.seed);
 
@@ -969,9 +1079,11 @@ export function composeTeams(
   const assignedPlayerIds = new Set<string>();
 
   // Seed locked assignments
+  const explicitLockPlayerIds = new Set(lockedAssignments.map((la) => la.playerId));
   for (const [playerId, teamId] of input.lockedAssignments) {
     const player = players.find((p) => p.id === playerId);
     if (!player) continue;
+    const isImplicitLock = !explicitLockPlayerIds.has(playerId);
     const role = determineBestRole(player);
     const fit = player.roleSuitability[roleToKey(role)];
     const assignedPosition = player.primaryBroadPosition ?? "flexible" as BroadPosition;
@@ -981,8 +1093,8 @@ export function composeTeams(
       assignedRole: role,
       assignedBroadPosition: assignedPosition,
       positionFit: fit,
-      source: "LOCKED",
-      selectionReason: "Coach-locked assignment",
+      source: isImplicitLock ? "PRESERVED" : "LOCKED",
+      selectionReason: isImplicitLock ? `Preserved in current team as ${role.toLowerCase()}` : "Coach-locked assignment",
       overallStrength: player.overallStrength,
       isGoalkeeper: isGoalkeeperCapable(player),
     });
