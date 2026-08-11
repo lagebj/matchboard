@@ -4,6 +4,7 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
+import { resetFactoryCounters } from "./support/factories";
 
 let testDb: PrismaClient | null = null;
 
@@ -51,10 +52,14 @@ export async function teardownTestDb(): Promise<void> {
 }
 
 export async function cleanTestDb(db: PrismaClient): Promise<void> {
+  resetFactoryCounters();
+  await db.teamBestLineupAssignment.deleteMany().catch(() => {});
+  await db.teamBestLineup.deleteMany().catch(() => {});
   await db.selectionExplanation.deleteMany().catch(() => {});
   await db.movementCandidate.deleteMany().catch(() => {});
   await db.coachingIntent.deleteMany().catch(() => {});
   await db.playerReadinessSignal.deleteMany().catch(() => {});
+  await db.playerDevelopmentObservation.deleteMany().catch(() => {});
   await db.matchExecutionFeedback.deleteMany().catch(() => {});
   await db.teamReflection.deleteMany().catch(() => {});
   await db.decisionRecord.deleteMany().catch(() => {});
@@ -68,16 +73,23 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.goal.deleteMany().catch(() => {});
   await db.postMatchPlayerActual.deleteMany().catch(() => {});
   await db.postMatchReport.deleteMany().catch(() => {});
+  await db.matchLineupAssignment.deleteMany().catch(() => {});
+  await db.matchLineup.deleteMany().catch(() => {});
+  await db.matchRotation.deleteMany().catch(() => {});
   await db.selectionAudit.deleteMany().catch(() => {});
   await db.warning.deleteMany().catch(() => {});
   await db.movementLedger.deleteMany().catch(() => {});
   await db.selection.deleteMany().catch(() => {});
   await db.availability.deleteMany().catch(() => {});
   await db.playerLock.deleteMany().catch(() => {});
+  await db.playerProfileSuggestionEvidence.deleteMany().catch(() => {});
+  await db.playerProfileSuggestion.deleteMany().catch(() => {});
   await db.match.deleteMany().catch(() => {});
   await db.matchRound.deleteMany().catch(() => {});
   await db.leagueSeason.deleteMany().catch(() => {});
   await db.season.deleteMany().catch(() => {});
+  await db.eventMatchLineupAssignment.deleteMany().catch(() => {});
+  await db.eventMatchLineup.deleteMany().catch(() => {});
   await db.eventMatchSupportAssignment.deleteMany().catch(() => {});
   await db.eventSquadPlayer.deleteMany().catch(() => {});
   await db.eventSquad.deleteMany().catch(() => {});
@@ -88,16 +100,32 @@ export async function cleanTestDb(db: PrismaClient): Promise<void> {
   await db.eventPostMatchReport.deleteMany().catch(() => {});
   await db.eventMatch.deleteMany().catch(() => {});
   await db.event.deleteMany().catch(() => {});
+  await db.liveMatchEvent.deleteMany().catch(() => {});
+  await db.liveMatchSession.deleteMany().catch(() => {});
+  await db.eventLiveMatchEvent.deleteMany().catch(() => {});
+  await db.eventLiveMatchSession.deleteMany().catch(() => {});
+  await db.fairPlayObservation.deleteMany().catch(() => {});
+  await db.formationSlot.deleteMany().catch(() => {});
+  await db.formation.deleteMany().catch(() => {});
   await db.player.deleteMany().catch(() => {});
+  await db.footballGroupPlayer.deleteMany().catch(() => {});
+  await db.footballGroup.deleteMany().catch(() => {});
   await db.rotationPath.deleteMany().catch(() => {});
+  await db.groupMovementPath.deleteMany().catch(() => {});
   await db.team.deleteMany().catch(() => {});
+  await db.opponentSportingEvidence.deleteMany().catch(() => {});
+  await db.opponentEncounterObservation.deleteMany().catch(() => {});
   await db.opponentTeam.deleteMany().catch(() => {});
   await db.ruleConfig.deleteMany().catch(() => {});
   await db.reviewRequest.deleteMany().catch(() => {});
+  await db.workOwnership.deleteMany().catch(() => {});
+  await db.notificationDelivery.deleteMany().catch(() => {});
   await db.notificationOutbox.deleteMany().catch(() => {});
   await db.organisationInvitation.deleteMany().catch(() => {});
   await db.organisationMembership.deleteMany().catch(() => {});
+  await db.groupAccess.deleteMany().catch(() => {});
   await db.machinePrincipal.deleteMany().catch(() => {});
+  await db.providerWebhookEvent.deleteMany().catch(() => {});
   await db.organisation.deleteMany().catch(() => {});
   await db.account.deleteMany().catch(() => {});
   await db.session.deleteMany().catch(() => {});
@@ -355,3 +383,35 @@ export async function seedTestFixture(
     rotationPathIds,
   };
 }
+
+export {
+  mockAuthContext,
+  type MockAuthOverrides,
+  type MockAuthResult,
+} from "./support/auth-mock";
+
+export {
+  createTestOrganisation,
+  createTestGroup as createTestGroupFactory,
+  createTestTeam,
+  createTestTeams,
+  createTestPlayer,
+  createTestPlayers,
+  createTestSeason,
+  createTestLeagueSeason,
+  createTestRound,
+  createTestMatch,
+  createTestOpponentTeam,
+  createTestEvent,
+  createTestEventSquad,
+  createTestAvailability,
+  createTestRotationPath,
+  createTestUser,
+  createTestAccount,
+  createTestMembership,
+  createTestOrganisationWithMembership,
+  createTestPermissionScenario,
+  createTestCrossTenantScenario,
+  cleanEventTables,
+  resetFactoryCounters,
+} from "./support/factories";

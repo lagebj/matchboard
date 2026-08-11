@@ -11,6 +11,7 @@ services:
       POSTGRES_DB: matchboard
     volumes:
       - matchboard-pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/01-init-test-db.sql
 
 volumes:
   matchboard-pgdata:

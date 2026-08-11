@@ -176,6 +176,9 @@ describe("Security audit: forbidden SQL methods", () => {
     // Test mock: db mock includes $executeRawUnsafe and $transaction for Prisma client
     // interface compliance in group-context authorization tests.
     "src/lib/auth/__tests__/group-context.test.ts",
+    // Test mock: security-authz test uses $queryRawUnsafe and $executeRawUnsafe in mock
+    // definitions for testing authorization enforcement patterns.
+    "src/test/security-authz.test.ts",
   ];
 
   it("application code must not use $queryRawUnsafe or $executeRawUnsafe except in allowed files", async () => {
