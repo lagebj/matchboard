@@ -316,10 +316,44 @@ describe("Season overview service", () => {
 
     it("excludes draft data when includeDrafts is false", async () => {
       const rodTeamId = fixtureIds.teams["Rod"]!;
-      const _hvitTeamId = fixtureIds.teams["Hvit"]!;
-      const _blaTeamId = fixtureIds.teams["Bla"]!;
+      const hvitTeamId = fixtureIds.teams["Hvit"]!;
       const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
       const rodPlayer = rodPlayers[rodPlayers.length - 1]!;
+
+      const secondRound = await testDb.matchRound.create({
+        data: {
+          name: "W20 Test Draft",
+          leagueSeasonId: fixtureIds.leagueSeasonId,
+          status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+
+      const rodMatch2 = await testDb.match.create({
+        data: {
+          matchRoundId: secondRound.id,
+          teamId: rodTeamId,
+          opponent: "Opponent Rod 2",
+          startsAt: new Date("2025-05-05T10:00:00Z"),
+          homeAway: "HOME",
+          squadSize: 11,
+          matchType: "FRIENDLY",
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+
+      const hvitMatch2 = await testDb.match.create({
+        data: {
+          matchRoundId: secondRound.id,
+          teamId: hvitTeamId,
+          opponent: "Opponent Hvit 2",
+          startsAt: new Date("2025-05-05T12:00:00Z"),
+          homeAway: "AWAY",
+          squadSize: 11,
+          matchType: "FRIENDLY",
+          organisationId: fixtureIds.organisationId,
+        },
+      });
 
       await testDb.selection.create({
         data: {
@@ -345,8 +379,8 @@ describe("Season overview service", () => {
 
       await testDb.selection.create({
         data: {
-          matchId: fixtureIds.matches["Bla"]!,
-          matchRoundId: fixtureIds.matchRoundId,
+          matchId: hvitMatch2.id,
+          matchRoundId: secondRound.id,
           playerId: rodPlayer.id,
           role: "SUPPORT",
           status: "DRAFT",
