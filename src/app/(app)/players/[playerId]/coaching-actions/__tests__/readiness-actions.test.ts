@@ -2,10 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-vi.mock("@/lib/auth", () => ({
-  requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }),
-}));
+const auth = mockAuthContext();
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -28,6 +27,7 @@ describe("Readiness Signal Actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {

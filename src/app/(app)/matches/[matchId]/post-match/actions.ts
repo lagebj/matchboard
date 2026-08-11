@@ -28,7 +28,7 @@ import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode): Promise<string | null> {
   if (orgFilter.type !== "org") return null;
   const report = await db.postMatchReport.findFirst({
-    where: { id: reportId, match: orgFilter.filter },
+    where: { id: reportId, ...orgFilter.filterNullable },
     select: { id: true, matchId: true },
   });
   if (!report) throw new Error("Report not found or access denied.");

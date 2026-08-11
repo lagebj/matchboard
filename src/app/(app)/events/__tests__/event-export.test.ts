@@ -3,48 +3,15 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import type { FormationSlotRoleType } from '@/generated/prisma/client';
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture, type TestFixtureIds } from '@/test/test-db';
 import ExcelJS from 'exceljs';
+import { mockAuthContext } from '@/test/support/auth-mock';
+
+const auth = mockAuthContext({ role: 'COACH' });
 
 let testDb: PrismaClient;
 let fixtureIds: TestFixtureIds;
-let _testOrgId = 'org-test';
 
 vi.mock('@/lib/db', () => ({
   get db() { return getTestDb(); },
-}));
-
-vi.mock('@/lib/auth', () => {
-  class AuthorizationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = 'AuthorizationError';
-    }
-  }
-  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: 'test-coach', email: 'coach@test.com' }) };
-});
-
-vi.mock('@/lib/auth/actor-context', () => {
-  const makeCtx = () => ({
-    userId: 'test-coach',
-    email: 'coach@test.com',
-    membershipId: 'mem-test',
-    organisationId: _testOrgId,
-    organisationSlug: 'test-org',
-    role: 'COACH',
-    orgFilter: { type: 'all' as const },
-  });
-  return {
-    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
-    requireMutationRole: vi.fn(),
-    canMutate: vi.fn().mockReturnValue(true),
-    canAdmin: vi.fn().mockReturnValue(false),
-    canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockReturnValue(true),
-    requireTeamAccess: vi.fn(),
-  };
-});
-
-vi.mock('next/cache', () => ({
-  revalidatePath: vi.fn(),
 }));
 
 function getCellText(cell: ExcelJS.Cell): string {
@@ -99,7 +66,7 @@ describe('Event export route', () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 5 });
-    _testOrgId = fixtureIds.organisationId;
+    auth.updateOrganisationId(fixtureIds.organisationId);
   });
 
   afterAll(async () => {

@@ -25,9 +25,13 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: mockRateLimit.mockReturnValue({ allowed: true }),
 }));
 
-vi.mock("@/lib/security/errors", () => ({
-  safeErrorResponse: vi.fn().mockReturnValue(new Response("Internal Server Error", { status: 500 })),
-}));
+vi.mock("@/lib/security/errors", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/security/errors")>();
+  return {
+    ...actual,
+    safeErrorResponse: vi.fn().mockReturnValue(new Response("Internal Server Error", { status: 500 })),
+  };
+});
 
 vi.mock("@/lib/simulation/simulation-context-builder", () => ({
   buildLeagueSimulationContext: vi.fn().mockRejectedValue(new Error("Not implemented in test")),

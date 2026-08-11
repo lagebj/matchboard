@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
 let testDb: PrismaClient;
+
+const auth = mockAuthContext({ role: "COACH" });
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -28,32 +31,6 @@ vi.mock("@/auth", () => ({
   isAllowedCoach: vi.fn().mockReturnValue(true),
 }));
 
-let _testOrgId = "test-org-id";
-let _testGroupId = "test-group-id";
-
-vi.mock("@/lib/auth/actor-context", () => {
-  const makeCtx = () => ({
-    userId: "test-coach",
-    email: "test@example.com",
-    membershipId: "mem-test",
-    organisationId: _testOrgId,
-    organisationSlug: "test-org",
-    role: "COACH",
-    accessibleGroupIds: [],
-    groupAccesses: [],
-    orgFilter: { type: "all" as const },
-  });
-  return {
-    requireActorContext: vi.fn().mockImplementation(async () => makeCtx()),
-    requireMutationRole: vi.fn(),
-    canMutate: vi.fn().mockReturnValue(true),
-    canAdmin: vi.fn().mockReturnValue(false),
-    canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockResolvedValue(true),
-    requireTeamAccess: vi.fn().mockResolvedValue(undefined),
-  };
-});
-
 function isRedirectError(error: unknown): boolean {
   return error instanceof Error && error.message === "NEXT_REDIRECT";
 }
@@ -67,7 +44,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
       playersPerTeam: 0,
       rotationPaths: [],
     });
-    _testOrgId = _fixtureIds.organisationId;_testGroupId = _fixtureIds.footballGroupId;
+    auth.updateOrganisationId(_fixtureIds.organisationId);
   });
   afterAll(async () => { await teardownTestDb(); });
 
@@ -126,7 +103,7 @@ describe("Setup registry: create team persists all squad config fields", () => {
 
   it("restores archived team with same name instead of creating duplicate", async () => {
     const existingTeam = await testDb.team.create({
-      data: { name: "Archived Team", archivedAt: new Date(), targetSquadSize: 11, organisationId: _testOrgId, footballGroupId: _testGroupId },
+      data: { name: "Archived Team", archivedAt: new Date(), targetSquadSize: 11, organisationId: _fixtureIds.organisationId, footballGroupId: _fixtureIds.footballGroupId },
     });
 
     const formData = new FormData();
@@ -167,7 +144,7 @@ describe("Setup registry: create match action assigns match to round by date", (
       playersPerTeam: 0,
       rotationPaths: [],
     });
-    _testOrgId = _fixtureIds.organisationId;_testGroupId = _fixtureIds.footballGroupId;
+    auth.updateOrganisationId(_fixtureIds.organisationId);
   });
   afterAll(async () => { await teardownTestDb(); });
 

@@ -9,6 +9,9 @@ import {
   MACHINE_SCOPES,
   isForbiddenScope,
 } from "@/lib/machine-principal/machine-principal";
+import { mockAuthContext } from "@/test/support/auth-mock";
+
+mockAuthContext();
 
 const FORBIDDEN_SCOPE_VALUES = [
   "organisation:admin",
@@ -69,10 +72,10 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect(principal.organisationId).toBe(org1.id);
 
       const principalsInOrg1 = await db.machinePrincipal.findMany({
-        where: { organisationId: org1.id, footballGroupId: org1Group },
+        where: { organisationId: org1.id },
       });
       const principalsInOrg2 = await db.machinePrincipal.findMany({
-        where: { organisationId: org2.id, footballGroupId: org2Group },
+        where: { organisationId: org2.id },
       });
 
       expect(principalsInOrg1).toHaveLength(1);
@@ -271,7 +274,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect(result.type).toBe("org");
       if (result.type === "org") {
         expect(result.organisationId).toBe(org.id);
-        expect(result.filter).toEqual({ organisationId: org.id, footballGroupId: orgGroup });
+        expect(result.filter).toEqual({ organisationId: org.id });
       }
     });
   });

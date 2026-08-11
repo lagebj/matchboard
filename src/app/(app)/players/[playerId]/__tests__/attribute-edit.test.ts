@@ -2,42 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-const { orgIdRef } = vi.hoisted(() => {
-  const orgIdRef = { value: "org-test-placeholder" };
-  return { orgIdRef };
-});
-
-vi.mock("@/lib/auth", () => {
-  class AuthorizationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "AuthorizationError";
-    }
-  }
-  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }) };
-});
-
-vi.mock("@/lib/auth/actor-context", () => {
-  return {
-    requireActorContext: vi.fn().mockImplementation(() => Promise.resolve({
-      userId: "test-coach",
-      email: "coach@test.com",
-      membershipId: "mem-test",
-      organisationId: orgIdRef.value,
-      organisationSlug: "test-org",
-      role: "COACH",
-      orgFilter: { type: "org", organisationId: orgIdRef.value, filter: { organisationId: orgIdRef.value }, filterNullable: { organisationId: orgIdRef.value } },
-    })),
-    requireMutationRole: vi.fn(),
-    canMutate: vi.fn().mockReturnValue(true),
-    canAdmin: vi.fn().mockReturnValue(false),
-    canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockReturnValue(true),
-    requireTeamAccess: vi.fn(),
-    requirePlayerTeamAccess: vi.fn(),
-  };
-});
+const auth = mockAuthContext({ role: "COACH" });
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -56,7 +23,7 @@ describe("Player attribute editing", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
-    orgIdRef.value = fixture.organisationId;
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {

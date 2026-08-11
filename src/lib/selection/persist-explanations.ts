@@ -130,6 +130,15 @@ export async function persistRoundExplanations(
 
   const matchRoundId = generatedRound.matchRoundId;
 
+  const matchRound = await db.matchRound.findUnique({
+    where: { id: matchRoundId },
+    select: { organisationId: true },
+  });
+  const organisationId = matchRound?.organisationId;
+  if (!organisationId) {
+    throw new Error(`Match round ${matchRoundId} not found or missing organisationId.`);
+  }
+
   if (matchIntentMap) {
     for (const explanation of explanations) {
       if (explanation.matchId && matchIntentMap.has(explanation.matchId)) {
@@ -159,6 +168,7 @@ export async function persistRoundExplanations(
     for (const explanation of explanations) {
       await tx.selectionExplanation.create({
         data: {
+          organisationId,
           scopeType: explanation.scopeType,
           scopeId: explanation.scopeId,
           matchId: explanation.matchId,

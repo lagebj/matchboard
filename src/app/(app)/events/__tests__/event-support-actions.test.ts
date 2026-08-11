@@ -2,39 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient, EventPlayerStatus } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
 
-let _testOrgId = "org-test";
-
-vi.mock("@/lib/auth", () => {
-  class AuthorizationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "AuthorizationError";
-    }
-  }
-  return { AuthorizationError, requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "coach@test.com" }) };
-});
-
-vi.mock("@/lib/auth/actor-context", () => {
-  const makeCtx = () => ({
-    userId: "test-coach",
-    email: "coach@test.com",
-    membershipId: "mem-test",
-    organisationId: _testOrgId,
-    organisationSlug: "test-org",
-    role: "COACH",
-    orgFilter: { type: "all" as const },
-  });
-  return {
-    requireActorContext: vi.fn().mockResolvedValue(makeCtx()),
-    requireMutationRole: vi.fn(),
-    canMutate: vi.fn().mockReturnValue(true),
-    canAdmin: vi.fn().mockReturnValue(false),
-    canOwn: vi.fn().mockReturnValue(false),
-    hasTeamAccess: vi.fn().mockReturnValue(true),
-    requireTeamAccess: vi.fn(),
-  };
-});
+const auth = mockAuthContext({ role: "COACH" });
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -135,7 +105,7 @@ describe("Event support actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
     fixture = await seedTestFixture(testDb);
-    _testOrgId = fixture.organisationId;
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {

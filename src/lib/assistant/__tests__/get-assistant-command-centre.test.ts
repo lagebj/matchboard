@@ -8,7 +8,10 @@ import {
   createTestGroup,
   type TestFixtureIds,
 } from "@/test/test-db";
+import { mockAuthContext } from "@/test/support/auth-mock";
 import { getAssistantCommandCentre } from "../get-assistant-command-centre";
+
+const auth = mockAuthContext();
 
 vi.mock("@/lib/db", () => {
   let _db: PrismaClient;
@@ -29,6 +32,7 @@ describe("getAssistantCommandCentre", () => {
   beforeAll(async () => {
     db = await setupTestDb();
     fixture = await seedTestFixture(db);
+    auth.updateOrganisationId(fixture.organisationId);
   });
 
   afterAll(async () => {
@@ -129,7 +133,7 @@ describe("getAssistantCommandCentre", () => {
       await db.postMatchReport.upsert({
         where: { matchId: m.id },
         update: {},
-        create: { matchId: m.id, status: "LOCKED" },
+        create: { matchId: m.id, status: "LOCKED", organisationId: fixture.organisationId },
       });
     }
 
@@ -283,6 +287,8 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
       },
     });
 
+    auth.updateOrganisationId(org.id);
+
     const result = await getAssistantCommandCentre();
     const setupItems = result.items.filter(
       (i) => i.category === "setup_missing",
@@ -319,6 +325,8 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
     const team = await setupDb.team.create({
       data: { name: "Team A", targetSquadSize: 11, organisationId: org.id, footballGroupId: setupGroup2 },
     });
+
+    auth.updateOrganisationId(org.id);
 
     const result = await getAssistantCommandCentre();
     const setupItems = result.items.filter(
@@ -370,6 +378,8 @@ describe("getAssistantCommandCentre — setup missing cases", () => {
         organisationId: org.id,
       },
     });
+
+    auth.updateOrganisationId(org.id);
 
     const result = await getAssistantCommandCentre();
     const setupItems = result.items.filter(
