@@ -65,4 +65,4 @@ ALTER TABLE "TeamBestLineupAssignment" ADD CONSTRAINT "TeamBestLineupAssignment_
 ALTER TABLE "TeamBestLineupAssignment" ADD CONSTRAINT "TeamBestLineupAssignment_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "Player"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TeamBestLineupAssignment_organisationId_fkey" FOREIGN KEY ("organisationId") REFERENCES "Organisation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "TeamBestLineupAssignment" ADD CONSTRAINT "TeamBestLineupAssignment_organisationId_fkey" FOREIGN KEY ("organisationId") REFERENCES "Organisation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
