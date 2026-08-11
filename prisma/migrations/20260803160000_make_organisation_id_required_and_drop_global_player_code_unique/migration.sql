@@ -16,18 +16,38 @@
 -- If no organisation exists but there are rows with NULL organisationId,
 -- create a placeholder organisation to satisfy foreign key constraints.
 -- This handles test/dev databases that may have orphaned rows from incomplete test runs.
+-- The check covers all tenant-scoped tables that have rows with NULL organisationId.
 DO $$
 DECLARE
   fallback_org_id TEXT;
+  has_null_rows BOOLEAN;
 BEGIN
   SELECT id INTO fallback_org_id FROM "Organisation" ORDER BY "createdAt" LIMIT 1;
 
-  IF fallback_org_id IS NULL AND EXISTS (SELECT 1 FROM "Formation" WHERE "organisationId" IS NULL) THEN
-    -- No organisation exists but there are orphaned rows — create a placeholder
-    INSERT INTO "Organisation" (id, name, slug, "createdAt", "updatedAt")
-    VALUES ('org-placeholder-migration', 'Placeholder (migration)', 'placeholder-migration', NOW(), NOW())
-    ON CONFLICT (id) DO NOTHING;
-    fallback_org_id := 'org-placeholder-migration';
+  IF fallback_org_id IS NULL THEN
+    -- Check if ANY tenant-scoped table has rows with NULL organisationId
+    SELECT EXISTS (
+      SELECT 1 FROM "OpponentTeam" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Formation" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Team" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Player" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Match" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "RuleConfig" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Season" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "MatchRound" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Availability" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Selection" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "RotationPath" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "MovementLedger" WHERE "organisationId" IS NULL
+      UNION ALL SELECT 1 FROM "Event" WHERE "organisationId" IS NULL
+    ) INTO has_null_rows;
+
+    IF has_null_rows THEN
+      INSERT INTO "Organisation" (id, name, slug, "createdAt", "updatedAt")
+      VALUES ('org-placeholder-migration', 'Placeholder (migration)', 'placeholder-migration', NOW(), NOW())
+      ON CONFLICT (id) DO NOTHING;
+      fallback_org_id := 'org-placeholder-migration';
+    END IF;
   END IF;
 
   IF fallback_org_id IS NOT NULL THEN
@@ -95,7 +115,78 @@ BEGIN
 END $$;
 
 -- Set NOT NULL (will succeed on empty tables or when all values are non-null)
-ALTER TABLE "Team" ALTER COLUMN "organisationId" SET NOT NULL;
+-- Safety: for each table, explicitly update any remaining NULLs before SET NOT NULL.
+-- This handles edge cases where the DO block above may have missed rows
+-- (e.g., if a table was added by a later migration or the fallback org was not created).
+-- These UPDATEs are idempotent and safe to run even if no NULLs exist.
+
+DO $$
+DECLARE
+  fallback TEXT;
+BEGIN
+  SELECT id INTO fallback FROM "Organisation" ORDER BY "createdAt" LIMIT 1;
+  IF fallback IS NOT NULL THEN
+    UPDATE "Team" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Player" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Match" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "OpponentTeam" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "RuleConfig" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Season" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchRound" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Availability" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Selection" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "RotationPath" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MovementLedger" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Formation" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "FormationSlot" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchLineup" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchLineupAssignment" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PlayerPosition" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Warning" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PlayerLock" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "SelectionAudit" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "DecisionRecord" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "CoachingIntent" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PostMatchReport" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PostMatchPlayerActual" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Goal" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Assist" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchReportAbsence" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchReportPlayerStat" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PlayerReadinessSignal" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchExecutionFeedback" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "LiveMatchSession" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "LiveMatchEvent" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MatchRotation" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "FairPlayObservation" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "TeamReflection" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "OpponentEncounterObservation" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "SelectionExplanation" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "MovementCandidate" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "Event" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventPlayerAvailability" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventSquad" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventSquadPlayer" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventMatch" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventPostMatchReport" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventPostMatchPlayer" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventGoalEvent" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventAssistEvent" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventMatchSupportAssignment" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventMatchLineup" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "EventMatchLineupAssignment" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "LeagueSeason" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "SeasonPeriodSnapshot" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "TeamSeasonSnapshot" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "TeamSeasonSnapshotPlayer" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PolicyDecisionLog" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "OpponentSportingEvidence" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PlayerDevelopmentObservation" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "PlayerProfileSuggestion" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "NotificationOutbox" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+    UPDATE "ReviewRequest" SET "organisationId" = fallback WHERE "organisationId" IS NULL;
+  END IF;
+END $$;
 ALTER TABLE "Player" ALTER COLUMN "organisationId" SET NOT NULL;
 ALTER TABLE "Match" ALTER COLUMN "organisationId" SET NOT NULL;
 ALTER TABLE "OpponentTeam" ALTER COLUMN "organisationId" SET NOT NULL;
