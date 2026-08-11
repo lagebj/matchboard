@@ -4,7 +4,7 @@ export const VALID_EVENT_TYPES: EventType[] = ["CUP", "TOURNAMENT", "FRIENDLY_DA
 export const VALID_GAME_FORMATS: GameFormat[] = ["THREE_A_SIDE", "FIVE_A_SIDE", "SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"];
 export const VALID_EVENT_PLAYER_STATUSES: EventPlayerStatus[] = ["AVAILABLE", "UNAVAILABLE", "UNKNOWN", "RESERVE", "LATE_ADDITION", "WITHDRAWN"];
 export const VALID_SQUAD_INTENTS: EventSquadIntent[] = ["COMPETITIVE", "BALANCED", "MANUAL"];
-export const VALID_SELECTION_PATTERNS: EventSelectionPattern[] = ["ALL_BALANCED", "ONE_COMPETITIVE_BALANCED_REMAINDER", "MANUAL_SEED_AUTO_BALANCE"];
+export const VALID_SELECTION_PATTERNS: EventSelectionPattern[] = ["ALL_BALANCED", "ONE_COMPETITIVE_BALANCED_REMAINDER", "MANUAL_SEED_AUTO_BALANCE", "PRESERVE_AND_FILL"];
 
 export function parseEnum<T extends string>(value: string | null | undefined, validValues: readonly T[], defaultValue: T): T {
   if (!value) return defaultValue;

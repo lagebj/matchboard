@@ -39,102 +39,116 @@ async function requireEventOrgAccess(eventId: string, orgFilter: { type: string;
 }
 
 export async function finalizeEventAction(eventId: string): Promise<FinalizeEventResult> {
-  const ctx = await requireActorContext();
-  requireMutationRole(ctx);
+  try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
 
-  await requireEventOrgAccess(eventId, ctx.orgFilter);
+    await requireEventOrgAccess(eventId, ctx.orgFilter);
 
-  const validation = await validateEventForFinalization(eventId, ctx.orgFilter);
+    const validation = await validateEventForFinalization(eventId, ctx.orgFilter);
 
-  if (!validation.valid) {
-    logEventFinalize(ctx.email || "unknown", eventId, "failure", "Blocking validation issues");
+    if (!validation.valid) {
+      logEventFinalize(ctx.email || "unknown", eventId, "failure", "Blocking validation issues");
+      return {
+        success: false,
+        error: "Cannot finalize event: blocking issues found.",
+        issues: validation.issues,
+      };
+    }
+
+    const event = await db.event.findFirst({
+      where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      select: { id: true, status: true },
+    });
+
+    if (!event) {
+      return { success: false, error: "Event not found." };
+    }
+
+    if (event.status === "FINALIZED") {
+      return { success: false, error: "Event is already finalized." };
+    }
+
+    const now = new Date();
+
+    await db.event.update({
+      where: { id: eventId },
+      data: {
+        status: "FINALIZED",
+        finalizedAt: now,
+        finalizedBy: ctx.userId,
+      },
+    });
+
+    logEventFinalize(ctx.email || "unknown", eventId, "success");
+
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/events/${eventId}`);
+
     return {
-      success: false,
-      error: "Cannot finalize event: blocking issues found.",
+      success: true,
+      finalizedAt: now,
       issues: validation.issues,
     };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("not found")) {
+      return { success: false, error: error.message };
+    }
+    throw error;
   }
-
-  const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
-    select: { id: true, status: true },
-  });
-
-  if (!event) {
-    return { success: false, error: "Event not found." };
-  }
-
-  if (event.status === "FINALIZED") {
-    return { success: false, error: "Event is already finalized." };
-  }
-
-  const now = new Date();
-
-  await db.event.update({
-    where: { id: eventId },
-    data: {
-      status: "FINALIZED",
-      finalizedAt: now,
-      finalizedBy: ctx.userId,
-    },
-  });
-
-  logEventFinalize(ctx.email || "unknown", eventId, "success");
-
-  revalidatePath(`/events/${eventId}`);
-  revalidatePath(`/o/${ctx.organisationSlug}/events/${eventId}`);
-
-  return {
-    success: true,
-    finalizedAt: now,
-    issues: validation.issues,
-  };
 }
 
 export async function unfinalizeEventAction(eventId: string): Promise<UnfinalizeEventResult> {
-  const ctx = await requireActorContext();
-  requireMutationRole(ctx);
+  try {
+    const ctx = await requireActorContext();
+    requireMutationRole(ctx);
 
-  await requireEventOrgAccess(eventId, ctx.orgFilter);
+    await requireEventOrgAccess(eventId, ctx.orgFilter);
 
-  const validation = await validateEventForUnfinalization(eventId, ctx.orgFilter);
+    const validation = await validateEventForUnfinalization(eventId, ctx.orgFilter);
 
-  if (!validation.valid) {
-    logEventUnfinalize(ctx.email || "unknown", eventId, "failure", validation.issues.map((i) => i.message).join("; "));
-    return {
-      success: false,
-      error: validation.issues.map((i) => i.message).join("; "),
-    };
+    if (!validation.valid) {
+      logEventUnfinalize(ctx.email || "unknown", eventId, "failure", validation.issues.map((i) => i.message).join("; "));
+      return {
+        success: false,
+        error: validation.issues.map((i) => i.message).join("; "),
+      };
+    }
+
+    const event = await db.event.findFirst({
+      where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      select: { id: true, status: true },
+    });
+
+    if (!event) {
+      return { success: false, error: "Event not found." };
+    }
+
+    if (event.status !== "FINALIZED") {
+      return { success: false, error: "Event is not finalized." };
+    }
+
+    await db.event.update({
+      where: { id: eventId },
+      data: {
+        status: "DRAFT",
+        finalizedAt: null,
+        finalizedBy: null,
+      },
+    });
+
+    logEventUnfinalize(ctx.email || "unknown", eventId, "success");
+
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/events/${eventId}`);
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("not found")) {
+      return { success: false, error: error.message };
+    }
+    throw error;
   }
-
-  const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
-    select: { id: true, status: true },
-  });
-
-  if (!event) {
-    return { success: false, error: "Event not found." };
-  }
-
-  if (event.status !== "FINALIZED") {
-    return { success: false, error: "Event is not finalized." };
-  }
-
-  await db.event.update({
-    where: { id: eventId },
-    data: {
-      status: "DRAFT",
-      finalizedAt: null,
-      finalizedBy: null,
-    },
-  });
-
-  logEventUnfinalize(ctx.email || "unknown", eventId, "success");
-
-  revalidatePath(`/events/${eventId}`);
-  revalidatePath(`/o/${ctx.organisationSlug}/events/${eventId}`);
-
-  return { success: true };
 }
 
 export async function getEventFinalizationStatusAction(eventId: string): Promise<{

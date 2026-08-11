@@ -676,6 +676,9 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
     case 'MANUAL_SEED_AUTO_BALANCE':
       distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
       break;
+    case 'PRESERVE_AND_FILL':
+      distributePreserveAndFill(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId, availablePlayers);
+      break;
   }
 
   const duplicates = assignments.filter(
@@ -748,6 +751,149 @@ function distributeAllBalanced(
   );
 
   distributeByRoleAcrossSquads(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, notes, eventId);
+}
+
+function distributePreserveAndFill(
+  players: PlayerWithRatings[],
+  squads: GenerationInput['squads'],
+  assignments: InternalAssignment[],
+  gameFormat: GameFormat,
+  notes: string[],
+  formations: (Formation & { slots: FormationSlot[] })[],
+  defaultFormationId: string | null,
+  scarcityInfo: ReturnType<typeof computePositionScarcity>,
+  eventId: string,
+  allAvailablePlayers: PlayerWithRatings[],
+): void {
+  if (squads.length === 0 || players.length === 0) return;
+
+  const assignedGlobal = new Set(assignments.map((a) => a.playerId));
+
+  const unassigned = players.filter((p) => !assignedGlobal.has(p.playerId));
+  if (unassigned.length === 0) return;
+
+  const squadsWithSpace = squads.map((squad) => {
+    const currentCount = assignments.filter((a) => a.eventSquadId === squad.id).length;
+    const maxSlots = squad.maxSize ?? squad.targetSize;
+    const space = Math.max(0, maxSlots - currentCount);
+    return { squad, currentCount, space };
+  });
+
+  const goalkeepers = unassigned.filter((p) => p.isGoalkeeper);
+  const nonGKs = unassigned.filter((p) => !p.isGoalkeeper);
+
+  const allGKPlayerIds = new Set(allAvailablePlayers.filter((p) => p.isGoalkeeper).map((p) => p.playerId));
+
+  const squadsNeedingGK = squadsWithSpace.filter((s) => {
+    const hasGK = assignments.some(
+      (a) => a.eventSquadId === s.squad.id && allGKPlayerIds.has(a.playerId),
+    );
+    return !hasGK && s.space > 0;
+  });
+
+  const assignedGKs = new Set<string>();
+  for (const s of squadsNeedingGK) {
+    if (goalkeepers.length === 0) break;
+    const availableGKs = goalkeepers.filter((gk) => !assignedGKs.has(gk.playerId));
+    if (availableGKs.length === 0) break;
+    const gk = availableGKs[0];
+    assignedGKs.add(gk.playerId);
+    assignments.push({
+      playerId: gk.playerId,
+      eventSquadId: s.squad.id,
+      assignedRoleType: 'GOALKEEPER',
+      assignedPositionId: null,
+      assignedSlotIndex: null,
+      assignedSlotLabel: null,
+      lineupOrder: null,
+      source: 'AUTO',
+      locked: false,
+      selectionReason: 'Filled goalkeeper need in preserve-and-fill mode',
+      positionFitTier: 'PRIMARY',
+    });
+    assignedGlobal.add(gk.playerId);
+    s.currentCount++;
+    s.space--;
+  }
+
+  const remainingPlayers = [...nonGKs, ...goalkeepers.filter((gk) => !assignedGKs.has(gk.playerId))];
+  remainingPlayers.sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
+
+  for (const player of remainingPlayers) {
+    if (assignedGlobal.has(player.playerId)) continue;
+
+    const candidates = squadsWithSpace
+      .filter((s) => s.space > 0)
+      .sort((a, b) => a.currentCount - b.currentCount || (a.squad.targetSize - a.currentCount) - (b.squad.targetSize - b.currentCount));
+
+    if (candidates.length === 0) {
+      notes.push(`No squad space available for ${player.firstName} ${player.lastName ?? ''}. All squads are at maximum capacity.`);
+      continue;
+    }
+
+    const target = candidates[0];
+
+    const formation = getFormationForSquad(target.squad, formations, defaultFormationId);
+    const slots = getSlotRequirements(formation, gameFormat);
+    const bestSlot = findBestSlotForPlayer(player, slots, assignments.filter((a) => a.eventSquadId === target.squad.id));
+
+    assignments.push({
+      playerId: player.playerId,
+      eventSquadId: target.squad.id,
+      assignedRoleType: bestSlot?.roleType ?? null,
+      assignedPositionId: null,
+      assignedSlotIndex: bestSlot?.slotIndex ?? null,
+      assignedSlotLabel: bestSlot?.label ?? null,
+      lineupOrder: null,
+      source: 'AUTO',
+      locked: false,
+      selectionReason: 'Filled empty slot in preserve-and-fill mode',
+      positionFitTier: bestSlot?.fitTier ?? null,
+    });
+
+    assignedGlobal.add(player.playerId);
+    target.currentCount++;
+    target.space--;
+  }
+
+  void scarcityInfo;
+  void eventId;
+}
+
+function findBestSlotForPlayer(
+  player: PlayerWithRatings,
+  slots: FormationSlotRequirement[],
+  currentAssignments: InternalAssignment[],
+): { roleType: string; label: string; slotIndex: number | null; fitTier: PositionFitTier } | null {
+  const filledSlotIndices = new Set(currentAssignments.filter((a) => a.assignedSlotIndex !== null).map((a) => a.assignedSlotIndex));
+  const emptySlots = slots
+    .map((slot, index) => ({ ...slot, index }))
+    .filter((s) => !filledSlotIndices.has(s.index));
+
+  if (emptySlots.length === 0) return null;
+
+  let bestSlot = null;
+  let bestFitTier: PositionFitTier = 'NO_FIT';
+
+  for (const slot of emptySlots) {
+    const fitTier = getPositionFitTier(player.primaryPosition, player.secondaryPosition, player.tertiaryPosition, slot.acceptedPositions);
+    if (fitTierPriority(fitTier) < fitTierPriority(bestFitTier)) {
+      bestFitTier = fitTier;
+      bestSlot = { roleType: slot.roleType, label: slot.label, slotIndex: slot.index, fitTier };
+    }
+  }
+
+  return bestSlot;
+}
+
+function fitTierPriority(tier: PositionFitTier): number {
+  switch (tier) {
+    case 'PRIMARY': return 0;
+    case 'SECONDARY': return 1;
+    case 'TERTIARY': return 2;
+    case 'NO_FIT': return 3;
+    default: return 4;
+  }
 }
 
 function distributeOneCompetitiveBalancedRemainder(

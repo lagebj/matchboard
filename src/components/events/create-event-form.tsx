@@ -234,6 +234,9 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               <option value="MANUAL_SEED_AUTO_BALANCE">
                 Manual seed + auto balance
               </option>
+              <option value="PRESERVE_AND_FILL">
+                Preserve existing + fill empty slots
+              </option>
             </select>
           </div>
 

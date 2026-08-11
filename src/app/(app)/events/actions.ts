@@ -818,10 +818,14 @@ export async function generateEventSquadsAction(eventId: string) {
     };
   });
 
+  const selectionPattern = (event.selectionPattern ?? 'ALL_BALANCED') as 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE' | 'PRESERVE_AND_FILL';
+
   const lockedAssignments = new Map<string, string>();
   for (const squad of event.squads) {
     for (const sp of squad.players) {
-      if (sp.locked) {
+      if (selectionPattern === 'PRESERVE_AND_FILL') {
+        lockedAssignments.set(sp.playerId, squad.id);
+      } else if (sp.locked) {
         lockedAssignments.set(sp.playerId, squad.id);
       }
     }
@@ -931,7 +935,7 @@ export async function generateEventSquadsAction(eventId: string) {
     formations: defaultFormation ? [defaultFormation] : [],
     defaultFormationId: event.defaultFormationId,
     squads,
-    selectionPattern: (event.selectionPattern ?? 'ALL_BALANCED') as 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE',
+    selectionPattern,
     lockedAssignments,
     includeReserves,
     includeLateAdditions: includeLate,
@@ -942,32 +946,61 @@ export async function generateEventSquadsAction(eventId: string) {
   const mergedWarnings = [...result.warnings, ...policyWarnings];
 
   await db.$transaction(async (tx) => {
-    for (const squad of event.squads) {
-      await tx.eventSquadPlayer.deleteMany({
-        where: { eventSquadId: squad.id, locked: false },
-      });
-    }
+    if (selectionPattern === 'PRESERVE_AND_FILL') {
+      const existingPlayerIds = new Set(
+        event.squads.flatMap((s) => s.players.map((sp) => sp.playerId)),
+      );
+      const newAssignments = result.assignments.filter(
+        (a) => a.source !== 'LOCKED' && !existingPlayerIds.has(a.playerId),
+      );
+      if (newAssignments.length > 0) {
+        await tx.eventSquadPlayer.createMany({
+          data: newAssignments.map((assignment) => ({
+            eventId,
+            eventSquadId: assignment.eventSquadId,
+            playerId: assignment.playerId,
+            assignedSlotIndex: assignment.assignedSlotIndex,
+            assignedSlotLabel: assignment.assignedSlotLabel,
+            assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
+            assignedPositionId: assignment.assignedPositionId,
+            lineupOrder: assignment.lineupOrder,
+            source: assignment.source,
+            locked: assignment.locked,
+            positionFitTier: assignment.positionFitTier,
+            selectionReason: assignment.selectionReason,
+            organisationId: ctx.organisationId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    } else {
+      for (const squad of event.squads) {
+        await tx.eventSquadPlayer.deleteMany({
+          where: { eventSquadId: squad.id, locked: false },
+        });
+      }
 
-    const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED');
-    if (newAssignments.length > 0) {
-      await tx.eventSquadPlayer.createMany({
-        data: newAssignments.map((assignment) => ({
-          eventId,
-          eventSquadId: assignment.eventSquadId,
-          playerId: assignment.playerId,
-          assignedSlotIndex: assignment.assignedSlotIndex,
-          assignedSlotLabel: assignment.assignedSlotLabel,
-          assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
-          assignedPositionId: assignment.assignedPositionId,
-          lineupOrder: assignment.lineupOrder,
-          source: assignment.source,
-          locked: assignment.locked,
-          positionFitTier: assignment.positionFitTier,
-          selectionReason: assignment.selectionReason,
-          organisationId: ctx.organisationId,
-        })),
-        skipDuplicates: true,
-      });
+      const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED');
+      if (newAssignments.length > 0) {
+        await tx.eventSquadPlayer.createMany({
+          data: newAssignments.map((assignment) => ({
+            eventId,
+            eventSquadId: assignment.eventSquadId,
+            playerId: assignment.playerId,
+            assignedSlotIndex: assignment.assignedSlotIndex,
+            assignedSlotLabel: assignment.assignedSlotLabel,
+            assignedRoleType: assignment.assignedRoleType as FormationSlotRoleType | null,
+            assignedPositionId: assignment.assignedPositionId,
+            lineupOrder: assignment.lineupOrder,
+            source: assignment.source,
+            locked: assignment.locked,
+            positionFitTier: assignment.positionFitTier,
+            selectionReason: assignment.selectionReason,
+            organisationId: ctx.organisationId,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
   }, { timeout: 15000 });
 

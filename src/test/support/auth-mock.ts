@@ -147,9 +147,9 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
 
   const orgFilter = {
     type: "org" as const,
-    filter: { organisationId: context.organisationId },
-    filterNullable: { organisationId: context.organisationId },
-    organisationId: context.organisationId,
+    get filter() { return { organisationId: context.organisationId }; },
+    get filterNullable() { return { organisationId: context.organisationId }; },
+    get organisationId() { return context.organisationId; },
   };
 
   const actorContext = {
@@ -211,12 +211,6 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
     orgFilter,
     updateOrganisationId: (newOrgId: string) => {
       context.organisationId = newOrgId;
-      const newOrgFilter = {
-        type: "org" as const,
-        filter: { organisationId: newOrgId },
-        filterNullable: { organisationId: newOrgId },
-        organisationId: newOrgId,
-      };
       const newActorContext = {
         userId: context.userId,
         email: context.email,
@@ -226,7 +220,7 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
         role: context.role,
         accessibleGroupIds: context.accessibleGroupIds,
         groupAccesses: context.groupAccesses ?? [],
-        orgFilter: newOrgFilter,
+        orgFilter,
       };
       mockRequireActorContext.mockResolvedValue(newActorContext);
       mockRequireCoachAccess.mockResolvedValue({

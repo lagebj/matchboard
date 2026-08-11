@@ -180,6 +180,7 @@ const PATTERN_LABELS: Record<string, string> = {
   ALL_BALANCED: 'All squads balanced',
   ONE_COMPETITIVE_BALANCED_REMAINDER: 'One competitive + balanced remainder',
   MANUAL_SEED_AUTO_BALANCE: 'Manual seed + auto balance',
+  PRESERVE_AND_FILL: 'Preserve existing + fill empty slots',
 };
 
 const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {

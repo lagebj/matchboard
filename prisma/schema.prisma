@@ -1707,6 +1707,7 @@ enum EventSelectionPattern {
   ALL_BALANCED
   ONE_COMPETITIVE_BALANCED_REMAINDER
   MANUAL_SEED_AUTO_BALANCE
+  PRESERVE_AND_FILL
 }
 
 enum EventSquadPlayerSource {
