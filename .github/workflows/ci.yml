@@ -107,6 +107,37 @@ jobs:
           DIRECT_URL: "postgresql://matchboard:matchboard@localhost:5432/matchboard_test?schema=public"
       - run: npm test
 
+  migration-from-zero:
+    name: Migration from Zero
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: matchboard
+          POSTGRES_PASSWORD: matchboard
+          POSTGRES_DB: matchboard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11d5960a326cb870a3fe7a1e8cfc5a3c4c7e1e3f # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Apply all migrations from empty database
+        run: |
+          MIGRATE_DB="migrate_verify_$(date +%s)"
+          PGPASSWORD=matchboard psql -h localhost -p 5432 -U matchboard -d postgres -c "CREATE DATABASE \"$MIGRATE_DB\";"
+          DIRECT_URL="postgresql://matchboard:matchboard@localhost:5432/$MIGRATE_DB?schema=public" npx prisma migrate deploy
+          PGPASSWORD=matchboard psql -h localhost -p 5432 -U matchboard -d postgres -c "DROP DATABASE IF EXISTS \"$MIGRATE_DB\";"
+
   build:
     name: Build
     runs-on: ubuntu-24.04

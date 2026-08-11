@@ -29,20 +29,7 @@ jobs:
                    --output .security/results/semgrep-results.json \
                    src/ || true
       - name: Check for findings
-        run: |
-          if [ -f .security/results/semgrep-results.json ]; then
-            FINDINGS=$(python3 -c "
-              import json, sys
-              with open('.security/results/semgrep-results.json') as f:
-                data = json.load(f)
-              count = len(data.get('results', []))
-              print(count)
-            ")
-            echo "Semgrep findings: $FINDINGS"
-            if [ "$FINDINGS" -gt 0 ]; then
-              echo "::warning::$FINDINGS Semgrep findings detected. Review .security/results/semgrep-results.json"
-            fi
-          fi
+        run: python3 scripts/parse-semgrep-findings.py .security/results/semgrep-results.json
 
   dependency-scan:
     name: OSV Dependency Scan
