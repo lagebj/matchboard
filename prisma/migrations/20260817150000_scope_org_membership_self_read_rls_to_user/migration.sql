@@ -30,6 +30,8 @@ DROP POLICY IF EXISTS OrganisationMembership_tenant_self_read ON "OrganisationMe
 --   scope to the user's own memberships only (scoped self-read).
 -- When neither is set: permissive fallback (application-layer filtering handles this).
 DO $$
+DECLARE
+  role_name TEXT;
 BEGIN
   FOR role_name IN SELECT unnest(ARRAY['matchboard_app', 'matchboard_app_runtime']) LOOP
     -- Drop the existing permissive-only policy
