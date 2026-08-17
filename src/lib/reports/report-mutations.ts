@@ -14,14 +14,14 @@ export type ReportTransitionResult =
   | { success: true; matchId: string }
   | { success: false; error: string };
 
-export async function seedReportFromFinalizedSquad(matchId: string): Promise<ReportTransitionResult> {
-  const existing = await db.postMatchReport.findUnique({ where: { matchId } });
+export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const existing = await db.postMatchReport.findFirst({ where: { matchId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (existing) {
     return { success: false, error: "A report already exists for this match." };
   }
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...(orgFilter ? orgFilter.filter : {}) },
     select: {
       id: true,
       organisationId: true,
@@ -59,8 +59,9 @@ export async function seedReportFromFinalizedSquad(matchId: string): Promise<Rep
 export async function updateReportResult(
   reportId: string,
   data: { homeGoals?: number; awayGoals?: number; teamNote?: string },
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
   if (isReportLocked(report.status)) {
     return { success: false, error: "Cannot update a locked report. Reopen it first." };
@@ -81,8 +82,9 @@ export async function updateReportResult(
 export async function addActualPlayerToReport(
   reportId: string,
   data: { playerId: string; attendanceStatus?: string; unplannedAppearanceReason?: string },
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
   if (isReportLocked(report.status)) {
     return { success: false, error: "Cannot edit a locked report. Reopen it first." };
@@ -114,9 +116,9 @@ export async function addActualPlayerToReport(
   return { success: true, matchId: report.matchId };
 }
 
-export async function removeActualPlayerFromReport(appearanceId: string): Promise<ReportTransitionResult> {
-  const appearance = await db.postMatchPlayerActual.findUnique({
-    where: { id: appearanceId },
+export async function removeActualPlayerFromReport(appearanceId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const appearance = await db.postMatchPlayerActual.findFirst({
+    where: { id: appearanceId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { report: { select: { matchId: true, status: true } } },
   });
   if (!appearance) return { success: false, error: "Appearance not found." };
@@ -138,9 +140,10 @@ export async function removeActualPlayerFromReport(appearanceId: string): Promis
 export async function updateAttendanceInReport(
   appearanceId: string,
   attendanceStatus: string,
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const appearance = await db.postMatchPlayerActual.findUnique({
-    where: { id: appearanceId },
+  const appearance = await db.postMatchPlayerActual.findFirst({
+    where: { id: appearanceId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { report: { select: { matchId: true, status: true } } },
   });
   if (!appearance) return { success: false, error: "Appearance not found." };
@@ -165,8 +168,9 @@ export async function updateAttendanceInReport(
 export async function markPlannedAbsenceInReport(
   reportId: string,
   data: { playerId: string; reason: PlannedAbsenceReason; note?: string },
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
   if (isReportLocked(report.status)) {
     return { success: false, error: "Cannot edit a locked report. Reopen it first." };
@@ -188,9 +192,9 @@ export async function markPlannedAbsenceInReport(
   return { success: true, matchId: report.matchId };
 }
 
-export async function removePlannedAbsenceFromReport(absenceId: string): Promise<ReportTransitionResult> {
-  const absence = await db.matchReportAbsence.findUnique({
-    where: { id: absenceId },
+export async function removePlannedAbsenceFromReport(absenceId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const absence = await db.matchReportAbsence.findFirst({
+    where: { id: absenceId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { report: { select: { matchId: true, status: true } } },
   });
   if (!absence) return { success: false, error: "Absence not found." };
@@ -206,8 +210,9 @@ export async function removePlannedAbsenceFromReport(absenceId: string): Promise
 export async function updatePlayerStatsInReport(
   reportId: string,
   data: { playerId: string; goals?: number; assists?: number },
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
   if (isReportLocked(report.status)) {
     return { success: false, error: "Cannot edit a locked report. Reopen it first." };
@@ -242,9 +247,9 @@ export async function updatePlayerStatsInReport(
   return { success: true, matchId: report.matchId };
 }
 
-export async function submitReport(reportId: string): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({
-    where: { id: reportId },
+export async function submitReport(reportId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const report = await db.postMatchReport.findFirst({
+    where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { playerActuals: true },
   });
   if (!report) return { success: false, error: "Report not found." };
@@ -342,8 +347,9 @@ export async function completeReport(reportId: string, coachEmail: string, orgFi
 export async function reopenReport(
   reportId: string,
   targetStatus?: "DRAFT" | "REPORTED",
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
 
   if (!canTransitionTo(report.status, targetStatus ?? "REPORTED").allowed) {
@@ -367,8 +373,9 @@ export async function reopenReport(
 export async function addGoalToReportMutation(
   reportId: string,
   data: { playerId?: string; minute?: number; type?: string },
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
   if (isReportLocked(report.status)) {
     return { success: false, error: "Cannot add goals to a locked report. Reopen it first." };
@@ -387,9 +394,9 @@ export async function addGoalToReportMutation(
   return { success: true, matchId: report.matchId };
 }
 
-export async function removeGoalFromReportMutation(goalId: string): Promise<ReportTransitionResult> {
-  const goal = await db.goal.findUnique({
-    where: { id: goalId },
+export async function removeGoalFromReportMutation(goalId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const goal = await db.goal.findFirst({
+    where: { id: goalId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { report: { select: { matchId: true, status: true } } },
   });
   if (!goal) return { success: false, error: "Goal not found." };
@@ -405,8 +412,9 @@ export async function removeGoalFromReportMutation(goalId: string): Promise<Repo
 export async function addAssistToReportMutation(
   reportId: string,
   data: { playerId: string; type?: string },
+  orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (!report) return { success: false, error: "Report not found." };
   if (isReportLocked(report.status)) {
     return { success: false, error: "Cannot add assists to a locked report. Reopen it first." };
@@ -424,9 +432,9 @@ export async function addAssistToReportMutation(
   return { success: true, matchId: report.matchId };
 }
 
-export async function removeAssistFromReportMutation(assistId: string): Promise<ReportTransitionResult> {
-  const assist = await db.assist.findUnique({
-    where: { id: assistId },
+export async function removeAssistFromReportMutation(assistId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const assist = await db.assist.findFirst({
+    where: { id: assistId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { report: { select: { matchId: true, status: true } } },
   });
   if (!assist) return { success: false, error: "Assist not found." };

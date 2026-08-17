@@ -245,7 +245,7 @@ export async function seedMatchReport(matchId: string): Promise<{ success: boole
 
 
   try {
-    const result = await seedReportFromFinalizedSquad(matchId);
+    const result = await seedReportFromFinalizedSquad(matchId, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     const report = await db.postMatchReport.findFirst({ where: { matchId, ...ctx.orgFilter.filter } });
@@ -270,7 +270,7 @@ export async function updateMatchResult(
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await updateReportResult(reportId, data);
+    const result = await updateReportResult(reportId, data, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -292,7 +292,7 @@ export async function addActualPlayer(
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await addActualPlayerToReport(reportId, data);
+    const result = await addActualPlayerToReport(reportId, data, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -315,7 +315,7 @@ export async function removeActualPlayer(appearanceId: string): Promise<{ succes
 
 
   try {
-    const result = await removeActualPlayerFromReport(appearanceId);
+    const result = await removeActualPlayerFromReport(appearanceId, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -342,7 +342,7 @@ export async function updateAttendanceStatus(
 
 
   try {
-    const result = await updateAttendanceInReport(appearanceId, attendanceStatus);
+    const result = await updateAttendanceInReport(appearanceId, attendanceStatus, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -364,7 +364,7 @@ export async function markPlannedAbsence(
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await markPlannedAbsenceInReport(reportId, data);
+    const result = await markPlannedAbsenceInReport(reportId, data, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -387,7 +387,7 @@ export async function removePlannedAbsence(absenceId: string): Promise<{ success
 
 
   try {
-    const result = await removePlannedAbsenceFromReport(absenceId);
+    const result = await removePlannedAbsenceFromReport(absenceId, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -409,7 +409,7 @@ export async function updatePlayerStats(
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await updatePlayerStatsInReport(reportId, data);
+    const result = await updatePlayerStatsInReport(reportId, data, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -428,7 +428,7 @@ export async function submitMatchReport(reportId: string): Promise<{ success: bo
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await submitReport(reportId);
+    const result = await submitReport(reportId, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -518,7 +518,7 @@ export async function reopenMatchReport(
 
 
   try {
-    const result = await reopenReport(reportId, targetStatus);
+    const result = await reopenReport(reportId, targetStatus, ctx.orgFilter);
     if (!result.success) {
       logReportReopen(ctx.email || "unknown", reportId, "failure", result.error);
       return { success: false, error: result.error };
@@ -551,7 +551,7 @@ export async function addGoalToReport(
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await addGoalToReportMutation(reportId, data);
+    const result = await addGoalToReportMutation(reportId, data, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -575,7 +575,7 @@ export async function removeGoalFromReport(goalId: string): Promise<{ success: b
 
 
   try {
-    const result = await removeGoalFromReportMutation(goalId);
+    const result = await removeGoalFromReportMutation(goalId, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -598,7 +598,7 @@ export async function addAssistToReport(
   if (reportMatchId) await requireMatchTeamAccess(ctx, reportMatchId);
 
   try {
-    const result = await addAssistToReportMutation(reportId, data);
+    const result = await addAssistToReportMutation(reportId, data, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);
@@ -622,7 +622,7 @@ export async function removeAssistFromReport(assistId: string): Promise<{ succes
 
 
   try {
-    const result = await removeAssistFromReportMutation(assistId);
+    const result = await removeAssistFromReportMutation(assistId, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath(`/matches/${result.matchId}`);

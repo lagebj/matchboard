@@ -234,7 +234,7 @@ async function rebuildActivePlanIntegrityProjection(
   };
 
   if (scope.matchId) {
-    const match = await db.match.findUnique({
+    const match = await db.match.findFirst({
       where: { id: scope.matchId },
       select: { matchRoundId: true },
     });

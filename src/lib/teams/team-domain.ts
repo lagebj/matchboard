@@ -8,8 +8,8 @@ export type TeamMutationResult =
 export async function checkTeamDeletionGuard(teamId: string, organisationId?: string): Promise<TeamMutationResult> {
   const _orgFilter = organisationId ? { organisationId } : {};
   const [team, activeCorePlayerCount, rotationPathCount, matchCount] = await Promise.all([
-    db.team.findUnique({
-      where: { id: teamId },
+    db.team.findFirst({
+      where: { id: teamId, ..._orgFilter },
       select: { id: true, organisationId: true },
     }),
     db.player.count({
