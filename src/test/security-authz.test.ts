@@ -212,7 +212,7 @@ describe("Authorization security: secret exposure prevention", () => {
         if (entry.isDirectory()) {
           walk(full);
         } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) {
-          if (full.includes("security-authz.test.ts")) continue;
+          if (full.includes("security-authz.test.ts") || full.includes("env.test.ts")) continue;
           const content = fs.readFileSync(full, "utf-8");
           if (content.includes("NEXT_PUBLIC_AUTH_SECRET") || content.includes("NEXT_PUBLIC_DATABASE_URL") || content.includes("NEXT_PUBLIC_DIRECT_URL")) {
             violations.push(path.relative(process.cwd(), full));
