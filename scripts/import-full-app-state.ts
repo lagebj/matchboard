@@ -278,7 +278,7 @@ async function main() {
         const rawName = (m.opponent ?? "").trim().replace(/\s+/g, " ");
         const normalizedName = rawName.toLowerCase();
         const displayName = rawName || "Unknown";
-        const existing = await db.opponentTeam.findUnique({ where: { normalizedName } });
+        const existing = await db.opponentTeam.findFirst({ where: { normalizedName, organisationId } });
         if (existing) {
           opponentTeamId = existing.id;
         } else {

@@ -298,8 +298,11 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
         expect(filter.organisationId).toBe(syntheticOrg.id);
       }
 
-      const crossOrgFilter = await resolveOrgFilterForMachine(principal.id, normalOrg.id, db);
-      expect(crossOrgFilter.type).toBe("unscoped");
+      const crossOrgFilter = await resolveOrgFilterForMachine(principal.id, normalOrg.id, db).catch((e: Error) => {
+        expect(e.message).toMatch(/does not belong to this organisation/);
+        return null;
+      });
+      expect(crossOrgFilter).toBeNull();
 
       const syntheticTeams = await db.team.findMany({ where: { organisationId: syntheticOrg.id } });
       const normalTeams = await db.team.findMany({ where: { organisationId: normalOrg.id } });
