@@ -23,7 +23,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   const orgWhere = ctx.orgFilter.filter;
 
   const [team, orderedTeamIds] = await Promise.all([
-    db.team.findUnique({
+    db.team.findFirst({
       where: { id: teamId, archivedAt: null, ...orgWhere },
       include: {
         group: {
@@ -70,8 +70,8 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   }
 
   const [bestLineup, teamFormations] = await Promise.all([
-    getBestLineup(teamId),
-    getFormationsForTeam(teamId),
+    getBestLineup(teamId, ctx.orgFilter),
+    getFormationsForTeam(teamId, ctx.orgFilter),
   ]);
 
   const teamIds = orderedTeamIds.map((t) => t.id);
