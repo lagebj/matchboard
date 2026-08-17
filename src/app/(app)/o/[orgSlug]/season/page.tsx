@@ -19,7 +19,7 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
   const { orgSlug } = await params;
   const { created } = await searchParams;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({
     where: orgWhere,

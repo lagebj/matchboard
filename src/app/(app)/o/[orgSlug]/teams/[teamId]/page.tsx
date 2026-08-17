@@ -20,7 +20,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   const { orgSlug, teamId } = await params;
 
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const [team, orderedTeamIds] = await Promise.all([
     db.team.findUnique({

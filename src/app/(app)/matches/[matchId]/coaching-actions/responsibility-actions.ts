@@ -119,7 +119,7 @@ export async function setTeamReflectionAction(
 
   try {
     const match = await db.match.findFirst({
-      where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+      where: { id: matchId, ...ctx.orgFilter.filter },
     });
     if (!match) return { success: false, error: "Match not found." };
 
@@ -160,7 +160,7 @@ export async function getTeamReflectionAction(
 
   try {
     const reflection = await db.teamReflection.findFirst({
-      where: { matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+      where: { matchId, ...ctx.orgFilter.filter },
     });
 
     return {

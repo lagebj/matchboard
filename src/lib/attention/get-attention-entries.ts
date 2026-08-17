@@ -28,8 +28,6 @@ export type AttentionEntry = {
 export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEntry[]> {
   const ctx = await requireActorContext(orgSlug);
 
-  if (ctx.orgFilter.type !== 'org') return [];
-
   const organisationId = ctx.organisationId;
   const isAdmin = canAdmin(ctx);
   const entries: AttentionEntry[] = [];
@@ -139,7 +137,7 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
     });
   }
 
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const recentLeagueSeason = await db.leagueSeason.findFirst({
     where: { ...orgWhere },

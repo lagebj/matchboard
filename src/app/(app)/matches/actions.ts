@@ -251,7 +251,7 @@ export async function updateMatchAction(
 
   try {
     const match = await db.match.findFirst({
-      where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+      where: { id: matchId, ...ctx.orgFilter.filter },
       select: {
         id: true,
         startsAt: true,

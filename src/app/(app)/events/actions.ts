@@ -63,7 +63,7 @@ export async function getEvents() {
   const ctx = await requireActorContext();
   return db.event.findMany({
     where: {
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     orderBy: { startsAt: 'desc' },
     include: {
@@ -86,7 +86,7 @@ export async function getEventById(id: string) {
   return db.event.findUnique({
     where: {
       id,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     include: {
       squads: {
@@ -145,9 +145,6 @@ export async function createEventAction(formData: FormData) {
   const squadCount = parseInt(formData.get('squadCount') as string) || 2;
   const targetSize = parseInt(formData.get('targetSize') as string) || 7;
 
-  if (ctx.orgFilter.type !== 'org') {
-    throw new Error('Organisation context is required to create an event.');
-  }
   const footballGroupId = await getOrCreateDefaultGroup(ctx.orgFilter.organisationId);
   const organisationId = ctx.orgFilter.organisationId;
 
@@ -209,7 +206,7 @@ export async function updateEventAction(id: string, formData: FormData) {
     const formation = await db.formation.findUnique({
       where: {
         id: defaultFormationId,
-        ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+        ...ctx.orgFilter.filter,
       },
       select: { id: true, gameFormat: true },
     });
@@ -221,7 +218,7 @@ export async function updateEventAction(id: string, formData: FormData) {
     }
   }
 
-  const orgWhere = ctx.orgFilter.type === 'org' ? { id, ...ctx.orgFilter.filter } : { id };
+  const orgWhere = { id, ...ctx.orgFilter.filter };
 
   const event = await db.event.update({
     where: orgWhere,
@@ -250,7 +247,7 @@ export async function deleteEventAction(id: string) {
   const event = await db.event.findFirst({
     where: {
       id,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: { id: true, footballGroupId: true, status: true },
   });
@@ -709,7 +706,7 @@ export async function getLeagueSeasons() {
   const ctx = await requireActorContext();
   return db.leagueSeason.findMany({
     where: {
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     orderBy: { startDate: 'desc' },
   });
@@ -720,7 +717,7 @@ export async function getFormations() {
   return db.formation.findMany({
     where: {
       isArchived: false,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     include: { slots: true },
     orderBy: [{ gameFormat: 'asc' }, { name: 'asc' }],
@@ -734,7 +731,7 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
     where: {
       active: true,
       removedAt: null,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     include: {
       coreTeam: true,
@@ -752,7 +749,7 @@ export async function generateEventSquadsAction(eventId: string) {
   const event = await db.event.findUnique({
     where: {
       id: eventId,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     include: {
       squads: {

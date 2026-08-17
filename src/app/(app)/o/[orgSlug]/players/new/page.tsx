@@ -14,7 +14,7 @@ export default async function NewPlayerPage({ params }: { params: Promise<{ orgS
   const ctx = await requireActorContext(orgSlug);
 
   const teams = await db.team.findMany({
-    where: { archivedAt: null, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { archivedAt: null, ...ctx.orgFilter.filter },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

@@ -79,7 +79,7 @@ export async function createEventMatchAction(formData: FormData) {
   const { opponentTeamId, opponentName } = await resolveOpponent(opponentNameInput, opponentTeamIdInput);
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: eventId, ...ctx.orgFilter.filter },
   });
   if (!event) throw new Error('Event not found.');
 
@@ -146,7 +146,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
       where: {
         id: data.eventSquadId,
         eventId: existing.eventId,
-        ...(ctx.orgFilter.type === 'org' ? { event: ctx.orgFilter.filter } : {}),
+        event: ctx.orgFilter.filter,
       },
     });
     if (!squad) {

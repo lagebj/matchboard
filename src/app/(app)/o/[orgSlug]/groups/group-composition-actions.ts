@@ -5,7 +5,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 
 export async function getGroupCompositionData(footballGroupId: string) {
   const ctx = await requireActorContext();
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const group = await db.footballGroup.findUniqueOrThrow({
     where: { id: footballGroupId, ...orgWhere },

@@ -66,12 +66,12 @@ export async function getSuggestFormationData(matchId: string) {
   if (!match) throw new Error("Match not found");
 
   const formations = await db.formation.findMany({
-    where: { gameFormat: match.gameFormat as GameFormat, isArchived: false, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { gameFormat: match.gameFormat as GameFormat, isArchived: false, ...ctx.orgFilter.filter },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
   const recentLineup = await db.matchLineup.findFirst({
-    where: { teamId: match.teamId, status: "CONFIRMED", ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { teamId: match.teamId, status: "CONFIRMED", ...ctx.orgFilter.filter },
     orderBy: { createdAt: "desc" },
     select: { formationId: true },
   });
@@ -153,7 +153,7 @@ export async function getSuggestLineupData(matchId: string) {
   if (!match) throw new Error("Match not found");
 
   const lineup = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: "asc" } } } },
       assignments: true,
@@ -196,14 +196,14 @@ export async function suggestLineupForMatch(matchId: string, formationId: string
   if (!match) throw new Error("Match not found");
 
   const formation = await db.formation.findFirst({
-    where: { id: formationId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: formationId, ...ctx.orgFilter.filter },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
   if (!formation) throw new Error("Formation not found");
 
   const existingLineup = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
     include: { assignments: true },
   });
 
@@ -256,19 +256,19 @@ export async function applySuggestedLineup(
   await requireMatchTeamAccess(ctx, matchId);
 
   const match = await db.match.findFirst({
-    where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: matchId, ...ctx.orgFilter.filter },
   });
   if (!match) throw new Error("Match not found");
 
   const formation = await db.formation.findFirst({
-    where: { id: formationId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: formationId, ...ctx.orgFilter.filter },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 
   if (!formation) throw new Error("Formation not found");
 
   const existing = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
   });
 
   if (existing) {
@@ -412,7 +412,7 @@ export async function fillEmptySlots(lineupId: string) {
   }
 
   const match = await db.match.findFirst({
-    where: { id: lineup.matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: lineup.matchId, ...ctx.orgFilter.filter },
     select: {
       gameFormat: true,
       selections: {

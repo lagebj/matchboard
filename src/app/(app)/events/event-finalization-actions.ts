@@ -57,7 +57,7 @@ export async function finalizeEventAction(eventId: string): Promise<FinalizeEven
     }
 
     const event = await db.event.findFirst({
-      where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { id: eventId, ...ctx.orgFilter.filter },
       select: { id: true, status: true },
     });
 
@@ -116,7 +116,7 @@ export async function unfinalizeEventAction(eventId: string): Promise<Unfinalize
     }
 
     const event = await db.event.findFirst({
-      where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { id: eventId, ...ctx.orgFilter.filter },
       select: { id: true, status: true },
     });
 
@@ -159,7 +159,7 @@ export async function getEventFinalizationStatusAction(eventId: string): Promise
   const ctx = await requireActorContext();
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { id: eventId, ...ctx.orgFilter.filter },
     select: { id: true, status: true, finalizedAt: true, finalizedBy: true },
   });
 

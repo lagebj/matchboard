@@ -22,7 +22,7 @@ function toGameFormat(gf: string): GameFormat {
 export default async function EventDetailPage({ params }: { params: Promise<{ orgSlug: string; eventId: string }> }) {
   const { orgSlug, eventId } = await params;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
   const [event, allActivePlayers, compatibleFormations, opponentTeams] = await Promise.all([
     getEventById(eventId),
     getAvailablePlayersForEvent(),

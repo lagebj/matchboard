@@ -23,7 +23,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     where: {
       id: opponentTeamId,
       archivedAt: null,
-      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: {
       id: true,
@@ -36,7 +36,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   const matches = await db.match.findMany({
     where: {
       opponentTeamId,
-      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     orderBy: { startsAt: "desc" },
     select: {
@@ -112,36 +112,34 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     }>;
   } = { aggregate: null, evidence: [] };
 
-  if (ctx.orgFilter.type === "org") {
-    const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
-    const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
+  const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
+  const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
 
-    sportingLevelData = {
-      aggregate: aggregate
-        ? {
-            estimatedLevel: aggregate.estimatedLevel,
-            confidence: aggregate.confidence,
-            validEncounterCount: aggregate.validEncounterCount,
-            lastEncounterDate: aggregate.lastEncounterDate?.toISOString() ?? null,
-            gameFormat: aggregate.gameFormat,
-          }
-        : null,
-      evidence: evidenceRecords.map((e) => ({
-        id: e.id,
-        matchId: e.matchId,
-        occurredAt: e.occurredAt.toISOString(),
-        gameFormat: e.gameFormat,
-        goalsFor: e.goalsFor,
-        goalsAgainst: e.goalsAgainst,
-        fieldedRatingSnapshot: e.fieldedRatingSnapshot ? Number(e.fieldedRatingSnapshot) : null,
-        estimate: Number(e.estimate),
-        excludedAt: e.excludedAt ? e.excludedAt.toISOString() : null,
-        exclusionReason: e.exclusionReason,
-        weightingMethod: e.weightingMethod,
-        formulaVersion: e.formulaVersion,
-      })),
-    };
-  }
+  sportingLevelData = {
+    aggregate: aggregate
+      ? {
+          estimatedLevel: aggregate.estimatedLevel,
+          confidence: aggregate.confidence,
+          validEncounterCount: aggregate.validEncounterCount,
+          lastEncounterDate: aggregate.lastEncounterDate?.toISOString() ?? null,
+          gameFormat: aggregate.gameFormat,
+        }
+      : null,
+    evidence: evidenceRecords.map((e) => ({
+      id: e.id,
+      matchId: e.matchId,
+      occurredAt: e.occurredAt.toISOString(),
+      gameFormat: e.gameFormat,
+      goalsFor: e.goalsFor,
+      goalsAgainst: e.goalsAgainst,
+      fieldedRatingSnapshot: e.fieldedRatingSnapshot ? Number(e.fieldedRatingSnapshot) : null,
+      estimate: Number(e.estimate),
+      excludedAt: e.excludedAt ? e.excludedAt.toISOString() : null,
+      exclusionReason: e.exclusionReason,
+      weightingMethod: e.weightingMethod,
+      formulaVersion: e.formulaVersion,
+    })),
+  };
 
   return (
     <div className="flex flex-col gap-6">

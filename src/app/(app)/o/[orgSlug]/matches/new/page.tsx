@@ -12,12 +12,12 @@ export default async function NewMatchPage({ params }: { params: Promise<{ orgSl
 
   const [teams, opponentTeams] = await Promise.all([
     db.team.findMany({
-      where: { archivedAt: null, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { archivedAt: null, ...ctx.orgFilter.filter },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     db.opponentTeam.findMany({
-      where: { archivedAt: null, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { archivedAt: null, ...ctx.orgFilter.filter },
       orderBy: { displayName: "asc" },
       select: { id: true, displayName: true },
     }),

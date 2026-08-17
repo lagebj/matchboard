@@ -31,7 +31,7 @@ export async function setReadinessSignalAction(
 
   try {
     const player = await db.player.findFirst({
-      where: { id: playerId, removedAt: null, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { id: playerId, removedAt: null, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (!player) return { success: false, error: "Player not found or access denied." };
@@ -85,13 +85,11 @@ export async function deleteReadinessSignalAction(
 
     if (!signal) return { success: false, error: "Signal not found." };
 
-    if (ctx.orgFilter.type === "org") {
-      const player = await db.player.findFirst({
-        where: { id: playerId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!player) return { success: false, error: "Signal not found or access denied." };
-    }
+    const player = await db.player.findFirst({
+      where: { id: playerId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!player) return { success: false, error: "Signal not found or access denied." };
 
     await db.playerReadinessSignal.delete({
       where: { id: signal.id },
@@ -113,7 +111,7 @@ export async function getReadinessSignalsAction(
 
   try {
     const signals = await db.playerReadinessSignal.findMany({
-      where: { playerId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { playerId, ...ctx.orgFilter.filter },
       orderBy: { signalType: "asc" },
     });
 

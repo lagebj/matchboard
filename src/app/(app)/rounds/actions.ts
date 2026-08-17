@@ -19,15 +19,14 @@ export async function finalizeRoundFromListAction(formData: FormData) {
     throw new Error("Match round ID is required.");
   }
 
-  if (ctx.orgFilter.type === "org") {
-    const round = await db.matchRound.findFirst({
-      where: { id: matchRoundId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!round) {
-      throw new Error("Round not found or access denied.");
-    }
+  const round = await db.matchRound.findFirst({
+    where: { id: matchRoundId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!round) {
+    throw new Error("Round not found or access denied.");
   }
+
 
   const overrideReasonCategory = formData.get("overrideReasonCategory");
   const overrideReasonDetail = formData.get("overrideReasonDetail");
@@ -61,15 +60,14 @@ export async function clearAllDraftsAction(formData: FormData) {
     throw new Error("League season ID is required.");
   }
 
-  if (ctx.orgFilter.type === "org") {
-    const leagueSeason = await db.leagueSeason.findFirst({
-      where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!leagueSeason) {
-      throw new Error("League season not found or access denied.");
-    }
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!leagueSeason) {
+    throw new Error("League season not found or access denied.");
   }
+
 
   await clearAllDraftSelections(leagueSeasonId);
 
@@ -106,7 +104,7 @@ export async function generateRoundAction(prevState: { error: string }, formData
     });
     if (!matchRound) throw new Error("Round not found.");
 
-    if (ctx.orgFilter.type === "org" && matchRound.organisationId !== ctx.orgFilter.organisationId) {
+    if (matchRound.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Round not found or access denied.");
     }
 
@@ -157,14 +155,12 @@ export async function populateAllAction(prevState: { error: string }, formData: 
       throw new Error("League season ID is required.");
     }
 
-    if (ctx.orgFilter.type === "org") {
-      const leagueSeason = await db.leagueSeason.findFirst({
-        where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!leagueSeason) {
-        throw new Error("League season not found or access denied.");
-      }
+    const leagueSeason = await db.leagueSeason.findFirst({
+      where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!leagueSeason) {
+      throw new Error("League season not found or access denied.");
     }
 
     const { populateAllDrafts } = await import("@/lib/selection/populate-all-drafts");
@@ -189,14 +185,12 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
       throw new Error("League season ID is required.");
     }
 
-    if (ctx.orgFilter.type === "org") {
-      const leagueSeason = await db.leagueSeason.findFirst({
-        where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!leagueSeason) {
-        throw new Error("League season not found or access denied.");
-      }
+    const leagueSeason = await db.leagueSeason.findFirst({
+      where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!leagueSeason) {
+      throw new Error("League season not found or access denied.");
     }
 
     const { refreshDraftRound } = await import("@/lib/selection/refresh-draft-selection");
@@ -247,14 +241,12 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
       throw new Error("Match round ID is required.");
     }
 
-    if (ctx.orgFilter.type === "org") {
-      const round = await db.matchRound.findFirst({
-        where: { id: matchRoundId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!round) {
-        throw new Error("Round not found or access denied.");
-      }
+    const round = await db.matchRound.findFirst({
+      where: { id: matchRoundId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!round) {
+      throw new Error("Round not found or access denied.");
     }
 
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
@@ -284,10 +276,6 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
 export async function regroupRoundsAction(): Promise<{ error: string; result?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-
-  if (ctx.orgFilter.type !== "org") {
-    return { error: "Organisation access required." };
-  }
 
   try {
     const { regroupMatchesIntoIsoWeekRounds } = await import("@/lib/selection/regroup-matches-into-iso-weeks");
