@@ -2,7 +2,7 @@
 
 ## Status
 
-Active — partially resolved
+Resolved
 
 ## Discovered
 
@@ -10,41 +10,27 @@ Active — partially resolved
 
 ## Last updated
 
-2026-08-01
+2026-08-17
 
 ## Residue
 
-All tenant-bearing Prisma models now have nullable `organizationId` columns added via migration `20260730140000`. However, `organizationId` is still nullable (NOT NULL constraint not yet applied). The null-allowing RLS policies remain active. Application-level filters (`organisationFilter()`) are the primary enforcement mechanism.
+All tenant-bearing Prisma models now have non-null `organisationId` columns (migration `20260803160000`). Composite unique constraints are in place. RLS policies use null-rejecting conditions. Application-level org scoping uses `requireActorContext()` with fail-closed `OrgFilterMode`.
 
-This ARR tracks the remaining work to make `organizationId` non-null and enforce composite unique constraints.
+## Resolution
 
-## Containment
-
-- `organisationFilter()` and `resolveOrgFilterForUser()` provide application-level org scoping
-- RLS policies exist on 53 tables but use null-allowing conditions during migration
-- `resolveOrganisationAccess()` provides full org context with role and team delegation
-- 136 files still use `requireCoachAccess()` without org context
-- 115 files use `resolveOrgFilterForUser()` or `resolveOrganisationAccess()`
-
-## Resolution criteria
-
-- All 50 tenant-bearing models have a non-null `organizationId` column
-- `Team.name` unique constraint is composite `@@unique([organizationId, name])`
-- `Player.playerCode` unique constraint is scoped to `organizationId`
-- `OpponentTeam.normalizedName` unique constraint is composite `@@unique([organizationId, normalizedName])` (already done)
-- Every domain query, mutation, cache key, and export includes `organizationId`
-- Zero unowned tenant rows after migration
-- PostgreSQL RLS policies enforce hard tenant boundaries with null-rejecting conditions
-- Application queries include `organizationId` even with RLS active
-
-## Progress
-
-- Nullable `organizationId` added to all 50+ tenant-bearing models (migration `20260730140000`)
+- Nullable `organisationId` added to all 50+ tenant-bearing models (migration `20260730140000`)
 - RLS policies created on 53 tables (migration `20260730160000`)
 - Two database roles created (`matchboard_app`, `matchboard_admin`)
-- `resolveOrganisationAccess()` and `orgFilterFromContext()` implemented
-- `Team` and `OpponentTeam` composite unique constraints added
-- NOT NULL constraint and null-rejecting RLS policies still pending
+- `organisationId` made NOT NULL on all tenant-bearing models (migration `20260803160000`)
+- `Team` composite unique `@@unique([organisationId, name])` added
+- `Player` composite unique `@@unique([organisationId, playerCode])` added (global unique dropped)
+- `OpponentTeam` composite unique `@@unique([organisationId, normalizedName])` added (global unique dropped)
+- `LeagueSeason` composite unique `@@unique([organisationId, name])` already in place
+- `MatchRound` composite unique `@@unique([leagueSeasonId, name])` added
+- `OrgFilterMode.unscoped` removed — `resolveOrgFilterForMachine` and `resolveOrgFilterForUser` throw `AuthorizationError` instead of returning unscoped filter
+- All `ctx.orgFilter.type === "org"` conditionals simplified (always true after unscoped removal)
+- All application code performing org-scoped lookups verified and fixed (PRs #258-#262)
+- Application queries include `organisationId` with fail-closed org filter
 
 ## Affected ADRs
 
@@ -70,13 +56,13 @@ Active — partially resolved
 
 ## Last updated
 
-2026-08-01
+2026-08-17
 
 ## Residue
 
-`requireCoachAccess()` remains the primary auth gate for 136 files. `resolveOrganisationAccess()` provides full org context with role and team delegation but is only used in 115 org-scoped routes and actions. The transition from single-tenant email allowlist to org-scoped role-based auth is incomplete.
+`requireCoachAccess()` remains the primary auth gate for many files. `resolveOrganisationAccess()` provides full org context with role and team delegation. The transition from single-tenant email allowlist to org-scoped role-based auth is incomplete.
 
-`resolveOrgFilterForUser()` can return `{type: "unscoped"}` when no membership exists — this is not fail-closed.
+`OrgFilterMode.unscoped` has been removed — `resolveOrgFilterForMachine` and `resolveOrgFilterForUser` now throw `AuthorizationError` instead of returning an unscoped filter. This is fail-closed.
 
 Per ADR-0035, the target model requires every protected operation to resolve through organisation membership.
 
@@ -84,8 +70,10 @@ Per ADR-0035, the target model requires every protected operation to resolve thr
 
 - `requireCoachAccess()` provides single-tenant access control (email allowlist)
 - `resolveOrganisationAccess()` provides full org context for org-scoped routes
-- `OrganisationAccessContext` includes role, team delegation, and permission checks
-- Role enforcement helpers (`requireRole()`, `requireTeamAccess()`) exist but are not applied to most mutations
+- `OrganisationAccessContext` type with role and team delegation
+- Role enforcement helpers (`requireRole()`, `requireTeamAccess()`) exist but are not applied to all mutations
+- `OrgFilterMode.unscoped` removed — no more unscoped queries (PRs #258-#260)
+- All `ctx.orgFilter.type === "org"` conditionals simplified (PR #261)
 
 ## Resolution criteria
 
@@ -105,8 +93,9 @@ Per ADR-0035, the target model requires every protected operation to resolve thr
 - Organisation lifecycle (suspend, reactivate, delete)
 - Machine principal auth with scoped tokens
 - Security assurance tests (SEC-3)
-- 115 files migrated to org-scoped access
-- 136 files still using `requireCoachAccess()`
+- `OrgFilterMode.unscoped` removed — fail-closed (PR #259)
+- All org-scoped code verified for correct filter usage (PRs #258-#262)
+- Remaining: many files still use `requireCoachAccess()` without org context
 
 ## Affected ADRs
 
@@ -132,11 +121,11 @@ Active — partially resolved
 
 ## Last updated
 
-2026-08-01
+2026-08-17
 
 ## Residue
 
-Organisation detail and settings routes exist at `/o/{organisationSlug}/...` using `resolveOrganisationAccess()`. However, all main app routes (Assistant, Fixtures, Teams, Players, Rounds, Matches, Events, Insights, etc.) remain at flat paths under `src/app/(app)/` and use `requireCoachAccess()` + `resolveOrgFilterForUser()` for org scoping.
+Organisation detail and settings routes exist at `/o/{organisationSlug}/...` using `resolveOrganisationAccess()`. Main app routes (Assistant, Fixtures, Teams, Players, Rounds, Matches, Events, Insights, etc.) use `requireActorContext()` + org-scoped filters for data access but remain at flat paths under `src/app/(app)/` with org context resolved from session rather than URL params.
 
 Per ADR-0035, the target route structure is `/o/{organisationSlug}/...` where every server request resolves through organisation membership.
 
@@ -147,6 +136,7 @@ Per ADR-0035, the target route structure is `/o/{organisationSlug}/...` where ev
 - `/o/{organisationSlug}/settings` provides org management
 - `/invite/{token}` handles invitation acceptance
 - Flat routes work because there is only one implicit organisation
+- All data queries use org-scoped filters via `requireActorContext()`
 
 ## Resolution criteria
 
@@ -163,7 +153,8 @@ Per ADR-0035, the target route structure is `/o/{organisationSlug}/...` where ev
 - `/o/{organisationSlug}/settings` — org management
 - `/organisations` — user's org listing
 - `/invite/{token}` — invitation acceptance
-- Main app routes (136 files) still use flat paths
+- All data access uses `requireActorContext()` with org-scoped filters (PRs #258-#262)
+- Main app routes still use flat paths with session-resolved org context
 
 ## Affected ADRs
 
@@ -180,7 +171,7 @@ Per ADR-0035, the target route structure is `/o/{organisationSlug}/...` where ev
 
 ## Status
 
-Active — partially resolved
+Resolved
 
 ## Discovered
 
@@ -188,31 +179,19 @@ Active — partially resolved
 
 ## Last updated
 
-2026-08-01
+2026-08-17
 
 ## Residue
 
-Several Prisma models have global `@unique` constraints that must become composite `@@unique([organizationId, ...])` constraints. Some have already been converted; others remain global pending NOT NULL enforcement on `organizationId`.
+All Prisma models that had global unique constraints now have composite `@@unique([organisationId, ...])` constraints. Application code performing unsorged lookups has been fixed to scope by organisationId. See dedicated ARR-0010 file for full details.
 
-## Progress
+## Resolution
 
-- `Team` composite unique `@@unique([organisationId, name])` added (migration `20260729120000`)
-- `OpponentTeam` composite unique `@@unique([organisationId, normalizedName])` added
-- `Player.playerCode` global unique still in place — pending organisationId NOT NULL
-- `LeagueSeason.name` global unique still in place — pending organisationId NOT NULL
-- Critical unique constraints added: `Selection_playerId_matchRoundId_draft_key`, `Availability_playerId_matchRoundId`, `RotationPath` composite keys (migration `20260729120000`)
-
-## Resolution criteria
-
-- All global unique constraints on tenant-bearing models are converted to composite unique constraints including `organizationId`
-- The migration is idempotent and safe to rerun
-- Existing data integrity is preserved through the migration
-
-## Affected ADRs
-
-- ADR-0035 (multitenancy architecture and product decisions — MT-2.7, MT-2.8)
-
-## Related
-
-- `prisma/schema.prisma` — current unique constraints
-- Data-ownership matrix: `docs/mt/mt0-data-ownership-matrix.md`
+- `Team` composite unique `@@unique([organisationId, name])`
+- `Player` composite unique `@@unique([organisationId, playerCode])`
+- `OpponentTeam` composite unique `@@unique([organisationId, normalizedName])`
+- `LeagueSeason` composite unique `@@unique([organisationId, name])`
+- `MatchRound` composite unique `@@unique([leagueSeasonId, name])` (new)
+- All global unique constraints dropped where replaced by composites
+- Application code org-scoped lookup fixes (PRs #258-#262)
+- See dedicated file `docs/arr/0010-unique-constraints-will-become-composite.md` for full details
