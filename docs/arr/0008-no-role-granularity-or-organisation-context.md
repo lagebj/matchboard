@@ -16,10 +16,10 @@ Per ADR-0035, the target model has four roles (OWNER, ADMIN, COACH, VIEWER) with
 
 **Partial resolution**: `requireActorContext()` in `src/lib/auth/actor-context.ts` now provides `userId`, `email`, `membershipId`, `organisationId`, `organisationSlug`, `role`, `delegatedTeamIds`, and `orgFilter` in a single call. All production server actions, API routes, and page components that previously called both `requireCoachAccess()` and `resolveOrgFilterForUser()` now use `requireActorContext()` instead.
 
-**Remaining residue**: 21 production files still call `requireCoachAccess()` alone (without `resolveOrgFilterForUser`). These fall into three categories:
-1. **Insights library functions** (7 files): accept orgFilter as a parameter but still call `requireCoachAccess()` internally for user identity
-2. **Admin API routes** (4 files): use `requireCoachAccess()` for auth-only checks
-3. **Page components and actions** (10 files): use `requireCoachAccess()` for redirect or identity only
+**Remaining residue**: Production files still calling `requireCoachAccess()` alone (without `resolveOrgFilterForUser`):
+1. **Admin API routes** (4 files): use `requireCoachAccess()` for auth-only checks
+2. **Page components and actions** (10 files): use `requireCoachAccess()` for redirect or identity only
+3. **Various action files** with `ctx.orgFilter.type === "org"` conditionals that are now always true (dead code, not security holes — RLS provides defense-in-depth)
 
 ## Containment
 
@@ -65,6 +65,6 @@ None
 
 Record created from IMPROVE-0A architecture assessment.
 
-### 2026-08-02
+### 2026-08-17
 
-Substantially resolved: `requireActorContext()` now provides combined auth + org context. All production server actions, API routes, and page components that previously called `requireCoachAccess()` + `resolveOrgFilterForUser()` migrated to `requireActorContext()`. Remaining `requireCoachAccess()` call sites fall into three categories documented above. See ARR-0011 and ARR-0012 for specific residue categories.
+Further resolution: All 7 insights library functions now use `requireActorContext()` with explicit `organisationId` filters (ARR-0011 resolved). All 4 live-match library functions now use `requireActorContext()` with org ownership checks. `OrgFilterMode.unscoped` type variant removed — no code path can return an unscoped filter. Various `ctx.orgFilter.type === "org"` conditionals remain as dead code (always true) but are not security holes since RLS provides defense-in-depth.

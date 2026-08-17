@@ -2,7 +2,6 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
-import { requireCoachAccess } from "@/lib/auth";
 
 export interface EventLiveSessionInfo {
   id: string;
@@ -26,7 +25,7 @@ export async function startEventLiveSession(eventMatchId: string): Promise<Event
     throw new Error("Event match not found");
   }
 
-  if (ctx.orgFilter.type === "org" && match.organisationId !== ctx.organisationId) {
+  if (match.organisationId !== ctx.organisationId) {
     throw new Error("Event match not found or access denied");
   }
 
@@ -71,13 +70,17 @@ export async function startEventLiveSession(eventMatchId: string): Promise<Event
 }
 
 export async function getEventActiveSession(eventMatchId: string): Promise<EventLiveSessionInfo | null> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const session = await db.eventLiveMatchSession.findUnique({
     where: { eventMatchId },
   });
 
   if (!session || session.status !== "ACTIVE") {
+    return null;
+  }
+
+  if (session.organisationId !== ctx.organisationId) {
     return null;
   }
 
@@ -93,7 +96,7 @@ export async function getEventActiveSession(eventMatchId: string): Promise<Event
 }
 
 export async function endEventLiveSession(sessionId: string): Promise<EventLiveSessionInfo> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const session = await db.eventLiveMatchSession.findUnique({
     where: { id: sessionId },
@@ -101,6 +104,10 @@ export async function endEventLiveSession(sessionId: string): Promise<EventLiveS
 
   if (!session) {
     throw new Error("Session not found");
+  }
+
+  if (session.organisationId !== ctx.organisationId) {
+    throw new Error("Session not found or access denied");
   }
 
   if (session.status !== "ACTIVE") {
@@ -127,6 +134,17 @@ export async function endEventLiveSession(sessionId: string): Promise<EventLiveS
 }
 
 export async function heartbeatEventSession(sessionId: string): Promise<void> {
+  const ctx = await requireActorContext();
+
+  const session = await db.eventLiveMatchSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, organisationId: true },
+  });
+
+  if (!session || session.organisationId !== ctx.organisationId) {
+    return;
+  }
+
   await db.eventLiveMatchSession.update({
     where: { id: sessionId },
     data: { lastHeartbeatAt: new Date() },

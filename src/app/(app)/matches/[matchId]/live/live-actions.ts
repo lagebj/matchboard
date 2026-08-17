@@ -141,16 +141,14 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
       return { success: false as const, error: "Match not found." };
     }
 
-    if (ctx.orgFilter.type === "org" && match.organisationId !== ctx.orgFilter.organisationId) {
+    if (match.organisationId !== ctx.organisationId) {
       return { success: false as const, error: "Match not found or access denied." };
     }
 
     const squadPlayers = await db.selection.findMany({
       where: {
         matchId,
-        ...(ctx.orgFilter.type === "org"
-          ? { match: { organisationId: ctx.orgFilter.organisationId } }
-          : {}),
+        match: { organisationId: ctx.organisationId },
       },
       select: {
         id: true,

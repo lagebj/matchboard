@@ -114,13 +114,11 @@ export async function updateMatchFeedbackAction(
     await requireMatchTeamAccess(ctx, existing.matchId);
     await requirePlayerTeamAccess(ctx, existing.playerId);
 
-    if (ctx.orgFilter.type === "org") {
-      const match = await db.match.findFirst({
-        where: { id: existing.matchId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!match) return { success: false, error: "Feedback not found or access denied." };
-    }
+    const match = await db.match.findFirst({
+      where: { id: existing.matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) return { success: false, error: "Feedback not found or access denied." };
 
     const allText = [data.value ?? existing.value, data.observableBehavior ?? existing.observableBehavior, data.note ?? existing.note].filter(Boolean).join(" ");
     const disallowedTerms = checkDisallowedLanguage(allText);
@@ -164,13 +162,11 @@ export async function deleteMatchFeedbackAction(
     await requireMatchTeamAccess(ctx, feedback.matchId);
     await requirePlayerTeamAccess(ctx, feedback.playerId);
 
-    if (ctx.orgFilter.type === "org") {
-      const match = await db.match.findFirst({
-        where: { id: feedback.matchId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!match) return { success: false, error: "Feedback not found or access denied." };
-    }
+    const match = await db.match.findFirst({
+      where: { id: feedback.matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) return { success: false, error: "Feedback not found or access denied." };
 
     await db.matchExecutionFeedback.delete({ where: { id: feedbackId } });
 
@@ -193,7 +189,7 @@ export async function getMatchFeedbackAction(
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({
-      where: { matchId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { matchId, ...ctx.orgFilter.filter },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
     });
 
@@ -221,7 +217,7 @@ export async function getPlayerFeedbackAction(
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({
-      where: { playerId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+      where: { playerId, ...ctx.orgFilter.filter },
       orderBy: [{ matchId: "asc" }, { category: "asc" }],
     });
 

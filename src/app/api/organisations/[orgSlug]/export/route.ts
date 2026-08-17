@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCoachAccess } from "@/lib/auth";
 import { resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
 import { db } from "@/lib/db";
 
@@ -7,7 +6,6 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ orgSlug: string }> },
 ) {
-  const coach = await requireCoachAccess();
   const { orgSlug } = await params;
 
   let ctx;
@@ -79,7 +77,7 @@ export async function GET(
 
   const exportData = {
     exportedAt: new Date().toISOString(),
-    exportedBy: coach.email ?? "unknown",
+    exportedBy: ctx.userEmail ?? "unknown",
     organisation: {
       id: org.id,
       name: org.name,
