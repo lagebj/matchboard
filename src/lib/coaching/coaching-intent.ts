@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   type CoachingIntentCategory,
   type CoachingIntentScopeType,
@@ -85,37 +86,37 @@ export async function getCoachingIntentForRound(matchRoundId: string) {
   });
 }
 
-export async function getActiveCoachingIntentForMatch(matchId: string) {
+export async function getActiveCoachingIntentForMatch(matchId: string, orgFilter: OrgFilterMode) {
   const matchIntents = await db.coachingIntent.findMany({
-    where: { scopeType: "MATCH", scopeId: matchId },
+    where: { scopeType: "MATCH", scopeId: matchId, ...orgFilter.filter },
     orderBy: { createdAt: "desc" },
     take: 1,
   });
   if (matchIntents.length > 0) return matchIntents[0];
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
     select: { matchRoundId: true },
   });
   if (!match) return null;
 
   const roundIntents = await db.coachingIntent.findMany({
-    where: { scopeType: "MATCH_ROUND", scopeId: match.matchRoundId },
+    where: { scopeType: "MATCH_ROUND", scopeId: match.matchRoundId, ...orgFilter.filter },
     orderBy: { createdAt: "desc" },
     take: 1,
   });
   if (roundIntents.length > 0) return roundIntents[0];
 
-  const round = await db.matchRound.findUnique({
-    where: { id: match.matchRoundId },
+  const round = await db.matchRound.findFirst({
+    where: { id: match.matchRoundId, ...orgFilter.filter },
     select: { leagueSeasonId: true },
   });
   if (!round) return null;
 
-  const periodIntents = await db.coachingIntent.findMany({
-    where: { scopeType: "LEAGUE_SEASON", scopeId: round.leagueSeasonId },
+  const seasonIntents = await db.coachingIntent.findMany({
+    where: { scopeType: "LEAGUE_SEASON", scopeId: round.leagueSeasonId, ...orgFilter.filter },
     orderBy: { createdAt: "desc" },
     take: 1,
   });
-  return periodIntents.length > 0 ? periodIntents[0] : null;
+  return seasonIntents.length > 0 ? seasonIntents[0] : null;
 }

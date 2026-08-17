@@ -44,7 +44,7 @@ export default async function MatchDetailPage({
 
   if (!match) notFound();
 
-  const activeIntent = await getActiveCoachingIntentForMatch(matchId);
+  const activeIntent = await getActiveCoachingIntentForMatch(matchId, ctx.orgFilter);
 
   const postMatchReport = await db.postMatchReport.findUnique({
     where: { matchId, ...orgWhere },
