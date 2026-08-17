@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { classifyLoadCell, computeLoadAttentionFlags } from "./load-timeline-helpers";
 import type {
   InsightFilters,
@@ -13,13 +13,14 @@ import type {
 export async function getLoadTimeline(
   filters: InsightFilters,
 ): Promise<LoadTimelineRow[]> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeRemoved
-    ? { OR: [{ active: true }, { active: false, removedAt: { not: null } }] }
+    ? { organisationId: orgId, OR: [{ active: true }, { active: false, removedAt: { not: null } }] }
     : filters.includeInactive
-      ? { OR: [{ active: true }, { active: false }] }
-      : { active: true, removedAt: null };
+      ? { organisationId: orgId, OR: [{ active: true }, { active: false }] }
+      : { organisationId: orgId, active: true, removedAt: null };
 
   const players = await db.player.findMany({
     where: playerFilter,
@@ -34,7 +35,7 @@ export async function getLoadTimeline(
   });
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId: filters.leagueSeasonId },
+    where: { leagueSeasonId: filters.leagueSeasonId, organisationId: orgId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -48,6 +49,7 @@ export async function getLoadTimeline(
   const selections = await db.selection.findMany({
     where: {
       matchRoundId: { in: roundIds },
+      organisationId: orgId,
       status: { in: selectionStatusFilter },
       player: playerFilter,
     },
@@ -59,7 +61,7 @@ export async function getLoadTimeline(
   });
 
   const matchIds = await db.match.findMany({
-    where: { matchRoundId: { in: roundIds } },
+    where: { matchRoundId: { in: roundIds }, organisationId: orgId },
     select: { id: true, matchRoundId: true },
   });
 
@@ -68,6 +70,7 @@ export async function getLoadTimeline(
     const reports = await db.postMatchReport.findMany({
       where: {
         matchId: { in: matchIds.map((m) => m.id) },
+        organisationId: orgId,
         status: { in: ["REPORTED", "LOCKED"] },
       },
       select: { matchId: true },
@@ -79,6 +82,7 @@ export async function getLoadTimeline(
 
   const actualParticipations = await db.postMatchPlayerActual.findMany({
     where: {
+      organisationId: orgId,
       report: {
         matchId: { in: matchIds.map((m) => m.id) },
         status: { in: ["REPORTED", "LOCKED"] },

@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture, type TestFixtureIds } from "@/test/test-db";
 import { getFixturesOverview } from "../service";
+
+const testOrgFilter = (organisationId: string): OrgFilterMode => ({
+  type: "org",
+  filter: { organisationId },
+  filterNullable: { organisationId },
+  organisationId,
+});
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -22,7 +30,7 @@ describe("Fixtures Service", () => {
 
   describe("getFixturesOverview", () => {
     it("returns periods with rounds and matches from seeded data", async () => {
-      const overview = await getFixturesOverview();
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
       expect(overview.periods.length).toBeGreaterThanOrEqual(1);
 
       const period = overview.periods[0];
@@ -36,7 +44,7 @@ describe("Fixtures Service", () => {
     });
 
     it("includes match details", async () => {
-      const overview = await getFixturesOverview();
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
       const match = overview.periods[0].rounds[0].matches[0];
       expect(match.teamId).toBeDefined();
       expect(match.teamName).toBeDefined();
@@ -46,7 +54,7 @@ describe("Fixtures Service", () => {
     });
 
     it("reports blockerCount and decisionRequiredCount from live plan integrity", async () => {
-      const overview = await getFixturesOverview();
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
       const round = overview.periods[0].rounds[0];
 
       expect(typeof round.blockerCount).toBe("number");
@@ -60,7 +68,7 @@ describe("Fixtures Service", () => {
     });
 
     it("computes readiness from live plan integrity signals", async () => {
-      const overview = await getFixturesOverview();
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
 
       for (const period of overview.periods) {
         for (const round of period.rounds) {
@@ -100,7 +108,7 @@ describe("Fixtures Service", () => {
         },
       });
 
-      const overview = await getFixturesOverview();
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
       const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
       expect(match?.selectedPlayerCount).toBeGreaterThanOrEqual(1);
     });
@@ -116,7 +124,7 @@ describe("Fixtures Service", () => {
         },
       });
 
-      const overview = await getFixturesOverview();
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
       const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
       expect(match?.postMatchStatus).toBe("LOCKED");
     });
