@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { db } from "@/lib/db";
 
 export async function GET(
@@ -14,6 +15,11 @@ export async function GET(
   } catch {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
+
+  // Set tenant context for defense-in-depth: ensures the Prisma tenantRLS
+  // extension injects organisationId into nested relation queries on the
+  // organisation object (memberships, teams, players, leagueSeasons).
+  setTenantOrganisationId(ctx.organisationId);
 
   const org = await db.organisation.findUnique({
     where: { id: ctx.organisationId },

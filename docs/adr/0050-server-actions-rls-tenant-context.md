@@ -45,7 +45,15 @@ Every `db` query against an RLS-protected table must have `app.current_organizat
 
 ## Disposition
 
-Partially resolved. The where-clause injection approach (ADR-0057) reduces the dependency on `AsyncLocalStorage.enterWith()` for RLS enforcement — queries are filtered by `organisationId` in the Prisma extension regardless of whether PostgreSQL session state is set. However, background operations that bypass `requireActorContext()` still need explicit `runWithTenantOrganisationId()` to ensure the correct `organisationId` is injected into queries. Database RLS policies are permissive when context is not set, so missing context does not cause 0-row returns, but it does mean the query is not scoped to the correct organisation.
+Partially resolved. The where-clause injection approach (ADR-0057) reduces the dependency on `AsyncLocalStorage.enterWith()` for RLS enforcement — queries are filtered by `organisationId` in the Prisma extension regardless of whether PostgreSQL session state is set. However, background operations that bypass `requireActorContext()` still need explicit `runWithTenantOrganisationId()` to ensure the correct `organisationId` is injected into queries.
+
+Remaining findings (2026-08-17):
+1. **NotificationOutbox cron** (`processOutboxBatch`): intentionally processes across all orgs. Removed `notificationOutbox` from `RLS_TABLES` since it's a cross-tenant batch table and the RLS fallthrough when no context is set was misleading.
+2. **Org export API**: added `setTenantOrganisationId()` call for defense-in-depth on nested relation queries.
+3. **Brevo webhook**: `ProviderWebhookEvent` and `NotificationDelivery` are not in RLS_TABLES and are correctly global tables. Low risk.
+4. **Machine principal token endpoint**: `MachinePrincipal` IS in RLS_TABLES but the unscoped fallthrough is intentional for cross-org lookup. The fallthrough is by design.
+
+Background operations (cron, webhooks) that process across all orgs should not be in RLS_TABLES. Org-scoped operations must set tenant context via `requireActorContext()` or `setTenantOrganisationId()`.
 
 ## Related decisions
 
@@ -65,9 +73,14 @@ None
 
 ## History
 
-### 2026-08-05
+### 2026-08-17
 
-Updated. Where-clause injection (ADR-0057) reduces the impact of missing `enterWith()` context — queries still get `organisationId` injected if context is set. Missing context now returns unscoped results (all organisations) instead of 0 rows, which is less dangerous but still incorrect. Background operations still need explicit context setup.
+Phase 2 hardening:
+- Removed `notificationOutbox` from `RLS_TABLES` — it's a cross-tenant batch table processed by cron; the RLS fallthrough was misleading.
+- Added `setTenantOrganisationId()` to org export API route for defense-in-depth on nested relation queries.
+- Audited all API routes without `requireActorContext()`: health, CSP report, auth endpoints, machine principal token, Brevo webhook, notification outbox cron.
+- Brevo webhook and health/CSP endpoints access non-tenant-scoped tables only. Machine principal token endpoint intentionally needs cross-org lookup.
+- Removed `withActorContext()` (ARR-0053 resolved), documented layout context propagation (ARR-0054 resolved), removed legacy SET LOCAL functions (ARR-0055 resolved).
 
 ### 2026-08-04
 

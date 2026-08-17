@@ -29,6 +29,11 @@ export default async function OrgLayout({
   );
 
   if (organisationId) {
+    // NOTE: runWithTenantOrganisationId sets context for this layout's own
+    // queries only. It does NOT propagate to child server components because
+    // Next.js App Router renders server components as separate async operations.
+    // Child components must call requireActorContext() which sets context via
+    // setTenantOrganisationId (enterWith) for the rest of the request.
     return runWithTenantOrganisationId(organisationId, async () => content);
   }
 

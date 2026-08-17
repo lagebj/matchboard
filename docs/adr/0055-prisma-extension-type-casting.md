@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -41,7 +41,7 @@ The exported `db` should be type-safe. Either the Prisma extension type should b
 
 ## Disposition
 
-Pending. Low priority, current approach works correctly at runtime.
+Resolved. Added documentation comment explaining the type cast rationale. Removed legacy `withUnscopedContext`, `clearTenantContext`, `createTenantContext`, `setTenantContext`, and `TenantContext` type from `tenant-client.ts` — these were remnants of the superseded SET LOCAL approach (ADR-0037 → ADR-0057). `withTenantContext` retained as a transaction wrapper but `SET LOCAL` call removed since where-clause injection is the primary isolation mechanism.
 
 ## Related decisions
 
@@ -61,6 +61,6 @@ None
 
 ## History
 
-### 2026-08-04
+### 2026-08-17
 
-Record created. Type cast is intentional but undocumented.
+Resolved. Added documentation comment on the `db` export in `src/lib/db.ts` explaining the `as unknown as PrismaClient` cast rationale. Removed legacy SET LOCAL functions (`setTenantContext`, `withUnscopedContext`, `clearTenantContext`, `createTenantContext`, `TenantContext` type) from `tenant-client.ts` and its re-exports. `withTenantContext` retained as a Prisma transaction wrapper without the redundant `SET LOCAL` call. Updated corresponding tests.

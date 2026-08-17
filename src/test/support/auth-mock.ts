@@ -18,7 +18,6 @@ const {
   mockTeamFilterFromContext,
   mockGroupFilterFromContext,
   mockTeamOrGroupFilter,
-  mockWithActorContext,
   mockRequireCoachAccess,
 } = vi.hoisted(() => ({
   mockRequireActorContext: vi.fn(),
@@ -38,7 +37,6 @@ const {
   mockTeamFilterFromContext: vi.fn(),
   mockGroupFilterFromContext: vi.fn(),
   mockTeamOrGroupFilter: vi.fn(),
-  mockWithActorContext: vi.fn(),
   mockRequireCoachAccess: vi.fn(),
 }));
 
@@ -60,7 +58,7 @@ vi.mock("@/lib/auth/actor-context", () => ({
   teamFilterFromContext: mockTeamFilterFromContext,
   groupFilterFromContext: mockGroupFilterFromContext,
   teamOrGroupFilter: mockTeamOrGroupFilter,
-  withActorContext: mockWithActorContext,
+  requireCoachAccess: mockRequireCoachAccess,
   MultipleMembershipsError: class MultipleMembershipsError extends Error {
     constructor(message?: string) {
       super(message ?? "Multiple memberships");
@@ -185,7 +183,6 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
   mockTeamFilterFromContext.mockReturnValue(null);
   mockGroupFilterFromContext.mockReturnValue(null);
   mockTeamOrGroupFilter.mockReturnValue(null);
-  mockWithActorContext.mockImplementation(async (_slug: string | undefined, fn: (ctx: typeof actorContext) => Promise<unknown>) => fn(actorContext));
 
   return {
     mockRequireActorContext,
@@ -205,7 +202,6 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
     mockTeamFilterFromContext,
     mockGroupFilterFromContext,
     mockTeamOrGroupFilter,
-    mockWithActorContext,
     mockRequireCoachAccess,
     context,
     orgFilter,
@@ -227,7 +223,6 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
         id: context.userId,
         email: context.email,
       });
-      mockWithActorContext.mockImplementation(async (_slug: string | undefined, fn: (ctx: typeof newActorContext) => Promise<unknown>) => fn(newActorContext));
     },
   };
 }

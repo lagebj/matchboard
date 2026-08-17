@@ -97,14 +97,6 @@ export async function requireActorContext(
   };
 }
 
-export async function withActorContext<T>(
-  organisationSlug: string | undefined,
-  fn: (ctx: ActorContext) => Promise<T>,
-): Promise<T> {
-  const ctx = await requireActorContext(organisationSlug);
-  return fn(ctx);
-}
-
 export { MultipleMembershipsError };
 
 const MUTATION_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH"];

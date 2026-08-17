@@ -192,19 +192,6 @@ describe("RLS tenant isolation", () => {
       expect(isValidOrganisationId("id'; DROP TABLE--")).toBe(false);
     });
 
-    it("createTenantContext returns context with organisationId", async () => {
-      const { createTenantContext } = await import("../tenant-client");
-      const ctx = createTenantContext("org-123", db);
-      expect(ctx.organisationId).toBe("org-123");
-      expect(ctx.db).toBe(db);
-    });
-
-    it("createTenantContext rejects invalid organisationId", async () => {
-      const { createTenantContext } = await import("../tenant-client");
-      expect(() => createTenantContext("", db)).toThrow("Invalid organisationId");
-      expect(() => createTenantContext("a".repeat(65), db)).toThrow("Invalid organisationId");
-    });
-
     it("withTenantContext sets and uses tenant context in a transaction", async () => {
       const { withTenantContext } = await import("../tenant-client");
       const org = await db.organisation.create({
@@ -232,30 +219,6 @@ describe("RLS tenant isolation", () => {
       await expect(
         withTenantContext(db, "a".repeat(65), async (tx) => tx.team.findMany())
       ).rejects.toThrow("Invalid organisationId");
-    });
-
-    it("withUnscopedContext allows access to all rows", async () => {
-      const { withUnscopedContext } = await import("../tenant-client");
-      const org1 = await db.organisation.create({
-        data: { name: "Unscoped Org 1", slug: "unscoped-org-1" },
-      });
-      const org1Group = await createTestGroup(db, org1.id);
-      const org2 = await db.organisation.create({
-        data: { name: "Unscoped Org 2", slug: "unscoped-org-2" },
-      });
-      const org2Group = await createTestGroup(db, org2.id);
-      await db.team.create({
-        data: { name: "Team U1", organisationId: org1.id, footballGroupId: org1Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
-      });
-      await db.team.create({
-        data: { name: "Team U2", organisationId: org2.id, footballGroupId: org2Group, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
-      });
-
-      const teams = await withUnscopedContext(db, async (tx) => {
-        return tx.team.findMany();
-      });
-
-      expect(teams.length).toBeGreaterThanOrEqual(2);
     });
   });
 

@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -39,7 +39,7 @@ There should be one clear way to set up auth + RLS context. Currently there are 
 
 ## Disposition
 
-Pending. Low priority, can be cleaned up in a refactor pass.
+Resolved. `withActorContext()` removed, test mock cleaned up.
 
 ## Related decisions
 
@@ -59,6 +59,6 @@ None
 
 ## History
 
-### 2026-08-04
+### 2026-08-17
 
-Record created. Wrapper is redundant after `enterWith()` adoption.
+Resolved. Removed `withActorContext()` from `src/lib/auth/actor-context.ts` and cleaned up the test mock in `src/test/support/auth-mock.ts`. No production callers existed; `requireActorContext()` is the single mechanism for setting auth + tenant context.

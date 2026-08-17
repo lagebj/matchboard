@@ -44,7 +44,7 @@ Auth resolution should be able to find a user's memberships without tenant conte
 
 ## Disposition
 
-Pending. Current containment is adequate for the single-tenant-per-request architecture.
+Dispositioned. The self-read policy is necessary for the auth resolution chicken-and-egg problem. The recommended fix is to scope it to the authenticated user's own memberships using `current_setting('app.current_user_id', true)`, which requires: (1) adding `app.current_user_id` session variable support to the auth resolution path, (2) a database migration to update the OrganisationMembership RLS policies. This is a focused migration PR that should be done separately to avoid risk to auth flows. Containment is adequate for now — only auth resolution code queries OrganisationMembership without tenant context, and application-level WHERE filters (userId) limit the rows returned.
 
 ## Related decisions
 
@@ -64,6 +64,6 @@ None
 
 ## History
 
-### 2026-08-04
+### 2026-08-17
 
-Record created. Self-read policy is necessary for auth resolution but broader than ideal.
+Dispositioned. Scoping the self-read policy to the authenticated user requires adding `app.current_user_id` session variable support and a database migration. This should be a separate focused PR. Current containment (application-level userId filtering in auth resolution) is adequate for the single-tenant-per-request architecture.
