@@ -35,7 +35,7 @@ This document prepares Matchboard for an independent security assessment by prov
 - Two database roles: `matchboard_app` (NOBYPASSRLS) and `matchboard_admin` (BYPASSRLS)
 
 ### Auth Model
-- Google OAuth with email allowlist (`ALLOWED_COACH_EMAILS`)
+- Google OAuth with organisation membership (email allowlist removed, ADR-0061)
 - `requireCoachAccess()` on all protected server actions and API routes
 - Organisation membership-based authorization
 - Machine principals with scoped JWT tokens (ADR-0038)

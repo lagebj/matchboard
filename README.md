@@ -276,9 +276,9 @@ The season overview (`/season`) is the fairness control surface for the league s
 Matchboard is a **private coaching app**. Access is restricted to authenticated coaches on an organisation basis. Internal planning notes, readiness signals, feedback, and selection reasoning remain private coach-facing data by default.
 
 - Users must authenticate (Google OAuth) before accessing any app data
-- Access is controlled by `ALLOWED_COACH_EMAILS` — a comma-separated list of coach email addresses
+- Access is controlled by organisation membership — users must be invited to or create an organisation
 - No public signup exists or should be added unless explicitly requested
-- Authenticated users not on the allowlist see an access-denied page
+- Authenticated users without an organisation membership see the organisations page (create or join)
 - All server actions and API routes enforce authorisation server-side
 - UI-only protection is insufficient — every mutation and data read requires a verified coach session
 - Database access is server-side only — no direct client database access
@@ -357,10 +357,7 @@ Do not commit `.env` or any database credentials.
    - Authorized redirect URIs: `http://localhost:3333/api/auth/callback/google`
    - Copy the **Client ID** to `AUTH_GOOGLE_ID` and **Client Secret** to `AUTH_GOOGLE_SECRET` in `.env`
 
-3. Add your email to the allowlist:
-   ```dotenv
-   ALLOWED_COACH_EMAILS="you@example.com"
-   ```
+3. Sign in with your Google account — you will be prompted to create or join an organisation.
 
 4. Set the auth base URL:
    ```dotenv
@@ -650,7 +647,6 @@ Set these in the Vercel project dashboard under Settings → Environment Variabl
 | `AUTH_GOOGLE_ID` | Google OAuth client ID from Google Cloud Console. |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret from Google Cloud Console. |
 | `AUTH_URL` | Your deployed URL (e.g. `https://matchboard.vercel.app`). Auth.js uses this for callbacks. |
-| `ALLOWED_COACH_EMAILS` | Comma-separated list of coach email addresses. Only these users can access the app. |
 
 **Never prefix secrets with `NEXT_PUBLIC_`** — they would be exposed to the browser.
 
@@ -718,7 +714,7 @@ After deployment, verify:
 If a deployment has issues:
 
 - **Rollback:** In Vercel dashboard → Deployments → find the last known-good deployment → **Promote to Production**.
-- **Disable access:** Set `ALLOWED_COACH_EMAILS` to an empty string or remove it — all app access will be denied.
+- **Disable access:** Remove a user's organisation membership to revoke their access. Organisation owners and admins can manage memberships from the organisations page.
 
 ### Security notes
 

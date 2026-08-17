@@ -331,19 +331,27 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       expect(normalOrgAfter).not.toBeNull();
     });
 
-    it("no global allowlist remains as ordinary authorisation", async () => {
-      const { isAllowedCoach } = await import("@/lib/allowlist");
+    it("no global allowlist remains as ordinary authorisation (allowlist module removed)", async () => {
+      // The email allowlist has been removed. Auth is now membership-based.
+      // Verify the allowlist module no longer exists.
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const allowlistPath = path.join(process.cwd(), "src/lib/allowlist.ts");
+      expect(fs.existsSync(allowlistPath)).toBe(false);
 
-      expect(isAllowedCoach("anyone@example.com")).toBe(false);
+      // Verify auth modules do not reference the allowlist
+      const authLib = fs.readFileSync(
+        path.join(process.cwd(), "src/lib/auth.ts"),
+        "utf-8",
+      );
+      expect(authLib).not.toContain("isAllowedCoach");
+      expect(authLib).not.toContain("ALLOWED_COACH_EMAILS");
 
-      const originalEnv = process.env.ALLOWED_COACH_EMAILS;
-      process.env.ALLOWED_COACH_EMAILS = "test@example.com,admin@example.com";
-
-      expect(isAllowedCoach("test@example.com")).toBe(true);
-      expect(isAllowedCoach("admin@example.com")).toBe(true);
-      expect(isAllowedCoach("other@example.com")).toBe(false);
-
-      process.env.ALLOWED_COACH_EMAILS = originalEnv || "";
+      const middleware = fs.readFileSync(
+        path.join(process.cwd(), "src/middleware.ts"),
+        "utf-8",
+      );
+      expect(middleware).not.toContain("ALLOWED_COACH_EMAILS");
     });
   });
 });

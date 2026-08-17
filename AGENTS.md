@@ -165,7 +165,7 @@ The assistant must not skip steps or suggest finalization before draft review. P
 - Tailwind
 - Prisma
 - PostgreSQL (Neon for production, Docker Compose for local dev)
-- Auth.js (Google OAuth, email allowlist)
+- Auth.js (Google OAuth, organisation membership)
 
 ## Product boundary
 
@@ -1281,7 +1281,7 @@ Fixtures result display rules:
 
 - Auth routes (`/auth/signin`, `/auth/error`) must use a public auth layout, never the protected app layout
 - Sign-in and access-denied pages must not show sidebar, top bar, coach data, team data, player data, match data, or round data
-- Protected app shell (sidebar, top bar, user nav) only renders after authenticated allowlisted coach access
+- Protected app shell (sidebar, top bar, user nav) only renders after authenticated membership access
 - Auth pages must use the Matchboard dark theme but without protected navigation
 - Root layout must contain only HTML/body/font wrappers — no protected shell components
 - Protected shell (sidebar, top bar, user nav) lives in `(app)/layout.tsx`, not in root layout
@@ -1773,7 +1773,7 @@ Never run `cleanTestDb()` or any test setup/teardown against a production databa
 Matchboard is a private coaching app. Auth is mandatory, not optional.
 
 - Users must authenticate (Google OAuth) before accessing any app data
-- Access is controlled by an email allowlist (`ALLOWED_COACH_EMAILS`)
+- Access is controlled by organisation membership (not an email allowlist)
 - No public signup exists or should be added unless explicitly requested
 - Every server action that reads or writes protected data must call `requireCoachAccess()`
 - Every API route that reads or writes protected data must call `requireCoachAccess()`
@@ -1784,7 +1784,7 @@ Matchboard is a private coaching app. Auth is mandatory, not optional.
 - `requireCoachAccess()` is the shared authorization helper that all protected actions must use
 - Create, edit, delete, finalize, export, clear, manual-edit, and populate actions must all be protected
 - Unauthenticated users redirect to sign-in
-- Authenticated but non-allowlisted users see access denied
+- Authenticated users without an organisation membership see the organisations page (create or join)
 - Tests or verification must cover unauthorized access scenarios
 
 ## Deployment and security

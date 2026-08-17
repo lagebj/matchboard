@@ -15,7 +15,7 @@ export default function SignInPage() {
             Sign in to Matchboard
           </h1>
           <p className="mt-3 text-sm text-zinc-400">
-            Private squad planning for allowlisted coaches.
+            Private squad planning for coaches.
           </p>
         </div>
         <form
@@ -50,7 +50,7 @@ export default function SignInPage() {
           </button>
         </form>
         <p className="text-center text-xs text-zinc-500">
-          Access is limited to approved coach accounts.
+          Access requires an organisation invitation.
         </p>
         </div>
     </div>
