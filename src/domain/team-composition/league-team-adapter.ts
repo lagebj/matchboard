@@ -408,7 +408,7 @@ async function resolveFormationStructure(
   orgFilter: OrgFilterMode,
 ): Promise<TeamCompositionProblem["structure"]> {
   const orgWhere = orgFilter.type === "org" ? orgFilter.filter : {};
-  const formation = await db.formation.findUnique({
+  const formation = await db.formation.findFirst({
     where: { id: formationId, ...orgWhere, isArchived: false },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });

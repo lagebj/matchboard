@@ -32,7 +32,7 @@ export type FinalizeValidationResult = {
 export async function validateLeagueSeasonFinalization(
   leagueSeasonId: string,
 ): Promise<FinalizeValidationResult> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     include: {
       matchRounds: {
@@ -112,7 +112,7 @@ export async function finalizeLeagueSeason(
   leagueSeasonId: string,
   finalisedBy: string | null = null,
 ): Promise<{ success: boolean; error?: string }> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
   });
 
@@ -150,7 +150,7 @@ export async function finalizeLeagueSeason(
   const now = new Date();
 
   await db.$transaction(async (tx) => {
-    const existingSnapshot = await tx.seasonPeriodSnapshot.findUnique({
+    const existingSnapshot = await tx.seasonPeriodSnapshot.findFirst({
       where: { leagueSeasonId },
     });
 
@@ -218,7 +218,7 @@ export async function finalizeLeagueSeason(
 export async function unfinalizeLeagueSeason(
   leagueSeasonId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
   });
 
@@ -240,7 +240,7 @@ export async function unfinalizeLeagueSeason(
       },
     });
 
-    const existingSnapshot = await tx.seasonPeriodSnapshot.findUnique({
+    const existingSnapshot = await tx.seasonPeriodSnapshot.findFirst({
       where: { leagueSeasonId },
     });
 
@@ -264,7 +264,7 @@ export async function unfinalizeLeagueSeason(
 }
 
 export async function getLeagueSeasonSnapshot(leagueSeasonId: string): Promise<LeagueSeasonSnapshot | null> {
-  const snapshot = await db.seasonPeriodSnapshot.findUnique({
+  const snapshot = await db.seasonPeriodSnapshot.findFirst({
     where: { leagueSeasonId },
     include: {
       teamSnapshots: {
@@ -307,7 +307,7 @@ export async function getLeagueSeasonFinalizationStatus(leagueSeasonId: string):
   finalizedBy: string | null;
   snapshotExists: boolean;
 }> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { status: true, finalizedAt: true, finalizedBy: true },
   });
@@ -316,7 +316,7 @@ export async function getLeagueSeasonFinalizationStatus(leagueSeasonId: string):
     return { status: "NOT_FOUND", finalizedAt: null, finalizedBy: null, snapshotExists: false };
   }
 
-  const snapshot = await db.seasonPeriodSnapshot.findUnique({
+  const snapshot = await db.seasonPeriodSnapshot.findFirst({
     where: { leagueSeasonId },
     select: { id: true },
   });

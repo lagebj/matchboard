@@ -11,7 +11,7 @@ export async function replaceRoundActiveSignals(
   matchRoundId: string,
   integrity: RoundPlanIntegrity,
 ): Promise<void> {
-  const round = await db.matchRound.findUnique({
+  const round = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { organisationId: true },
   });

@@ -27,7 +27,7 @@ export async function getPlayerPathways(
 
   const includeDrafts = viewMode === "include_drafts";
 
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: filters.leagueSeasonId },
     select: {
       id: true,

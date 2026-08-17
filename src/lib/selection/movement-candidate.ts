@@ -63,7 +63,7 @@ export async function validateCandidateCreation(input: CreateMovementCandidateIn
     return { valid: false, error: `Invalid rationale category: ${input.rationaleCategory}.` };
   }
 
-  const player = await db.player.findUnique({
+  const player = await db.player.findFirst({
     where: { id: input.playerId },
     select: { id: true, coreTeamId: true, nonRotatable: true, active: true, removedAt: true },
   });
@@ -76,7 +76,7 @@ export async function validateCandidateCreation(input: CreateMovementCandidateIn
     return { valid: false, error: "Player is marked non-rotatable and cannot be a movement candidate." };
   }
 
-  const rotationPath = await db.rotationPath.findUnique({
+  const rotationPath = await db.rotationPath.findFirst({
     where: { id: input.rotationPathId },
     select: { id: true, fromTeamId: true, toTeamId: true, role: true, active: true },
   });
@@ -97,13 +97,11 @@ export async function validateCandidateCreation(input: CreateMovementCandidateIn
     return { valid: false, error: `Candidate role ${input.role} does not match rotation path role ${rotationPath.role}.` };
   }
 
-  const existing = await db.movementCandidate.findUnique({
+  const existing = await db.movementCandidate.findFirst({
     where: {
-      playerId_rotationPathId_role: {
-        playerId: input.playerId,
-        rotationPathId: input.rotationPathId,
-        role: input.role,
-      },
+      playerId: input.playerId,
+      rotationPathId: input.rotationPathId,
+      role: input.role,
     },
   });
 
@@ -148,7 +146,7 @@ export async function createMovementCandidate(input: CreateMovementCandidateInpu
 }
 
 export async function updateMovementCandidate(candidateId: string, input: UpdateMovementCandidateInput) {
-  const candidate = await db.movementCandidate.findUnique({
+  const candidate = await db.movementCandidate.findFirst({
     where: { id: candidateId },
   });
 
@@ -157,7 +155,7 @@ export async function updateMovementCandidate(candidateId: string, input: Update
   }
 
   if (input.status === "ACTIVE" && candidate.status === "PAUSED") {
-    const rotationPath = await db.rotationPath.findUnique({
+    const rotationPath = await db.rotationPath.findFirst({
       where: { id: candidate.rotationPathId },
       select: { active: true },
     });
@@ -184,7 +182,7 @@ export async function updateMovementCandidate(candidateId: string, input: Update
 }
 
 export async function deleteMovementCandidate(candidateId: string) {
-  const candidate = await db.movementCandidate.findUnique({
+  const candidate = await db.movementCandidate.findFirst({
     where: { id: candidateId },
   });
 

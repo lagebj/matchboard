@@ -29,7 +29,7 @@ export async function movePlannedSelectionWithinRound(input: {
     return { success: false, errors: ["Source and target match are the same. No move needed."] };
   }
 
-  const round = await db.matchRound.findUnique({
+  const round = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { id: true, status: true },
   });
@@ -69,7 +69,7 @@ export async function movePlannedSelectionWithinRound(input: {
     return { success: false, errors: ["Cannot move a player in a finalised round."] };
   }
 
-  const targetMatch = await db.match.findUnique({
+  const targetMatch = await db.match.findFirst({
     where: { id: toMatchId },
     select: {
       id: true,

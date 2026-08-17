@@ -27,7 +27,7 @@ export async function editFinalizedSelection(
     };
   }
 
-  const selection = await db.selection.findUnique({
+  const selection = await db.selection.findFirst({
     where: { id: selectionId },
     select: {
       id: true,

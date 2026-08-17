@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId: string }) {
-  const round = await db.matchRound.findUnique({
+  const round = await db.matchRound.findFirst({
     where: { id: roundId },
     select: { organisationId: true },
   });
@@ -16,7 +16,7 @@ async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId
 }
 
 async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId: string }) {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: { organisationId: true },
   });
@@ -26,7 +26,7 @@ async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId
 }
 
 async function verifyLeagueSeasonOrgAccess(leagueSeasonId: string, orgFilter: { organisationId: string }) {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { organisationId: true },
   });

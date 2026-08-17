@@ -56,7 +56,7 @@ export async function addPlayerToDraftMatch(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     include: {
       matchRound: { select: { id: true, status: true } },
@@ -75,7 +75,7 @@ export async function addPlayerToDraftMatch(
 
   const organisationId = match.organisationId;
 
-  const player = await db.player.findUnique({
+  const player = await db.player.findFirst({
     where: { id: playerId },
     include: { coreTeam: { select: { id: true, name: true } } },
   });

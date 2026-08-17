@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
   const data = parsed.data;
 
-  const match = await db.match.findUnique({ where: { id: data.matchId }, select: { team: { select: { organisationId: true } } } });
+  const match = await db.match.findFirst({ where: { id: data.matchId }, select: { team: { select: { organisationId: true } } } });
   if (!match) {
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }

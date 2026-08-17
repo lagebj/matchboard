@@ -35,7 +35,7 @@ export type EffectiveAppearancesResult = {
 export async function getEffectiveAppearancesForMatch(
   matchId: string,
 ): Promise<EffectiveAppearancesResult> {
-  const report = await db.postMatchReport.findUnique({
+  const report = await db.postMatchReport.findFirst({
     where: { matchId },
     select: { id: true, status: true },
   });

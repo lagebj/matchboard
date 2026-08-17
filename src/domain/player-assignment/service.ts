@@ -82,7 +82,7 @@ export async function movePlayerToTeam(input: MovePlayerToTeamInput): Promise<Pl
   });
 
   const targetTeam = input.targetTeamId
-    ? await db.team.findUnique({ where: { id: input.targetTeamId } })
+    ? await db.team.findFirst({ where: { id: input.targetTeamId } })
     : null;
 
   await recordDecision({
@@ -98,7 +98,7 @@ export async function movePlayerToTeam(input: MovePlayerToTeamInput): Promise<Pl
 
   const updatedPlayer = await db.player.findUniqueOrThrow({ where: { id: input.playerId } });
   const updatedTeam = updatedPlayer.coreTeamId
-    ? await db.team.findUnique({ where: { id: updatedPlayer.coreTeamId } })
+    ? await db.team.findFirst({ where: { id: updatedPlayer.coreTeamId } })
     : null;
 
   return {

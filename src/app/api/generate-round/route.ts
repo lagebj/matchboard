@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const { roundId } = parsed.data;
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: roundId },
     include: {
       matches: {

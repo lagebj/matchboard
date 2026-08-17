@@ -109,7 +109,7 @@ export async function applySimulationAsDrafts(
   leagueSeasonId: string,
   roundIds?: string[],
 ): Promise<ApplySimulationResult> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     include: {
       matchRounds: {

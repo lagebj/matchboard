@@ -98,7 +98,7 @@ export async function buildLeagueSimulationContext(
     includeFinalizedHistory?: boolean;
   },
 ): Promise<SimulationContext> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     include: { season: true },
   });

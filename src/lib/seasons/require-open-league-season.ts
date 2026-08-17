@@ -11,7 +11,7 @@ export class FinalizedLeagueSeasonError extends AppError {
 export async function requireOpenLeagueSeason(
   leagueSeasonId: string,
 ): Promise<void> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { status: true },
   });
@@ -30,7 +30,7 @@ export async function requireOpenLeagueSeason(
 export async function requireOpenLeagueSeasonForRound(
   matchRoundId: string,
 ): Promise<void> {
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { leagueSeasonId: true },
   });
@@ -45,7 +45,7 @@ export async function requireOpenLeagueSeasonForRound(
 export async function requireOpenLeagueSeasonForMatch(
   matchId: string,
 ): Promise<void> {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: { matchRound: { select: { leagueSeasonId: true } } },
   });
@@ -60,7 +60,7 @@ export async function requireOpenLeagueSeasonForMatch(
 export async function isLeagueSeasonFinalized(
   leagueSeasonId: string,
 ): Promise<boolean> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { status: true },
   });

@@ -71,7 +71,7 @@ export async function upsertTeamReflection(input: CreateTeamReflectionInput) {
 }
 
 export async function getTeamReflection(matchId: string) {
-  return db.teamReflection.findUnique({ where: { matchId } });
+  return db.teamReflection.findFirst({ where: { matchId } });
 }
 
 export async function deleteTeamReflection(id: string) {

@@ -29,21 +29,21 @@ export async function POST(request: Request) {
   try {
     const data = parsed.data;
     if (data.level === "all") {
-      const leagueSeason = await db.leagueSeason.findUnique({ where: { id: data.leagueSeasonId }, select: { organisationId: true } });
+      const leagueSeason = await db.leagueSeason.findFirst({ where: { id: data.leagueSeasonId }, select: { organisationId: true } });
       if (!leagueSeason) return NextResponse.json({ error: "League season not found" }, { status: 404 });
       if (leagueSeason.organisationId !== ctx.organisationId) return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
       const result = await clearAllDraftSelections(data.leagueSeasonId);
       return NextResponse.json({ level: "all", ...result });
     }
     if (data.level === "round") {
-      const matchRound = await db.matchRound.findUnique({ where: { id: data.matchRoundId }, select: { organisationId: true } });
+      const matchRound = await db.matchRound.findFirst({ where: { id: data.matchRoundId }, select: { organisationId: true } });
       if (!matchRound) return NextResponse.json({ error: "Match round not found" }, { status: 404 });
       if (matchRound.organisationId !== ctx.organisationId) return NextResponse.json({ error: "Match round not found or access denied." }, { status: 404 });
       const result = await clearRoundDraftSelection(data.matchRoundId);
       return NextResponse.json({ level: "round", ...result });
     }
     if (data.level === "match") {
-      const match = await db.match.findUnique({ where: { id: data.matchId }, select: { team: { select: { organisationId: true } } } });
+      const match = await db.match.findFirst({ where: { id: data.matchId }, select: { team: { select: { organisationId: true } } } });
       if (!match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
       if (match.team.organisationId !== ctx.organisationId) return NextResponse.json({ error: "Match not found or access denied." }, { status: 404 });
       const result = await clearMatchDraftSelection(data.matchId);
