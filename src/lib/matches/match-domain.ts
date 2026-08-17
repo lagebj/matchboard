@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import type { MatchStatus } from "@/generated/prisma/client";
 
 export type MatchGuardResult =
@@ -23,9 +24,10 @@ export function canReopenMatch(currentStatus: MatchStatus): boolean {
   return currentStatus === "CANCELLED";
 }
 
-export async function checkMatchCancellationGuard(matchId: string): Promise<MatchGuardResult> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+export async function checkMatchCancellationGuard(matchId: string, orgFilter?: OrgFilterMode): Promise<MatchGuardResult> {
+  const where = orgFilter ? { id: matchId, ...orgFilter.filter } : { id: matchId };
+  const match = await db.match.findFirst({
+    where,
     select: { id: true, status: true },
   });
 
@@ -50,8 +52,9 @@ export async function checkMatchCancellationGuard(matchId: string): Promise<Matc
 }
 
 export async function checkMatchDeletionGuard(matchId: string, organisationId?: string): Promise<MatchGuardResult> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const where = organisationId ? { id: matchId, organisationId } : { id: matchId };
+  const match = await db.match.findFirst({
+    where,
     select: { id: true, organisationId: true, selections: { where: { status: "FINALIZED" }, select: { id: true } } },
   });
 
@@ -70,8 +73,8 @@ export async function checkMatchDeletionGuard(matchId: string, organisationId?: 
   return { success: true, matchId: match.id };
 }
 
-export async function cancelMatchDomain(matchId: string, cancelledReason?: string): Promise<MatchStatusTransitionResult> {
-  const guard = await checkMatchCancellationGuard(matchId);
+export async function cancelMatchDomain(matchId: string, cancelledReason?: string, orgFilter?: OrgFilterMode): Promise<MatchStatusTransitionResult> {
+  const guard = await checkMatchCancellationGuard(matchId, orgFilter);
   if (!guard.success) return guard;
 
   await db.match.update({
@@ -83,17 +86,18 @@ export async function cancelMatchDomain(matchId: string, cancelledReason?: strin
     },
   });
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: orgFilter ? { id: matchId, ...orgFilter.filter } : { id: matchId },
     select: { matchRoundId: true },
   });
 
   return { success: true, matchId, matchRoundId: match!.matchRoundId };
 }
 
-export async function reopenMatchDomain(matchId: string): Promise<MatchStatusTransitionResult> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+export async function reopenMatchDomain(matchId: string, orgFilter?: OrgFilterMode): Promise<MatchStatusTransitionResult> {
+  const where = orgFilter ? { id: matchId, ...orgFilter.filter } : { id: matchId };
+  const match = await db.match.findFirst({
+    where,
     select: { id: true, status: true, matchRoundId: true },
   });
 

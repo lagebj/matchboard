@@ -466,7 +466,7 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchTeamAccess(ctx, matchId);
 
-  const result = await cancelMatchDomain(matchId, cancelledReason);
+  const result = await cancelMatchDomain(matchId, cancelledReason, ctx.orgFilter);
   if (!result.success) {
     logMatchCancel(ctx.email || "unknown", matchId, "failure", result.error);
     throw new Error(result.error);
@@ -489,7 +489,7 @@ export async function reopenMatchAction(matchId: string) {
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchTeamAccess(ctx, matchId);
 
-  const result = await reopenMatchDomain(matchId);
+  const result = await reopenMatchDomain(matchId, ctx.orgFilter);
   if (!result.success) {
     logMatchReopen(ctx.email || "unknown", matchId, "failure");
     throw new Error(result.error);

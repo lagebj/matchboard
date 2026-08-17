@@ -10,10 +10,10 @@ interface LiveMatchPageProps {
 
 export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
   const { orgSlug, matchId } = await params;
-  await requireActorContext(orgSlug);
+  const ctx = await requireActorContext(orgSlug);
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
     select: {
       id: true,
       opponent: true,

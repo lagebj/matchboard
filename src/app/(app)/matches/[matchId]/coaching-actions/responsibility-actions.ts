@@ -12,11 +12,6 @@ import {
 import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
 
 async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
-  if (orgFilter.type !== "org") {
-    const selection = await db.selection.findUnique({ where: { id: selectionId }, select: { matchId: true } });
-    if (!selection) throw new Error("Selection not found.");
-    return { matchId: selection.matchId };
-  }
   const selection = await db.selection.findFirst({
     where: { id: selectionId, ...orgFilter.filter },
     select: { matchId: true },
@@ -26,7 +21,6 @@ async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilt
 }
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== "org") return;
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
     select: { id: true },
@@ -47,8 +41,8 @@ export async function setMatchdayResponsibilityAction(
   }
 
   try {
-    const selection = await db.selection.findUnique({
-      where: { id: selectionId },
+    const selection = await db.selection.findFirst({
+      where: { id: selectionId, ...ctx.orgFilter.filter },
       select: { id: true, matchId: true, status: true, matchdayResponsibility: true, playerId: true },
     });
 
@@ -64,8 +58,8 @@ export async function setMatchdayResponsibilityAction(
       data: { matchdayResponsibility: responsibility as MatchdayResponsibilityType | null },
     });
 
-    const updatedSelection = await db.selection.findUnique({
-      where: { id: selectionId },
+    const updatedSelection = await db.selection.findFirst({
+      where: { id: selectionId, ...ctx.orgFilter.filter },
       select: { explanation: true },
     });
 
