@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { createFormationSnapshot } from "@/lib/formations/snapshot";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export function canModifyLineup(status: string): boolean {
   return status !== "CONFIRMED";
@@ -14,7 +15,7 @@ export function requireModifiableLineup(status: string): void {
 }
 
 export async function requireLineupExists(lineupId: string) {
-  const lineup = await db.matchLineup.findUnique({
+  const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId },
     include: { assignments: true },
   });
@@ -24,7 +25,7 @@ export async function requireLineupExists(lineupId: string) {
 }
 
 export async function requireAssignmentExists(assignmentId: string) {
-  const assignment = await db.matchLineupAssignment.findUnique({
+  const assignment = await db.matchLineupAssignment.findFirst({
     where: { id: assignmentId },
     include: { matchLineup: true },
   });
@@ -34,7 +35,7 @@ export async function requireAssignmentExists(assignmentId: string) {
 }
 
 export async function requireFormationExists(formationId: string) {
-  const formation = await db.formation.findUnique({
+  const formation = await db.formation.findFirst({
     where: { id: formationId },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
@@ -63,11 +64,12 @@ export async function createLineupFromFormation(data: {
   matchId: string;
   teamId: string;
   formationId: string;
+  orgFilter: OrgFilterMode;
 }) {
   const formation = await requireFormationExists(data.formationId);
   await requireNoExistingLineup(data.matchId, data.teamId);
 
-  const match = await db.match.findUnique({ where: { id: data.matchId }, select: { organisationId: true } });
+  const match = await db.match.findFirst({ where: { id: data.matchId, ...data.orgFilter.filter }, select: { organisationId: true } });
   const organisationId = match?.organisationId ?? "";
 
   const snapshot = createFormationSnapshot(

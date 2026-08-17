@@ -3,6 +3,7 @@ import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import { getPlayerSlotCompatibility, type PlayerPositionInfo } from '@/lib/formations/lineup-compatibility';
 import { createFormationSnapshot } from '@/lib/formations/snapshot';
 import type { FormationSlotData, FormationSlotRoleType } from '@/lib/formations/types';
+import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { Prisma, type GameFormat } from '@/generated/prisma/client';
 
 export type BestLineupSlot = {
@@ -91,15 +92,15 @@ function toSlotData(slot: FormationSlotRow) {
   };
 }
 
-export async function getBestLineup(teamId: string): Promise<BestLineupData | null> {
-  const team = await db.team.findUnique({
-    where: { id: teamId },
+export async function getBestLineup(teamId: string, orgFilter: OrgFilterMode): Promise<BestLineupData | null> {
+  const team = await db.team.findFirst({
+    where: { id: teamId, ...orgFilter.filter },
     select: { id: true, name: true },
   });
   if (!team) return null;
 
-  const lineup = await db.teamBestLineup.findUnique({
-    where: { teamId },
+  const lineup = await db.teamBestLineup.findFirst({
+    where: { teamId, team: orgFilter.filter },
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: 'asc' } } } },
       assignments: { include: { player: { select: { id: true, firstName: true, lastName: true } } } },
@@ -155,9 +156,9 @@ export async function getBestLineup(teamId: string): Promise<BestLineupData | nu
   };
 }
 
-export async function autoSelectBestLineup(teamId: string, formationId?: string): Promise<BestLineupData> {
-  const team = await db.team.findUnique({
-    where: { id: teamId },
+export async function autoSelectBestLineup(teamId: string, orgFilter: OrgFilterMode, formationId?: string): Promise<BestLineupData> {
+  const team = await db.team.findFirst({
+    where: { id: teamId, ...orgFilter.filter },
     select: { id: true, name: true, footballGroupId: true, organisationId: true },
   });
   if (!team) throw new Error('Team not found');
@@ -198,7 +199,7 @@ export async function autoSelectBestLineup(teamId: string, formationId?: string)
     throw new Error('No formation available. Configure a formation for this team first.');
   }
 
-  const formation = await db.formation.findUnique({
+  const formation = await db.formation.findFirst({
     where: { id: targetFormationId },
     include: { slots: { orderBy: { sortOrder: 'asc' } } },
   });
@@ -206,8 +207,8 @@ export async function autoSelectBestLineup(teamId: string, formationId?: string)
 
   const formationSlots = formation.slots as FormationSlotRow[];
 
-  const existingLineup = await db.teamBestLineup.findUnique({
-    where: { teamId },
+  const existingLineup = await db.teamBestLineup.findFirst({
+    where: { teamId, team: orgFilter.filter },
     include: { assignments: true },
   });
 
@@ -302,7 +303,7 @@ export async function autoSelectBestLineup(teamId: string, formationId?: string)
 
   await syncAssignments(lineup.id, formationSlots, slotAssignments, lockedAssignments, team.organisationId);
 
-  return getBestLineup(teamId) as Promise<BestLineupData>;
+  return getBestLineup(teamId, orgFilter) as Promise<BestLineupData>;
 }
 
 function countCompatiblePlayers(
@@ -400,14 +401,14 @@ async function getDefaultFormationId(teamId: string, groupId: string): Promise<s
   return systemFormation?.id ?? null;
 }
 
-export async function setBestLineupFormation(teamId: string, formationId: string): Promise<BestLineupData> {
-  const team = await db.team.findUnique({
-    where: { id: teamId },
+export async function setBestLineupFormation(teamId: string, formationId: string, orgFilter: OrgFilterMode): Promise<BestLineupData> {
+  const team = await db.team.findFirst({
+    where: { id: teamId, ...orgFilter.filter },
     select: { id: true, organisationId: true },
   });
   if (!team) throw new Error('Team not found');
 
-  const formation = await db.formation.findUnique({
+  const formation = await db.formation.findFirst({
     where: { id: formationId },
     include: { slots: { orderBy: { sortOrder: 'asc' } } },
   });
@@ -444,8 +445,8 @@ export async function setBestLineupFormation(teamId: string, formationId: string
       let playerId = assignment.playerId;
       let locked = assignment.locked;
       if (playerId) {
-        const playerStillValid = await db.player.findUnique({
-          where: { id: playerId },
+        const playerStillValid = await db.player.findFirst({
+          where: { id: playerId, ...orgFilter.filter },
           select: { id: true, active: true, removedAt: true },
         });
         if (!playerStillValid || !playerStillValid.active || playerStillValid.removedAt) {
@@ -475,24 +476,25 @@ export async function setBestLineupFormation(teamId: string, formationId: string
     }
   }
 
-  return getBestLineup(teamId) as Promise<BestLineupData>;
+  return getBestLineup(teamId, orgFilter) as Promise<BestLineupData>;
 }
 
 export async function assignPlayerToBestLineupSlot(
   lineupId: string,
   slotId: string,
   playerId: string | null,
+  orgFilter: OrgFilterMode,
   locked?: boolean,
 ): Promise<void> {
-  const lineup = await db.teamBestLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.teamBestLineup.findFirst({
+    where: { id: lineupId, team: orgFilter.filter },
     include: { assignments: true },
   });
   if (!lineup) throw new Error('Best lineup not found');
 
   if (playerId) {
-    const player = await db.player.findUnique({
-      where: { id: playerId },
+    const player = await db.player.findFirst({
+      where: { id: playerId, ...orgFilter.filter },
       select: { id: true, active: true, removedAt: true },
     });
     if (!player || !player.active || player.removedAt) {
@@ -538,9 +540,9 @@ export async function clearBestLineupSlot(lineupId: string, slotId: string): Pro
   });
 }
 
-export async function clearBestLineup(teamId: string): Promise<void> {
-  const lineup = await db.teamBestLineup.findUnique({
-    where: { teamId },
+export async function clearBestLineup(teamId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const lineup = await db.teamBestLineup.findFirst({
+    where: { teamId, team: orgFilter.filter },
   });
   if (!lineup) return;
 
@@ -554,18 +556,19 @@ export async function clearBestLineup(teamId: string): Promise<void> {
   });
 }
 
-export async function deleteBestLineup(teamId: string): Promise<void> {
+export async function deleteBestLineup(teamId: string, orgFilter: OrgFilterMode): Promise<void> {
   await db.teamBestLineup.deleteMany({
-    where: { teamId },
+    where: { teamId, team: orgFilter.filter },
   });
 }
 
 export async function copyBestLineupToMatch(
   teamId: string,
   matchId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<{ applied: number; skipped: number; skippedReasons: Array<{ slotId: string; playerId: string; reason: string }> }> {
-  const bestLineup = await db.teamBestLineup.findUnique({
-    where: { teamId },
+  const bestLineup = await db.teamBestLineup.findFirst({
+    where: { teamId, team: orgFilter.filter },
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: 'asc' } } } },
       assignments: { include: { player: { select: { id: true, active: true, removedAt: true, coreTeamId: true } } } },
@@ -576,13 +579,13 @@ export async function copyBestLineupToMatch(
     throw new Error('No best lineup configured for this team.');
   }
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
     select: { id: true, teamId: true, organisationId: true },
   });
   if (!match) throw new Error('Match not found');
 
-  const formation = await db.formation.findUnique({
+  const formation = await db.formation.findFirst({
     where: { id: bestLineup.formationId },
     include: { slots: { orderBy: { sortOrder: 'asc' } } },
   });
@@ -694,12 +697,12 @@ export async function copyBestLineupToMatch(
       continue;
     }
 
-    const existingSlotAssignment = await db.matchLineupAssignment.findUnique({
-      where: { matchLineupId_slotId: { matchLineupId, slotId: assignment.slotId } },
+    const existingSlotAssignment = await db.matchLineupAssignment.findFirst({
+      where: { matchLineupId, slotId: assignment.slotId },
     });
 
-    const duplicateAssignment = await db.matchLineupAssignment.findUnique({
-      where: { matchLineupId_playerId: { matchLineupId, playerId: assignment.playerId } },
+    const duplicateAssignment = await db.matchLineupAssignment.findFirst({
+      where: { matchLineupId, playerId: assignment.playerId },
     });
     if (duplicateAssignment && duplicateAssignment.slotId !== assignment.slotId) {
       await db.matchLineupAssignment.update({
@@ -730,9 +733,9 @@ export async function copyBestLineupToMatch(
   return { applied, skipped, skippedReasons };
 }
 
-export async function getFormationsForTeam(teamId: string): Promise<Array<{ id: string; name: string; gameFormat: string; source: string; isArchived: boolean }>> {
-  const team = await db.team.findUnique({
-    where: { id: teamId },
+export async function getFormationsForTeam(teamId: string, orgFilter: OrgFilterMode): Promise<Array<{ id: string; name: string; gameFormat: string; source: string; isArchived: boolean }>> {
+  const team = await db.team.findFirst({
+    where: { id: teamId, ...orgFilter.filter },
     select: { footballGroupId: true },
   });
   if (!team) return [];

@@ -78,7 +78,7 @@ export async function createMatchLineup(data: {
   await requireMatchOrgAccess(data.matchId, orgFilter);
   await requireTeamAccess(ctx, data.teamId);
 
-  const lineup = await createLineupFromFormation(data);
+  const lineup = await createLineupFromFormation({ ...data, orgFilter: ctx.orgFilter });
 
   revalidatePath(`/matches/${data.matchId}`);
   return lineup;
