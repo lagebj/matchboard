@@ -11,7 +11,7 @@ interface EventLiveMatchPageProps {
 export default async function EventLiveMatchPage({ params }: EventLiveMatchPageProps) {
   const { orgSlug, eventId, eventMatchId } = await params;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: orgWhere },

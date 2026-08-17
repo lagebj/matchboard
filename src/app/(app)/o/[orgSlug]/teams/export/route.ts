@@ -67,11 +67,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const leagueSeason = leagueSeasonId
     ? await db.leagueSeason.findFirst({
-        where: { id: leagueSeasonId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+        where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
         select: { id: true, name: true, startDate: true, endDate: true },
       })
     : await db.leagueSeason.findFirst({
-        where: { ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+        where: { ...ctx.orgFilter.filter },
         orderBy: { startDate: 'desc' },
         select: { id: true, name: true, startDate: true, endDate: true },
       });
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const teams = await db.team.findMany({
     where: {
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
       archivedAt: null,
     },
     include: {

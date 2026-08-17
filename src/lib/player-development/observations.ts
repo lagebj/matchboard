@@ -56,10 +56,6 @@ export async function createDevelopmentObservation(
 ): Promise<{ id: string }> {
   const ctx = await requireActorContext();
 
-  if (ctx.orgFilter.type !== "org") {
-    throw new Error("Organisation access required");
-  }
-
   const _kind = input.kind;
   const attributeKey = validateAttributeKey(input.attributeKey, input.kind);
   const positionId = validatePositionId(input.positionId, input.kind);
@@ -124,10 +120,6 @@ export async function deleteDevelopmentObservation(
   observationId: string,
 ): Promise<{ success: boolean }> {
   const ctx = await requireActorContext();
-
-  if (ctx.orgFilter.type !== "org") {
-    throw new Error("Organisation access required");
-  }
 
   const observation = await db.playerDevelopmentObservation.findUnique({
     where: { id: observationId },

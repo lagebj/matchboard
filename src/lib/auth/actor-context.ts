@@ -173,9 +173,7 @@ export async function requirePlayerTeamAccess(
     where: {
       id: playerId,
       removedAt: null,
-      ...(ctx.orgFilter.type === "org"
-        ? { organisationId: ctx.orgFilter.organisationId }
-        : {}),
+      organisationId: ctx.organisationId,
     },
     select: { coreTeamId: true },
   });
@@ -211,9 +209,7 @@ export async function requireMatchTeamAccess(
   const match = await db.match.findFirst({
     where: {
       id: matchId,
-      ...(ctx.orgFilter.type === "org"
-        ? ctx.orgFilter.filter
-        : {}),
+      ...ctx.orgFilter.filter,
     },
     select: { teamId: true },
   });
@@ -260,7 +256,7 @@ export async function requireTeamGroupAccess(
   const team = await db.team.findFirst({
     where: {
       id: teamId,
-      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: { id: true, footballGroupId: true },
   });

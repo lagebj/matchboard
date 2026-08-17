@@ -51,7 +51,7 @@ export async function getEventMatchLineup(eventMatchId: string) {
     },
   });
 
-  if (lineup && ctx.orgFilter.type === 'org') {
+  if (lineup) {
     const match = await db.eventMatch.findFirst({
       where: { id: lineup.eventMatchId, ...ctx.orgFilter.filter },
       select: { id: true },
@@ -86,7 +86,7 @@ export async function createEventMatchLineup(input: {
     const formation = await db.formation.findFirst({
       where: {
         id: formationId,
-        ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+        ...ctx.orgFilter.filter,
       },
       select: { id: true },
     });
@@ -296,7 +296,7 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
     const formation = await db.formation.findFirst({
       where: {
         id: formationId,
-        ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+        ...ctx.orgFilter.filter,
       },
       select: { id: true },
     });
@@ -495,7 +495,7 @@ export async function getAvailableFormations(gameFormat: string) {
     where: {
       gameFormat: gameFormat as GameFormat,
       isArchived: false,
-      ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     include: { slots: { orderBy: { sortOrder: 'asc' } } },
     orderBy: { name: 'asc' },

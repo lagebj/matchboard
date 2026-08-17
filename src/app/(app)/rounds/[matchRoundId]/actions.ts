@@ -113,15 +113,14 @@ export async function clearMatchDraftAction(formData: FormData) {
     throw new Error("Match ID is required.");
   }
 
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) {
-      throw new Error("Match not found or access denied.");
-    }
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) {
+    throw new Error("Match not found or access denied.");
   }
+
 
   await clearMatchDraftSelection(matchId);
   
@@ -167,14 +166,12 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
       throw new Error("Match ID is required.");
     }
 
-    if (ctx.orgFilter.type === "org") {
-      const match = await db.match.findFirst({
-        where: { id: matchId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!match) {
-        throw new Error("Match not found or access denied.");
-      }
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) {
+      throw new Error("Match not found or access denied.");
     }
 
     const overrideReasonCategory = formData.get("overrideReasonCategory");
@@ -246,14 +243,12 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
       throw new Error("Match ID is required.");
     }
 
-    if (ctx.orgFilter.type === "org") {
-      const match = await db.match.findFirst({
-        where: { id: matchId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!match) {
-        throw new Error("Match not found or access denied.");
-      }
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) {
+      throw new Error("Match not found or access denied.");
     }
 
     const { unfinalizeSingleMatch } = await import("@/lib/selection/unfinalize-single-match");
@@ -288,14 +283,12 @@ export async function regenerateMatchAction(prevState: { error: string }, formDa
       throw new Error("Match ID is required.");
     }
 
-    if (ctx.orgFilter.type === "org") {
-      const match = await db.match.findFirst({
-        where: { id: matchId, ...ctx.orgFilter.filter },
-        select: { id: true },
-      });
-      if (!match) {
-        throw new Error("Match not found or access denied.");
-      }
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true },
+    });
+    if (!match) {
+      throw new Error("Match not found or access denied.");
     }
 
     const { refreshDraftSelection } = await import("@/lib/selection/refresh-draft-selection");

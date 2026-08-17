@@ -144,7 +144,7 @@ export async function updateMatchFitAction(
   }
 
   const match = await db.match.findFirst({
-    where: { id: matchId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: matchId, ...ctx.orgFilter.filter },
   });
   if (!match) return { success: false, error: "Match not found or access denied." };
 

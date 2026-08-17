@@ -16,7 +16,7 @@ export default async function MatchDetailPage({
   const { orgSlug, matchId } = await params;
 
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const match = await db.match.findUnique({
     where: { id: matchId, ...orgWhere },

@@ -43,7 +43,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const [{ orgSlug, playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([
     db.player.findFirst({

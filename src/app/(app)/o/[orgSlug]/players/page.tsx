@@ -24,7 +24,7 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
   const { mode, periodId, roundId, showRemoved, error, saved } = await searchParams;
   const includeRemoved = showRemoved === "1";
 
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
   const playerFilter = includeRemoved
     ? { removedAt: { not: null } satisfies Prisma.DateTimeNullableFilter<"Player">, ...orgWhere }
     : { removedAt: null, active: true, ...orgWhere };

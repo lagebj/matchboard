@@ -23,7 +23,7 @@ export async function getPlayerPathways(
 ): Promise<PlayerPathwayData> {
   const ctx = await requireActorContext();
   const orgWhere =
-    ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+    ctx.orgFilter.filter;
 
   const includeDrafts = viewMode === "include_drafts";
 
@@ -40,10 +40,7 @@ export async function getPlayerPathways(
     throw new Error("League season not found");
   }
 
-  if (
-    ctx.orgFilter.type === "org" &&
-    leagueSeason.organisationId !== ctx.organisationId
-  ) {
+  if (leagueSeason.organisationId !== ctx.organisationId) {
     throw new Error("League season not found or access denied");
   }
 

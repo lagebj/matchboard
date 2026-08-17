@@ -15,7 +15,7 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
   const opponentTeams = await db.opponentTeam.findMany({
     where: {
       archivedAt: null,
-      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     orderBy: { displayName: "asc" },
     select: {

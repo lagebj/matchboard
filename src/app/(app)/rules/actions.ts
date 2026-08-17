@@ -57,7 +57,7 @@ export async function saveRulesAction(formData: FormData) {
   try {
     const rules = await getRules();
 
-    if (ctx.orgFilter.type === "org" && rules.organisationId !== ctx.orgFilter.organisationId) {
+    if (rules.organisationId !== ctx.orgFilter.organisationId) {
       throw new Error("Rule configuration not found or access denied.");
     }
 
@@ -122,36 +122,34 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     await requireTeamAccess(ctx, fromTeamId);
     await requireTeamAccess(ctx, toTeamId);
 
-    if (ctx.orgFilter.type === "org") {
-      if (fromTeam.organisationId !== ctx.orgFilter.organisationId || toTeam.organisationId !== ctx.orgFilter.organisationId) {
-        throw new Error("Source or target team not found or access denied.");
-      }
+    if (fromTeam.organisationId !== ctx.orgFilter.organisationId || toTeam.organisationId !== ctx.orgFilter.organisationId) {
+      throw new Error("Source or target team not found or access denied.");
     }
 
     const existing = await db.rotationPath.findFirst({
-      where: { fromTeamId, toTeamId, role },
+    where: { fromTeamId, toTeamId, role },
     });
 
     if (existing) {
-      throw new Error(`A ${role} path from ${fromTeam.name} to ${toTeam.name} already exists.`);
+    throw new Error(`A ${role} path from ${fromTeam.name} to ${toTeam.name} already exists.`);
     }
 
     await db.rotationPath.create({
-      data: {
-        fromTeamId,
-        toTeamId,
-        role,
-        purpose: purpose || `${role} path`,
-        minimumCount,
-        targetCount,
-        maximumCount,
-        cooldownRounds,
-        priority,
-        allowDoubleLoad,
-        minRestSpacingHours,
-        maxDoubleLoadsPerPeriod,
-        organisationId: ctx.organisationId,
-      },
+    data: {
+      fromTeamId,
+      toTeamId,
+      role,
+      purpose: purpose || `${role} path`,
+      minimumCount,
+      targetCount,
+      maximumCount,
+      cooldownRounds,
+      priority,
+      allowDoubleLoad,
+      minRestSpacingHours,
+      maxDoubleLoadsPerPeriod,
+      organisationId: ctx.organisationId,
+    },
     });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not create rotation path." };
@@ -178,8 +176,8 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
     const existingPath = await db.rotationPath.findUnique({ where: { id: pathId } });
     if (!existingPath) throw new Error("Rotation path not found.");
 
-    if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
-      throw new Error("Rotation path not found or access denied.");
+    if (existingPath.organisationId !== ctx.orgFilter.organisationId) {
+    throw new Error("Rotation path not found or access denied.");
     }
 
     await requireTeamAccess(ctx, existingPath.fromTeamId);
@@ -197,19 +195,19 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
     const active = formData.get("active") === "on";
 
     await db.rotationPath.update({
-      where: { id: pathId },
-      data: {
-        purpose: purpose || existingPath.purpose,
-        priority,
-        minimumCount,
-        targetCount,
-        maximumCount,
-        cooldownRounds,
-        allowDoubleLoad,
-        minRestSpacingHours,
-        maxDoubleLoadsPerPeriod,
-        active,
-      },
+    where: { id: pathId },
+    data: {
+      purpose: purpose || existingPath.purpose,
+      priority,
+      minimumCount,
+      targetCount,
+      maximumCount,
+      cooldownRounds,
+      allowDoubleLoad,
+      minRestSpacingHours,
+      maxDoubleLoadsPerPeriod,
+      active,
+    },
     });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not update rotation path." };
@@ -234,14 +232,14 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
     if (!pathId) throw new Error("Rotation path ID is required.");
 
     const existingPath = await db.rotationPath.findUnique({
-      where: { id: pathId },
-      select: { id: true, fromTeamId: true, toTeamId: true, organisationId: true },
+    where: { id: pathId },
+    select: { id: true, fromTeamId: true, toTeamId: true, organisationId: true },
     });
 
     if (!existingPath) throw new Error("Rotation path not found.");
 
-    if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
-      throw new Error("Rotation path not found or access denied.");
+    if (existingPath.organisationId !== ctx.orgFilter.organisationId) {
+    throw new Error("Rotation path not found or access denied.");
     }
 
     await requireTeamAccess(ctx, existingPath.fromTeamId);
@@ -268,14 +266,14 @@ export async function toggleRotationPathActiveAction(prevState: ActionState, for
     if (!pathId) throw new Error("Rotation path ID is required.");
 
     const existingPath = await db.rotationPath.findUnique({
-      where: { id: pathId },
-      select: { id: true, active: true, fromTeamId: true, toTeamId: true, organisationId: true },
+    where: { id: pathId },
+    select: { id: true, active: true, fromTeamId: true, toTeamId: true, organisationId: true },
     });
 
     if (!existingPath) throw new Error("Rotation path not found.");
 
-    if (ctx.orgFilter.type === "org" && existingPath.organisationId !== ctx.orgFilter.organisationId) {
-      throw new Error("Rotation path not found or access denied.");
+    if (existingPath.organisationId !== ctx.orgFilter.organisationId) {
+    throw new Error("Rotation path not found or access denied.");
     }
 
     await requireTeamAccess(ctx, existingPath.fromTeamId);

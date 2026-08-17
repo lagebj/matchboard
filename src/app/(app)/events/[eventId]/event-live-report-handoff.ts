@@ -6,19 +6,11 @@ import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-conte
 
 async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
   const ctx = await requireActorContext();
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.eventMatch.findFirst({
-      where: { id: eventMatchId, event: ctx.orgFilter.filter },
-      select: { eventId: true },
-    });
-    if (!match) throw new Error("Event match not found or access denied.");
-    return { eventId: match.eventId };
-  }
-  const match = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const match = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: ctx.orgFilter.filter },
     select: { eventId: true },
   });
-  if (!match) throw new Error("Event match not found.");
+  if (!match) throw new Error("Event match not found or access denied.");
   return { eventId: match.eventId };
 }
 
@@ -44,7 +36,7 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       return { success: false as const, error: "Session does not belong to this event match." };
     }
 
-    if (ctx.orgFilter.type === "org" && session.organisationId !== ctx.orgFilter.organisationId) {
+    if (session.organisationId !== ctx.orgFilter.organisationId) {
       return { success: false as const, error: "Session not found or access denied." };
     }
 

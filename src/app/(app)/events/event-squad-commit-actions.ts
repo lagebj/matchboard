@@ -37,7 +37,7 @@ export async function validateEventSquadsBeforeCommit(
   const issues: EventSquadValidationIssue[] = [];
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { id: eventId, ...ctx.orgFilter.filter },
     select: { id: true },
   });
 
@@ -51,13 +51,13 @@ export async function validateEventSquadsBeforeCommit(
   }
 
   const unavailablePlayers = await db.eventPlayerAvailability.findMany({
-    where: { eventId, status: "UNAVAILABLE", ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, status: "UNAVAILABLE", ...ctx.orgFilter.filter },
     select: { playerId: true },
   });
   const unavailablePlayerIds = new Set(unavailablePlayers.map((pa) => pa.playerId));
 
   const squads = await db.eventSquad.findMany({
-    where: { eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, ...ctx.orgFilter.filter },
     include: {
       players: {
         include: {
@@ -180,7 +180,7 @@ export async function confirmEventSquadsAction(eventId: string) {
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { id: eventId, ...ctx.orgFilter.filter },
     select: { id: true, status: true },
   });
 
@@ -207,12 +207,12 @@ export async function confirmEventSquadsAction(eventId: string) {
   }
 
   const result = await db.eventSquad.updateMany({
-    where: { eventId, status: "DRAFT", ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, status: "DRAFT", ...ctx.orgFilter.filter },
     data: { status: "LOCKED" },
   });
 
   const squads = await db.eventSquad.findMany({
-    where: { eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, ...ctx.orgFilter.filter },
     select: { id: true },
   });
 
@@ -266,7 +266,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { id: eventId, ...ctx.orgFilter.filter },
     select: { id: true, status: true },
   });
 
@@ -278,7 +278,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   }
 
   const confirmedCount = await db.eventSquad.count({
-    where: { eventId, status: "LOCKED", ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, status: "LOCKED", ...ctx.orgFilter.filter },
   });
 
   if (confirmedCount === 0) {
@@ -290,12 +290,12 @@ export async function unconfirmEventSquadsAction(eventId: string) {
   }
 
   const result = await db.eventSquad.updateMany({
-    where: { eventId, status: "LOCKED", ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, status: "LOCKED", ...ctx.orgFilter.filter },
     data: { status: "DRAFT" },
   });
 
   const squads = await db.eventSquad.findMany({
-    where: { eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, ...ctx.orgFilter.filter },
     select: { id: true },
   });
 
@@ -345,7 +345,7 @@ export async function getEventSquadsStatusAction(eventId: string) {
   const ctx = await requireActorContext();
 
   const squads = await db.eventSquad.findMany({
-    where: { eventId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { eventId, ...ctx.orgFilter.filter },
     select: { id: true, name: true, status: true },
   });
 

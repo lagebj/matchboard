@@ -21,7 +21,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
     return { success: false, validation };
   }
 
-  const orgFilter = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgFilter = ctx.orgFilter.filter;
   const { db } = await import("@/lib/db");
   const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId, ...orgFilter },
@@ -43,7 +43,7 @@ export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Prom
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const orgFilter = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgFilter = ctx.orgFilter.filter;
   const { db } = await import("@/lib/db");
   const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId, ...orgFilter },
@@ -62,7 +62,7 @@ export async function getFinalizationValidationAction(leagueSeasonId: string): P
 }> {
   const ctx = await requireActorContext();
 
-  const orgFilter = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgFilter = ctx.orgFilter.filter;
   const { db } = await import("@/lib/db");
   const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId, ...orgFilter },

@@ -19,7 +19,7 @@ type RoundItem = {
 export default async function RoundsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const activeLeagueSeason = await db.leagueSeason.findFirst({
     where: orgWhere,

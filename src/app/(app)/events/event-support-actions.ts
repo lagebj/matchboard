@@ -242,7 +242,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
   const ctx = await requireActorContext();
 
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { id: eventId, ...ctx.orgFilter.filter },
     select: { matchDurationMinutes: true },
   });
   if (!event) throw new Error('Event not found.');

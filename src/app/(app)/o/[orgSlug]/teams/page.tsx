@@ -90,7 +90,7 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
   const { periodId, error, saved } = await searchParams;
 
   const leagueSeasons = await db.leagueSeason.findMany({
-    where: { ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+    where: { ...ctx.orgFilter.filter },
     orderBy: { startDate: "desc" },
     select: { id: true, name: true, startDate: true, endDate: true },
   });

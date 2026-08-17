@@ -42,13 +42,12 @@ export async function addPlayerToMatchAction(formData: FormData) {
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof role !== "string" || !role) throw new Error("Role is required.");
 
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) throw new Error("Match not found or access denied.");
-  }
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+
 
   await requireMatchTeamAccess(ctx, matchId);
   await requirePlayerTeamAccess(ctx, playerId as string);
@@ -81,13 +80,12 @@ export async function removePlayerFromMatchAction(formData: FormData) {
   if (typeof matchId !== "string" || !matchId) throw new Error("Match ID is required.");
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
 
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) throw new Error("Match not found or access denied.");
-  }
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+
 
   await requireMatchTeamAccess(ctx, matchId);
   await requirePlayerTeamAccess(ctx, playerId);
@@ -115,13 +113,12 @@ export async function changePlayerRoleAction(formData: FormData) {
   if (typeof playerId !== "string" || !playerId) throw new Error("Player ID is required.");
   if (typeof role !== "string" || !role) throw new Error("Role is required.");
 
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) throw new Error("Match not found or access denied.");
-  }
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) throw new Error("Match not found or access denied.");
+
 
   await requireMatchTeamAccess(ctx, matchId);
   await requirePlayerTeamAccess(ctx, playerId);
@@ -161,13 +158,12 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
   if (typeof toMatchId !== "string" || !toMatchId) throw new Error("Target match ID is required.");
   if (typeof targetRole !== "string" || !targetRole) throw new Error("Target role is required.");
 
-  if (ctx.orgFilter.type === "org") {
-    const round = await db.matchRound.findFirst({
-      where: { id: matchRoundId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!round) throw new Error("Round not found or access denied.");
-  }
+  const round = await db.matchRound.findFirst({
+    where: { id: matchRoundId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!round) throw new Error("Round not found or access denied.");
+
 
   await requireMatchTeamAccess(ctx, fromMatchId);
   await requireMatchTeamAccess(ctx, toMatchId);

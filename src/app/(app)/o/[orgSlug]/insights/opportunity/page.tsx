@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function OpportunityMatrixPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({
     where: { ...orgWhere },

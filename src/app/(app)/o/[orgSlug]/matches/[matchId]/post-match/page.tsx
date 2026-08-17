@@ -21,7 +21,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
   const match = await db.match.findFirst({
     where: {
       id: matchId,
-      ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+      ...ctx.orgFilter.filter,
     },
     select: {
       id: true,
@@ -182,7 +182,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     db.playerDevelopmentObservation.findMany({
       where: {
         matchId,
-        ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}),
+        ...ctx.orgFilter.filter,
       },
       orderBy: { observedAt: "desc" },
       select: {

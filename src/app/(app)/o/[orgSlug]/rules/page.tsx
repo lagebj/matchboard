@@ -20,7 +20,7 @@ type RulesPageProps = {
 export default async function RulesPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: RulesPageProps["searchParams"] }) {
   const { orgSlug } = await params;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
   const rules = await getRules(ctx.orgFilter);
   const { error, imported, saved } = await searchParams;
   const validation = validateRuleConfig(rules);

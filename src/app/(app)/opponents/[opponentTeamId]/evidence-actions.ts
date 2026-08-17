@@ -50,10 +50,6 @@ export async function getOpponentSportingLevelAction(
 }> {
   const ctx = await requireActorContext();
 
-  if (ctx.orgFilter.type !== "org") {
-    return { aggregate: null, evidence: [] };
-  }
-
   const evidenceRecords = await getEvidence(opponentTeamId, ctx.orgFilter);
 
   const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);

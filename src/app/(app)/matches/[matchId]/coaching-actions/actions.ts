@@ -65,7 +65,7 @@ export async function setCoachingIntentAction(
     }
 
     const existing = await db.coachingIntent.findFirst({
-      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...ctx.orgFilter.filter },
     });
 
     if (existing) {
@@ -113,7 +113,7 @@ export async function removeCoachingIntentAction(
 
   try {
     const intent = await db.coachingIntent.findFirst({
-      where: { id: intentId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+      where: { id: intentId, ...ctx.orgFilter.filter },
     });
     if (!intent) return { success: false, error: "Intent not found." };
 
@@ -148,7 +148,7 @@ export async function getCoachingIntentsAction(
 
   try {
     const intents = await db.coachingIntent.findMany({
-      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...(ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {}) },
+      where: { scopeType: scopeType as CoachingIntentScopeType, scopeId, ...ctx.orgFilter.filter },
       orderBy: { createdAt: "desc" },
     });
     return {

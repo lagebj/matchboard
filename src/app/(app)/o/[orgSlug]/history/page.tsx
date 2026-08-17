@@ -33,7 +33,7 @@ function formatPatternDate(matchDate: Date): string {
 export default async function HistoryPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireActorContext(orgSlug);
-  const orgWhere = ctx.orgFilter.type === 'org' ? ctx.orgFilter.filter : {};
+  const orgWhere = ctx.orgFilter.filter;
 
   const [players, rawSelectionSnapshots] = await Promise.all([
     db.player.findMany({
