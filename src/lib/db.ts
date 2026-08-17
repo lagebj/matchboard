@@ -3,7 +3,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
-import { getTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getTenantOrganisationId, getTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -136,8 +136,9 @@ const extendedClient = rawClient.$extends({
   query: {
     async $allOperations({ model, operation, args, query }) {
       const orgId = getTenantOrganisationId();
+      const userId = getTenantUserId();
       const isRlsTable = model != null && RLS_TABLES.has(model);
-      const needsFilter = isRlsTable && !!orgId && ORG_ID_PATTERN.test(orgId);
+      const needsOrgFilter = isRlsTable && !!orgId && ORG_ID_PATTERN.test(orgId);
 
       if (RLS_DEBUG && isRlsTable) {
         if (!orgId) {
@@ -147,7 +148,36 @@ const extendedClient = rawClient.$extends({
         }
       }
 
-      if (!needsFilter) {
+      // When organisation context is not set but userId is available,
+      // inject userId into OrganisationMembership queries for self-read scoping.
+      // This ensures that auth resolution queries (which happen before org context
+      // is known) only see the authenticated user's own memberships, preventing
+      // cross-tenant membership leakage. See ARR-0052.
+      if (!needsOrgFilter && model === "organisationMembership" && userId) {
+        const typedArgs = args as QueryArgs;
+        switch (operation) {
+          case "findUnique":
+          case "findFirst":
+          case "findMany":
+          case "count":
+          case "aggregate":
+          case "groupBy": {
+            const where = (typedArgs.where ?? {}) as QueryArgs;
+            return query({ ...typedArgs, where: { ...where, userId } });
+          }
+          case "update":
+          case "delete":
+          case "updateMany":
+          case "deleteMany": {
+            const where = (typedArgs.where ?? {}) as QueryArgs;
+            return query({ ...typedArgs, where: { ...where, userId } });
+          }
+          default:
+            break;
+        }
+      }
+
+      if (!needsOrgFilter) {
         return query(args);
       }
 

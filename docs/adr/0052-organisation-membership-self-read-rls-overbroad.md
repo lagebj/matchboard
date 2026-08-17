@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -44,15 +44,15 @@ Auth resolution should be able to find a user's memberships without tenant conte
 
 ## Disposition
 
-Dispositioned. The self-read policy is necessary for the auth resolution chicken-and-egg problem. The recommended fix is to scope it to the authenticated user's own memberships using `current_setting('app.current_user_id', true)`, which requires: (1) adding `app.current_user_id` session variable support to the auth resolution path, (2) a database migration to update the OrganisationMembership RLS policies. This is a focused migration PR that should be done separately to avoid risk to auth flows. Containment is adequate for now — only auth resolution code queries OrganisationMembership without tenant context, and application-level WHERE filters (userId) limit the rows returned.
+Resolved. OrganisationMembership self-read RLS policy scoped to authenticated user via `app.current_user_id` session variable in the RLS policy, plus application-layer userId injection in the Prisma tenantRLS extension. The extension injects `userId` into OrganisationMembership queries when organisation context is not set but userId is available, providing primary enforcement. Database RLS provides defence-in-depth scoping when the session variable is set.
 
 ## Related decisions
 
-ADR-0037
+ADR-0037, ADR-0057, ADR-0060
 
 ## Related implementation
 
-PR #189, PR #190
+PR #189, PR #190, PR #272
 
 ## Supersedes
 
@@ -66,4 +66,9 @@ None
 
 ### 2026-08-17
 
-Dispositioned. Scoping the self-read policy to the authenticated user requires adding `app.current_user_id` session variable support and a database migration. This should be a separate focused PR. Current containment (application-level userId filtering in auth resolution) is adequate for the single-tenant-per-request architecture.
+Resolved. Implementation:
+- Added `userId` to `TenantContextStorage` and `setTenantUserId()` in `tenant-async-storage.ts`
+- Auth resolution paths (`requireActorContext`, `getOrgSlugForUser`, `resolveOrgFilterForUser`) now set userId via `setTenantUserId()`
+- Prisma tenantRLS extension injects `userId` into OrganisationMembership queries when organisation context is not set but userId is available
+- Database migration scopes the OrganisationMembership_tenant_read RLS policy: when no org context is set but `app.current_user_id` is set, only the user's own memberships are visible
+- Dropped the redundant OrganisationMembership_tenant_self_read policy (merged into tenant_read)
