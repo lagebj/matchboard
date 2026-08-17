@@ -96,7 +96,7 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
   const ctx = await requireActorContext();
 
   const match = await db.match.findUnique({
-    where: { id: matchId, ...(ctx.orgFilter.type === "org" ? ctx.orgFilter.filter : {}) },
+    where: { id: matchId, ...ctx.orgFilter.filter },
     select: {
       id: true,
       teamId: true,
@@ -238,13 +238,12 @@ export async function seedMatchReport(matchId: string): Promise<{ success: boole
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireMatchTeamAccess(ctx, matchId);
-  if (ctx.orgFilter.type === "org") {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) return { success: false, error: "Match not found or access denied." };
-  }
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!match) return { success: false, error: "Match not found or access denied." };
+
 
   try {
     const result = await seedReportFromFinalizedSquad(matchId);
@@ -309,13 +308,12 @@ export async function addActualPlayer(
 export async function removeActualPlayer(appearanceId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const appearance = await db.postMatchPlayerActual.findFirst({
-      where: { id: appearanceId, report: ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!appearance) return { success: false, error: "Appearance not found or access denied." };
-  }
+  const appearance = await db.postMatchPlayerActual.findFirst({
+    where: { id: appearanceId, report: ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!appearance) return { success: false, error: "Appearance not found or access denied." };
+
 
   try {
     const result = await removeActualPlayerFromReport(appearanceId);
@@ -336,14 +334,13 @@ export async function updateAttendanceStatus(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const appearance = await db.postMatchPlayerActual.findFirst({
-      where: { id: appearanceId, report: ctx.orgFilter.filter },
-      select: { id: true, report: { select: { matchId: true } } },
-    });
-    if (!appearance) return { success: false, error: "Appearance not found or access denied." };
-    await requireMatchTeamAccess(ctx, appearance.report.matchId);
-  }
+  const appearance = await db.postMatchPlayerActual.findFirst({
+    where: { id: appearanceId, report: ctx.orgFilter.filter },
+    select: { id: true, report: { select: { matchId: true } } },
+  });
+  if (!appearance) return { success: false, error: "Appearance not found or access denied." };
+  await requireMatchTeamAccess(ctx, appearance.report.matchId);
+
 
   try {
     const result = await updateAttendanceInReport(appearanceId, attendanceStatus);
@@ -383,13 +380,12 @@ export async function markPlannedAbsence(
 export async function removePlannedAbsence(absenceId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const absence = await db.matchReportAbsence.findFirst({
-      where: { id: absenceId, report: ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!absence) return { success: false, error: "Absence not found or access denied." };
-  }
+  const absence = await db.matchReportAbsence.findFirst({
+    where: { id: absenceId, report: ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!absence) return { success: false, error: "Absence not found or access denied." };
+
 
   try {
     const result = await removePlannedAbsenceFromReport(absenceId);
@@ -477,13 +473,12 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
 export async function completeMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const report = await db.postMatchReport.findFirst({
-      where: { id: reportId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!report) return { success: false, error: "Report not found or access denied." };
-  }
+  const report = await db.postMatchReport.findFirst({
+    where: { id: reportId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!report) return { success: false, error: "Report not found or access denied." };
+
 
   try {
     const result = await completeReport(reportId, ctx.email || "unknown");
@@ -516,13 +511,12 @@ export async function reopenMatchReport(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const report = await db.postMatchReport.findFirst({
-      where: { id: reportId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!report) return { success: false, error: "Report not found or access denied." };
-  }
+  const report = await db.postMatchReport.findFirst({
+    where: { id: reportId, ...ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!report) return { success: false, error: "Report not found or access denied." };
+
 
   try {
     const result = await reopenReport(reportId, targetStatus);
@@ -574,13 +568,12 @@ export async function addGoalToReport(
 export async function removeGoalFromReport(goalId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const goal = await db.goal.findFirst({
-      where: { id: goalId, report: ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!goal) return { success: false, error: "Goal not found or access denied." };
-  }
+  const goal = await db.goal.findFirst({
+    where: { id: goalId, report: ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!goal) return { success: false, error: "Goal not found or access denied." };
+
 
   try {
     const result = await removeGoalFromReportMutation(goalId);
@@ -622,13 +615,12 @@ export async function addAssistToReport(
 export async function removeAssistFromReport(assistId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  if (ctx.orgFilter.type === "org") {
-    const assist = await db.assist.findFirst({
-      where: { id: assistId, report: ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!assist) return { success: false, error: "Assist not found or access denied." };
-  }
+  const assist = await db.assist.findFirst({
+    where: { id: assistId, report: ctx.orgFilter.filter },
+    select: { id: true },
+  });
+  if (!assist) return { success: false, error: "Assist not found or access denied." };
+
 
   try {
     const result = await removeAssistFromReportMutation(assistId);

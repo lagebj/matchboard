@@ -66,7 +66,7 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
       return { success: false as const, error: "Session does not belong to this match." };
     }
 
-    if (ctx.orgFilter.type === "org" && session.organisationId !== ctx.orgFilter.organisationId) {
+    if (session.organisationId !== ctx.organisationId) {
       return { success: false as const, error: "Session not found or access denied." };
     }
 

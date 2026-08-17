@@ -2,7 +2,6 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
-import { requireCoachAccess } from "@/lib/auth";
 import type { LiveSessionInfo } from "./live-match-types";
 
 export async function startLiveSession(matchId: string): Promise<LiveSessionInfo> {
@@ -17,7 +16,7 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
     throw new Error("Match not found");
   }
 
-  if (ctx.orgFilter.type === "org" && match.organisationId !== ctx.organisationId) {
+  if (match.organisationId !== ctx.organisationId) {
     throw new Error("Match not found or access denied");
   }
 
@@ -62,13 +61,17 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
 }
 
 export async function getActiveSession(matchId: string): Promise<LiveSessionInfo | null> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const session = await db.liveMatchSession.findUnique({
     where: { matchId },
   });
 
   if (!session || session.status !== "ACTIVE") {
+    return null;
+  }
+
+  if (session.organisationId !== ctx.organisationId) {
     return null;
   }
 
@@ -84,7 +87,7 @@ export async function getActiveSession(matchId: string): Promise<LiveSessionInfo
 }
 
 export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const session = await db.liveMatchSession.findUnique({
     where: { id: sessionId },
@@ -92,6 +95,10 @@ export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo
 
   if (!session) {
     throw new Error("Session not found");
+  }
+
+  if (session.organisationId !== ctx.organisationId) {
+    throw new Error("Session not found or access denied");
   }
 
   if (session.status !== "ACTIVE") {
@@ -118,6 +125,17 @@ export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo
 }
 
 export async function heartbeatSession(sessionId: string): Promise<void> {
+  const ctx = await requireActorContext();
+
+  const session = await db.liveMatchSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, organisationId: true },
+  });
+
+  if (!session || session.organisationId !== ctx.organisationId) {
+    return;
+  }
+
   await db.liveMatchSession.update({
     where: { id: sessionId },
     data: { lastHeartbeatAt: new Date() },

@@ -2,7 +2,6 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
-import { requireCoachAccess } from "@/lib/auth";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
@@ -28,7 +27,7 @@ export async function recordEvent(input: LiveEventInput): Promise<{ eventId: str
     throw new Error("Session does not belong to this match");
   }
 
-  if (ctx.orgFilter.type === "org" && session.organisationId !== ctx.organisationId) {
+  if (session.organisationId !== ctx.organisationId) {
     throw new Error("Session not found or access denied");
   }
 
@@ -69,10 +68,10 @@ export async function recordEvent(input: LiveEventInput): Promise<{ eventId: str
 }
 
 export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[]> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const events = await db.liveMatchEvent.findMany({
-    where: { matchId },
+    where: { matchId, organisationId: ctx.organisationId },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -104,10 +103,10 @@ export async function getRecentEvents(
   matchId: string,
   limit: number = 10,
 ): Promise<LiveEventSummary[]> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const events = await db.liveMatchEvent.findMany({
-    where: { matchId },
+    where: { matchId, organisationId: ctx.organisationId },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {

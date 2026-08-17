@@ -31,7 +31,7 @@ export async function recordEventEvent(input: EventLiveEventInput) {
     throw new Error("Event match not found");
   }
 
-  if (ctx.orgFilter.type === "org" && match.organisationId !== ctx.organisationId) {
+  if (match.organisationId !== ctx.organisationId) {
     throw new Error("Event match not found or access denied");
   }
 
@@ -63,10 +63,10 @@ export async function recordEventEvent(input: EventLiveEventInput) {
 }
 
 export async function getEventMatchEvents(eventMatchId: string) {
-  await requireActorContext();
+  const ctx = await requireActorContext();
 
   const events = await db.eventLiveMatchEvent.findMany({
-    where: { eventMatchId },
+    where: { eventMatchId, organisationId: ctx.organisationId },
     orderBy: { createdAt: "asc" },
   });
 
@@ -74,10 +74,10 @@ export async function getEventMatchEvents(eventMatchId: string) {
 }
 
 export async function getRecentEventEvents(eventMatchId: string, limit = 10) {
-  await requireActorContext();
+  const ctx = await requireActorContext();
 
   const events = await db.eventLiveMatchEvent.findMany({
-    where: { eventMatchId },
+    where: { eventMatchId, organisationId: ctx.organisationId },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
