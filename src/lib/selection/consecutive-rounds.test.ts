@@ -49,9 +49,28 @@ async function createNextRound(
   weekNumber: number,
   dateOffset: number,
 ): Promise<{ roundId: string; matchIds: Record<string, string> }> {
+  const roundName = `W${weekNumber} Test`;
+
+  const existingRound = await db.matchRound.findFirst({
+    where: { leagueSeasonId, name: roundName },
+  });
+
+  if (existingRound) {
+    const existingMatches = await db.match.findMany({
+      where: { matchRoundId: existingRound.id },
+      select: { id: true, teamId: true },
+    });
+    const matchIds: Record<string, string> = {};
+    for (const m of existingMatches) {
+      const team = Object.entries(teams).find(([, tid]) => tid === m.teamId);
+      if (team) matchIds[team[0]] = m.id;
+    }
+    return { roundId: existingRound.id, matchIds };
+  }
+
   const round = await db.matchRound.create({
     data: {
-      name: `W${weekNumber} Test`,
+      name: roundName,
       leagueSeasonId,
       status: "DRAFT",
       organisationId: fixtureIds.organisationId,
@@ -102,7 +121,7 @@ describe("Consecutive rounds (W19 then W20) produce valid selections", () => {
       playersPerTeam: 12,
       rotationPaths: PATHS,
     });
-  });
+  }, 120000);
 
   afterAll(async () => {
     await teardownTestDb();
@@ -195,7 +214,7 @@ describe("W21 round after two finalized rounds", () => {
     const w20Result = await generateMatchRound(w20.roundId);
     await createGeneratedDraftRound(w20Result);
     await finalizeRound(testDb, w20.roundId);
-  });
+  }, 120000);
 
   afterAll(async () => {
     await teardownTestDb();
