@@ -117,6 +117,8 @@ describe("Security audit: Vercel deployment readiness", () => {
     }
     // ALLOWED_COACH_EMAILS has been removed; auth is membership-based
     expect(envExample).not.toContain("ALLOWED_COACH_EMAILS");
+    // MATCHBOARD_ENV should be documented (as a commented placeholder)
+    expect(envExample).toContain("MATCHBOARD_ENV");
   });
 
   it("runtime db client uses DATABASE_URL and auto-detects Neon", async () => {

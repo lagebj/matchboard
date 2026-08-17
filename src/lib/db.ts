@@ -4,6 +4,7 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import { getTenantOrganisationId, getTenantUserId } from "@/lib/tenancy/tenant-async-storage";
+import { isProduction } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -34,7 +35,7 @@ const rawClient =
     log: ["warn", "error"],
   });
 
-if (process.env.NODE_ENV !== "production") {
+if (!isProduction()) {
   globalForPrisma.prisma = rawClient;
 }
 
