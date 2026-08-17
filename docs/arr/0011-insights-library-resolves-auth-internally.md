@@ -2,7 +2,13 @@
 
 ## State
 
-Confirmed
+Resolved (insights library functions only)
+
+## Resolution
+
+All 7 insights library functions now use `requireActorContext()` instead of `requireCoachAccess()` and add explicit `organisationId` filters to all Prisma queries. The `OrgFilterMode.unscoped` type variant has been removed — no code path can return an unscoped filter.
+
+Remaining items (`finalize-league-season.ts` and `organisation-resolver.ts`) still resolve auth internally and should be tracked separately.
 
 ## Identified
 
@@ -63,7 +69,7 @@ This aligns with the centralisation principle: one business operation, one ownin
 
 ## Disposition
 
-Pending. Migrate in a follow-up pass after the `requireActorContext()` migration stabilises.
+Partially resolved. Insights library functions migrated to `requireActorContext()` with explicit org scoping. `OrgFilterMode.unscoped` type variant removed. Remaining items (`finalize-league-season.ts`, `organisation-resolver.ts`) tracked separately.
 
 ## Related decisions
 
@@ -88,3 +94,7 @@ None
 ### 2026-08-02
 
 Record created after `requireActorContext()` migration revealed that insights library functions still resolve auth internally, creating duplicated auth resolution in the same call chain.
+
+### 2026-08-17
+
+Resolved for insights library functions. All 7 files migrated to `requireActorContext()` with explicit `organisationId` filters. `OrgFilterMode.unscoped` variant removed. Fixtures service and player-assignment service updated to require org-scoped filters. `verifyRoundOrgAccess`, `verifyMatchOrgAccess`, `verifyLeagueSeasonOrgAccess` now always enforce org ownership checks.

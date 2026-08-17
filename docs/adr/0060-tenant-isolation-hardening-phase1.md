@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented
 
 ## Date
 
@@ -110,3 +110,11 @@ Replace the unparameterised `$queryRaw` in `getInsightOverview()` with a paramet
 ### 2026-08-17
 
 Record created. Phase 1 tenant isolation hardening based on baseline audit findings.
+
+### 2026-08-17 (follow-up)
+
+Extended Phase 1 hardening:
+- All 6 insights library functions now use requireActorContext() with explicit organisationId filters (ARR-0011 resolution)
+- Removed OrgFilterMode.unscoped type variant — no code path can return an unscoped filter
+- Fixtures service and player-assignment service require org-scoped filters
+- verifyRoundOrgAccess, verifyMatchOrgAccess, verifyLeagueSeasonOrgAccess always enforce org ownership checks
