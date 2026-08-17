@@ -15,7 +15,6 @@ import {
 } from "@/lib/lineups/lineup-domain";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== "org") return;
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
     select: { id: true },
@@ -24,11 +23,6 @@ async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode):
 }
 
 async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
-  if (orgFilter.type !== "org") {
-    const lineup = await db.matchLineup.findUnique({ where: { id: lineupId }, select: { matchId: true } });
-    if (!lineup) throw new Error("Lineup not found.");
-    return { matchId: lineup.matchId };
-  }
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...orgFilter.filter },
     select: { matchId: true },
@@ -38,14 +32,6 @@ async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode
 }
 
 async function requireAssignmentOrgAccess(assignmentId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string; matchLineupId: string; matchLineupStatus: string }> {
-  if (orgFilter.type !== "org") {
-    const assignment = await db.matchLineupAssignment.findUnique({
-      where: { id: assignmentId },
-      select: { matchLineupId: true, matchLineup: { select: { matchId: true, status: true } } },
-    });
-    if (!assignment) throw new Error("Assignment not found.");
-    return { matchId: assignment.matchLineup.matchId, matchLineupId: assignment.matchLineupId, matchLineupStatus: assignment.matchLineup.status };
-  }
   const assignment = await db.matchLineupAssignment.findFirst({
     where: { id: assignmentId, matchLineup: orgFilter.filter },
     select: { matchLineupId: true, matchLineup: { select: { matchId: true, status: true } } },
@@ -59,7 +45,7 @@ export async function getMatchLineup(matchId: string, teamId: string) {
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(matchId, orgFilter);
   return db.matchLineup.findFirst({
-    where: { matchId, teamId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { matchId, teamId, ...orgFilter.filter },
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: "asc" } } } },
       assignments: true,
@@ -120,8 +106,8 @@ export async function assignPlayerToSlot(
     data: { playerId, locked, source: "MANUAL" },
   });
 
-  const lineup = await db.matchLineup.findUnique({
-    where: { id: assignment.matchLineupId },
+  const lineup = await db.matchLineup.findFirst({
+    where: { id: assignment.matchLineupId, ...orgFilter.filter },
     include: { assignments: true },
   });
 
@@ -197,12 +183,12 @@ export async function confirmLineup(lineupId: string) {
 
   const { superseded } = await supersedePendingReviews("MATCH_LINEUP", lineupId);
   for (const review of superseded) {
-    const requester = await db.organisationMembership.findUnique({
-      where: { id: review.requestedByMembershipId },
+    const requester = await db.organisationMembership.findFirst({
+      where: { id: review.requestedByMembershipId, organisationId: ctx.organisationId },
       include: { user: { select: { email: true } } },
     });
     if (requester?.user?.email) {
-      const organisation = await db.organisation.findUnique({
+      const organisation = await db.organisation.findFirst({
         where: { id: ctx.organisationId },
         select: { name: true, slug: true },
       });
@@ -285,8 +271,8 @@ export async function updateBenchPlayers(lineupId: string, benchPlayerIds: strin
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
   await requireMatchTeamAccess(ctx, matchId);
 
-  const lineup = await db.matchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.matchLineup.findFirst({
+    where: { id: lineupId, ...orgFilter.filter },
   });
 
   if (!lineup) throw new Error("Lineup not found");

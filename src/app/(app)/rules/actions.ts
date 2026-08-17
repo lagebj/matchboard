@@ -112,19 +112,15 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     }
 
     const [fromTeam, toTeam] = await Promise.all([
-      db.team.findUnique({ where: { id: fromTeamId, archivedAt: null } }),
-      db.team.findUnique({ where: { id: toTeamId, archivedAt: null } }),
+      db.team.findFirst({ where: { id: fromTeamId, archivedAt: null, ...ctx.orgFilter.filter } }),
+      db.team.findFirst({ where: { id: toTeamId, archivedAt: null, ...ctx.orgFilter.filter } }),
     ]);
 
-    if (!fromTeam) throw new Error("Source team not found.");
-    if (!toTeam) throw new Error("Target team not found.");
+    if (!fromTeam) throw new Error("Source team not found or access denied.");
+    if (!toTeam) throw new Error("Target team not found or access denied.");
 
     await requireTeamAccess(ctx, fromTeamId);
     await requireTeamAccess(ctx, toTeamId);
-
-    if (fromTeam.organisationId !== ctx.orgFilter.organisationId || toTeam.organisationId !== ctx.orgFilter.organisationId) {
-      throw new Error("Source or target team not found or access denied.");
-    }
 
     const existing = await db.rotationPath.findFirst({
     where: { fromTeamId, toTeamId, role },
@@ -173,12 +169,8 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
 
-    const existingPath = await db.rotationPath.findUnique({ where: { id: pathId } });
-    if (!existingPath) throw new Error("Rotation path not found.");
-
-    if (existingPath.organisationId !== ctx.orgFilter.organisationId) {
-    throw new Error("Rotation path not found or access denied.");
-    }
+    const existingPath = await db.rotationPath.findFirst({ where: { id: pathId, ...ctx.orgFilter.filter } });
+    if (!existingPath) throw new Error("Rotation path not found or access denied.");
 
     await requireTeamAccess(ctx, existingPath.fromTeamId);
     await requireTeamAccess(ctx, existingPath.toTeamId);
@@ -231,16 +223,12 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
 
-    const existingPath = await db.rotationPath.findUnique({
-    where: { id: pathId },
+    const existingPath = await db.rotationPath.findFirst({
+    where: { id: pathId, ...ctx.orgFilter.filter },
     select: { id: true, fromTeamId: true, toTeamId: true, organisationId: true },
     });
 
-    if (!existingPath) throw new Error("Rotation path not found.");
-
-    if (existingPath.organisationId !== ctx.orgFilter.organisationId) {
-    throw new Error("Rotation path not found or access denied.");
-    }
+    if (!existingPath) throw new Error("Rotation path not found or access denied.");
 
     await requireTeamAccess(ctx, existingPath.fromTeamId);
     await requireTeamAccess(ctx, existingPath.toTeamId);
@@ -265,16 +253,12 @@ export async function toggleRotationPathActiveAction(prevState: ActionState, for
     const pathId = readText(formData, "pathId");
     if (!pathId) throw new Error("Rotation path ID is required.");
 
-    const existingPath = await db.rotationPath.findUnique({
-    where: { id: pathId },
+    const existingPath = await db.rotationPath.findFirst({
+    where: { id: pathId, ...ctx.orgFilter.filter },
     select: { id: true, active: true, fromTeamId: true, toTeamId: true, organisationId: true },
     });
 
-    if (!existingPath) throw new Error("Rotation path not found.");
-
-    if (existingPath.organisationId !== ctx.orgFilter.organisationId) {
-    throw new Error("Rotation path not found or access denied.");
-    }
+    if (!existingPath) throw new Error("Rotation path not found or access denied.");
 
     await requireTeamAccess(ctx, existingPath.fromTeamId);
     await requireTeamAccess(ctx, existingPath.toTeamId);

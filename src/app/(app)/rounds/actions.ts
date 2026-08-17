@@ -98,15 +98,11 @@ export async function generateRoundAction(prevState: { error: string }, formData
       throw new Error("Round ID is required.");
     }
 
-    const matchRound = await db.matchRound.findUnique({
-      where: { id: roundId },
+    const matchRound = await db.matchRound.findFirst({
+      where: { id: roundId, ...ctx.orgFilter.filter },
       select: { id: true, organisationId: true },
     });
-    if (!matchRound) throw new Error("Round not found.");
-
-    if (matchRound.organisationId !== ctx.orgFilter.organisationId) {
-      throw new Error("Round not found or access denied.");
-    }
+    if (!matchRound) throw new Error("Round not found or access denied.");
 
     const { generateMatchRound } = await import("@/lib/selection/generate-round");
     const { createGeneratedDraftRound } = await import("@/lib/selection/save-generated-draft");
@@ -117,8 +113,8 @@ export async function generateRoundAction(prevState: { error: string }, formData
     await createGeneratedDraftRound(generatedRound);
     await persistRoundExplanations(generatedRound);
 
-    const fullRound = await db.matchRound.findUniqueOrThrow({
-      where: { id: roundId },
+    const fullRound = await db.matchRound.findFirstOrThrow({
+      where: { id: roundId, ...ctx.orgFilter.filter },
       include: { matches: { include: { team: { select: { id: true, name: true } } } } },
     });
 
