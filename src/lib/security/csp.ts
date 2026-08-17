@@ -1,9 +1,11 @@
+import { isDevelopment } from "@/lib/env";
+
 export function isCspReportOnly(): boolean {
   return process.env.CSP_ENFORCE !== "true";
 }
 
 export function getContentSecurityPolicy(): { header: string; value: string } {
-  const isDev = process.env.NODE_ENV === "development";
+  const isDev = isDevelopment();
   const reportOnly = isCspReportOnly();
 
   const directives = [

@@ -1,6 +1,7 @@
 import { edgeAuth } from "@/auth-edge";
 import { NextResponse } from "next/server";
 import { getContentSecurityPolicy } from "@/lib/security/csp";
+import { isPublicRoute } from "@/lib/env";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
@@ -28,16 +29,7 @@ function isPreviewDeployment(): boolean {
 export default edgeAuth((req) => {
   const path = req.nextUrl.pathname;
 
-  const isPublic =
-    path.startsWith("/api/auth") ||
-    path.startsWith("/_next") ||
-    path === "/favicon.ico" ||
-    path === "/robots.txt" ||
-    path === "/signin" ||
-    path === "/error" ||
-    path.startsWith("/api/health");
-
-  if (isPublic) {
+  if (isPublicRoute(path)) {
     const response = NextResponse.next();
     return withSecurityHeaders(response);
   }

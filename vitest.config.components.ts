@@ -16,6 +16,7 @@ export default defineConfig({
     fileParallelism: false,
     env: {
       BYPASS_AUTH: "true",
+      MATCHBOARD_ENV: "test",
     },
   },
 });

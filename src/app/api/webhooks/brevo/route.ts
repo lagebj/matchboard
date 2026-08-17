@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { processBrevoWebhookEvents } from "@/lib/email/webhook-handler";
 import type { BrevoWebhookEvent } from "@/lib/email/webhook-handler";
+import { isProduction } from "@/lib/env";
 import crypto from "crypto";
 
 const BREVO_WEBHOOK_BEARER_TOKEN = process.env.BREVO_WEBHOOK_BEARER_TOKEN ?? "";
-const NODE_ENV = process.env.NODE_ENV ?? "development";
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -12,7 +12,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export async function POST(request: Request) {
-  if (!BREVO_WEBHOOK_BEARER_TOKEN && NODE_ENV === "production") {
+  if (!BREVO_WEBHOOK_BEARER_TOKEN && isProduction()) {
     return NextResponse.json({ error: "Webhook authentication not configured" }, { status: 503 });
   }
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (!authHeader || !timingSafeEqual(authHeader, `Bearer ${BREVO_WEBHOOK_BEARER_TOKEN}`)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-  } else if (NODE_ENV !== "production") {
+  } else if (!isProduction()) {
     // Development: allow unauthenticated webhooks for testing
   } else {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
