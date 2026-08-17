@@ -19,7 +19,6 @@ export type ObservationActionState = {
 };
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== "org") return;
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
     select: { id: true },
@@ -36,8 +35,8 @@ export async function saveObservationAction(
   const matchId = formData.get("matchId") as string;
   if (!matchId) return { success: false, error: "Match ID is required." };
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...ctx.orgFilter.filter },
     select: { id: true, opponentTeamId: true },
   });
   if (!match) return { success: false, error: "Match not found." };
@@ -46,13 +45,13 @@ export async function saveObservationAction(
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchTeamAccess(ctx, matchId);
 
-  const existingObservation = await db.opponentEncounterObservation.findUnique({
-    where: { matchId },
+  const existingObservation = await db.opponentEncounterObservation.findFirst({
+    where: { matchId, ...ctx.orgFilter.filter },
     select: { id: true },
   });
 
-  const postMatchReport = await db.postMatchReport.findUnique({
-    where: { matchId },
+  const postMatchReport = await db.postMatchReport.findFirst({
+    where: { matchId, ...ctx.orgFilter.filter },
     select: { id: true, status: true },
   });
 

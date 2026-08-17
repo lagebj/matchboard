@@ -14,7 +14,6 @@ import {
 import { checkDisallowedLanguage } from "@/lib/coaching/match-execution-feedback";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== "org") return;
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
     select: { id: true },
@@ -108,7 +107,7 @@ export async function updateMatchFeedbackAction(
   }
 
   try {
-    const existing = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
+    const existing = await db.matchExecutionFeedback.findFirst({ where: { id: feedbackId, ...ctx.orgFilter.filter } });
     if (!existing) return { success: false, error: "Feedback not found." };
 
     await requireMatchTeamAccess(ctx, existing.matchId);
@@ -156,7 +155,7 @@ export async function deleteMatchFeedbackAction(
   requireMutationRole(ctx);
 
   try {
-    const feedback = await db.matchExecutionFeedback.findUnique({ where: { id: feedbackId } });
+    const feedback = await db.matchExecutionFeedback.findFirst({ where: { id: feedbackId, ...ctx.orgFilter.filter } });
     if (!feedback) return { success: false, error: "Feedback not found." };
 
     await requireMatchTeamAccess(ctx, feedback.matchId);

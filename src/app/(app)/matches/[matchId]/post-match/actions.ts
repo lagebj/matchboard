@@ -26,7 +26,6 @@ import { logReportComplete, logReportReopen } from "@/lib/security/audit-log";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode): Promise<string | null> {
-  if (orgFilter.type !== "org") return null;
   const report = await db.postMatchReport.findFirst({
     where: { id: reportId, ...orgFilter.filterNullable },
     select: { id: true, matchId: true },
@@ -95,7 +94,7 @@ export type MatchReportDetail = {
 export async function getMatchReport(matchId: string): Promise<MatchReportDetail> {
   const ctx = await requireActorContext();
 
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
     select: {
       id: true,
@@ -119,8 +118,8 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
 
   if (!match) throw new Error("Match not found.");
 
-  const report = await db.postMatchReport.findUnique({
-    where: { matchId },
+  const report = await db.postMatchReport.findFirst({
+    where: { matchId, ...ctx.orgFilter.filter },
     include: {
       playerActuals: {
         include: {
@@ -249,7 +248,7 @@ export async function seedMatchReport(matchId: string): Promise<{ success: boole
     const result = await seedReportFromFinalizedSquad(matchId);
     if (!result.success) return { success: false, error: result.error };
 
-    const report = await db.postMatchReport.findUnique({ where: { matchId } });
+    const report = await db.postMatchReport.findFirst({ where: { matchId, ...ctx.orgFilter.filter } });
     if (!report) return { success: false, error: "Failed to retrieve created report." };
 
     revalidatePath(`/matches/${matchId}`);
