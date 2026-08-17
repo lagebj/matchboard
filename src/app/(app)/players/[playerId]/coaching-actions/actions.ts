@@ -74,12 +74,11 @@ export async function deleteReadinessSignalAction(
   await requirePlayerTeamAccess(ctx, playerId);
 
   try {
-    const signal = await db.playerReadinessSignal.findUnique({
+    const signal = await db.playerReadinessSignal.findFirst({
       where: {
-        playerId_signalType: {
-          playerId,
-          signalType: signalType as ReadinessSignalType,
-        },
+        playerId,
+        signalType: signalType as ReadinessSignalType,
+        player: ctx.orgFilter.filter,
       },
     });
 

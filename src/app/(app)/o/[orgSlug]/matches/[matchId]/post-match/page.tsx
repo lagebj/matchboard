@@ -46,8 +46,8 @@ export default async function PostMatchRoute({ params }: PageProps) {
 
   if (!match) notFound();
 
-  const report = await db.postMatchReport.findUnique({
-    where: { matchId },
+  const report = await db.postMatchReport.findFirst({
+    where: { matchId, ...ctx.orgFilter.filter },
     include: {
       playerActuals: {
         include: {
@@ -162,12 +162,12 @@ export default async function PostMatchRoute({ params }: PageProps) {
         note: true,
       },
     }),
-    db.teamReflection.findUnique({
-      where: { matchId },
+    db.teamReflection.findFirst({
+      where: { matchId, ...ctx.orgFilter.filter },
       select: { id: true, effort: true, teamCohesion: true, positionalShape: true, recoveryBehavior: true, note: true },
     }),
-    db.opponentEncounterObservation.findUnique({
-      where: { matchId },
+    db.opponentEncounterObservation.findFirst({
+      where: { matchId, ...ctx.orgFilter.filter },
       select: {
         id: true,
         overallEnvironment: true,

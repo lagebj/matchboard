@@ -77,7 +77,7 @@ export async function createEventMatchAction(formData: FormData) {
   });
   if (!event) throw new Error('Event not found.');
 
-  const squad = await db.eventSquad.findUnique({ where: { id: eventSquadId } });
+  const squad = await db.eventSquad.findFirst({ where: { id: eventSquadId, event: ctx.orgFilter.filter } });
   if (!squad || squad.eventId !== eventId) {
     throw new Error('Event squad not found or does not belong to this event.');
   }
@@ -125,11 +125,11 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
 
   await requireEventNotFinalized(eventId, ctx.orgFilter);
 
-  const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
+  const existing = await db.eventMatch.findFirst({ where: { id: eventMatchId, event: ctx.orgFilter.filter } });
   if (!existing) throw new Error('Event match not found.');
 
-  const report = await db.eventPostMatchReport.findUnique({
-    where: { eventMatchId },
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, eventMatch: { event: ctx.orgFilter.filter } },
   });
 
   if (data.eventSquadId !== undefined && data.eventSquadId !== existing.eventSquadId) {
@@ -196,11 +196,11 @@ export async function deleteEventMatchAction(eventMatchId: string) {
 
   await requireEventNotFinalized(eventId, ctx.orgFilter);
 
-  const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
+  const existing = await db.eventMatch.findFirst({ where: { id: eventMatchId, event: ctx.orgFilter.filter } });
   if (!existing) throw new Error('Event match not found.');
 
-  const report = await db.eventPostMatchReport.findUnique({
-    where: { eventMatchId },
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, eventMatch: { event: ctx.orgFilter.filter } },
   });
 
   if (report && ['REPORTED', 'LOCKED'].includes(report.status)) {
@@ -219,15 +219,15 @@ export async function cancelEventMatchAction(eventMatchId: string, reason?: stri
 
   const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
-  const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
+  const existing = await db.eventMatch.findFirst({ where: { id: eventMatchId, event: ctx.orgFilter.filter } });
   if (!existing) throw new Error('Event match not found.');
 
   if (existing.status === 'CANCELLED') {
     throw new Error('Match is already cancelled.');
   }
 
-  const report = await db.eventPostMatchReport.findUnique({
-    where: { eventMatchId },
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, eventMatch: { event: ctx.orgFilter.filter } },
   });
 
   if (report && ['REPORTED', 'LOCKED'].includes(report.status)) {
@@ -260,7 +260,7 @@ export async function reopenEventMatchAction(eventMatchId: string) {
 
   const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
-  const existing = await db.eventMatch.findUnique({ where: { id: eventMatchId } });
+  const existing = await db.eventMatch.findFirst({ where: { id: eventMatchId, event: ctx.orgFilter.filter } });
   if (!existing) throw new Error('Event match not found.');
 
   if (existing.status !== 'CANCELLED') {

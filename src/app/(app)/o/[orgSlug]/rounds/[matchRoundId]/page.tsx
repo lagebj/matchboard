@@ -35,7 +35,7 @@ export default async function RoundBoardPage({
   const ctx = await requireActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId, ...orgWhere },
     include: {
       matches: {

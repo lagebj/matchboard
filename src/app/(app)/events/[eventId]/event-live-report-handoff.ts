@@ -19,13 +19,13 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
     const ctx = await requireActorContext();
     requireMutationRole(ctx);
 
-    const session = await db.eventLiveMatchSession.findUnique({
-      where: { id: sessionId },
+    const session = await db.eventLiveMatchSession.findFirst({
+      where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
       select: { id: true, eventMatchId: true, status: true, organisationId: true },
     });
 
     if (!session) {
-      return { success: false as const, error: "Session not found." };
+      return { success: false as const, error: "Session not found or access denied." };
     }
 
     if (session.status !== "ACTIVE") {
@@ -36,12 +36,8 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       return { success: false as const, error: "Session does not belong to this event match." };
     }
 
-    if (session.organisationId !== ctx.orgFilter.organisationId) {
-      return { success: false as const, error: "Session not found or access denied." };
-    }
-
-    const eventMatch = await db.eventMatch.findUnique({
-      where: { id: eventMatchId },
+    const eventMatch = await db.eventMatch.findFirst({
+      where: { id: eventMatchId, event: ctx.orgFilter.filter },
       select: {
         eventId: true,
         eventSquadId: true,
@@ -70,8 +66,8 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       data: { status: "ENDED", endedAt: new Date() },
     });
 
-    const existingReport = await db.eventPostMatchReport.findUnique({
-      where: { eventMatchId },
+    const existingReport = await db.eventPostMatchReport.findFirst({
+      where: { eventMatchId, eventMatch: { event: ctx.orgFilter.filter } },
       select: { id: true, status: true },
     });
 

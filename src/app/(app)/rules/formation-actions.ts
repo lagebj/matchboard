@@ -257,8 +257,8 @@ export async function updateCustomFormation(
   }
 
   revalidateFormationPaths();
-  return db.formation.findUnique({
-    where: { id: formationId },
+  return db.formation.findFirst({
+    where: { id: formationId, ...ctx.orgFilter.filter },
     include: { slots: { orderBy: { sortOrder: "asc" } } },
   });
 }

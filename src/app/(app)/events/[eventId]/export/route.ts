@@ -114,7 +114,7 @@ export async function GET(
 
   logDataExport(ctx.email || "unknown", "xlsx", "coach", "success");
 
-  const event = await db.event.findUnique({
+  const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },
     include: {
       squads: {

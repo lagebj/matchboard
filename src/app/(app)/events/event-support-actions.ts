@@ -62,8 +62,8 @@ export async function addEventMatchSupportAssignmentAction(input: {
     throw new Error(`Invalid planned role. Must be one of: ${VALID_PLANNED_ROLES.join(', ')}`);
   }
 
-  const eventMatch = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: ctx.orgFilter.filter },
     include: { event: true },
   });
   if (!eventMatch) throw new Error('Event match not found.');
@@ -145,8 +145,8 @@ export async function addEventMatchSupportAssignmentAction(input: {
     throw new Error(message);
   }
 
-  const existing = await db.eventMatchSupportAssignment.findUnique({
-    where: { eventMatchId_playerId: { eventMatchId, playerId } },
+  const existing = await db.eventMatchSupportAssignment.findFirst({
+    where: { eventMatchId, playerId, eventMatch: { event: ctx.orgFilter.filter } },
   });
   if (existing) {
     throw new Error('Player is already assigned as support for this match.');
@@ -174,8 +174,8 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const assignment = await db.eventMatchSupportAssignment.findUnique({
-    where: { id: assignmentId },
+  const assignment = await db.eventMatchSupportAssignment.findFirst({
+    where: { id: assignmentId, eventMatch: { event: ctx.orgFilter.filter } },
     include: { eventMatch: { select: { id: true, eventId: true } } },
   });
   if (!assignment) throw new Error('Support assignment not found.');
@@ -215,8 +215,8 @@ export async function updateEventMatchSupportAssignmentAction(input: {
     throw new Error(`Invalid planned role. Must be one of: ${VALID_PLANNED_ROLES.join(', ')}`);
   }
 
-  const assignment = await db.eventMatchSupportAssignment.findUnique({
-    where: { id: assignmentId },
+  const assignment = await db.eventMatchSupportAssignment.findFirst({
+    where: { id: assignmentId, eventMatch: { event: ctx.orgFilter.filter } },
     include: { eventMatch: { select: { eventId: true } } },
   });
   if (!assignment) throw new Error('Support assignment not found.');
@@ -312,8 +312,8 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
   const ctx = await requireActorContext();
 
-  const eventMatch = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: ctx.orgFilter.filter },
     include: { event: true },
   });
   if (!eventMatch) throw new Error('Event match not found.');

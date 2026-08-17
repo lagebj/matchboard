@@ -123,10 +123,11 @@ export async function getRecentEventEventsAction(eventMatchId: string, limit?: n
 
 export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: string) {
   try {
+    const ctx = await requireActorContext();
     const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
 
-    const match = await db.eventMatch.findUnique({
-      where: { id: eventMatchId },
+    const match = await db.eventMatch.findFirst({
+      where: { id: eventMatchId, event: ctx.orgFilter.filter },
       select: {
         id: true,
         opponentName: true,
@@ -173,8 +174,8 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
       return { success: false as const, error: "Event match not found." };
     }
 
-    const lineup = await db.eventMatchLineup.findUnique({
-      where: { eventMatchId },
+    const lineup = await db.eventMatchLineup.findFirst({
+      where: { eventMatchId, eventMatch: { event: ctx.orgFilter.filter } },
       select: {
         id: true,
         status: true,

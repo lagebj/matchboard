@@ -49,13 +49,13 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
     const ctx = await requireActorContext();
     requireMutationRole(ctx);
 
-    const session = await db.liveMatchSession.findUnique({
-      where: { id: sessionId },
+    const session = await db.liveMatchSession.findFirst({
+      where: { id: sessionId, ...ctx.orgFilter.filter },
       select: { id: true, matchId: true, status: true, organisationId: true },
     });
 
     if (!session) {
-      return { success: false as const, error: "Session not found." };
+      return { success: false as const, error: "Session not found or access denied." };
     }
 
     if (session.status !== "ACTIVE") {
@@ -66,10 +66,6 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
       return { success: false as const, error: "Session does not belong to this match." };
     }
 
-    if (session.organisationId !== ctx.organisationId) {
-      return { success: false as const, error: "Session not found or access denied." };
-    }
-
     await requireMatchTeamAccess(ctx, matchId);
 
     await db.liveMatchSession.update({
@@ -77,8 +73,8 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
       data: { status: "ENDED", endedAt: new Date() },
     });
 
-    const existingReport = await db.postMatchReport.findUnique({
-      where: { matchId },
+    const existingReport = await db.postMatchReport.findFirst({
+      where: { matchId, ...ctx.orgFilter.filter },
       select: { id: true, status: true },
     });
 

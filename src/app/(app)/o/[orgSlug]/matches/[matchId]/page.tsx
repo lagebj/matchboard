@@ -18,7 +18,7 @@ export default async function MatchDetailPage({
   const ctx = await requireActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId, ...orgWhere },
     include: {
       team: { select: { id: true, name: true, footballGroupId: true } },
@@ -46,7 +46,7 @@ export default async function MatchDetailPage({
 
   const activeIntent = await getActiveCoachingIntentForMatch(matchId, ctx.orgFilter);
 
-  const postMatchReport = await db.postMatchReport.findUnique({
+  const postMatchReport = await db.postMatchReport.findFirst({
     where: { matchId, ...orgWhere },
     select: { status: true },
   });

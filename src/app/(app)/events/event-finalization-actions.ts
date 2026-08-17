@@ -23,19 +23,11 @@ export type UnfinalizeEventResult = {
 };
 
 async function requireEventOrgAccess(eventId: string, orgFilter: { type: string; filter?: Record<string, unknown> }): Promise<void> {
-  if (orgFilter.type === "org") {
-    const event = await db.event.findFirst({
-      where: { id: eventId, ...orgFilter.filter },
-      select: { id: true },
-    });
-    if (!event) throw new Error("Event not found or access denied.");
-  } else {
-    const event = await db.event.findUnique({
-      where: { id: eventId },
-      select: { id: true },
-    });
-    if (!event) throw new Error("Event not found.");
-  }
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...orgFilter.filter },
+    select: { id: true },
+  });
+  if (!event) throw new Error("Event not found or access denied.");
 }
 
 export async function finalizeEventAction(eventId: string): Promise<FinalizeEventResult> {

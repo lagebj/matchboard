@@ -118,8 +118,8 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
   try {
     const ctx = await requireActorContext();
 
-    const match = await db.match.findUnique({
-      where: { id: matchId },
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
       select: {
         id: true,
         opponent: true,
@@ -138,10 +138,6 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
     });
 
     if (!match) {
-      return { success: false as const, error: "Match not found." };
-    }
-
-    if (match.organisationId !== ctx.organisationId) {
       return { success: false as const, error: "Match not found or access denied." };
     }
 

@@ -7,11 +7,6 @@ import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
 
 async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
-  if (orgFilter.type !== 'org') {
-    const match = await db.eventMatch.findUnique({ where: { id: eventMatchId }, select: { eventId: true } });
-    if (!match) throw new Error('Event match not found.');
-    return { eventId: match.eventId };
-  }
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: orgFilter.filter },
     select: { eventId: true },
@@ -21,27 +16,19 @@ async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterM
 }
 
 async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode): Promise<{ eventMatchId: string; eventId: string }> {
-  if (orgFilter.type === 'org') {
-    const lineup = await db.eventMatchLineup.findFirst({
-      where: { id: lineupId, eventMatch: { event: orgFilter.filter } },
-      select: { eventMatchId: true, eventMatch: { select: { eventId: true } } },
-    });
-    if (!lineup) throw new Error('Lineup not found or access denied.');
-    return { eventMatchId: lineup.eventMatchId, eventId: lineup.eventMatch.eventId };
-  }
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: orgFilter.filter } },
     select: { eventMatchId: true, eventMatch: { select: { eventId: true } } },
   });
-  if (!lineup) throw new Error('Lineup not found.');
+  if (!lineup) throw new Error('Lineup not found or access denied.');
   return { eventMatchId: lineup.eventMatchId, eventId: lineup.eventMatch.eventId };
 }
 
 export async function getEventMatchLineup(eventMatchId: string) {
   const ctx = await requireActorContext();
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { eventMatchId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { eventMatchId, eventMatch: { ...ctx.orgFilter.filter } },
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: 'asc' } } } },
       assignments: {
@@ -50,14 +37,6 @@ export async function getEventMatchLineup(eventMatchId: string) {
       },
     },
   });
-
-  if (lineup) {
-    const match = await db.eventMatch.findFirst({
-      where: { id: lineup.eventMatchId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!match) return null;
-  }
 
   return lineup;
 }
@@ -70,8 +49,8 @@ export async function createEventMatchLineup(input: {
   requireMutationRole(ctx);
   const { eventId } = await requireMatchOrgAccess(input.eventMatchId, ctx.orgFilter);
 
-  const existing = await db.eventMatchLineup.findUnique({
-    where: { eventMatchId: input.eventMatchId },
+  const existing = await db.eventMatchLineup.findFirst({
+    where: { eventMatchId: input.eventMatchId, eventMatch: { ...ctx.orgFilter.filter } },
   });
 
   if (existing) {
@@ -142,8 +121,8 @@ export async function assignPlayerToLineupSlot(
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: ctx.orgFilter.filter } },
     include: {
       assignments: true,
       eventMatch: {
@@ -192,12 +171,12 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const assignment = await db.eventMatchLineupAssignment.findUnique({
-    where: { id: assignmentId },
+  const assignment = await db.eventMatchLineupAssignment.findFirst({
+    where: { id: assignmentId, lineup: { eventMatch: { event: ctx.orgFilter.filter } } },
     include: { lineup: { include: { eventMatch: { select: { eventId: true } } } } },
   });
 
-  if (!assignment) throw new Error('Assignment not found');
+  if (!assignment) throw new Error('Assignment not found or access denied');
   if (assignment.lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
   await requireLineupOrgAccess(assignment.lineupId, ctx.orgFilter);
 
@@ -217,8 +196,8 @@ export async function saveEventMatchLineup(lineupId: string) {
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: ctx.orgFilter.filter } },
     include: { assignments: true },
   });
 
@@ -347,8 +326,8 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: ctx.orgFilter.filter } },
     include: {
       assignments: { orderBy: { slotIndex: 'asc' } },
     },
@@ -357,8 +336,8 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   if (!lineup) throw new Error('Lineup not found');
   if (lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
 
-  const eventMatch = await db.eventMatch.findUnique({
-    where: { id: lineup.eventMatchId },
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: lineup.eventMatchId, event: ctx.orgFilter.filter },
     include: {
       eventSquad: {
         include: {
