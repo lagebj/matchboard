@@ -6,4 +6,4 @@
 
 -- Use IF EXISTS because on fresh databases (migration from zero) the
 -- constraint may not exist if the schema never had @unique on this column.
-ALTER TABLE "OpponentTeam" DROP CONSTRAINT IF EXISTS "OpponentTeam_normalizedName_key";
+DROP INDEX IF EXISTS "OpponentTeam_normalizedName_key";
