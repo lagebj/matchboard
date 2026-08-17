@@ -5,7 +5,7 @@ import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsEr
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
 import { withTenantContext } from "@/lib/tenancy/tenant-client";
-import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { setTenantOrganisationId, setTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 import { db } from "@/lib/db";
 
 export type ActorContext = {
@@ -26,6 +26,8 @@ export async function requireActorContext(
   const coach = await requireCoachAccess();
   const userId = coach.id ?? "";
   const email = coach.email ?? "";
+
+  setTenantUserId(userId);
 
   const resolvedSlug = organisationSlug ?? await getOrgSlugFromCookie();
 

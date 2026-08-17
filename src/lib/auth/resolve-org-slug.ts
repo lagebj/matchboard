@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { setTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function resolveOrgSlugForLayout(): Promise<string> {
   const slug = await getOrgSlugForUser();
@@ -17,6 +18,8 @@ export async function getOrgSlugForUser(): Promise<string | null> {
   if (!userId) {
     return null;
   }
+
+  setTenantUserId(userId);
 
   const memberships = await db.organisationMembership.findMany({
     where: { userId },

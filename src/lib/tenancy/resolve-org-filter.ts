@@ -2,6 +2,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import { AuthorizationError } from "@/lib/auth";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
+import { setTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 import { db } from "@/lib/db";
 
 export type OrgFilterMode =
@@ -18,6 +19,8 @@ export class MultipleMembershipsError extends AuthorizationError {
 }
 
 export async function resolveOrgFilterForUser(userId: string, client: PrismaClient = db): Promise<OrgFilterMode> {
+  setTenantUserId(userId);
+
   const memberships = await client.organisationMembership.findMany({
     where: { userId },
     select: {

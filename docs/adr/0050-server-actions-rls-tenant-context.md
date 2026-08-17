@@ -27,7 +27,7 @@ Every `db` query against an RLS-protected table must have `app.current_organizat
 ## Impact
 
 - Detached async operations that bypass `requireActorContext()` will have no RLS context
-- The `OrganisationMembership` self-read policy allows queries without tenant context, but all other tenant-bearing tables require it
+- The `OrganisationMembership` self-read policy now scopes unauthenticated reads to the authenticated user's own memberships (ARR-0052 resolved)
 - Cron handlers, webhook handlers, and background jobs are at risk
 
 ## Containment
