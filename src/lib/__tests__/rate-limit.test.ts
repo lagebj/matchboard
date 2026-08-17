@@ -29,16 +29,16 @@ describe("rateLimit", () => {
   });
 
   it("resets after the time window expires", () => {
-    rateLimit("test-key", 1, 1);
-    const blocked = rateLimit("test-key", 1, 1);
+    rateLimit("test-key-reset", 1, 10);
+    const blocked = rateLimit("test-key-reset", 1, 10);
     expect(blocked.allowed).toBe(false);
 
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        const result = rateLimit("test-key", 1, 60_000);
+        const result = rateLimit("test-key-reset", 1, 60_000);
         expect(result.allowed).toBe(true);
         resolve();
-      }, 10);
+      }, 50);
     });
   });
 
