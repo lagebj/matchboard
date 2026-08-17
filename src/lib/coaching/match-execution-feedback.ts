@@ -92,7 +92,7 @@ export async function createMatchExecutionFeedback(input: CreateFeedbackInput) {
 
 export async function updateMatchExecutionFeedback(id: string, input: UpdateFeedbackInput) {
   if (input.value !== undefined || input.observableBehavior !== undefined || input.note !== undefined) {
-    const existing = await db.matchExecutionFeedback.findUnique({ where: { id } });
+    const existing = await db.matchExecutionFeedback.findFirst({ where: { id } });
     if (!existing) throw new Error(`Feedback not found: ${id}`);
 
     const allText = [

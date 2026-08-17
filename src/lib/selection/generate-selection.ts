@@ -97,7 +97,7 @@ export type GenerateSelectionOptions = {
 export async function generateSelection(matchId: string, options?: GenerateSelectionOptions): Promise<GeneratedSelection> {
   const deferRotation = options?.deferRotation ?? false;
 
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: {
       id: true,
@@ -313,7 +313,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     },
   });
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: match.matchRoundId },
     select: { leagueSeasonId: true },
   });

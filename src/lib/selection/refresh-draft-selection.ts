@@ -98,7 +98,7 @@ async function cloneDraftSelection(matchId: string) {
 export async function refreshDraftSelection(matchId: string) {
   await requireOpenLeagueSeasonForMatch(matchId);
 
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: {
       id: matchId,
     },
@@ -177,7 +177,7 @@ export async function refreshDraftSelections(matchIds: string[]) {
 }
 
 export async function refreshDraftRound(matchRoundId: string) {
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     include: {
       matches: {
@@ -232,7 +232,7 @@ export async function refreshDraftRound(matchRoundId: string) {
   const teamIdByTeamName = new Map<string, string>();
   let organisationId = "";
   for (const matchResult of generatedRound.matchResults) {
-    const match = await db.match.findUnique({
+    const match = await db.match.findFirst({
       where: { id: matchResult.matchId },
       select: { team: { select: { id: true, name: true } }, organisationId: true },
     });

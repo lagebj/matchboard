@@ -131,7 +131,7 @@ async function simulateLeague(
 ): Promise<LeagueSimulationResult> {
   const leagueSeasonId = await resolveLeagueSeasonId(request);
 
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     include: { season: true },
   });
@@ -396,7 +396,7 @@ export async function resolveLeagueSeasonId(
   request: SeasonSimulationRequest,
 ): Promise<string> {
   if (request.leagueSeasonId) {
-    const leagueSeason = await db.leagueSeason.findUnique({
+    const leagueSeason = await db.leagueSeason.findFirst({
       where: { id: request.leagueSeasonId },
       select: { id: true },
     });

@@ -22,7 +22,7 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "League season name must be 100 characters or fewer." }, { status: 400 });
     }
 
-    const existing = await db.leagueSeason.findUnique({
+    const existing = await db.leagueSeason.findFirst({
       where: { id },
     });
     if (!existing) {

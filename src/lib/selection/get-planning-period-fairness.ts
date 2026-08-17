@@ -28,7 +28,7 @@ export type LeagueSeasonFairness = {
 export async function getLeagueSeasonFairness(
   leagueSeasonId: string,
 ): Promise<LeagueSeasonFairness> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { organisationId: true },
   });

@@ -61,7 +61,7 @@ export async function getSeasonPlayerRoundMatrix(
   leagueSeasonId: string,
   includeDrafts: boolean = false,
 ): Promise<SeasonPlayerRoundMatrix> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { id: true, name: true, organisationId: true },
   });
@@ -302,7 +302,7 @@ async function getSeasonFairnessWarningsInternal(
 ): Promise<FairnessWarning[]> {
   const warnings: FairnessWarning[] = [];
 
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { id: true, organisationId: true },
   });

@@ -80,7 +80,7 @@ function makeIdempotencyKey(
 export async function computeRoundPlanIntegrity(
   matchRoundId: string,
 ): Promise<RoundPlanIntegrity> {
-  const round = await db.matchRound.findUnique({
+  const round = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     include: {
       matches: {

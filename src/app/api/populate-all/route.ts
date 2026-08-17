@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const { leagueSeasonId } = parsed.data;
 
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { id: true, name: true, organisationId: true },
   });

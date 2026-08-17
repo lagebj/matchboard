@@ -20,7 +20,7 @@ export async function finalizeMatchRound(
   overrideReasonCategory?: OverrideReasonCategory,
   overrideReasonDetail?: string,
 ): Promise<FinalizeResult> {
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { id: true },
   });

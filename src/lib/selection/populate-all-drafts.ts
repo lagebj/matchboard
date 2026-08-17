@@ -31,7 +31,7 @@ export async function populateAllDrafts(
 ): Promise<PopulateAllResult> {
   await requireOpenLeagueSeason(leagueSeasonId);
 
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     include: {
       matchRounds: {

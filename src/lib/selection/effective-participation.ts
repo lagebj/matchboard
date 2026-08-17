@@ -98,7 +98,7 @@ export function classifyRole(role: SelectionRole): "core" | "support" | "develop
 export async function getEffectiveMatchParticipation(
   matchId: string,
 ): Promise<EffectiveParticipationRow[]> {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: {
       id: true,
@@ -122,7 +122,7 @@ export async function getEffectiveMatchParticipation(
         controlledDoubleLoad: true,
       },
     }),
-    db.postMatchReport.findUnique({
+    db.postMatchReport.findFirst({
       where: { matchId },
       select: {
         id: true,

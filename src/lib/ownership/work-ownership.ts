@@ -50,15 +50,11 @@ export async function assignWorkOwnership(input: AssignWorkOwnershipInput) {
 }
 
 export async function handoverWorkOwnership(input: HandoverWorkOwnershipInput) {
-  const ownership = await db.workOwnership.findUnique({
-    where: { id: input.ownershipId },
+  const ownership = await db.workOwnership.findFirst({
+    where: { id: input.ownershipId, organisationId: input.organisationId },
   });
 
   if (!ownership) {
-    throw new AuthorizationError("Work ownership not found.");
-  }
-
-  if (ownership.organisationId !== input.organisationId) {
     throw new AuthorizationError("Work ownership not found or access denied.");
   }
 
@@ -97,15 +93,11 @@ export async function handoverWorkOwnership(input: HandoverWorkOwnershipInput) {
 }
 
 export async function acknowledgeWorkOwnership(ownershipId: string, organisationId: string) {
-  const ownership = await db.workOwnership.findUnique({
-    where: { id: ownershipId },
+  const ownership = await db.workOwnership.findFirst({
+    where: { id: ownershipId, organisationId },
   });
 
   if (!ownership) {
-    throw new AuthorizationError("Work ownership not found.");
-  }
-
-  if (ownership.organisationId !== organisationId) {
     throw new AuthorizationError("Work ownership not found or access denied.");
   }
 

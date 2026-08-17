@@ -86,7 +86,7 @@ export async function createGeneratedDraftSelection(
   const matchRoundId = generatedSelection.matchRoundId;
   const targetTeamId = generatedSelection.teamId;
 
-  const match = await db.match.findUnique({ where: { id: matchId }, select: { organisationId: true } });
+  const match = await db.match.findFirst({ where: { id: matchId }, select: { organisationId: true } });
   const organisationId = match?.organisationId ?? "";
 
   await db.$transaction(async (tx) => {

@@ -507,7 +507,7 @@ async function resolveSquadRepairInner(
           if (sameDay) continue;
         }
 
-        const player = await db.player.findUnique({
+        const player = await db.player.findFirst({
           where: { id: sa.playerId },
           select: { id: true, firstName: true, lastName: true, primaryPosition: true, nonRotatable: true, active: true, currentAvailability: true, removedAt: true, coreTeam: { select: { id: true, name: true } } },
         });

@@ -14,7 +14,7 @@ import { detectSimulationConflicts } from "./simulation-conflicts";
 export async function simulateEvent(
   eventId: string,
 ): Promise<EventSimulationResult> {
-  const event = await db.event.findUnique({
+  const event = await db.event.findFirst({
     where: { id: eventId },
     include: {
       squads: {
