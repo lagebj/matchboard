@@ -256,7 +256,10 @@ export async function createPlayerAction(formData: FormData) {
 
     while (!createdPlayerId && attempts < 5) {
       attempts++;
-      const maxPlayerCode = (await db.player.aggregate({ _max: { playerCode: true } }))._max.playerCode ?? 0;
+      const maxPlayerCode = (await db.player.aggregate({
+        where: { organisationId },
+        _max: { playerCode: true },
+      }))._max.playerCode ?? 0;
       const playerCode = maxPlayerCode + 1;
 
       try {

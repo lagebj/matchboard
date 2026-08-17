@@ -8,15 +8,16 @@ import {
   type LeagueSeasonPart,
 } from "@/lib/seasons/league-season";
 
-export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string> {
+export async function ensureMatchRoundIdForDate(startsAt: Date, organisationId: string): Promise<string> {
   const weekLabel = formatIsoWeekLabel(startsAt);
 
-  const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
+  const season = await db.season.findFirst({ where: { organisationId }, orderBy: { createdAt: "desc" } });
 
   if (season) {
     const matchingPeriod = await db.leagueSeason.findFirst({
       where: {
         seasonId: season.id,
+        organisationId,
         startDate: { lte: startsAt },
         endDate: { gte: startsAt },
       },
@@ -28,7 +29,7 @@ export async function ensureMatchRoundIdForDate(startsAt: Date): Promise<string>
     }
   }
 
-  return createFullHierarchy(startsAt, weekLabel);
+  return createFullHierarchy(startsAt, weekLabel, organisationId);
 }
 
 async function findOrCreateRound(leagueSeasonId: string, organisationId: string, weekLabel: string): Promise<string> {
@@ -54,14 +55,13 @@ async function findOrCreateRound(leagueSeasonId: string, organisationId: string,
   return round.id;
 }
 
-async function createFullHierarchy(startsAt: Date, weekLabel: string): Promise<string> {
+async function createFullHierarchy(startsAt: Date, weekLabel: string, organisationId: string): Promise<string> {
   const part: LeagueSeasonPart = getLeagueSeasonPartForDate(startsAt);
   const dateRange = getLeagueSeasonDateRange(startsAt.getUTCFullYear(), part);
   const name = formatLeagueSeasonLabel({ year: startsAt.getUTCFullYear(), part });
 
   const roundId = await db.$transaction(async (tx) => {
-    let season = await tx.season.findFirst({ orderBy: { createdAt: "desc" } });
-    const organisationId = season?.organisationId ?? "";
+    let season = await tx.season.findFirst({ where: { organisationId }, orderBy: { createdAt: "desc" } });
 
     if (!season) {
       season = await tx.season.create({
@@ -72,6 +72,7 @@ async function createFullHierarchy(startsAt: Date, weekLabel: string): Promise<s
     let period = await tx.leagueSeason.findFirst({
       where: {
         seasonId: season.id,
+        organisationId,
         startDate: { lte: startsAt },
         endDate: { gte: startsAt },
       },

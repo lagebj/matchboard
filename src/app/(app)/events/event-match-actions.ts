@@ -11,7 +11,6 @@ import { cleanOpponentDisplayName } from '@/lib/opponents/opponent-team';
 const VALID_CATEGORIES: MatchCategory[] = ['CUP', 'OTHER'];
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== 'org') return;
   const event = await db.event.findFirst({
     where: { id: eventId, ...orgFilter.filter },
     select: { id: true },
@@ -21,7 +20,7 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
 
 async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   const event = await db.event.findFirst({
-    where: { id: eventId, ...(orgFilter.type === 'org' ? orgFilter.filter : {}) },
+    where: { id: eventId, ...orgFilter.filter },
     select: { status: true },
   });
   if (event?.status === 'FINALIZED') {
@@ -30,11 +29,6 @@ async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMod
 }
 
 async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
-  if (orgFilter.type !== 'org') {
-    const match = await db.eventMatch.findUnique({ where: { id: eventMatchId }, select: { eventId: true } });
-    if (!match) throw new Error('Event match not found.');
-    return { eventId: match.eventId };
-  }
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: orgFilter.filter },
     select: { eventId: true },
@@ -43,10 +37,10 @@ async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterM
   return { eventId: match.eventId };
 }
 
-async function resolveOpponent(opponentName: string, opponentTeamIdInput?: string | null): Promise<{ opponentTeamId: string | null; opponentName: string }> {
+async function resolveOpponent(orgId: string, opponentName: string, opponentTeamIdInput?: string | null): Promise<{ opponentTeamId: string | null; opponentName: string }> {
   if (opponentTeamIdInput) {
-    const existing = await db.opponentTeam.findUnique({
-      where: { id: opponentTeamIdInput },
+    const existing = await db.opponentTeam.findFirst({
+      where: { id: opponentTeamIdInput, organisationId: orgId },
       select: { id: true, displayName: true },
     });
     if (!existing) throw new Error('Opponent team not found.');
@@ -76,7 +70,7 @@ export async function createEventMatchAction(formData: FormData) {
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
 
-  const { opponentTeamId, opponentName } = await resolveOpponent(opponentNameInput, opponentTeamIdInput);
+  const { opponentTeamId, opponentName } = await resolveOpponent(ctx.organisationId, opponentNameInput, opponentTeamIdInput);
 
   const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },
@@ -174,7 +168,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
       updateData.opponentName = data.opponentName.trim();
       updateData.opponentTeamId = null;
     } else {
-      const { opponentTeamId, opponentName } = await resolveOpponent(data.opponentName, data.opponentTeamId);
+      const { opponentTeamId, opponentName } = await resolveOpponent(ctx.organisationId, data.opponentName, data.opponentTeamId);
       updateData.opponentName = opponentName;
       updateData.opponentTeamId = opponentTeamId;
     }
