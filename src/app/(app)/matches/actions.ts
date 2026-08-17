@@ -111,8 +111,8 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     let opponent: string;
 
     if (opponentTeamIdInput) {
-      const existing = await db.opponentTeam.findUnique({
-        where: { id: opponentTeamIdInput },
+      const existing = await db.opponentTeam.findFirst({
+        where: { id: opponentTeamIdInput, organisationId: orgId },
         select: { id: true, displayName: true },
       });
       if (!existing) throw new Error("Opponent team not found.");
@@ -131,6 +131,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
 
     const activeLeagueSeason = await db.leagueSeason.findFirst({
       where: {
+        organisationId: orgId,
         startDate: { lte: weekEnd },
         endDate: { gte: weekStart },
       },
@@ -171,7 +172,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
 }
 
 async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: Date, organisationId: string): Promise<string> {
-  const season = await db.season.findFirst({ orderBy: { createdAt: "desc" } });
+  const season = await db.season.findFirst({ where: { organisationId }, orderBy: { createdAt: "desc" } });
 
   const part = getLeagueSeasonPartForDate(startsAt);
   const dateRange = getLeagueSeasonDateRange(startsAt.getUTCFullYear(), part);

@@ -241,6 +241,7 @@ model MatchRound {
   selections     Selection[]
   warnings       Warning[]
 
+  @@unique([leagueSeasonId, name])
   @@index([leagueSeasonId])
   @@index([organisationId])
   @@map("MatchRound")
