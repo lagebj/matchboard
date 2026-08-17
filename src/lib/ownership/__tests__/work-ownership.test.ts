@@ -53,7 +53,7 @@ describe("work-ownership handover atomicity", () => {
   });
 
   it("rejects handover of non-existent ownership", async () => {
-    mocks.findUnique.mockResolvedValue(null);
+    mocks.findFirst.mockResolvedValue(null);
 
     await expect(
       handoverWorkOwnership({
@@ -66,14 +66,7 @@ describe("work-ownership handover atomicity", () => {
   });
 
   it("rejects handover from different organisation", async () => {
-    mocks.findUnique.mockResolvedValue({
-      id: "own-1",
-      organisationId: "org-other",
-      targetType: "EVENT_SQUAD_PREPARATION",
-      targetId: "target-1",
-      ownerMembershipId: "mem-1",
-      status: "ACTIVE",
-    });
+    mocks.findFirst.mockResolvedValue(null);
 
     await expect(
       handoverWorkOwnership({
@@ -82,11 +75,11 @@ describe("work-ownership handover atomicity", () => {
         assignedByMembershipId: "mem-1",
         organisationId: "org-1",
       }),
-    ).rejects.toThrow("access denied");
+    ).rejects.toThrow("Work ownership not found or access denied");
   });
 
   it("rejects handover of completed ownership", async () => {
-    mocks.findUnique.mockResolvedValue({
+    mocks.findFirst.mockResolvedValue({
       id: "own-1",
       organisationId: "org-1",
       targetType: "EVENT_SQUAD_PREPARATION",
@@ -106,7 +99,7 @@ describe("work-ownership handover atomicity", () => {
   });
 
   it("rejects double handover of already-handed-over ownership", async () => {
-    mocks.findUnique.mockResolvedValue({
+    mocks.findFirst.mockResolvedValue({
       id: "own-1",
       organisationId: "org-1",
       targetType: "EVENT_SQUAD_PREPARATION",
@@ -138,7 +131,7 @@ describe("work-ownership handover atomicity", () => {
       handoverNote: null,
     };
 
-    mocks.findUnique.mockResolvedValue(ownership);
+    mocks.findFirst.mockResolvedValue(ownership);
 
     const newOwnership = {
       id: "own-2",
@@ -271,19 +264,15 @@ describe("work-ownership org-scoped access", () => {
   });
 
   it("acknowledgeWorkOwnership rejects cross-org access", async () => {
-    mocks.findUnique.mockResolvedValue({
-      id: "own-1",
-      organisationId: "org-other",
-      status: "ACTIVE",
-    });
+    mocks.findFirst.mockResolvedValue(null);
 
     await expect(
       acknowledgeWorkOwnership("own-1", "org-1"),
-    ).rejects.toThrow("access denied");
+    ).rejects.toThrow("Work ownership not found or access denied");
   });
 
   it("acknowledgeWorkOwnership rejects completed ownership", async () => {
-    mocks.findUnique.mockResolvedValue({
+    mocks.findFirst.mockResolvedValue({
       id: "own-1",
       organisationId: "org-1",
       status: "COMPLETED",
