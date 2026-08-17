@@ -101,7 +101,6 @@ const RLS_TABLES = new Set([
   "teamSeasonSnapshotPlayer",
   "policyDecisionLog",
   "reviewRequest",
-  "notificationOutbox",
   "workOwnership",
   "liveMatchSession",
   "liveMatchEvent",
@@ -200,4 +199,11 @@ const extendedClient = rawClient.$extends({
   },
 });
 
+// The tenantRLS extension does not add new client-level methods or modify
+// result types — it only injects organisationId into where/data clauses.
+// The cast to PrismaClient erases the extension's generic type parameter
+// because no consumer references extension-specific types, and the extended
+// client has the same surface API as PrismaClient. If Prisma's extension
+// API changes or new extension-specific methods are added, this cast must
+// be revisited. See ARR-0055 and ADR-0057 for context.
 export const db = extendedClient as unknown as PrismaClient;

@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -45,7 +45,7 @@ Every authenticated `db` query should have RLS tenant context set. The primary m
 
 ## Disposition
 
-Pending. Not a functional bug, but misleading code that should be cleaned up.
+Resolved. Added explicit comments to both layout files documenting that `runWithTenantOrganisationId` only covers the layout's own queries and does NOT propagate to child server components. The `resolveOrganisationAccess()` calls in layouts remain useful for layout-level auth resolution. Child components set tenant context via `requireActorContext()` → `setTenantOrganisationId()` (enterWith).
 
 ## Related decisions
 
@@ -65,6 +65,6 @@ None
 
 ## History
 
-### 2026-08-04
+### 2026-08-17
 
-Record created. Layout context calls are misleading but not harmful.
+Resolved. Added documentation comments to `src/app/(app)/layout.tsx` and `src/app/(app)/o/[orgSlug]/layout.tsx` explaining that `runWithTenantOrganisationId` sets context for the layout's own queries only, and that child server components must use `requireActorContext()` which sets context via `enterWith()` for the rest of the request.

@@ -300,7 +300,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect((result[0] as any).name).toBe("Team Tenant 1");
     });
 
-    it("withUnscopedContext allows querying data from all organisations", async () => {
+    it("unscoped query (no tenant filter) returns data from all organisations", async () => {
       const org1 = await db.organisation.create({ data: { name: "Unscoped Org 1", slug: "unscoped-org-1" } });
       const org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Unscoped Org 2", slug: "unscoped-org-2" } });
