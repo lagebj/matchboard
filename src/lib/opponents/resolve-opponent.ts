@@ -35,7 +35,7 @@ export async function resolveOpponentOnReportCompletion(
   const displayName = cleanOpponentDisplayName(snapshotName);
 
   const opponentTeam = await db.opponentTeam.upsert({
-    where: { normalizedName },
+    where: { organisationId_normalizedName: { organisationId: match.organisationId, normalizedName } },
     create: { displayName, normalizedName, organisationId: match.organisationId },
     update: { displayName },
   });
@@ -69,7 +69,7 @@ export async function resolveEventOpponentOnReportCompletion(
   const displayName = cleanOpponentDisplayName(snapshotName);
 
   const opponentTeam = await db.opponentTeam.upsert({
-    where: { normalizedName },
+    where: { organisationId_normalizedName: { organisationId: eventMatch.event.organisationId, normalizedName } },
     create: { displayName, normalizedName, organisationId: eventMatch.event.organisationId },
     update: { displayName },
   });

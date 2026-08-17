@@ -280,7 +280,7 @@ export async function seedTestFixture(
     const normalizedName = normalizeOpponentName(opponentName);
     const displayName = cleanOpponentDisplayName(opponentName);
     const opponentTeam = await db.opponentTeam.upsert({
-      where: { normalizedName },
+      where: { organisationId_normalizedName: { organisationId, normalizedName } },
       update: { displayName },
       create: { displayName, normalizedName, organisationId },
     });

@@ -127,7 +127,7 @@ describe("Season fairness warnings — new warnings", () => {
       const normalizedName = normalizeOpponentName(opponentName);
       const displayName = cleanOpponentDisplayName(opponentName);
       const ot = await testDb.opponentTeam.upsert({
-        where: { normalizedName },
+        where: { organisationId_normalizedName: { organisationId: fixtureIds.organisationId, normalizedName } },
         update: { displayName },
         create: { displayName, normalizedName, organisationId: fixtureIds.organisationId },
       });

@@ -237,12 +237,13 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
       expect(payload.scopes).toContain("scenario:read");
     });
 
-    it("resolveOrgFilterForMachine returns unscoped for non-existent principal", async () => {
-      const result = await resolveOrgFilterForMachine("non-existent-principal-id", "some-org-id", db);
-      expect(result.type).toBe("unscoped");
+    it("resolveOrgFilterForMachine throws for non-existent principal", async () => {
+      await expect(
+        resolveOrgFilterForMachine("non-existent-principal-id", "some-org-id", db),
+      ).rejects.toThrow(/Machine principal not found/);
     });
 
-    it("resolveOrgFilterForMachine returns unscoped when organisation ID does not match", async () => {
+    it("resolveOrgFilterForMachine throws when organisation ID does not match", async () => {
       const org1 = await db.organisation.create({ data: { name: "Machine Org 1", slug: "machine-org-1-filter" } });
       const _org1Group = await createTestGroup(db, org1.id);
       const org2 = await db.organisation.create({ data: { name: "Machine Org 2", slug: "machine-org-2-filter" } });
@@ -255,8 +256,9 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
         scopes: ["scenario:read"],
       }, db);
 
-      const result = await resolveOrgFilterForMachine(principal.id, org2.id, db);
-      expect(result.type).toBe("unscoped");
+      await expect(
+        resolveOrgFilterForMachine(principal.id, org2.id, db),
+      ).rejects.toThrow(/does not belong to this organisation/);
     });
 
     it("resolveOrgFilterForMachine returns org-scoped filter when principal and org match", async () => {
@@ -415,8 +417,9 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
         scopes: ["scenario:read"],
       }, db);
 
-      const filter = await resolveOrgFilterForMachine(principal.id, org2.id, db);
-      expect(filter.type).toBe("unscoped");
+      await expect(
+        resolveOrgFilterForMachine(principal.id, org2.id, db),
+      ).rejects.toThrow(/does not belong to this organisation/);
 
       const scopedFilter = await resolveOrgFilterForMachine(principal.id, org1.id, db);
       expect(scopedFilter.type).toBe("org");
@@ -585,8 +588,9 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
         scopes: ["scenario:read"],
       }, db);
 
-      const filter = await resolveOrgFilterForMachine(principal.id, normalOrg.id, db);
-      expect(filter.type).toBe("unscoped");
+      await expect(
+        resolveOrgFilterForMachine(principal.id, normalOrg.id, db),
+      ).rejects.toThrow(/does not belong to this organisation/);
 
       const ownFilter = await resolveOrgFilterForMachine(principal.id, syntheticOrg.id, db);
       expect(ownFilter.type).toBe("org");

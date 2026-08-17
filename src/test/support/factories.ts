@@ -238,7 +238,7 @@ export async function createTestOpponentTeam(
   const normalizedName = normalizeOpponentName(name);
   const displayName = cleanOpponentDisplayName(name);
   return db.opponentTeam.upsert({
-    where: { normalizedName },
+    where: { organisationId_normalizedName: { organisationId, normalizedName } },
     update: { displayName },
     create: { displayName, normalizedName, organisationId },
   });

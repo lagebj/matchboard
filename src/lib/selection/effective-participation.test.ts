@@ -33,7 +33,7 @@ async function ensureTestOpponentTeam(db: PrismaClient, name: string): Promise<s
   const normalizedName = normalizeOpponentName(name);
   const displayName = cleanOpponentDisplayName(name);
   const ot = await db.opponentTeam.upsert({
-    where: { normalizedName },
+    where: { organisationId_normalizedName: { organisationId: testOrgId, normalizedName } },
     update: { displayName },
     create: { displayName, normalizedName, organisationId: testOrgId },
   });

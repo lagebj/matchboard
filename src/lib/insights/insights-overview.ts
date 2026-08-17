@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightOverview } from "@/lib/insights/insights-types";
 import { toNumber, validateOverviewField, type CountRow } from "@/lib/insights/insights-overview-helpers";
 
@@ -10,28 +10,29 @@ export { toNumber, validateOverviewField } from "@/lib/insights/insights-overvie
 export async function getInsightOverview(
   leagueSeasonId: string,
 ): Promise<InsightOverview> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId },
+    where: { leagueSeasonId, organisationId: ctx.organisationId },
     select: { id: true },
   });
   const roundIds = rounds.map((r) => r.id);
 
   const matches = await db.match.findMany({
-    where: { matchRoundId: { in: roundIds } },
+    where: { matchRoundId: { in: roundIds }, organisationId: ctx.organisationId },
     select: { id: true },
   });
   const matchIds = matches.map((m) => m.id);
 
   const activePlayers = await db.player.count({
-    where: { active: true, removedAt: null },
+    where: { active: true, removedAt: null, organisationId: ctx.organisationId },
   });
 
   const playersWithoutOpportunity = await db.player.count({
     where: {
       active: true,
       removedAt: null,
+      organisationId: ctx.organisationId,
       selections: { none: { match: { matchRoundId: { in: roundIds } } } },
       availabilities: {
         none: {
@@ -50,6 +51,7 @@ export async function getInsightOverview(
       INNER JOIN "Match" m ON s."matchId" = m.id
       WHERE p.active = true
         AND p."removedAt" IS NULL
+        AND p."organisationId" = ${ctx.organisationId}
         AND m."matchRoundId" = ANY(${roundIds}::text[])
         AND s.status IN ('FINALIZED', 'DRAFT')
       GROUP BY p.id
@@ -62,6 +64,7 @@ export async function getInsightOverview(
   const completedReports = await db.postMatchReport.count({
     where: {
       matchId: { in: matchIds },
+      organisationId: ctx.organisationId,
       status: { in: ["REPORTED", "LOCKED"] },
     },
   });
@@ -71,6 +74,7 @@ export async function getInsightOverview(
   const planIntegrityCount = await db.warning.count({
     where: {
       matchRoundId: { in: roundIds },
+      organisationId: ctx.organisationId,
       severity: { in: ["HARD_BLOCK", "REQUIRES_OVERRIDE"] },
     },
   });

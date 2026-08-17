@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
+import { isAllowedCoach } from "@/lib/allowlist";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -37,16 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
       }
-      return session;
+      return token;
     },
   },
 });
-
-function isAllowedCoach(email: string): boolean {
-  const allowed = process.env.ALLOWED_COACH_EMAILS;
-  if (!allowed) return false;
-  return allowed
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .includes(email.trim().toLowerCase());
-}

@@ -26,8 +26,8 @@ async function backfillEventMatchOpponentTeam() {
       continue;
     }
 
-    const existing = await db.opponentTeam.findUnique({
-      where: { normalizedName },
+    const existing = await db.opponentTeam.findFirst({
+      where: { normalizedName, organisationId: em.event.organisationId },
     });
 
     let opponentTeamId: string;

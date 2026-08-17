@@ -99,6 +99,7 @@ export async function backfillOrganisation(organisationId: string): Promise<Back
         data: {
           membershipId: membership.id,
           footballGroupId: defaultGroupId,
+          organisationId,
           role: "GROUP_COACH",
         },
       });

@@ -90,7 +90,7 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
     let opponentTeamId = opponentTeamIds[normalizedName];
     if (!opponentTeamId) {
       const ot = await testDb.opponentTeam.upsert({
-        where: { normalizedName },
+        where: { organisationId_normalizedName: { organisationId: testOrgId, normalizedName } },
         update: { displayName },
         create: { displayName, normalizedName, organisationId: testOrgId },
       });

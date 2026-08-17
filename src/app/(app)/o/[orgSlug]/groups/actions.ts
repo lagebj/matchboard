@@ -197,7 +197,7 @@ export async function addGroupAccessAction(groupId: string, membershipId: string
     return { success: false as const, error: "Invalid group access role." };
   }
 
-  const result = await addGroupAccess(membershipId, groupId, role as GroupAccessRole);
+  const result = await addGroupAccess(membershipId, groupId, role as GroupAccessRole, ctx.organisationId);
 
   if (!result.success) {
     return { success: false as const, error: result.error };

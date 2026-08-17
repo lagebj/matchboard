@@ -76,11 +76,11 @@ export async function resolveOrgFilterForMachine(
   });
 
   if (!principal) {
-    return { type: "unscoped", filter: {}, filterNullable: {} };
+    throw new AuthorizationError("Machine principal not found");
   }
 
   if (principal.organisationId !== organisationId) {
-    return { type: "unscoped", filter: {}, filterNullable: {} };
+    throw new AuthorizationError("Machine principal does not belong to this organisation");
   }
 
   return {

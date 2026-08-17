@@ -288,6 +288,7 @@ export async function addGroupAccess(
   membershipId: string,
   groupId: string,
   role: GroupAccessRole,
+  organisationId: string,
 ): Promise<{ success: true; accessId: string } | { success: false; error: string }> {
   const existing = await db.groupAccess.findFirst({
     where: { membershipId, footballGroupId: groupId },
@@ -308,6 +309,7 @@ export async function addGroupAccess(
     data: {
       membershipId,
       footballGroupId: groupId,
+      organisationId,
       role,
     },
   });
