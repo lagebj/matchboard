@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -57,7 +57,7 @@ Per ARR-0008 and ADR-0035, admin operations require role-granular authorisation.
 
 ## Disposition
 
-Pending. Requires ADR-0035 role granularity to be implemented first.
+Resolved. All four admin routes now use `requireActorContext()` + `requireAdminRole()`. Organisation export route uses `resolveOrganisationOwner()` (OWNER role required) and no longer calls `requireCoachAccess()`.
 
 ## Related decisions
 
@@ -80,6 +80,6 @@ None
 
 ## History
 
-### 2026-08-02
+### 2026-08-17
 
-Record created after `requireActorContext()` migration revealed that admin routes use `requireCoachAccess()` without role distinction.
+Resolved. Admin routes already use `requireActorContext()` + `requireAdminRole()`. Organisation export route updated to use `resolveOrganisationOwner()` without redundant `requireCoachAccess()`, and uses `ctx.userEmail` for export metadata. Owner role is required for export access.
