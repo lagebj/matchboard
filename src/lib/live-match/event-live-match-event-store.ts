@@ -22,22 +22,18 @@ export interface EventLiveEventInput {
 export async function recordEventEvent(input: EventLiveEventInput) {
   const ctx = await requireActorContext();
 
-  const match = await db.eventMatch.findUnique({
-    where: { id: input.eventMatchId },
+  const match = await db.eventMatch.findFirst({
+    where: { id: input.eventMatchId, event: ctx.orgFilter.filter },
     select: { id: true, organisationId: true },
   });
 
   if (!match) {
-    throw new Error("Event match not found");
-  }
-
-  if (match.organisationId !== ctx.organisationId) {
     throw new Error("Event match not found or access denied");
   }
 
   if (input.clientEventId) {
-    const existing = await db.eventLiveMatchEvent.findUnique({
-      where: { clientEventId: input.clientEventId },
+    const existing = await db.eventLiveMatchEvent.findFirst({
+      where: { clientEventId: input.clientEventId, ...ctx.orgFilter.filter },
     });
     if (existing) return existing;
   }

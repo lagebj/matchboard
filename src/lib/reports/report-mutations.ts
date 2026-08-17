@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason } from "@/generated/prisma/client";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   VALID_UNPLANNED_APPEARANCE_REASONS,
   DEFAULT_GOAL_TYPE,
@@ -268,9 +269,9 @@ export async function submitReport(reportId: string): Promise<ReportTransitionRe
   return { success: true, matchId: report.matchId };
 }
 
-export async function lockReport(reportId: string): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({
-    where: { id: reportId },
+export async function lockReport(reportId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const report = await db.postMatchReport.findFirst({
+    where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { playerActuals: true },
   });
   if (!report) return { success: false, error: "Report not found." };
@@ -295,9 +296,9 @@ export async function lockReport(reportId: string): Promise<ReportTransitionResu
   return { success: true, matchId: report.matchId };
 }
 
-export async function completeReport(reportId: string, coachEmail: string): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({
-    where: { id: reportId },
+export async function completeReport(reportId: string, coachEmail: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+  const report = await db.postMatchReport.findFirst({
+    where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { playerActuals: true },
   });
   if (!report) return { success: false, error: "Report not found." };
@@ -324,7 +325,7 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
   });
 
   const { resolveOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
-  await resolveOpponentOnReportCompletion(report.matchId);
+  await resolveOpponentOnReportCompletion(report.matchId, orgFilter);
 
   try {
     const { requireActorContext } = await import("@/lib/auth/actor-context");

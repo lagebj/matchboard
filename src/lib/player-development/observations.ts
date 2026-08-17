@@ -121,11 +121,11 @@ export async function deleteDevelopmentObservation(
 ): Promise<{ success: boolean }> {
   const ctx = await requireActorContext();
 
-  const observation = await db.playerDevelopmentObservation.findUnique({
-    where: { id: observationId },
+  const observation = await db.playerDevelopmentObservation.findFirst({
+    where: { id: observationId, ...ctx.orgFilter.filter },
   });
 
-  if (!observation || observation.organisationId !== ctx.organisationId) {
+  if (!observation) {
     throw new Error("Observation not found or access denied");
   }
 

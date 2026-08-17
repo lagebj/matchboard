@@ -10,13 +10,13 @@ import { validateLiveEventInput } from "./live-match-domain";
 export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {
   const ctx = await requireActorContext();
 
-  const session = await db.liveMatchSession.findUnique({
-    where: { id: input.sessionId },
+  const session = await db.liveMatchSession.findFirst({
+    where: { id: input.sessionId, ...ctx.orgFilter.filter },
     select: { id: true, status: true, matchId: true, organisationId: true },
   });
 
   if (!session) {
-    throw new Error("Session not found");
+    throw new Error("Session not found or access denied");
   }
 
   if (session.status !== "ACTIVE") {
@@ -27,18 +27,14 @@ export async function recordEvent(input: LiveEventInput): Promise<{ eventId: str
     throw new Error("Session does not belong to this match");
   }
 
-  if (session.organisationId !== ctx.organisationId) {
-    throw new Error("Session not found or access denied");
-  }
-
   const validationError = validateLiveEventInput(input);
   if (validationError) {
     throw new Error(validationError);
   }
 
   if (input.clientEventId) {
-    const existing = await db.liveMatchEvent.findUnique({
-      where: { clientEventId: input.clientEventId },
+    const existing = await db.liveMatchEvent.findFirst({
+      where: { clientEventId: input.clientEventId, ...ctx.orgFilter.filter },
       select: { id: true },
     });
     if (existing) {

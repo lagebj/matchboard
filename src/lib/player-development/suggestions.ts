@@ -151,22 +151,13 @@ export async function decideSuggestion(
   adjustedValue?: number,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
-  const orgFilter = ctx.orgFilter;
 
-  if (orgFilter.type !== "org") {
-    return { success: false, error: "Organisation access required" };
-  }
-
-  const suggestion = await db.playerProfileSuggestion.findUnique({
-    where: { id: suggestionId },
+  const suggestion = await db.playerProfileSuggestion.findFirst({
+    where: { id: suggestionId, ...ctx.orgFilter.filter },
   });
 
   if (!suggestion) {
-    return { success: false, error: "Suggestion not found" };
-  }
-
-  if (suggestion.organisationId !== ctx.organisationId) {
-    return { success: false, error: "Access denied" };
+    return { success: false, error: "Suggestion not found or access denied" };
   }
 
   if (suggestion.status !== "PENDING") {
@@ -174,7 +165,7 @@ export async function decideSuggestion(
   }
 
   if (suggestion.targetType === "ATTRIBUTE") {
-    return decideAttributeSuggestion(suggestion, decision, adjustedValue, ctx.userId);
+    return decideAttributeSuggestion(suggestion, decision, adjustedValue, ctx.userId, ctx.orgFilter);
   }
 
   return { success: false, error: "Position suggestion decisions not yet implemented" };
@@ -185,9 +176,10 @@ async function decideAttributeSuggestion(
   decision: SuggestionDecision,
   adjustedValue: number | undefined,
   coachId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<{ success: boolean; error?: string }> {
-  const player = await db.player.findUnique({
-    where: { id: suggestion.playerId },
+  const player = await db.player.findFirst({
+    where: { id: suggestion.playerId, ...orgFilter.filter },
   });
 
   if (!player) {

@@ -18,8 +18,8 @@ export async function recordOpponentSportingEvidence(
   matchId: string,
   orgFilter: OrgFilterMode,
 ): Promise<{ recorded: boolean; evidenceId?: string; reason?: string }> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
     select: {
       id: true,
       opponentTeamId: true,
@@ -38,8 +38,8 @@ export async function recordOpponentSportingEvidence(
     return { recorded: false, reason: "No opponent team linked to match" };
   }
 
-  const report = await db.postMatchReport.findUnique({
-    where: { matchId },
+  const report = await db.postMatchReport.findFirst({
+    where: { matchId, ...orgFilter.filter },
     select: {
       id: true,
       status: true,
@@ -80,7 +80,7 @@ export async function recordOpponentSportingEvidence(
   const players = await db.player.findMany({
     where: {
       id: { in: playerIds },
-      ...(orgFilter.type === "org" ? orgFilter.filter : {}),
+      ...orgFilter.filter,
     },
     select: {
       id: true,
@@ -124,8 +124,8 @@ export async function recordOpponentSportingEvidence(
   const { rating: fieldedRating, method, participantCount, ratedParticipantCount } = computeFieldedRating(fieldedPlayers);
 
   if (fieldedRating === null) {
-    const existing = await db.opponentSportingEvidence.findUnique({
-      where: { matchId },
+    const existing = await db.opponentSportingEvidence.findFirst({
+      where: { matchId, ...orgFilter.filter },
     });
     if (existing) {
       await db.opponentSportingEvidence.delete({ where: { id: existing.id } });
@@ -157,7 +157,7 @@ export async function recordOpponentSportingEvidence(
     ratedParticipantCount,
   };
 
-  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : match.organisationId;
+  const organisationId = orgFilter.organisationId;
 
   const _gameFormat = match.gameFormat as string | null;
 
@@ -208,20 +208,12 @@ export async function excludeOpponentSportingEvidence(
   reason: string,
   orgFilter: OrgFilterMode,
 ): Promise<{ success: boolean; error?: string }> {
-  if (orgFilter.type !== "org") {
-    return { success: false, error: "Organisation access required" };
-  }
-
-  const evidence = await db.opponentSportingEvidence.findUnique({
-    where: { id: evidenceId },
+  const evidence = await db.opponentSportingEvidence.findFirst({
+    where: { id: evidenceId, ...orgFilter.filter },
   });
 
   if (!evidence) {
-    return { success: false, error: "Evidence not found" };
-  }
-
-  if (evidence.organisationId !== orgFilter.organisationId) {
-    return { success: false, error: "Access denied" };
+    return { success: false, error: "Evidence not found or access denied" };
   }
 
   if (evidence.excludedAt) {
@@ -243,20 +235,12 @@ export async function includeOpponentSportingEvidence(
   evidenceId: string,
   orgFilter: OrgFilterMode,
 ): Promise<{ success: boolean; error?: string }> {
-  if (orgFilter.type !== "org") {
-    return { success: false, error: "Organisation access required" };
-  }
-
-  const evidence = await db.opponentSportingEvidence.findUnique({
-    where: { id: evidenceId },
+  const evidence = await db.opponentSportingEvidence.findFirst({
+    where: { id: evidenceId, ...orgFilter.filter },
   });
 
   if (!evidence) {
-    return { success: false, error: "Evidence not found" };
-  }
-
-  if (evidence.organisationId !== orgFilter.organisationId) {
-    return { success: false, error: "Access denied" };
+    return { success: false, error: "Evidence not found or access denied" };
   }
 
   if (!evidence.excludedAt) {

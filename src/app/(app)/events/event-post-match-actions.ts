@@ -341,7 +341,7 @@ export async function completeEventMatchReportAction(reportId: string) {
   });
 
   const { resolveEventOpponentOnReportCompletion } = await import('@/lib/opponents/resolve-opponent');
-  await resolveEventOpponentOnReportCompletion(report.eventMatchId);
+  await resolveEventOpponentOnReportCompletion(report.eventMatchId, ctx.orgFilter);
 
   const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {

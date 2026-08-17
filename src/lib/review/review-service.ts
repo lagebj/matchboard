@@ -101,16 +101,12 @@ export async function resolveReviewRequest(
   organisationId: string,
   resolvedByMembershipId: string,
 ): Promise<ResolveReviewResult> {
-  const existing = await db.reviewRequest.findUnique({
-    where: { id: reviewId },
+  const existing = await db.reviewRequest.findFirst({
+    where: { id: reviewId, organisationId },
   });
 
   if (!existing) {
     throw new Error('Review request not found.');
-  }
-
-  if (existing.organisationId !== organisationId) {
-    throw new Error('Review request not found or access denied.');
   }
 
   if (existing.status !== 'PENDING') {

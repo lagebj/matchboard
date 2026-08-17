@@ -217,8 +217,8 @@ export async function clearEventMatchLineup(lineupId: string) {
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: ctx.orgFilter.filter } },
   });
 
   if (!lineup) throw new Error('Lineup not found');
@@ -238,8 +238,8 @@ export async function deleteEventMatchLineup(lineupId: string) {
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: ctx.orgFilter.filter } },
   });
 
   if (!lineup) throw new Error('Lineup not found');
@@ -262,8 +262,8 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
+  const lineup = await db.eventMatchLineup.findFirst({
+    where: { id: lineupId, eventMatch: { event: ctx.orgFilter.filter } },
   });
 
   if (!lineup) throw new Error('Lineup not found');

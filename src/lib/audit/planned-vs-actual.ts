@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import type {
   PlannedVsActualMatch,
   PlannedSelectionSummary,
@@ -17,9 +18,10 @@ import { buildDeltaSummary } from "./delta-summary";
 
 export async function getPlannedVsActualForMatch(
   matchId: string,
+  orgFilter?: OrgFilterMode,
 ): Promise<PlannedVsActualMatch | null> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...(orgFilter ? orgFilter.filter : {}) },
     include: {
       opponentTeam: { select: { displayName: true } },
       team: { select: { id: true, name: true } },
@@ -53,8 +55,8 @@ export async function getPlannedVsActualForMatch(
 
   const plannedPlayerIds = new Set(plannedPlayers.map((p) => p.playerId));
 
-  const report = await db.postMatchReport.findUnique({
-    where: { matchId },
+  const report = await db.postMatchReport.findFirst({
+    where: { matchId, ...(orgFilter ? orgFilter.filter : {}) },
     include: {
       playerActuals: {
         include: {
@@ -251,7 +253,7 @@ export async function getAuditWorkItems(
     for (const match of matches) {
       if (!hasLeagueMatchPassed(match)) continue;
 
-      const report = await db.postMatchReport.findUnique({
+      const report = await db.postMatchReport.findFirst({
         where: { matchId: match.id },
         select: {
           id: true,
@@ -316,7 +318,7 @@ export async function getAuditWorkItems(
 export async function getSeasonReview(
   leagueSeasonId: string,
 ): Promise<SeasonReviewData> {
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     include: { season: true },
   });
