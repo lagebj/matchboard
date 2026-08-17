@@ -96,7 +96,7 @@ This document describes the threat model for Matchboard as a hosted web applicat
 |---------|--------|----------|
 | Google OAuth via Auth.js | Active | `src/auth.ts`, `src/auth-edge.ts` |
 | JWT session strategy | Active | `src/auth.ts` |
-| Email allowlist (`ALLOWED_COACH_EMAILS`) | Active | `src/lib/allowlist.ts` |
+| Organisation membership | Active | `src/lib/organisations/organisation-resolver.ts` |
 | Middleware auth check (all routes) | Active | `src/middleware.ts` |
 | `BYPASS_AUTH` for tests | Active (test only) | `src/lib/auth.ts` |
 

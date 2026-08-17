@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-Matchboard operates as a single-tenant coach application. All 54 Prisma models lack `organizationId`. Authentication uses an email allowlist (`ALLOWED_COACH_EMAILS`) with a single COACH role. There is no organisation model, no membership, no role granularity, and no tenant isolation.
+Matchboard operates as a multi-tenant coach application with organisation-scoped data. Authentication uses Google OAuth with membership-based access control (the email allowlist has been removed, ADR-0061). OrganisationMembership provides OWNER, ADMIN, COACH, VIEWER, and SUPPORT roles.
 
 The security baseline (ADR-0028) and authentication baseline (ADR-0032) identified critical gaps: no resource-level authorisation (IDOR), no role granularity, and no tenant boundary. These gaps are addressed by the multitenancy programme MT-0 through MT-4.
 
@@ -136,7 +136,7 @@ No general-purpose long-lived API keys. Machine authentication uses workload ide
 - Routes move from `/teams/...` to `/o/{organisationSlug}/teams/...`
 - PostgreSQL RLS policies enforce hard tenant boundaries at the database level
 - Application queries must always include `organizationId` even with RLS active
-- The email allowlist (`ALLOWED_COACH_EMAILS`) transitions to invitation-based membership
+- The email allowlist (`ALLOWED_COACH_EMAILS`) has been removed. Invitation-based membership is the sole auth mechanism (ADR-0061).
 - Existing data migrates into one initial organisation automatically
 - The `Team` unique constraint on `name` becomes composite with `organizationId`
 - Machine principals access only synthetic organisations with short-lived tokens
@@ -178,8 +178,11 @@ No general-purpose long-lived API keys. Machine authentication uses workload ide
 - Null-allowing RLS policy removal — after NOT NULL constraint
 - Global unique constraint conversion (Player.playerCode, LeagueSeason.name) — after NOT NULL
 - SUPPORT role time-bound expiry and read-only enforcement (MT-7 per ADR-0040)
-- Email allowlist deprecation — after invitation-based membership is the sole auth mechanism
 - Route migration to `/o/{organisationSlug}/...` — route structure in place (ADR-0048). Server action migration in progress.
+
+### Completed (since last update)
+
+- Email allowlist deprecation — removed (ADR-0061). Invitation-based membership is now the sole auth mechanism.
 
 ## Related
 

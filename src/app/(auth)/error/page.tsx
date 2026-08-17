@@ -12,11 +12,11 @@ export default async function AccessDeniedPage() {
           </h1>
           <p className="mt-3 text-sm text-zinc-400">
             {session?.user?.email
-              ? "This Google account is not on the Matchboard coach allowlist."
+              ? "You are not a member of any organisation on Matchboard."
               : "You are not authorized to access Matchboard."}
           </p>
           <p className="mt-2 text-xs text-zinc-500">
-            Contact your club administrator to be added to the allowlist.
+            Contact your organisation owner or admin to request an invitation.
           </p>
         </div>
         <div className="flex flex-col gap-2">

@@ -20,7 +20,7 @@ GitHub secret scanning must be enabled:
 2. **Push protection** — enabled to block pushes containing secrets
 3. **Custom patterns** — add these patterns:
    - `AUTH_SECRET` values (JWT secret format)
-   - `ALLOWED_COACH_EMAILS` when containing real email addresses
+   - Real email addresses in `PREVIEW_ALLOWLIST_EMAILS`
 
 ## Verification
 

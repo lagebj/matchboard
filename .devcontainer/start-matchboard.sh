@@ -8,7 +8,6 @@ cd "${CONTAINER_WORKSPACE_FOLDER:-/workspaces/matchboard}"
 : "${AUTH_SECRET:?AUTH_SECRET is required}"
 : "${AUTH_GOOGLE_ID:?AUTH_GOOGLE_ID is required}"
 : "${AUTH_GOOGLE_SECRET:?AUTH_GOOGLE_SECRET is required}"
-: "${ALLOWED_COACH_EMAILS:?ALLOWED_COACH_EMAILS is required}"
 
 if [[ "${CODESPACES:-}" == "true" ]]; then
   export AUTH_URL="https://${CODESPACE_NAME}-3333.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"

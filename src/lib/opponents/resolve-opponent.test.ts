@@ -18,7 +18,6 @@ vi.mock("@/lib/auth", () => ({
   handlers: {},
   requireCoachAccess: vi.fn().mockResolvedValue({ id: "test-coach", email: "test@example.com", name: "Test Coach" }),
   getCurrentCoach: vi.fn().mockResolvedValue({ id: "test-coach", email: "test@example.com", name: "Test Coach" }),
-  isAllowedCoach: vi.fn().mockReturnValue(true),
 }));
 
 async function createTestRound(testDb: PrismaClient) {

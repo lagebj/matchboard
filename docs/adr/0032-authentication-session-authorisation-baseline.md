@@ -79,10 +79,13 @@ Added tests for:
 
 - ADR-0028 (security baseline and threat model)
 - ADR-0031 (secure coding, browser and transport baseline)
+- ADR-0061 (remove email allowlist, use membership-based auth — supersedes allowlist sections)
 - `src/lib/auth.ts` — AuthenticationError, AuthorizationError, requireCoachAccess
 - `src/lib/security/errors.ts` — AppError, safeErrorResponse
 - `src/auth.ts`, `src/auth-edge.ts` — Explicit session lifetime configuration
-- `src/lib/__tests__/auth.test.ts` — Auth error type tests
-- `src/lib/__tests__/rate-limit.test.ts` — Rate limiting tests
 - Threat model: `docs/security/threat-model.md`
 - ASVS matrix: `docs/security/asvs-matrix.md`
+
+## Superseded by
+
+ADR-0061 (email allowlist removal — the allowlist gate and `isAllowedCoach` are superseded by membership-based auth. Session lifetime and error type decisions remain.)

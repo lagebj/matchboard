@@ -63,19 +63,6 @@ export default edgeAuth((req) => {
     return withSecurityHeaders(NextResponse.redirect(new URL("/signin", req.nextUrl)));
   }
 
-  const allowed = process.env.ALLOWED_COACH_EMAILS;
-  if (!allowed) {
-    return withSecurityHeaders(NextResponse.redirect(new URL("/error", req.nextUrl)));
-  }
-
-  const allowedEmails = allowed
-    .split(",")
-    .map((e) => e.trim().toLowerCase());
-
-  if (!allowedEmails.includes(email.trim().toLowerCase())) {
-    return withSecurityHeaders(NextResponse.redirect(new URL("/error", req.nextUrl)));
-  }
-
   return withSecurityHeaders(NextResponse.next());
 });
 
