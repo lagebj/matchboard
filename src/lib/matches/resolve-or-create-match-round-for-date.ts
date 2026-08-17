@@ -7,6 +7,7 @@ type TransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" |
 type ResolveInput = {
   leagueSeasonId: string;
   startsAt: Date;
+  organisationId: string;
   tx?: TransactionClient;
 };
 
@@ -34,11 +35,11 @@ export class DateOutsideLeagueSeasonError extends Error {
 export async function resolveOrCreateMatchRoundForDate(
   input: ResolveInput,
 ): Promise<ResolvedMatchRound> {
-  const { leagueSeasonId, startsAt } = input;
+  const { leagueSeasonId, startsAt, organisationId } = input;
   const client = input.tx ?? db;
 
-  const period = await client.leagueSeason.findUnique({
-    where: { id: leagueSeasonId },
+  const period = await client.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, organisationId },
     select: { id: true, startDate: true, endDate: true, organisationId: true },
   });
 

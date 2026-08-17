@@ -94,7 +94,7 @@ export default async function MatchDetailPage({
   let opponentLatestConcernDate: string | null = null;
 
   if (match.opponentTeamId && match.team.footballGroupId) {
-    opponentHistory = await getOpponentHistory(match.opponentTeamId, match.team.footballGroupId);
+    opponentHistory = await getOpponentHistory(match.opponentTeamId, match.team.footballGroupId, ctx.orgFilter);
     if (match.opponentTeamId) {
       const [cc, lcd] = await Promise.all([
         db.opponentEncounterObservation.count({

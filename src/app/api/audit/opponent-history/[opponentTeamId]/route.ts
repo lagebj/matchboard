@@ -17,8 +17,8 @@ export async function GET(
   let resolvedGroupId = footballGroupId;
 
   if (!resolvedGroupId && leagueSeasonId) {
-    const leagueSeason = await db.leagueSeason.findUnique({
-      where: { id: leagueSeasonId },
+    const leagueSeason = await db.leagueSeason.findFirst({
+      where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
       select: { organisationId: true, footballGroupId: true },
     });
     if (!leagueSeason) {
@@ -37,7 +37,7 @@ export async function GET(
     );
   }
 
-  const data = await getOpponentHistory(opponentTeamId, resolvedGroupId);
+  const data = await getOpponentHistory(opponentTeamId, resolvedGroupId, ctx.orgFilter);
 
   if (!data) {
     return NextResponse.json({ error: "Opponent team not found" }, { status: 404 });

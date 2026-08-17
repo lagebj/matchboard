@@ -142,6 +142,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
       const resolved = await resolveOrCreateMatchRoundForDate({
         leagueSeasonId: activeLeagueSeason.id,
         startsAt,
+        organisationId: orgId,
       });
       matchRoundId = resolved.roundId;
     } else {
@@ -195,6 +196,7 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
     const resolved = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: period.id,
       startsAt,
+      organisationId,
     });
     return resolved.roundId;
   }
@@ -206,6 +208,7 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
   const resolved = await resolveOrCreateMatchRoundForDate({
     leagueSeasonId: period.id,
     startsAt,
+    organisationId,
   });
   return resolved.roundId;
 }
@@ -331,6 +334,7 @@ export async function updateMatchAction(
     const resolved = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId,
       startsAt: parsedDate,
+      organisationId: ctx.organisationId,
     });
 
     const targetRoundId = resolved.roundId;

@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { ParticipationSummary } from "./audit-types";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type PlayerHistoryEntry = {
   matchRoundId: string;
@@ -33,9 +34,10 @@ export type PlayerHistoryData = {
 export async function getPlayerHistory(
   playerId: string,
   leagueSeasonId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<PlayerHistoryData | null> {
-  const player = await db.player.findUnique({
-    where: { id: playerId },
+  const player = await db.player.findFirst({
+    where: { id: playerId, ...orgFilter.filter },
     select: { id: true, firstName: true, lastName: true, coreTeamId: true, coreTeam: { select: { id: true, name: true } } },
   });
 
