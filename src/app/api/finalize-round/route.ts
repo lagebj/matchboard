@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   const { matchRoundId, overrideReasonCategory, overrideReasonDetail } = parsed.data;
 
-  const matchRound = await db.matchRound.findUnique({ where: { id: matchRoundId }, select: { organisationId: true } });
+  const matchRound = await db.matchRound.findFirst({ where: { id: matchRoundId }, select: { organisationId: true } });
   if (!matchRound) {
     return NextResponse.json({ error: "Match round not found" }, { status: 404 });
   }

@@ -84,8 +84,8 @@ export async function resolveGroupPathsForMatch(
   matchId: string,
   organisationId: string,
 ): Promise<RotationPathEdge[]> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, organisationId },
     select: {
       id: true,
       team: { select: { id: true, footballGroupId: true } },

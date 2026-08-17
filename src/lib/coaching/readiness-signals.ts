@@ -71,7 +71,7 @@ export async function setReadinessSignal(input: CreateReadinessSignalInput) {
 
 export async function updateReadinessSignal(id: string, input: UpdateReadinessSignalInput) {
   if (input.value !== undefined) {
-    const existing = await db.playerReadinessSignal.findUnique({ where: { id } });
+    const existing = await db.playerReadinessSignal.findFirst({ where: { id } });
     if (!existing) throw new Error(`Readiness signal not found: ${id}`);
     if (!validateSignalValue(existing.signalType as ReadinessSignalType, input.value)) {
       const validValues = READINESS_SIGNAL_VALID_VALUES[existing.signalType as ReadinessSignalType];

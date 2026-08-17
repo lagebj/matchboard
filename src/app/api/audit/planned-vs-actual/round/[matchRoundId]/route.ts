@@ -11,7 +11,7 @@ export async function GET(
 
   const { matchRoundId } = await params;
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { organisationId: true },
   });

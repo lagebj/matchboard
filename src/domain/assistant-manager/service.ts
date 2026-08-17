@@ -80,7 +80,7 @@ async function getAvailabilityForTeamInRound(teamId: string, matchRoundId: strin
 }
 
 export async function getRoundReview(roundId: string): Promise<RoundReview> {
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: roundId },
     include: { matches: { include: { team: true } } },
   });
@@ -187,7 +187,7 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
 }
 
 export async function getTeamReadiness(teamId: string, matchId?: string): Promise<TeamReadiness> {
-  const team = await db.team.findUnique({ where: { id: teamId } });
+  const team = await db.team.findFirst({ where: { id: teamId } });
 
   if (!team) {
     return {
@@ -215,7 +215,7 @@ export async function getTeamReadiness(teamId: string, matchId?: string): Promis
 
   let matchRoundId: string | undefined;
   if (matchId) {
-    const match = await db.match.findUnique({ where: { id: matchId }, select: { matchRoundId: true } });
+    const match = await db.match.findFirst({ where: { id: matchId }, select: { matchRoundId: true } });
     matchRoundId = match?.matchRoundId;
   } else {
     const latestDraftMatch = await db.match.findFirst({
@@ -262,7 +262,7 @@ export async function getTeamReadiness(teamId: string, matchId?: string): Promis
 }
 
 export async function getMatchReview(matchId: string): Promise<MatchReview> {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     include: { team: true },
   });
@@ -390,7 +390,7 @@ export async function recordDecision(input: {
 }
 
 export async function getPostMatchReport(matchId: string): Promise<PostMatchReport> {
-  const report = await db.postMatchReport.findUnique({
+  const report = await db.postMatchReport.findFirst({
     where: { matchId },
     include: { playerActuals: true },
   });
@@ -431,9 +431,9 @@ export async function completePostMatchReport(
     );
   }
 
-  const existing = await db.postMatchReport.findUnique({ where: { matchId } });
+  const existing = await db.postMatchReport.findFirst({ where: { matchId } });
 
-  const match = await db.match.findUnique({ where: { id: matchId }, select: { organisationId: true } });
+  const match = await db.match.findFirst({ where: { id: matchId }, select: { organisationId: true } });
   const organisationId = match?.organisationId ?? "";
 
   if (existing) {

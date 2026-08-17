@@ -20,7 +20,7 @@ export async function finalizeSingleMatch(
   overrideReasonCategory?: OverrideReasonCategory,
   overrideReasonDetail?: string,
 ): Promise<FinalizeSingleMatchResult> {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: {
       id: true,
@@ -53,7 +53,7 @@ export async function finalizeSingleMatch(
     };
   }
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: match.matchRoundId },
     select: { id: true, status: true },
   });

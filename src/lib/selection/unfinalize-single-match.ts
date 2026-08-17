@@ -14,7 +14,7 @@ export type UnfinalizeSingleMatchResult = {
 export async function unfinalizeSingleMatch(
   matchId: string,
 ): Promise<UnfinalizeSingleMatchResult> {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: {
       id: true,

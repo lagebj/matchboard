@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const leagueSeason = await db.leagueSeason.findUnique({
+  const leagueSeason = await db.leagueSeason.findFirst({
     where: { id: leagueSeasonId },
     select: { organisationId: true },
   });

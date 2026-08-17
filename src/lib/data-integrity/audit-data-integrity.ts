@@ -260,7 +260,7 @@ async function checkGoalEventCountExceedsTeamScore(
     : await getCompletedMatchIds(db, scope.leagueSeasonId);
 
   for (const matchId of matchIds) {
-    const match = await db.match.findUnique({
+    const match = await db.match.findFirst({
       where: { id: matchId },
       select: { id: true, teamId: true, homeAway: true },
     });

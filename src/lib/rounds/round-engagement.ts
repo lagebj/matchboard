@@ -31,7 +31,7 @@ export async function computeRoundEngagement(
   client?: TransactionClient,
 ): Promise<RoundEngagementResult> {
   const prisma = client ?? db;
-  const round = await prisma.matchRound.findUnique({
+  const round = await prisma.matchRound.findFirst({
     where: { id: matchRoundId },
   });
 

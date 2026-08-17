@@ -24,7 +24,7 @@ import { requireOpenLeagueSeasonForRound } from "@/lib/seasons/require-open-leag
 export async function generateMatchRound(matchRoundId: string): Promise<GeneratedRound> {
   await requireOpenLeagueSeasonForRound(matchRoundId);
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     include: {
       matches: {

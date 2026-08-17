@@ -59,7 +59,7 @@ export async function clearRoundDraftSelection(
 ): Promise<ClearDraftResult> {
   await requireOpenLeagueSeasonForRound(matchRoundId);
 
-  const matchRound = await db.matchRound.findUnique({
+  const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { status: true },
   });
@@ -104,7 +104,7 @@ export async function clearMatchDraftSelection(
 ): Promise<ClearDraftResult> {
   await requireOpenLeagueSeasonForMatch(matchId);
 
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     include: { matchRound: { select: { id: true, status: true } } },
   });

@@ -65,7 +65,7 @@ export const KNOWN_RULES: TeamRuleConfiguration[] = [
 
 export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilterMode): Promise<TeamConfiguration | null> {
   const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
-  const team = await db.team.findUnique({
+  const team = await db.team.findFirst({
     where: { id: teamId, ...orgWhere },
     include: {
       corePlayers: {
