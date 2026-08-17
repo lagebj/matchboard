@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export type OpponentMatchRecord = {
   matchId: string;
@@ -30,9 +31,10 @@ export type OpponentHistoryData = {
 export async function getOpponentHistory(
   opponentTeamId: string,
   footballGroupId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<OpponentHistoryData | null> {
-  const opponentTeam = await db.opponentTeam.findUnique({
-    where: { id: opponentTeamId },
+  const opponentTeam = await db.opponentTeam.findFirst({
+    where: { id: opponentTeamId, ...orgFilter.filter },
     select: { id: true, displayName: true },
   });
 

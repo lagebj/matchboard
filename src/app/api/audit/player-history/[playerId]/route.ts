@@ -20,8 +20,8 @@ export async function GET(
     );
   }
 
-  const leagueSeason = await db.leagueSeason.findUnique({
-    where: { id: leagueSeasonId },
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...ctx.orgFilter.filter },
     select: { organisationId: true },
   });
   if (!leagueSeason) {
@@ -31,7 +31,7 @@ export async function GET(
     return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 
-  const data = await getPlayerHistory(playerId, leagueSeasonId);
+  const data = await getPlayerHistory(playerId, leagueSeasonId, ctx.orgFilter);
 
   if (!data) {
     return NextResponse.json({ error: "Player not found" }, { status: 404 });

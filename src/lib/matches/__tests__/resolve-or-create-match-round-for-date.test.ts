@@ -4,7 +4,7 @@ import { resolveOrCreateMatchRoundForDate, isSameIsoWeek, AmbiguousRoundError, D
 vi.mock("@/lib/db", () => ({
   db: {
     leagueSeason: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     matchRound: {
       findMany: vi.fn(),
@@ -16,17 +16,19 @@ vi.mock("@/lib/db", () => ({
 import { db } from "@/lib/db";
 
 const PERIOD_ID = "p1";
+const ORG_ID = "org-1";
 const PERIOD_START = new Date("2026-04-01T00:00:00Z");
 const PERIOD_END = new Date("2026-06-30T23:59:59Z");
 
 describe("resolveOrCreateMatchRoundForDate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(db.leagueSeason.findUnique).mockResolvedValue({
+    vi.mocked(db.leagueSeason.findFirst).mockResolvedValue({
       id: PERIOD_ID,
       startDate: PERIOD_START,
       endDate: PERIOD_END,
-    } as unknown as Awaited<ReturnType<typeof db.leagueSeason.findUnique>>);
+      organisationId: ORG_ID,
+    } as unknown as Awaited<ReturnType<typeof db.leagueSeason.findFirst>>);
   });
 
   it("reuses an existing same-Phase ISO-week-label round", async () => {
@@ -37,6 +39,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     const result = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
+      organisationId: ORG_ID,
     });
 
     expect(result.roundId).toBe("r-w20");
@@ -52,6 +55,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     const result = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
+      organisationId: ORG_ID,
     });
 
     expect(result.roundId).toBe("r-legacy");
@@ -68,6 +72,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     const result = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
+      organisationId: ORG_ID,
     });
 
     expect(result.created).toBe(true);
@@ -88,6 +93,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     const result = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-06-08T15:00:00Z"),
+      organisationId: ORG_ID,
     });
 
     expect(result.roundId).toBe("r-new");
@@ -109,6 +115,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
       resolveOrCreateMatchRoundForDate({
         leagueSeasonId: PERIOD_ID,
         startsAt: new Date("2026-08-15T15:00:00Z"),
+        organisationId: ORG_ID,
       }),
     ).rejects.toThrow(DateOutsideLeagueSeasonError);
 
@@ -126,6 +133,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
       resolveOrCreateMatchRoundForDate({
         leagueSeasonId: PERIOD_ID,
         startsAt: new Date("2026-06-08T15:00:00Z"),
+        organisationId: ORG_ID,
       }),
     ).rejects.toThrow(AmbiguousRoundError);
 
@@ -134,7 +142,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
 
   it("works with a transaction client", async () => {
     const txMock = {
-      leagueSeason: { findUnique: vi.fn().mockResolvedValue({ id: PERIOD_ID, startDate: PERIOD_START, endDate: PERIOD_END }) },
+      leagueSeason: { findFirst: vi.fn().mockResolvedValue({ id: PERIOD_ID, startDate: PERIOD_START, endDate: PERIOD_END, organisationId: ORG_ID }) },
       matchRound: {
         findMany: vi.fn().mockResolvedValue([{ id: "r-w20", name: "W20 2026" }]),
         create: vi.fn(),
@@ -144,6 +152,7 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     const result = await resolveOrCreateMatchRoundForDate({
       leagueSeasonId: PERIOD_ID,
       startsAt: new Date("2026-05-11T15:00:00Z"),
+      organisationId: ORG_ID,
       tx: txMock as unknown as Parameters<typeof resolveOrCreateMatchRoundForDate>[0]["tx"],
     });
 
@@ -153,12 +162,13 @@ describe("resolveOrCreateMatchRoundForDate", () => {
   });
 
   it("rejects missing planning period", async () => {
-    vi.mocked(db.leagueSeason.findUnique).mockResolvedValue(null);
+    vi.mocked(db.leagueSeason.findFirst).mockResolvedValue(null);
 
     await expect(
       resolveOrCreateMatchRoundForDate({
         leagueSeasonId: "nonexistent",
         startsAt: new Date("2026-05-11T15:00:00Z"),
+        organisationId: ORG_ID,
       }),
     ).rejects.toThrow(DateOutsideLeagueSeasonError);
   });

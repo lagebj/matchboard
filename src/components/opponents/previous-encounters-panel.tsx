@@ -2,14 +2,16 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { PREVIOUS_ENCOUNTERS_DISCLAIMER } from "@/lib/opponents/observation-labels";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 type Props = {
   opponentTeamId: string;
   footballGroupId: string;
+  orgFilter: OrgFilterMode;
 };
 
-export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId }: Props) {
-  const history = await getOpponentHistory(opponentTeamId, footballGroupId);
+export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId, orgFilter }: Props) {
+  const history = await getOpponentHistory(opponentTeamId, footballGroupId, orgFilter);
 
   if (!history || history.matches.length === 0) {
     return (

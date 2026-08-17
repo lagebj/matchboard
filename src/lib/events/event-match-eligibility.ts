@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 
 export type EligibleEventMatchPlayer = {
   playerId: string;
@@ -15,9 +16,10 @@ export type EligibleEventMatchPlayer = {
 
 export async function getEligibleEventMatchPlayers(
   eventMatchId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<EligibleEventMatchPlayer[]> {
-  const match = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const match = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: orgFilter.filter },
     select: {
       id: true,
       eventId: true,
@@ -52,8 +54,8 @@ export async function getEligibleEventMatchPlayers(
   const players: EligibleEventMatchPlayer[] = [];
 
   for (const sp of squad.players) {
-    const attrs = await db.player.findUnique({
-      where: { id: sp.playerId },
+    const attrs = await db.player.findFirst({
+      where: { id: sp.playerId, ...orgFilter.filter },
       select: {
         effort: true,
         oneVOneAttacking: true,
@@ -101,8 +103,8 @@ export async function getEligibleEventMatchPlayers(
   for (const sa of supportAssignments) {
     if (playerIdsInSquad.has(sa.playerId)) continue;
 
-    const player = await db.player.findUnique({
-      where: { id: sa.playerId },
+    const player = await db.player.findFirst({
+      where: { id: sa.playerId, ...orgFilter.filter },
       select: {
         id: true,
         firstName: true,
@@ -144,9 +146,10 @@ export async function getEligibleEventMatchPlayers(
 export async function assertEligibleEventMatchPlayer(
   eventMatchId: string,
   playerId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<{ eligible: boolean; source: 'squad' | 'helper' | null; reason?: string }> {
-  const match = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const match = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: orgFilter.filter },
     select: {
       id: true,
       eventSquadId: true,

@@ -7,7 +7,6 @@ import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchReportStatus } from '@/generated/prisma/client';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== 'org') return;
   const event = await db.event.findFirst({
     where: { id: eventId, ...orgFilter.filter },
     select: { id: true },
@@ -16,9 +15,8 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
 }
 
 async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== 'org') return;
   const eventMatch = await db.eventMatch.findFirst({
-    where: { id: eventMatchId },
+    where: { id: eventMatchId, event: orgFilter.filter },
     select: { eventId: true },
   });
   if (!eventMatch) throw new Error('Event match not found or access denied.');
@@ -26,9 +24,8 @@ async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFi
 }
 
 async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode): Promise<void> {
-  if (orgFilter.type !== 'org') return;
-  const report = await db.eventPostMatchReport.findUnique({
-    where: { id: reportId },
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { id: reportId, ...orgFilter.filter },
     select: { eventMatchId: true },
   });
   if (!report) throw new Error('Report not found or access denied.');
@@ -41,8 +38,8 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
 
   await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
-  const eventMatch = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: ctx.orgFilter.filter },
     include: {
       eventSquad: {
         include: { players: { include: { player: true } } },
@@ -62,8 +59,8 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
     throw new Error('Cannot create report for cancelled match.');
   }
 
-  const existingReport = await db.eventPostMatchReport.findUnique({
-    where: { eventMatchId },
+  const existingReport = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, ...ctx.orgFilter.filter },
   });
 
   if (existingReport) {
@@ -116,8 +113,8 @@ export async function getEventMatchReport(eventMatchId: string) {
 
   await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({
-    where: { eventMatchId },
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, ...ctx.orgFilter.filter },
     include: {
       playerReports: { include: { player: true } },
       goalEvents: { include: { scorer: true } },
@@ -137,7 +134,7 @@ export async function updateEventMatchResultAction(
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
 
   if (report.status === 'LOCKED') {
@@ -155,7 +152,7 @@ export async function updateEventMatchResultAction(
     },
   });
 
-  const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
@@ -169,8 +166,8 @@ export async function updateEventPlayerAttendanceAction(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const playerReport = await db.eventPostMatchPlayer.findUnique({
-    where: { id: playerReportId },
+  const playerReport = await db.eventPostMatchPlayer.findFirst({
+    where: { id: playerReportId, ...ctx.orgFilter.filter },
     include: { report: true },
   });
 
@@ -187,8 +184,8 @@ export async function updateEventPlayerAttendanceAction(
     data: { attendanceStatus },
   });
 
-  const eventMatch = await db.eventMatch.findUnique({
-    where: { id: playerReport.report.eventMatchId },
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: playerReport.report.eventMatchId, event: ctx.orgFilter.filter },
   });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
@@ -205,7 +202,7 @@ export async function addEventGoalAction(
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
   if (report.status === 'LOCKED') {
     throw new Error('Cannot add goals to a locked report.');
@@ -222,7 +219,7 @@ export async function addEventGoalAction(
     },
   });
 
-  const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
@@ -233,12 +230,12 @@ export async function removeEventGoalAction(goalId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const goal = await db.eventGoalEvent.findUnique({ where: { id: goalId } });
+  const goal = await db.eventGoalEvent.findFirst({ where: { id: goalId, ...ctx.orgFilter.filter } });
   if (!goal) throw new Error('Goal not found.');
 
   await requireReportOrgAccess(goal.reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({ where: { id: goal.reportId } });
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: goal.reportId, ...ctx.orgFilter.filter } });
   if (report?.status === 'LOCKED') {
     throw new Error('Cannot remove goals from a locked report.');
   }
@@ -246,7 +243,7 @@ export async function removeEventGoalAction(goalId: string) {
   await db.eventGoalEvent.delete({ where: { id: goalId } });
 
   if (report) {
-    const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+    const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
     if (eventMatch) {
       revalidatePath(`/events/${eventMatch.eventId}`);
     }
@@ -263,7 +260,7 @@ export async function addEventAssistAction(
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
   if (report.status === 'LOCKED') {
     throw new Error('Cannot add assists to a locked report.');
@@ -278,7 +275,7 @@ export async function addEventAssistAction(
     },
   });
 
-  const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
@@ -289,12 +286,12 @@ export async function removeEventAssistAction(assistId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const assist = await db.eventAssistEvent.findUnique({ where: { id: assistId } });
+  const assist = await db.eventAssistEvent.findFirst({ where: { id: assistId, ...ctx.orgFilter.filter } });
   if (!assist) throw new Error('Assist not found.');
 
   await requireReportOrgAccess(assist.reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({ where: { id: assist.reportId } });
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: assist.reportId, ...ctx.orgFilter.filter } });
   if (report?.status === 'LOCKED') {
     throw new Error('Cannot remove assists from a locked report.');
   }
@@ -302,7 +299,7 @@ export async function removeEventAssistAction(assistId: string) {
   await db.eventAssistEvent.delete({ where: { id: assistId } });
 
   if (report) {
-    const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+    const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
     if (eventMatch) {
       revalidatePath(`/events/${eventMatch.eventId}`);
     }
@@ -316,8 +313,8 @@ export async function completeEventMatchReportAction(reportId: string) {
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({
-    where: { id: reportId },
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { id: reportId, ...ctx.orgFilter.filter },
     include: { playerReports: true },
   });
 
@@ -346,7 +343,7 @@ export async function completeEventMatchReportAction(reportId: string) {
   const { resolveEventOpponentOnReportCompletion } = await import('@/lib/opponents/resolve-opponent');
   await resolveEventOpponentOnReportCompletion(report.eventMatchId);
 
-  const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
@@ -359,7 +356,7 @@ export async function reopenEventMatchReportAction(reportId: string, targetStatu
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findUnique({ where: { id: reportId } });
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
 
   if (report.status === 'DRAFT') {
@@ -376,7 +373,7 @@ export async function reopenEventMatchReportAction(reportId: string, targetStatu
     },
   });
 
-  const eventMatch = await db.eventMatch.findUnique({ where: { id: report.eventMatchId } });
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
