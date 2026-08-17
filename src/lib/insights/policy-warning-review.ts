@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import type {
   InsightFilters,
   PolicyWarningEntry,
@@ -13,10 +13,11 @@ import { classifyWarningSeverity } from "./policy-warning-review-helpers";
 export async function getPolicyWarningReview(
   filters: InsightFilters,
 ): Promise<PolicyWarningGroup[]> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId: filters.leagueSeasonId },
+    where: { leagueSeasonId: filters.leagueSeasonId, organisationId: orgId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -26,9 +27,7 @@ export async function getPolicyWarningReview(
   const warnings = await db.warning.findMany({
     where: {
       matchRoundId: { in: roundIds },
-      // Note: Warning.resolved is deprecated for operational decisions.
-      // This display query uses the derived projection for historical review.
-      // For live plan integrity, use computeRoundPlanIntegrity() instead.
+      organisationId: orgId,
       resolved: false,
     },
     select: {
@@ -50,21 +49,21 @@ export async function getPolicyWarningReview(
 
   const players = playerIds.length > 0
     ? await db.player.findMany({
-        where: { id: { in: playerIds } },
+        where: { id: { in: playerIds }, organisationId: orgId },
         select: { id: true, firstName: true, lastName: true },
       })
     : [];
 
   const teams = teamIds.length > 0
     ? await db.team.findMany({
-        where: { id: { in: teamIds } },
+        where: { id: { in: teamIds }, organisationId: orgId },
         select: { id: true, name: true },
       })
     : [];
 
   const matches = matchIds.length > 0
     ? await db.match.findMany({
-        where: { id: { in: matchIds } },
+        where: { id: { in: matchIds }, organisationId: orgId },
         select: { id: true, teamId: true, team: { select: { name: true } } },
       })
     : [];

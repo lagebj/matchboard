@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import type {
   InsightFilters,
   PlannedActualDelta,
@@ -13,10 +13,11 @@ import { classifyDeltaType } from "./planned-vs-actual-helpers";
 export async function getPlannedVsActualDeltas(
   filters: InsightFilters,
 ): Promise<PlannedActualDelta[]> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId: filters.leagueSeasonId },
+    where: { leagueSeasonId: filters.leagueSeasonId, organisationId: orgId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -24,7 +25,7 @@ export async function getPlannedVsActualDeltas(
   const roundIds = rounds.map((r) => r.id);
 
   const matches = await db.match.findMany({
-    where: { matchRoundId: { in: roundIds } },
+    where: { matchRoundId: { in: roundIds }, organisationId: orgId },
     select: {
       id: true,
       matchRoundId: true,
@@ -37,7 +38,7 @@ export async function getPlannedVsActualDeltas(
 
   for (const match of matches) {
     const report = await db.postMatchReport.findFirst({
-      where: { matchId: match.id },
+      where: { matchId: match.id, organisationId: orgId },
       select: {
         id: true,
         status: true,
@@ -60,6 +61,7 @@ export async function getPlannedVsActualDeltas(
     const finalizedSelections = await db.selection.findMany({
       where: {
         matchId: match.id,
+        organisationId: orgId,
         status: "FINALIZED",
       },
       select: {
@@ -74,6 +76,7 @@ export async function getPlannedVsActualDeltas(
     const actualParticipations = report
       ? await db.postMatchPlayerActual.findMany({
           where: {
+            organisationId: orgId,
             report: { matchId: match.id },
             attendanceStatus: "PRESENT",
           },

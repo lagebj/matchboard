@@ -5,39 +5,33 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId: string } | Record<string, never>) {
-  if ("organisationId" in orgFilter) {
-    const round = await db.matchRound.findUnique({
-      where: { id: roundId },
-      select: { organisationId: true },
-    });
-    if (!round || round.organisationId !== orgFilter.organisationId) {
-      throw new Error("Round not found or access denied.");
-    }
+async function verifyRoundOrgAccess(roundId: string, orgFilter: { organisationId: string }) {
+  const round = await db.matchRound.findUnique({
+    where: { id: roundId },
+    select: { organisationId: true },
+  });
+  if (!round || round.organisationId !== orgFilter.organisationId) {
+    throw new Error("Round not found or access denied.");
   }
 }
 
-async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId: string } | Record<string, never>) {
-  if ("organisationId" in orgFilter) {
-    const match = await db.match.findUnique({
-      where: { id: matchId },
-      select: { organisationId: true },
-    });
-    if (!match || match.organisationId !== orgFilter.organisationId) {
-      throw new Error("Match not found or access denied.");
-    }
+async function verifyMatchOrgAccess(matchId: string, orgFilter: { organisationId: string }) {
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: { organisationId: true },
+  });
+  if (!match || match.organisationId !== orgFilter.organisationId) {
+    throw new Error("Match not found or access denied.");
   }
 }
 
-async function verifyLeagueSeasonOrgAccess(leagueSeasonId: string, orgFilter: { organisationId: string } | Record<string, never>) {
-  if ("organisationId" in orgFilter) {
-    const leagueSeason = await db.leagueSeason.findUnique({
-      where: { id: leagueSeasonId },
-      select: { organisationId: true },
-    });
-    if (!leagueSeason || leagueSeason.organisationId !== orgFilter.organisationId) {
-      throw new Error("League season not found or access denied.");
-    }
+async function verifyLeagueSeasonOrgAccess(leagueSeasonId: string, orgFilter: { organisationId: string }) {
+  const leagueSeason = await db.leagueSeason.findUnique({
+    where: { id: leagueSeasonId },
+    select: { organisationId: true },
+  });
+  if (!leagueSeason || leagueSeason.organisationId !== orgFilter.organisationId) {
+    throw new Error("League season not found or access denied.");
   }
 }
 

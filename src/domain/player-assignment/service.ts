@@ -5,7 +5,7 @@ import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export async function getPlayerAssignmentBoard(orgFilter: OrgFilterMode): Promise<PlayerAssignmentBoard> {
   const teams = await db.team.findMany({
-    where: { archivedAt: null, ...(orgFilter.type === "org" ? orgFilter.filter : {}) },
+    where: { archivedAt: null, ...orgFilter.filter },
     orderBy: { name: "asc" },
     include: {
       corePlayers: {
@@ -31,7 +31,7 @@ export async function getPlayerAssignmentBoard(orgFilter: OrgFilterMode): Promis
   }
 
   const allActivePlayers = await db.player.findMany({
-    where: { active: true, ...(orgFilter.type === "org" ? orgFilter.filterNullable : {}) },
+    where: { active: true, ...orgFilter.filterNullable },
     select: {
       id: true,
       firstName: true,

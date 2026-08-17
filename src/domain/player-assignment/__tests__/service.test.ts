@@ -4,7 +4,12 @@ import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture, type TestFixtu
 import { getPlayerAssignmentBoard, movePlayerToTeam } from "../service";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-const unscopedFilter: OrgFilterMode = { type: "unscoped", filter: {}, filterNullable: {} };
+const testOrgFilter = (organisationId: string): OrgFilterMode => ({
+  type: "org",
+  filter: { organisationId },
+  filterNullable: { organisationId },
+  organisationId,
+});
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -29,7 +34,7 @@ describe("Player Assignment Service", () => {
 
   describe("getPlayerAssignmentBoard", () => {
     it("returns teams with their core players", async () => {
-      const board = await getPlayerAssignmentBoard(unscopedFilter);
+      const board = await getPlayerAssignmentBoard(testOrgFilter(fixture.organisationId));
       expect(board.teams.length).toBeGreaterThanOrEqual(3);
 
       const blaTeam = board.teams.find((t) => t.teamId === fixture.teams["Bla"]);
@@ -39,7 +44,7 @@ describe("Player Assignment Service", () => {
     });
 
     it("includes player display names and rotatable flag", async () => {
-      const board = await getPlayerAssignmentBoard(unscopedFilter);
+      const board = await getPlayerAssignmentBoard(testOrgFilter(fixture.organisationId));
       const firstPlayer = board.teams[0].players[0];
       expect(firstPlayer.playerId).toBeDefined();
       expect(firstPlayer.displayName).toBeTruthy();
@@ -47,7 +52,7 @@ describe("Player Assignment Service", () => {
     });
 
     it("does not include openIssueCount on player objects", async () => {
-      const board = await getPlayerAssignmentBoard(unscopedFilter);
+      const board = await getPlayerAssignmentBoard(testOrgFilter(fixture.organisationId));
       const firstPlayer = board.teams[0].players[0];
       expect(firstPlayer).not.toHaveProperty("openIssueCount");
     });
@@ -56,7 +61,7 @@ describe("Player Assignment Service", () => {
       const teamId = fixture.teams["Bla"];
       await testDb.team.update({ where: { id: teamId }, data: { archivedAt: new Date() } });
 
-      const board = await getPlayerAssignmentBoard(unscopedFilter);
+      const board = await getPlayerAssignmentBoard(testOrgFilter(fixture.organisationId));
       const blaTeam = board.teams.find((t) => t.teamId === teamId);
       expect(blaTeam).toBeUndefined();
     });

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCoachAccess } from "@/lib/auth";
+import { requireActorContext } from "@/lib/auth/actor-context";
 import { SelectionStatus } from "@/generated/prisma/client";
 import { mapPlannedRoleToStatus, mapPlannedRoleToActualStatus } from "./opportunity-matrix-helpers";
 import type {
@@ -15,13 +15,14 @@ import type {
 export async function getOpportunityMatrix(
   filters: InsightFilters,
 ): Promise<OpportunityMatrixRow[]> {
-  await requireCoachAccess();
+  const ctx = await requireActorContext();
+  const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeRemoved
-    ? { OR: [{ active: true }, { active: false, removedAt: { not: null } }] }
+    ? { organisationId: orgId, OR: [{ active: true }, { active: false, removedAt: { not: null } }] }
     : filters.includeInactive
-      ? { OR: [{ active: true }, { active: false }] }
-      : { active: true, removedAt: null };
+      ? { organisationId: orgId, OR: [{ active: true }, { active: false }] }
+      : { organisationId: orgId, active: true, removedAt: null };
 
   const players = await db.player.findMany({
     where: playerFilter,
@@ -36,7 +37,7 @@ export async function getOpportunityMatrix(
   });
 
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId: filters.leagueSeasonId },
+    where: { leagueSeasonId: filters.leagueSeasonId, organisationId: orgId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -50,6 +51,7 @@ export async function getOpportunityMatrix(
   const selections = await db.selection.findMany({
     where: {
       matchRoundId: { in: roundIds },
+      organisationId: orgId,
       status: { in: selectionStatusFilter },
       player: playerFilter,
     },
@@ -65,6 +67,7 @@ export async function getOpportunityMatrix(
   const availabilities = await db.availability.findMany({
     where: {
       matchRoundId: { in: roundIds },
+      organisationId: orgId,
       player: playerFilter,
     },
     select: {
@@ -75,7 +78,7 @@ export async function getOpportunityMatrix(
   });
 
   const matchIds = await db.match.findMany({
-    where: { matchRoundId: { in: roundIds } },
+    where: { matchRoundId: { in: roundIds }, organisationId: orgId },
     select: { id: true, matchRoundId: true },
   });
 
@@ -91,6 +94,7 @@ export async function getOpportunityMatrix(
     const reports = await db.postMatchReport.findMany({
       where: {
         matchId: { in: matchIds.map((m) => m.id) },
+        organisationId: orgId,
         status: { in: ["REPORTED", "LOCKED"] },
       },
       select: { matchId: true },
@@ -102,6 +106,7 @@ export async function getOpportunityMatrix(
 
   const actualParticipations = await db.postMatchPlayerActual.findMany({
     where: {
+      organisationId: orgId,
       report: {
         matchId: { in: matchIds.map((m) => m.id) },
         status: { in: ["REPORTED", "LOCKED"] },

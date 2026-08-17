@@ -12,9 +12,10 @@ function mapReadiness(blockerCount: number, decisionRequiredCount: number): "REA
   return "READY";
 }
 
-export async function getFixturesOverview(orgFilter: OrgFilterMode = { type: "unscoped", filter: {}, filterNullable: {} }): Promise<FixturesOverview> {
+export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<FixturesOverview> {
+  const organisationId = orgFilter.organisationId;
   const seasons = await db.season.findMany({
-    where: orgFilter.type === "org" ? { organisationId: orgFilter.organisationId } : undefined,
+    where: { organisationId },
     orderBy: { name: "desc" },
     include: {
       leagueSeasons: {
@@ -47,12 +48,12 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode = { type: "un
   const [allSelections, postMatchReports] = await Promise.all([
     allMatchIds.length > 0
       ? db.selection.findMany({
-          where: { matchId: { in: allMatchIds } },
+          where: { matchId: { in: allMatchIds }, organisationId },
           select: { matchId: true, status: true },
         })
       : Promise.resolve([]),
     db.postMatchReport.findMany({
-      where: { matchId: { in: allMatchIds } },
+      where: { matchId: { in: allMatchIds }, organisationId },
       select: { id: true, matchId: true, status: true, homeGoals: true, awayGoals: true },
     }),
   ]);
