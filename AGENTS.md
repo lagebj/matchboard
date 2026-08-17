@@ -1836,7 +1836,7 @@ See ADR-0057 for the full decision record.
 - Deployment must not happen until lint/build/security checks pass
 - All data-mutating server actions must call `requireCoachAccess()` or equivalent
 - All data-reading server actions and API routes exposing app data must call `requireCoachAccess()` or equivalent
-- The `/api/health` endpoint must not expose business data (player counts, etc.)
+- The `/api/health` endpoint returns `{ ok, version, environment }` — it must not expose business data (player counts, etc.)
 - Rate limiting is in-memory only — document this limitation for production
 - All final changes must use the `git-branch-commit-pr` skill (see mandatory coding-agent workflow)
 

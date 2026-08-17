@@ -262,4 +262,18 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     expect(authLib).not.toContain("isAllowedCoach");
     expect(authLib).not.toContain("ALLOWED_COACH_EMAILS");
   });
+
+  it("health endpoint does not expose business data", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const healthRoute = fs.readFileSync(
+      path.join(process.cwd(), "src/app/api/health/route.ts"),
+      "utf-8",
+    );
+    // Health endpoint may expose ok, version, environment — but never business data
+    expect(healthRoute).not.toContain("playerCount");
+    expect(healthRoute).not.toContain("teamCount");
+    expect(healthRoute).not.toContain("matchCount");
+    expect(healthRoute).not.toContain("organisationId");
+  });
 });
