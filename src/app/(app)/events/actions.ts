@@ -27,7 +27,7 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
     });
     if (!event) throw new Error('Event not found or access denied.');
   } else {
-    const event = await db.event.findUnique({
+    const event = await db.event.findFirst({
       where: { id: eventId },
       select: { id: true },
     });
@@ -54,7 +54,7 @@ async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode):
     if (!squad) throw new Error('Squad not found or access denied.');
     return squad.eventId;
   }
-  const squad = await db.eventSquad.findUnique({ where: { id: squadId }, select: { eventId: true } });
+  const squad = await db.eventSquad.findFirst({ where: { id: squadId }, select: { eventId: true } });
   if (!squad) throw new Error('Squad not found.');
   return squad.eventId;
 }
@@ -83,7 +83,7 @@ export async function getEvents() {
 
 export async function getEventById(id: string) {
   const ctx = await requireActorContext();
-  return db.event.findUnique({
+  return db.event.findFirst({
     where: {
       id,
       ...ctx.orgFilter.filter,
@@ -130,8 +130,8 @@ export async function createEventAction(formData: FormData) {
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
   if (defaultFormationId) {
-    const formation = await db.formation.findUnique({
-      where: { id: defaultFormationId },
+    const formation = await db.formation.findFirst({
+      where: { id: defaultFormationId, ...ctx.orgFilter.filter },
       select: { id: true, gameFormat: true },
     });
     if (!formation) {
@@ -203,7 +203,7 @@ export async function updateEventAction(id: string, formData: FormData) {
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
 
   if (defaultFormationId) {
-    const formation = await db.formation.findUnique({
+    const formation = await db.formation.findFirst({
       where: {
         id: defaultFormationId,
         ...ctx.orgFilter.filter,
@@ -465,12 +465,12 @@ export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: str
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const squadPlayer = await db.eventSquadPlayer.findUnique({
-    where: { id: eventSquadPlayerId },
+  const squadPlayer = await db.eventSquadPlayer.findFirst({
+    where: { id: eventSquadPlayerId, ...ctx.orgFilter.filter },
     select: { eventSquadId: true, eventId: true },
   });
 
-  if (!squadPlayer) throw new Error('Squad assignment not found.');
+  if (!squadPlayer) throw new Error('Squad assignment not found or access denied.');
 
   await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
 
@@ -655,12 +655,12 @@ export async function togglePlayerLockAction(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const squadPlayer = await db.eventSquadPlayer.findUnique({
-    where: { id: squadPlayerId },
+  const squadPlayer = await db.eventSquadPlayer.findFirst({
+    where: { id: squadPlayerId, ...ctx.orgFilter.filter },
     select: { eventSquadId: true, eventId: true },
   });
 
-  if (!squadPlayer) throw new Error('Squad player assignment not found.');
+  if (!squadPlayer) throw new Error('Squad player assignment not found or access denied.');
 
   await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
 
@@ -746,7 +746,7 @@ export async function generateEventSquadsAction(eventId: string) {
 
   await requireEventNotFinalized(eventId, ctx.orgFilter);
 
-  const event = await db.event.findUnique({
+  const event = await db.event.findFirst({
     where: {
       id: eventId,
       ...ctx.orgFilter.filter,
