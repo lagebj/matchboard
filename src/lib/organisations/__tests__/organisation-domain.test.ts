@@ -8,7 +8,7 @@ import {
   canManageMemberships,
   canDeleteOrganisation,
   canTransferOwnership,
-  canAccessAllTeams,
+  canAccessAllGroups,
 } from "../organisation-domain";
 
 describe("organisation-domain", () => {
@@ -141,15 +141,15 @@ describe("organisation-domain", () => {
     });
   });
 
-  describe("canAccessAllTeams", () => {
+  describe("canAccessAllGroups", () => {
     it("OWNER and ADMIN can access all teams", () => {
-      expect(canAccessAllTeams("OWNER")).toBe(true);
-      expect(canAccessAllTeams("ADMIN")).toBe(true);
+      expect(canAccessAllGroups("OWNER")).toBe(true);
+      expect(canAccessAllGroups("ADMIN")).toBe(true);
     });
 
     it("COACH and VIEWER cannot access all teams", () => {
-      expect(canAccessAllTeams("COACH")).toBe(false);
-      expect(canAccessAllTeams("VIEWER")).toBe(false);
+      expect(canAccessAllGroups("COACH")).toBe(false);
+      expect(canAccessAllGroups("VIEWER")).toBe(false);
     });
   });
 });

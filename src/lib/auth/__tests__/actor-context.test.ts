@@ -17,11 +17,10 @@ import {
   canMutate,
   canAdmin,
   canOwn,
-  hasTeamAccess,
-  requireTeamAccess,
-  requirePlayerTeamAccess,
-  requireMatchTeamAccess,
+  hasTeamGroupAccess,
   requireTeamGroupAccess,
+  requirePlayerGroupAccess,
+  requireMatchGroupAccess,
   teamFilterFromContext,
   groupFilterFromContext,
   teamOrGroupFilter,
@@ -156,17 +155,17 @@ describe("canOwn", () => {
   });
 });
 
-describe("hasTeamAccess", () => {
+describe("hasTeamGroupAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("ADMIN has access to any team", async () => {
-    expect(await hasTeamAccess(makeContext("ADMIN"), "team-1")).toBe(true);
+    expect(await hasTeamGroupAccess(makeContext("ADMIN"), "team-1")).toBe(true);
   });
 
   it("OWNER has access to any team", async () => {
-    expect(await hasTeamAccess(makeContext("OWNER"), "team-1")).toBe(true);
+    expect(await hasTeamGroupAccess(makeContext("OWNER"), "team-1")).toBe(true);
   });
 
   it("COACH with matching group access has access", async () => {
@@ -174,7 +173,7 @@ describe("hasTeamAccess", () => {
       id: "team-1",
       footballGroupId: "group-1",
     });
-    expect(await hasTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).toBe(true);
+    expect(await hasTeamGroupAccess(makeContext("COACH", ["group-1"]), "team-1")).toBe(true);
   });
 
   it("COACH with non-matching group access is denied", async () => {
@@ -182,7 +181,7 @@ describe("hasTeamAccess", () => {
       id: "team-1",
       footballGroupId: "group-2",
     });
-    expect(await hasTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).toBe(false);
+    expect(await hasTeamGroupAccess(makeContext("COACH", ["group-1"]), "team-1")).toBe(false);
   });
 
   it("COACH with no group access is denied", async () => {
@@ -190,26 +189,26 @@ describe("hasTeamAccess", () => {
       id: "team-1",
       footballGroupId: "group-1",
     });
-    expect(await hasTeamAccess(makeContext("COACH"), "team-1")).toBe(false);
+    expect(await hasTeamGroupAccess(makeContext("COACH"), "team-1")).toBe(false);
   });
 
   it("returns false when team not found", async () => {
     (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    expect(await hasTeamAccess(makeContext("COACH", ["group-1"]), "team-missing")).toBe(false);
+    expect(await hasTeamGroupAccess(makeContext("COACH", ["group-1"]), "team-missing")).toBe(false);
   });
 });
 
-describe("requireTeamAccess", () => {
+describe("requireTeamGroupAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("allows ADMIN to any team", async () => {
-    await expect(requireTeamAccess(makeContext("ADMIN"), "team-1")).resolves.toBeUndefined();
+    await expect(requireTeamGroupAccess(makeContext("ADMIN"), "team-1")).resolves.toBeNull();
   });
 
   it("allows OWNER to any team", async () => {
-    await expect(requireTeamAccess(makeContext("OWNER"), "team-1")).resolves.toBeUndefined();
+    await expect(requireTeamGroupAccess(makeContext("OWNER"), "team-1")).resolves.toBeNull();
   });
 
   it("allows COACH with matching group access", async () => {
@@ -217,7 +216,7 @@ describe("requireTeamAccess", () => {
       id: "team-1",
       footballGroupId: "group-1",
     });
-    await expect(requireTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).resolves.toBeUndefined();
+    await expect(requireTeamGroupAccess(makeContext("COACH", ["group-1"]), "team-1")).resolves.toBe("group-1");
   });
 
   it("rejects COACH with non-matching group access", async () => {
@@ -225,7 +224,7 @@ describe("requireTeamAccess", () => {
       id: "team-1",
       footballGroupId: "group-2",
     });
-    await expect(requireTeamAccess(makeContext("COACH", ["group-1"]), "team-1")).rejects.toThrow(AuthorizationError);
+    await expect(requireTeamGroupAccess(makeContext("COACH", ["group-1"]), "team-1")).rejects.toThrow(AuthorizationError);
   });
 
   it("rejects COACH with no group access", async () => {
@@ -233,25 +232,25 @@ describe("requireTeamAccess", () => {
       id: "team-1",
       footballGroupId: "group-1",
     });
-    await expect(requireTeamAccess(makeContext("COACH"), "team-1")).rejects.toThrow(AuthorizationError);
+    await expect(requireTeamGroupAccess(makeContext("COACH"), "team-1")).rejects.toThrow(AuthorizationError);
   });
 });
 
-describe("requirePlayerTeamAccess", () => {
+describe("requirePlayerGroupAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("allows ADMIN without checking player team", async () => {
     const ctx = makeContext("ADMIN");
-    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    const result = await requirePlayerGroupAccess(ctx, "player-1");
     expect(result).toBeNull();
     expect(db.player.findFirst).not.toHaveBeenCalled();
   });
 
   it("allows OWNER without checking player team", async () => {
     const ctx = makeContext("OWNER");
-    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    const result = await requirePlayerGroupAccess(ctx, "player-1");
     expect(result).toBeNull();
     expect(db.player.findFirst).not.toHaveBeenCalled();
   });
@@ -265,7 +264,7 @@ describe("requirePlayerTeamAccess", () => {
       footballGroupId: "group-1",
     });
     const ctx = makeContext("COACH", ["group-1", "group-2"]);
-    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    const result = await requirePlayerGroupAccess(ctx, "player-1");
     expect(result).toBe("team-1");
   });
 
@@ -278,13 +277,13 @@ describe("requirePlayerTeamAccess", () => {
       footballGroupId: "group-3",
     });
     const ctx = makeContext("COACH", ["group-1", "group-2"]);
-    await expect(requirePlayerTeamAccess(ctx, "player-1")).rejects.toThrow(AuthorizationError);
+    await expect(requirePlayerGroupAccess(ctx, "player-1")).rejects.toThrow(AuthorizationError);
   });
 
   it("rejects when player not found in org", async () => {
     (db.player.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     const ctx = makeContext("COACH", ["group-1"]);
-    await expect(requirePlayerTeamAccess(ctx, "player-missing")).rejects.toThrow(AuthorizationError);
+    await expect(requirePlayerGroupAccess(ctx, "player-missing")).rejects.toThrow(AuthorizationError);
   });
 
   it("allows COACH when player has no core team (coreTeamId is null)", async () => {
@@ -292,7 +291,7 @@ describe("requirePlayerTeamAccess", () => {
       coreTeamId: null,
     });
     const ctx = makeContext("COACH", ["group-1"]);
-    const result = await requirePlayerTeamAccess(ctx, "player-1");
+    const result = await requirePlayerGroupAccess(ctx, "player-1");
     expect(result).toBeNull();
   });
 
@@ -305,7 +304,7 @@ describe("requirePlayerTeamAccess", () => {
       footballGroupId: "group-1",
     });
     const ctx = makeContext("COACH", ["group-1"]);
-    await requirePlayerTeamAccess(ctx, "player-1");
+    await requirePlayerGroupAccess(ctx, "player-1");
     expect(db.player.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -317,21 +316,21 @@ describe("requirePlayerTeamAccess", () => {
   });
 });
 
-describe("requireMatchTeamAccess", () => {
+describe("requireMatchGroupAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("allows ADMIN without checking match team", async () => {
     const ctx = makeContext("ADMIN");
-    const result = await requireMatchTeamAccess(ctx, "match-1");
+    const result = await requireMatchGroupAccess(ctx, "match-1");
     expect(result).toBeNull();
     expect(db.match.findFirst).not.toHaveBeenCalled();
   });
 
   it("allows OWNER without checking match team", async () => {
     const ctx = makeContext("OWNER");
-    const result = await requireMatchTeamAccess(ctx, "match-1");
+    const result = await requireMatchGroupAccess(ctx, "match-1");
     expect(result).toBeNull();
   });
 
@@ -344,7 +343,7 @@ describe("requireMatchTeamAccess", () => {
       footballGroupId: "group-1",
     });
     const ctx = makeContext("COACH", ["group-1", "group-2"]);
-    const result = await requireMatchTeamAccess(ctx, "match-1");
+    const result = await requireMatchGroupAccess(ctx, "match-1");
     expect(result).toBe("team-1");
   });
 
@@ -357,13 +356,13 @@ describe("requireMatchTeamAccess", () => {
       footballGroupId: "group-3",
     });
     const ctx = makeContext("COACH", ["group-1", "group-2"]);
-    await expect(requireMatchTeamAccess(ctx, "match-1")).rejects.toThrow(AuthorizationError);
+    await expect(requireMatchGroupAccess(ctx, "match-1")).rejects.toThrow(AuthorizationError);
   });
 
   it("rejects when match not found in org", async () => {
     (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     const ctx = makeContext("COACH", ["group-1"]);
-    await expect(requireMatchTeamAccess(ctx, "match-missing")).rejects.toThrow(AuthorizationError);
+    await expect(requireMatchGroupAccess(ctx, "match-missing")).rejects.toThrow(AuthorizationError);
   });
 
   it("allows COACH when match has no teamId (null)", async () => {
@@ -371,7 +370,7 @@ describe("requireMatchTeamAccess", () => {
       teamId: null,
     });
     const ctx = makeContext("COACH", ["group-1"]);
-    const result = await requireMatchTeamAccess(ctx, "match-1");
+    const result = await requireMatchGroupAccess(ctx, "match-1");
     expect(result).toBeNull();
   });
 });

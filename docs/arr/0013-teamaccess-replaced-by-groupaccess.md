@@ -1,51 +1,65 @@
-# ARR-0013: TeamAccess replaced by GroupAccess
+# ARR-0013: TeamAccess naming residue in authorization functions
 
 ## State
 
-Partially resolved
+Resolved
 
 ## Identified
 
 2026-08-03
 
+## Resolved
+
+2026-08-19
+
 ## Residue
 
-The `TeamAccess` Prisma model and table have been removed. `GroupAccess` is the sole operational access mechanism. `requireTeamAccess()` and `hasTeamAccess()` now delegate to `requireTeamGroupAccess()`, which resolves through `team.footballGroupId` and `ctx.accessibleGroupIds`.
+The `TeamAccess` Prisma model and table were removed. `GroupAccess` is the sole operational access mechanism. However, function names still referenced "Team" while delegating to GroupAccess:
 
-**Resolved:** TeamAccess model removed, `delegatedTeamIds` removed from `ActorContext`, GroupAccess is the enforcement mechanism, cross-org authorization matrix tests (24 tests) verify enforcement.
+- `requireTeamAccess` → delegated to `requireTeamGroupAccess`
+- `hasTeamAccess` → checked `accessibleGroupIds` via `footballGroupId`
+- `requirePlayerTeamAccess` → resolved player's team group
+- `requireMatchTeamAccess` → resolved match's team group
+- `canAccessAllTeams` → checked group access
 
-**Remaining naming residue:** Function names `requireTeamAccess`, `hasTeamAccess`, `requirePlayerTeamAccess`, `requireMatchTeamAccess` still reference "Team" but delegate to GroupAccess internally. The `OrganisationAccessContext` still has a `requireTeamAccess` function that resolves via `footballGroupId`.
+These names were misleading because the authorization path resolved through `footballGroupId` and `accessibleGroupIds`, not through a `TeamAccess` table.
 
-This naming residue is cosmetic, not architectural. The authorization path is correct; only the function names are misleading.
+## Resolution evidence
+
+All authorization functions have been renamed to reflect their Group-based implementation:
+
+- `requireTeamAccess` → removed (was a wrapper calling `requireTeamGroupAccess`)
+- `hasTeamAccess` → `hasTeamGroupAccess`
+- `requirePlayerTeamAccess` → `requirePlayerGroupAccess`
+- `requireMatchTeamAccess` → `requireMatchGroupAccess`
+- `canAccessAllTeams` → `canAccessAllGroups`
+
+The `requireTeamGroupAccess` function (which already existed as the real implementation) is now the primary entry point. Call sites updated across all server actions, API routes, test mocks, and organisation access modules.
+
+Typecheck, lint, and 226 auth-related tests pass.
 
 ## Intended architecture
 
-Per ADR-0049, GroupAccess is the sole operational access mechanism. TeamAccess is removed.
-
-## Containment
-
-- No new code may reference `TeamAccess` as a model or authorization path
-- All new team-level authorization must use `GroupAccess` and `accessibleGroupIds`
-- Function names may be renamed in a future naming cleanup PR
-
-## Resolution criteria
-
-- [x] TeamAccess Prisma model removed
-- [x] TeamAccess database table removed
-- [x] `delegatedTeamIds` removed from `ActorContext`
-- [x] All team-level authorization resolves through GroupAccess
-- [ ] Function names renamed from `requireTeamAccess` to `requireTeamGroupAccess` etc. (cosmetic)
+Per ADR-0049, GroupAccess is the sole operational access mechanism. Function names now reflect this.
 
 ## Related decisions
 
 - ADR-0049: Football Group as Operational Boundary
 
+## Superseded by
+
+None.
+
 ## History
 
 ### 2026-08-03
 
-Record created.
+Record created from FootballGroup migration enforcement phase.
 
 ### 2026-08-19
 
-Updated to partially resolved. TeamAccess model and table removed. GroupAccess is the sole enforcement mechanism. Function naming residue remains as cosmetic issue.
+Updated to partially resolved. TeamAccess model removed. GroupAccess is the sole enforcement mechanism. Naming residue documented.
+
+### 2026-08-19
+
+Resolved. All authorization functions renamed from Team-based to Group-based names. `requireTeamAccess` wrapper removed. `canAccessAllTeams` renamed to `canAccessAllGroups`.

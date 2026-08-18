@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requirePlayerTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -41,8 +41,8 @@ export async function createMatchFeedbackAction(
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
-  await requirePlayerTeamAccess(ctx, playerId);
+  await requireMatchGroupAccess(ctx, matchId);
+  await requirePlayerGroupAccess(ctx, playerId);
 
   if (!FEEDBACK_CATEGORIES.includes(category as FeedbackCategory)) {
     return { success: false, error: `Invalid feedback category: ${category}` };
@@ -110,8 +110,8 @@ export async function updateMatchFeedbackAction(
     const existing = await db.matchExecutionFeedback.findFirst({ where: { id: feedbackId, ...ctx.orgFilter.filter } });
     if (!existing) return { success: false, error: "Feedback not found." };
 
-    await requireMatchTeamAccess(ctx, existing.matchId);
-    await requirePlayerTeamAccess(ctx, existing.playerId);
+    await requireMatchGroupAccess(ctx, existing.matchId);
+    await requirePlayerGroupAccess(ctx, existing.playerId);
 
     const match = await db.match.findFirst({
       where: { id: existing.matchId, ...ctx.orgFilter.filter },
@@ -158,8 +158,8 @@ export async function deleteMatchFeedbackAction(
     const feedback = await db.matchExecutionFeedback.findFirst({ where: { id: feedbackId, ...ctx.orgFilter.filter } });
     if (!feedback) return { success: false, error: "Feedback not found." };
 
-    await requireMatchTeamAccess(ctx, feedback.matchId);
-    await requirePlayerTeamAccess(ctx, feedback.playerId);
+    await requireMatchGroupAccess(ctx, feedback.matchId);
+    await requirePlayerGroupAccess(ctx, feedback.playerId);
 
     const match = await db.match.findFirst({
       where: { id: feedback.matchId, ...ctx.orgFilter.filter },

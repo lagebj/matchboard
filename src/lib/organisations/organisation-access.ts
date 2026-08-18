@@ -11,7 +11,7 @@ export type OrganisationAccessContext = {
   membershipId: string;
   accessibleGroupIds: string[];
   groupAccesses: GroupAccessEntry[];
-  canAccessAllTeams: boolean;
+  canAccessAllGroups: boolean;
   canCreateTeam: boolean;
   canManageMemberships: boolean;
   canInviteRole: (targetRole: OrganisationRole) => boolean;
@@ -35,8 +35,8 @@ export function requireRole(ctx: OrganisationAccessContext, ...allowedRoles: Org
   }
 }
 
-export async function requireTeamAccess(ctx: OrganisationAccessContext, teamId: string): Promise<void> {
-  if (ctx.canAccessAllTeams) return;
+export async function requireTeamGroupAccess(ctx: OrganisationAccessContext, teamId: string): Promise<void> {
+  if (ctx.canAccessAllGroups) return;
 
   const { db } = await import("@/lib/db");
   const team = await db.team.findFirst({

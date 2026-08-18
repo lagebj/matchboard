@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { requireActorContext, canAdmin, hasTeamAccess } from '@/lib/auth/actor-context';
+import { requireActorContext, canAdmin, hasTeamGroupAccess } from '@/lib/auth/actor-context';
 
 export type AttentionCategory =
   | 'review_assigned'
@@ -171,7 +171,7 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
 
     const teamFilteredMatches = await Promise.all(
       recentMatches.map(async (match) =>
-        match.teamId ? await hasTeamAccess(ctx, match.teamId) : true,
+        match.teamId ? await hasTeamGroupAccess(ctx, match.teamId) : true,
       ),
     ).then((results) => recentMatches.filter((_, i) => results[i]));
 
@@ -252,7 +252,7 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
 
     const teamFilteredUpcoming = await Promise.all(
       upcomingMatches.map(async (match) =>
-        match.teamId ? await hasTeamAccess(ctx, match.teamId) : true,
+        match.teamId ? await hasTeamGroupAccess(ctx, match.teamId) : true,
       ),
     ).then((results) => upcomingMatches.filter((_, i) => results[i]));
 

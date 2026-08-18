@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { logAccessDenied } from "@/lib/security/audit-log";
-import { canAccessAllTeams, canInviteRole, canManageRole, canCreateTeam, canManageMemberships, canDeleteOrganisation, canTransferOwnership } from "@/lib/organisations/organisation-domain";
+import { canAccessAllGroups, canInviteRole, canManageRole, canCreateTeam, canManageMemberships, canDeleteOrganisation, canTransferOwnership } from "@/lib/organisations/organisation-domain";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { getEffectiveGroupAccess } from "@/lib/auth/group-context";
@@ -103,7 +103,7 @@ export async function resolveOrganisationAccess(
     membershipId: membership.id,
     accessibleGroupIds,
     groupAccesses,
-    canAccessAllTeams: canAccessAllTeams(role),
+    canAccessAllGroups: canAccessAllGroups(role),
     canCreateTeam: canCreateTeam(role),
     canManageMemberships: canManageMemberships(role),
     canInviteRole: (targetRole: OrganisationRole) => canInviteRole(role, targetRole),

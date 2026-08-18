@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getRules } from "@/lib/rules/get-rules";
 
@@ -119,8 +119,8 @@ export async function createRotationPathAction(prevState: ActionState, formData:
     if (!fromTeam) throw new Error("Source team not found or access denied.");
     if (!toTeam) throw new Error("Target team not found or access denied.");
 
-    await requireTeamAccess(ctx, fromTeamId);
-    await requireTeamAccess(ctx, toTeamId);
+    await requireTeamGroupAccess(ctx, fromTeamId);
+    await requireTeamGroupAccess(ctx, toTeamId);
 
     const existing = await db.rotationPath.findFirst({
     where: { fromTeamId, toTeamId, role },
@@ -172,8 +172,8 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
     const existingPath = await db.rotationPath.findFirst({ where: { id: pathId, ...ctx.orgFilter.filter } });
     if (!existingPath) throw new Error("Rotation path not found or access denied.");
 
-    await requireTeamAccess(ctx, existingPath.fromTeamId);
-    await requireTeamAccess(ctx, existingPath.toTeamId);
+    await requireTeamGroupAccess(ctx, existingPath.fromTeamId);
+    await requireTeamGroupAccess(ctx, existingPath.toTeamId);
 
     const purpose = readText(formData, "purpose");
     const priority = readOptionalInt(formData, "priority");
@@ -230,8 +230,8 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
 
     if (!existingPath) throw new Error("Rotation path not found or access denied.");
 
-    await requireTeamAccess(ctx, existingPath.fromTeamId);
-    await requireTeamAccess(ctx, existingPath.toTeamId);
+    await requireTeamGroupAccess(ctx, existingPath.fromTeamId);
+    await requireTeamGroupAccess(ctx, existingPath.toTeamId);
 
     await db.rotationPath.delete({ where: { id: pathId } });
 
@@ -260,8 +260,8 @@ export async function toggleRotationPathActiveAction(prevState: ActionState, for
 
     if (!existingPath) throw new Error("Rotation path not found or access denied.");
 
-    await requireTeamAccess(ctx, existingPath.fromTeamId);
-    await requireTeamAccess(ctx, existingPath.toTeamId);
+    await requireTeamGroupAccess(ctx, existingPath.fromTeamId);
+    await requireTeamGroupAccess(ctx, existingPath.toTeamId);
 
     await db.rotationPath.update({
       where: { id: pathId },

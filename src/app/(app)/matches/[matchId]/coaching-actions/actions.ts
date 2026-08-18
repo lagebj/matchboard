@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requireTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -61,7 +61,7 @@ export async function setCoachingIntentAction(
     await requireScopeOrgAccess(scopeType, scopeId, ctx.orgFilter);
 
     if (scopeType === "TEAM") {
-      await requireTeamAccess(ctx, scopeId);
+      await requireTeamGroupAccess(ctx, scopeId);
     }
 
     const existing = await db.coachingIntent.findFirst({
@@ -118,7 +118,7 @@ export async function removeCoachingIntentAction(
     if (!intent) return { success: false, error: "Intent not found." };
 
     if (intent.scopeType === "TEAM") {
-      await requireTeamAccess(ctx, intent.scopeId);
+      await requireTeamGroupAccess(ctx, intent.scopeId);
     }
 
     await db.coachingIntent.delete({ where: { id: intentId } });

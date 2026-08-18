@@ -7,7 +7,7 @@ import {
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
-import { requireActorContext, requireMutationRole, requirePlayerTeamAccess, requireMatchTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requirePlayerGroupAccess, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
@@ -49,8 +49,8 @@ export async function addPlayerToMatchAction(formData: FormData) {
   if (!match) throw new Error("Match not found or access denied.");
 
 
-  await requireMatchTeamAccess(ctx, matchId);
-  await requirePlayerTeamAccess(ctx, playerId as string);
+  await requireMatchGroupAccess(ctx, matchId);
+  await requirePlayerGroupAccess(ctx, playerId as string);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -87,8 +87,8 @@ export async function removePlayerFromMatchAction(formData: FormData) {
   if (!match) throw new Error("Match not found or access denied.");
 
 
-  await requireMatchTeamAccess(ctx, matchId);
-  await requirePlayerTeamAccess(ctx, playerId);
+  await requireMatchGroupAccess(ctx, matchId);
+  await requirePlayerGroupAccess(ctx, playerId);
 
   const result = await removePlayerFromDraftMatch(matchId, playerId);
 
@@ -120,8 +120,8 @@ export async function changePlayerRoleAction(formData: FormData) {
   if (!match) throw new Error("Match not found or access denied.");
 
 
-  await requireMatchTeamAccess(ctx, matchId);
-  await requirePlayerTeamAccess(ctx, playerId);
+  await requireMatchGroupAccess(ctx, matchId);
+  await requirePlayerGroupAccess(ctx, playerId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)
@@ -165,9 +165,9 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
   if (!round) throw new Error("Round not found or access denied.");
 
 
-  await requireMatchTeamAccess(ctx, fromMatchId);
-  await requireMatchTeamAccess(ctx, toMatchId);
-  await requirePlayerTeamAccess(ctx, playerId);
+  await requireMatchGroupAccess(ctx, fromMatchId);
+  await requireMatchGroupAccess(ctx, toMatchId);
+  await requirePlayerGroupAccess(ctx, playerId);
 
   const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
     ? (overrideReasonCategory as OverrideReasonCategory)

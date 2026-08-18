@@ -19,7 +19,7 @@ describe("tenant-context", () => {
         membershipId: "mem-1",
         accessibleGroupIds: [],
         groupAccesses: [],
-        canAccessAllTeams: true,
+        canAccessAllGroups: true,
         canCreateTeam: true,
         canManageMemberships: true,
         canInviteRole: () => true,

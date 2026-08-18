@@ -8,12 +8,11 @@ const {
   mockCanMutate,
   mockCanAdmin,
   mockCanOwn,
-  mockHasTeamAccess,
+  mockHasTeamGroupAccess,
   mockHasGroupAccess,
-  mockRequireTeamAccess,
-  mockRequirePlayerTeamAccess,
-  mockRequireMatchTeamAccess,
   mockRequireTeamGroupAccess,
+  mockRequirePlayerGroupAccess,
+  mockRequireMatchGroupAccess,
   mockRequireGroupAccessFromContext,
   mockTeamFilterFromContext,
   mockGroupFilterFromContext,
@@ -27,12 +26,11 @@ const {
   mockCanMutate: vi.fn(),
   mockCanAdmin: vi.fn(),
   mockCanOwn: vi.fn(),
-  mockHasTeamAccess: vi.fn(),
+  mockHasTeamGroupAccess: vi.fn(),
   mockHasGroupAccess: vi.fn(),
-  mockRequireTeamAccess: vi.fn(),
-  mockRequirePlayerTeamAccess: vi.fn(),
-  mockRequireMatchTeamAccess: vi.fn(),
   mockRequireTeamGroupAccess: vi.fn(),
+  mockRequirePlayerGroupAccess: vi.fn(),
+  mockRequireMatchGroupAccess: vi.fn(),
   mockRequireGroupAccessFromContext: vi.fn(),
   mockTeamFilterFromContext: vi.fn(),
   mockGroupFilterFromContext: vi.fn(),
@@ -48,12 +46,11 @@ vi.mock("@/lib/auth/actor-context", () => ({
   canMutate: mockCanMutate,
   canAdmin: mockCanAdmin,
   canOwn: mockCanOwn,
-  hasTeamAccess: mockHasTeamAccess,
+  hasTeamGroupAccess: mockHasTeamGroupAccess,
   hasGroupAccess: mockHasGroupAccess,
-  requireTeamAccess: mockRequireTeamAccess,
-  requirePlayerTeamAccess: mockRequirePlayerTeamAccess,
-  requireMatchTeamAccess: mockRequireMatchTeamAccess,
   requireTeamGroupAccess: mockRequireTeamGroupAccess,
+  requirePlayerGroupAccess: mockRequirePlayerGroupAccess,
+  requireMatchGroupAccess: mockRequireMatchGroupAccess,
   requireGroupAccessFromContext: mockRequireGroupAccessFromContext,
   teamFilterFromContext: mockTeamFilterFromContext,
   groupFilterFromContext: mockGroupFilterFromContext,
@@ -173,11 +170,11 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
   mockCanMutate.mockReturnValue(true);
   mockCanAdmin.mockReturnValue(true);
   mockCanOwn.mockReturnValue(false);
-  mockHasTeamAccess.mockResolvedValue(true);
+  mockHasTeamGroupAccess.mockResolvedValue(true);
   mockHasGroupAccess.mockReturnValue(true);
-  mockRequireTeamAccess.mockResolvedValue(undefined);
-  mockRequirePlayerTeamAccess.mockResolvedValue(null);
-  mockRequireMatchTeamAccess.mockResolvedValue(null);
+  mockRequireTeamGroupAccess.mockResolvedValue(undefined);
+  mockRequirePlayerGroupAccess.mockResolvedValue(null);
+  mockRequireMatchGroupAccess.mockResolvedValue(null);
   mockRequireTeamGroupAccess.mockResolvedValue(null);
   mockRequireGroupAccessFromContext.mockImplementation(() => {});
   mockTeamFilterFromContext.mockReturnValue(null);
@@ -192,12 +189,11 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
     mockCanMutate,
     mockCanAdmin,
     mockCanOwn,
-    mockHasTeamAccess,
+    mockHasTeamGroupAccess,
     mockHasGroupAccess,
-    mockRequireTeamAccess,
-    mockRequirePlayerTeamAccess,
-    mockRequireMatchTeamAccess,
     mockRequireTeamGroupAccess,
+    mockRequirePlayerGroupAccess,
+    mockRequireMatchGroupAccess,
     mockRequireGroupAccessFromContext,
     mockTeamFilterFromContext,
     mockGroupFilterFromContext,

@@ -43,7 +43,7 @@ vi.mock("@/lib/auth/actor-context", () => ({
     groupAccesses: [{ footballGroupId: "group-1", role: "GROUP_COACH" }],
     orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
   }),
-  requireMatchTeamAccess: vi.fn().mockResolvedValue({
+  requireMatchGroupAccess: vi.fn().mockResolvedValue({
     userId: "test-user",
     email: "test@example.com",
     membershipId: "mem-1",

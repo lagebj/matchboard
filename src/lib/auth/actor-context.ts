@@ -141,7 +141,7 @@ export function canOwn(ctx: ActorContext): boolean {
   return OWNER_ROLES.includes(ctx.role);
 }
 
-export async function hasTeamAccess(ctx: ActorContext, teamId: string): Promise<boolean> {
+export async function hasTeamGroupAccess(ctx: ActorContext, teamId: string): Promise<boolean> {
   if (ADMIN_ROLES.includes(ctx.role)) return true;
 
   const team = await db.team.findFirst({
@@ -153,11 +153,8 @@ export async function hasTeamAccess(ctx: ActorContext, teamId: string): Promise<
   return ctx.accessibleGroupIds.includes(team.footballGroupId);
 }
 
-export async function requireTeamAccess(ctx: ActorContext, teamId: string): Promise<void> {
-  await requireTeamGroupAccess(ctx, teamId);
-}
 
-export async function requirePlayerTeamAccess(
+export async function requirePlayerGroupAccess(
   ctx: ActorContext,
   playerId: string,
 ): Promise<string | null> {
@@ -194,7 +191,7 @@ export async function requirePlayerTeamAccess(
   return player.coreTeamId;
 }
 
-export async function requireMatchTeamAccess(
+export async function requireMatchGroupAccess(
   ctx: ActorContext,
   matchId: string,
 ): Promise<string | null> {

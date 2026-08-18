@@ -8,7 +8,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { requireRole, requireTeamAccess } from "../organisation-access";
+import { requireRole, requireTeamGroupAccess } from "../organisation-access";
 import { db } from "@/lib/db";
 
 describe("organisation-access", () => {
@@ -21,7 +21,7 @@ describe("organisation-access", () => {
     membershipId: "mem1",
     accessibleGroupIds: ["group1", "group2"],
     groupAccesses: [],
-    canAccessAllTeams: false,
+    canAccessAllGroups: false,
     canCreateTeam: false,
     canManageMemberships: false,
     canInviteRole: () => false as const,
@@ -57,14 +57,14 @@ describe("organisation-access", () => {
     });
   });
 
-  describe("requireTeamAccess", () => {
+  describe("requireTeamGroupAccess", () => {
     beforeEach(() => {
       vi.clearAllMocks();
     });
 
-    it("passes when user has canAccessAllTeams", async () => {
-      const adminCtx = { ...baseCtx, role: "ADMIN" as const, canAccessAllTeams: true };
-      await expect(requireTeamAccess(adminCtx, "any-team-id")).resolves.toBeUndefined();
+    it("passes when user has canAccessAllGroups", async () => {
+      const adminCtx = { ...baseCtx, role: "ADMIN" as const, canAccessAllGroups: true };
+      await expect(requireTeamGroupAccess(adminCtx, "any-team-id")).resolves.toBeUndefined();
     });
 
     it("passes when team's group is in accessibleGroupIds", async () => {
@@ -73,7 +73,7 @@ describe("organisation-access", () => {
         footballGroupId: "group1",
       });
       const coachCtx = { ...baseCtx, role: "COACH" as const };
-      await expect(requireTeamAccess(coachCtx, "team1")).resolves.toBeUndefined();
+      await expect(requireTeamGroupAccess(coachCtx, "team1")).resolves.toBeUndefined();
     });
 
     it("throws when team's group is not in accessibleGroupIds", async () => {
@@ -82,13 +82,13 @@ describe("organisation-access", () => {
         footballGroupId: "group3",
       });
       const coachCtx = { ...baseCtx, role: "COACH" as const };
-      await expect(requireTeamAccess(coachCtx, "team3")).rejects.toThrow("You do not have access to this team");
+      await expect(requireTeamGroupAccess(coachCtx, "team3")).rejects.toThrow("You do not have access to this team");
     });
 
     it("throws when team not found", async () => {
       (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       const coachCtx = { ...baseCtx, role: "COACH" as const };
-      await expect(requireTeamAccess(coachCtx, "team-missing")).rejects.toThrow("You do not have access to this team");
+      await expect(requireTeamGroupAccess(coachCtx, "team-missing")).rejects.toThrow("You do not have access to this team");
     });
   });
 });
