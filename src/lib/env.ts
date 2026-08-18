@@ -115,14 +115,30 @@ export function validateEnv(): EnvValidationResult {
     }
   }
 
-  // Production-specific warnings
-  if (isProduction()) {
+  // Production-specific checks (uses process.env directly for testability)
+  const isProdEnv = process.env.MATCHBOARD_ENV === "production" ||
+    (!process.env.MATCHBOARD_ENV && process.env.NODE_ENV === "production");
+
+  if (isProdEnv) {
     if (!process.env.APP_BASE_URL) {
-      warnings.push("APP_BASE_URL should be set in production for email link generation.");
+      errors.push("APP_BASE_URL is required in production for secure link generation. External URLs must originate from a validated base URL, not from Host headers or localhost fallbacks.");
+    } else {
+      const url = process.env.APP_BASE_URL;
+      if (!url.startsWith("https://")) {
+        errors.push(`APP_BASE_URL must start with https:// in production. Got: ${url}`);
+      }
     }
     if (!process.env.BREVO_API_KEY) {
       warnings.push("BREVO_API_KEY should be set in production for transactional email delivery.");
     }
+    if (process.env.BYPASS_AUTH === "true") {
+      errors.push("BYPASS_AUTH=true must not be set in production. Test-only authentication mechanisms cannot be active in a production environment.");
+    }
+  }
+
+  // Non-production APP_BASE_URL warnings
+  if (!isProdEnv && !isTest() && !process.env.APP_BASE_URL) {
+    warnings.push("APP_BASE_URL is not set. External URLs will fall back to AUTH_URL or localhost, which may be incorrect for staging deployments.");
   }
 
   return { valid: errors.length === 0, errors, warnings };
@@ -150,4 +166,23 @@ export function isPublicRoute(pathname: string): boolean {
     }
     return pathname.startsWith(route);
   });
+}
+
+let envValidated = false;
+
+export function ensureEnvValidated(): void {
+  if (envValidated) return;
+  envValidated = true;
+  const result = validateEnv();
+  if (!result.valid) {
+    for (const error of result.errors) {
+      console.error(`[env] ${error}`);
+    }
+    if (isProduction()) {
+      throw new Error(`Environment validation failed: ${result.errors.join("; ")}`);
+    }
+  }
+  for (const warning of result.warnings) {
+    console.warn(`[env] ${warning}`);
+  }
 }

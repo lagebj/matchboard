@@ -1,7 +1,7 @@
 import { edgeAuth } from "@/auth-edge";
 import { NextResponse } from "next/server";
 import { getContentSecurityPolicy } from "@/lib/security/csp";
-import { isPublicRoute } from "@/lib/env";
+import { isPublicRoute, isProduction } from "@/lib/env";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
@@ -16,6 +16,9 @@ const PREVIEW_ALLOWLIST_ENV = process.env.PREVIEW_ALLOWLIST_EMAILS;
 function withSecurityHeaders(response: NextResponse): NextResponse {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
+  }
+  if (isProduction()) {
+    response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
   const csp = getContentSecurityPolicy();
   response.headers.set(csp.header, csp.value);
@@ -34,6 +37,11 @@ export default edgeAuth((req) => {
     return withSecurityHeaders(response);
   }
 
+  // PREVIEW_ALLOWLIST_EMAILS restricts preview deployment API access.
+  // When unset or empty, all authenticated users can access preview API routes.
+  // When set, only listed email addresses can access preview API routes.
+  // This is separate from application authorization (organisation membership)
+  // and is intended only for preview deployment protection, not as an auth mechanism.
   if (isPreviewDeployment() && path.startsWith("/api/")) {
     const previewAllowlist = (PREVIEW_ALLOWLIST_ENV || "")
       .split(",")
