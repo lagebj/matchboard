@@ -58,9 +58,9 @@ describe("safeErrorResponse", () => {
   });
 
   it("handles custom 403 auth errors", () => {
-    const error = new AppError("FORBIDDEN", 403, "Not on allowlist");
+    const error = new AppError("FORBIDDEN", 403, "Access denied");
     const response = safeErrorResponse(error);
-    expect(response.error).toBe("Not on allowlist");
+    expect(response.error).toBe("Access denied");
     expect(response.code).toBe("FORBIDDEN");
     expect(response.statusCode).toBe(403);
   });

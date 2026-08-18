@@ -40,9 +40,9 @@ describe("audit-log", () => {
   });
 
   it("logs auth failure to warn", () => {
-    logAuthFailure("unknown@example.com", "not_in_allowlist");
+    logAuthFailure("unknown@example.com", "no_session");
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[security:auth] login_failure result=failure actor=unknown@example.com reason=not_in_allowlist"),
+      expect.stringContaining("[security:auth] login_failure result=failure actor=unknown@example.com reason=no_session"),
     );
   });
 

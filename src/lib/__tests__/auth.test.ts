@@ -18,10 +18,10 @@ describe("AuthenticationError (direct AppError)", () => {
 
 describe("AuthorizationError (direct AppError)", () => {
   it("creates 403 error with correct code and message", () => {
-    const error = new AppError("FORBIDDEN", 403, "Not on allowlist");
+    const error = new AppError("FORBIDDEN", 403, "Access denied");
     expect(error.statusCode).toBe(403);
     expect(error.code).toBe("FORBIDDEN");
-    expect(error.message).toBe("Not on allowlist");
+    expect(error.message).toBe("Access denied");
   });
 
   it("creates 403 error with default message", () => {

@@ -24,8 +24,8 @@ Matchboard is moving from a single-trusted-user installation toward a product-ca
 
 The existing architecture uses:
 - Auth.js with Google OAuth for authentication
-- Email allowlist for authorisation (single-role COACH access)
-- JWT sessions with no absolute expiry
+- Membership-based authorisation (OrganisationMembership with roles, ADR-0061)
+- JWT sessions with 24h max age
 - In-memory rate limiting
 - Prisma ORM for all queries (parameterised raw SQL only)
 - No outbound HTTP calls at runtime
