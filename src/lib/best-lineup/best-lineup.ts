@@ -534,9 +534,14 @@ export async function assignPlayerToBestLineupSlot(
   }
 }
 
-export async function clearBestLineupSlot(lineupId: string, slotId: string): Promise<void> {
+export async function clearBestLineupSlot(lineupId: string, slotId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const lineup = await db.teamBestLineup.findFirst({
+    where: { id: lineupId, team: orgFilter.filter },
+  });
+  if (!lineup) return;
+
   await db.teamBestLineupAssignment.deleteMany({
-    where: { bestLineupId: lineupId, slotId },
+    where: { bestLineupId: lineup.id, slotId },
   });
 }
 

@@ -375,4 +375,103 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     const removeBody = actionsFile.substring(removeIdx, removeIdx + 500);
     expect(removeBody).toContain("requireEventNotFinalized");
   });
+
+  it("clearBestLineupSlot passes orgFilter for tenant isolation", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const bestLineupLib = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/best-lineup/best-lineup.ts"),
+      "utf-8",
+    );
+    const slotFnIdx = bestLineupLib.indexOf("export async function clearBestLineupSlot(");
+    expect(slotFnIdx).toBeGreaterThan(-1);
+    const slotFnBody = bestLineupLib.substring(slotFnIdx, slotFnIdx + 400);
+    expect(slotFnBody).toContain("orgFilter");
+  });
+
+  it("clearBestLineupSlotAction passes orgFilter to library function", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const actionsFile = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions.ts"),
+      "utf-8",
+    );
+    const actionIdx = actionsFile.indexOf("clearBestLineupSlotAction");
+    expect(actionIdx).toBeGreaterThan(-1);
+    const actionBody = actionsFile.substring(actionIdx, actionIdx + 300);
+    expect(actionBody).toContain("orgFilter");
+  });
+});
+
+describe("Security audit: tenant invariant — organisation-owned models are in RLS_TABLES", () => {
+  async function getPrismaModels() {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const schema = fs.readFileSync(
+      path.join(process.cwd(), "prisma/schema.prisma"),
+      "utf-8",
+    );
+    const models: Record<string, string[]> = {};
+    const modelRegex = /^model\s+(\w+)\s*\{/gm;
+    let match;
+    while ((match = modelRegex.exec(schema)) !== null) {
+      const modelName = match[1];
+      const modelStart = match.index + match[0].length;
+      const modelEnd = schema.indexOf("\n}", modelStart);
+      const modelBody = schema.substring(modelStart, modelEnd);
+      const fields = modelBody
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("//") && !l.startsWith("@@"))
+        .map((l) => l.split(/\s+/)[0]);
+      models[modelName] = fields;
+    }
+    return models;
+  }
+
+  it("every model with organisationId is in RLS_TABLES (with documented exceptions)", async () => {
+    const models = await getPrismaModels();
+    const modelsWithOrgId = Object.entries(models)
+      .filter(([_, fields]) => fields.includes("organisationId"))
+      .map(([name]) => name);
+
+    const expectedRlsNames = modelsWithOrgId.map((name) =>
+      name.charAt(0).toLowerCase() + name.slice(1),
+    );
+
+    const { RLS_TABLES } = await import("../lib/db");
+    const rlsSet = new Set(RLS_TABLES as unknown as string[]);
+
+    const documentedExceptions = new Set([
+      "notificationOutbox",
+    ]);
+
+    const missing = expectedRlsNames.filter(
+      (name) => !rlsSet.has(name) && !documentedExceptions.has(name),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  it("NotificationOutbox is intentionally excluded from RLS_TABLES (cross-tenant batch)", async () => {
+    const { RLS_TABLES } = await import("../lib/db");
+    const rlsSet = new Set(RLS_TABLES as unknown as string[]);
+    expect(rlsSet.has("notificationOutbox")).toBe(false);
+  });
+
+  it("every model in RLS_TABLES has organisationId", async () => {
+    const models = await getPrismaModels();
+    const { RLS_TABLES } = await import("../lib/db");
+    const rlsNames = RLS_TABLES as unknown as string[];
+
+    for (const rlsName of rlsNames) {
+      const modelName = rlsName.charAt(0).toUpperCase() + rlsName.slice(1);
+      const fields = models[modelName];
+      if (!fields) {
+        continue;
+      }
+      const hasOrgId = fields.includes("organisationId");
+      expect(hasOrgId).toBe(true);
+    }
+  });
 });
