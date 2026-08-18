@@ -5,6 +5,19 @@ import type {
   SendEmailRequest,
 } from "./provider";
 import { getEmailFromAddress, getEmailFromName } from "./provider";
+import { isProduction } from "@/lib/env";
+
+function getTestRecipientsAllowlist(): Set<string> {
+  const raw = process.env.BREVO_TEST_RECIPIENTS ?? "";
+  return new Set(raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+}
+
+export function isTestRecipientAllowed(email: string): boolean {
+  if (isProduction()) return true;
+  const allowlist = getTestRecipientsAllowlist();
+  if (allowlist.size === 0) return false;
+  return allowlist.has(email.toLowerCase());
+}
 
 export class BrevoEmailProvider implements TransactionalEmailProvider {
   readonly name = "brevo";
@@ -15,6 +28,41 @@ export class BrevoEmailProvider implements TransactionalEmailProvider {
   }
 
   async send(request: SendEmailRequest): Promise<EmailProviderResult> {
+    if (!isProduction()) {
+      const blocked = request.to.filter((r) => !isTestRecipientAllowed(r.email));
+      if (blocked.length > 0) {
+        const blockedEmails = blocked.map((r) => r.email).join(", ");
+        console.warn(
+          `[email] Blocked non-production send to: ${blockedEmails}. Set BREVO_TEST_RECIPIENTS to allow specific addresses.`,
+        );
+        if (blocked.length === request.to.length) {
+          return {
+            success: false,
+            error: `Non-production environment: no test recipients configured. Set BREVO_TEST_RECIPIENTS to allow specific addresses.`,
+          };
+        }
+      }
+
+      const allowed = request.to.filter((r) => isTestRecipientAllowed(r.email));
+      if (allowed.length === 0) {
+        return {
+          success: false,
+          error: `Non-production environment: no test recipients configured. Set BREVO_TEST_RECIPIENTS to allow specific addresses.`,
+        };
+      }
+
+      const filteredRequest: SendEmailRequest = {
+        ...request,
+        to: allowed,
+      };
+
+      return this._sendWithClient(filteredRequest);
+    }
+
+    return this._sendWithClient(request);
+  }
+
+  private async _sendWithClient(request: SendEmailRequest): Promise<EmailProviderResult> {
     const from = request.from ?? {
       email: getEmailFromAddress(),
       name: getEmailFromName(),

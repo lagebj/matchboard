@@ -16,6 +16,8 @@ import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from 
 import { enqueueNotification, sendNotificationNow, cancelNotificationByIdempotencyKey } from "@/lib/email/outbox";
 import { db } from "@/lib/db";
 import type { OrganisationRole, PrismaClient } from "@/generated/prisma/client";
+import { rateLimit } from "@/lib/rate-limit";
+import { hashToken } from "@/lib/organisations/organisation-invitation";
 
 const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER", "SUPPORT"]);
 
@@ -61,6 +63,12 @@ export async function createInvitationAction(
 ) {
   const coach = await requireCoachAccess();
   const ctx = await resolveOrganisationAdminOrOwner(organisationSlug);
+
+  const createKey = `invitation-create:${ctx.userId}`;
+  const { allowed } = rateLimit(createKey, 10, 60_000);
+  if (!allowed) {
+    return { success: false as const, error: "Too many invitation attempts. Please wait a minute and try again." };
+  }
   const inviterName = coach.name || ctx.userEmail;
 
   if (!role || !VALID_ORGANISATION_ROLES.has(role)) {
@@ -140,12 +148,19 @@ export async function createInvitationAction(
 export async function acceptInvitationAction(token: string) {
   const coach = await requireCoachAccess();
   const coachEmail: string = coach.email ?? "unknown";
+  const coachId: string = coach.id ?? "";
 
   if (!token?.trim()) {
     return { success: false as const, error: "Invitation token is required." };
   }
 
-  const result = await acceptInvitation({ token: token.trim(), userId: coach.id ?? "", userEmail: coachEmail });
+  const tokenKey = `invitation-accept:${hashToken(token.trim())}`;
+  const { allowed } = rateLimit(tokenKey, 10, 60_000);
+  if (!allowed) {
+    return { success: false as const, error: "Too many attempts. Please wait a minute and try again." };
+  }
+
+  const result = await acceptInvitation({ token: token.trim(), userId: coachId, userEmail: coachEmail });
 
   if (!result.success) {
     logOrganisationInvitationAccept(coachEmail, "", "failure");
@@ -192,6 +207,12 @@ export async function declineInvitationAction(token: string) {
 
   if (!token?.trim()) {
     return { success: false as const, error: "Invitation token is required." };
+  }
+
+  const tokenKey = `invitation-decline:${hashToken(token.trim())}`;
+  const { allowed } = rateLimit(tokenKey, 10, 60_000);
+  if (!allowed) {
+    return { success: false as const, error: "Too many attempts. Please wait a minute and try again." };
   }
 
   const result = await declineInvitation({ token: token.trim(), userId: coachId, userEmail: coachEmail });

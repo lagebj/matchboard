@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { hashToken } from "@/lib/organisations/organisation-invitation";
 
 import { InviteAcceptanceForm } from "./invite-acceptance-form";
 
@@ -16,8 +17,10 @@ export default async function InvitePage({
     redirect(`/api/auth/signin?callbackUrl=/invite/${encodeURIComponent(token)}`);
   }
 
-  const invitation = await db.organisationInvitation.findUnique({
-    where: { token },
+  const tokenHash = hashToken(token);
+
+  const invitation = await db.organisationInvitation.findFirst({
+    where: { tokenHash },
     select: {
       id: true,
       invitedEmail: true,

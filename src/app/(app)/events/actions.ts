@@ -399,6 +399,7 @@ export async function removePlayersFromEventPoolAction(eventId: string, playerId
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
 
   if (playerIds.length === 0) return;
 

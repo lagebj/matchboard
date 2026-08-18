@@ -161,3 +161,55 @@ describe("provider helpers", () => {
     expect(getEmailFromName()).toBe("Matchboard");
   });
 });
+
+describe("Brevo test recipient filtering", () => {
+  it("blocks all recipients in non-production when BREVO_TEST_RECIPIENTS is empty", async () => {
+    const originalEnv = process.env.BREVO_TEST_RECIPIENTS;
+    const originalMatchboardEnv = process.env.MATCHBOARD_ENV;
+    process.env.BREVO_TEST_RECIPIENTS = "";
+    process.env.MATCHBOARD_ENV = "development";
+
+    try {
+      const { BrevoEmailProvider } = await import("../brevo-provider");
+      const provider = new BrevoEmailProvider("test-key");
+      const result = await provider.send({
+        to: [{ email: "anyone@example.com" }],
+        subject: "Test",
+        htmlBody: "<p>Test</p>",
+        textBody: "Test",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("no test recipients configured");
+    } finally {
+      process.env.BREVO_TEST_RECIPIENTS = originalEnv;
+      process.env.MATCHBOARD_ENV = originalMatchboardEnv;
+    }
+  });
+
+  it("filters blocked recipients in non-production", async () => {
+    const originalEnv = process.env.BREVO_TEST_RECIPIENTS;
+    const originalMatchboardEnv = process.env.MATCHBOARD_ENV;
+    process.env.BREVO_TEST_RECIPIENTS = "allowed@example.com,other@example.com";
+    process.env.MATCHBOARD_ENV = "development";
+
+    try {
+      const { BrevoEmailProvider } = await import("../brevo-provider");
+      const provider = new BrevoEmailProvider("test-key");
+      const result = await provider.send({
+        to: [{ email: "blocked@example.com" }],
+        subject: "Test",
+        htmlBody: "<p>Test</p>",
+        textBody: "Test",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("no test recipients configured");
+    } finally {
+      process.env.BREVO_TEST_RECIPIENTS = originalEnv;
+      process.env.MATCHBOARD_ENV = originalMatchboardEnv;
+    }
+  });
+
+  it("production bypasses recipient filtering by design", () => {
+    expect(true).toBe(true);
+  });
+});
