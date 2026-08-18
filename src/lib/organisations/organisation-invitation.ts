@@ -234,4 +234,4 @@ export async function declineInvitation(data: {
   return { success: true, invitationId: invitation.id };
 }
 
-export { hashToken };
+export { hashToken, generateToken };

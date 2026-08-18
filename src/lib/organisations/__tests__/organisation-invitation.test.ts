@@ -5,6 +5,7 @@ import {
   revokeInvitation,
   declineInvitation,
   hashToken,
+  generateToken,
 } from "../organisation-invitation";
 import { createHash } from "crypto";
 
@@ -268,6 +269,139 @@ describe("organisation-invitation", () => {
           data: expect.objectContaining({ status: "DECLINED" }),
         }),
       );
+    });
+  });
+
+  describe("security: negative tests", () => {
+    it("rejects accept with a tampered (wrong hash) token", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
+      const result = await acceptInvitation({
+        token: "tampered-token-value",
+        userId: "user1",
+        userEmail: "new@example.com",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("not found");
+      expect(db.organisationInvitation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tokenHash: hashToken("tampered-token-value") },
+        }),
+      );
+    });
+
+    it("rejects accept with an empty token", async () => {
+      const result = await acceptInvitation({
+        token: "",
+        userId: "user1",
+        userEmail: "new@example.com",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("not found");
+    });
+
+    it("rejects accept with an expired invitation", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
+        id: "inv1",
+        status: "PENDING" as const,
+        invitedEmail: "new@example.com",
+        intendedRole: "COACH" as const,
+        organisationId: "org1",
+        expiresAt: new Date("2020-01-01"),
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
+      vi.mocked(db.organisationInvitation.update).mockResolvedValue({ id: "inv1" } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.update>>);
+      const result = await acceptInvitation({
+        token: "expired-token",
+        userId: "user1",
+        userEmail: "new@example.com",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("expired");
+    });
+
+    it("rejects accept when already a member", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
+        id: "inv1",
+        status: "PENDING" as const,
+        invitedEmail: "new@example.com",
+        intendedRole: "COACH" as const,
+        organisationId: "org1",
+        expiresAt: new Date(Date.now() + 86400000),
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
+      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findUnique>>);
+      const result = await acceptInvitation({
+        token: "valid-token",
+        userId: "user1",
+        userEmail: "new@example.com",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("already a member");
+    });
+
+    it("rejects revoke when invitation not found", async () => {
+      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue(null);
+      const result = await revokeInvitation({
+        invitationId: "nonexistent",
+        revokerRole: "OWNER",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("not found");
+    });
+
+    it("rejects revoke of already-accepted invitation", async () => {
+      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+        id: "inv1",
+        status: "ACCEPTED" as const,
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      const result = await revokeInvitation({
+        invitationId: "inv1",
+        revokerRole: "OWNER",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("Cannot revoke");
+    });
+
+    it("rejects revoke of already-revoked invitation", async () => {
+      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+        id: "inv1",
+        status: "REVOKED" as const,
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      const result = await revokeInvitation({
+        invitationId: "inv1",
+        revokerRole: "OWNER",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("Cannot revoke");
+    });
+
+    it("rejects decline when invitation already declined", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
+        id: "inv1",
+        invitedEmail: "test@example.com",
+        status: "DECLINED" as const,
+        expiresAt: new Date(),
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
+      const result = await declineInvitation({ token: "tok1", userId: "u1", userEmail: "test@example.com" });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("declined");
+    });
+
+    it("generates different tokens for different invitations", async () => {
+      const token1 = generateToken();
+      const token2 = generateToken();
+      expect(token1).not.toBe(token2);
+      expect(token1.length).toBe(32);
+    });
+
+    it("hashes tokens deterministically", () => {
+      const token = "test-token-123";
+      const hash1 = hashToken(token);
+      const hash2 = hashToken(token);
+      expect(hash1).toBe(hash2);
+      expect(hash1.length).toBe(64);
+    });
+
+    it("produces different hashes for different tokens", () => {
+      expect(hashToken("token-a")).not.toBe(hashToken("token-b"));
     });
   });
 });

@@ -278,4 +278,40 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     expect(healthRoute).not.toContain("matchCount");
     expect(healthRoute).not.toContain("organisationId");
   });
+
+  it("invitation tokens are looked up by hash, not plaintext", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const invitationFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/organisations/organisation-invitation.ts"),
+      "utf-8",
+    );
+    expect(invitationFile).toContain("hashToken");
+    expect(invitationFile).toContain("tokenHash");
+    // Plaintext token should be stored for migration compatibility but not used for lookup
+    expect(invitationFile).not.toContain("where: { token:");
+  });
+
+  it("invite page looks up invitations by token hash", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const invitePage = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/invite/[token]/page.tsx"),
+      "utf-8",
+    );
+    expect(invitePage).toContain("hashToken");
+    expect(invitePage).toContain("tokenHash");
+  });
+
+  it("brevo provider restricts recipients in non-production", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const brevoProvider = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/email/brevo-provider.ts"),
+      "utf-8",
+    );
+    expect(brevoProvider).toContain("isTestRecipientAllowed");
+    expect(brevoProvider).toContain("BREVO_TEST_RECIPIENTS");
+    expect(brevoProvider).toContain("isProduction");
+  });
 });
