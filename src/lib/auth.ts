@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { AppError } from "@/lib/security/errors";
 import { logAuthFailure } from "@/lib/security/audit-log";
-import { isBypassAuthEnabled } from "@/lib/env";
 
 export class AuthenticationError extends AppError {
   constructor(message = "Authentication required") {
@@ -18,13 +17,6 @@ export class AuthorizationError extends AppError {
 }
 
 export async function getCurrentCoach() {
-  if (isBypassAuthEnabled()) {
-    return {
-      id: "test-coach",
-      email: "test@example.com",
-      name: "Test Coach",
-    };
-  }
   const session = await auth();
   if (!session?.user?.email) return null;
   return session.user;

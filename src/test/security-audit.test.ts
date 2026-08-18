@@ -477,21 +477,31 @@ describe("Security audit: tenant invariant — organisation-owned models are in 
 });
 
 describe("Security audit: authentication architecture", () => {
-  it("BYPASS_AUTH is centralized through isBypassAuthEnabled() in env.ts", async () => {
+  it("BYPASS_AUTH is rejected in production by env validation", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const authFile = fs.readFileSync(
-      path.join(process.cwd(), "src/lib/auth.ts"),
-      "utf-8",
-    );
     const envFile = fs.readFileSync(
       path.join(process.cwd(), "src/lib/env.ts"),
       "utf-8",
     );
-    expect(authFile).toContain("isBypassAuthEnabled");
-    expect(authFile).not.toContain("process.env.BYPASS_AUTH");
-    expect(envFile).toContain("isBypassAuthEnabled");
-    expect(envFile).toContain("process.env.BYPASS_AUTH");
+    expect(envFile).toContain("BYPASS_AUTH");
+    expect(envFile).toContain("must not be set in production");
+  });
+
+  it("isBypassAuthEnabled has been removed — BYPASS_AUTH is no longer used for auth bypass", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    const authFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/auth.ts"),
+      "utf-8",
+    );
+    expect(envFile).not.toContain("isBypassAuthEnabled");
+    expect(authFile).not.toContain("isBypassAuthEnabled");
+    expect(authFile).not.toContain("BYPASS_AUTH");
   });
 
   it("APP_BASE_URL is validated in production (required, https)", async () => {

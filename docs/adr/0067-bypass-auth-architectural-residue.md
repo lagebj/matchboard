@@ -1,38 +1,35 @@
-# ADR-0067: BYPASS_AUTH Architectural Residue
+# ADR-0067: BYPASS_AUTH Removal
 
 ## Status
 
-Superseded — retained for backward compatibility, removal deferred
+Accepted — BYPASS_AUTH has been removed
 
 ## Context
 
-BYPASS_AUTH was the original mechanism for bypassing authentication in test environments. It allows any request to proceed without real authentication when `BYPASS_AUTH=true` and `MATCHBOARD_ENV=test`.
+BYPASS_AUTH was the original mechanism for bypassing authentication in test environments. It allowed any request to proceed without real authentication when `BYPASS_AUTH=true` and `MATCHBOARD_ENV=test`.
 
 Phase 3 introduced TEST_AGENT_AUTH as a proper replacement: a Credentials-based auth provider that creates real Auth.js JWT sessions using test-persona emails and a shared secret, constrained to the `@test-agent.matchboard.football` namespace.
 
-Test-agent-auth has been verified end-to-end on the deployed test environment (`test.matchboard.football`).
+Test-agent-auth has been verified end-to-end on the deployed test environment (`test.matchboard.football`). The Auth.js Credentials provider creates valid JWT sessions, and the REST endpoint `/api/auth/test-agent` successfully upserts users.
 
 ## Decision
 
-Retain BYPASS_AUTH temporarily as a backward-compatible fallback. Remove it in a future cleanup phase after all test infrastructure and CI pipelines have migrated to TEST_AGENT_AUTH.
+Remove BYPASS_AUTH entirely. Test-agent-auth is the sole test authentication mechanism.
 
-## Residue
+## Changes made
 
-- `isBypassAuthEnabled()` in `src/lib/env.ts`
-- Bypass logic in `getCurrentCoach()` in `src/lib/auth.ts`
-- `BYPASS_AUTH` env var references in `vitest.config.ts` and `.env.example`
-
-## Removal checklist
-
-- Remove `isBypassAuthEnabled()` from `src/lib/env.ts`
-- Remove bypass logic from `getCurrentCoach()` in `src/lib/auth.ts`
-- Remove `BYPASS_AUTH` from `vitest.config.ts` and `.env.example`
-- Remove any test fixtures that rely on BYPASS_AUTH
-- Verify all existing tests pass without BYPASS_AUTH
-- Update this ADR to "Accepted" status
+- Removed `isBypassAuthEnabled()` from `src/lib/env.ts`
+- Removed bypass logic from `getCurrentCoach()` in `src/lib/auth.ts`
+- Removed `BYPASS_AUTH` from `vitest.config.ts` and `.env.example`
+- Removed `isBypassAuthEnabled` test block from `src/lib/__tests__/env.test.ts`
+- Removed "allows BYPASS_AUTH=true in test environment" test (no longer applicable)
+- Updated security audit tests to verify `isBypassAuthEnabled` no longer exists
+- Kept `BYPASS_AUTH` production guard in `validateEnv()` — setting `BYPASS_AUTH=true` in production still causes a validation error, preventing accidental misconfiguration
+- Updated this ADR status to Accepted
 
 ## Consequences
 
 - Test environments use real auth sessions (TEST_AGENT_AUTH) instead of bypassing auth entirely
-- BYPASS_AUTH remains as a fallback until explicitly removed
-- Production guards prevent BYPASS_AUTH and TEST_AGENT_AUTH from being active in production
+- No code path exists to bypass authentication
+- Production guards prevent `BYPASS_AUTH=true` from being set in production
+- `BYPASS_AUTH` environment variable is no longer consumed by any code path

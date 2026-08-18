@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, isTestAgentAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview, ensureEnvValidated, requireEnvValid, _resetEnvValidation } from "@/lib/env";
+import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isTestAgentAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview, ensureEnvValidated, requireEnvValid, _resetEnvValidation } from "@/lib/env";
 
 describe("env: resolveMatchboardEnv", () => {
   it("resolves to a valid environment", () => {
@@ -82,7 +82,6 @@ describe("env: validateEnv", () => {
 
 describe("env: production safety guards", () => {
   const originalMatchboardEnv = process.env.MATCHBOARD_ENV;
-  const originalBypass = process.env.BYPASS_AUTH;
   const originalAppBaseUrl = process.env.APP_BASE_URL;
   const originalDbUrl = process.env.DATABASE_URL;
   const originalDirectUrl = process.env.DIRECT_URL;
@@ -98,11 +97,6 @@ describe("env: production safety guards", () => {
       process.env.MATCHBOARD_ENV = originalMatchboardEnv;
     } else {
       delete process.env.MATCHBOARD_ENV;
-    }
-    if (originalBypass !== undefined) {
-      process.env.BYPASS_AUTH = originalBypass;
-    } else {
-      delete process.env.BYPASS_AUTH;
     }
     if (originalAppBaseUrl !== undefined) {
       process.env.APP_BASE_URL = originalAppBaseUrl;
@@ -177,16 +171,6 @@ describe("env: production safety guards", () => {
     expect(bypassError).toContain("must not be set in production");
   });
 
-  it("allows BYPASS_AUTH=true in test environment", () => {
-    process.env.MATCHBOARD_ENV = "test";
-    process.env.BYPASS_AUTH = "true";
-    process.env.TEST_DATABASE_URL = "postgresql://test:test@localhost/test";
-
-    const result = validateEnv();
-    const bypassError = result.errors.find((e) => e.includes("BYPASS_AUTH"));
-    expect(bypassError).toBeUndefined();
-  });
-
   it("requires APP_BASE_URL in production", () => {
     setValidProductionEnv();
     delete process.env.APP_BASE_URL;
@@ -233,48 +217,6 @@ describe("env: production safety guards", () => {
     const brevoError = result.errors.find((e) => e.includes("BREVO_WEBHOOK_BEARER_TOKEN"));
     expect(brevoError).toBeDefined();
     expect(brevoError).toContain("required in production");
-  });
-});
-
-describe("env: isBypassAuthEnabled", () => {
-  const originalMatchboardEnv = process.env.MATCHBOARD_ENV;
-  const originalBypass = process.env.BYPASS_AUTH;
-
-  afterEach(() => {
-    if (originalMatchboardEnv !== undefined) {
-      process.env.MATCHBOARD_ENV = originalMatchboardEnv;
-    } else {
-      delete process.env.MATCHBOARD_ENV;
-    }
-    if (originalBypass !== undefined) {
-      process.env.BYPASS_AUTH = originalBypass;
-    } else {
-      delete process.env.BYPASS_AUTH;
-    }
-  });
-
-  it("returns true when MATCHBOARD_ENV=test and BYPASS_AUTH=true", () => {
-    process.env.MATCHBOARD_ENV = "test";
-    process.env.BYPASS_AUTH = "true";
-    expect(isBypassAuthEnabled()).toBe(true);
-  });
-
-  it("returns false when MATCHBOARD_ENV=test and BYPASS_AUTH is not set", () => {
-    process.env.MATCHBOARD_ENV = "test";
-    delete process.env.BYPASS_AUTH;
-    expect(isBypassAuthEnabled()).toBe(false);
-  });
-
-  it("returns false when MATCHBOARD_ENV=production regardless of BYPASS_AUTH", () => {
-    process.env.MATCHBOARD_ENV = "production";
-    process.env.BYPASS_AUTH = "true";
-    expect(isBypassAuthEnabled()).toBe(false);
-  });
-
-  it("returns false when MATCHBOARD_ENV=development", () => {
-    process.env.MATCHBOARD_ENV = "development";
-    process.env.BYPASS_AUTH = "true";
-    expect(isBypassAuthEnabled()).toBe(false);
   });
 });
 
