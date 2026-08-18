@@ -4,7 +4,9 @@ import {
   acceptInvitation,
   revokeInvitation,
   declineInvitation,
+  hashToken,
 } from "../organisation-invitation";
+import { createHash } from "crypto";
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -28,6 +30,19 @@ import { db } from "@/lib/db";
 describe("organisation-invitation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("hashToken", () => {
+    it("produces consistent SHA-256 hex digest", () => {
+      const token = "abc123";
+      const hash = hashToken(token);
+      const expected = createHash("sha256").update(token).digest("hex");
+      expect(hash).toBe(expected);
+    });
+
+    it("produces different hashes for different tokens", () => {
+      expect(hashToken("token-a")).not.toBe(hashToken("token-b"));
+    });
   });
 
   describe("createInvitation", () => {
@@ -85,7 +100,7 @@ describe("organisation-invitation", () => {
       if (!result.success) expect(result.error).toContain("already a member");
     });
 
-    it("creates invitation when valid", async () => {
+    it("creates invitation with tokenHash", async () => {
       vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findUnique>>);
       vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
       vi.mocked(db.organisationMembership.findFirst).mockResolvedValue(null);
@@ -98,13 +113,20 @@ describe("organisation-invitation", () => {
         inviterRole: "OWNER",
       });
       expect(result.success).toBe(true);
-      if (result.success) expect(result.invitationId).toBe("inv-new");
+      if (result.success) {
+        expect(result.invitationId).toBe("inv-new");
+        expect(result.token).toBeDefined();
+        expect(result.token!.length).toBeGreaterThanOrEqual(32);
+      }
+      const createCall = vi.mocked(db.organisationInvitation.create).mock.calls[0][0];
+      expect(createCall.data.tokenHash).toBeDefined();
+      expect(createCall.data.tokenHash).toBe(hashToken(createCall.data.token as string));
     });
   });
 
   describe("acceptInvitation", () => {
-    it("rejects when invitation not found", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue(null);
+    it("rejects when invitation not found (token hash lookup)", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
       const result = await acceptInvitation({
         token: "nonexistent",
         userId: "user1",
@@ -114,15 +136,26 @@ describe("organisation-invitation", () => {
       if (!result.success) expect(result.error).toContain("not found");
     });
 
+    it("looks up invitation by token hash, not plaintext token", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
+      await acceptInvitation({
+        token: "test-token-value",
+        userId: "user1",
+        userEmail: "new@example.com",
+      });
+      const findFirstCall = vi.mocked(db.organisationInvitation.findFirst).mock.calls[0];
+      expect(findFirstCall?.[0]?.where).toEqual({ tokenHash: hashToken("test-token-value") });
+    });
+
     it("rejects when invitation is already accepted", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
         id: "inv1",
         status: "ACCEPTED" as const,
         invitedEmail: "new@example.com",
         intendedRole: "COACH" as const,
         organisationId: "org1",
         expiresAt: new Date(Date.now() + 86400000),
-      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
       const result = await acceptInvitation({
         token: "token1",
         userId: "user1",
@@ -133,14 +166,14 @@ describe("organisation-invitation", () => {
     });
 
     it("rejects when email does not match", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
         id: "inv1",
         status: "PENDING" as const,
         invitedEmail: "correct@example.com",
         intendedRole: "COACH" as const,
         organisationId: "org1",
         expiresAt: new Date(Date.now() + 86400000),
-      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
       const result = await acceptInvitation({
         token: "token1",
         userId: "user1",
@@ -189,44 +222,44 @@ describe("organisation-invitation", () => {
   });
 
   describe("declineInvitation", () => {
-    it("returns error when invitation not found", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue(null);
+    it("returns error when invitation not found (token hash lookup)", async () => {
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue(null);
       const result = await declineInvitation({ token: "bad-token", userId: "u1", userEmail: "test@example.com" });
       expect(result.success).toBe(false);
       if (!result.success) expect(result.error).toContain("not found");
     });
 
     it("returns error when invitation is not PENDING", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
         id: "inv1",
         invitedEmail: "test@example.com",
         status: "ACCEPTED" as const,
         expiresAt: new Date(),
-      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
       const result = await declineInvitation({ token: "tok1", userId: "u1", userEmail: "test@example.com" });
       expect(result.success).toBe(false);
       if (!result.success) expect(result.error).toContain("accepted");
     });
 
     it("returns error when email does not match", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
         id: "inv1",
         invitedEmail: "other@example.com",
         status: "PENDING" as const,
         expiresAt: new Date(),
-      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
       const result = await declineInvitation({ token: "tok1", userId: "u1", userEmail: "test@example.com" });
       expect(result.success).toBe(false);
       if (!result.success) expect(result.error).toContain("different email");
     });
 
     it("declines a PENDING invitation", async () => {
-      vi.mocked(db.organisationInvitation.findUnique).mockResolvedValue({
+      vi.mocked(db.organisationInvitation.findFirst).mockResolvedValue({
         id: "inv1",
         invitedEmail: "test@example.com",
         status: "PENDING" as const,
         expiresAt: new Date(),
-      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findUnique>>);
+      } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
       vi.mocked(db.organisationInvitation.update).mockResolvedValue({ id: "inv1" } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.update>>);
       const result = await declineInvitation({ token: "tok1", userId: "u1", userEmail: "test@example.com" });
       expect(result.success).toBe(true);

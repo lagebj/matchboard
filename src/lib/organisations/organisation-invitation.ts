@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireValidOrganisationRole, canInviteRole } from "@/lib/organisations/organisation-domain";
+import { createHash } from "crypto";
 
 export type InvitationResult =
   | { success: true; invitationId: string; token?: string }
@@ -19,6 +20,10 @@ function generateToken(): string {
     token += chars[randomValues[i] % chars.length];
   }
   return token;
+}
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export async function createInvitation(data: {
@@ -74,6 +79,7 @@ export async function createInvitation(data: {
   }
 
   const token = generateToken();
+  const tokenHash = hashToken(token);
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + DEFAULT_EXPIRY_DAYS);
 
@@ -83,6 +89,7 @@ export async function createInvitation(data: {
       invitedEmail: data.invitedEmail.toLowerCase(),
       intendedRole: data.intendedRole,
       token,
+      tokenHash,
       expiresAt,
       invitedByUserId: data.invitedByUserId,
     },
@@ -96,8 +103,10 @@ export async function acceptInvitation(data: {
   userId: string;
   userEmail: string;
 }, client: PrismaClient = db): Promise<InvitationResult> {
-  const invitation = await client.organisationInvitation.findUnique({
-    where: { token: data.token },
+  const tokenHash = hashToken(data.token);
+
+  const invitation = await client.organisationInvitation.findFirst({
+    where: { tokenHash },
     select: {
       id: true,
       organisationId: true,
@@ -193,8 +202,10 @@ export async function declineInvitation(data: {
   userId: string;
   userEmail: string;
 }, client: PrismaClient = db): Promise<InvitationResult> {
-  const invitation = await client.organisationInvitation.findUnique({
-    where: { token: data.token },
+  const tokenHash = hashToken(data.token);
+
+  const invitation = await client.organisationInvitation.findFirst({
+    where: { tokenHash },
     select: {
       id: true,
       invitedEmail: true,
@@ -222,3 +233,5 @@ export async function declineInvitation(data: {
 
   return { success: true, invitationId: invitation.id };
 }
+
+export { hashToken };
