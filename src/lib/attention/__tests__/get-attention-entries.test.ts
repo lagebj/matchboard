@@ -31,7 +31,7 @@ const { mockRequireActorContext, mockCanAdmin, mockHasTeamAccess, mocks, mockDb 
 vi.mock("@/lib/auth/actor-context", () => ({
   requireActorContext: mockRequireActorContext,
   canAdmin: mockCanAdmin,
-  hasTeamAccess: mockHasTeamAccess,
+  hasTeamGroupAccess: mockHasTeamAccess,
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));

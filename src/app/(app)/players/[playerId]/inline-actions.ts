@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requirePlayerTeamAccess, requireTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requirePlayerGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { playerPositionValues } from "@/lib/player-form-options";
 import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
@@ -15,7 +15,7 @@ export async function updatePlayerFieldAction(
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await requirePlayerTeamAccess(ctx, playerId);
+  await requirePlayerGroupAccess(ctx, playerId);
 
   const allowedFields = new Set([
     "firstName",
@@ -101,7 +101,7 @@ export async function updatePlayerFieldAction(
     } else if (field === "coreTeamId" && value === "") {
       parsedValue = null;
     } else if (field === "coreTeamId" && value !== "") {
-      await requireTeamAccess(ctx, value);
+      await requireTeamGroupAccess(ctx, value);
       parsedValue = value;
     } else if (field === "primaryPosition") {
       if (!VALID_POSITIONS.has(value)) {

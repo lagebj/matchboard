@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, createTestGroup } from "@/test/test-db";
 import { organisationFilter, organisationFilterNullable, requireOrganisationId } from "@/lib/tenancy/tenant-filter";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
-import { OrganisationAccessError, requireRole, requireTeamAccess } from "@/lib/organisations/organisation-access";
-import { canAccessAllTeams, canCreateTeam, canManageMemberships, canInviteRole, canManageRole, canDeleteOrganisation, canTransferOwnership } from "@/lib/organisations/organisation-domain";
+import { OrganisationAccessError, requireRole, requireTeamGroupAccess } from "@/lib/organisations/organisation-access";
+import { canAccessAllGroups, canCreateTeam, canManageMemberships, canInviteRole, canManageRole, canDeleteOrganisation, canTransferOwnership } from "@/lib/organisations/organisation-domain";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 describe("Multitenancy isolation", () => {
@@ -53,7 +53,7 @@ describe("Multitenancy isolation", () => {
       membershipId: "mem-1",
       accessibleGroupIds: [],
       groupAccesses: [],
-      canAccessAllTeams: false,
+      canAccessAllGroups: false,
       canCreateTeam: false,
       canManageMemberships: false,
       canInviteRole: () => false,
@@ -69,7 +69,7 @@ describe("Multitenancy isolation", () => {
 
   describe("Organisation role permissions", () => {
     it("OWNER can do everything", () => {
-      expect(canAccessAllTeams("OWNER")).toBe(true);
+      expect(canAccessAllGroups("OWNER")).toBe(true);
       expect(canCreateTeam("OWNER")).toBe(true);
       expect(canManageMemberships("OWNER")).toBe(true);
       expect(canInviteRole("OWNER", "ADMIN")).toBe(true);
@@ -80,7 +80,7 @@ describe("Multitenancy isolation", () => {
     });
 
     it("ADMIN can manage teams and most memberships", () => {
-      expect(canAccessAllTeams("ADMIN")).toBe(true);
+      expect(canAccessAllGroups("ADMIN")).toBe(true);
       expect(canCreateTeam("ADMIN")).toBe(true);
       expect(canManageMemberships("ADMIN")).toBe(true);
       expect(canInviteRole("ADMIN", "COACH")).toBe(true);
@@ -94,7 +94,7 @@ describe("Multitenancy isolation", () => {
     });
 
     it("COACH has limited permissions", () => {
-      expect(canAccessAllTeams("COACH")).toBe(false);
+      expect(canAccessAllGroups("COACH")).toBe(false);
       expect(canCreateTeam("COACH")).toBe(false);
       expect(canManageMemberships("COACH")).toBe(false);
       expect(canInviteRole("COACH", "VIEWER")).toBe(false);
@@ -104,7 +104,7 @@ describe("Multitenancy isolation", () => {
     });
 
     it("VIEWER has minimal permissions", () => {
-      expect(canAccessAllTeams("VIEWER")).toBe(false);
+      expect(canAccessAllGroups("VIEWER")).toBe(false);
       expect(canCreateTeam("VIEWER")).toBe(false);
       expect(canManageMemberships("VIEWER")).toBe(false);
       expect(canInviteRole("VIEWER", "COACH")).toBe(false);
@@ -124,7 +124,7 @@ describe("Multitenancy isolation", () => {
       membershipId: "mem-1",
       accessibleGroupIds: [],
       groupAccesses: [],
-      canAccessAllTeams: false,
+      canAccessAllGroups: false,
       canCreateTeam: false,
       canManageMemberships: false,
       canInviteRole: () => false,
@@ -144,7 +144,7 @@ describe("Multitenancy isolation", () => {
     });
   });
 
-  describe("requireTeamAccess", () => {
+  describe("requireTeamGroupAccess", () => {
     const coachCtx: OrganisationAccessContext = {
       userId: "user-1",
       userEmail: "coach@test.com",
@@ -155,7 +155,7 @@ describe("Multitenancy isolation", () => {
       membershipId: "mem-1",
       accessibleGroupIds: ["group-a", "group-b"],
       groupAccesses: [],
-      canAccessAllTeams: false,
+      canAccessAllGroups: false,
       canCreateTeam: false,
       canManageMemberships: false,
       canInviteRole: () => false,
@@ -167,11 +167,11 @@ describe("Multitenancy isolation", () => {
     const adminCtx: OrganisationAccessContext = {
       ...coachCtx,
       role: "ADMIN",
-      canAccessAllTeams: true,
+      canAccessAllGroups: true,
     };
 
-    it("ADMIN with canAccessAllTeams can access any team", () => {
-      expect(() => requireTeamAccess(adminCtx, "team-c")).not.toThrow();
+    it("ADMIN with canAccessAllGroups can access any team", () => {
+      expect(() => requireTeamGroupAccess(adminCtx, "team-c")).not.toThrow();
     });
   });
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { suggestFormationForMatch, suggestLineupForFormation, type SuggestFormationInput, type SuggestLineupInput } from "@/lib/formations/suggest";
 import { createFormationSnapshot } from "@/lib/formations/snapshot";
@@ -247,7 +247,7 @@ export async function applySuggestedLineup(
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
@@ -360,7 +360,7 @@ export async function clearSuggestedAssignments(lineupId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   const { matchId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...ctx.orgFilter.filter },
@@ -389,7 +389,7 @@ export async function fillEmptySlots(lineupId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
   const { matchId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...ctx.orgFilter.filter },

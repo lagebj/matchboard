@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 import {
@@ -43,7 +43,7 @@ export async function saveObservationAction(
   if (!match.opponentTeamId) return { success: false, error: "No opponent profile linked yet. Complete the post-match report to link a canonical opponent." };
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const existingObservation = await db.opponentEncounterObservation.findFirst({
     where: { matchId, ...ctx.orgFilter.filter },

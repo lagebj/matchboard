@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { FairPlayCategory } from "@/generated/prisma/client";
 
 const PERIOD_TO_INT: Record<string, number> = {
@@ -70,7 +70,7 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
       return { success: false as const, error: "Session not found or access denied." };
     }
 
-    await requireMatchTeamAccess(ctx, matchId);
+    await requireMatchGroupAccess(ctx, matchId);
 
     await db.liveMatchSession.update({
       where: { id: sessionId },

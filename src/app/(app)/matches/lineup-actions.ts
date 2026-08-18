@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchTeamAccess, requireTeamAccess } from "@/lib/auth/actor-context";
+import { requireActorContext, requireMutationRole, requireMatchGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { supersedePendingReviews } from "@/lib/review/review-service";
 import { enqueueAndSendNotification } from "@/lib/email/outbox";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
@@ -62,7 +62,7 @@ export async function createMatchLineup(data: {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(data.matchId, orgFilter);
-  await requireTeamAccess(ctx, data.teamId);
+  await requireTeamGroupAccess(ctx, data.teamId);
 
   const lineup = await createLineupFromFormation({ ...data, orgFilter: ctx.orgFilter });
 
@@ -79,7 +79,7 @@ export async function assignPlayerToSlot(
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
-  await requireMatchTeamAccess(ctx, assignmentInfo.matchId);
+  await requireMatchGroupAccess(ctx, assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
   if (!canModifyLineup(assignment.matchLineup.status)) {
@@ -129,7 +129,7 @@ export async function removePlayerFromSlot(assignmentId: string) {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
-  await requireMatchTeamAccess(ctx, assignmentInfo.matchId);
+  await requireMatchGroupAccess(ctx, assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
   if (!canModifyLineup(assignment.matchLineup.status)) {
@@ -150,7 +150,7 @@ export async function toggleSlotLock(assignmentId: string) {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
-  await requireMatchTeamAccess(ctx, assignmentInfo.matchId);
+  await requireMatchGroupAccess(ctx, assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
   if (!canModifyLineup(assignment.matchLineup.status)) {
@@ -171,7 +171,7 @@ export async function confirmLineup(lineupId: string) {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const lineup = await requireLineupExists(lineupId);
   requireAllSlotsAssigned(lineup.assignments);
@@ -222,7 +222,7 @@ export async function archiveLineup(lineupId: string) {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -238,7 +238,7 @@ export async function revertLineupToDraft(lineupId: string) {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -254,7 +254,7 @@ export async function updateLineupNotes(lineupId: string, notes: string) {
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -269,7 +269,7 @@ export async function updateBenchPlayers(lineupId: string, benchPlayerIds: strin
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchTeamAccess(ctx, matchId);
+  await requireMatchGroupAccess(ctx, matchId);
 
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...orgFilter.filter },

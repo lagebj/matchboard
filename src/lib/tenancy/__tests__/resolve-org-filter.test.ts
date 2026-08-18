@@ -238,7 +238,7 @@ describe("orgFilterFromContext", () => {
     membershipId: "mem-1",
     accessibleGroupIds: [],
     groupAccesses: [],
-    canAccessAllTeams: false,
+    canAccessAllGroups: false,
     canCreateTeam: false,
     canManageMemberships: false,
     canInviteRole: () => false,

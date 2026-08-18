@@ -57,7 +57,7 @@ export function canTransferOwnership(role: OrganisationRole): boolean {
   return role === "OWNER";
 }
 
-export function canAccessAllTeams(role: OrganisationRole): boolean {
+export function canAccessAllGroups(role: OrganisationRole): boolean {
   if (role === "SUPPORT") return false;
   return role === "OWNER" || role === "ADMIN";
 }
