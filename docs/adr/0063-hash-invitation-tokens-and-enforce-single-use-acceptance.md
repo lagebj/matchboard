@@ -117,8 +117,26 @@ Security requirements from AGENTS.md:
 
 ## Implementation evidence
 
-- Pull requests: (to be added)
-- Tests: (to be added)
+- Pull requests: PR #291 (security/invitation-hardening)
+- Tests: 15 invitation security tests in `src/test/invitation-security.test.ts`
+  - Token hashing (SHA-256) verification
+  - Token nullification after accept, decline, revoke, and expiry
+  - Replay prevention (cannot accept already-accepted invitation)
+  - Email mismatch rejection
+  - Already-member rejection
+  - Duplicate pending invitation prevention
+  - Membership creation without GroupAccess on acceptance
+  - VIEWER role invitation creates VIEWER membership
+  - Role hierarchy (COACH cannot invite OWNER/ADMIN)
+  - Non-member invitation rejection
+  - Cross-organisation isolation
+  - Token hash scope (org A token cannot join org B)
+  - Expired invitation rejection with token nullification
+- Migration: `prisma/migrations/20260818140000_nullify_invitation_token_after_use/migration.sql`
+- `getAppBaseUrl()` returns localhost in dev/test envs; production requires `APP_BASE_URL` (AUTH_URL fallback removed)
+- Audit logging added for `organisation_invitation_decline` and `organisation_invitation_expire`
+- `revokeInvitation` accepts `PrismaClient` parameter for testability
+- ARR-0068 records in-memory rate limiting as confirmed architectural residue
 
 ## Supersedes
 
