@@ -15,9 +15,19 @@ export default async function AccessDeniedPage() {
               ? "You are not a member of any organisation on Matchboard."
               : "You are not authorized to access Matchboard."}
           </p>
-          <p className="mt-2 text-xs text-zinc-500">
-            Contact your organisation owner or admin to request an invitation.
-          </p>
+          {session?.user?.email && (
+            <a
+              href="/organisations"
+              className="mt-3 inline-block text-sm text-[var(--accent-strong)] underline underline-offset-2 hover:text-[var(--accent-strong)]"
+            >
+              View organisations and invitations
+            </a>
+          )}
+          {!session?.user?.email && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Contact your organisation owner or admin to request an invitation.
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           {session && (

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { AppError } from "@/lib/security/errors";
 import { logAuthFailure } from "@/lib/security/audit-log";
-import { isTest } from "@/lib/env";
+import { isBypassAuthEnabled } from "@/lib/env";
 
 export class AuthenticationError extends AppError {
   constructor(message = "Authentication required") {
@@ -18,10 +18,7 @@ export class AuthorizationError extends AppError {
 }
 
 export async function getCurrentCoach() {
-  if (isTest() && process.env.BYPASS_AUTH === "true") {
-    // BYPASS_AUTH is double-gated: it only activates when MATCHBOARD_ENV=test AND BYPASS_AUTH=true.
-    // This is a test-only mechanism. It must never be active in production.
-    // validateEnv() enforces that BYPASS_AUTH=true is not set in production.
+  if (isBypassAuthEnabled()) {
     return {
       id: "test-coach",
       email: "test@example.com",

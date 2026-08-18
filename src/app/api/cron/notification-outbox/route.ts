@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { processOutboxBatch } from "@/lib/email/outbox";
-
-const CRON_SECRET = process.env.CRON_SECRET;
+import { getCronSecret } from "@/lib/env";
 
 export async function GET(request: Request) {
+  const CRON_SECRET = getCronSecret();
   const authHeader = request.headers.get("authorization");
   const providedSecret = authHeader?.replace("Bearer ", "");
 
