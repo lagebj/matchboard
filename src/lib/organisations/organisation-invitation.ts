@@ -171,12 +171,12 @@ export async function acceptInvitation(data: {
 export async function revokeInvitation(data: {
   invitationId: string;
   revokerRole: OrganisationRole;
-}): Promise<InvitationResult> {
+}, client: PrismaClient = db): Promise<InvitationResult> {
   if (data.revokerRole !== "OWNER" && data.revokerRole !== "ADMIN") {
     return { success: false, error: "Only OWNER or ADMIN can revoke invitations." };
   }
 
-  const invitation = await db.organisationInvitation.findUnique({
+  const invitation = await client.organisationInvitation.findUnique({
     where: { id: data.invitationId },
     select: { status: true },
   });
@@ -189,7 +189,7 @@ export async function revokeInvitation(data: {
     return { success: false, error: `Cannot revoke invitation with status ${invitation.status.toLowerCase()}.` };
   }
 
-  await db.organisationInvitation.update({
+  await client.organisationInvitation.update({
     where: { id: data.invitationId },
     data: { status: "REVOKED", revokedAt: new Date(), token: null as unknown as string },
   });
