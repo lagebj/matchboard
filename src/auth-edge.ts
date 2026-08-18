@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import type { Provider } from "@auth/core/providers";
+import type { Provider } from "next-auth/providers";
 import { isTestAgentAuthEnabled, getTestAgentAuthSecret } from "@/lib/env";
 
 const providers: Provider[] = [
