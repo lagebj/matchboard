@@ -20,7 +20,7 @@ import { normalizeOpponentName, cleanOpponentDisplayName } from "./opponent-team
 export async function resolveOpponentOnReportCompletion(
   matchId: string,
 ): Promise<string | null> {
-  const match = await db.match.findUnique({
+  const match = await db.match.findFirst({
     where: { id: matchId },
     select: { id: true, opponent: true, opponentTeamId: true, organisationId: true },
   });
@@ -54,7 +54,7 @@ export async function resolveOpponentOnReportCompletion(
 export async function resolveEventOpponentOnReportCompletion(
   eventMatchId: string,
 ): Promise<string | null> {
-  const eventMatch = await db.eventMatch.findUnique({
+  const eventMatch = await db.eventMatch.findFirst({
     where: { id: eventMatchId },
     select: { id: true, opponentName: true, opponentTeamId: true, event: { select: { organisationId: true } } },
   });

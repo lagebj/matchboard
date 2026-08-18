@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { getSeasonReview } from "@/lib/audit/planned-vs-actual";
 
@@ -16,17 +15,6 @@ export async function GET(request: Request) {
     );
   }
 
-  const leagueSeason = await db.leagueSeason.findFirst({
-    where: { id: leagueSeasonId },
-    select: { organisationId: true },
-  });
-  if (!leagueSeason) {
-    return NextResponse.json({ error: "League season not found" }, { status: 404 });
-  }
-  if (leagueSeason.organisationId !== ctx.organisationId) {
-    return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
-  }
-
-  const data = await getSeasonReview(leagueSeasonId, { organisationId: ctx.organisationId });
+  const data = await getSeasonReview(leagueSeasonId, ctx.orgFilter);
   return NextResponse.json(data);
 }

@@ -15,11 +15,14 @@ import type {
 } from "./audit-types";
 import { buildDeltaSummary } from "./delta-summary";
 
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+
 export async function getPlannedVsActualForMatch(
   matchId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<PlannedVsActualMatch | null> {
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
     include: {
       opponentTeam: { select: { displayName: true } },
       team: { select: { id: true, name: true } },
@@ -53,8 +56,8 @@ export async function getPlannedVsActualForMatch(
 
   const plannedPlayerIds = new Set(plannedPlayers.map((p) => p.playerId));
 
-  const report = await db.postMatchReport.findUnique({
-    where: { matchId },
+  const report = await db.postMatchReport.findFirst({
+    where: { matchId, ...orgFilter.filterNullable },
     include: {
       playerActuals: {
         include: {
@@ -213,18 +216,20 @@ export async function getPlannedVsActualForMatch(
 
 export async function getPlannedVsActualForRound(
   matchRoundId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<PlannedVsActualMatch[]> {
   const matches = await db.match.findMany({
     where: {
       matchRoundId,
       status: { not: "CANCELLED" },
+      ...orgFilter.filter,
     },
     select: { id: true },
   });
 
   const results: PlannedVsActualMatch[] = [];
   for (const match of matches) {
-    const result = await getPlannedVsActualForMatch(match.id);
+    const result = await getPlannedVsActualForMatch(match.id, orgFilter);
     if (result) results.push(result);
   }
   return results;
@@ -232,9 +237,10 @@ export async function getPlannedVsActualForRound(
 
 export async function getAuditWorkItems(
   leagueSeasonId: string,
+  orgFilter: OrgFilterMode,
 ): Promise<AuditWorkItem[]> {
   const rounds = await db.matchRound.findMany({
-    where: { leagueSeasonId },
+    where: { leagueSeasonId, ...orgFilter.filter },
     select: { id: true, name: true },
   });
 
@@ -245,14 +251,15 @@ export async function getAuditWorkItems(
       where: {
         matchRoundId: round.id,
         status: { not: "CANCELLED" },
+        ...orgFilter.filter,
       },
     });
 
     for (const match of matches) {
       if (!hasLeagueMatchPassed(match)) continue;
 
-      const report = await db.postMatchReport.findUnique({
-        where: { matchId: match.id },
+      const report = await db.postMatchReport.findFirst({
+        where: { matchId: match.id, ...orgFilter.filterNullable },
         select: {
           id: true,
           status: true,
@@ -315,10 +322,10 @@ export async function getAuditWorkItems(
 
 export async function getSeasonReview(
   leagueSeasonId: string,
-  orgFilter: { organisationId: string },
+  orgFilter: OrgFilterMode,
 ): Promise<SeasonReviewData> {
   const leagueSeason = await db.leagueSeason.findFirst({
-    where: { id: leagueSeasonId, ...orgFilter },
+    where: { id: leagueSeasonId, ...orgFilter.filter },
     include: { season: true },
   });
 
@@ -458,7 +465,7 @@ export async function getSeasonReview(
     if (entry) entry.assists++;
   }
 
-  const auditWorkItems = await getAuditWorkItems(leagueSeasonId);
+  const auditWorkItems = await getAuditWorkItems(leagueSeasonId, orgFilter);
 
   return {
     leagueSeasonId,

@@ -150,8 +150,8 @@ export async function updatePlayerFieldAction(
 
     const isPositionField = field === "primaryPosition" || field === "secondaryPosition" || field === "tertiaryPosition";
     if (isPositionField) {
-      const updated = await db.player.findUniqueOrThrow({
-        where: { id: player.id },
+      const updated = await db.player.findFirstOrThrow({
+        where: { id: player.id, ...ctx.orgFilter.filter },
         select: { primaryPosition: true, secondaryPosition: true, tertiaryPosition: true },
       });
       await syncPlayerPositions({
