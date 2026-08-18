@@ -36,10 +36,14 @@ export async function getTeamsResultsOverview(
   orgFilter?: OrgFilterMode,
 ): Promise<TeamsResultsOverview> {
   const orgWhere = orgFilter?.type === 'org' ? orgFilter.filter : {};
-  const leagueSeason = await db.leagueSeason.findUniqueOrThrow({
-    where: { id: leagueSeasonId },
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...orgWhere },
     select: { id: true, startDate: true, endDate: true },
   });
+
+  if (!leagueSeason) {
+    throw new Error(`League season not found: ${leagueSeasonId}`);
+  }
 
   const teams = await db.team.findMany({
     where: { archivedAt: null, ...orgWhere },
