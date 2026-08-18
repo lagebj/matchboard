@@ -100,10 +100,10 @@ async function main() {
     // Group access (authorization matrix)
     await db.groupAccess.createMany({
       data: [
-        { membershipId: memCoachAllA.id, footballGroupId: groupA1.id, accessRole: "COACH" },
-        { membershipId: memCoachAllA.id, footballGroupId: groupA2.id, accessRole: "COACH" },
-        { membershipId: memCoachA1.id, footballGroupId: groupA1.id, accessRole: "COACH" },
-        { membershipId: memCoachA2.id, footballGroupId: groupA2.id, accessRole: "COACH" },
+        { membershipId: memCoachAllA.id, footballGroupId: groupA1.id, role: "GROUP_COACH", organisationId: orgA.id },
+        { membershipId: memCoachAllA.id, footballGroupId: groupA2.id, role: "GROUP_COACH", organisationId: orgA.id },
+        { membershipId: memCoachA1.id, footballGroupId: groupA1.id, role: "GROUP_COACH", organisationId: orgA.id },
+        { membershipId: memCoachA2.id, footballGroupId: groupA2.id, role: "GROUP_COACH", organisationId: orgA.id },
       ],
     });
 
@@ -189,20 +189,20 @@ async function main() {
     });
 
     // Rule configs
-    await db.ruleConfig.create({ data: { organisationId: orgA.id, footballGroupId: groupA1.id, key: "default", value: {} } });
-    await db.ruleConfig.create({ data: { organisationId: orgA.id, footballGroupId: groupA2.id, key: "default", value: {} } });
+    await db.ruleConfig.create({ data: { organisationId: orgA.id, footballGroupId: groupA1.id, name: "Test A1 Rules" } });
+    await db.ruleConfig.create({ data: { organisationId: orgA.id, footballGroupId: groupA2.id, name: "Test A2 Rules" } });
 
     // Players for Group A1 (3 teams, ~30 players)
     const positions = ["GK", "CB", "CM", "W", "ST"] as const;
-    const footPreferences = ["RIGHT", "LEFT", "BOTH"] as const;
+    const footPreferences = ["RIGHT", "LEFT"] as const;
     let playerCode = 2000;
-    const a1PlayerIds: string[] = [];
     const a1TeamConfigs = [
       { team: teamA1Blues, count: 11 },
       { team: teamA1Whites, count: 10 },
       { team: teamA1Reds, count: 9 },
     ];
 
+    const a1PlayerIds: string[] = [];
     for (const { team, count } of a1TeamConfigs) {
       for (let i = 0; i < count; i++) {
         const pos = positions[i % positions.length];
@@ -216,15 +216,15 @@ async function main() {
             primaryPosition: pos,
             secondaryPosition: i % 3 === 0 ? "CB" : null,
             preferredFoot: foot,
-            secondaryFoot: foot === "BOTH" ? "STRONG" : "WEAK",
+            secondaryFoot: i % 4 === 0 ? "LEFT" : "WEAK",
             bestSide: i % 3 === 0 ? "LEFT" : i % 3 === 1 ? "RIGHT" : "CENTER",
             currentAvailability: i % 12 === 0 ? "UNAVAILABLE" : "AVAILABLE",
             organisationId: orgA.id,
-            ...(i % 5 === 0 ? { goalkeeperAbility: pos === "GK" ? "YES" : "EMERGENCY" } : {}),
+            ...(i % 5 === 0 ? { goalkeeperAbility: pos === "GK" ? "YES" as const : "EMERGENCY" as const } : {}),
           },
         });
         a1PlayerIds.push(player.id);
-        await db.footballGroupPlayer.create({ data: { playerId: player.id, footballGroupId: groupA1.id } });
+        await db.footballGroupPlayer.create({ data: { playerId: player.id, footballGroupId: groupA1.id, organisationId: orgA.id } });
       }
     }
 
@@ -248,15 +248,15 @@ async function main() {
             primaryPosition: pos,
             secondaryPosition: i % 4 === 0 ? "CM" : null,
             preferredFoot: foot,
-            secondaryFoot: foot === "BOTH" ? "STRONG" : "WEAK",
+            secondaryFoot: i % 4 === 0 ? "LEFT" : "WEAK",
             bestSide: i % 3 === 0 ? "CENTER" : "RIGHT",
             currentAvailability: i % 10 === 0 ? "UNAVAILABLE" : "AVAILABLE",
             organisationId: orgA.id,
-            ...(i % 4 === 0 ? { goalkeeperAbility: pos === "GK" ? "YES" : "EMERGENCY" } : {}),
+            ...(i % 4 === 0 ? { goalkeeperAbility: pos === "GK" ? "YES" as const : "EMERGENCY" as const } : {}),
           },
         });
         a2PlayerIds.push(player.id);
-        await db.footballGroupPlayer.create({ data: { playerId: player.id, footballGroupId: groupA2.id } });
+        await db.footballGroupPlayer.create({ data: { playerId: player.id, footballGroupId: groupA2.id, organisationId: orgA.id } });
       }
     }
 
@@ -278,7 +278,7 @@ async function main() {
       data: { name: "Test Group B1", slug: "test-group-b1", type: "AGE_GROUP", organisationId: orgB.id },
     });
 
-    await db.groupAccess.create({ data: { membershipId: memCoachB1.id, footballGroupId: groupB1.id, accessRole: "COACH" } });
+    await db.groupAccess.create({ data: { membershipId: memCoachB1.id, footballGroupId: groupB1.id, role: "GROUP_COACH", organisationId: orgB.id } });
 
     // Teams for Group B1
     const teamB1Lions = await db.team.create({
@@ -311,16 +311,16 @@ async function main() {
       ],
     });
 
-    await db.ruleConfig.create({ data: { organisationId: orgB.id, footballGroupId: groupB1.id, key: "default", value: {} } });
+    await db.ruleConfig.create({ data: { organisationId: orgB.id, footballGroupId: groupB1.id, name: "Test B1 Rules" } });
 
     // Players for Group B1 (2 teams, ~18 players)
     let b1PlayerCode = 3000;
-    const b1PlayerIds: string[] = [];
     const b1TeamConfigs = [
       { team: teamB1Lions, count: 10 },
       { team: teamB1Wolves, count: 8 },
     ];
 
+    const b1PlayerIds: string[] = [];
     for (const { team, count } of b1TeamConfigs) {
       for (let i = 0; i < count; i++) {
         const pos = positions[i % positions.length];
@@ -333,15 +333,15 @@ async function main() {
             coreTeamId: team.id,
             primaryPosition: pos,
             preferredFoot: foot,
-            secondaryFoot: foot === "BOTH" ? "STRONG" : "WEAK",
+            secondaryFoot: i % 3 === 0 ? "LEFT" : "WEAK",
             bestSide: "CENTER",
             currentAvailability: "AVAILABLE",
             organisationId: orgB.id,
-            ...(pos === "GK" ? { goalkeeperAbility: "YES" } : {}),
+            ...(pos === "GK" ? { goalkeeperAbility: "YES" as const } : {}),
           },
         });
         b1PlayerIds.push(player.id);
-        await db.footballGroupPlayer.create({ data: { playerId: player.id, footballGroupId: groupB1.id } });
+        await db.footballGroupPlayer.create({ data: { playerId: player.id, footballGroupId: groupB1.id, organisationId: orgB.id } });
       }
     }
 
