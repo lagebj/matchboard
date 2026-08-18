@@ -15,5 +15,5 @@ export async function getSeasonReviewAction(leagueSeasonId: string) {
     if (!leagueSeason) throw new Error("League season not found or access denied.");
   }
 
-  return getSeasonReview(leagueSeasonId);
+  return getSeasonReview(leagueSeasonId, ctx.orgFilter.filter);
 }

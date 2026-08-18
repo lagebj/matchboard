@@ -27,6 +27,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "League season not found or access denied." }, { status: 404 });
   }
 
-  const data = await getSeasonReview(leagueSeasonId);
+  const data = await getSeasonReview(leagueSeasonId, { organisationId: ctx.organisationId });
   return NextResponse.json(data);
 }

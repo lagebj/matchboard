@@ -12,14 +12,14 @@ Accepted
 
 SEC-2 requires database-backed access, central policies, session revocation design, sensitive-operation reauthentication, negative tests, and invitation/token replay protection.
 
-The current auth architecture assessment found:
-- Auth is email-allowlist based (`ALLOWED_COACH_EMAILS` env var), not database-backed membership
+The original auth architecture assessment found:
+- ~~Auth is email-allowlist based (`ALLOWED_COACH_EMAILS` env var), not database-backed membership~~ — **Removed in ADR-0061**
 - JWT sessions with no explicit lifetime (default 30 days, 24h update)
 - No session revocation mechanism — stolen JWTs valid until expiry
 - No reauthentication for sensitive operations (finalize, clear, admin)
 - `requireCoachAccess()` throws generic `Error("Unauthorized")` instead of structured 401/403
 - Binary coach/not-coach role — no admin/viewer distinction
-- Edge auth config lacks `signIn` callback (allowlist gate done in middleware)
+- ~~Edge auth config lacks `signIn` callback (allowlist gate done in middleware)~~ — **Removed in ADR-0061**
 
 ## Decision
 
@@ -37,23 +37,23 @@ Both `src/auth.ts` and `src/auth-edge.ts` now have explicit session configuratio
 
 ### 3. Session revocation design (documented, deferred)
 
-JWT sessions cannot be individually revoked without server-side state. The current architecture provides a mitigation: the middleware re-checks `ALLOWED_COACH_EMAILS` on every request, so removing a user from the allowlist immediately denies access (after server restart/redeployment picks up the env var change).
+JWT sessions cannot be individually revoked without server-side state. ~~The current architecture provides a mitigation: the middleware re-checks `ALLOWED_COACH_EMAILS` on every request, so removing a user from the allowlist immediately denies access (after server restart/redeployment picks up the env var change).~~ **(Superseded by ADR-0061: membership-based auth provides deny-by-default access control.)**
 
 Full session revocation requires database-backed sessions, which is planned for MT-1 (organisation and membership model). Until then:
 - JWT lifetime is limited to 24 hours (reduced from 30 days)
-- Middleware allowlist check provides deny-by-default revocation
+- Membership-based access control provides deny-by-default authorisation (ADR-0061)
 - No `Session` table reads are needed (the Prisma Session model is retained for Auth.js adapter compatibility but not actively used)
 
 ### 4. Sensitive-operation reauthentication (documented, deferred)
 
 Step-up authentication for high-risk operations (round finalization, draft clearing, admin operations) is deferred to SEC-6 (audit, incident and recovery) when session revocation is also addressed. The current override-reason requirement for finalizing blocked rounds provides domain-level confirmation without a full reauthentication flow.
 
-### 5. Database-backed membership (deferred to MT-1)
+### 5. Database-backed membership (implemented in ADR-0035, ADR-0061)
 
-The current email-allowlist approach is sufficient for the single-tenant coach application. Database-backed membership, roles, and organisation context will be introduced in MT-1 through MT-4. Until then:
-- `requireCoachAccess()` remains the central authorisation gate
+~~The current email-allowlist approach is sufficient for the single-tenant coach application. Database-backed membership, roles, and organisation context will be introduced in MT-1 through MT-4.~~ **Superseded: Membership-based auth is now implemented (ADR-0035, ADR-0061).** The email allowlist has been removed.
+- `requireCoachAccess()` remains the central auth gate, now backed by membership
 - `AuthenticationError` and `AuthorizationError` provide structured error responses
-- The middleware allowlist provides edge-level access control
+- Membership-based access control provides deny-by-default authorisation
 
 ### 6. Invitation and token replay protection (documented, deferred)
 
@@ -65,13 +65,13 @@ Added tests for:
 - `AuthenticationError` and `AuthorizationError` creation and properties
 - `AppError` integration with `safeErrorResponse()` for 401/403 status codes
 - Rate limiting (6 tests for rate limiting behavior)
-- `isAllowedCoach()` edge cases (existing tests preserved)
+- Membership-based auth verification (security-audit.test.ts verifies allowlist module is removed)
 
 ## Consequences
 
 - JWT sessions expire after 24 hours instead of 30 days — coaches may need to re-authenticate more frequently
 - `requireCoachAccess()` now throws `AuthenticationError` which maps to 401 via `safeErrorResponse()`
-- Session revocation is limited to allowlist removal until database-backed sessions are introduced
+- Session revocation is limited to membership removal until database-backed sessions are introduced
 - Step-up authentication is deferred to SEC-6
 - Database-backed membership is deferred to MT-1
 

@@ -117,8 +117,8 @@ The `PREVIEW_ALLOWLIST_EMAILS` env var restricts Vercel preview API routes. This
 
 ## Implementation evidence
 
-- Pull requests: (to be added)
-- Tests: (to be added)
+- Pull requests: #273 (remove email allowlist, membership-based auth), #274 (MATCHBOARD_ENV, public routes, env module)
+- Tests: security-audit.test.ts (allowlist absence verification), auth.test.ts (membership-based auth contract), mt7-validation.test.ts (no allowlist module, no ALLOWED_COACH_EMAILS references)
 
 ## Supersedes
 

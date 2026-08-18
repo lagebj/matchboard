@@ -186,8 +186,8 @@ async function decideAttributeSuggestion(
   adjustedValue: number | undefined,
   coachId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const player = await db.player.findUnique({
-    where: { id: suggestion.playerId },
+  const player = await db.player.findFirst({
+    where: { id: suggestion.playerId, organisationId: suggestion.organisationId },
   });
 
   if (!player) {

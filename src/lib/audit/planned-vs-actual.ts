@@ -315,9 +315,10 @@ export async function getAuditWorkItems(
 
 export async function getSeasonReview(
   leagueSeasonId: string,
+  orgFilter: { organisationId: string },
 ): Promise<SeasonReviewData> {
-  const leagueSeason = await db.leagueSeason.findUnique({
-    where: { id: leagueSeasonId },
+  const leagueSeason = await db.leagueSeason.findFirst({
+    where: { id: leagueSeasonId, ...orgFilter },
     include: { season: true },
   });
 
