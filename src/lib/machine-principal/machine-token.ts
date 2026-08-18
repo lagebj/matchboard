@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { TOKEN_MAX_AGE_SECONDS, DEFAULT_TOKEN_AGE_SECONDS, type MachineScope } from "@/lib/machine-principal/machine-principal";
+import { getAuthSecret } from "@/lib/env";
 
 export interface MachineTokenPayload {
   principalId: string;
@@ -11,10 +12,7 @@ export interface MachineTokenPayload {
 }
 
 function getSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    throw new Error("AUTH_SECRET environment variable is not set. Required for machine token signing.");
-  }
+  const secret = getAuthSecret();
   return new TextEncoder().encode(secret);
 }
 

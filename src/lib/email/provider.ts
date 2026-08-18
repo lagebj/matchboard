@@ -1,4 +1,4 @@
-import { getAppBaseUrl as _getAppBaseUrl } from "@/lib/env";
+import { getAppBaseUrl as _getAppBaseUrl, getEmailFromAddress as _getEmailFromAddress, getEmailFromName as _getEmailFromName } from "@/lib/env";
 
 export interface EmailRecipient {
   email: string;
@@ -28,11 +28,11 @@ export interface TransactionalEmailProvider {
 }
 
 export function getEmailFromAddress(): string {
-  return process.env.EMAIL_FROM_ADDRESS ?? "notifications@matchboard.football";
+  return _getEmailFromAddress();
 }
 
 export function getEmailFromName(): string {
-  return process.env.EMAIL_FROM_NAME ?? "Matchboard";
+  return _getEmailFromName();
 }
 
 export function getAppBaseUrl(): string {

@@ -3,6 +3,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
+import { isRlsDebug } from "@/lib/env";
 import { getTenantOrganisationId, getTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 import { isProduction } from "@/lib/env";
 
@@ -118,7 +119,7 @@ export const RLS_TABLES = new Set([
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
-const RLS_DEBUG = process.env.RLS_DEBUG === "1";
+const RLS_DEBUG = isRlsDebug();
 
 type QueryArgs = Record<string, unknown>;
 

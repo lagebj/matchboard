@@ -1,13 +1,14 @@
 import type { TransactionalEmailProvider } from "./provider";
 import { BrevoEmailProvider } from "./brevo-provider";
 import { ConsoleEmailProvider } from "./console-provider";
+import { getBrevoApiKey } from "@/lib/env";
 
 let providerInstance: TransactionalEmailProvider | null = null;
 
 export function getEmailProvider(): TransactionalEmailProvider {
   if (providerInstance) return providerInstance;
 
-  const brevoApiKey = process.env.BREVO_API_KEY;
+  const brevoApiKey = getBrevoApiKey();
 
   if (brevoApiKey) {
     providerInstance = new BrevoEmailProvider(brevoApiKey);

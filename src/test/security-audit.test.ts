@@ -537,4 +537,81 @@ describe("Security audit: authentication architecture", () => {
     expect(middlewareFile).toContain("Strict-Transport-Security");
     expect(middlewareFile).toContain("isProduction");
   });
+
+  it("environment config reads are centralized through env.ts", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+
+    // These config values should have centralized accessors in env.ts
+    expect(envFile).toContain("getEmailFromAddress");
+    expect(envFile).toContain("getEmailFromName");
+    expect(envFile).toContain("getBrevoApiKey");
+    expect(envFile).toContain("getBrevoTestRecipients");
+    expect(envFile).toContain("getAuthSecret");
+    expect(envFile).toContain("isCspEnforceEnabled");
+    expect(envFile).toContain("isRlsDebug");
+    expect(envFile).toContain("getPreviewAllowlistEmails");
+    expect(envFile).toContain("isVercelPreview");
+  });
+
+  it("consumers use centralized env accessors instead of direct process.env", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+
+    const providerFactory = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/email/provider-factory.ts"),
+      "utf-8",
+    );
+    expect(providerFactory).toContain("getBrevoApiKey");
+    expect(providerFactory).not.toContain("process.env.BREVO_API_KEY");
+
+    const brevoProvider = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/email/brevo-provider.ts"),
+      "utf-8",
+    );
+    expect(brevoProvider).toContain("getBrevoTestRecipients");
+    expect(brevoProvider).not.toContain("process.env.BREVO_TEST_RECIPIENTS");
+
+    const provider = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/email/provider.ts"),
+      "utf-8",
+    );
+    expect(provider).toContain("_getEmailFromAddress");
+    expect(provider).not.toContain("process.env.EMAIL_FROM_ADDRESS");
+    expect(provider).not.toContain("process.env.EMAIL_FROM_NAME");
+
+    const csp = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/security/csp.ts"),
+      "utf-8",
+    );
+    expect(csp).toContain("isCspEnforceEnabled");
+    expect(csp).not.toContain("process.env.CSP_ENFORCE");
+
+    const machineToken = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/machine-principal/machine-token.ts"),
+      "utf-8",
+    );
+    expect(machineToken).toContain("getAuthSecret");
+    expect(machineToken).not.toContain("process.env.AUTH_SECRET");
+
+    const db = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/db.ts"),
+      "utf-8",
+    );
+    expect(db).toContain("isRlsDebug");
+    expect(db).not.toContain("process.env.RLS_DEBUG");
+
+    const middleware = fs.readFileSync(
+      path.join(process.cwd(), "src/middleware.ts"),
+      "utf-8",
+    );
+    expect(middleware).toContain("getPreviewAllowlistEmails");
+    expect(middleware).toContain("isVercelPreview");
+    expect(middleware).not.toContain("process.env.PREVIEW_ALLOWLIST_EMAILS");
+    expect(middleware).not.toContain("process.env.VERCEL_ENV");
+  });
 });

@@ -1,7 +1,7 @@
-import { isDevelopment } from "@/lib/env";
+import { isDevelopment, isCspEnforceEnabled } from "@/lib/env";
 
 export function isCspReportOnly(): boolean {
-  return process.env.CSP_ENFORCE !== "true";
+  return !isCspEnforceEnabled();
 }
 
 export function getContentSecurityPolicy(): { header: string; value: string } {
