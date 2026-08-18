@@ -145,7 +145,7 @@ export async function hasTeamAccess(ctx: ActorContext, teamId: string): Promise<
   if (ADMIN_ROLES.includes(ctx.role)) return true;
 
   const team = await db.team.findFirst({
-    where: { id: teamId },
+    where: { id: teamId, ...ctx.orgFilter.filter },
     select: { footballGroupId: true },
   });
 

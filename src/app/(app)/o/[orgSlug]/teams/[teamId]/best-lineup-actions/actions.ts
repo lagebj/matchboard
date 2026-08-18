@@ -50,7 +50,7 @@ export async function assignPlayerToBestLineupSlotAction(
 export async function clearBestLineupSlotAction(lineupId: string, slotId: string) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  await clearBestLineupSlot(lineupId, slotId);
+  await clearBestLineupSlot(lineupId, slotId, ctx.orgFilter);
   revalidatePath(`/o/${ctx.organisationSlug}/teams`);
 }
 

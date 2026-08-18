@@ -43,7 +43,7 @@ if (!isProduction()) {
 // Application-level where-clause injection is the primary tenant isolation mechanism.
 // Database RLS policies serve as defence-in-depth when app.current_organization_id is set.
 // Organisation is excluded because it IS the organisation, not scoped by one.
-const RLS_TABLES = new Set([
+export const RLS_TABLES = new Set([
   "organisationMembership",
   "organisationInvitation",
   "machinePrincipal",
@@ -110,6 +110,10 @@ const RLS_TABLES = new Set([
   "opponentSportingEvidence",
   "playerDevelopmentObservation",
   "playerProfileSuggestion",
+  "teamBestLineup",
+  "teamBestLineupAssignment",
+  "eventLiveMatchSession",
+  "eventLiveMatchEvent",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
