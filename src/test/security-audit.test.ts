@@ -119,6 +119,8 @@ describe("Security audit: Vercel deployment readiness", () => {
     expect(envExample).not.toContain("ALLOWED_COACH_EMAILS");
     // MATCHBOARD_ENV should be documented (as a commented placeholder)
     expect(envExample).toContain("MATCHBOARD_ENV");
+    // BREVO_TEST_RECIPIENTS should be documented for non-production email safety
+    expect(envExample).toContain("BREVO_TEST_RECIPIENTS");
   });
 
   it("runtime db client uses DATABASE_URL and auto-detects Neon", async () => {
