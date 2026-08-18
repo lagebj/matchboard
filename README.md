@@ -647,6 +647,9 @@ Set these in the Vercel project dashboard under Settings → Environment Variabl
 | `AUTH_GOOGLE_ID` | Google OAuth client ID from Google Cloud Console. |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret from Google Cloud Console. |
 | `AUTH_URL` | Your deployed URL (e.g. `https://matchboard.vercel.app`). Auth.js uses this for callbacks. |
+| `APP_BASE_URL` | Public base URL for generating links in emails and invitations. **Required in production** (must be `https://`). |
+| `CRON_SECRET` | Shared secret for verifying Vercel Cron requests. **Required in production.** Generate with `openssl rand -hex 32`. |
+| `BREVO_WEBHOOK_BEARER_TOKEN` | Bearer token for authenticating Brevo webhook callbacks. **Required in production.** |
 
 **Never prefix secrets with `NEXT_PUBLIC_`** — they would be exposed to the browser.
 

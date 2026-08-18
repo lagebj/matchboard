@@ -134,6 +134,12 @@ export function validateEnv(): EnvValidationResult {
     if (process.env.BYPASS_AUTH === "true") {
       errors.push("BYPASS_AUTH=true must not be set in production. Test-only authentication mechanisms cannot be active in a production environment.");
     }
+    if (process.env.TEST_AGENT_AUTH_ENABLED === "true") {
+      errors.push("TEST_AGENT_AUTH_ENABLED=true must not be set in production. Test-only authentication mechanisms cannot be active in a production environment.");
+    }
+    if (process.env.TEST_AGENT_AUTH_SECRET) {
+      errors.push("TEST_AGENT_AUTH_SECRET must not be set in production. Test-only authentication secrets cannot be active in a production environment.");
+    }
     if (!process.env.CRON_SECRET) {
       errors.push("CRON_SECRET is required in production to protect cron endpoints from unauthenticated access.");
     }
@@ -161,6 +167,7 @@ export const PUBLIC_ROUTES = [
   "/signin",
   "/error",
   "/api/health",
+  "/api/meta",
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];
@@ -197,6 +204,17 @@ export function isBypassAuthEnabled(): boolean {
   const env = process.env.MATCHBOARD_ENV ?? (process.env.NODE_ENV ?? "development");
   return env === "test" && process.env.BYPASS_AUTH === "true";
 }
+
+export function isTestAgentAuthEnabled(): boolean {
+  const env = process.env.MATCHBOARD_ENV ?? (process.env.NODE_ENV ?? "development");
+  return env === "test" && process.env.TEST_AGENT_AUTH_ENABLED === "true" && !!process.env.TEST_AGENT_AUTH_SECRET;
+}
+
+export function getTestAgentAuthSecret(): string | undefined {
+  return process.env.TEST_AGENT_AUTH_SECRET || undefined;
+}
+
+export const TEST_AGENT_AUTH_NAMESPACE = "test-agent.matchboard.football";
 
 export function getAppBaseUrl(): string {
   if (process.env.APP_BASE_URL) {

@@ -516,6 +516,38 @@ describe("Security audit: authentication architecture", () => {
     expect(envFile).toContain("must not be set in production");
   });
 
+  it("TEST_AGENT_AUTH_ENABLED=true is rejected in production by env validation", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    expect(envFile).toContain("TEST_AGENT_AUTH_ENABLED");
+    expect(envFile).toContain("must not be set in production");
+  });
+
+  it("TEST_AGENT_AUTH_SECRET is rejected in production by env validation", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    expect(envFile).toContain("TEST_AGENT_AUTH_SECRET");
+    expect(envFile).toContain("must not be set in production");
+  });
+
+  it("isTestAgentAuthEnabled is only active in test environment", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    expect(envFile).toContain("isTestAgentAuthEnabled");
+  });
+
   it("getAppBaseUrl documents AUTH_URL fallback risk", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
