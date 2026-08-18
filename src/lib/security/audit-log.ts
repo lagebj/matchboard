@@ -36,6 +36,8 @@ type SecurityEventAction =
   | "organisation_invitation_create"
   | "organisation_invitation_accept"
   | "organisation_invitation_revoke"
+  | "organisation_invitation_decline"
+  | "organisation_invitation_expire"
   | "organisation_membership_update"
   | "organisation_team_access_add"
   | "organisation_team_access_add"
@@ -347,6 +349,30 @@ export function logOrganisationInvitationRevoke(actor: string, organisationId: s
     resourceId: organisationId,
     result,
     reason,
+  });
+}
+
+export function logOrganisationInvitationDecline(actor: string, organisationId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_invitation_decline",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+    reason,
+  });
+}
+
+export function logOrganisationInvitationExpire(actor: string, organisationId: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_invitation_expire",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result: "success",
+    reason: "invitation_expired",
   });
 }
 

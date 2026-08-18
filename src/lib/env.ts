@@ -150,7 +150,7 @@ export function validateEnv(): EnvValidationResult {
 
   // Non-production APP_BASE_URL warnings
   if (!isProdEnv && !isTest() && !process.env.APP_BASE_URL) {
-    warnings.push("APP_BASE_URL is not set. External URLs will fall back to AUTH_URL or localhost, which may be incorrect for staging deployments.");
+    warnings.push("APP_BASE_URL is not set. External URLs will fall back to localhost, which may be incorrect for staging deployments.");
   }
 
   return { valid: errors.length === 0, errors, warnings };
@@ -226,10 +226,7 @@ export function getAppBaseUrl(): string {
   if (process.env.APP_BASE_URL) {
     return process.env.APP_BASE_URL;
   }
-  if (process.env.AUTH_URL) {
-    return process.env.AUTH_URL;
-  }
-  if (isDevelopment()) {
+  if (isDevelopment() || isTest()) {
     return "http://localhost:3000";
   }
   return "";

@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.9.12",
+  "version": "0.9.15",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {

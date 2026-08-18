@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { hashToken } from "@/lib/organisations/organisation-invitation";
+import { logOrganisationInvitationExpire } from "@/lib/security/audit-log";
 
 import { InviteAcceptanceForm } from "./invite-acceptance-form";
 
@@ -83,8 +84,9 @@ export default async function InvitePage({
     if (invitation.status === "PENDING") {
       await db.organisationInvitation.update({
         where: { id: invitation.id },
-        data: { status: "EXPIRED" },
+        data: { status: "EXPIRED", token: null as unknown as string },
       });
+      logOrganisationInvitationExpire(session.user.email ?? "unknown", invitation.organisation.id);
     }
 
     return (

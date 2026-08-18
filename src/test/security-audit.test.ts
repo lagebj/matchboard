@@ -558,15 +558,22 @@ describe("Security audit: authentication architecture", () => {
     expect(envFile).toContain("isTestAgentAuthEnabled");
   });
 
-  it("getAppBaseUrl documents AUTH_URL fallback risk", async () => {
+  it("getAppBaseUrl does not fall back to AUTH_URL for external links", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
     const providerFile = fs.readFileSync(
       path.join(process.cwd(), "src/lib/email/provider.ts"),
       "utf-8",
     );
-    expect(providerFile).toContain("APP_BASE_URL");
-    expect(providerFile).toContain("AUTH_URL is an Auth.js callback URL");
+    expect(envFile).toContain("APP_BASE_URL");
+    expect(envFile).not.toContain("return process.env.AUTH_URL");
+    expect(providerFile).toContain("_getAppBaseUrl");
+    expect(providerFile).not.toContain("AUTH_URL");
+    expect(providerFile).not.toContain("localhost:3333");
   });
 
   it("HSTS header is set in production middleware", async () => {
