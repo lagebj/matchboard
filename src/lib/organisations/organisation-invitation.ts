@@ -128,7 +128,7 @@ export async function acceptInvitation(data: {
   if (invitation.expiresAt < new Date()) {
     await client.organisationInvitation.update({
       where: { id: invitation.id },
-      data: { status: "EXPIRED" },
+      data: { status: "EXPIRED", token: null as unknown as string },
     });
     return { success: false, error: "Invitation has expired." };
   }
@@ -161,7 +161,7 @@ export async function acceptInvitation(data: {
     }),
     client.organisationInvitation.update({
       where: { id: invitation.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
+      data: { status: "ACCEPTED", acceptedAt: new Date(), token: null as unknown as string },
     }),
   ]);
 
@@ -191,7 +191,7 @@ export async function revokeInvitation(data: {
 
   await db.organisationInvitation.update({
     where: { id: data.invitationId },
-    data: { status: "REVOKED", revokedAt: new Date() },
+    data: { status: "REVOKED", revokedAt: new Date(), token: null as unknown as string },
   });
 
   return { success: true, invitationId: data.invitationId };
@@ -228,7 +228,7 @@ export async function declineInvitation(data: {
 
   await client.organisationInvitation.update({
     where: { id: invitation.id },
-    data: { status: "DECLINED", revokedAt: new Date() },
+    data: { status: "DECLINED", revokedAt: new Date(), token: null as unknown as string },
   });
 
   return { success: true, invitationId: invitation.id };

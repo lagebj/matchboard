@@ -1926,7 +1926,7 @@ model OrganisationInvitation {
   organisationId String
   invitedEmail   String
   intendedRole   OrganisationRole @default(COACH)
-  token          String           @unique
+  token          String?          @unique
   tokenHash      String           @unique
   expiresAt      DateTime
   acceptedAt     DateTime?

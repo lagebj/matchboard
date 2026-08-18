@@ -10,6 +10,7 @@ import {
   logOrganisationInvitationCreate,
   logOrganisationInvitationAccept,
   logOrganisationInvitationRevoke,
+  logOrganisationInvitationDecline,
   logOrganisationMembershipUpdate,
 } from "@/lib/security/audit-log";
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
@@ -218,8 +219,11 @@ export async function declineInvitationAction(token: string) {
   const result = await declineInvitation({ token: token.trim(), userId: coachId, userEmail: coachEmail });
 
   if (!result.success) {
+    logOrganisationInvitationDecline(coachEmail, "", "failure", result.error);
     return { success: false as const, error: result.error };
   }
+
+  logOrganisationInvitationDecline(coachEmail, result.invitationId, "success");
 
   cancelNotificationByIdempotencyKey(`invitation-${result.invitationId}`).catch((err) => {
     console.error("[invitation] Failed to cancel notification on decline:", err);
