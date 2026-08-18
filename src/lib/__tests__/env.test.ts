@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
+import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, isTestAgentAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
 
 describe("env: resolveMatchboardEnv", () => {
   it("resolves to a valid environment", () => {
@@ -162,6 +162,9 @@ describe("env: production safety guards", () => {
     process.env.CRON_SECRET = "cron-secret-value";
     process.env.BREVO_WEBHOOK_BEARER_TOKEN = "brevo-token";
     process.env.TEST_DATABASE_URL = "postgresql://test:test@localhost/test";
+    delete process.env.BYPASS_AUTH;
+    delete process.env.TEST_AGENT_AUTH_ENABLED;
+    delete process.env.TEST_AGENT_AUTH_SECRET;
   }
 
   it("rejects BYPASS_AUTH=true in production", () => {
@@ -206,7 +209,6 @@ describe("env: production safety guards", () => {
 
   it("accepts valid production env", () => {
     setValidProductionEnv();
-    delete process.env.BYPASS_AUTH;
 
     const result = validateEnv();
     expect(result.valid).toBe(true);
@@ -273,6 +275,116 @@ describe("env: isBypassAuthEnabled", () => {
     process.env.MATCHBOARD_ENV = "development";
     process.env.BYPASS_AUTH = "true";
     expect(isBypassAuthEnabled()).toBe(false);
+  });
+});
+
+describe("env: isTestAgentAuthEnabled", () => {
+  const originalMatchboardEnv = process.env.MATCHBOARD_ENV;
+  const originalEnabled = process.env.TEST_AGENT_AUTH_ENABLED;
+  const originalSecret = process.env.TEST_AGENT_AUTH_SECRET;
+
+  afterEach(() => {
+    if (originalMatchboardEnv !== undefined) {
+      process.env.MATCHBOARD_ENV = originalMatchboardEnv;
+    } else {
+      delete process.env.MATCHBOARD_ENV;
+    }
+    if (originalEnabled !== undefined) {
+      process.env.TEST_AGENT_AUTH_ENABLED = originalEnabled;
+    } else {
+      delete process.env.TEST_AGENT_AUTH_ENABLED;
+    }
+    if (originalSecret !== undefined) {
+      process.env.TEST_AGENT_AUTH_SECRET = originalSecret;
+    } else {
+      delete process.env.TEST_AGENT_AUTH_SECRET;
+    }
+  });
+
+  it("returns true when MATCHBOARD_ENV=test, TEST_AGENT_AUTH_ENABLED=true, and secret is set", () => {
+    process.env.MATCHBOARD_ENV = "test";
+    process.env.TEST_AGENT_AUTH_ENABLED = "true";
+    process.env.TEST_AGENT_AUTH_SECRET = "test-secret";
+    expect(isTestAgentAuthEnabled()).toBe(true);
+  });
+
+  it("returns false when MATCHBOARD_ENV=test but TEST_AGENT_AUTH_ENABLED is not set", () => {
+    process.env.MATCHBOARD_ENV = "test";
+    delete process.env.TEST_AGENT_AUTH_ENABLED;
+    process.env.TEST_AGENT_AUTH_SECRET = "test-secret";
+    expect(isTestAgentAuthEnabled()).toBe(false);
+  });
+
+  it("returns false when MATCHBOARD_ENV=test and TEST_AGENT_AUTH_ENABLED=true but no secret", () => {
+    process.env.MATCHBOARD_ENV = "test";
+    process.env.TEST_AGENT_AUTH_ENABLED = "true";
+    delete process.env.TEST_AGENT_AUTH_SECRET;
+    expect(isTestAgentAuthEnabled()).toBe(false);
+  });
+
+  it("returns false in production regardless of env vars", () => {
+    process.env.MATCHBOARD_ENV = "production";
+    process.env.TEST_AGENT_AUTH_ENABLED = "true";
+    process.env.TEST_AGENT_AUTH_SECRET = "should-not-work";
+    expect(isTestAgentAuthEnabled()).toBe(false);
+  });
+
+  it("returns false in development regardless of env vars", () => {
+    process.env.MATCHBOARD_ENV = "development";
+    process.env.TEST_AGENT_AUTH_ENABLED = "true";
+    process.env.TEST_AGENT_AUTH_SECRET = "test-secret";
+    expect(isTestAgentAuthEnabled()).toBe(false);
+  });
+});
+
+describe("env: validateEnv rejects TEST_AGENT_AUTH in production", () => {
+  const originalEnv = process.env.MATCHBOARD_ENV;
+  const originalEnabled = process.env.TEST_AGENT_AUTH_ENABLED;
+  const originalSecret = process.env.TEST_AGENT_AUTH_SECRET;
+
+  afterEach(() => {
+    if (originalEnv !== undefined) process.env.MATCHBOARD_ENV = originalEnv;
+    else delete process.env.MATCHBOARD_ENV;
+    if (originalEnabled !== undefined) process.env.TEST_AGENT_AUTH_ENABLED = originalEnabled;
+    else delete process.env.TEST_AGENT_AUTH_ENABLED;
+    if (originalSecret !== undefined) process.env.TEST_AGENT_AUTH_SECRET = originalSecret;
+    else delete process.env.TEST_AGENT_AUTH_SECRET;
+  });
+
+  it("rejects TEST_AGENT_AUTH_ENABLED=true in production", () => {
+    process.env.MATCHBOARD_ENV = "production";
+    process.env.DATABASE_URL = "postgresql://test:test@localhost/db";
+    process.env.DIRECT_URL = "postgresql://test:test@localhost/db";
+    process.env.AUTH_SECRET = "test-secret";
+    process.env.AUTH_GOOGLE_ID = "test";
+    process.env.AUTH_GOOGLE_SECRET = "test";
+    process.env.APP_BASE_URL = "https://app.matchboard.football";
+    process.env.CRON_SECRET = "test-cron-secret";
+    process.env.BREVO_WEBHOOK_BEARER_TOKEN = "test-brevo-token";
+    process.env.TEST_AGENT_AUTH_ENABLED = "true";
+
+    const result = validateEnv();
+    const error = result.errors.find((e) => e.includes("TEST_AGENT_AUTH_ENABLED"));
+    expect(error).toBeDefined();
+    expect(error).toContain("must not be set in production");
+  });
+
+  it("rejects TEST_AGENT_AUTH_SECRET in production", () => {
+    process.env.MATCHBOARD_ENV = "production";
+    process.env.DATABASE_URL = "postgresql://test:test@localhost/db";
+    process.env.DIRECT_URL = "postgresql://test:test@localhost/db";
+    process.env.AUTH_SECRET = "test-secret";
+    process.env.AUTH_GOOGLE_ID = "test";
+    process.env.AUTH_GOOGLE_SECRET = "test";
+    process.env.APP_BASE_URL = "https://app.matchboard.football";
+    process.env.CRON_SECRET = "test-cron-secret";
+    process.env.BREVO_WEBHOOK_BEARER_TOKEN = "test-brevo-token";
+    process.env.TEST_AGENT_AUTH_SECRET = "should-not-be-here";
+
+    const result = validateEnv();
+    const error = result.errors.find((e) => e.includes("TEST_AGENT_AUTH_SECRET"));
+    expect(error).toBeDefined();
+    expect(error).toContain("must not be set in production");
   });
 });
 

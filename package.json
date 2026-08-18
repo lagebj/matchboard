@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -21,9 +21,11 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed:demo": "node prisma/seed-demo.cjs",
+    "db:seed:test": "MATCHBOARD_ENV=test npx tsx scripts/seed-test-dataset.ts",
     "db:export": "npx tsx scripts/export-full-app-state.ts",
     "db:import": "npx tsx scripts/import-full-app-state.ts",
     "seed:demo": "node prisma/seed-demo.cjs",
+    "seed:test": "MATCHBOARD_ENV=test npx tsx scripts/seed-test-dataset.ts",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d",

@@ -23,6 +23,8 @@ export default defineConfig({
     env: {
       BYPASS_AUTH: "true",
       MATCHBOARD_ENV: "test",
+      TEST_AGENT_AUTH_ENABLED: "true",
+      TEST_AGENT_AUTH_SECRET: "test-agent-secret-for-vitest-only",
     },
     server: {
       deps: {
