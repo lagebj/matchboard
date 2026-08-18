@@ -66,7 +66,7 @@ npm-debug.log*
 .neon/
 .vercel/
 .brevo/
-pnpm-lock.yaml
+
 pnpm-workspace.yaml
 .matchboard-work/
 
