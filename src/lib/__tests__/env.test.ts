@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, getCronSecret, getBrevoWebhookBearerToken } from "@/lib/env";
+import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
 
 describe("env: resolveMatchboardEnv", () => {
   it("resolves to a valid environment", () => {
@@ -317,5 +317,216 @@ describe("env: getBrevoWebhookBearerToken", () => {
   it("returns empty string when token is not set", () => {
     delete process.env.BREVO_WEBHOOK_BEARER_TOKEN;
     expect(getBrevoWebhookBearerToken()).toBe("");
+  });
+});
+
+describe("env: getEmailFromAddress", () => {
+  const original = process.env.EMAIL_FROM_ADDRESS;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.EMAIL_FROM_ADDRESS = original;
+    } else {
+      delete process.env.EMAIL_FROM_ADDRESS;
+    }
+  });
+
+  it("returns configured value when set", () => {
+    process.env.EMAIL_FROM_ADDRESS = "custom@example.com";
+    expect(getEmailFromAddress()).toBe("custom@example.com");
+  });
+
+  it("returns default when not set", () => {
+    delete process.env.EMAIL_FROM_ADDRESS;
+    expect(getEmailFromAddress()).toBe("notifications@matchboard.football");
+  });
+});
+
+describe("env: getEmailFromName", () => {
+  const original = process.env.EMAIL_FROM_NAME;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.EMAIL_FROM_NAME = original;
+    } else {
+      delete process.env.EMAIL_FROM_NAME;
+    }
+  });
+
+  it("returns configured value when set", () => {
+    process.env.EMAIL_FROM_NAME = "Custom App";
+    expect(getEmailFromName()).toBe("Custom App");
+  });
+
+  it("returns default when not set", () => {
+    delete process.env.EMAIL_FROM_NAME;
+    expect(getEmailFromName()).toBe("Matchboard");
+  });
+});
+
+describe("env: getBrevoApiKey", () => {
+  const original = process.env.BREVO_API_KEY;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.BREVO_API_KEY = original;
+    } else {
+      delete process.env.BREVO_API_KEY;
+    }
+  });
+
+  it("returns key when set", () => {
+    process.env.BREVO_API_KEY = "test-key";
+    expect(getBrevoApiKey()).toBe("test-key");
+  });
+
+  it("returns undefined when not set", () => {
+    delete process.env.BREVO_API_KEY;
+    expect(getBrevoApiKey()).toBeUndefined();
+  });
+});
+
+describe("env: getBrevoTestRecipients", () => {
+  const original = process.env.BREVO_TEST_RECIPIENTS;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.BREVO_TEST_RECIPIENTS = original;
+    } else {
+      delete process.env.BREVO_TEST_RECIPIENTS;
+    }
+  });
+
+  it("parses comma-separated emails", () => {
+    process.env.BREVO_TEST_RECIPIENTS = "a@b.com, C@D.com";
+    const result = getBrevoTestRecipients();
+    expect(result.size).toBe(2);
+    expect(result.has("a@b.com")).toBe(true);
+    expect(result.has("c@d.com")).toBe(true);
+  });
+
+  it("returns empty set when not set", () => {
+    delete process.env.BREVO_TEST_RECIPIENTS;
+    expect(getBrevoTestRecipients().size).toBe(0);
+  });
+});
+
+describe("env: getAuthSecret", () => {
+  const original = process.env.AUTH_SECRET;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.AUTH_SECRET = original;
+    } else {
+      delete process.env.AUTH_SECRET;
+    }
+  });
+
+  it("returns secret when set", () => {
+    process.env.AUTH_SECRET = "my-secret";
+    expect(getAuthSecret()).toBe("my-secret");
+  });
+
+  it("throws when not set", () => {
+    delete process.env.AUTH_SECRET;
+    expect(() => getAuthSecret()).toThrow("AUTH_SECRET");
+  });
+});
+
+describe("env: isCspEnforceEnabled", () => {
+  const original = process.env.CSP_ENFORCE;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.CSP_ENFORCE = original;
+    } else {
+      delete process.env.CSP_ENFORCE;
+    }
+  });
+
+  it("returns true when CSP_ENFORCE is 'true'", () => {
+    process.env.CSP_ENFORCE = "true";
+    expect(isCspEnforceEnabled()).toBe(true);
+  });
+
+  it("returns false when CSP_ENFORCE is not set", () => {
+    delete process.env.CSP_ENFORCE;
+    expect(isCspEnforceEnabled()).toBe(false);
+  });
+
+  it("returns false when CSP_ENFORCE is set to other values", () => {
+    process.env.CSP_ENFORCE = "false";
+    expect(isCspEnforceEnabled()).toBe(false);
+  });
+});
+
+describe("env: isRlsDebug", () => {
+  const original = process.env.RLS_DEBUG;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.RLS_DEBUG = original;
+    } else {
+      delete process.env.RLS_DEBUG;
+    }
+  });
+
+  it("returns true when RLS_DEBUG is '1'", () => {
+    process.env.RLS_DEBUG = "1";
+    expect(isRlsDebug()).toBe(true);
+  });
+
+  it("returns false when RLS_DEBUG is not set", () => {
+    delete process.env.RLS_DEBUG;
+    expect(isRlsDebug()).toBe(false);
+  });
+});
+
+describe("env: getPreviewAllowlistEmails", () => {
+  const original = process.env.PREVIEW_ALLOWLIST_EMAILS;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.PREVIEW_ALLOWLIST_EMAILS = original;
+    } else {
+      delete process.env.PREVIEW_ALLOWLIST_EMAILS;
+    }
+  });
+
+  it("returns comma-separated emails when set", () => {
+    process.env.PREVIEW_ALLOWLIST_EMAILS = "a@b.com,c@d.com";
+    expect(getPreviewAllowlistEmails()).toBe("a@b.com,c@d.com");
+  });
+
+  it("returns empty string when not set", () => {
+    delete process.env.PREVIEW_ALLOWLIST_EMAILS;
+    expect(getPreviewAllowlistEmails()).toBe("");
+  });
+});
+
+describe("env: isVercelPreview", () => {
+  const original = process.env.VERCEL_ENV;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      process.env.VERCEL_ENV = original;
+    } else {
+      delete process.env.VERCEL_ENV;
+    }
+  });
+
+  it("returns true when VERCEL_ENV is 'preview'", () => {
+    process.env.VERCEL_ENV = "preview";
+    expect(isVercelPreview()).toBe(true);
+  });
+
+  it("returns false when VERCEL_ENV is 'production'", () => {
+    process.env.VERCEL_ENV = "production";
+    expect(isVercelPreview()).toBe(false);
+  });
+
+  it("returns false when VERCEL_ENV is not set", () => {
+    delete process.env.VERCEL_ENV;
+    expect(isVercelPreview()).toBe(false);
   });
 });

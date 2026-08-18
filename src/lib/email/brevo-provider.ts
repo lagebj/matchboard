@@ -5,16 +5,11 @@ import type {
   SendEmailRequest,
 } from "./provider";
 import { getEmailFromAddress, getEmailFromName } from "./provider";
-import { isProduction } from "@/lib/env";
-
-function getTestRecipientsAllowlist(): Set<string> {
-  const raw = process.env.BREVO_TEST_RECIPIENTS ?? "";
-  return new Set(raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
-}
+import { isProduction, getBrevoTestRecipients } from "@/lib/env";
 
 export function isTestRecipientAllowed(email: string): boolean {
   if (isProduction()) return true;
-  const allowlist = getTestRecipientsAllowlist();
+  const allowlist = getBrevoTestRecipients();
   if (allowlist.size === 0) return false;
   return allowlist.has(email.toLowerCase());
 }

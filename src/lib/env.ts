@@ -218,3 +218,44 @@ export function getCronSecret(): string | undefined {
 export function getBrevoWebhookBearerToken(): string {
   return process.env.BREVO_WEBHOOK_BEARER_TOKEN ?? "";
 }
+
+export function getEmailFromAddress(): string {
+  return process.env.EMAIL_FROM_ADDRESS ?? "notifications@matchboard.football";
+}
+
+export function getEmailFromName(): string {
+  return process.env.EMAIL_FROM_NAME ?? "Matchboard";
+}
+
+export function getBrevoApiKey(): string | undefined {
+  return process.env.BREVO_API_KEY || undefined;
+}
+
+export function getBrevoTestRecipients(): Set<string> {
+  const raw = process.env.BREVO_TEST_RECIPIENTS ?? "";
+  return new Set(raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+}
+
+export function getAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET environment variable is not set.");
+  }
+  return secret;
+}
+
+export function isCspEnforceEnabled(): boolean {
+  return process.env.CSP_ENFORCE === "true";
+}
+
+export function isRlsDebug(): boolean {
+  return process.env.RLS_DEBUG === "1";
+}
+
+export function getPreviewAllowlistEmails(): string {
+  return process.env.PREVIEW_ALLOWLIST_EMAILS ?? "";
+}
+
+export function isVercelPreview(): boolean {
+  return process.env.VERCEL_ENV === "preview";
+}

@@ -1,7 +1,7 @@
 import { edgeAuth } from "@/auth-edge";
 import { NextResponse } from "next/server";
 import { getContentSecurityPolicy } from "@/lib/security/csp";
-import { isPublicRoute, isProduction } from "@/lib/env";
+import { isPublicRoute, isProduction, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
@@ -10,8 +10,6 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
   "X-DNS-Prefetch-Control": "on",
 };
-
-const PREVIEW_ALLOWLIST_ENV = process.env.PREVIEW_ALLOWLIST_EMAILS;
 
 function withSecurityHeaders(response: NextResponse): NextResponse {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
@@ -23,10 +21,6 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
   const csp = getContentSecurityPolicy();
   response.headers.set(csp.header, csp.value);
   return response;
-}
-
-function isPreviewDeployment(): boolean {
-  return process.env.VERCEL_ENV === "preview";
 }
 
 export default edgeAuth((req) => {
@@ -42,8 +36,8 @@ export default edgeAuth((req) => {
   // When set, only listed email addresses can access preview API routes.
   // This is separate from application authorization (organisation membership)
   // and is intended only for preview deployment protection, not as an auth mechanism.
-  if (isPreviewDeployment() && path.startsWith("/api/")) {
-    const previewAllowlist = (PREVIEW_ALLOWLIST_ENV || "")
+  if (isVercelPreview() && path.startsWith("/api/")) {
+    const previewAllowlist = getPreviewAllowlistEmails()
       .split(",")
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
