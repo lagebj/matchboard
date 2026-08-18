@@ -211,11 +211,6 @@ export function _resetEnvValidation(): void {
   envValidationResult = null;
 }
 
-export function isBypassAuthEnabled(): boolean {
-  const env = process.env.MATCHBOARD_ENV ?? (process.env.NODE_ENV ?? "development");
-  return env === "test" && process.env.BYPASS_AUTH === "true";
-}
-
 export function isTestAgentAuthEnabled(): boolean {
   const env = process.env.MATCHBOARD_ENV ?? (process.env.NODE_ENV ?? "development");
   return env === "test" && process.env.TEST_AGENT_AUTH_ENABLED === "true" && !!process.env.TEST_AGENT_AUTH_SECRET;
