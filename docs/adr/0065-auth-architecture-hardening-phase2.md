@@ -46,24 +46,50 @@ The consolidation programme's Phase 2 audit identified several authentication an
 
 5. **`getCronSecret()` and `getBrevoWebhookBearerToken()`** centralized helpers in `src/lib/env.ts`. Cron and Brevo webhook routes use these instead of direct `process.env` reads.
 
-6. **App layout redirects to `/organisations`** when `getOrgSlugForUser()` returns null (no membership or multiple memberships). Previously the layout rendered a minimal header without navigation. The `/organisations` page already shows org list and pending invitations.
+6. **All configuration env reads centralized through `src/lib/env.ts`:**
+   - `isBypassAuthEnabled()` — BYPASS_AUTH reads (auth.ts)
+   - `getAppBaseUrl()` — APP_BASE_URL/AUTH_URL reads (provider.ts)
+   - `getCronSecret()` — CRON_SECRET reads (cron route)
+   - `getBrevoWebhookBearerToken()` — BREVO_WEBHOOK_BEARER_TOKEN reads (webhook route)
+   - `getEmailFromAddress()` — EMAIL_FROM_ADDRESS reads (provider.ts)
+   - `getEmailFromName()` — EMAIL_FROM_NAME reads (provider.ts)
+   - `getBrevoApiKey()` — BREVO_API_KEY reads (provider-factory.ts)
+   - `getBrevoTestRecipients()` — BREVO_TEST_RECIPIENTS reads (brevo-provider.ts)
+   - `getAuthSecret()` — AUTH_SECRET reads (machine-token.ts)
+   - `isCspEnforceEnabled()` — CSP_ENFORCE reads (csp.ts)
+   - `isRlsDebug()` — RLS_DEBUG reads (db.ts)
+   - `getPreviewAllowlistEmails()` — PREVIEW_ALLOWLIST_EMAILS reads (middleware.ts)
+   - `isVercelPreview()` — VERCEL_ENV reads (middleware.ts)
 
-7. **Error page updated** to link authenticated users to `/organisations` instead of showing only a dead-end "contact your admin" message.
+7. **App layout redirects to `/organisations`** when `getOrgSlugForUser()` returns null (no membership or multiple memberships). Previously the layout rendered a minimal header without navigation. The `/organisations` page already shows org list and pending invitations.
 
-8. **HSTS header added for production** in middleware: `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
+8. **Error page updated** to link authenticated users to `/organisations` instead of showing only a dead-end "contact your admin" message.
 
-9. **`PREVIEW_ALLOWLIST_EMAILS` semantics documented** in middleware comments: when unset or empty, all authenticated users can access preview API routes; when set, only listed emails are allowed.
+9. **HSTS header added for production** in middleware: `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
 
-10. **Security audit tests added** for BYPASS_AUTH centralization, APP_BASE_URL production validation, AUTH_URL fallback documentation, HSTS header, CRON_SECRET/BREVO_WEBHOOK_BEARER_TOKEN production validation.
+10. **`PREVIEW_ALLOWLIST_EMAILS` semantics documented** in middleware comments: when unset or empty, all authenticated users can access preview API routes; when set, only listed emails are allowed.
 
-11. **Environment validation tests added** for BYPASS_AUTH production rejection, APP_BASE_URL production requirements, HTTPS enforcement, CRON_SECRET/BREVO_WEBHOOK_BEARER_TOKEN production requirements, isBypassAuthEnabled, getCronSecret, getBrevoWebhookBearerToken.
+11. **Security audit tests added** for BYPASS_AUTH centralization, APP_BASE_URL production validation, AUTH_URL fallback documentation, HSTS header, CRON_SECRET/BREVO_WEBHOOK_BEARER_TOKEN production validation, env read centralization.
+
+12. **Environment validation tests added** for all new centralized helpers and production safety guards.
+
+## Remaining direct `process.env` reads (accepted)
+
+The following direct reads remain and are accepted:
+
+- `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` in `auth.ts`/`auth-edge.ts` — Auth.js framework integration, validated by `validateEnv()`
+- `AUTH_SECRET` in `auth.ts`/`auth-edge.ts` — Auth.js framework integration, validated by `validateEnv()`
+- `DATABASE_URL`, `DIRECT_URL`, `DIRECT_RUNTIME_URL` in `db.ts` — Prisma connection initialization at module load time, validated by `validateEnv()`
+- Policy env vars in `policy-pack.ts` — complex parsing logic deeply integrated with policy infrastructure
+- `AUTH_URL` fallback in `provider.ts` — documented risk, only used when `APP_BASE_URL` is unset in development
 
 ## Consequences
 
 - Production deployments missing `APP_BASE_URL`, `CRON_SECRET`, or `BREVO_WEBHOOK_BEARER_TOKEN`, or with `http://` URLs, or with `BYPASS_AUTH=true` will fail to start.
 - Startup validation catches configuration errors before request handling.
-- Environment variable reads for auth, cron, and webhook secrets are centralized through `src/lib/env.ts`.
+- All configuration environment variable reads are centralized through `src/lib/env.ts` helpers (except accepted framework integration points).
 - Authenticated users without organisation membership are redirected to `/organisations` instead of seeing a dead-end error page.
 - HSTS header protects production users against protocol downgrade.
 - `AUTH_URL` fallback remains for development convenience but is documented as unsuitable for production external links.
 - `PREVIEW_ALLOWLIST_EMAILS` empty-allowlist behavior is unchanged but documented.
+- Security audit tests enforce centralization invariants, preventing regression to direct `process.env` reads.
