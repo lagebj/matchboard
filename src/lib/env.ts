@@ -226,7 +226,7 @@ export function getAppBaseUrl(): string {
   if (process.env.APP_BASE_URL) {
     return process.env.APP_BASE_URL;
   }
-  if (isDevelopment()) {
+  if (isDevelopment() || isTest()) {
     return "http://localhost:3000";
   }
   return "";
