@@ -16,8 +16,9 @@ When working on Matchboard, always apply these skills in order:
 
 1. **`git-branch-commit-pr`** — for all coding-agent work: branch creation, commits, and PRs
 2. **`adr-governance`** — for architecture-affecting changes: public API or interface changes, storage model changes, state-management model changes, auth or authz model changes, deployment or runtime changes, observability strategy changes, test-strategy changes, cross-module or cross-service boundary changes, event or message contract changes, or any change that introduces durable design rules future tasks must follow. Create or update repo-local ADRs under `docs/adr/` before making structural code changes.
-3. **`ux-webapp-design-craft`** (global) — for all UX, visual design, workflow, navigation, interaction, accessibility, and information architecture work
-4. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
+3. **`architectural-residue-records`** — when work exposes multiple sources of truth, duplicated domain behaviour, active legacy structures, staged migration residue, violated architectural boundaries, or an existing ARR. Create or update ARRs under `docs/arr/` to record verified structural mismatches between intended architecture and current implementation. Do not create an ARR for every vulnerability. Do not use an ADR as a backlog item. When an ARR is discovered during code work, record it before continuing; when implementation resolves an ARR, update its state with evidence.
+4. **`ux-webapp-design-craft`** (global) — for all UX, visual design, workflow, navigation, interaction, accessibility, and information architecture work
+5. **`app-product-engineering`** (global) — for any user-facing app work: UX, interaction, accessibility, workflow, forms, dashboards, navigation, responsive behavior, design systems
 
 All Matchboard-specific domain rules (selection engine boundaries, explainability, decision audit, player ID privacy, child-safety language, readiness states, workflow stages) are documented in this AGENTS.md file directly, not in a separate skill file.
 
@@ -120,10 +121,10 @@ Rules:
 ### Security finding, ARR and ADR boundaries
 
 - Security finding: a specific vulnerability or failed control.
-- ARR: a verified structural mismatch between intended architecture and current implementation.
-- ADR: a decision, including deliberate deferral or accepted risk.
+- ARR: a verified structural mismatch between intended architecture and current implementation. Recorded in `docs/arr/`. Use the `architectural-residue-records` skill to create or update ARRs.
+- ADR: a decision, including deliberate deferral or accepted risk. Recorded in `docs/adr/`. Use the `adr-governance` skill to create or update ADRs.
 
-Do not create an ARR for every vulnerability. Do not use an ADR as a backlog item.
+Do not create an ARR for every vulnerability. Do not use an ADR as a backlog item. A vulnerability is a security finding; an ARR records a structural mismatch; an ADR records a decision.
 
 ### Provider configuration workflow
 
@@ -204,11 +205,10 @@ The round-level pipeline runs in strict phase order:
 4. Development routing
 5. Squad repair (repairing teams weakened by support movement)
 6. Post-pipeline validation and plan integrity signal persistence
+7. Policy-derived warnings (additive, non-blocking)
 
 No phase may be skipped. Each phase must complete before the next begins.
 No phase may create a second planned selection for the same player in the same round.
-
-No phase may be skipped. Each phase must complete before the next begins.
 
 Populate all generates drafts for all rounds in a league season in one action. It does not finalize. Each round is generated via round-level orchestration to preserve cross-match conflict resolution.
 
@@ -819,7 +819,7 @@ Rules:
 - `movements: []` in export is invalid when non-core selections exist
 - Support always creates a movement ledger entry
 - Development always creates a movement ledger entry
-- Squad repair /_BACKFILL from another team creates a movement ledger entry
+- Squad repair (BACKFILL) from another team creates a movement ledger entry
 - Legacy controlled double-load data retains its movement ledger entries
 - Manual override does not remove the need for movement ledger entries
 - Finalization flips `isDraft` from `true` to `false`; it does not create new entries
@@ -1107,7 +1107,7 @@ Round selection (`/rounds`) remains workflow-first. It uses cards, boards, panel
 
 `/players` has three internal modes using accessible tabs or segmented navigation:
 
-1. **Season overview** (default) — factual player matrix with actual participation, recorded match statistics, and per-round assignments for a selected phase. Scoped to a visible `Phase: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances. The Season overview does not render a summary-statistics panel, summary strip, or Movement paths overview. Factual columns, sorting and explicit filters replace automatic fairness judgement panels or badges.
+1. **Season overview** (default) — factual player matrix with actual participation, recorded match statistics, and per-round assignments for a selected league season. Scoped to a visible `League season: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances. The Season overview does not render a summary-statistics panel, summary strip, or Movement paths overview. Factual columns, sorting and explicit filters replace automatic fairness judgement panels or badges.
 
 2. **Current round attention** — canonical live plan-integrity state for a selected round. Scoped to a visible `Round: {label}`. Uses `computeRoundPlanIntegrity` output only. Does not derive attention from season statistics, goals, assists, or historical movement counts.
 
@@ -1159,9 +1159,9 @@ Players overview display rules:
 
 The `/teams` page is a selected-league-season completed-results overview. It must not present configuration-first columns.
 
-Required copy: `Teams` heading with subtitle `Results and match record for {planningPeriodRange}.`
+Required copy: `Teams` heading with subtitle `Results and match record for {leagueSeasonRange}.`
 
-Required selector: `Phase: {phaseLabel}`
+Required selector: `League season: {leagueSeasonLabel}`
 
 Teams overview required columns (desktop, in order): Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players.
 
@@ -1223,11 +1223,11 @@ Season and Phase vocabulary:
 Match schedule editing:
 
 - Unplayed matches (no REPORTED or LOCKED post-match report) can have their date and time edited.
-- Date changes must remain within the current Phase's date range. Outside-phase changes require moving the match to a different phase first.
-- Match Round is an ISO-week operational container inside a Phase. Match creation and match rescheduling use one shared Phase-scoped target-round resolver.
-- An in-Phase reschedule automatically reuses or creates the target-week round. Normal rescheduling does not require manual destination-round input.
-- A matching week round from another Phase must never be reused.
-- Ambiguous same-Phase target-round matches must fail safely rather than choose arbitrarily.
+- Date changes must remain within the current league season's date range. Outside-range changes require moving the match to a different league season first.
+- Match Round is an ISO-week operational container inside a league season. Match creation and match rescheduling use one shared league-season-scoped target-round resolver.
+- An in-range reschedule automatically reuses or creates the target-week round. Normal rescheduling does not require manual destination-round input.
+- A matching week round from another league season must never be reused.
+- Ambiguous same-range target-round matches must fail safely rather than choose arbitrarily.
 - Same-week date/time edits retain the current round. No new round is created.
 - Cross-round movement must keep Match, DRAFT Selection and DRAFT MovementLedger references consistent in one transaction.
 - Any FINALIZED selection blocks automatic cross-round relocation until explicit unfinalisation.
@@ -1423,7 +1423,7 @@ Cancelled match rules:
 - Planned selections for cancelled matches are preserved as context but excluded from stats
 - Matches with a completed (REPORTED or LOCKED) post-match report cannot be cancelled
 - Reopening a cancelled match clears the cancelledAt timestamp and cancelledReason, restoring SCHEDULED status
-- The MatchStatus enum also retains legacy values for backward compatibility; new generation never produces BACKFILL as a user-facing role
+- The MatchStatus enum retains legacy values for backward compatibility. The SelectionRole enum retains BACKFILL for backward compatibility; new generation never produces BACKFILL as a user-facing role (squad repair uses role=SUPPORT with an explanation code)
 
 ## Event squad planning
 

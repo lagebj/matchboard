@@ -2,11 +2,27 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
 2026-08-03
+
+## Resolved
+
+2026-08-19
+
+## Resolution evidence
+
+All `footballGroupId` fields in the Prisma schema are now `String` (non-nullable, with foreign key constraints):
+- Player: `footballGroupId String`
+- Team: `footballGroupId String`
+- MatchRound: `footballGroupId String`
+- Match: `footballGroupId String`
+- GroupAccess: `footballGroupId String`
+- FootballGroupPlayer: `footballGroupId String`
+
+The nullable period described in this ARR has been closed. All operational models now require group association.
 
 ## Residue
 
