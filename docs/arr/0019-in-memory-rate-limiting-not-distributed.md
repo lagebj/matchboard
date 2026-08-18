@@ -1,4 +1,4 @@
-# ARR-0068: In-memory rate limiting is not distributed
+# ARR-0019: In-memory rate limiting is not distributed
 
 ## State
 

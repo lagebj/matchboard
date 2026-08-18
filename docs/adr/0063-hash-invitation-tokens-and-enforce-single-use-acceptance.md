@@ -112,7 +112,7 @@ Security requirements from AGENTS.md:
 ## Related records
 
 - ADRs: ADR-0032 (auth baseline — deferred token replay protection), ADR-0035 (multitenancy — single-use invitations), ADR-0043 (Brevo email), ADR-0061 (membership-based auth)
-- ARRs: None
+- ARRs: ARR-0019 (in-memory rate limiting not distributed)
 - Security findings: Invitation tokens stored in plaintext (medium severity)
 
 ## Implementation evidence
@@ -136,7 +136,7 @@ Security requirements from AGENTS.md:
 - `getAppBaseUrl()` returns localhost in dev/test envs; production requires `APP_BASE_URL` (AUTH_URL fallback removed)
 - Audit logging added for `organisation_invitation_decline` and `organisation_invitation_expire`
 - `revokeInvitation` accepts `PrismaClient` parameter for testability
-- ARR-0068 records in-memory rate limiting as confirmed architectural residue
+- ARR-0019 records in-memory rate limiting as confirmed architectural residue
 
 ## Supersedes
 
