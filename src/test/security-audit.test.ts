@@ -314,4 +314,65 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     expect(brevoProvider).toContain("BREVO_TEST_RECIPIENTS");
     expect(brevoProvider).toContain("isProduction");
   });
+
+  it("event live session read actions check org access", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const liveActions = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/events/[eventId]/event-live-actions.ts"),
+      "utf-8",
+    );
+    expect(liveActions).toContain("requireEventMatchOrgAccess");
+    const getActiveIdx = liveActions.indexOf("getEventActiveSessionAction");
+    const getEventsIdx = liveActions.indexOf("getEventMatchEventsAction");
+    const getRecentIdx = liveActions.indexOf("getRecentEventEventsAction");
+    expect(getActiveIdx).toBeGreaterThan(-1);
+    expect(getEventsIdx).toBeGreaterThan(-1);
+    expect(getRecentIdx).toBeGreaterThan(-1);
+    const beforeGetActive = liveActions.substring(0, getActiveIdx);
+    const beforeGetEvents = liveActions.substring(0, getEventsIdx);
+    const beforeGetRecent = liveActions.substring(0, getRecentIdx);
+    expect(beforeGetActive).toContain("requireEventMatchOrgAccess");
+    expect(beforeGetEvents).toContain("requireEventMatchOrgAccess");
+    expect(beforeGetRecent).toContain("requireEventMatchOrgAccess");
+  });
+
+  it("event live session heartbeat checks org access before mutation", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const liveActions = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/events/[eventId]/event-live-actions.ts"),
+      "utf-8",
+    );
+    const heartbeatIdx = liveActions.indexOf("heartbeatEventAction");
+    expect(heartbeatIdx).toBeGreaterThan(-1);
+    const heartbeatBody = liveActions.substring(heartbeatIdx, heartbeatIdx + 500);
+    expect(heartbeatBody).toContain("orgFilter");
+  });
+
+  it("event live session end checks org access before mutation", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const liveActions = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/events/[eventId]/event-live-actions.ts"),
+      "utf-8",
+    );
+    const endIdx = liveActions.indexOf("endEventLiveSessionAction");
+    expect(endIdx).toBeGreaterThan(-1);
+    const endBody = liveActions.substring(endIdx, endIdx + 500);
+    expect(endBody).toContain("orgFilter");
+  });
+
+  it("removePlayersFromEventPoolAction checks event not finalized", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const actionsFile = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/events/actions.ts"),
+      "utf-8",
+    );
+    const removeIdx = actionsFile.indexOf("removePlayersFromEventPoolAction");
+    expect(removeIdx).toBeGreaterThan(-1);
+    const removeBody = actionsFile.substring(removeIdx, removeIdx + 500);
+    expect(removeBody).toContain("requireEventNotFinalized");
+  });
 });

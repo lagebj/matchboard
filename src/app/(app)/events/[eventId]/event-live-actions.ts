@@ -32,6 +32,7 @@ export async function startEventLiveSessionAction(eventMatchId: string) {
 
 export async function getEventActiveSessionAction(eventMatchId: string) {
   try {
+    await requireEventMatchOrgAccess(eventMatchId);
     const session = await getEventActiveSession(eventMatchId);
     return { success: true as const, data: session };
   } catch (error) {
@@ -43,11 +44,16 @@ export async function endEventLiveSessionAction(sessionId: string) {
   try {
     const ctx = await requireActorContext();
     requireMutationRole(ctx);
-    const session = await endEventLiveSession(sessionId);
-    const { eventId } = await requireEventMatchOrgAccess(session.eventMatchId);
+    const session = await db.eventLiveMatchSession.findFirst({
+      where: { id: sessionId, eventMatch: { event: ctx.orgFilter.filter } },
+      select: { eventMatchId: true },
+    });
+    if (!session) throw new Error("Live session not found or access denied.");
+    const ended = await endEventLiveSession(sessionId);
+    const { eventId } = await requireEventMatchOrgAccess(ended.eventMatchId);
     revalidatePath(`/events/${eventId}`);
-    revalidatePath(`/events/${eventId}/matches/${session.eventMatchId}/live`);
-    return { success: true as const, data: session };
+    revalidatePath(`/events/${eventId}/matches/${ended.eventMatchId}/live`);
+    return { success: true as const, data: ended };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Failed to end live session." };
   }
@@ -57,6 +63,11 @@ export async function heartbeatEventAction(sessionId: string) {
   try {
     const ctx = await requireActorContext();
     requireMutationRole(ctx);
+    const session = await db.eventLiveMatchSession.findFirst({
+      where: { id: sessionId, eventMatch: { event: ctx.orgFilter.filter } },
+      select: { id: true },
+    });
+    if (!session) throw new Error("Live session not found or access denied.");
     await heartbeatEventSession(sessionId);
     return { success: true as const };
   } catch (error) {
@@ -105,6 +116,7 @@ export async function recordEventLiveEventAction(input: {
 
 export async function getEventMatchEventsAction(eventMatchId: string) {
   try {
+    await requireEventMatchOrgAccess(eventMatchId);
     const events = await getEventMatchEvents(eventMatchId);
     return { success: true as const, data: events };
   } catch (error) {
@@ -114,6 +126,7 @@ export async function getEventMatchEventsAction(eventMatchId: string) {
 
 export async function getRecentEventEventsAction(eventMatchId: string, limit?: number) {
   try {
+    await requireEventMatchOrgAccess(eventMatchId);
     const events = await getRecentEventEvents(eventMatchId, limit);
     return { success: true as const, data: events };
   } catch (error) {
