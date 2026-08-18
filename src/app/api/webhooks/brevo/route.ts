@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { processBrevoWebhookEvents } from "@/lib/email/webhook-handler";
 import type { BrevoWebhookEvent } from "@/lib/email/webhook-handler";
-import { isProduction } from "@/lib/env";
+import { isProduction, getBrevoWebhookBearerToken } from "@/lib/env";
 import crypto from "crypto";
-
-const BREVO_WEBHOOK_BEARER_TOKEN = process.env.BREVO_WEBHOOK_BEARER_TOKEN ?? "";
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -12,6 +10,8 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const BREVO_WEBHOOK_BEARER_TOKEN = getBrevoWebhookBearerToken();
+
   if (!BREVO_WEBHOOK_BEARER_TOKEN && isProduction()) {
     return NextResponse.json({ error: "Webhook authentication not configured" }, { status: 503 });
   }

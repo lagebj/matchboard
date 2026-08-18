@@ -134,6 +134,12 @@ export function validateEnv(): EnvValidationResult {
     if (process.env.BYPASS_AUTH === "true") {
       errors.push("BYPASS_AUTH=true must not be set in production. Test-only authentication mechanisms cannot be active in a production environment.");
     }
+    if (!process.env.CRON_SECRET) {
+      errors.push("CRON_SECRET is required in production to protect cron endpoints from unauthenticated access.");
+    }
+    if (!process.env.BREVO_WEBHOOK_BEARER_TOKEN) {
+      errors.push("BREVO_WEBHOOK_BEARER_TOKEN is required in production to authenticate webhook delivery from Brevo.");
+    }
   }
 
   // Non-production APP_BASE_URL warnings
@@ -185,4 +191,30 @@ export function ensureEnvValidated(): void {
   for (const warning of result.warnings) {
     console.warn(`[env] ${warning}`);
   }
+}
+
+export function isBypassAuthEnabled(): boolean {
+  const env = process.env.MATCHBOARD_ENV ?? (process.env.NODE_ENV ?? "development");
+  return env === "test" && process.env.BYPASS_AUTH === "true";
+}
+
+export function getAppBaseUrl(): string {
+  if (process.env.APP_BASE_URL) {
+    return process.env.APP_BASE_URL;
+  }
+  if (process.env.AUTH_URL) {
+    return process.env.AUTH_URL;
+  }
+  if (isDevelopment()) {
+    return "http://localhost:3000";
+  }
+  return "";
+}
+
+export function getCronSecret(): string | undefined {
+  return process.env.CRON_SECRET || undefined;
+}
+
+export function getBrevoWebhookBearerToken(): string {
+  return process.env.BREVO_WEBHOOK_BEARER_TOKEN ?? "";
 }

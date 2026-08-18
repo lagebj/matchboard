@@ -477,16 +477,21 @@ describe("Security audit: tenant invariant — organisation-owned models are in 
 });
 
 describe("Security audit: authentication architecture", () => {
-  it("BYPASS_AUTH is double-gated with isTest()", async () => {
+  it("BYPASS_AUTH is centralized through isBypassAuthEnabled() in env.ts", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const authFile = fs.readFileSync(
       path.join(process.cwd(), "src/lib/auth.ts"),
       "utf-8",
     );
-    expect(authFile).toContain("isTest()");
-    expect(authFile).toContain("BYPASS_AUTH");
-    expect(authFile).toContain("process.env.BYPASS_AUTH");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    expect(authFile).toContain("isBypassAuthEnabled");
+    expect(authFile).not.toContain("process.env.BYPASS_AUTH");
+    expect(envFile).toContain("isBypassAuthEnabled");
+    expect(envFile).toContain("process.env.BYPASS_AUTH");
   });
 
   it("APP_BASE_URL is validated in production (required, https)", async () => {
