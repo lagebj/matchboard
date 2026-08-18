@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, isTestAgentAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
+import { isPublicRoute, matchboardEnv, validateEnv, VALID_ENVS, isTest, isDevelopment, isProduction, isStaging, isBypassAuthEnabled, isTestAgentAuthEnabled, getCronSecret, getBrevoWebhookBearerToken, getEmailFromAddress, getEmailFromName, getBrevoApiKey, getBrevoTestRecipients, getAuthSecret, isCspEnforceEnabled, isRlsDebug, getPreviewAllowlistEmails, isVercelPreview, ensureEnvValidated, requireEnvValid, _resetEnvValidation } from "@/lib/env";
 
 describe("env: resolveMatchboardEnv", () => {
   it("resolves to a valid environment", () => {
@@ -640,5 +640,52 @@ describe("env: isVercelPreview", () => {
   it("returns false when VERCEL_ENV is not set", () => {
     delete process.env.VERCEL_ENV;
     expect(isVercelPreview()).toBe(false);
+  });
+});
+
+describe("env: ensureEnvValidated does not throw", () => {
+  const origMatchboardEnv = process.env.MATCHBOARD_ENV;
+
+  afterEach(() => {
+    if (origMatchboardEnv !== undefined) {
+      process.env.MATCHBOARD_ENV = origMatchboardEnv;
+    } else {
+      delete process.env.MATCHBOARD_ENV;
+    }
+    _resetEnvValidation();
+  });
+
+  it("returns a result object without throwing even when env vars are missing", () => {
+    process.env.MATCHBOARD_ENV = "development";
+    const result = ensureEnvValidated();
+    expect(result).toHaveProperty("valid");
+    expect(result).toHaveProperty("errors");
+    expect(result).toHaveProperty("warnings");
+  });
+});
+
+describe("env: requireEnvValid throws on validation failure", () => {
+  const origMatchboardEnv = process.env.MATCHBOARD_ENV;
+  const origDbUrl = process.env.DATABASE_URL;
+
+  afterEach(() => {
+    if (origMatchboardEnv !== undefined) {
+      process.env.MATCHBOARD_ENV = origMatchboardEnv;
+    } else {
+      delete process.env.MATCHBOARD_ENV;
+    }
+    if (origDbUrl !== undefined) {
+      process.env.DATABASE_URL = origDbUrl;
+    } else {
+      delete process.env.DATABASE_URL;
+    }
+    _resetEnvValidation();
+  });
+
+  it("throws when validation fails in production", () => {
+    process.env.MATCHBOARD_ENV = "production";
+    delete process.env.DATABASE_URL;
+    _resetEnvValidation();
+    expect(() => requireEnvValid()).toThrow("Environment validation failed");
   });
 });

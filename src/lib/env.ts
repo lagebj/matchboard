@@ -182,22 +182,33 @@ export function isPublicRoute(pathname: string): boolean {
 }
 
 let envValidated = false;
+let envValidationResult: EnvValidationResult | null = null;
 
-export function ensureEnvValidated(): void {
-  if (envValidated) return;
+export function ensureEnvValidated(): EnvValidationResult {
+  if (envValidated) return envValidationResult!;
   envValidated = true;
-  const result = validateEnv();
-  if (!result.valid) {
-    for (const error of result.errors) {
+  envValidationResult = validateEnv();
+  if (!envValidationResult.valid) {
+    for (const error of envValidationResult.errors) {
       console.error(`[env] ${error}`);
     }
-    if (isProduction()) {
-      throw new Error(`Environment validation failed: ${result.errors.join("; ")}`);
-    }
   }
-  for (const warning of result.warnings) {
+  for (const warning of envValidationResult.warnings) {
     console.warn(`[env] ${warning}`);
   }
+  return envValidationResult;
+}
+
+export function requireEnvValid(): void {
+  const result = ensureEnvValidated();
+  if (!result.valid) {
+    throw new Error(`Environment validation failed: ${result.errors.join("; ")}`);
+  }
+}
+
+export function _resetEnvValidation(): void {
+  envValidated = false;
+  envValidationResult = null;
 }
 
 export function isBypassAuthEnabled(): boolean {
