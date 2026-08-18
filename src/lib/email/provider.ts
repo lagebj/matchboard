@@ -34,6 +34,14 @@ export function getEmailFromName(): string {
 }
 
 export function getAppBaseUrl(): string {
-  const url = process.env.APP_BASE_URL ?? process.env.AUTH_URL ?? "http://localhost:3333";
-  return url.replace(/\/+$/, "");
+  const appBaseUrl = process.env.APP_BASE_URL;
+  if (appBaseUrl) {
+    return appBaseUrl.replace(/\/+$/, "");
+  }
+  // AUTH_URL is an Auth.js callback URL, not a reliable base URL for external links.
+  // It may point to a Vercel internal domain or a different scheme than the user-facing domain.
+  // In production, APP_BASE_URL must be set (enforced by validateEnv).
+  // In development/test, fall back to localhost only when APP_BASE_URL is not configured.
+  const fallback = process.env.AUTH_URL ?? "http://localhost:3333";
+  return fallback.replace(/\/+$/, "");
 }

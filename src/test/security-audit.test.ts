@@ -475,3 +475,61 @@ describe("Security audit: tenant invariant — organisation-owned models are in 
     }
   });
 });
+
+describe("Security audit: authentication architecture", () => {
+  it("BYPASS_AUTH is double-gated with isTest()", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const authFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/auth.ts"),
+      "utf-8",
+    );
+    expect(authFile).toContain("isTest()");
+    expect(authFile).toContain("BYPASS_AUTH");
+    expect(authFile).toContain("process.env.BYPASS_AUTH");
+  });
+
+  it("APP_BASE_URL is validated in production (required, https)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    expect(envFile).toContain("APP_BASE_URL is required in production");
+    expect(envFile).toContain("https://");
+  });
+
+  it("BYPASS_AUTH=true is rejected in production by env validation", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const envFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/env.ts"),
+      "utf-8",
+    );
+    expect(envFile).toContain("BYPASS_AUTH");
+    expect(envFile).toContain("must not be set in production");
+  });
+
+  it("getAppBaseUrl documents AUTH_URL fallback risk", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const providerFile = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/email/provider.ts"),
+      "utf-8",
+    );
+    expect(providerFile).toContain("APP_BASE_URL");
+    expect(providerFile).toContain("AUTH_URL is an Auth.js callback URL");
+  });
+
+  it("HSTS header is set in production middleware", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const middlewareFile = fs.readFileSync(
+      path.join(process.cwd(), "src/middleware.ts"),
+      "utf-8",
+    );
+    expect(middlewareFile).toContain("Strict-Transport-Security");
+    expect(middlewareFile).toContain("isProduction");
+  });
+});
