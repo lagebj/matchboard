@@ -82,6 +82,8 @@ Before adding or changing an operation, determine and verify:
 - Outbound HTTP is centralised and destination-allowlisted.
 - External AI payloads are centrally projected and sanitised.
 - Secrets never enter Git, logs, fixtures, reports or public environment variables.
+- Invitation tokens are hashed (SHA-256) for database lookup. The plaintext token is available only at creation time for the acceptance link and is nullified after accept, decline, revoke, or expiry. The database never stores a usable plaintext token.
+- BYPASS_AUTH is a test-only mechanism explicitly rejected in production. It must not be reintroduced as an authorization shortcut.
 - Caches, jobs, exports and files are tenant-aware.
 - Audit logs exclude sensitive payloads.
 - New dependencies and GitHub Actions require security review.
@@ -175,7 +177,7 @@ It does not:
 - create fixtures
 - schedule a season
 - manage a club
-- support public signup or multi-tenant auth
+- support public signup or multi-tenant self-service auth
 - store real player data in the repo
 - serve as a parent communication platform
 - serve as a public player evaluation system

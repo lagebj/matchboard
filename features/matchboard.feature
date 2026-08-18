@@ -74,7 +74,7 @@ Feature: Matchboard football operations workspace
     Scenario: Matchboard is not a club management system
       Given the coach uses the app
       Then the app must not manage club membership, registration, payments, or communication
-      And the app must not provide public signup or multi-tenant auth
+      And the app must not provide public signup or multi-tenant self-service auth
       And the app must not expose internal planning tags to parent-facing exports
 
 
@@ -7191,7 +7191,8 @@ Feature: Matchboard football operations workspace
         Given a valid invitation token
         When the invitee accepts the invitation
         Then the app must create a membership with the intended role
-        And the invitation token must be invalidated
+        And the invitation token must be looked up by SHA-256 hash, not by plaintext value
+        And the plaintext token must be nullified after accept, decline, revoke, or expiry
         And subsequent use of the same token must be rejected
 
   # --- Event-squad lifecycle ---
