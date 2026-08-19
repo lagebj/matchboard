@@ -56,15 +56,21 @@ engine.
   against the same database race regardless of whether that database is local or remote. Safe
   parallelism would need per-worker database/schema isolation, a separate restructuring project,
   not a config flag. It stays disabled.
-- Whether local Postgres actually closes the wall-clock gap to CI is **not settled by this ADR**
-  — see `docs/development/test-architecture.md`'s "Local Postgres latency is not stable in this
-  sandboxed devcontainer" section. Local round-trip latency here was measured degrading from
-  genuinely sub-millisecond to ~28-32ms after sustained heavy I/O, persisting through a Postgres
-  service restart, and affecting raw `pg` exactly as much as Prisma-wrapped queries — the leading
-  suspect is Docker Desktop's virtualized network path under this devcontainer's sandbox, not
-  anything in this repository's code. Do not treat a same-session timing comparison as
-  conclusive; the TRUNCATE fix (ADR-0072) is the one independently-verified, unconditional win
-  regardless of this open question.
+- Local Postgres closes the wall-clock gap to CI decisively, once measured correctly — see
+  `docs/development/test-architecture.md`'s "A stale shell-exported `TEST_DATABASE_URL` can
+  silently defeat all of the above" section. Two earlier versions of that doc (and of this ADR)
+  reported first "no improvement" and then "local Postgres latency is unstable, likely a Docker
+  Desktop networking issue"; both were wrong. The real cause: `.devcontainer/load-local-env.sh`
+  exports `.env` into the shell via `~/.bashrc`, once, when the shell starts. Editing `.env`
+  afterward in an already-running shell doesn't update already-exported variables, and
+  `dotenv/config` (correctly, by design) never overrides a variable already present in
+  `process.env` — so a long series of "local Postgres" measurements in this investigation were
+  silently still hitting the old Neon branch. Once the shell was refreshed
+  (`unset ...; source .devcontainer/load-local-env.sh`) and verified (`export -p | grep
+  TEST_DATABASE_URL`) to actually point at `localhost`, the true numbers are unambiguous:
+  `sec3-assurance.test.ts` drops from ~109s to ~2.6s (not ~28s), and the full suite drops from
+  ~1550-1580s to **~52s** — faster than CI's own `Tests` job (~150-194s for the identical `npm
+  test`). There is no unresolved local-latency question and no Docker Desktop issue.
 - Schema/migration behavior now runs against the same major Postgres version everywhere
   (Neon, this devcontainer, `docker-compose.yml`, CI), removing a source of "works in one
   environment, subtly differs in another" risk from version drift.

@@ -57,13 +57,22 @@ any reason — most commonly, the connecting role lacking `TRUNCATE` privilege (
 alone is not sufficient in Postgres; it's a separate grant).
 
 This matters a lot when `TEST_DATABASE_URL` points at a remote database (a Neon branch) rather
-than `localhost` (local Docker Postgres, what CI uses): with `cleanTestDb()` running before
-every test in many files, ~80 sequential round trips at real network latency (~30-40ms each,
-measured against a Neon `eu-central-1` branch from this repo's devcontainer) adds up to minutes
-across thousands of tests. The single-round-trip TRUNCATE path collapses that entirely,
-regardless of network latency — confirmed empirically: `sec3-assurance.test.ts` (31 tests, each
-calling `cleanTestDb()` in `beforeEach`) dropped from ~109s to ~28s after this change, run
-against the same Neon test branch.
+than `localhost` (local Postgres, what CI uses): with `cleanTestDb()` running before every test
+in many files, ~80 sequential round trips at real network latency (~30-40ms each, measured
+against a Neon `eu-central-1` branch from this repo's devcontainer) adds up to minutes across
+thousands of tests. The single-round-trip TRUNCATE path collapses that entirely, regardless of
+network latency — confirmed empirically: `sec3-assurance.test.ts` (31 tests, each calling
+`cleanTestDb()` in `beforeEach`) dropped from ~109s to ~28s against Neon after this change alone.
+
+**Combined with a genuinely local target, the full effect is much larger than that.** With
+`TEST_DATABASE_URL` correctly pointed at local Postgres, the same file drops to **~2.6s** (from
+~109s originally — ~41x), and the full suite (2533 tests across 168 files) drops from the
+original ~1550-1580s to **~52s** — faster than a GitHub Actions run's own `Tests` job (~150-194s
+for the identical `npm test`). An earlier version of this section reported "no improvement from
+local Postgres beyond what TRUNCATE alone captured" and theorized a Docker Desktop network
+degradation under sustained load; that was wrong, and the real cause was mundane — see the
+callout below. Local Postgres is not just recommended, it is measurably the fastest option
+available for this suite, full stop.
 
 **If `TEST_DATABASE_URL` points at a Neon branch**, the connecting role needs `TRUNCATE`
 granted once (Postgres doesn't include it in `DELETE`/`INSERT`/`UPDATE`/`SELECT`):
@@ -102,37 +111,44 @@ cleanup destroys another file's in-progress fixture data out from under it. Safe
 parallelism would need each worker isolated onto its own database or schema — a real,
 separately-scoped restructuring of the test-support layer, not a config flag.
 
-### Local Postgres latency is not stable in this sandboxed devcontainer — measure fresh, don't trust old numbers
+### A stale shell-exported `TEST_DATABASE_URL` can silently defeat all of the above — check `export -p` after editing `.env`
 
-An earlier version of this section claimed switching `TEST_DATABASE_URL` from Neon to local
-Postgres "didn't help" beyond what the TRUNCATE fix above already captured, based on a same-order
-timing comparison (`sec3-assurance.test.ts`: ~28.8s local vs ~28.3s Neon). That comparison was
-measured *after* several consecutive 20+ minute full-suite runs in the same devcontainer session,
-and turned out to be measuring a degraded state, not steady-state local Postgres performance.
+Two earlier versions of this section reported first "no improvement from local Postgres" and then
+(after further investigation) "local Postgres latency is unstable and degrades under sustained
+load, likely a Docker Desktop networking issue." **Both were wrong, and the real cause was much
+simpler**: `.devcontainer/load-local-env.sh` is sourced into every interactive shell via
+`~/.bashrc` (see `.devcontainer/post-create.sh`), and does `set -a; source .env; set +a` —
+**exporting** every `.env` variable into the shell's environment, not just setting it for one
+process. That happens once, whenever the shell starts. If `.env` is edited *after* that — e.g.
+pointing `TEST_DATABASE_URL` at local Postgres instead of a Neon branch — an **already-running**
+shell keeps the old exported value. `dotenv/config` (used by `vitest.config.ts` and any ad hoc
+diagnostic script) never overrides a variable that's already present in `process.env` — that's
+correct, standard `dotenv` behavior, not a bug in this repo's code — so every command run in that
+same shell after the edit silently kept using the stale, already-exported value, no matter what
+`.env` said. In this repo's own investigation, that meant a long series of "local Postgres" tests
+were actually still hitting the old Neon branch, which produced exactly the confusing symptoms
+recorded in the earlier (now-corrected) versions of this section: numbers that looked
+Neon-latency-shaped even when `.env` clearly said `localhost`, and that didn't change no matter
+what was restarted locally (restarting local Postgres does nothing if the process was never
+actually talking to it).
 
-Investigated properly: **local round-trip latency in this specific devcontainer is not stable
-over a session.** Measured directly with a tight raw-`pg`-driver loop (no Prisma involved, to
-rule out the ORM layer): early in a fresh session, `SELECT 1` against local Postgres was
-genuinely sub-millisecond (0.05–0.2ms) — as expected for loopback. After sustained heavy I/O
-(several consecutive full `npm test` runs), the *exact same* raw-`pg` loop measured ~28-32ms per
-query — a ~150-500x regression — and **stayed there**: unaffected by system load being low
-afterward (load average 1.35 on 10 cores), unaffected by restarting the `postgresql` service
-(fresh postmaster, fresh backend processes, identical latency). Crucially, this degradation
-affects raw `pg` and Prisma-wrapped queries equally, so it is not a Prisma, adapter, or
-application-code issue — it sits below the database client entirely. The leading suspect is
-Docker Desktop's virtualized network path degrading under sustained load and not self-healing
-short of a full container/VM restart (untested — restarting would end the investigating session),
-a known category of issue on Docker Desktop for macOS under heavy sustained I/O.
+**If a `.env` database URL was just edited in an already-running shell, verify the shell's actual
+environment before trusting any timing measurement**:
 
-**Practical takeaway**: don't trust a single timing comparison run late in a long devcontainer
-session as representative of local Postgres's true steady-state speed here. If chasing this
-further, the useful next experiments are from a *fresh* container start (does raw-`pg` latency
-stay low until some specific trigger?) and/or comparing against a real Docker-capable machine
-(where `docker-compose.yml`'s Postgres wouldn't share this devcontainer's virtualized-network
-history at all). Neither is done in this branch. The one thing that *is* independently verified
-and doesn't depend on this open question: the TRUNCATE fix (above) is a strict, unconditional
-improvement — fewer round trips is never worse, regardless of what each round trip costs on a
-given day.
+```bash
+# See what's actually exported right now — may be stale even if .env looks right:
+export -p | grep TEST_DATABASE_URL
+
+# Force a clean reload:
+unset TEST_DATABASE_URL TEST_DATABASE_DIRECT_URL DATABASE_URL DIRECT_URL
+source .devcontainer/load-local-env.sh
+echo "$TEST_DATABASE_URL"   # confirm this matches the intended target before measuring anything
+```
+
+Once done, the real numbers are unambiguous (see above): local Postgres is fast, stable, and
+faster than CI. There is no Docker Desktop networking issue, no unexplained degradation, and no
+open question left here — just a shell-state gotcha worth knowing about before trusting any
+future "before vs. after" comparison in this devcontainer.
 
 The canonical database lifecycle is:
 
