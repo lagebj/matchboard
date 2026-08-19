@@ -45,8 +45,49 @@ Tests must never accidentally target production or development Neon databases.
 - `DIRECT_URL` — dev/production direct connection for Prisma CLI (migrations)
 - `PRODUCTION_DATABASE_URL` — production database URL (Vercel secret, used in deployment workflows)
 - `setupTestDb()` — creates/reuses the test PrismaClient singleton
-- `cleanTestDb()` — deletes all rows in dependency-safe order (used in `beforeAll`)
+- `cleanTestDb()` — wipes every application table; used in `beforeAll` in some files, `beforeEach` in others depending on how much isolation the file's tests need
 - `teardownTestDb()` — disconnects the client (used in `afterAll`)
+
+### `cleanTestDb()` performance: TRUNCATE vs sequential DELETE
+
+`cleanTestDb()` tries a single dynamic `TRUNCATE TABLE ... CASCADE` statement first (one round
+trip, wipes every table in `public` except `_prisma_migrations`) and only falls back to the
+original per-table `deleteMany()` sequence (~80 round trips) if the TRUNCATE attempt fails for
+any reason — most commonly, the connecting role lacking `TRUNCATE` privilege (`DELETE` privilege
+alone is not sufficient in Postgres; it's a separate grant).
+
+This matters a lot when `TEST_DATABASE_URL` points at a remote database (a Neon branch) rather
+than `localhost` (local Docker Postgres, what CI uses): with `cleanTestDb()` running before
+every test in many files, ~80 sequential round trips at real network latency (~30-40ms each,
+measured against a Neon `eu-central-1` branch from this repo's devcontainer) adds up to minutes
+across thousands of tests. The single-round-trip TRUNCATE path collapses that entirely,
+regardless of network latency — confirmed empirically: `sec3-assurance.test.ts` (31 tests, each
+calling `cleanTestDb()` in `beforeEach`) dropped from ~109s to ~28s after this change, run
+against the same Neon test branch.
+
+**If `TEST_DATABASE_URL` points at a Neon branch**, the connecting role needs `TRUNCATE`
+granted once (Postgres doesn't include it in `DELETE`/`INSERT`/`UPDATE`/`SELECT`):
+
+```sql
+-- Run once against the Neon branch, using an admin-privileged connection
+-- (e.g. TEST_DATABASE_DIRECT_URL's role, which owns the tables via Prisma migrations):
+GRANT TRUNCATE ON ALL TABLES IN SCHEMA public TO <test_database_url_role>;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT TRUNCATE ON TABLES TO <test_database_url_role>;
+```
+
+The `ALTER DEFAULT PRIVILEGES` statement covers tables created by future migrations too, so this
+is genuinely one-time per branch, not something to repeat after every schema change. Without it,
+`cleanTestDb()` still works correctly (falls back to sequential deletes) — just at the original,
+slower speed.
+
+**If `TEST_DATABASE_URL` points at local Docker Postgres** (`docker compose up -d`, matching
+`.env.example`'s documented default and exactly what CI uses), this whole distinction mostly
+stops mattering: round trips to `localhost` are sub-millisecond regardless of which path runs,
+and the default `docker-compose.yml` role already owns its tables (full privileges, including
+`TRUNCATE`, no grant needed). Local Docker is the recommended default when available; pointing at
+a Neon branch is a documented, supported alternative for environments where Docker isn't
+available (e.g. this repository's sandboxed Claude Code devcontainer has no Docker at all), not
+a required setup.
 
 The canonical database lifecycle is:
 
