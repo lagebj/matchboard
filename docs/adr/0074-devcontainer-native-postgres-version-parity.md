@@ -21,7 +21,7 @@ option.
 Separately, while confirming Neon's actual Postgres version to align local tooling with it
 (`SELECT version()` against a live Neon branch), a pre-existing three-way version mismatch
 surfaced: Neon runs PostgreSQL 17.11, `docker-compose.yml` pinned `postgres:18-alpine`, and
-`.github/workflows/ci.yml`/`security.yml`'s service containers pinned `postgres:16` — three
+`.github/workflows/ci-checks.yml`/`security.yml`'s service containers pinned `postgres:16` — three
 different major versions, none matching each other or the actual production/test database
 engine.
 
@@ -38,7 +38,7 @@ engine.
    restart) — every step no-ops cleanly if already done.
 2. **Pin all local/CI Postgres targets to major version 17**, matching Neon exactly:
    `docker-compose.yml`'s `postgres:18-alpine` → `postgres:17-alpine`;
-   `ci.yml`/`security.yml`'s `postgres:16` service containers → `postgres:17`. The devcontainer's
+   `ci-checks.yml`/`security.yml`'s `postgres:16` service containers → `postgres:17`. The devcontainer's
    `postgresql-17` install uses the same pin (`ARG POSTGRES_VERSION=17` in the Dockerfile) so all
    four (Neon, devcontainer, docker-compose, CI) now agree.
 
