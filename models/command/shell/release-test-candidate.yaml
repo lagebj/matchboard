@@ -1,0 +1,26 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 6e8c9c7d-21b0-417d-82ae-56ea7bd1b993
+name: release-test-candidate
+version: 1
+tags:
+  swamp-procedure: release-test-candidate
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: |
+        set -e
+        cat <<'EOF'
+        Test deploys automatically on every push to main (Vercel Git integration) —
+        there is no separate agent-triggered deploy/release step to run. This is
+        recorded in docs/adr/0068-swamp-procedure-runner.md. Merge to main and the
+        Test slot updates on its own; run the verify-test-candidate model to confirm
+        it did.
+
+        Current Test slot state:
+        EOF
+        curl -fsS --max-time 10 https://test.matchboard.football/api/meta || {
+          echo "[FAIL] Could not reach https://test.matchboard.football/api/meta" >&2
+          exit 1
+        }

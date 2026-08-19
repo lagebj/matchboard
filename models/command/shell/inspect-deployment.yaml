@@ -1,0 +1,47 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 96994e5a-b406-4711-8874-4adb63ce9957
+name: inspect-deployment
+version: 1
+tags:
+  swamp-procedure: inspect-deployment
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      env:
+        TARGET: test
+      run: |
+        set -e
+        if [ -z "$TARGET" ]; then
+          TARGET=test
+        fi
+        case "$TARGET" in
+          test)
+            url_meta="https://test.matchboard.football/api/meta"
+            vercel_project="matchboard-test"
+            ;;
+          production)
+            url_meta="https://app.matchboard.football/api/meta"
+            vercel_project="matchboard"
+            ;;
+          *)
+            echo "[FAIL] unknown TARGET '$TARGET' — expected 'test' or 'production'" >&2
+            exit 1
+            ;;
+        esac
+
+        echo "-- $TARGET: $url_meta --"
+        if body="$(curl -fsS --max-time 10 "$url_meta" 2>/dev/null)"; then
+          echo "$body"
+        else
+          echo "[FAIL] Could not reach $url_meta" >&2
+          exit 1
+        fi
+
+        echo
+        if command -v vercel >/dev/null 2>&1; then
+          vercel project inspect "$vercel_project" 2>&1 || echo "[WARN] vercel project inspect failed (not linked/authenticated?)" >&2
+        else
+          echo "[WARN] vercel CLI not found — skipping project inspection" >&2
+        fi

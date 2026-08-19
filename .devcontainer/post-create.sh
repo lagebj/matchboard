@@ -67,8 +67,9 @@ fi
 
 echo
 echo "Local devcontainer:"
-echo "  Start Matchboard: bash .devcontainer/start-matchboard.sh"
-echo "  Start OpenCode:   opencode"
+echo "  Start Matchboard:       bash .devcontainer/start-matchboard.sh"
+echo "  Start OpenCode:         opencode"
+echo "  List Swamp procedures:  swamp --no-telemetry model search --json"
 
 if [[ "${CODESPACES:-false}" == "true" ]]; then
   echo

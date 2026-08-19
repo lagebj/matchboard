@@ -347,6 +347,13 @@ Validate agent parity (structural, no authentication required):
 bash .devcontainer/validate-agent-parity.sh
 ```
 
+List available Swamp procedures (repeatable verification/investigation commands — see
+`docs/development/swamp-workflows.md` and `docs/adr/0068-swamp-procedure-runner.md`):
+
+```bash
+swamp --no-telemetry model search --json
+```
+
 Refresh agent skills:
 
 ```bash

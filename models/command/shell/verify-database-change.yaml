@@ -1,0 +1,12 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 72e36004-7c23-4a7c-85de-aa892fee2592
+name: verify-database-change
+version: 1
+tags:
+  swamp-procedure: verify-database-change
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: bash scripts/verify-migration-from-zero.sh

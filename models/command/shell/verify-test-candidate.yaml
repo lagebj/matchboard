@@ -1,0 +1,38 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 95021697-ac70-4f86-9812-16654178b400
+name: verify-test-candidate
+version: 1
+tags:
+  swamp-procedure: verify-test-candidate
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: |
+        set -e
+        body="$(curl -fsS --max-time 10 https://test.matchboard.football/api/meta)"
+        echo "$body"
+        echo
+
+        local_head="$(git rev-parse HEAD)"
+        deployed_commit="$(echo "$body" | jq -r '.commit // empty')"
+
+        if [ -z "$deployed_commit" ]; then
+          echo "[WARN] Could not parse deployed commit from Test's /api/meta response" >&2
+          exit 1
+        fi
+
+        match=no
+        case "$deployed_commit" in
+          "$local_head"*) match=yes ;;
+        esac
+        case "$local_head" in
+          "$deployed_commit"*) match=yes ;;
+        esac
+
+        if [ "$match" = yes ]; then
+          echo "[OK] Test slot matches local HEAD ($deployed_commit)"
+        else
+          echo "[WARN] Test slot ($deployed_commit) differs from local HEAD ($local_head) — Test reflects whatever was last pushed to main, not necessarily this checkout" >&2
+        fi

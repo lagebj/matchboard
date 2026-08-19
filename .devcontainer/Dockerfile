@@ -5,11 +5,13 @@ ARG OPENCODE_VERSION=1.18.8
 ARG NEONCLI_VERSION=2.38.5
 ARG VERCEL_VERSION=58.4.4
 ARG BREVO_VERSION=2.0.1
+ARG SWAMP_VERSION=20260819.011806.0-sha.a9c7ee9a
 
 # Security tool versions (pinned for reproducibility)
 ARG SEMGREP_VERSION=1.112.0
 ARG OSV_SCANNER_VERSION=1.9.2
 ARG GITLEAKS_VERSION=8.22.1
+ARG OPA_VERSION=0.70.0
 
 USER root
 
@@ -49,6 +51,21 @@ RUN ARCH=$(dpkg --print-architecture) \
     && curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GL_ARCH}.tar.gz" \
         | tar xz -C /usr/local/bin gitleaks \
     && chmod +x /usr/local/bin/gitleaks
+
+# Install OPA (Open Policy Agent) — required by `npm run policy:*` (see scripts/policy-utils.mjs
+# resolveOpaPath()); previously undocumented/missing from this devcontainer.
+# Pinned to the last 0.x release (OPA v1.0 made Rego v1 syntax the default, which requires an
+# explicit `if` keyword before rule/function bodies; policies/packs/*/rego/*.rego is still
+# written in v0 syntax). See docs/arr/0021-opa-rego-v0-syntax-pinned.md.
+RUN ARCH=$(dpkg --print-architecture) \
+    && curl -sSL "https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}/opa_linux_${ARCH}_static" \
+        -o /usr/local/bin/opa \
+    && chmod +x /usr/local/bin/opa
+
+# Install Swamp CLI (see docs/adr/0068-swamp-procedure-runner.md). Installed as root so the
+# official installer's default root destination (/usr/local/bin) is used, matching the other
+# tools above. Always invoke with --no-telemetry (no persistent telemetry-disable config exists).
+RUN curl -fsSL https://swamp-club.com/install.sh | sh -s -- -V "${SWAMP_VERSION}"
 
 # Claude Code managed settings: enforce Claude.ai authentication and
 # isolate any inherited API credentials from reaching Claude Code.

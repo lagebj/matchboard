@@ -1,0 +1,12 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 89de0f34-9c94-4d3e-9641-689ed51b7480
+name: verify-security
+version: 1
+tags:
+  swamp-procedure: verify-security
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: bash scripts/security-review.sh
