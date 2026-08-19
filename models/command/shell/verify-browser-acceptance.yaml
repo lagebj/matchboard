@@ -1,0 +1,18 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 8f118f54-65a7-44d1-a1e7-78bf231d21a8
+name: verify-browser-acceptance
+version: 1
+tags:
+  swamp-procedure: verify-browser-acceptance
+globalArguments: {}
+methods:
+  # Requires env.TEST_AGENT_AUTH_SECRET matching the target environment's secret. Runs against
+  # https://test.matchboard.football by default — see docs/development/browser-acceptance-testing.md.
+  #
+  # Invoke with:
+  #   swamp model method run verify-browser-acceptance execute \
+  #     --input env.TEST_AGENT_AUTH_SECRET='<secret>'
+  execute:
+    arguments:
+      run: npm run test:e2e

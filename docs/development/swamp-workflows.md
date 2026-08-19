@@ -41,6 +41,7 @@ swamp --no-telemetry model method run <name> execute --input env.KEY=value  # wi
 | `deploy-test-candidate` | Informational | See "Test-slot procedures" below |
 | `release-test-candidate` | Informational | See "Test-slot procedures" below |
 | `restore-test-baseline` | Wipes and re-seeds the Test database from the canonical seed | Implemented, gated (destructive) |
+| `verify-browser-acceptance` | Runs Playwright browser acceptance tests (`npm run test:e2e`) against the live Test slot | Implemented — takes `--input env.TEST_AGENT_AUTH_SECRET=<secret>` |
 
 Model definitions live in `models/command/shell/*.yaml`. Each is a `command/shell` model — see
 ADR-0068 for why that's used even for the CLI-wrapping procedures, as a documented deviation from
@@ -72,6 +73,10 @@ swamp --no-telemetry model method run restore-test-baseline execute \
 
 It never falls back to `DATABASE_URL` — a destructive operation must never guess which database
 it's pointed at.
+
+`verify-browser-acceptance` also exercises the Test slot directly (real HTTP requests against
+`https://test.matchboard.football`) — see `docs/development/browser-acceptance-testing.md` and
+`docs/adr/0069-browser-acceptance-testing-layer2.md` for the full Playwright/Auth.js setup.
 
 ## Safety
 

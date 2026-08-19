@@ -404,6 +404,7 @@ Runs on `http://localhost:3333`.
 | `npm run test` | Run test suite (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:components` | Run component tests |
+| `npm run test:e2e` | Run Playwright browser acceptance tests (against the live Test slot by default) |
 | `npm run db:generate` | Generate Prisma client |
 | `npm run db:migrate` | Apply schema migrations (production) |
 | `npm run db:migrate:dev` | Create and apply a new migration |
