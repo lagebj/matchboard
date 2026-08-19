@@ -292,6 +292,20 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     expect(invitationFile).not.toContain("where: { token:");
   });
 
+  it("app layout does not unconditionally redirect to /organisations (regression: infinite redirect loop, issue #296)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const appLayout = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(app)/layout.tsx"),
+      "utf-8",
+    );
+    // /organisations and /invite/[token] live inside this same (app) route
+    // group. If this layout redirects to /organisations whenever no single
+    // org resolves, visiting /organisations itself loops forever.
+    expect(appLayout).not.toContain('redirect("/organisations")');
+    expect(appLayout).toContain("getOrgSlugForUser");
+  });
+
   it("invite page looks up invitations by token hash", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
