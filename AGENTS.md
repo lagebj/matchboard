@@ -1342,6 +1342,16 @@ Fixtures result display rules:
 - Auth pages must use the Matchboard dark theme but without protected navigation
 - Root layout must contain only HTML/body/font wrappers — no protected shell components
 - Protected shell (sidebar, top bar, user nav) lives in `(app)/layout.tsx`, not in root layout
+- `(app)/layout.tsx` must never `redirect()` to another route inside the same `(app)` group when
+  no single organisation resolves (`getOrgSlugForUser()` returns `null` for zero eligible
+  memberships, more than one eligible membership, or a suspended/expired membership) — `/organisations`
+  and `/invite/[token]` live inside `(app)` and must stay reachable in that state, or the
+  redirect loops forever (see issue #296 / the regression test in `src/test/security-audit.test.ts`).
+  Instead the layout renders a minimal header-only shell (no sidebar, no org context) around
+  `children` and lets the page handle its own auth/redirect. `resolveOrgSlugForLayout()` (which
+  does redirect to `/organisations`) remains correct for pages that explicitly want that
+  behavior (`(app)/page.tsx`, `(app)/assistant/page.tsx`, `redirect-to-org.ts`) — it is a
+  deliberate per-page choice, never something the shared layout should do unconditionally.
 
 ### Season overview
 
