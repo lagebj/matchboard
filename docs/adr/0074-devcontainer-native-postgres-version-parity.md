@@ -49,11 +49,22 @@ engine.
   `localhost:5432` without needing Docker, matching what a Docker-capable devcontainer or CI
   already does. The Neon `dev` branch this devcontainer previously depended on for interactive
   local development is no longer needed from it.
-- Confirmed empirically (see `docs/development/test-architecture.md`'s "The database target is
-  not the whole gap to CI's speed" section) that this does **not**, on its own, close the full
-  gap to CI's wall-clock time — the round-trip-latency win was already captured by ADR-0072; the
-  remaining ~8x gap is a separate, not-yet-actioned finding (likely `vitest.config.ts`'s
-  `fileParallelism: false`).
+- `vitest.config.ts`'s `fileParallelism: false` was tested directly against local Postgres, not
+  just left alone out of caution: enabling it produced real, reproducible test failures within
+  minutes (`clear-draft-selection.test.ts` failing 8/8 assertions it normally passes) —
+  `cleanTestDb()` unconditionally truncates every table, so any two files running concurrently
+  against the same database race regardless of whether that database is local or remote. Safe
+  parallelism would need per-worker database/schema isolation, a separate restructuring project,
+  not a config flag. It stays disabled.
+- Whether local Postgres actually closes the wall-clock gap to CI is **not settled by this ADR**
+  — see `docs/development/test-architecture.md`'s "Local Postgres latency is not stable in this
+  sandboxed devcontainer" section. Local round-trip latency here was measured degrading from
+  genuinely sub-millisecond to ~28-32ms after sustained heavy I/O, persisting through a Postgres
+  service restart, and affecting raw `pg` exactly as much as Prisma-wrapped queries — the leading
+  suspect is Docker Desktop's virtualized network path under this devcontainer's sandbox, not
+  anything in this repository's code. Do not treat a same-session timing comparison as
+  conclusive; the TRUNCATE fix (ADR-0072) is the one independently-verified, unconditional win
+  regardless of this open question.
 - Schema/migration behavior now runs against the same major Postgres version everywhere
   (Neon, this devcontainer, `docker-compose.yml`, CI), removing a source of "works in one
   environment, subtly differs in another" risk from version drift.

@@ -90,24 +90,49 @@ including `TRUNCATE`, no grant needed). Local Postgres is the recommended defaul
 pointing at a Neon branch is a documented, supported alternative for anyone who wants to test
 against Neon-specific behavior deliberately, not a required setup.
 
-### The database target is not the whole gap to CI's speed
+### `fileParallelism` stays disabled — verified unsafe, not just cautious
 
-Switching `TEST_DATABASE_URL` from Neon to local Postgres does **not** close the full gap to
-CI's wall-clock time on its own — measured directly: `sec3-assurance.test.ts` took ~28.8s against
-local Postgres, essentially identical to ~28.3s against Neon-with-the-TRUNCATE-grant. The TRUNCATE
-fix above already captured the round-trip-latency win regardless of target; once round trips drop
-to ~1 per test, the remaining per-test cost is dominated by something else.
+`vitest.config.ts`'s `fileParallelism: false` (all 168 test files run sequentially, regardless of
+how many CPUs are available) was tested directly rather than left alone out of caution: enabling
+it (`fileParallelism: true` + `maxForks: 4`) against local Postgres produced real, reproducible
+test failures within minutes — `clear-draft-selection.test.ts` failed 8/8 assertions it normally
+passes. Root cause: `cleanTestDb()` unconditionally `TRUNCATE`s every table in the database. Any
+two files running concurrently against the *same* database — local or remote — race: one file's
+cleanup destroys another file's in-progress fixture data out from under it. Safe file-level
+parallelism would need each worker isolated onto its own database or schema — a real,
+separately-scoped restructuring of the test-support layer, not a config flag.
 
-The real remaining gap is large: a GitHub Actions run's `Tests` job (identical `npm test`, CI's
-`postgres:17` service container) completed in **150 seconds**. The same command against local
-Postgres in this repository's Claude Code devcontainer took **~1200 seconds** — 8x, with no
-database-target difference to explain it. The leading suspect is `vitest.config.ts`'s
-`fileParallelism: false`, which forces all 168 test files to run sequentially on a single core
-regardless of how many CPUs are available (10, unused, in that measurement) — likely set
-deliberately to avoid the DB-contention flakiness a shared remote Neon branch produces under
-concurrent file execution. Whether raising parallelism is safe against a local, single-writer
-Postgres instance (no shared/remote contention risk) is untested; do not flip this without
-deliberately re-testing for flakiness first, since it was very likely set intentionally.
+### Local Postgres latency is not stable in this sandboxed devcontainer — measure fresh, don't trust old numbers
+
+An earlier version of this section claimed switching `TEST_DATABASE_URL` from Neon to local
+Postgres "didn't help" beyond what the TRUNCATE fix above already captured, based on a same-order
+timing comparison (`sec3-assurance.test.ts`: ~28.8s local vs ~28.3s Neon). That comparison was
+measured *after* several consecutive 20+ minute full-suite runs in the same devcontainer session,
+and turned out to be measuring a degraded state, not steady-state local Postgres performance.
+
+Investigated properly: **local round-trip latency in this specific devcontainer is not stable
+over a session.** Measured directly with a tight raw-`pg`-driver loop (no Prisma involved, to
+rule out the ORM layer): early in a fresh session, `SELECT 1` against local Postgres was
+genuinely sub-millisecond (0.05–0.2ms) — as expected for loopback. After sustained heavy I/O
+(several consecutive full `npm test` runs), the *exact same* raw-`pg` loop measured ~28-32ms per
+query — a ~150-500x regression — and **stayed there**: unaffected by system load being low
+afterward (load average 1.35 on 10 cores), unaffected by restarting the `postgresql` service
+(fresh postmaster, fresh backend processes, identical latency). Crucially, this degradation
+affects raw `pg` and Prisma-wrapped queries equally, so it is not a Prisma, adapter, or
+application-code issue — it sits below the database client entirely. The leading suspect is
+Docker Desktop's virtualized network path degrading under sustained load and not self-healing
+short of a full container/VM restart (untested — restarting would end the investigating session),
+a known category of issue on Docker Desktop for macOS under heavy sustained I/O.
+
+**Practical takeaway**: don't trust a single timing comparison run late in a long devcontainer
+session as representative of local Postgres's true steady-state speed here. If chasing this
+further, the useful next experiments are from a *fresh* container start (does raw-`pg` latency
+stay low until some specific trigger?) and/or comparing against a real Docker-capable machine
+(where `docker-compose.yml`'s Postgres wouldn't share this devcontainer's virtualized-network
+history at all). Neither is done in this branch. The one thing that *is* independently verified
+and doesn't depend on this open question: the TRUNCATE fix (above) is a strict, unconditional
+improvement — fewer round trips is never worse, regardless of what each round trip costs on a
+given day.
 
 The canonical database lifecycle is:
 
