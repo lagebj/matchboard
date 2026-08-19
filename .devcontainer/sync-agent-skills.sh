@@ -32,6 +32,8 @@ readonly opencode_skills_root="$opencode_config_root/skills"
 readonly instruction_root="$opencode_config_root/instructions"
 readonly instruction_file="$instruction_root/matchboard-agent-skills.md"
 readonly manifest_file="$installation_root/managed-skills.txt"
+readonly workspace="${CODESPACE_VSCODE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+readonly claude_skills_root="$workspace/.claude/skills"
 
 readonly addy_repository="${ADDY_AGENT_SKILLS_REPOSITORY:-https://github.com/addyosmani/agent-skills.git}"
 readonly addy_ref="${ADDY_AGENT_SKILLS_REF:-main}"
@@ -41,7 +43,8 @@ readonly lage_ref="${LAGE_AGENT_SKILLS_REF:-main}"
 mkdir -p \
   "$repositories_root" \
   "$opencode_skills_root" \
-  "$instruction_root"
+  "$instruction_root" \
+  "$claude_skills_root"
 
 log() {
   printf '[agent-skills] %s\n' "$*"
@@ -99,13 +102,23 @@ remove_previous_managed_links() {
 
   while IFS= read -r skill_name; do
     [[ -n "$skill_name" ]] || continue
-    local target="$opencode_skills_root/$skill_name"
 
-    if [[ -L "$target" ]]; then
+    local opencode_target="$opencode_skills_root/$skill_name"
+    local claude_target="$claude_skills_root/$skill_name"
+
+    if [[ -L "$opencode_target" ]]; then
       local resolved
-      resolved="$(readlink -f "$target" 2>/dev/null || true)"
+      resolved="$(readlink -f "$opencode_target" 2>/dev/null || true)"
       if [[ "$resolved" == "$installation_root"/* ]]; then
-        rm -f "$target"
+        rm -f "$opencode_target"
+      fi
+    fi
+
+    if [[ -L "$claude_target" ]]; then
+      local resolved
+      resolved="$(readlink -f "$claude_target" 2>/dev/null || true)"
+      if [[ "$resolved" == "$installation_root"/* ]]; then
+        rm -f "$claude_target"
       fi
     fi
   done < "$manifest_file"
@@ -157,31 +170,36 @@ link_skill_source() {
   while IFS= read -r -d '' skill_file; do
     local skill_directory
     local skill_name
-    local target
+    local opencode_target
+    local claude_target
     local resolved
 
     skill_directory="$(dirname "$skill_file")"
     skill_name="$(basename "$skill_directory")"
-    target="$opencode_skills_root/$skill_name"
+    opencode_target="$opencode_skills_root/$skill_name"
+    claude_target="$claude_skills_root/$skill_name"
 
     validate_skill "$skill_directory" || continue
 
-    if [[ -e "$target" || -L "$target" ]]; then
-      if [[ -L "$target" ]]; then
-        resolved="$(readlink -f "$target" 2>/dev/null || true)"
-        if [[ "$resolved" == "$installation_root"/* ]]; then
-          rm -f "$target"
+    for target in "$opencode_target" "$claude_target"; do
+      if [[ -e "$target" || -L "$target" ]]; then
+        if [[ -L "$target" ]]; then
+          resolved="$(readlink -f "$target" 2>/dev/null || true)"
+          if [[ "$resolved" == "$installation_root"/* ]]; then
+            rm -f "$target"
+          else
+            warn "Keeping unmanaged skill '$skill_name' at $target."
+            continue
+          fi
         else
           warn "Keeping unmanaged skill '$skill_name' at $target."
           continue
         fi
-      else
-        warn "Keeping unmanaged skill '$skill_name' at $target."
-        continue
       fi
-    fi
 
-    ln -s "$skill_directory" "$target"
+      ln -s "$skill_directory" "$target"
+    done
+
     printf '%s\n' "$skill_name" >> "$manifest_file.next"
   done < <(find "$source_root" -mindepth 2 -maxdepth 2 -type f -name SKILL.md -print0 | sort -z)
 }
@@ -219,6 +237,7 @@ write_opencode_instructions
 
 skill_count="$(wc -l < "$manifest_file" | tr -d '[:space:]')"
 log "Installed $skill_count skills in $opencode_skills_root"
+log "Installed $skill_count skills in $claude_skills_root"
 log "OpenCode instructions: $instruction_file"
 
 if [[ "$sync_failure" -ne 0 && "$mode" == "--required" ]]; then

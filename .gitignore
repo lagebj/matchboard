@@ -58,6 +58,16 @@ npm-debug.log*
 .vscode/
 .codex
 
+# Claude Code session and personal memory (auto-managed, not committed)
+.claude/settings.local.json
+.claude/todos/
+
+# Claude Code managed skill symlinks (created by sync-agent-skills.sh)
+# The .claude/skills/ directory contains symlinks to the canonical skill
+# repositories and must not be committed — it is rebuilt on container creation.
+# Keep the committed CLAUDE.md and any committed .claude/ content.
+.claude/skills/
+
 # OPA binary cache
 .opa-cache/
 .devcontainer/devcontainer-lock.json
