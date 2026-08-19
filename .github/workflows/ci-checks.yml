@@ -111,6 +111,11 @@ jobs:
   e2e:
     name: Browser Acceptance Tests
     runs-on: ubuntu-24.04
+    # A transient runner/network hang (observed on `playwright install --with-deps`, which
+    # normally takes ~2 minutes) can otherwise consume the default 360-minute job timeout. 15
+    # minutes comfortably covers npm ci + browser install + the full smoke suite (~4 minutes
+    # observed) with headroom, while failing fast on a genuine hang instead of blocking the PR.
+    timeout-minutes: 15
     # Requires the TEST_AGENT_AUTH_SECRET repo secret to match the deployed Test environment's
     # secret (docs/development/browser-acceptance-testing.md). Skips cleanly if not yet
     # configured rather than failing every run. The `secrets` context is not a valid named-value
