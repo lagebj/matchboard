@@ -13,6 +13,12 @@ ARG OSV_SCANNER_VERSION=1.9.2
 ARG GITLEAKS_VERSION=8.22.1
 ARG OPA_VERSION=1.19.1
 
+# Pinned to match Neon's actual running version exactly (`SELECT version()` against a live Neon
+# branch — see docs/development/test-architecture.md), not Debian bookworm's default (15) or
+# docker-compose.yml's (18) or CI's postgres:16 service containers — those three already
+# disagreed with Neon and each other before this was added; 17 is the one that matches reality.
+ARG POSTGRES_VERSION=17
+
 USER root
 
 RUN apt-get update \
@@ -24,6 +30,25 @@ RUN apt-get update \
         ripgrep \
         dnsutils \
         ca-certificates \
+        gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Native postgresql-${POSTGRES_VERSION} server — this sandboxed devcontainer cannot run Docker
+# (confirmed: no cgroup write access, unshare() returns EPERM — a hard sandbox restriction, not
+# a missing package), so it can't use docker-compose.yml's local Postgres like a real
+# Docker-capable devcontainer or CI can. A native server process needs no containerization at
+# all and gives the same effect: near-zero-latency local Postgres for `npm run dev` and
+# `npm test`, instead of a remote Neon branch. Debian bookworm's own apt repo only carries
+# Postgres 15, so this adds the official PGDG apt repo to get the exact version pinned above.
+# See docs/development/test-architecture.md's "cleanTestDb() performance" section and
+# .devcontainer/setup-local-postgres.sh/post-create.sh/post-start.sh for setup.
+RUN install -d /usr/share/postgresql-common/pgdg \
+    && curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail \
+        https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends "postgresql-${POSTGRES_VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install --global \

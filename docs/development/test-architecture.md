@@ -80,14 +80,34 @@ is genuinely one-time per branch, not something to repeat after every schema cha
 `cleanTestDb()` still works correctly (falls back to sequential deletes) — just at the original,
 slower speed.
 
-**If `TEST_DATABASE_URL` points at local Docker Postgres** (`docker compose up -d`, matching
-`.env.example`'s documented default and exactly what CI uses), this whole distinction mostly
-stops mattering: round trips to `localhost` are sub-millisecond regardless of which path runs,
-and the default `docker-compose.yml` role already owns its tables (full privileges, including
-`TRUNCATE`, no grant needed). Local Docker is the recommended default when available; pointing at
-a Neon branch is a documented, supported alternative for environments where Docker isn't
-available (e.g. this repository's sandboxed Claude Code devcontainer has no Docker at all), not
-a required setup.
+**If `TEST_DATABASE_URL` points at a local Postgres** (Docker Compose's `docker-compose.yml`
+where Docker is available, or the native `postgresql-17` server this repository's own sandboxed
+Claude Code devcontainer sets up instead — see `.devcontainer/README.md`'s "Local Postgres (no
+Docker)" section — either way, matching `.env.example`'s documented default and what CI uses),
+this whole distinction mostly stops mattering: round trips to `localhost` are sub-millisecond
+regardless of which path runs, and the connecting role already owns its tables (full privileges,
+including `TRUNCATE`, no grant needed). Local Postgres is the recommended default when available;
+pointing at a Neon branch is a documented, supported alternative for anyone who wants to test
+against Neon-specific behavior deliberately, not a required setup.
+
+### The database target is not the whole gap to CI's speed
+
+Switching `TEST_DATABASE_URL` from Neon to local Postgres does **not** close the full gap to
+CI's wall-clock time on its own — measured directly: `sec3-assurance.test.ts` took ~28.8s against
+local Postgres, essentially identical to ~28.3s against Neon-with-the-TRUNCATE-grant. The TRUNCATE
+fix above already captured the round-trip-latency win regardless of target; once round trips drop
+to ~1 per test, the remaining per-test cost is dominated by something else.
+
+The real remaining gap is large: a GitHub Actions run's `Tests` job (identical `npm test`, CI's
+`postgres:17` service container) completed in **150 seconds**. The same command against local
+Postgres in this repository's Claude Code devcontainer took **~1200 seconds** — 8x, with no
+database-target difference to explain it. The leading suspect is `vitest.config.ts`'s
+`fileParallelism: false`, which forces all 168 test files to run sequentially on a single core
+regardless of how many CPUs are available (10, unused, in that measurement) — likely set
+deliberately to avoid the DB-contention flakiness a shared remote Neon branch produces under
+concurrent file execution. Whether raising parallelism is safe against a local, single-writer
+Postgres instance (no shared/remote contention risk) is untested; do not flip this without
+deliberately re-testing for flakiness first, since it was very likely set intentionally.
 
 The canonical database lifecycle is:
 

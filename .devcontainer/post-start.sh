@@ -7,6 +7,9 @@ log_file="$state_dir/opencode-web.log"
 
 mkdir -p "$state_dir"
 
+echo "Ensuring local Postgres is running..."
+bash .devcontainer/setup-local-postgres.sh
+
 echo "Synchronising OpenCode agent skills..."
 bash .devcontainer/sync-agent-skills.sh --best-effort
 

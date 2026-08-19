@@ -83,7 +83,7 @@ jobs:
       MATCHBOARD_ENV: "test"
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: matchboard
           POSTGRES_PASSWORD: matchboard
@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: matchboard
           POSTGRES_PASSWORD: matchboard
