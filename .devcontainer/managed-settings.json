@@ -1,0 +1,14 @@
+{
+  "forceLoginMethod": "claudeai",
+  "env": {
+    "ANTHROPIC_API_KEY": "",
+    "ANTHROPIC_AUTH_TOKEN": "",
+    "ANTHROPIC_BASE_URL": "",
+    "ANTHROPIC_PROFILE": "",
+    "ANTHROPIC_FEDERATION_RULE_ID": "",
+    "ANTHROPIC_ORGANIZATION_ID": "",
+    "CLAUDE_CODE_USE_BEDROCK": "",
+    "CLAUDE_CODE_USE_VERTEX": "",
+    "CLAUDE_CODE_USE_FOUNDRY": ""
+  }
+}

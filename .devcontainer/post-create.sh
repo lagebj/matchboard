@@ -47,6 +47,13 @@ printf 'vercel: %s\n' "$(vercel --version)"
 printf 'brevo: %s\n' "$(brevo --version)"
 printf 'OpenCode: %s\n' "$(opencode --version)"
 
+# Verify Claude Code is available (non-interactive, no auth required)
+if command -v claude >/dev/null 2>&1; then
+  printf 'Claude Code: %s\n' "$(claude --version 2>/dev/null || echo 'installed')"
+else
+  echo "Claude Code: not found in PATH (devcontainer feature may not have completed yet)"
+fi
+
 # Verify security tools
 printf 'semgrep: %s\n' "$(semgrep --version 2>/dev/null | head -1 || echo 'not installed')"
 printf 'osv-scanner: %s\n' "$(osv-scanner --version 2>/dev/null || echo 'not installed')"

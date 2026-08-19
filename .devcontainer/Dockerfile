@@ -50,4 +50,9 @@ RUN ARCH=$(dpkg --print-architecture) \
         | tar xz -C /usr/local/bin gitleaks \
     && chmod +x /usr/local/bin/gitleaks
 
+# Claude Code managed settings: enforce Claude.ai authentication and
+# isolate any inherited API credentials from reaching Claude Code.
+RUN mkdir -p /etc/claude-code
+COPY managed-settings.json /etc/claude-code/managed-settings.json
+
 USER node

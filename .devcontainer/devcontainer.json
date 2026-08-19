@@ -13,7 +13,8 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {
       "version": "latest"
-    }
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "remoteUser": "node",
   "hostRequirements": {
@@ -35,7 +36,11 @@
       "onAutoForward": "silent"
     }
   },
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
   "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "OPENCODE_SERVER_USERNAME": "lagebj",
     "OLLAMA_MODEL": "glm-5.1:cloud",
     "OPENCODE_MODEL_CONTEXT": "202752",
