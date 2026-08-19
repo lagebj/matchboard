@@ -17,25 +17,25 @@ A finding is not considered fixed because a scanner no longer reports it if the 
 All security tools are installed in the devcontainer. Verify with:
 
 ```bash
-pnpm security:tools
+npm run security:tools
 ```
 
 ### Commands
 
 | Command | Purpose |
 |---------|---------|
-| `pnpm security:tools` | Verify all security tools and versions |
-| `pnpm security:semgrep` | Run SAST with custom Matchboard rules |
-| `pnpm security:deps` | Run OSV dependency vulnerability scan |
-| `pnpm security:secrets` | Run Gitleaks secret detection (working tree) |
-| `pnpm security:secrets:history` | Run Gitleaks on repository history |
-| `pnpm security:authz` | Run Matchboard authorization security test suite |
-| `pnpm security:static` | Run all non-runtime security scanners |
-| `pnpm security:dast:baseline` | Passive ZAP scan (safe, non-destructive) |
-| `pnpm security:dast:active` | Active ZAP scan (requires explicit opt-in, isolated env) |
-| `pnpm security:review` | Run full non-destructive security review |
-| `pnpm security:check-sql` | Check for forbidden SQL methods |
-| `pnpm security:check-supply-chain` | Check supply chain integrity |
+| `npm run security:tools` | Verify all security tools and versions |
+| `npm run security:semgrep` | Run SAST with custom Matchboard rules |
+| `npm run security:deps` | Run OSV dependency vulnerability scan |
+| `npm run security:secrets` | Run Gitleaks secret detection (working tree) |
+| `npm run security:secrets:history` | Run Gitleaks on repository history |
+| `npm run security:authz` | Run Matchboard authorization security test suite |
+| `npm run security:static` | Run all non-runtime security scanners |
+| `npm run security:dast:baseline` | Passive ZAP scan (safe, non-destructive) |
+| `npm run security:dast:active` | Active ZAP scan (requires explicit opt-in, isolated env) |
+| `npm run security:review` | Run full non-destructive security review |
+| `npm run security:check-sql` | Check for forbidden SQL methods |
+| `npm run security:check-supply-chain` | Check supply chain integrity |
 
 ### Tool versions
 
@@ -53,11 +53,11 @@ Scanner output goes to `.security/results/` which is gitignored. Never commit sc
 
 ### Baseline scan
 
-`pnpm security:dast:baseline` runs a passive ZAP scan against the local Matchboard instance. It does not mutate application state.
+`npm run security:dast:baseline` runs a passive ZAP scan against the local Matchboard instance. It does not mutate application state.
 
 ### Active scan
 
-`pnpm security:dast:active` runs an active ZAP scan against an isolated security environment. It:
+`npm run security:dast:active` runs an active ZAP scan against an isolated security environment. It:
 
 - Requires `MATCHBOARD_ALLOW_ACTIVE_SECURITY_SCAN=1`
 - Refuses production URLs and production databases
@@ -71,14 +71,26 @@ Scanner output goes to `.security/results/` which is gitignored. Never commit sc
 
 ## CodeQL
 
-CodeQL is **not included** in the local security workflow. Matchboard is licensed under Elastic License 2.0 (source-available, not OSI Open Source). GitHub CodeQL's Terms of Service require repositories to be "Open Source Software" as defined by OSI for free use. ELv2 is not an OSI-approved license.
+CodeQL is **active** on this repository via GitHub's repository-settings-level default setup
+(Settings → Code security → Code scanning → Default setup) — not an in-repo `codeql.yml`
+workflow. Matchboard is licensed under Elastic License 2.0 (source-available, not OSI Open
+Source), which would block use of the standalone, redistributed CodeQL CLI under GitHub's CodeQL
+Terms and Conditions. That restriction is distinct from GitHub's own hosted code-scanning product,
+which GitHub offers at no additional cost to public repositories on GitHub.com regardless of the
+repository's own license. Matchboard's repository is public.
+
+The maintainer reviewed this distinction and elected to keep CodeQL's default setup enabled,
+relying on the public-repository entitlement. See ADR-0070 for the full decision record.
 
 Therefore:
-- The CodeQL CLI is not installed in the devcontainer
-- GitHub-hosted CodeQL scanning is not configured
-- The local workflow remains complete without CodeQL
-
-If CodeQL eligibility changes (e.g., through a paid GitHub Advanced Security entitlement), it can be added as an additional finding source.
+- CodeQL findings surface via the repository's Security tab and PR checks (`Analyze
+  (actions/javascript-typescript/python)`, `CodeQL`), alongside the local security workflow below
+- The CodeQL CLI remains not installed in the devcontainer — GitHub's hosted default setup does
+  not run locally and no `npm run security:*` script depends on it
+- No in-repo `codeql.yml` workflow exists or should be added — it would conflict with default
+  setup, which is a repository setting, not code
+- If the repository's visibility ever changes to private, this decision must be revisited (see
+  ADR-0070)
 
 ## Matchboard-specific Semgrep rules
 
@@ -94,7 +106,7 @@ Custom rules are in `security/semgrep/matchboard-rules.yml`:
 
 ## Authorization security test suite
 
-Run with `pnpm security:authz`.
+Run with `npm run security:authz`.
 
 Tests cover:
 - Cross-tenant data isolation (organisation A cannot access organisation B data)
@@ -130,7 +142,7 @@ Actual discovered secrets must be treated as compromised and reported for rotati
 ## Security review workflow
 
 ```bash
-pnpm security:review
+npm run security:review
 ```
 
 Runs: static checks, Semgrep, OSV, Gitleaks, authorization tests. Does NOT run active ZAP.
@@ -150,8 +162,13 @@ Report security vulnerabilities to the repository maintainer. Do not file public
 
 ## CodeQL status
 
-- Repository license: Elastic License 2.0
-- CodeQL eligibility: **Not permitted** under current CodeQL Terms for non-OSI-licensed repositories
-- CodeQL CLI: Not installed
-- GitHub CodeQL scanning: Not configured
-- Local workflow: Complete without CodeQL
+- Repository license: Elastic License 2.0 (source-available, not OSI-approved)
+- Repository visibility: Public
+- CodeQL eligibility: Active via GitHub's public-repository code-scanning default setup (see
+  ADR-0070) — distinct from the standalone CodeQL CLI Terms, which the maintainer has not
+  separately licensed
+- CodeQL CLI: Not installed (not required by GitHub's hosted default setup)
+- GitHub CodeQL scanning: Configured at the repository-settings level (default setup), not via
+  an in-repo workflow
+- Local workflow: Complete without the CodeQL CLI; GitHub-hosted CodeQL is an additional,
+  separate finding source

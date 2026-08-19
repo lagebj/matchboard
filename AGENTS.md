@@ -77,7 +77,13 @@ All coding-agent work must follow the working-session contract.
 
 Discover available verification/investigation procedures with
 `swamp --no-telemetry model search --json` (see `docs/development/swamp-workflows.md` and
-`docs/adr/0068-swamp-procedure-runner.md`) before hand-rolling a command sequence.
+`docs/adr/0068-swamp-procedure-runner.md`) before hand-rolling a command sequence. When a task
+requires running the same multi-step command sequence more than once, or a sequence any future
+agent session would plausibly need again (a new investigation, verification, or CLI-wrapping
+procedure), add it as a `command/shell` model under `models/command/shell/` following the
+existing procedures' pattern (POSIX `/bin/sh`, `set -e`, no bashisms) rather than leaving it as
+one-off shell commands in the transcript. Update `docs/development/swamp-workflows.md`'s
+procedure table when a procedure is added, changed, or its status changes (stub → real).
 
 For product, workflow, UX, navigation, selection, fixtures, teams, players, matches, assistant, rules, explainability, and decision-audit changes, the domain rules in this AGENTS.md are mandatory.
 
@@ -164,7 +170,7 @@ Rules:
 - Active DAST requires explicit opt-in and an isolated Neon security branch.
 - Never commit generated security reports (SARIF, ZAP output, etc.) to the repository.
 - Never commit real credentials or exploit artifacts.
-- CodeQL is excluded because Matchboard's ELv2 license is not OSI Open Source. Do not add CodeQL unless entitlement is confirmed.
+- CodeQL is **active** on this public repository via GitHub's repository-settings-level default setup (not an in-repo workflow), relying on GitHub's public-repository code-scanning entitlement rather than the standalone CodeQL CLI Terms (which Matchboard's ELv2/non-OSI license would otherwise fail). This is a maintainer licensing decision — see ADR-0070 and SECURITY.md's "CodeQL" section. Do not disable it or add a competing `codeql.yml` workflow without a new maintainer decision.
 - See SECURITY.md for full documentation.
 
 ### Security finding, ARR and ADR boundaries
