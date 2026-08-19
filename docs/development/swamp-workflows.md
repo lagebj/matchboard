@@ -78,6 +78,33 @@ it's pointed at.
 `https://test.matchboard.football`) — see `docs/development/browser-acceptance-testing.md` and
 `docs/adr/0069-browser-acceptance-testing-layer2.md` for the full Playwright/Auth.js setup.
 
+## Adding a new procedure
+
+When a task requires the same multi-step command sequence more than once, or produces a sequence
+a future agent session would plausibly need again, add it here rather than leaving it as one-off
+shell commands in a transcript:
+
+```bash
+swamp --no-telemetry model create command/shell <name> --json
+```
+
+Then hand-edit the generated `models/command/shell/<name>.yaml`:
+- `run:` must be POSIX `/bin/sh`-compatible (Swamp executes via `sh -c`, not bash) — no `[[ ]]`,
+  no `&>`, no `set -o pipefail`, no bash-only `${VAR:-default}` (Swamp's CEL-expression parser
+  reserves single-brace `${...}`; use `if [ -z "$VAR" ]; then VAR=default; fi` instead)
+- start the script with `set -e`
+- prefer wrapping an *existing* npm/bash script over reimplementing logic (mirrors every current
+  procedure — see the table above)
+- if the procedure wraps an external CLI (`gh`, `vercel`, `curl`, etc.), that's a documented
+  deviation from Swamp's own house rule per ADR-0068 — acceptable here, don't re-litigate it
+- gate any destructive procedure the same way `restore-test-baseline` is gated: require explicit
+  `env.CONFIRM=yes` plus an explicit target, never fall back to a guessed/default database or
+  environment
+
+Validate with `swamp --no-telemetry model validate <name>`, then add a row to the "Procedures"
+table above and update `docs/development/coding-agent-working-session.md`/`AGENTS.md` if the new
+procedure changes the mandatory verification flow.
+
 ## Safety
 
 Swamp procedures are opt-in and human/agent-invoked only. They are never run automatically —
