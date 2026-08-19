@@ -50,32 +50,34 @@ export interface RequiredEnvVar {
   validate?: (value: string) => string | undefined;
 }
 
+// Canonical vars that every real app-server environment needs, independent of dev/test/staging/
+// production — each environment supplies its own values, the app code doesn't branch on which.
+// TEST_DATABASE_URL is deliberately NOT here: it's a local/CI vitest-suite-only convention
+// (enforced independently by vitest.config.ts and src/test/test-db.ts), not something the
+// deployed Test application server needs — it connects to its database via DATABASE_URL/
+// DIRECT_URL exactly like every other environment.
 const REQUIRED_ENV_VARS: RequiredEnvVar[] = [
   {
     name: "DATABASE_URL",
-    requiredIn: ["development", "staging", "production"],
+    requiredIn: ["development", "test", "staging", "production"],
     validate: (v) => (v.startsWith("postgresql://") || v.startsWith("postgres://") ? undefined : "Must be a PostgreSQL connection string"),
   },
   {
     name: "DIRECT_URL",
-    requiredIn: ["development", "staging", "production"],
+    requiredIn: ["development", "test", "staging", "production"],
     validate: (v) => (v.startsWith("postgresql://") || v.startsWith("postgres://") ? undefined : "Must be a PostgreSQL connection string"),
   },
   {
     name: "AUTH_SECRET",
-    requiredIn: ["development", "staging", "production"],
+    requiredIn: ["development", "test", "staging", "production"],
   },
   {
     name: "AUTH_GOOGLE_ID",
-    requiredIn: ["development", "staging", "production"],
+    requiredIn: ["development", "test", "staging", "production"],
   },
   {
     name: "AUTH_GOOGLE_SECRET",
-    requiredIn: ["development", "staging", "production"],
-  },
-  {
-    name: "TEST_DATABASE_URL",
-    requiredIn: ["test"],
+    requiredIn: ["development", "test", "staging", "production"],
   },
 ];
 

@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -11,11 +11,13 @@
     "dev": "next dev -p 3333",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src prisma.config.ts next.config.ts eslint.config.mjs prisma/seed-demo.cjs",
+    "lint": "eslint src prisma.config.ts next.config.ts eslint.config.mjs prisma/seed-demo.cjs playwright.config.ts e2e",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && vitest run --config vitest.config.components.ts",
     "test:watch": "vitest",
     "test:components": "vitest run --config vitest.config.components.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "setup": "cp -n .env.example .env 2>/dev/null; prisma generate && prisma migrate dev && node prisma/seed-demo.cjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
@@ -89,6 +91,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",

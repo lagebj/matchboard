@@ -108,6 +108,25 @@ jobs:
           DIRECT_URL: "postgresql://matchboard:matchboard@localhost:5432/matchboard_test?schema=public"
       - run: npm test
 
+  e2e:
+    name: Browser Acceptance Tests
+    runs-on: ubuntu-24.04
+    # Requires the TEST_AGENT_AUTH_SECRET repo secret to match the deployed Test environment's
+    # secret (docs/development/browser-acceptance-testing.md). Skips cleanly if not yet
+    # configured rather than failing every run.
+    if: ${{ secrets.TEST_AGENT_AUTH_SECRET != '' }}
+    env:
+      TEST_AGENT_AUTH_SECRET: ${{ secrets.TEST_AGENT_AUTH_SECRET }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
   migration-from-zero:
     name: Migration from Zero
     runs-on: ubuntu-24.04

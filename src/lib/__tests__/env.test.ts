@@ -55,11 +55,28 @@ describe("env: isPublicRoute", () => {
 });
 
 describe("env: validateEnv", () => {
-  it("returns valid in test environment with required vars", () => {
-    process.env.TEST_DATABASE_URL = "postgresql://test:test@localhost/test";
+  it("returns valid in test environment with the canonical vars set", () => {
+    // The deployed Test application server needs the same canonical vars as every other
+    // environment (DATABASE_URL, DIRECT_URL, AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET) —
+    // TEST_DATABASE_URL is a separate, local/CI vitest-suite-only concept and is not required here.
+    process.env.DATABASE_URL = "postgresql://test:test@localhost/test";
+    process.env.DIRECT_URL = "postgresql://test:test@localhost/test";
+    process.env.AUTH_SECRET = "secret";
+    process.env.AUTH_GOOGLE_ID = "id";
+    process.env.AUTH_GOOGLE_SECRET = "secret";
     const result = validateEnv();
-    // In test env, only TEST_DATABASE_URL is required
     expect(result.valid).toBe(true);
+  });
+
+  it("does not require TEST_DATABASE_URL in test environment", () => {
+    process.env.DATABASE_URL = "postgresql://test:test@localhost/test";
+    process.env.DIRECT_URL = "postgresql://test:test@localhost/test";
+    process.env.AUTH_SECRET = "secret";
+    process.env.AUTH_GOOGLE_ID = "id";
+    process.env.AUTH_GOOGLE_SECRET = "secret";
+    delete process.env.TEST_DATABASE_URL;
+    const result = validateEnv();
+    expect(result.errors.some((e) => e.includes("TEST_DATABASE_URL"))).toBe(false);
   });
 
   it("detects NEXT_PUBLIC_ secrets as errors", () => {

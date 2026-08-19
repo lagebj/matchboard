@@ -24,13 +24,19 @@ import "dotenv/config";
 const TEST_DATASET_VERSION = 1;
 
 function createAdapter(url: string) {
-  if (url.includes(".neon.tech")) {
-    const { PrismaNeon } = require("@prisma/adapter-neon");
-    return new PrismaNeon({ connectionString: url });
-  }
+  // max: 1 — a pool capped at exactly one connection. `new Pool()` with its default size
+  // manages multiple concurrent connections — sequential awaited db.X.create() calls could
+  // land on different underlying sessions, and a just-created row is not guaranteed visible to
+  // a different session's very next foreign-key check (verified: identical statements succeed
+  // every time when run by hand in one psql session, but intermittently fail with
+  // ForeignKeyConstraintViolation (P2003) through Prisma against the deployed Neon Test branch,
+  // referencing rows created many statements — and seconds — earlier). Capping the pool at one
+  // connection guarantees every statement in this script shares one session, while keeping the
+  // Pool interface @prisma/adapter-pg is built around (a bare pg.Client broke the protocol
+  // handshake with PrismaPg).
   const { PrismaPg } = require("@prisma/adapter-pg");
   const { Pool } = require("pg");
-  const pool = new Pool({ connectionString: url });
+  const pool = new Pool({ connectionString: url, max: 1 });
   return new PrismaPg(pool);
 }
 
@@ -51,12 +57,49 @@ async function main() {
 
   const adapter = createAdapter(connectionString);
   const { PrismaClient } = require("../src/generated/prisma/client");
-  const db = new PrismaClient({ adapter, log: ["warn", "error"] });
+  const rawDb = new PrismaClient({ adapter, log: ["warn", "error"] });
+
+  // Neon's serverless driver does not guarantee that a just-created row is visible to the very
+  // next statement's foreign-key check — a plain sequence of awaited db.X.create() calls
+  // intermittently threw spurious ForeignKeyConstraintViolation (P2003) errors against the
+  // deployed Test branch. Wrapping the whole seed in a single Prisma $transaction() was tried
+  // and made things worse: per ADR-0057, this codebase's Neon adapter does not reliably preserve
+  // session/write state across model queries inside $transaction() (writes silently failed to
+  // persist despite the script reporting success). A retry-on-P2003 extension avoids both
+  // problems — no transaction, no session-state dependency, just short backoff until the
+  // referenced row becomes visible.
+  async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+    const maxAttempts = 6;
+    const baseDelayMs = 300;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const isForeignKeyRace = err?.code === "P2003";
+        if (!isForeignKeyRace || attempt === maxAttempts) throw err;
+        await new Promise((resolve) => setTimeout(resolve, baseDelayMs * attempt));
+      }
+    }
+    throw new Error("unreachable");
+  }
+
+  const db = rawDb.$extends({
+    query: {
+      $allModels: {
+        create({ args, query }: any) {
+          return withRetry(() => query(args));
+        },
+        createMany({ args, query }: any) {
+          return withRetry(() => query(args));
+        },
+      },
+    },
+  }) as typeof rawDb;
 
   try {
     // Clean all data (test database is disposable)
     console.log("Cleaning existing data...");
-    await cleanAllData(db);
+    await cleanAllData(rawDb);
 
     // ============ Organisation A: Matchboard Test Club ============
     const orgA = await db.organisation.create({
@@ -378,7 +421,7 @@ async function main() {
     console.error("Seed failed:", error);
     process.exit(1);
   } finally {
-    await db.$disconnect();
+    await rawDb.$disconnect();
   }
 }
 

@@ -8,8 +8,12 @@
 | Database integration | Local PostgreSQL | No | `src/**/*.test.ts` (uses DB) | Moderate |
 | Component | No | No | `src/**/*.test.tsx` | Fast |
 | Security authz | Local PostgreSQL | No | `src/test/security-authz.test.ts` | Moderate |
+| Browser acceptance (Playwright) | Neon Test branch (live) | Live HTTPS (`test.matchboard.football`) | `e2e/**/*.spec.ts` | Slow |
 
-The normal test suite (`npm test`) runs unit + database integration + component tests.
+The normal test suite (`npm test`) runs unit + database integration + component tests. Browser
+acceptance tests (`npm run test:e2e`) are a separate, opt-in layer — see
+`docs/development/browser-acceptance-testing.md` and
+`docs/adr/0069-browser-acceptance-testing-layer2.md`.
 
 External SaaS integration tests (Neon, Brevo, etc.) must NOT be part of the normal suite.
 

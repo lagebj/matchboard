@@ -36,6 +36,12 @@ next-env.d.ts
 # Coverage
 /coverage
 
+# Playwright (e2e)
+/playwright-report/
+/test-results/
+/blob-report/
+/e2e/.auth/
+
 # Data directories (never commit real data)
 /data/
 /exports/
