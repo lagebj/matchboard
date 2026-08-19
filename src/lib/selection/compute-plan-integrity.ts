@@ -87,14 +87,21 @@ export async function computeRoundPlanIntegrity(
         where: { status: { not: "CANCELLED" } },
         include: {
           team: true,
+          // DRAFT and FINALIZED: a match finalized individually within an
+          // otherwise-DRAFT round (per-match finalization) must still count
+          // toward its own squad size, goalkeeper coverage, and duplicate/
+          // opportunity checks below — it did not stop having players just
+          // because it's locked. Only SELECTED_PLAYER_UNAVAILABLE narrows
+          // back to DRAFT-only, since a finalized selection isn't something
+          // a draft action can fix.
           selections: {
-            where: { status: "DRAFT" },
+            where: { status: { in: ["DRAFT", "FINALIZED"] } },
             include: { player: true },
           },
         },
       },
       selections: {
-        where: { status: "DRAFT" },
+        where: { status: { in: ["DRAFT", "FINALIZED"] } },
         include: { player: true },
       },
     },
@@ -202,8 +209,10 @@ export async function computeRoundPlanIntegrity(
   }
 
   // 2. SELECTED_PLAYER_UNAVAILABLE: one signal per unavailable selected player/match
+  // DRAFT only — a FINALIZED selection can't be fixed by a draft action, and the
+  // match it belongs to isn't part of what round-level finalization is about to change.
   for (const match of round.matches) {
-    for (const sel of match.selections) {
+    for (const sel of match.selections.filter((s) => s.status === "DRAFT")) {
       const avail = availabilityMap.get(sel.playerId) ?? "UNKNOWN";
       if (!AVAILABILITY_VALUES_AVAILABLE.has(avail)) {
         const playerName = sel.player

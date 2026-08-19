@@ -786,6 +786,17 @@ Planning notes must not require acknowledgement in the finalization dialog.
 
 Finalisation recomputes live integrity from current state server-side. Stale rows cannot affect finalisation after their condition resolves.
 
+`computeRoundPlanIntegrity()` must evaluate squad size, goalkeeper coverage, and any other
+per-match squad-composition check against a match's full selection set — DRAFT and FINALIZED
+together, since a match individually finalized within an otherwise-DRAFT round did not stop
+having players just because it's locked. Only checks that ask "does the current DRAFT plan need
+a coach decision before finalizing" (e.g. `SELECTED_PLAYER_UNAVAILABLE`) should stay scoped to
+DRAFT selections, since a FINALIZED selection isn't something a draft action can fix and that
+match isn't part of what the round-level or per-match finalize call being evaluated would change.
+Querying only DRAFT selections for squad-composition checks silently treats an already-finalized,
+fully-staffed match as having zero players, producing false Blocked signals that then require an
+override reason to finalize the round's remaining matches — a real production bug (see ADR-0073).
+
 ## Draft clearing
 
 Generated draft selections can be cleared at three levels:
