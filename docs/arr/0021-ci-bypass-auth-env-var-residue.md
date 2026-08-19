@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -66,8 +66,10 @@ still did something.
 
 ## Disposition
 
-Not yet actioned — recorded so a future PR doesn't propagate the residue further, and so the
-actual cleanup (removing the 3 dead lines) can be scoped and done deliberately.
+Resolved. `BYPASS_AUTH: "true"` removed from all three files (`.github/workflows/ci.yml`,
+`.github/workflows/security.yml`, `vitest.config.components.ts`). `grep -rn "BYPASS_AUTH"
+.github/workflows/*.yml vitest.config*.ts` now returns nothing. CI and test suites pass without
+it, as expected since it was already inert. `src/lib/env.ts`'s production guard is unchanged.
 
 ## Related decisions
 
@@ -95,3 +97,8 @@ None.
 
 Record created while preparing the browser-acceptance-testing (Phase 5) PR, to avoid copying
 this dead env var into a new CI job's env block.
+
+### 2026-08-19 (resolved)
+
+Removed `BYPASS_AUTH: "true"` from all three identified files. No consumer existed, so removal
+is a pure no-op behaviorally; verified via full lint/typecheck/test/build/version:verify pass.
