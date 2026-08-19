@@ -1,0 +1,12 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: d0ee8252-13af-48b6-890d-3a283e71cb3c
+name: verify-repository
+version: 1
+tags:
+  swamp-procedure: verify-repository
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: npm run validate

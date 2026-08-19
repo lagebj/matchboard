@@ -64,7 +64,7 @@ Covered, Decision required (available eligible without planned match opportunity
 
 Season is the full football-year context. Each Season has a `year` field identifying the football year (e.g. 2026). LeagueSeason is the bounded spring/autumn operational window, with an auto-derived `part` field (`SPRING` or `FALL`) based on its date range.
 
-User-facing text uses "League season" and "Season", never "Planning period" or "Phase". League season display labels are derived from `startDate`, `endDate`, and the `part` field. A spring league season spanning April to June 2026 shows as "Spring 2026 · Apr–Jun". An autumn league season spanning August to October 2026 shows as "Autumn 2026 · Aug–Oct". A misleading stored name like "April 2026" for a multi-month scope is never shown alone — the visible label must communicate the actual date range.
+User-facing text uses "League season" and "Season" — see `AGENTS.md`'s vocabulary rules for deprecated synonyms. League season display labels are derived from `startDate`, `endDate`, and the `part` field. A spring league season spanning April to June 2026 shows as "Spring 2026 · Apr–Jun". An autumn league season spanning August to October 2026 shows as "Autumn 2026 · Aug–Oct". A misleading stored name like "April 2026" for a multi-month scope is never shown alone — the visible label must communicate the actual date range.
 
 ## Teams overview
 
@@ -149,7 +149,7 @@ The feature is coach-facing. It records encounters rather than rating opponents.
 
 Opponent observations are separate from sporting-match-fit feedback. The existing `Match.matchFit` field is reused as the sporting-fit context for encounters. No duplicate sporting-fit model exists.
 
-Post-match observations use neutral, observable language: "Fair Play concern", "Observed concern", "Serious concern observed". They never use labeling language like "Bad team", "Unsafe team", or "Risk team".
+Post-match observations use neutral, observable language: "Fair Play concern", "Observed concern", "Serious concern observed". They never use judgemental team labels — see `AGENTS.md`'s opponent-feature terminology table for the full disallowed list.
 
 Match-environment observations, concern categories, factual summaries, and follow-up status are excluded from parent-facing exports and external AI payloads. Opponent-team display names may appear as normal fixture information in parent-facing contexts.
 
@@ -429,6 +429,7 @@ Runs on `http://localhost:3333`.
 | `npm run security:check-supply-chain` | Check supply chain security |
 | `npm run docs:check` | Check documentation consistency |
 | `npm run validate` | Run full validation suite |
+| `swamp --no-telemetry model search --json` | List discoverable verification/investigation procedures (see docs/development/swamp-workflows.md) |
 
 ## Source of truth
 
@@ -604,7 +605,7 @@ RotationPath is the single source of truth for automatic non-core player movemen
 - **Selection**: per-player per-match record with role (CORE, SUPPORT, DEVELOPMENT, SQUAD_REPAIR), status (DRAFT/FINALIZED), overrideReasonCategory (enum), overrideReasonDetail (free text), and structured explanation JSON. BACKFILL remains in the Prisma enum for backward compatibility of historical data and manual overrides. New generation produces SUPPORT with squad repair explanation codes for squad repair, not BACKFILL. DOUBLE_LOAD is not a valid role value for new generation. The `controlledDoubleLoad` field is legacy — no new `true` values are written by the generation engine. Actual double-load from post-match reports is tracked through effective participation, not via `controlledDoubleLoad`. Additional actual appearances from post-match reports are recorded separately as unplanned participation and do not mutate finalized planned selections.
 - **MovementLedger**: mandatory record for every non-core player movement. Created during draft generation, flipped from isDraft=true to isDraft=false during finalization. Support, development, and squad repair from another team all create ledger entries. The movement ledger is the authoritative record of player movement — the export must never show empty movements when non-core selections exist.
 - **MatchRound**: weekly planning unit — selections are generated and validated per round, not per match in isolation
-- **LeagueSeason**: bounded spring/autumn operational window with auto-derived `part` (SPRING or FALL) and belonging to a Season with a `year` field. The internal model is LeagueSeason (was PlanningPeriod). User-facing text uses "League season" or "Season", never "Planning period" or "Phase".
+- **LeagueSeason**: bounded spring/autumn operational window with auto-derived `part` (SPRING or FALL) and belonging to a Season with a `year` field. The internal model is LeagueSeason (was PlanningPeriod). User-facing text uses "League season" or "Season" — see `AGENTS.md`'s vocabulary rules for deprecated synonyms.
 - **Warning**: per-round signals with severity (HARD_BLOCK, REQUIRES_OVERRIDE, WARNING, SCORING_PREFERENCE), persisted to database. Current active integrity is derived from the current editable draft — recalculation yielding zero signals clears stale rows. The UI displays these as Blocked, Decision required, or Planning note based on the visible signal model. SCORING_PREFERENCE is explanation only and is never persisted as an active issue. Planning notes never create active work items or finalisation requirements.
 
 ## Sensitive data policy

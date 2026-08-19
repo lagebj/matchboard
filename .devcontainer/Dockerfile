@@ -5,6 +5,7 @@ ARG OPENCODE_VERSION=1.18.8
 ARG NEONCLI_VERSION=2.38.5
 ARG VERCEL_VERSION=58.4.4
 ARG BREVO_VERSION=2.0.1
+ARG SWAMP_VERSION=20260819.011806.0-sha.a9c7ee9a
 
 # Security tool versions (pinned for reproducibility)
 ARG SEMGREP_VERSION=1.112.0
@@ -49,6 +50,11 @@ RUN ARCH=$(dpkg --print-architecture) \
     && curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GL_ARCH}.tar.gz" \
         | tar xz -C /usr/local/bin gitleaks \
     && chmod +x /usr/local/bin/gitleaks
+
+# Install Swamp CLI (see docs/adr/0068-swamp-procedure-runner.md). Installed as root so the
+# official installer's default root destination (/usr/local/bin) is used, matching the other
+# tools above. Always invoke with --no-telemetry (no persistent telemetry-disable config exists).
+RUN curl -fsSL https://swamp-club.com/install.sh | sh -s -- -V "${SWAMP_VERSION}"
 
 # Claude Code managed settings: enforce Claude.ai authentication and
 # isolate any inherited API credentials from reaching Claude Code.

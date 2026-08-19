@@ -200,7 +200,7 @@ import { formatGameFormat } from "@/lib/formatters/game-format";
 
 const EVENT_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Draft',
-  FINALIZED: 'Finalized',
+  FINALIZED: 'Finalised',
 };
 
 export function EventDetail({ data }: { data: EventDetailData }) {
@@ -266,7 +266,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     startTransition(async () => {
       const result = await finalizeEventAction(data.id);
       if (!result.success) {
-        alert(result.error ?? 'Finalization failed.');
+        alert(result.error ?? 'Finalisation failed.');
       }
       router.refresh();
     });
@@ -387,8 +387,8 @@ export function EventDetail({ data }: { data: EventDetailData }) {
       {isFinalized && (
         <DecisionBanner
           variant="note"
-          title="Event is finalized"
-          description={`This event is finalized and locked for changes. Unfinalize to edit squads, matches, or player assignments.${data.finalizedAt ? ` Finalized on ${new Date(data.finalizedAt).toLocaleDateString()}.` : ''}`}
+          title="Event is finalised"
+          description={`This event is finalised and locked for changes. Unfinalise to edit squads, matches, or player assignments.${data.finalizedAt ? ` Finalised on ${new Date(data.finalizedAt).toLocaleDateString()}.` : ''}`}
         />
       )}
 

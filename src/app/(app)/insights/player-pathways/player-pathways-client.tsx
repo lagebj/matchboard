@@ -189,7 +189,7 @@ export function PlayerPathwaysClient({
           className="bg-zinc-800 border border-zinc-700 text-zinc-200 rounded px-3 py-1.5 text-sm"
           aria-label="View mode"
         >
-          <option value="finalized_only">Finalized only</option>
+          <option value="finalized_only">Finalised only</option>
           <option value="include_drafts">Include drafts</option>
         </select>
 

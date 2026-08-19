@@ -295,8 +295,8 @@ export function SimulationPageContent() {
             <div>
               <h3 className="text-sm font-semibold text-zinc-100">Apply as drafts</h3>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Re-run generation through the normal pipeline and persist draft selections for all non-finalized rounds.
-                Existing drafts will be replaced. Finalized rounds are skipped.
+                Re-run generation through the normal pipeline and persist draft selections for all non-finalised rounds.
+                Existing drafts will be replaced. Finalised rounds are skipped.
               </p>
             </div>
             {!confirmApply ? (

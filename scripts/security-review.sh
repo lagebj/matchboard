@@ -83,6 +83,6 @@ echo "Summary: $SUMMARY"
 echo "Results: $RESULTS_DIR/"
 echo
 echo "Note: This was a non-destructive static review."
-echo "For runtime DAST testing, run: pnpm security:dast:baseline"
+echo "For runtime DAST testing, run: npm run security:dast:baseline"
 
 exit $EXIT_CODE

@@ -1,0 +1,26 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 94137131-03e0-4e96-8ac2-c0ca2df076bb
+name: investigate-ci-failure
+version: 1
+tags:
+  swamp-procedure: investigate-ci-failure
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: |
+        set -e
+        if ! command -v gh >/dev/null 2>&1; then
+          echo "[FAIL] gh CLI not found" >&2
+          exit 1
+        fi
+        if ! gh auth status >/dev/null 2>&1; then
+          echo "[FAIL] gh is not authenticated — run 'gh auth login' first" >&2
+          exit 1
+        fi
+        echo "[OK] gh authenticated"
+        echo
+        gh run list --limit 10
+        echo
+        echo "Inspect a failing run with: gh run view <run-id> --log-failed"

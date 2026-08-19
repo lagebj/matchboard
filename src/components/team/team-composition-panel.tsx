@@ -201,7 +201,7 @@ export function TeamCompositionPanel({
           >
             {leagueSeasons.map((s) => (
               <option key={s.id} value={s.id} disabled={s.status === "FINALIZED"}>
-                {s.name} {s.status === "FINALIZED" ? "(Finalized)" : ""}
+                {s.name} {s.status === "FINALIZED" ? "(Finalised)" : ""}
               </option>
             ))}
           </select>
@@ -327,7 +327,7 @@ function ScenarioSelector({
           >
             {leagueSeasons.map((s) => (
               <option key={s.id} value={s.id} disabled={s.status === "FINALIZED"}>
-                {s.name} {s.status === "FINALIZED" ? "(Finalized)" : ""}
+                {s.name} {s.status === "FINALIZED" ? "(Finalised)" : ""}
               </option>
             ))}
           </select>

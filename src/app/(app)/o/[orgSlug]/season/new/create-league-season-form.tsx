@@ -51,7 +51,7 @@ export function CreateLeagueSeasonForm({ action, groups, orgSlug }: CreateLeague
             className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
           >
             <option value="SPRING">Spring (Jan–Jun)</option>
-            <option value="FALL">Fall (Jul–Dec)</option>
+            <option value="FALL">Autumn (Jul–Dec)</option>
           </select>
         </div>
       </div>

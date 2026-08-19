@@ -1,0 +1,45 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 54fd19ab-d509-4ce9-a8de-4410671d0731
+name: restore-test-baseline
+version: 1
+tags:
+  swamp-procedure: restore-test-baseline
+  destructive: "true"
+globalArguments: {}
+methods:
+  # Destructive: wipes and re-seeds the Test database from the canonical seed.
+  # Requires explicit confirmation and an explicit Test connection string — see
+  # docs/development/swamp-workflows.md#test-slot-procedures.
+  #
+  # Invoke with:
+  #   swamp model method run restore-test-baseline execute \
+  #     --input env.CONFIRM=yes \
+  #     --input env.MATCHBOARD_ENV=test \
+  #     --input env.TEST_DATABASE_URL='<test-branch-connection-string>'
+  execute:
+    arguments:
+      run: |
+        set -e
+
+        if [ "$CONFIRM" != "yes" ]; then
+          echo "[FAIL] restore-test-baseline deletes and re-seeds all data on the Test database. Re-run with --input env.CONFIRM=yes to confirm." >&2
+          exit 1
+        fi
+
+        if [ "$MATCHBOARD_ENV" != "test" ]; then
+          echo "[FAIL] MATCHBOARD_ENV must be exactly 'test' (got: '$MATCHBOARD_ENV')" >&2
+          exit 1
+        fi
+
+        if [ -z "$TEST_DATABASE_URL" ]; then
+          echo "[FAIL] TEST_DATABASE_URL must be explicitly set to the Test branch's connection string. Refusing to fall back to DATABASE_URL for a destructive operation." >&2
+          exit 1
+        fi
+
+        redacted="$(printf '%s' "$TEST_DATABASE_URL" | sed 's/:\/\/[^@]*@/:\/\/***@/')"
+        echo "About to wipe and re-seed: $redacted"
+        echo "Proceeding in 5 seconds (Ctrl-C to abort)..."
+        sleep 5
+
+        MATCHBOARD_ENV=test TEST_DATABASE_URL="$TEST_DATABASE_URL" npx tsx scripts/seed-test-dataset.ts
