@@ -15,7 +15,6 @@ export default defineConfig({
     hookTimeout: 30000,
     fileParallelism: false,
     env: {
-      BYPASS_AUTH: "true",
       MATCHBOARD_ENV: "test",
     },
   },
