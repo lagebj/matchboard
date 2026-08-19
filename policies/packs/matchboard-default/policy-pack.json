@@ -10,5 +10,5 @@
   "runtime": "opa-wasm",
   "schemaVersion": 1,
   "deployable": true,
-  "wasmHash": "a87759c74cf5a2b6d246299c6ba97061a5aeb14f930ee26d935a55bb23d8bc65"
+  "wasmHash": "9c6276ef564dba6219ad4748da013badc85e0734ebb7a49732fe5e26de3e100e"
 }
