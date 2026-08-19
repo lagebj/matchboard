@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -80,12 +80,9 @@ patches.
 
 ## Containment
 
-- Do not bump `OPA_VERSION` in `.devcontainer/Dockerfile` past the 0.x line without first
-  migrating `policies/packs/*/rego/*.rego` (and the legacy `policies/rego/*.rego`) to v1 syntax
-  and verifying `npm run policy:test`/`policy:verify` still pass.
-- New Rego policy packs should still use v0 syntax to match the existing packs, until a
-  deliberate, full migration is scoped and executed — mixing syntax versions across packs would
-  make the eventual migration harder to reason about, not easier.
+Superseded by resolution below — retained for history. New Rego policy packs should now use v1
+syntax (`import rego.v1`, explicit `if` before rule/function bodies), matching
+`policies/packs/matchboard-default/rego/` and `policies/rego/`.
 
 ## Resolution criteria
 
@@ -103,21 +100,64 @@ patches.
 
 ## Disposition
 
-Accepted for now: pin OPA to v0.70.0 so the devcontainer's `npm run policy:*` commands work at
-all against the existing policy source, without touching policy behavior. Revisit when a Rego v1
-migration is deliberately scoped.
+Resolved. `policies/packs/matchboard-default/rego/*.rego` and `policies/rego/*.rego` are migrated
+to Rego v1 syntax (mechanically, via `opa fmt --rego-v1 -w`, using OPA v1.19.1). `.devcontainer/Dockerfile`'s
+`OPA_VERSION` is bumped from `0.70.0` to `1.19.1`. `npm run policy:test`, `npm run policy:verify`,
+and `npm run policy:build`/`policy:build:pack` all pass with the current OPA release —
+`npm run policy:verify` now genuinely passes for the first time (previously failed with either
+"OPA binary not found" or the Wasm hash drift below).
+
+**A second, unrelated pre-existing bug was found and fixed while migrating**: `blocked_players`
+in `matchboard_selection.rego` (and its identical copy in the legacy tree) was written as a
+single conditional value (`[{...}] { conditions }`) with no fallback, so whenever the condition
+did *not* match (the normal case — no player blocked), the rule was undefined, which cascaded to
+make the entire `decision` rule undefined, which silently fell back to the static empty
+`default decision`. This discarded all real warnings and score adjustments whenever no player
+happened to be blocked at the same time. The same bug pattern existed in
+`no_primary_gk_warning`/`tertiary_gk_only_warning` (functions with no `default ... := null`
+fallback, despite the surrounding comprehension already assuming and filtering on `w != null`).
+Verified as 100% pre-existing and unrelated to the v1 migration: reproduced against the pristine,
+untouched v0-syntax source using the original pinned OPA v0.70.0 — 4 of the pack's own 10
+declared unit tests failed. Fixed with `default ... := null` and comprehension syntax
+(`[value | conditions]` instead of `value { conditions }`); all 10 tests now pass on both OPA
+v0.70.0 (pre-migration, as a regression check) and v1.19.1 (post-migration). Blast radius was low:
+`MATCHBOARD_POLICY_REGO_ENABLED` defaults to `false` everywhere and is not documented as enabled
+in any tracked environment, and this went undetected because no CI workflow runs any
+`npm run policy:*` script — `policy:test`/`policy:verify` could not have caught it, since no OPA
+binary existed in this devcontainer before ARR-0020 was first opened.
+
+The Wasm hash drift is also resolved as a side effect: `npm run policy:build:pack` (run with the
+new OPA v1.19.1) recomputed and updated `policy-pack.json`'s `wasmHash` to match the freshly
+built, verified-correct-behavior Wasm artifact. This is a genuine, reviewed artifact change (not
+a blind `policy:sync` overwrite) — the full source→tests→Wasm→hash chain was verified together in
+one commit, per `AGENTS.md`'s "deployable policy change" discipline.
+
+**Separately discovered, explicitly out of scope for this ARR**: `policies/examples/rego/` and
+`policies/examples/packs/custom-example/rego/` were also migrated to v1 syntax (mechanical,
+harmless — verified via diff that no other content changed). However, `npm run
+policy:test:examples` has separate, pre-existing failures unrelated to this migration or to
+either bug above: `equal_opportunity.rego` and `goalkeeper_coverage.rego` both declare
+`package matchboard.selection` with conflicting `default decision` rules (a "multiple default
+rules" conflict when loaded together), and `custom_selection_test.rego` has several
+`rego_unsafe_var_error` failures. Both reproduced identically against the pristine, unmigrated
+example source with the original OPA v0.70.0 — confirmed pre-existing, not introduced here.
+`policies/examples/` is illustrative/undeployed content with no CI or `npm run validate`
+dependency, so fixing it is left for separate, deliberately-scoped follow-up work, not folded
+into this ARR.
 
 ## Related decisions
 
-None yet — a future Rego v1 migration would likely warrant its own ADR if it changes build
-tooling conventions, given the "deployable policy change" discipline in `AGENTS.md`.
+- ADR-0071: OPA/Rego v1 syntax migration — records the migration decision and the `blocked_players`/
+  goalkeeper-warning bug fix found and resolved along the way.
 
 ## Related implementation
 
-- `.devcontainer/Dockerfile` — `OPA_VERSION` pin and install step
-- `scripts/policy-utils.mjs`, `scripts/policy-sync.mjs`, `scripts/policy-verify.mjs` — OPA
-  invocation sites that would need `--v0-compatible` if resolved via option (b) above
-- `policies/packs/matchboard-default/rego/`, `policies/rego/` — the v0-syntax Rego source
+- `.devcontainer/Dockerfile` — `OPA_VERSION` pin (now `1.19.1`) and install step
+- `policies/packs/matchboard-default/rego/`, `policies/rego/` — migrated to Rego v1 syntax, with
+  the `blocked_players`/goalkeeper-warning bug fixed
+- `policies/packs/matchboard-default/policy-pack.json` — `wasmHash` resynced to the v1.19.1 build
+- `policies/examples/rego/`, `policies/examples/packs/custom-example/rego/` — migrated to v1
+  syntax; separate pre-existing `policy:test:examples` failures left unresolved (see Disposition)
 
 ## Supersedes
 
@@ -134,3 +174,15 @@ None.
 Record created. OPA CLI added to the devcontainer for the first time (previously entirely
 missing); doing so surfaced this pre-existing v0/v1 Rego syntax mismatch. Pinned OPA to v0.70.0
 as a documented, contained workaround rather than touching policy source.
+
+### 2026-08-19 (resolved)
+
+Migrated `policies/packs/matchboard-default/rego/*.rego` and `policies/rego/*.rego` to Rego v1
+syntax; bumped `.devcontainer/Dockerfile`'s `OPA_VERSION` to `1.19.1`. Found and fixed a genuine,
+pre-existing, unrelated bug in `blocked_players`/goalkeeper-warning functions (undefined-value
+fallback to the static empty `default decision`, discarding real warnings/score adjustments in
+the normal case) — verified pre-existing against pristine source with the original OPA v0.70.0.
+`npm run policy:test`/`policy:verify`/`policy:build` all pass; `policy-pack.json`'s `wasmHash`
+resynced as part of the reviewed build. Also migrated `policies/examples/` to v1 syntax
+(mechanical, harmless) but found separate, pre-existing, out-of-scope failures there — left for
+future work. See `docs/adr/0071-opa-rego-v1-migration.md` for the full decision record.

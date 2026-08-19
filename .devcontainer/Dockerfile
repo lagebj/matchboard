@@ -11,7 +11,7 @@ ARG SWAMP_VERSION=20260819.011806.0-sha.a9c7ee9a
 ARG SEMGREP_VERSION=1.112.0
 ARG OSV_SCANNER_VERSION=1.9.2
 ARG GITLEAKS_VERSION=8.22.1
-ARG OPA_VERSION=0.70.0
+ARG OPA_VERSION=1.19.1
 
 USER root
 
@@ -53,10 +53,9 @@ RUN ARCH=$(dpkg --print-architecture) \
     && chmod +x /usr/local/bin/gitleaks
 
 # Install OPA (Open Policy Agent) — required by `npm run policy:*` (see scripts/policy-utils.mjs
-# resolveOpaPath()); previously undocumented/missing from this devcontainer.
-# Pinned to the last 0.x release (OPA v1.0 made Rego v1 syntax the default, which requires an
-# explicit `if` keyword before rule/function bodies; policies/packs/*/rego/*.rego is still
-# written in v0 syntax). See docs/arr/0021-opa-rego-v0-syntax-pinned.md.
+# resolveOpaPath()). policies/packs/*/rego/*.rego and policies/rego/*.rego are written in Rego
+# v1 syntax (migrated from v0 — see docs/arr/0020-opa-rego-v0-syntax-pinned.md), so this is
+# pinned to a current 1.x release rather than the 0.x line.
 RUN ARCH=$(dpkg --print-architecture) \
     && curl -sSL "https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}/opa_linux_${ARCH}_static" \
         -o /usr/local/bin/opa \
