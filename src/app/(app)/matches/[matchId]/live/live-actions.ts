@@ -167,6 +167,27 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
       },
     });
 
+    // Effective roster = normal squad ∪ match helpers (ADR-0077) — the single point where League
+    // helpers join live reporting. Every downstream consumer (rotation, position, goal, assist
+    // pickers) reads this one combined `squad` array; no separate helper-only path exists.
+    const helperAssignments = await db.matchHelperAssignment.findMany({
+      where: { matchId, match: { organisationId: ctx.organisationId } },
+      select: {
+        playerId: true,
+        sourceTeam: { select: { name: true } },
+        player: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            primaryPosition: true,
+            shirtNumber: true,
+            currentAvailability: true,
+          },
+        },
+      },
+    });
+
     const lineup = await db.matchLineup.findFirst({
       where: {
         matchId,
@@ -231,21 +252,42 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
           teamId: match.teamId,
           roundName: match.matchRound?.name ?? null,
         },
-        squad: squadPlayers.map((s) => ({
-          playerId: s.player.id,
-          playerName: [s.player.firstName, s.player.lastName].filter(Boolean).join(" "),
-          position: s.player.primaryPosition,
-          shirtNumber: s.player.shirtNumber,
-          role: s.role,
-          availability: s.player.currentAvailability,
-          startingOnField: onFieldPlayerIds.has(s.player.id),
-          slotLabel: (() => {
-            if (!lineup || !lineup.formation) return null;
-            const assignment = lineup.assignments.find((a) => a.playerId === s.player.id);
-            if (!assignment) return null;
-            return slotLabels.get(assignment.slotId) ?? null;
-          })(),
-        })),
+        squad: [
+          ...squadPlayers.map((s) => ({
+            playerId: s.player.id,
+            playerName: [s.player.firstName, s.player.lastName].filter(Boolean).join(" "),
+            position: s.player.primaryPosition,
+            shirtNumber: s.player.shirtNumber,
+            role: s.role,
+            availability: s.player.currentAvailability,
+            startingOnField: onFieldPlayerIds.has(s.player.id),
+            slotLabel: (() => {
+              if (!lineup || !lineup.formation) return null;
+              const assignment = lineup.assignments.find((a) => a.playerId === s.player.id);
+              if (!assignment) return null;
+              return slotLabels.get(assignment.slotId) ?? null;
+            })(),
+            isHelper: false as const,
+            helperSourceTeamName: null as string | null,
+          })),
+          ...helperAssignments.map((h) => ({
+            playerId: h.player.id,
+            playerName: [h.player.firstName, h.player.lastName].filter(Boolean).join(" "),
+            position: h.player.primaryPosition,
+            shirtNumber: h.player.shirtNumber,
+            role: "HELPER",
+            availability: h.player.currentAvailability,
+            startingOnField: onFieldPlayerIds.has(h.player.id),
+            slotLabel: (() => {
+              if (!lineup || !lineup.formation) return null;
+              const assignment = lineup.assignments.find((a) => a.playerId === h.player.id);
+              if (!assignment) return null;
+              return slotLabels.get(assignment.slotId) ?? null;
+            })(),
+            isHelper: true,
+            helperSourceTeamName: h.sourceTeam.name,
+          })),
+        ],
         activeSession: activeSession
           ? {
               id: activeSession.id,

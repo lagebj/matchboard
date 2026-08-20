@@ -24,6 +24,7 @@ import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
+import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
 import { PreviousEncountersDisplay } from "@/components/opponents/previous-encounters-display";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
@@ -482,6 +483,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {error && (
               <DecisionBanner variant="blocked" title="Error" description={error} />
             )}
+
+            {!isCancelled && <MatchHelpersPanel matchId={match.id} />}
 
             {finalized && (
               <DecisionBanner

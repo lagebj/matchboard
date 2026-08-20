@@ -35,6 +35,11 @@ export interface SquadPlayer {
   availability: string;
   startingOnField: boolean;
   slotLabel: string | null;
+  // League Match helpers only (ADR-0077) — a player added to this specific match without
+  // changing their normal League Round team assignment. Absent/false for event matches and for
+  // a League match's own normal squad.
+  isHelper?: boolean;
+  helperSourceTeamName?: string | null;
 }
 
 export interface LiveMatchActions {
