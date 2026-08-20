@@ -29,14 +29,20 @@ inspecting a recent CI run's raw logs (`gh run view <id> --log`), not assumed:
   `package.json`'s `security:secrets`/`security:secrets:history` scripts already use the correct
   `--config` flag — only the CI workflow's independently hand-rolled invocation had the wrong
   one, a drift bug, not a repo-wide misunderstanding of the tool. Fixing the flag alone still
-  wasn't enough — `security/gitleaks.toml` itself uses three top-level `[[allowlist]]` blocks (an
+  wasn't enough — `security/gitleaks.toml` itself used three top-level `[[allowlist]]` blocks (an
   invalid hybrid: array-of-tables syntax on the legacy singular key), which this PR's own live CI
   run then surfaced as a second, distinct failure: `Failed to load config error="1 error(s)
-  decoding: * 'Allowlist' expected a map, got 'slice'"`. Gitleaks v8.21+ replaced the legacy
-  singular `[allowlist]` (one map, no double brackets) with a plural `[[allowlists]]` array
-  specifically to support multiple allowlist blocks (confirmed against Gitleaks' own
-  GitHub issues/PRs describing the change) — renamed all three blocks accordingly, verified with
-  `tomllib` and this PR's second live CI run.
+  decoding: * 'Allowlist' expected a map, got 'slice'"`. First attempt renamed the blocks to
+  `[[allowlists]]` (plural) based on a web search describing that pluralization — this loaded
+  without error, but a local reproduction (downloading the same Gitleaks v8.22.1 binary and
+  diffing behavior against the official default `gitleaks.toml`, since the search result had
+  conflated a *rule-scoped* `[rules.allowlists]` change with the *global* allowlist) showed the
+  plural global form silently never suppresses anything — `.env.example`'s literal placeholder
+  values kept showing up as findings even with a matching `paths` entry present. The correct
+  global form is the **singular** `[allowlist]` (one table, not an array — confirmed against
+  Gitleaks' own default config file); `[[allowlists]]` only exists nested under a specific
+  `[[rules]]` block, to override the global allowlist for that one rule. Consolidated the three
+  original blocks' `paths`/`regexes` into one `[allowlist]` table.
 
 Both failures were completely invisible: both steps are wrapped in `|| true`, and the OSV step
 additionally sets `continue-on-error: true` at the GitHub Actions level — so both jobs have shown
@@ -83,8 +89,19 @@ of not unilaterally starting large policy work.
   `deepmerge-ts@7.1.5` (GHSA-ggr8-5vv4-36mx, CVSS 8.2) and `@babel/core@7.29.0`
   (GHSA-4x5r-pxfx-6jf8, CVSS 3.2) in devDependencies. Per `SECURITY.md`'s existing triage table
   and this repo's "evidence, not proof" rule, these need their own triage/remediation pass — not
-  bundled into this PR, which is scoped to making the scanner run at all. Gitleaks' run was clean
-  (no findings) once its config loaded successfully.
+  bundled into this PR, which is scoped to making the scanner run at all.
+- Gitleaks: 27 findings remain against `main`'s current tree even with the corrected allowlist
+  (down from 38 with the broken plural form). Every one was manually reviewed (locally, against a
+  clean `git archive` checkout matching what CI actually scans — not the sandbox's full working
+  tree, which also has `node_modules` CI never sees) and confirmed a false positive on
+  Matchboard's own custom regex rules, not a real secret: test fixtures (`AUTH_SECRET =
+  "test-secret"`, `"should-not-exist"`, 32-character placeholder strings satisfying a minimum-
+  length check), shell-variable references rather than literal values
+  (`AUTH_SECRET="$TEST_AGENT_AUTH_SECRET"`), and documentation/template connection strings
+  (`postgresql://user:pass@host.neon.tech/db`). Zero real secrets. Left as noise for a future
+  §56-adjacent allowlist-tuning pass, not fixed further here — this PR's scope is "the scanner
+  runs and its config loads," not "zero false positives," and writing broader allowlist regexes
+  carries its own risk of being too permissive if done hastily.
 - Both jobs remain non-blocking (`|| true` / `continue-on-error`) after this fix — this PR makes
   the scanners real, it does not change whether their findings can fail CI. That's the §56
   question, deliberately left open here.
