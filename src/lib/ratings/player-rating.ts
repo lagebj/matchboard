@@ -26,6 +26,14 @@ export type RatingSummary = {
 
 export const RATING_MIN = 1;
 export const RATING_MAX = 10;
+
+// A missing rating represents uncertainty, not low ability (AGENTS.md "Player attribute
+// ratings": "Missing ratings are treated as uncertainty, not low ability or high ability").
+// Any code that must reduce a possibly-null rating to a single number for sorting/scoring
+// (rather than excluding it from an average, which is preferred where possible) should fall
+// back to this neutral midpoint, never to 0 — 0 makes an unrated player rank below every rated
+// player, including a genuine 1/10, which is the opposite of "uncertain" (Phase 9 audit, §63).
+export const NEUTRAL_UNRATED_RATING = 5;
 export const RATING_SCALE_LABELS: Record<number, string> = {
   1: "Needs support",
   2: "Developing",

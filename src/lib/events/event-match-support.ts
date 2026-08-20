@@ -1,5 +1,5 @@
 import { getEventMatchWindow, isPlayerAvailableForSupport, eventMatchWindowsOverlap } from './event-match-time';
-import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
+import { getPlayerOverallRating, NEUTRAL_UNRATED_RATING } from '@/lib/ratings/player-rating';
 
 export type EventSupportCandidate = {
   playerId: string;
@@ -161,7 +161,8 @@ export function getSupportCandidatesForEventMatch(input: {
     if (a.sourceEventSquadName !== b.sourceEventSquadName) {
       return a.sourceEventSquadName.localeCompare(b.sourceEventSquadName);
     }
-    return (b.overallLevel ?? 0) - (a.overallLevel ?? 0);
+    // Phase 9 audit (§63): unrated must not sort below a genuine low rating.
+    return (b.overallLevel ?? NEUTRAL_UNRATED_RATING) - (a.overallLevel ?? NEUTRAL_UNRATED_RATING);
   });
 
   return candidates;

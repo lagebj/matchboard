@@ -24,6 +24,7 @@ import { getSystemScenario } from "@/domain/team-composition/scenario-catalogue"
 import { getFallbackStructure, type GameFormat } from "@/domain/team-composition/structural-requirements";
 import { checkScenarioPermission, checkCompositionProposalPolicy } from "@/lib/policies/composition-policy";
 import { computeInputFingerprint } from "@/domain/team-composition/proposal-validation";
+import { NEUTRAL_UNRATED_RATING } from "@/lib/ratings/player-rating";
 import type {
   CompositionPlayer,
   CompositionTargetTeam,
@@ -57,10 +58,13 @@ function buildRoleSuitability(player: PlayerAttributeProfile): RoleSuitabilityPr
   };
 }
 
-function buildRoleStrength(player: PlayerAttributeProfile): RoleStrengthProfile {
+export function buildRoleStrength(player: PlayerAttributeProfile): RoleStrengthProfile {
   const ratings = computeCompositeRatings(player);
   return {
-    goalkeeper: player.goalkeeperAbility === "YES" ? (ratings.overallLevel ?? 0) : null,
+    // Phase 9 audit (§63): preserve null like the sibling fields below — computeRoleStrength
+    // correctly excludes null role-strength attributes from its weighted average, but a
+    // coerced 0 would drag an unrated GK-capable player's goalkeeper strength down instead.
+    goalkeeper: player.goalkeeperAbility === "YES" ? (ratings.overallLevel ?? null) : null,
     defence: ratings.defending ?? ratings.overallLevel ?? null,
     midfield: ratings.gameUnderstanding ?? ratings.overallLevel ?? null,
     attack: ratings.attacking ?? ratings.overallLevel ?? null,
@@ -189,7 +193,11 @@ async function loadCompositionData(
     return {
       id: p.id,
       displayName: p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName,
-      overallStrength: ratings.overallLevel ?? 0,
+      // Phase 9 audit (§63): unrated must not sort/score as worse than every rated player.
+      // overallStrengthRated is the authoritative "was this a real rating" flag consumers
+      // should prefer; this numeric fallback exists only for the many call sites throughout
+      // deterministic-team-composer.ts/position-suitability.ts that need a plain number.
+      overallStrength: ratings.overallLevel ?? NEUTRAL_UNRATED_RATING,
       overallStrengthRated: ratings.overallLevel !== null,
       currentTeamId: p.coreTeamId ?? undefined,
       available: p.currentAvailability === "AVAILABLE" || p.currentAvailability === "TENTATIVE",

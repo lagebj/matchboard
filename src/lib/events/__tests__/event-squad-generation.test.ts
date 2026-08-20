@@ -3,7 +3,9 @@ import {
   generateEventSquads,
   getDefaultTargetSize,
   getDefaultSlotRequirements,
+  getRoleRelevantRating,
 } from '../event-squad-generation';
+import { NEUTRAL_UNRATED_RATING } from '@/lib/ratings/player-rating';
 import {
   computeCompositeRatings,
   isGoalkeeperCapable,
@@ -860,6 +862,18 @@ describe('player attribute null handling', () => {
     const ratings = computeCompositeRatings(player);
     expect(ratings.defending).toBe(6);
     expect(ratings.attacking).toBeNull();
+  });
+
+  it('an unrated player does not score as 0/10 in getRoleRelevantRating (Phase 9 audit §63)', () => {
+    const unratedPlayer = makePlayer({
+      ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
+      positioning: null, oneVOneDefending: null, decisionMaking: null, effort: null,
+      teamplay: null, concentration: null, speed: null, strength: null,
+    });
+    const withRatings = { ...unratedPlayer, ratings: computeCompositeRatings(unratedPlayer), broadPositions: [] as BroadPosition[], isGoalkeeper: false };
+    const rating = getRoleRelevantRating(withRatings, 'FREE');
+    expect(rating).toBeGreaterThan(0);
+    expect(rating).toBe(NEUTRAL_UNRATED_RATING);
   });
 });
 

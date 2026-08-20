@@ -1042,6 +1042,37 @@ by `npm run architecture:check` (part of `npm run validate`).
 
 Rules must be testable without React.
 
+## Best Lineup
+
+Best Lineup answers a different question from `src/domain/team-composition/`'s cross-team
+composition scenarios. Team composition distributes players *across* multiple teams from a
+shared pool. Best Lineup fills formation slots *within one team's own core roster*, independent
+of any specific match, and is explicitly not a cross-team optimizer.
+
+Meaning, per the reconciliation required by Phase 9 §63/§67 of the consolidation programme (no
+prior explicit domain decision existed for this shipped feature): Best Lineup is a **generated
+sensible starting point**, not an abstract "strongest possible XI" and not a match-specific
+tactical plan. It becomes a **coach-preferred lineup** the moment a coach locks or manually edits
+a slot — the generated state is a starting point to react to, not a final answer the coach must
+accept as-is.
+
+Behavior:
+- `autoSelectBestLineup` fills each formation slot with the best positionally-compatible player
+  from the team's core roster: primary-position match first, then rating descending (missing
+  ratings are neutral, not worst-case — see "Player attribute ratings"), scarcest slots filled
+  first.
+- Every slot remains individually lockable and coach-overridable
+  (`assignPlayerToBestLineupSlot`); a locked slot survives regeneration.
+- Best Lineup is per team, not per match — it persists independent of any specific fixture.
+  `copyBestLineupToMatch` applies the current Best Lineup to a real match lineup on demand,
+  skipping unavailable/inactive players; it does not keep the two in sync afterward.
+- Overall rating alone does not implicitly define Best Lineup — position/slot fit is checked
+  first, rating only orders players within a fit tier.
+
+Key files: `src/lib/best-lineup/best-lineup.ts` (all generation/assignment/lock/copy logic),
+`src/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions.ts` (server actions),
+`src/components/team/best-lineup-tab.tsx` (UI tab on the team workspace).
+
 ## Policy-capable selection engine
 
 Matchboard separates deterministic squad/lineup solving from configurable policy evaluation.
@@ -1626,6 +1657,11 @@ Rules:
 - Goals, assists, and post-match stats must never directly become skill ratings
 - Ratings must not appear in parent-facing exports
 - Missing ratings are treated as uncertainty, not low ability or high ability
+- Where a rating must become a plain number for sorting/scoring (rather than being excluded from
+  an average, which is preferred where possible), fall back to `NEUTRAL_UNRATED_RATING`
+  (`src/lib/ratings/player-rating.ts`), never to 0 — 0 makes an unrated player rank below every
+  rated player, including a genuine 1/10, which contradicts "treated as uncertainty" above
+  (Phase 9 audit §63)
 
 Composite attributes for event generation:
 - `overallLevel`: average of all non-null attributes, or null

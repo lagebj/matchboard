@@ -3,6 +3,7 @@ import { composeTeams } from "../deterministic-team-composer";
 import { computeInputFingerprint } from "../proposal-validation";
 import { getSystemScenario, getAllSystemScenarios, isScenarioPolicyGated } from "../scenario-catalogue";
 import { getFallbackStructure, countRoleRequirements } from "../structural-requirements";
+import { NEUTRAL_UNRATED_RATING } from "@/lib/ratings/player-rating";
 import {
   isGoalkeeperCapable,
   getGkCoverageTier,
@@ -1366,6 +1367,18 @@ describe("deterministic-team-composer", () => {
       expect(sorted[0].overallStrength).toBe(8);
       expect(sorted[1].overallStrength).toBe(5);
       expect(sorted[2].overallStrength).toBe(3);
+    });
+
+    it("sortByOverallStrength does not rank an unrated player below a genuinely low-rated player (Phase 9 audit §63)", () => {
+      const players = [
+        makePlayer({ id: "low-rated", overallStrength: 1, overallStrengthRated: true }),
+        makePlayer({ id: "unrated", overallStrength: NEUTRAL_UNRATED_RATING, overallStrengthRated: false }),
+        makePlayer({ id: "high-rated", overallStrength: 9, overallStrengthRated: true }),
+      ];
+      const sorted = sortByOverallStrength(players, "seed");
+      const unratedIndex = sorted.findIndex((p) => p.id === "unrated");
+      const lowRatedIndex = sorted.findIndex((p) => p.id === "low-rated");
+      expect(unratedIndex).toBeLessThan(lowRatedIndex);
     });
   });
 
