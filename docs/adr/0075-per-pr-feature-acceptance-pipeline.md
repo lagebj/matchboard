@@ -112,6 +112,30 @@ correctly. A failure partway through any run must not leave the alias pointed at
 deleted deployment; each job includes an explicit failure path that restores the
 alias to the last-known-good baseline rather than leaving it stuck mid-transition.
 
+**Verified**: after the required repo secrets were added, four live runs against this PR's own
+branch (before merge) exercised the deploy path for real, in order: (1) `vercel deploy
+--skip-domain` failed — that flag is production-only, confirmed by the actual CLI error, not
+`--help` text; the failure trap correctly restored the alias to baseline before the job exited,
+so the shared slot was never left broken. (2) Deploy succeeded fully (Neon branch created,
+migrated, env vars scoped, deployment aliased) and 5/6 Playwright tests passed; the sixth failed
+on two real console errors. (3)-(4) both real, previously-invisible bugs found and fixed (see
+"Two bugs found" below); the fourth run passed 6/6. **Cleanup (`acceptance-cleanup`) has not yet
+been exercised live** — it only runs on PR close, which happens naturally when this PR merges;
+not artificially triggered early, since a real close is the same signal either way.
+
+**Two bugs found and fixed by this PR's own live testing, not designed in from the start:**
+1. `/api/csp-report`'s `POST` handler crashed (500) on every real report:
+   `NextResponse.json(body, { status: 204 })` always attaches a body, but a 204 response must not
+   have one (Fetch spec). This route had apparently never received a real CSP report before —
+   the persistent Test slot is a Production-target deployment, and only Preview deployments (like
+   this pipeline's) get Vercel's injected "Live Feedback" toolbar, whose own script triggers a
+   report-only CSP violation. Fixed: `src/app/api/csp-report/route.ts`, with a regression test.
+2. `e2e/smoke.spec.ts`'s `KNOWN_BENIGN_CONSOLE_MESSAGES` allowlist (added for that same toolbar's
+   CSP-violation console message, since it's Vercel Preview infrastructure, not app behavior) had
+   a whitespace mismatch on the first attempt — Chrome appends a trailing newline to that specific
+   message, only visible once the real captured array was inspected. Fixed by trimming both sides
+   before comparison instead of hardcoding exact incidental whitespace.
+
 ## Consequences
 
 - Closes `PROGRAMME.md` §7-10 and the corresponding Phase 3 acceptance-gate items in
@@ -142,3 +166,7 @@ alias to the last-known-good baseline rather than leaving it stuck mid-transitio
   (not assumed from `PROGRAMME.md` text alone). Implementation followed in the same session; see
   "Rollout safety" above for why the introducing PR is this workflow's own first live test rather
   than a separate dry run.
+- 2026-08-20: Deploy path verified live end-to-end (4 real runs against the introducing PR,
+  documented in "Rollout safety" above) — passes 6/6 Playwright tests on the isolated per-PR
+  deployment. Two real, previously-invisible bugs found and fixed along the way (see "Two bugs
+  found" above). Cleanup path remains unverified until this PR closes.
