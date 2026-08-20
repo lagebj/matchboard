@@ -32,7 +32,10 @@ test.describe("authenticated as coach-all-a", () => {
   test("landing page resolves to the Assistant page for Org A", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
-      if (msg.type() === "error" && !KNOWN_BENIGN_CONSOLE_MESSAGES.includes(msg.text())) {
+      // Chrome appends a trailing newline to some console.error messages (confirmed: the
+      // vercel.live CSP-violation advisory below) — trim before comparing so the allowlist
+      // matches on content, not incidental whitespace.
+      if (msg.type() === "error" && !KNOWN_BENIGN_CONSOLE_MESSAGES.includes(msg.text().trim())) {
         consoleErrors.push(msg.text());
       }
     });
