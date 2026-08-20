@@ -38,8 +38,8 @@ swamp --no-telemetry model method run <name> execute --input env.KEY=value  # wi
 | `investigate-ci-failure` | `gh run list`, points at `gh run view --log-failed` | Implemented |
 | `inspect-deployment` | `curl .../api/meta` + `vercel project inspect` | Implemented — takes `--input env.TARGET=test\|production` (defaults to `test`) |
 | `verify-test-candidate` | Compares the deployed Test slot's commit against local `HEAD` | Implemented, read-only |
-| `deploy-test-candidate` | Informational | See "Test-slot procedures" below |
-| `release-test-candidate` | Informational | See "Test-slot procedures" below |
+| `deploy-test-candidate` | Informational — real automation is `.github/workflows/test-acceptance.yml` (ADR-0075) | See "Test-slot procedures" below |
+| `release-test-candidate` | Informational — real automation is `.github/workflows/test-acceptance.yml` (ADR-0075) | See "Test-slot procedures" below |
 | `restore-test-baseline` | Wipes and re-seeds the Test database from the canonical seed | Implemented, gated (destructive) |
 | `verify-browser-acceptance` | Runs Playwright browser acceptance tests (`npm run test:e2e`) against the live Test slot | Implemented — takes `--input env.TEST_AGENT_AUTH_SECRET=<secret>` |
 
@@ -50,17 +50,24 @@ Swamp's usual guidance to prefer typed extensions.
 ## Test-slot procedures
 
 A persistent Test environment exists and is verified live: the Vercel project `matchboard-test`
-deployed at `https://test.matchboard.football`, backed by a dedicated Neon `test` branch. Both
-this Test project and the Production project deploy automatically from `main` via Vercel's Git
-integration — there is no separate, agent-triggerable "deploy this PR to Test" step today.
+deployed at `https://test.matchboard.football`, backed by a dedicated Neon `test` branch. `main`
+deploys there automatically via Vercel's Git integration, same as Production.
 
-Because of that, `deploy-test-candidate` and `release-test-candidate` are **informational**: they
-explain that Test updates automatically on merge and print the current Test slot state (the same
-check `verify-test-candidate` performs), rather than pretending to trigger a promotion mechanism
-that doesn't exist. Building a real per-PR candidate slot (ephemeral Neon child branches, a
-movable Test-slot alias, exact-commit deploy automation) is separately-scoped future work — see
-`.matchboard-work/consolidation-programme/EXTERNAL-STATE.md` for what has and hasn't been
-verified about that infrastructure.
+Per-PR candidate deploys are now real, but event-triggered rather than agent-invoked:
+`.github/workflows/test-acceptance.yml` (ADR-0075) creates an isolated Neon child branch per PR,
+deploys the exact PR commit, and aliases the shared `test.matchboard.football` slot to it for
+functional acceptance (Playwright), then restores the slot to `main` + persistent Test and
+deletes the child branch when the PR closes. This fires automatically on `pull_request` events —
+there is still no ad-hoc "deploy this PR right now" command to wrap, because the workflow already
+owns the full lifecycle (including the shared-slot concurrency lock) end-to-end.
+
+`deploy-test-candidate` and `release-test-candidate` therefore stay **informational**: they still
+just explain that Test updates automatically (now: on `pull_request` events during acceptance, on
+merge afterward) and print the current Test slot state, rather than exposing a redundant manual
+trigger for something GitHub Actions already drives declaratively. Requires the
+`NEON_API_KEY`/`NEON_PROJECT_ID`/`VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_TEST_PROJECT_ID` repo
+secrets to be configured — the workflow skips cleanly (same pattern as
+`verify-browser-acceptance`'s `TEST_AGENT_AUTH_SECRET` gate) if they're absent.
 
 `restore-test-baseline` genuinely mutates the shared Test database. It refuses to run without:
 

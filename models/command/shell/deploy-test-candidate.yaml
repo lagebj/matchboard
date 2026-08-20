@@ -12,11 +12,13 @@ methods:
       run: |
         set -e
         cat <<'EOF'
-        Test deploys automatically on every push to main (Vercel Git integration) —
-        there is no separate agent-triggered deploy/release step to run. This is
-        recorded in docs/adr/0068-swamp-procedure-runner.md. Merge to main and the
-        Test slot updates on its own; run the verify-test-candidate model to confirm
-        it did.
+        Per-PR candidate deploys are automated by .github/workflows/test-acceptance.yml
+        (ADR-0075): it fires on pull_request events, deploys the exact PR commit against
+        an isolated Neon child branch, and aliases test.matchboard.football to it for
+        acceptance. There is no separate agent-triggered deploy step to run here — open
+        or push to a PR and the workflow handles it. After merge, Test deploys from main
+        automatically (Vercel Git integration) and the slot is restored to that baseline.
+        Run the verify-test-candidate model to confirm current slot state.
 
         Current Test slot state:
         EOF

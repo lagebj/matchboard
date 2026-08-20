@@ -12,11 +12,12 @@ methods:
       run: |
         set -e
         cat <<'EOF'
-        Test deploys automatically on every push to main (Vercel Git integration) —
-        there is no separate agent-triggered deploy/release step to run. This is
-        recorded in docs/adr/0068-swamp-procedure-runner.md. Merge to main and the
-        Test slot updates on its own; run the verify-test-candidate model to confirm
-        it did.
+        Release (post-merge slot restoration) is automated by
+        .github/workflows/test-acceptance.yml (ADR-0075): on PR close, it aliases
+        test.matchboard.football back to main's baseline deployment, removes the PR's
+        branch-scoped Vercel env vars, and deletes its isolated Neon branch. There is no
+        separate agent-triggered release step to run here — merging (or closing) the PR
+        handles it. Run the verify-test-candidate model to confirm current slot state.
 
         Current Test slot state:
         EOF
