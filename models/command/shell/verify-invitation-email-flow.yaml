@@ -1,0 +1,43 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 8f2a1c4e-6b93-4d17-9e5a-2c7f8d1b0a34
+name: verify-invitation-email-flow
+version: 1
+tags:
+  swamp-procedure: verify-invitation-email-flow
+  sends-real-email: "true"
+globalArguments: {}
+methods:
+  # Live invitation-email verification against the deployed Test environment (consolidation
+  # programme §29, Phase 4; ADR-0076). Sends a real email through Brevo to a controlled
+  # synthetic Test recipient (invited-test@test-agent.matchboard.football by default) — not
+  # destructive, but a real external side effect, so this requires explicit confirmation like
+  # restore-test-baseline does. See docs/development/swamp-workflows.md#test-slot-procedures.
+  #
+  # Invoke with:
+  #   swamp model method run verify-invitation-email-flow execute \
+  #     --input env.CONFIRM=yes \
+  #     --input env.BREVO_API_KEY='<brevo-api-key>' \
+  #     --input env.TEST_AGENT_AUTH_SECRET='<matches-the-deployed-test-app-secret>'
+  execute:
+    arguments:
+      run: |
+        set -e
+
+        if [ "$CONFIRM" != "yes" ]; then
+          echo "[FAIL] verify-invitation-email-flow sends a real email via Brevo. Re-run with --input env.CONFIRM=yes to confirm." >&2
+          exit 1
+        fi
+
+        if [ -z "$BREVO_API_KEY" ]; then
+          echo "[FAIL] BREVO_API_KEY must be explicitly set." >&2
+          exit 1
+        fi
+
+        if [ -z "$TEST_AGENT_AUTH_SECRET" ]; then
+          echo "[FAIL] TEST_AGENT_AUTH_SECRET must be explicitly set (must match the deployed Test app's secret)." >&2
+          exit 1
+        fi
+
+        BREVO_API_KEY="$BREVO_API_KEY" TEST_AGENT_AUTH_SECRET="$TEST_AGENT_AUTH_SECRET" \
+          npx tsx scripts/verify-invitation-email-flow.ts

@@ -42,6 +42,7 @@ swamp --no-telemetry model method run <name> execute --input env.KEY=value  # wi
 | `release-test-candidate` | Informational — real automation is `.github/workflows/test-acceptance.yml` (ADR-0075) | See "Test-slot procedures" below |
 | `restore-test-baseline` | Wipes and re-seeds the Test database from the canonical seed | Implemented, gated (destructive) |
 | `verify-browser-acceptance` | Runs Playwright browser acceptance tests (`npm run test:e2e`) against the live Test slot | Implemented — takes `--input env.TEST_AGENT_AUTH_SECRET=<secret>` |
+| `verify-invitation-email-flow` | Runs `scripts/verify-invitation-email-flow.ts` — live invitation-email round trip against the Test slot (programme §29, ADR-0076) | Implemented, gated (sends a real email) — takes `--input env.CONFIRM=yes`, `--input env.BREVO_API_KEY=<key>`, `--input env.TEST_AGENT_AUTH_SECRET=<secret>` |
 
 Model definitions live in `models/command/shell/*.yaml`. Each is a `command/shell` model — see
 ADR-0068 for why that's used even for the CLI-wrapping procedures, as a documented deviation from

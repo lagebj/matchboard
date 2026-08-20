@@ -3,6 +3,8 @@ import type { PrismaClient, NotificationTemplate, NotificationStatus, Prisma } f
 import { getEmailProvider } from "./provider-factory";
 import { renderTemplate } from "./templates/index";
 import { logNotificationSent } from "@/lib/security/audit-log";
+import { isTest } from "@/lib/env";
+import type { SendEmailRequest } from "./provider";
 
 const RETRY_BASE_DELAY_MS = 60_000;
 const MAX_AGE_HOURS = 72;
@@ -18,6 +20,30 @@ interface EnqueueNotificationInput {
 }
 
 type TransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$use" | "$extends">;
+
+// Observability safeguard per the consolidation programme's Brevo-correlation requirement — not
+// a security boundary (BREVO_TEST_RECIPIENTS' fail-closed allowlist is that). "PR"/"test run"
+// tags aren't included: this runs from live application request handling, not a CI job, so
+// there's no PR/run context available to attach truthfully.
+function buildOutboundEmail(
+  templateData: { subject: string; htmlBody: string; textBody: string },
+  recipients: { email: string }[],
+  template: NotificationTemplate,
+  organisationId: string,
+): Pick<SendEmailRequest, "subject" | "htmlBody" | "textBody" | "tags"> {
+  const subject = isTest() ? `[TEST] ${templateData.subject}` : templateData.subject;
+  return {
+    subject,
+    htmlBody: templateData.htmlBody,
+    textBody: templateData.textBody,
+    tags: {
+      template,
+      organisationId,
+      environment: process.env.MATCHBOARD_ENV ?? "development",
+      recipient: recipients[0]?.email ?? "none",
+    },
+  };
+}
 
 export async function enqueueNotification(
   input: EnqueueNotificationInput,
@@ -113,16 +139,12 @@ export async function processOutboxBatch(): Promise<{
 
     try {
       const templateData = renderTemplate(entry.template, entry.payload as Record<string, unknown>);
+      const recipients = entry.deliveries.map((d) => ({ email: d.recipientEmail }));
 
       const provider = getEmailProvider();
       const result = await provider.send({
-        to: entry.deliveries.map((d) => ({
-          email: d.recipientEmail,
-        })),
-        subject: templateData.subject,
-        htmlBody: templateData.htmlBody,
-        textBody: templateData.textBody,
-        tags: { template: entry.template, organisationId: entry.organisationId ?? "none" },
+        to: recipients,
+        ...buildOutboundEmail(templateData, recipients, entry.template, entry.organisationId),
       });
 
       if (result.success) {
@@ -225,16 +247,12 @@ export async function sendNotificationNow(outboxId: string): Promise<{
 
   try {
     const templateData = renderTemplate(entry.template, entry.payload as Record<string, unknown>);
+    const recipients = entry.deliveries.map((d) => ({ email: d.recipientEmail }));
 
     const provider = getEmailProvider();
     const result = await provider.send({
-      to: entry.deliveries.map((d) => ({
-        email: d.recipientEmail,
-      })),
-      subject: templateData.subject,
-      htmlBody: templateData.htmlBody,
-      textBody: templateData.textBody,
-      tags: { template: entry.template, organisationId: entry.organisationId },
+      to: recipients,
+      ...buildOutboundEmail(templateData, recipients, entry.template, entry.organisationId),
     });
 
     if (result.success) {
