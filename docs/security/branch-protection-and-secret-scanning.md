@@ -30,7 +30,7 @@ Run `npm run security:check-sql` — should report zero violations.
 
 ## CI Pipeline
 
-The CI workflow (`.github/workflows/ci.yml`) enforces:
+The CI workflow (`.github/workflows/ci-checks.yml`) enforces:
 - TypeScript type checking
 - Linting
 - Forbidden SQL methods check

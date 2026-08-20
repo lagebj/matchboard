@@ -37,6 +37,9 @@ fi
 echo "[devcontainer] Installing dependencies with npm ci..."
 npm ci
 
+echo "[devcontainer] Setting up local Postgres..."
+bash .devcontainer/setup-local-postgres.sh
+
 echo
 echo "Environment ready."
 printf 'Node: %s\n' "$(node --version)"

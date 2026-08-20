@@ -73,7 +73,7 @@ automatically once a test has failed once.
 
 ## CI
 
-A separate `e2e` job in `.github/workflows/ci.yml` runs on every push/PR, using a
+A separate `e2e` job in `.github/workflows/ci-checks.yml` runs on every push/PR, using a
 `TEST_AGENT_AUTH_SECRET` GitHub Actions secret. It runs against the same hosted Test slot as
 local runs — there is no separate CI-only environment for this. The job is decoupled from
 `build`'s `needs:` (a slow/flaky Test-slot-dependent job shouldn't block the build check).

@@ -14,6 +14,7 @@ const IGNORED_DIRS = ["generated", "node_modules", ".next"];
 const IGNORED_SUFFIXES = [".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"];
 const IGNORED_FILES = [
   join("src", "lib", "tenancy", "tenant-client.ts"),
+  join("src", "test", "test-db.ts"),
 ];
 
 let violations = 0;

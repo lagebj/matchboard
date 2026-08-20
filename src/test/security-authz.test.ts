@@ -185,7 +185,7 @@ describe("Authorization security: forbidden SQL methods", () => {
           const content = fs.readFileSync(full, "utf-8");
           if (content.includes("$queryRawUnsafe") || content.includes("$executeRawUnsafe")) {
             const rel = path.relative(process.cwd(), full);
-            if (rel.includes("check-forbidden-sql") || rel.includes(".test.") || rel.includes("src/generated") || rel.includes("tenant-client.ts")) {
+            if (rel.includes("check-forbidden-sql") || rel.includes(".test.") || rel.includes("src/generated") || rel.includes("tenant-client.ts") || rel.includes("src/test/test-db.ts")) {
               continue;
             }
             violations.push(rel);

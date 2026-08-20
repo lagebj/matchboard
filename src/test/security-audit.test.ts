@@ -142,6 +142,7 @@ describe("Security audit: forbidden SQL methods", () => {
     "src/lib/tenancy/tenant-client.ts",
     "src/lib/auth/__tests__/group-context.test.ts",
     "src/test/security-authz.test.ts",
+    "src/test/test-db.ts",
   ];
 
   it("application code must not use $queryRawUnsafe or $executeRawUnsafe except in allowed files", async () => {

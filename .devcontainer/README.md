@@ -97,6 +97,23 @@ test -n "${NEON_API_KEY:-}" && echo "NEON_API_KEY is set"
 
 `PRODUCTION_DATABASE_URL` requires explicit selection. It must never become the implicit default.
 
+### Local Postgres (no Docker)
+
+This devcontainer cannot run Docker (confirmed: no cgroup write access, `unshare()` returns
+`EPERM` — a hard sandbox restriction, not a missing package), so it can't use
+`docker-compose.yml`'s local Postgres the way a real Docker-capable devcontainer or CI can.
+`.devcontainer/setup-local-postgres.sh` installs a native `postgresql-17` server instead (pinned
+to match Neon's actual running version — see `docs/development/test-architecture.md`), runs on
+every `post-create`/`post-start`, and is idempotent. `DATABASE_URL`/`DIRECT_URL` and
+`TEST_DATABASE_URL`/`TEST_DATABASE_DIRECT_URL` can all point at it
+(`postgresql://matchboard:matchboard@localhost:5432/<matchboard|matchboard_test>?schema=public`,
+matching `.env.example`'s documented default) instead of a remote Neon branch — round trips to
+`localhost` are sub-millisecond regardless of query count, which is the main lever for `npm
+test`'s wall-clock time; see `docs/development/test-architecture.md`'s "cleanTestDb() performance"
+section for the measured comparison. Pointing at a Neon branch instead remains fully supported
+(documented, not required) for anyone who wants to test against Neon-specific behavior
+deliberately.
+
 Never run destructive commands against production:
 
 ```bash

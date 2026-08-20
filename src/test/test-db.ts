@@ -53,6 +53,44 @@ export async function teardownTestDb(): Promise<void> {
 
 export async function cleanTestDb(db: PrismaClient): Promise<void> {
   resetFactoryCounters();
+  if (await truncateAllTables(db)) {
+    return;
+  }
+  await sequentialDeleteAllTables(db);
+}
+
+// Wipes every application table in one round trip via a single dynamic TRUNCATE
+// statement, instead of one deleteMany() round trip per table (see below). This
+// requires TRUNCATE privilege on the connecting role, which is not guaranteed in
+// every environment (e.g. a freshly created Neon branch before the one-time grant
+// documented in docs/development/test-architecture.md has been applied) — on any
+// failure this silently falls back to the always-safe sequential path below, so
+// it degrades gracefully rather than breaking test setup.
+async function truncateAllTables(db: PrismaClient): Promise<boolean> {
+  try {
+    await db.$executeRawUnsafe(`
+      DO $$
+      DECLARE
+        tables text;
+      BEGIN
+        SELECT string_agg(quote_ident(tablename), ', ') INTO tables
+        FROM pg_tables
+        WHERE schemaname = 'public' AND tablename != '_prisma_migrations';
+        IF tables IS NOT NULL THEN
+          EXECUTE 'TRUNCATE TABLE ' || tables || ' CASCADE';
+        END IF;
+      END $$;
+    `);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Fallback for connections without TRUNCATE privilege: deletes every table
+// individually, ordered child-before-parent to satisfy foreign key constraints.
+// This is the original cleanup strategy — kept as a safety net, not the fast path.
+async function sequentialDeleteAllTables(db: PrismaClient): Promise<void> {
   await db.teamBestLineupAssignment.deleteMany().catch(() => {});
   await db.teamBestLineup.deleteMany().catch(() => {});
   await db.selectionExplanation.deleteMany().catch(() => {});
