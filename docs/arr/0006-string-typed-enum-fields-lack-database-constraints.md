@@ -23,9 +23,15 @@ Enum fields should use Prisma enums where possible, and where string storage is 
 
 ## Evidence
 
-See source-of-truth register "String-typed enum fields" table:
-- `MatchRound.status` — should be `MatchRoundStatus` enum
-- `Availability.status` — should be `AvailabilityStatus` enum
+See source-of-truth register "String-typed enum fields" table. Re-verified directly against
+`prisma/schema.prisma` 2026-08-20 (consolidation programme residue reconciliation pass) — 7 of
+the original 8 fields remain genuinely open exactly as described; `Availability.status` is
+already resolved (now a real `AvailabilityStatus` enum) and removed from this list:
+- `MatchRound.status` — still `String @default("DRAFT")`, should be `MatchRoundStatus` enum.
+  Confirmed as the concrete root cause of a real bug hit in production-adjacent testing this
+  session (Playwright work, PR #310) — `deriveRoundStatus()`'s `NOT_GENERATED` branch is
+  unreachable because nothing at the type level stops the column from being anything but
+  `"DRAFT"`/`"FINALIZED"`. Highest-priority instance of this pattern.
 - `PostMatchPlayerActual.attendanceStatus` — should be `AttendanceStatusEnum`
 - `PostMatchPlayerActual.source` — should be `ParticipationSourceEnum`
 - `Goal.type`, `Assist.type` — should be `GoalTypeEnum`, `AssistTypeEnum`
@@ -55,7 +61,11 @@ See source-of-truth register "String-typed enum fields" table:
 
 ## Disposition
 
-Pending. To be addressed in IMPROVE-0C (database integrity and write hardening).
+Pending, narrowed. 7 of the original 8 listed fields remain genuinely open (see Evidence);
+`Availability.status` is resolved and removed from the list. `MatchRound.status` is the
+highest-priority remaining instance — already scoped as a real, bounded (though live-column-
+migration-care-required) fix candidate in the consolidation programme's post-audit roadmap
+(Group C, item C1), given its confirmed connection to a real bug this session already hit.
 
 ## Related decisions
 
