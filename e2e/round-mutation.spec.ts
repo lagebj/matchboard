@@ -23,6 +23,13 @@ import { test, expect } from "@playwright/test";
 // spec surfaced was not this round's actual state.
 
 test("regenerate round, verify persisted selections, then clear back to empty draft", async ({ page }) => {
+  // Round-level generation is a multi-phase pipeline (AGENTS.md: per-match core selection,
+  // support resolution, conflict resolution, development routing, squad repair, validation,
+  // policy evaluation), each phase a real round trip to the isolated per-PR Neon branch — the
+  // default 30s Playwright test timeout is too tight for that plus a possibly-cold serverless
+  // function / cold Neon compute on a freshly created branch.
+  test.setTimeout(90_000);
+
   await page.goto("/o/test-club-a/rounds");
 
   const roundCard = page
@@ -34,24 +41,29 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
 
   const regenerateButton = page.getByRole("button", { name: "Regenerate" });
-  await expect(regenerateButton).toBeVisible();
+  await expect(regenerateButton).toBeEnabled();
   await regenerateButton.click();
 
   // Real persisted draft selections: at least one player chip is now on the board.
-  await expect(page.locator('[aria-label^="Remove "]').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[aria-label^="Remove "]').first()).toBeVisible({ timeout: 45_000 });
 
   const clearButton = page.getByRole("button", { name: "Clear", exact: true });
-  await expect(clearButton).toBeVisible();
+  // isPending (set by the same startTransition the Regenerate click used) disables every button
+  // in this row until regenerateRoundAction's promise and the following router.refresh() both
+  // settle — wait for genuinely enabled, not just present in the DOM.
+  await expect(clearButton).toBeEnabled({ timeout: 45_000 });
   await clearButton.click();
 
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Clear round draft")).toBeVisible();
-  await dialog.getByRole("button", { name: "Clear round" }).click();
+  const confirmClearButton = dialog.getByRole("button", { name: "Clear round" });
+  await expect(confirmClearButton).toBeEnabled();
+  await confirmClearButton.click();
 
   // Reverted to an empty draft: no player chips remain, no danger-zone Clear control left to
   // click (round-board.tsx only renders it while roundStatus === "DRAFT" — clearing doesn't
   // change dbStatus, so this specifically confirms the draft selections are gone, not that the
   // round left the DRAFT state).
-  await expect(page.locator('[aria-label^="Remove "]')).toHaveCount(0);
+  await expect(page.locator('[aria-label^="Remove "]')).toHaveCount(0, { timeout: 15_000 });
   await expect(regenerateButton).toBeVisible();
 });
