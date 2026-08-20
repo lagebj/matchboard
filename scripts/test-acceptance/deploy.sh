@@ -62,9 +62,11 @@ printf '%s' "$DIRECT_URL" | vercel_ env add DIRECT_URL preview "$GIT_BRANCH" \
 echo "== Deploying exact PR commit =="
 # vercel deploy auto-detects Git metadata (branch, commit) from the local checkout, which is
 # what makes the branch-scoped env vars above apply to this specific build rather than the
-# general Preview values. --skip-domain: we manage the test.matchboard.football alias ourselves
-# below, not via Vercel's own auto-promotion.
-DEPLOY_URL="$(vercel_ deploy --project "$VERCEL_TEST_PROJECT_ID" --yes --skip-domain | tail -1)"
+# general Preview values. No --skip-domain: that flag is production-only ("can only be used with
+# production deployments" — confirmed against the real CLI, not assumed from --help text) and
+# unnecessary here regardless — a Preview deployment never auto-promotes to a custom domain like
+# test.matchboard.football in the first place; we alias it explicitly below either way.
+DEPLOY_URL="$(vercel_ deploy --project "$VERCEL_TEST_PROJECT_ID" --yes | tail -1)"
 echo "Deployment: ${DEPLOY_URL}"
 
 echo "== Aliasing test.matchboard.football -> this deployment =="
