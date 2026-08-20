@@ -90,18 +90,20 @@ of not unilaterally starting large policy work.
   (GHSA-4x5r-pxfx-6jf8, CVSS 3.2) in devDependencies. Per `SECURITY.md`'s existing triage table
   and this repo's "evidence, not proof" rule, these need their own triage/remediation pass — not
   bundled into this PR, which is scoped to making the scanner run at all.
-- Gitleaks: 27 findings remain against `main`'s current tree even with the corrected allowlist
-  (down from 38 with the broken plural form). Every one was manually reviewed (locally, against a
-  clean `git archive` checkout matching what CI actually scans — not the sandbox's full working
-  tree, which also has `node_modules` CI never sees) and confirmed a false positive on
-  Matchboard's own custom regex rules, not a real secret: test fixtures (`AUTH_SECRET =
-  "test-secret"`, `"should-not-exist"`, 32-character placeholder strings satisfying a minimum-
-  length check), shell-variable references rather than literal values
-  (`AUTH_SECRET="$TEST_AGENT_AUTH_SECRET"`), and documentation/template connection strings
-  (`postgresql://user:pass@host.neon.tech/db`). Zero real secrets. Left as noise for a future
-  §56-adjacent allowlist-tuning pass, not fixed further here — this PR's scope is "the scanner
-  runs and its config loads," not "zero false positives," and writing broader allowlist regexes
-  carries its own risk of being too permissive if done hastily.
+- Gitleaks: 30 findings on this branch's final commit (confirmed identical between a local
+  reproduction and this PR's own live CI run) even with the corrected allowlist — down from 38
+  with the broken plural form. Every one was manually reviewed (locally, against a clean `git
+  archive` checkout matching what CI actually scans — not the sandbox's full working tree, which
+  also has `node_modules` CI never sees) and confirmed a false positive on Matchboard's own
+  custom regex rules, not a real secret: test fixtures (`AUTH_SECRET = "test-secret"`,
+  `"should-not-exist"`, 32-character placeholder strings satisfying a minimum-length check),
+  shell-variable references rather than literal values (`AUTH_SECRET="$TEST_AGENT_AUTH_SECRET"`),
+  documentation/template connection strings (`postgresql://user:pass@host.neon.tech/db`) — and 3
+  of the 30 are this ADR itself quoting those same example strings as investigation evidence, a
+  harmless self-referential artifact of writing this document. Zero real secrets. Left as noise
+  for a future §56-adjacent allowlist-tuning pass, not fixed further here — this PR's scope is
+  "the scanner runs and its config loads," not "zero false positives," and writing broader
+  allowlist regexes carries its own risk of being too permissive if done hastily.
 - Both jobs remain non-blocking (`|| true` / `continue-on-error`) after this fix — this PR makes
   the scanners real, it does not change whether their findings can fail CI. That's the §56
   question, deliberately left open here.
