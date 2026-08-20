@@ -70,15 +70,28 @@ model change beyond what already exists):
    The default `chromium` project gets `testIgnore: /authz-failure\.spec\.ts/` so it never runs
    under the full-access coach persona, where the "denied" assertions would be false.
 3. **`e2e/round-mutation.spec.ts`**, run under the existing `chromium` project (`coach-all-a`):
-   generates real draft selections for round A1 W11 (`/o/{orgSlug}/rounds`'s per-round
-   "Generate squads" button — the only precise, single-round generation control; the Fixtures
-   page's per-round action is navigation-only and its bulk button generates every not-generated
-   round in the period), verifies at least one persisted player chip on the Round Board, then
-   clears it back to not-generated via the board's existing "Clear round draft" confirmation
-   dialog. **Deliberately self-cleaning** — this is what makes it safe to run repeatedly against
-   the shared persistent Test slot locally, not only against CI's disposable per-PR branch. Round
-   A1 W11 is identified by its unique team-name pair ("A1 Blues" + "A1 Whites", with no third
-   team) rather than a hardcoded round ID, since seed-generated IDs aren't stable across reseeds.
+   navigates into round A1 W11's Round Board and clicks "Regenerate" (not a list-page "Generate
+   squads" button — see below), verifies at least one persisted player chip appears, then clears
+   it back to an empty draft via the board's existing "Clear round draft" confirmation dialog.
+   **Deliberately self-cleaning** — this is what makes it safe to run repeatedly against the
+   shared persistent Test slot locally, not only against CI's disposable per-PR branch. Round A1
+   W11 is identified on the `/rounds` list page by an exact match on its team-names line ("A1
+   Blues · A1 Whites") rather than a hardcoded round ID, since seed-generated IDs aren't stable
+   across reseeds.
+   - **Live-run finding, fixed before merge**: the first attempt filtered the round card by
+     substring `hasText` on each team name separately, which also matched round A1 W10 (a
+     superset with a third team, "A1 Reds") — fixed to an exact-text match on the whole
+     team-names line.
+   - **Second live-run finding, fixed before merge**: the plan to click a per-round "Generate
+     squads" button on the `/rounds` list page assumed a round starts in a `NOT_GENERATED`
+     derived status. In fact every non-finalized `MatchRound` is created with the raw DB
+     `status` value `"DRAFT"` (there is no separate "not generated" status value in the schema —
+     see `src/lib/round-status.ts`), which `deriveRoundStatus()` maps straight to `"DRAFT"`
+     regardless of whether any selections exist yet — the list page's "Generate squads" button
+     only renders for `NOT_GENERATED`, a state this round never actually has. Fixed by navigating
+     directly into the Round Board and using its "Regenerate" control instead (rendered whenever
+     `roundStatus === "DRAFT"`, exactly this round's real state), which runs the same full
+     generation pipeline from an empty starting point.
 
 ## Consequences
 

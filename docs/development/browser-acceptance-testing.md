@@ -18,8 +18,8 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
   the Assistant page, one core navigation (Fixtures), no console errors.
 - `e2e/accessibility.spec.ts` — `@axe-core/playwright` (WCAG 2.1 A/AA) against the Assistant and
   Fixtures pages.
-- `e2e/round-mutation.spec.ts` — generates real draft selections for a round, verifies they
-  persisted (a player chip on the Round Board), then clears them back to not-generated.
+- `e2e/round-mutation.spec.ts` — regenerates real draft selections for a round, verifies they
+  persisted (a player chip on the Round Board), then clears them back to an empty draft.
   Deliberately self-cleaning, safe to run repeatedly against the shared Test slot.
 - `e2e/authz-failure.spec.ts` — runs under a separate `chromium-viewer` project as `viewer-a` (a
   real VIEWER-role persona): asserts creating a team is denied and never persisted, and asserts
