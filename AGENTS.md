@@ -1035,6 +1035,11 @@ Do not grow a monolithic `generate-selection.ts`.
 
 The orchestrator should be thin.
 
+Domain/policy code in `src/lib/selection/`, `src/lib/policies/`, `src/lib/rules/`,
+`src/lib/groups/`, and `src/domain/team-composition/` must never import Next.js, Brevo, or Vercel
+SDKs directly (ADR-0079) — that belongs in the calling application-service/action layer. Enforced
+by `npm run architecture:check` (part of `npm run validate`).
+
 Rules must be testable without React.
 
 ## Policy-capable selection engine
