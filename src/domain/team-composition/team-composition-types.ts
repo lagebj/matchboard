@@ -96,6 +96,7 @@ export interface CompositionPlayer {
   id: string;
   displayName: string;
   shirtNumber?: number;
+  /** Falls back to NEUTRAL_UNRATED_RATING (not 0) when unrated — check overallStrengthRated first. */
   overallStrength: number;
   /** Null means not rated — treat as uncertainty, not zero */
   overallStrengthRated: boolean;

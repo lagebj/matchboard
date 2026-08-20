@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
+import { getPlayerOverallRating, NEUTRAL_UNRATED_RATING } from '@/lib/ratings/player-rating';
 import { getPlayerSlotCompatibility, type PlayerPositionInfo } from '@/lib/formations/lineup-compatibility';
 import { createFormationSnapshot } from '@/lib/formations/snapshot';
 import type { FormationSlotData, FormationSlotRoleType } from '@/lib/formations/types';
@@ -263,7 +263,8 @@ export async function autoSelectBestLineup(teamId: string, orgFilter: OrgFilterM
         const posInfo = toPlayerPositionInfo(p);
         const compat = getPlayerSlotCompatibility(posInfo, slotData);
         const rating = getPlayerOverallRating(p);
-        return { player: p, isCompatible: compat.isCompatible, reason: compat.compatibilityReason, rating: rating.value ?? 0 };
+        // Phase 9 audit (§63): unrated must not sort below a genuine low rating.
+        return { player: p, isCompatible: compat.isCompatible, reason: compat.compatibilityReason, rating: rating.value ?? NEUTRAL_UNRATED_RATING };
       })
       .filter((item) => item.isCompatible)
       .sort((a, b) => {

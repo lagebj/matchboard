@@ -14,6 +14,7 @@ import { computeCompositeRatings, isGoalkeeperCapable, getPlayerBroadPositions }
 import { getPositionFitTier, computePositionScarcity } from '@/lib/players/player-position-resolver';
 import type { PositionFitTier } from '@/lib/players/player-position-resolver';
 import { computeSquadBalance } from './event-balance';
+import { NEUTRAL_UNRATED_RATING } from '@/lib/ratings/player-rating';
 
 export type PlayerWithRatings = PlayerAttributeProfile & {
   ratings: CompositeRatings;
@@ -48,16 +49,24 @@ const ROLE_RELEVANT_RATING_WEIGHTS: RoleRelevantRatingWeights = {
   FREE: [],
 };
 
+// Phase 9 audit (§63): a missing rating is uncertainty, not a 0/10 score — falling back to 0
+// here would sort/score an unrated player as worse than every rated player, including a
+// genuine 1/10. Use this everywhere a rating must become a plain number for sorting/summing;
+// prefer excluding null ratings from an average outright where that's an option instead.
+function effectiveOverallLevel(player: PlayerWithRatings): number {
+  return player.ratings.overallLevel ?? NEUTRAL_UNRATED_RATING;
+}
+
 export function getRoleRelevantRating(player: PlayerWithRatings, roleType: string): number {
   const weights = ROLE_RELEVANT_RATING_WEIGHTS[roleType] ?? [];
   if (weights.length === 0) {
-    return player.ratings.overallLevel ?? 0;
+    return effectiveOverallLevel(player);
   }
 
   const values: number[] = [];
   for (const key of weights) {
     if (key === null) {
-      values.push(player.ratings.overallLevel ?? 0);
+      values.push(effectiveOverallLevel(player));
       break;
     }
     if (key === 'goalkeeperAbility') {
@@ -71,7 +80,7 @@ export function getRoleRelevantRating(player: PlayerWithRatings, roleType: strin
   }
 
   if (values.length === 0) {
-    return player.ratings.overallLevel ?? 0;
+    return effectiveOverallLevel(player);
   }
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
@@ -331,7 +340,7 @@ function distributeGoalkeepers(
   gkPlayers.sort((a, b) => {
     if (a.primaryPosition === 'GK' && b.primaryPosition !== 'GK') return -1;
     if (b.primaryPosition === 'GK' && a.primaryPosition !== 'GK') return 1;
-    return (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0);
+    return effectiveOverallLevel(b) - effectiveOverallLevel(a);
   });
 
   const slotsPerSquad = squads.map((squad) => {
@@ -487,7 +496,7 @@ function distributeRemainingByBalance(
   assignedGlobal: Set<string>,
   _eventId: string,
 ): void {
-  const sorted = [...players].sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
+  const sorted = [...players].sort((a, b) => effectiveOverallLevel(b) - effectiveOverallLevel(a));
 
   const squadCounts = new Map<string, number>();
   const squadRatingSums = new Map<string, number>();
@@ -498,7 +507,7 @@ function distributeRemainingByBalance(
       .filter((a) => a.eventSquadId === squad.id)
       .map((a) => players.find((p) => p.playerId === a.playerId))
       .filter((p): p is PlayerWithRatings => p !== undefined);
-    const ratedSum = squadPlayers.reduce((s, p) => s + (p.ratings.overallLevel ?? 0), 0);
+    const ratedSum = squadPlayers.reduce((s, p) => s + effectiveOverallLevel(p), 0);
     squadRatingSums.set(squad.id, ratedSum);
   }
 
@@ -521,7 +530,7 @@ function distributeRemainingByBalance(
     if (targetSquads.length === 0) continue;
 
     const targetSquad = targetSquads[0];
-    const playerRating = player.ratings.overallLevel ?? 0;
+    const playerRating = effectiveOverallLevel(player);
     assignedGlobal.add(player.playerId);
     const hasUncertainty = player.ratings.overallLevel === null;
     assignments.push({
@@ -589,8 +598,8 @@ function optimizeSwapsForBalance(
             const playerJ = playerMap.get(aJ.playerId);
             if (!playerI || !playerJ) continue;
 
-            const ratingI = playerI.ratings.overallLevel ?? 0;
-            const ratingJ = playerJ.ratings.overallLevel ?? 0;
+            const ratingI = effectiveOverallLevel(playerI);
+            const ratingJ = effectiveOverallLevel(playerJ);
 
             if (ratingI === ratingJ) continue;
 
@@ -817,7 +826,7 @@ function distributePreserveAndFill(
   }
 
   const remainingPlayers = [...nonGKs, ...goalkeepers.filter((gk) => !assignedGKs.has(gk.playerId))];
-  remainingPlayers.sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
+  remainingPlayers.sort((a, b) => effectiveOverallLevel(b) - effectiveOverallLevel(a));
 
   for (const player of remainingPlayers) {
     if (assignedGlobal.has(player.playerId)) continue;
@@ -966,7 +975,7 @@ function distributeOneCompetitiveBalancedRemainder(
     const remainingForCompetitive = players.filter(
       (p) => !assignedGlobal.has(p.playerId),
     );
-    remainingForCompetitive.sort((a, b) => (b.ratings.overallLevel ?? 0) - (a.ratings.overallLevel ?? 0));
+    remainingForCompetitive.sort((a, b) => effectiveOverallLevel(b) - effectiveOverallLevel(a));
 
     for (const player of remainingForCompetitive) {
       if (assignments.filter((a) => a.eventSquadId === competitiveSquad.id).length >= competitiveTarget) break;

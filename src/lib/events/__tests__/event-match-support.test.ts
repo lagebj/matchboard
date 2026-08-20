@@ -336,6 +336,56 @@ describe('getSupportCandidatesForEventMatch', () => {
     const firstIneligibleIdx = Math.min(...candidates.map((c, i) => !c.available ? i : Infinity));
     expect(lastEligibleIdx).toBeLessThan(firstIneligibleIdx);
   });
+
+  it('does not sort an unrated candidate below a genuinely low-rated one (Phase 9 audit §63)', () => {
+    const squads = [
+      { id: 'squadA', name: 'Squad A', players: [{ playerId: 'p1' }] },
+      { id: 'squadB', name: 'Squad B', players: [{ playerId: 'p2' }] },
+      { id: 'squadC', name: 'Squad C', players: [{ playerId: 'p3' }] },
+    ];
+
+    const baseAttrs = {
+      lastName: null, primaryPosition: null as string | null, secondaryPosition: null as string | null,
+      tertiaryPosition: null as string | null, goalkeeperAbility: null as string | null, coreTeamId: null as string | null,
+      nonRotatable: false, preferredFoot: 'RIGHT' as string, bestSide: 'RIGHT' as string,
+    };
+
+    const profiles = [
+      // p1: unrated (every attribute null)
+      {
+        id: 'p1', firstName: 'Unrated', ...baseAttrs,
+        ballControl: null, passing: null, firstTouch: null, oneVOneAttacking: null,
+        positioning: null, oneVOneDefending: null, decisionMaking: null, effort: null,
+        teamplay: null, concentration: null, speed: null, strength: null,
+      },
+      { id: 'p2', firstName: 'Target', ...baseAttrs, ballControl: 6, passing: 6, firstTouch: 6, oneVOneAttacking: 6, positioning: 6, oneVOneDefending: 6, decisionMaking: 6, effort: 6, teamplay: 6, concentration: 6, speed: 6, strength: 6 },
+      // p3: genuinely rated low (2/10 on every attribute)
+      { id: 'p3', firstName: 'LowRated', ...baseAttrs, ballControl: 2, passing: 2, firstTouch: 2, oneVOneAttacking: 2, positioning: 2, oneVOneDefending: 2, decisionMaking: 2, effort: 2, teamplay: 2, concentration: 2, speed: 2, strength: 2 },
+    ];
+
+    const availability = [
+      { playerId: 'p1', status: 'AVAILABLE' },
+      { playerId: 'p2', status: 'AVAILABLE' },
+      { playerId: 'p3', status: 'AVAILABLE' },
+    ];
+
+    const candidates = getSupportCandidatesForEventMatch({
+      targetMatch: baseTargetMatch, // targets squadB (p2), leaving p1 and p3 both eligible
+      matchDurationMinutes: 20,
+      allEventMatches: baseAllMatches,
+      eventSquads: squads,
+      playerProfiles: profiles,
+      existingSupportAssignments: [],
+      playerEventAvailability: availability,
+    });
+
+    const eligible = candidates.filter((c) => c.available);
+    const unratedIndex = eligible.findIndex((c) => c.playerId === 'p1');
+    const lowRatedIndex = eligible.findIndex((c) => c.playerId === 'p3');
+    expect(unratedIndex).toBeGreaterThanOrEqual(0);
+    expect(lowRatedIndex).toBeGreaterThanOrEqual(0);
+    expect(unratedIndex).toBeLessThan(lowRatedIndex);
+  });
 });
 
 describe('checkSupportConflicts', () => {
