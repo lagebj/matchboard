@@ -111,6 +111,14 @@ jobs:
   e2e:
     name: Browser Acceptance Tests
     runs-on: ubuntu-24.04
+    # push-only (not pull_request): test-acceptance.yml now owns pre-merge PR-level Playwright
+    # validation, running against a per-PR isolated deployment it aliases test.matchboard.football
+    # to (docs/adr/0075-per-pr-feature-acceptance-pipeline.md). Running this job on pull_request
+    # too would race it — both would hit the one shared test.matchboard.football slot at
+    # unpredictable times, so this could easily test whatever PR most recently grabbed the alias
+    # instead of the commit CI thinks it's checking. This job now serves PROGRAMME.md §10's
+    # post-merge "perform smoke validation" step instead, against the just-restored baseline.
+    if: github.event_name == 'push'
     # A transient runner/network hang (observed on `playwright install --with-deps`, which
     # normally takes ~2 minutes) can otherwise consume the default 360-minute job timeout. 15
     # minutes comfortably covers npm ci + browser install + the full smoke suite (~4 minutes
