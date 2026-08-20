@@ -17,8 +17,15 @@ test.describe("unauthenticated access", () => {
 // Matchboard currently serves CSP as Content-Security-Policy-Report-Only (not enforced) — Chrome
 // logs this specific advisory whenever a report-only policy includes upgrade-insecure-requests,
 // which has no effect in report-only mode. Expected, not a real error.
+//
+// Vercel injects its own "Live Feedback" toolbar (vercel.live) into Preview deployments only —
+// never Production — for team members viewing them. That toolbar's own iframe/script triggers
+// this report-only frame-src violation; it's Vercel's infrastructure, not app behavior, and only
+// ever appears when this suite targets a Preview deployment (docs/adr/0075, the per-PR
+// acceptance pipeline), never against the persistent Test slot's Production-target deployment.
 const KNOWN_BENIGN_CONSOLE_MESSAGES = [
   "The Content Security Policy directive 'upgrade-insecure-requests' is ignored when delivered in a report-only policy.",
+  "Framing 'https://vercel.live/' violates the following report-only Content Security Policy directive: \"default-src 'self'\". The violation has been logged, but no further action has been taken. Note that 'frame-src' was not explicitly set, so 'default-src' is used as a fallback.",
 ];
 
 test.describe("authenticated as coach-all-a", () => {
