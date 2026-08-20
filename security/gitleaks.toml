@@ -27,7 +27,7 @@ description = "Brevo API key"
 regex = '''BREVO_API_KEY\s*=\s*['"][^'"]+['"]'''
 tags = ["secret", "api-key"]
 
-[[allowlist]]
+[[allowlists]]
 paths = [
   '''\.env\.example$''',
   '''\.env\.example''',
@@ -36,7 +36,7 @@ paths = [
   '''\.gitignore$''',
 ]
 
-[[allowlist]]
+[[allowlists]]
 regexes = [
   '''placeholder''',
   '''your-secret-here''',
@@ -46,7 +46,7 @@ regexes = [
   '''<.*>''',
 ]
 
-[[allowlist]]
+[[allowlists]]
 description = "Allow test database URLs in test setup"
 regexes = [
   '''TEST_DATABASE_URL\s*=\s*['"]postgres(ql)?://[^'"]+@localhost[^'"]*['"]''',

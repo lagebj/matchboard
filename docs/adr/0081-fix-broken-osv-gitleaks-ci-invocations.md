@@ -28,7 +28,15 @@ inspecting a recent CI run's raw logs (`gh run view <id> --log`), not assumed:
   doesn't exist and every run fails immediately with `Error: unknown flag: --config-path`.
   `package.json`'s `security:secrets`/`security:secrets:history` scripts already use the correct
   `--config` flag — only the CI workflow's independently hand-rolled invocation had the wrong
-  one, a drift bug, not a repo-wide misunderstanding of the tool.
+  one, a drift bug, not a repo-wide misunderstanding of the tool. Fixing the flag alone still
+  wasn't enough — `security/gitleaks.toml` itself uses three top-level `[[allowlist]]` blocks (an
+  invalid hybrid: array-of-tables syntax on the legacy singular key), which this PR's own live CI
+  run then surfaced as a second, distinct failure: `Failed to load config error="1 error(s)
+  decoding: * 'Allowlist' expected a map, got 'slice'"`. Gitleaks v8.21+ replaced the legacy
+  singular `[allowlist]` (one map, no double brackets) with a plural `[[allowlists]]` array
+  specifically to support multiple allowlist blocks (confirmed against Gitleaks' own
+  GitHub issues/PRs describing the change) — renamed all three blocks accordingly, verified with
+  `tomllib` and this PR's second live CI run.
 
 Both failures were completely invisible: both steps are wrapped in `|| true`, and the OSV step
 additionally sets `continue-on-error: true` at the GitHub Actions level — so both jobs have shown
@@ -68,11 +76,15 @@ of not unilaterally starting large policy work.
 
 ## Consequences
 
-- OSV-Scanner and Gitleaks will, for the first time, actually produce real scan results in CI.
-  This may surface real findings immediately (dependency vulnerabilities, potential secret
-  matches) that were never visible before — expected and desired, not a regression. Findings
-  should be triaged per `SECURITY.md`'s existing table and this repo's "evidence, not proof, do
-  not modify code merely to silence scanners" rule, same as any other scanner output.
+- OSV-Scanner and Gitleaks now, for the first time, actually produce real scan results in CI —
+  confirmed on this PR's own live run, not assumed. OSV immediately surfaced real findings that
+  were never visible before: `nanoid@3.3.16` (GHSA-2v37-7h3g-55p8, CVSS 8.2) and
+  `uuid@8.3.2` (GHSA-w5hq-g745-h8pq, CVSS 7.5) in production dependencies, plus
+  `deepmerge-ts@7.1.5` (GHSA-ggr8-5vv4-36mx, CVSS 8.2) and `@babel/core@7.29.0`
+  (GHSA-4x5r-pxfx-6jf8, CVSS 3.2) in devDependencies. Per `SECURITY.md`'s existing triage table
+  and this repo's "evidence, not proof" rule, these need their own triage/remediation pass — not
+  bundled into this PR, which is scoped to making the scanner run at all. Gitleaks' run was clean
+  (no findings) once its config loaded successfully.
 - Both jobs remain non-blocking (`|| true` / `continue-on-error`) after this fix — this PR makes
   the scanners real, it does not change whether their findings can fail CI. That's the §56
   question, deliberately left open here.
