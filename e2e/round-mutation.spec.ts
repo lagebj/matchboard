@@ -7,18 +7,19 @@ import { test, expect } from "@playwright/test";
 // slot in local development, not only against CI's disposable per-PR Neon branch (ADR-0075).
 //
 // Targets round A1 W11 (league "Test A1 Spring 2026", group A1) from the canonical seed dataset
-// (scripts/seed-test-dataset.ts) — the only DRAFT-eligible round in Org A whose matches are
-// exactly "A1 Blues" and "A1 Whites" (round A1 W10 also involves those teams plus "A1 Reds", and
-// is FINALIZED; round A2 W10 involves "A2 Eagles"/"A2 Hawks" — the team-name pair below is
-// unique to this one round, so no round ID needs to be known ahead of time).
+// (scripts/seed-test-dataset.ts) — the only DRAFT-eligible round in Org A whose team-names line
+// reads exactly "A1 Blues · A1 Whites" (round A1 W10 involves those same two teams plus "A1
+// Reds" — a superset that would also match a substring filter on either name alone, which is
+// exactly what broke this locator on its first live run; round A2 W10 involves "A2
+// Eagles"/"A2 Hawks" — an exact-text match on the full two-team line is unique to this one
+// round, so no round ID needs to be known ahead of time).
 
 test("generate round, verify persisted selections, then clear back to not-generated", async ({ page }) => {
   await page.goto("/o/test-club-a/rounds");
 
   const roundCard = page
     .locator("div.rounded-xl")
-    .filter({ hasText: "A1 Blues" })
-    .filter({ hasText: "A1 Whites" });
+    .filter({ has: page.getByText("A1 Blues · A1 Whites", { exact: true }) });
   await expect(roundCard).toHaveCount(1);
 
   const generateButton = roundCard.getByRole("button", { name: "Generate squads" });
