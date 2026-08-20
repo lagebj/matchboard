@@ -79,6 +79,17 @@ jobs:
       - name: Functional acceptance (Playwright, against the aliased Test slot)
         if: steps.check.outputs.configured == 'true'
         run: npm run test:e2e
+      # deploy.sh's own ERR trap only covers failures inside that one bash process. A failure in
+      # any *later* step (this job's Playwright step, or the Node.js/Playwright install steps
+      # before it) happens after deploy.sh already succeeded and already moved the alias — those
+      # failures are invisible to a trap that only exists for the duration of deploy.sh's own
+      # process, so the shared slot would otherwise stay pointed at this PR's deployment
+      # indefinitely (observed live: PR #306's Playwright step failed and the shared
+      # test.matchboard.football slot stayed stuck on its deployment until manually restored).
+      # `if: failure()` covers every prior step in the job, not just this one.
+      - name: On any failure, restore Test slot alias to main baseline
+        if: failure() && steps.check.outputs.configured == 'true'
+        run: bash scripts/test-acceptance/restore-baseline-alias.sh
 
   acceptance-cleanup:
     name: Clean up PR's Test slot resources

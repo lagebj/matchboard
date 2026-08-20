@@ -109,8 +109,19 @@ pattern the existing `e2e` job in `ci-checks.yml` already uses); if they are con
 own run is the real end-to-end verification, with each step's actual output inspected before
 trusting the pipeline on subsequent PRs — not merged on the strength of the YAML reading
 correctly. A failure partway through any run must not leave the alias pointed at a broken or
-deleted deployment; each job includes an explicit failure path that restores the
-alias to the last-known-good baseline rather than leaving it stuck mid-transition.
+deleted deployment; `deploy.sh`'s own `ERR` trap restores the alias to baseline if a command
+inside that one bash process fails.
+
+**Gap found and fixed on a later PR (#306), not this one**: that trap only covers `deploy.sh`
+itself — a failure in any *later* workflow step (the Playwright functional-acceptance step, or
+the install steps before it) happens after `deploy.sh` already succeeded and already moved the
+alias, invisible to a trap scoped to a process that already exited. Observed live: PR #306's
+Playwright step failed for an unrelated reason (stale seed data on its freshly-branched Neon
+child — see that PR's own history) and the shared `test.matchboard.football` slot stayed pointed
+at PR #306's deployment indefinitely, since nothing in the job covered that failure. Fixed with a
+job-level `if: failure()` step (covers every prior step, not just `deploy.sh`) that calls the same
+`restore-baseline-alias.sh`. See `fix/test-acceptance-failure-safety-gap`'s own commit for the
+fix; recorded here since it's this ADR's design gap, not a new decision.
 
 **Verified**: after the required repo secrets were added, four live runs against this PR's own
 branch (before merge) exercised the deploy path for real, in order: (1) `vercel deploy
@@ -170,3 +181,11 @@ not artificially triggered early, since a real close is the same signal either w
   documented in "Rollout safety" above) — passes 6/6 Playwright tests on the isolated per-PR
   deployment. Two real, previously-invisible bugs found and fixed along the way (see "Two bugs
   found" above). Cleanup path remains unverified until this PR closes.
+- 2026-08-20: PR #305 merged. Cleanup path verified live on its first-ever real execution (the
+  merge's own `closed` event) — passed immediately: alias restored, env var overrides removed,
+  Neon branch confirmed deleted via a direct `neonctl branches list` check. Both halves of the
+  pipeline now proven against real infrastructure.
+- 2026-08-20 (later): Failure-safety gap found and fixed on PR #306 — see "Rollout safety" above.
+  `deploy.sh`'s `ERR` trap didn't cover a later workflow step failing, leaving the shared slot
+  stuck on a broken deployment until manually restored. Fixed with a job-level `if: failure()`
+  step in `test-acceptance.yml` (branch `fix/test-acceptance-failure-safety-gap`).
