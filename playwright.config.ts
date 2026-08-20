@@ -34,6 +34,19 @@ export default defineConfig({
         storageState: "e2e/.auth/coach.json",
       },
       dependencies: ["setup"],
+      // authz-failure.spec.ts asserts what a restricted VIEWER-role persona is denied — running
+      // it under the full-access coach persona would make its "denied" assertions false. It runs
+      // only under the "chromium-viewer" project below (ADR-0078).
+      testIgnore: /authz-failure\.spec\.ts/,
+    },
+    {
+      name: "chromium-viewer",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/viewer.json",
+      },
+      dependencies: ["setup"],
+      testMatch: /authz-failure\.spec\.ts/,
     },
   ],
 });
