@@ -11,19 +11,29 @@ slot directly rather than a locally-started server, and for the exact Auth.js lo
 
 ## Current scope
 
-This ships **smoke + accessibility coverage only**:
+Smoke, accessibility, one mutation/persistence flow, and expected-authorization-failure coverage
+(see ADR-0078 for the mutation/authz-failure design):
 
 - `e2e/smoke.spec.ts` — unauthenticated redirect to `/signin`, authenticated landing resolves to
   the Assistant page, one core navigation (Fixtures), no console errors.
 - `e2e/accessibility.spec.ts` — `@axe-core/playwright` (WCAG 2.1 A/AA) against the Assistant and
   Fixtures pages.
+- `e2e/round-mutation.spec.ts` — regenerates real draft selections for a round, verifies they
+  persisted (a player chip on the Round Board), then clears them back to an empty draft.
+  Deliberately self-cleaning, safe to run repeatedly against the shared Test slot.
+- `e2e/authz-failure.spec.ts` — runs under a separate `chromium-viewer` project as `viewer-a` (a
+  real VIEWER-role persona): asserts creating a team is denied and never persisted, and asserts
+  cross-organisation access (Org B) is denied and leaks no Org B data.
 
 **Not yet implemented** — explicitly flagged, not silently missing:
 
-- Mutation/persistence flows (creating a team, generating a round, finalizing selections).
-- Expected-authorization-failure specs (a second, restricted-role persona attempting a blocked
-  action and getting denied).
-- Broader page coverage beyond Assistant/Fixtures.
+- Team-creation mutation coverage — there is currently no UI-driven way to delete or archive a
+  team (`deleteTeamAction` exists in `src/app/(app)/teams/actions.ts` but no component calls
+  it), so a create-team e2e flow would leave permanent residue in the shared local Test dataset.
+  Add this once team deletion/archival has a UI entry point.
+- Finalizing selections as a mutation flow (round generate/clear is covered; finalize/un-finalize
+  round-trip coverage is a natural next slice once prioritized).
+- Broader page coverage beyond Assistant/Fixtures/Rounds/Teams.
 - Running against a locally-started server in CI (currently CI runs against the hosted Test
   slot only — see the ADR for why).
 
@@ -85,10 +95,15 @@ into future jobs either.
 
 ## Test data
 
-`e2e/auth.setup.ts` authenticates as `coach-all-a@test-agent.matchboard.football` — full access
-to Org A's two groups (A1, A2) from the canonical seed dataset
-(`scripts/seed-test-dataset.ts`). These specs are read/navigate-only (no mutations), so they
-don't need to clean up after themselves against the shared Test dataset. If future
-mutation-coverage work changes that, it must account for shared-state cleanup — or use
+`e2e/auth.setup.ts` authenticates two personas from the canonical seed dataset
+(`scripts/seed-test-dataset.ts`): `coach-all-a@test-agent.matchboard.football` (full access to
+Org A's two groups, A1/A2 — used by `smoke.spec.ts`, `accessibility.spec.ts`,
+`round-mutation.spec.ts`) and `viewer-a@test-agent.matchboard.football` (VIEWER role, Org A only
+— used by `authz-failure.spec.ts`).
+
+`round-mutation.spec.ts` is the one spec that mutates data. It's deliberately self-cleaning
+(generate → verify → clear, ending in the same not-generated state it started from), so it needs
+no separate teardown against the shared Test dataset. Any future mutation-coverage work that
+can't be made self-cleaning this way must account for shared-state cleanup — or use
 `restore-test-baseline` (`docs/development/swamp-workflows.md`) to reset the dataset, deliberately
 and out-of-band from routine CI runs.
