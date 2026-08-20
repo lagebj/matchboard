@@ -715,6 +715,48 @@ A player not in the finalized planned squad may be recorded as an actual partici
 
 An additional actual appearance in the same round is allowed as recorded reality and is counted in future participation/load context.
 
+### League Match helpers
+
+A League Match helper is a temporary, match-level addition of a player to one specific League
+Match, so the player is available to live match reporting (rotation/position tracking, goal
+scorer selection, assist selection) before the match starts — not only retroactively in the
+after-match report. This mirrors the existing Event Match helper concept
+(`EventMatchSupportAssignment`) but for League matches, since Event helpers are blocked once the
+event is finalized and blocked from overlapping matches — the opposite of what League helpers
+need.
+
+Rules:
+- Adding a helper never creates, moves, or deletes a `Selection` row. The player's planned League
+  Round team assignment is untouched — this is not a transfer, loan, or round rebalancing.
+- Adding a helper works identically whether the League Round is finalized or still in draft.
+  Finalization locks planned round assignments; it does not prevent an emergency helper from being
+  added to an individual match. The round is never reopened and never becomes editable because of
+  a helper.
+- A player already assigned to another League team in the same round remains selectable as a
+  helper. Existing assignment does not make a player unavailable for helper selection, and the
+  coach does not need to remove or transfer the player from their own team first.
+- A player who has already played another match in the same round remains eligible to help — this
+  is an explicit, intentional coach override of the normal one-planned-assignment-per-round
+  expectation, not a scheduling conflict to block.
+- A player cannot be added as a helper twice to the same match (duplicate prevention), and cannot
+  be added as a helper if already a normal participant in that match.
+- The live match roster for a League Match is `normal Selection-based squad ∪ match helpers`. Live
+  reporting (rotation, position, goals, assists) consumes this one combined roster; there is no
+  separate helper-only code path anywhere in live reporting.
+- A helper added before the match already appears in the after-match report once it's opened —
+  the same underlying actual-participation model (`PostMatchPlayerActual`, `source:
+  EMERGENCY_BACKFILL`, `unplannedAppearanceReason: EMERGENCY_SQUAD_COVER`) is seeded
+  automatically. The coach never needs to add the same player again retroactively.
+- A helper appearance is a real, separate match appearance, counted correctly by the existing
+  effective-participation/statistics layer alongside the player's own planned appearance for their
+  normal team in the same round — without corrupting round-allocation history or season
+  balancing calculations.
+- A helper can be removed before they have any recorded actual participation. Once a
+  `PostMatchPlayerActual` row exists for that player and match (report already seeded or started),
+  removal is refused rather than silently deleting recorded goals, assists, or live match events.
+- Server-side validation enforces every invariant above; UI controls being disabled is not a
+  substitute. See ADR-0077 for the full design.
+
 ## Target / min / max squad size
 
 - Target squad size is a planning target, not a hard cap. A team may be selected above target up to maximum squad size.
@@ -2003,6 +2045,9 @@ Avoid:
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
+| `src/lib/matches/match-helper-eligibility.ts` | League Match helper effective roster (`Selection ∪ MatchHelperAssignment`), candidate list, eligibility check (ADR-0077) |
+| `src/app/(app)/matches/match-helper-actions.ts` | Server actions: add/remove League Match helper, list helpers/candidates |
+| `src/components/matches/match-helpers-panel.tsx` | "Add helper" UI on the League match detail Squad tab |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
 | `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items) |
 | `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |

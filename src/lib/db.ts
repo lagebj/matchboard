@@ -62,6 +62,7 @@ export const RLS_TABLES = new Set([
   "matchRound",
   "availability",
   "selection",
+  "matchHelperAssignment",
   "rotationPath",
   "movementLedger",
   "formation",

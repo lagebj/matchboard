@@ -29,6 +29,9 @@ export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: 
         where: { status: "FINALIZED" },
         select: { playerId: true, role: true },
       },
+      helperAssignments: {
+        select: { playerId: true },
+      },
     },
   });
 
@@ -36,19 +39,37 @@ export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: 
     return { success: false, error: "Match not found." };
   }
 
+  const plannedPlayerIds = new Set(match.selections.map((s) => s.playerId));
+
   const report = await db.postMatchReport.create({
     data: {
       organisationId: match.organisationId,
       matchId,
       status: "DRAFT",
       playerActuals: {
-        create: match.selections.map((s) => ({
-          organisationId: match.organisationId,
-          matchId,
-          playerId: s.playerId,
-          source: "PLANNED",
-          attendanceStatus: "UNKNOWN",
-        })),
+        create: [
+          ...match.selections.map((s) => ({
+            organisationId: match.organisationId,
+            matchId,
+            playerId: s.playerId,
+            source: "PLANNED",
+            attendanceStatus: "UNKNOWN",
+          })),
+          // League Match helpers (ADR-0077): seeded unconditionally, same as the planned squad,
+          // so a helper added before the match is already present here — the coach never adds
+          // them again retroactively. `plannedPlayerIds` guard is defensive only; the add-helper
+          // action already refuses a player who's already a Selection participant in this match.
+          ...match.helperAssignments
+            .filter((h) => !plannedPlayerIds.has(h.playerId))
+            .map((h) => ({
+              organisationId: match.organisationId,
+              matchId,
+              playerId: h.playerId,
+              source: "EMERGENCY_BACKFILL",
+              attendanceStatus: "UNKNOWN",
+              unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
+            })),
+        ],
       },
     },
   });
