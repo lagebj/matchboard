@@ -64,6 +64,41 @@ easier to find and verify after the fact.
   reads a module-load-time-frozen constant, not live `process.env`, so tests can't flip it by
   mutating the environment mid-test.
 
+## Live verification outcome
+
+Run against the deployed Test environment after this change merged, using
+`scripts/verify-invitation-email-flow.ts` (`swamp verify-invitation-email-flow`):
+
+**Confirmed, via `getTransacEmailsList`**: a real invitation created through the actual UI
+produced a real Brevo dispatch (`events: [{name: "sent", ...}]`), with subject
+`[TEST] owner-a invited you to join Matchboard Test Club on Matchboard` and tags
+`["ORGANISATION_INVITATION", "<orgId>", "test", "invited-test@test-agent.matchboard.football"]` —
+exactly the prefix and four correlation values this ADR added, verified against Brevo's own API,
+not just the local `outbox.test.ts` mocks.
+
+**Not confirmed, and not fixable from this ADR's scope**: the programme §29 flow's remaining
+steps — extract the accept URL from actual content, authenticate as the dynamic invitee, accept,
+verify access. `getTransacEmailContent` returned `"Mail content not available"` for this message,
+persistently (retried over ~2 minutes, ruling out propagation delay). Root cause: the message
+soft-bounced within 3 seconds of sending (`events: [..., {name: "soft_bounce", ...}]`) —
+`invited-test@test-agent.matchboard.football` is a synthetic address with no real mailbox behind
+it, by design (`BREVO_TEST_RECIPIENTS` only needs a syntactically valid, controlled address for
+the *send* side). Brevo does not retain retrievable content for bounced messages. Presented to the
+user as a choice — supply a real, deliverable inbox to complete the remaining steps, or accept
+this partial result — and the decision was to accept the partial result rather than involve a real
+mailbox. `scripts/verify-invitation-email-flow.ts` documents this limitation and supports an
+`INVITEE_EMAIL` override (paired with adding that address to `BREVO_TEST_RECIPIENTS`) for anyone
+who later wants to complete the full flow.
+
+Two genuine script bugs were found and fixed by this same live run, unrelated to the content
+limitation above: the Brevo message-list correlation poll window (15 attempts × 2s = 30s) was too
+short — the actual send succeeded well within that window, but `getTransacEmailsList` took
+noticeably longer to index it, confirmed by a manual query succeeding once the script's own
+polling had already given up; and the script didn't handle a repeatable re-run against the same
+recipient, since the app correctly rejects a duplicate pending invitation with "An active
+invitation already exists," which the script needs to treat as "proceed with the existing
+invitation," not a failure.
+
 ## Related decisions
 
 - ADR-0043 — Brevo transactional email subsystem (no conflicting subject/tag convention existed).
@@ -73,3 +108,7 @@ easier to find and verify after the fact.
 
 - 2026-08-20: Accepted and implemented, ahead of the first live Phase 4 invitation-email
   verification against the deployed Test environment.
+- 2026-08-20 (later): Live-verified — see "Live verification outcome" above. Subject prefix and
+  correlation tags fully confirmed via Brevo's own API. Accept-URL-extraction and accept-flow
+  steps remain unverified with the default synthetic recipient, by deliberate user choice, not
+  because of any remaining bug.

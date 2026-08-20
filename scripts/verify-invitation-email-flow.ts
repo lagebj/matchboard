@@ -14,8 +14,23 @@
  * Requires: BREVO_API_KEY, TEST_AGENT_AUTH_SECRET (matching the deployed Test app's secret).
  * Refuses to run against anything that looks like Production.
  *
+ * Known limitation (live-verified 2026-08-20, not fixable from this script): Brevo does not
+ * retain retrievable content (getTransacEmailContent returns "Mail content not available") for
+ * a message that soft-bounces, which the default INVITEE_EMAIL always will — nothing actually
+ * receives mail at test-agent.matchboard.football. Sending real dispatch, the [TEST] subject
+ * prefix, and correlation tags (ADR-0076) can still be confirmed via getTransacEmailsList alone;
+ * only the accept-URL-extraction and accept-flow steps below require content retrieval, so they
+ * require a real, deliverable INVITEE_EMAIL override to complete. See ADR-0076's "Live
+ * verification outcome" for the full record of what was and wasn't proven with the default
+ * recipient.
+ *
  * Usage:
  *   BREVO_API_KEY=... TEST_AGENT_AUTH_SECRET=... npx tsx scripts/verify-invitation-email-flow.ts
+ *   # or, to complete the full flow including content retrieval and acceptance: add the real
+ *   # address to BREVO_TEST_RECIPIENTS first (brevo-provider.ts's allowlist is an exact-match
+ *   # safety control, not something this script can or should bypass), then:
+ *   BREVO_API_KEY=... TEST_AGENT_AUTH_SECRET=... INVITEE_EMAIL=<that-real-inbox> \
+ *     npx tsx scripts/verify-invitation-email-flow.ts
  */
 
 import { chromium, request as playwrightRequest } from "@playwright/test";
@@ -26,8 +41,12 @@ const NAMESPACE = process.env.TEST_AGENT_AUTH_NAMESPACE ?? "test-agent.matchboar
 const INVITER_EMAIL = `owner-a@${NAMESPACE}`;
 const ORG_SLUG = process.env.TARGET_ORG_SLUG ?? "test-club-a";
 const INVITEE_EMAIL = process.env.INVITEE_EMAIL ?? `invited-test@${NAMESPACE}`;
-const CORRELATION_POLL_ATTEMPTS = 15;
-const CORRELATION_POLL_INTERVAL_MS = 2000;
+// Live-verified (2026-08-20): the actual SMTP send succeeds almost immediately, but Brevo's
+// getTransacEmailsList endpoint took noticeably longer than 30s (15 attempts x 2s) to index it —
+// a manual query for the same message found it cleanly moments after the polling loop gave up.
+// 90s of headroom comfortably covers that observed propagation delay.
+const CORRELATION_POLL_ATTEMPTS = 30;
+const CORRELATION_POLL_INTERVAL_MS = 3000;
 
 function assertSafeTarget(url: string): void {
   if (url.includes("app.matchboard.football")) {
@@ -102,8 +121,20 @@ async function main() {
     await inviterPage.getByRole("button", { name: "Invite member" }).click();
     await inviterPage.getByPlaceholder("coach@example.com").fill(INVITEE_EMAIL);
     await inviterPage.getByRole("button", { name: "Send invitation" }).click();
-    // Success collapses the form back to the "Invite member" button (org-detail-client.tsx).
-    await inviterPage.getByRole("button", { name: "Invite member" }).waitFor({ timeout: 15000 });
+    // Success collapses the form back to the "Invite member" button (org-detail-client.tsx). A
+    // re-run against the same recipient (this script is meant to be repeatable) instead shows
+    // "An active invitation already exists for this email." without collapsing the form -- not a
+    // failure, just evidence a prior run's invitation is still pending. Treat that specific error
+    // as "proceed using the existing invitation" and only fail on the timeout for anything else.
+    const formCollapsed = inviterPage.getByRole("button", { name: "Invite member" }).waitFor({ timeout: 15000 });
+    const duplicateError = inviterPage.getByText("An active invitation already exists").waitFor({ timeout: 15000 });
+    const outcome = await Promise.race([
+      formCollapsed.then(() => "created" as const),
+      duplicateError.then(() => "duplicate" as const),
+    ]);
+    if (outcome === "duplicate") {
+      console.log("  An invitation for this recipient is already pending from a prior run -- proceeding with it.");
+    }
     console.log("  Invitation created.");
     await inviterContext.close();
 
