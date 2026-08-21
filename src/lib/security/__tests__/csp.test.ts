@@ -29,10 +29,14 @@ describe("CSP configuration", () => {
     expect(csp.value).toContain("form-action 'self'");
   });
 
-  it("explicitly allows Vercel's own toolbar iframe via frame-src", () => {
-    // Without this, enforcing CSP blocks Vercel's own Preview Comments/Toolbar, not app behavior
-    // (Phase 12 §77) — confirmed via a real report-only violation this policy was generating.
+  it("explicitly allows Vercel's own toolbar (script, connect, and frame) via vercel.live", () => {
+    // Without all three, enforcing CSP blocks Vercel's own Preview Comments/Toolbar, not app
+    // behavior. frame-src alone (added for Phase 12 §77) was not sufficient — confirmed live: the
+    // toolbar's own script (feedback.js) and its live connection back to vercel.live broke every
+    // per-PR Test-slot Playwright run once CSP_ENFORCE=true actually went live (2026-08-21).
     const csp = getContentSecurityPolicy();
+    expect(csp.value).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live");
+    expect(csp.value).toContain("connect-src 'self' https://vercel.live wss://vercel.live");
     expect(csp.value).toContain("frame-src https://vercel.live");
   });
 
