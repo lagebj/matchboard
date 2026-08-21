@@ -2,7 +2,7 @@
 
 ## Status
 
-Active
+Resolved
 
 ## Discovered
 
@@ -36,3 +36,16 @@ The current flat structure assumes single-tenant access. Adding organisation con
 
 - `src/app/(app)/` — current route structure
 - Current navigation: Assistant, Fixtures, Teams, Players
+
+## History
+
+### 2026-08-20
+
+Verified resolved (consolidation programme residue reconciliation pass), independent of any
+code change in this pass: `src/app/(app)/o/[orgSlug]/` is the real, live route tree (39
+subdirectories — assistant, fixtures, teams, players, rounds, etc.), not just documented intent.
+Confirmed a real page (`teams/page.tsx:89`) calls `requireActorContext(orgSlug)`, resolving
+organisation membership server-side from the URL param before any data access. Every item in
+this ARR's own "Resolution criteria" is met: routes are under `/o/{organisationSlug}/...`,
+membership resolves before data access, client-supplied org IDs are never trusted as authority
+(per this repo's broader, extensively-tested authorization model). Closing as Resolved.

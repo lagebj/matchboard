@@ -52,7 +52,7 @@ One authoritative writable representation for player position priority. The cano
 
 ## Disposition
 
-In progress. Player scalar fields (`primaryPosition`, `secondaryPosition`, `tertiaryPosition`) are confirmed canonical. `PlayerPosition` table is a secondary derived store written by `syncPlayerPositions()` with no active read paths. The table is retained for future approved-position workflow but must not be read as canonical position source. All position reads for selection, display, and export use Player scalar fields.
+Accepted. Player scalar fields (`primaryPosition`, `secondaryPosition`, `tertiaryPosition`) are confirmed canonical. `PlayerPosition` table is a secondary derived store written by `syncPlayerPositions()` with no active read paths, deliberately retained for a future approved-position workflow rather than removed. This is a settled decision, not further in-progress work — re-verified independently 2026-08-20, zero read paths still confirmed.
 
 ## History
 
@@ -62,6 +62,15 @@ In progress. Player scalar fields (`primaryPosition`, `secondaryPosition`, `tert
 - Confirmed: All selection engine, display, and export code reads from Player scalar fields.
 - Decision: Player scalar fields remain canonical. PlayerPosition table retained for future approved-position workflow but documented as secondary derived store.
 - Updated source-of-truth register to reflect canonical status.
+
+### 2026-08-20
+
+- Re-verified independently (consolidation programme residue reconciliation pass): zero read
+  paths for `PlayerPosition` anywhere outside `sync-player-positions.ts` and generated Prisma
+  code — the 2026-08-02 decision still holds. Disposition corrected from "In progress" to
+  "Accepted" to match the substance of that decision; `State` intentionally remains `Confirmed`
+  (the dual representation still literally exists, by design — matches ARR-0019's precedent for
+  a verified, accepted, non-code-resolved residue).
 
 ## Related decisions
 

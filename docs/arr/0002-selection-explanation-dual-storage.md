@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Partially resolved
 
 ## Identified
 
@@ -95,3 +95,10 @@ None
 ### 2026-07-29
 
 Record created from IMPROVE-0A source-of-truth assessment.
+
+### 2026-08-20
+
+Re-verified independently (consolidation programme residue reconciliation pass): the 3 checked
+resolution criteria remain true, the 3 unchecked ones remain genuinely open — no drift since
+2026-08-02. `State` updated from `Confirmed` to `Partially resolved` to match this file's own
+`Disposition` text, which already accurately described the split. No other change.
