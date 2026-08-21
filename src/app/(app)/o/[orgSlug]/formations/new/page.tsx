@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getFormationById } from "@/app/(app)/rules/formation-actions";
 import { FormationsBuilderClient } from "@/components/formations/formations-builder";
 import type { GameFormat } from "@/generated/prisma/client";
@@ -15,7 +15,7 @@ type NewFormationPageProps = {
 
 export default async function NewFormationPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: NewFormationPageProps["searchParams"] }) {
   const { orgSlug } = await params;
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
   const { gameFormat, returnTo, duplicateFrom } = await searchParams;
 
   let initialData: { name: string; gameFormat: GameFormat; slots: { id?: string; gridX: number; gridY: number; label: string; shortLabel: string; roleType: FormationSlotRoleType; acceptedPositionIds: BroadPosition[]; sortOrder: number }[] } | undefined;

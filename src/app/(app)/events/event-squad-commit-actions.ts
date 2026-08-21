@@ -1,6 +1,6 @@
 "use server";
 
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
@@ -32,7 +32,7 @@ export type EventSquadValidationResult = {
 export async function validateEventSquadsBeforeCommit(
   eventId: string,
 ): Promise<EventSquadValidationResult> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   const issues: EventSquadValidationIssue[] = [];
 
@@ -174,7 +174,7 @@ export async function validateEventSquadsBeforeCommit(
 }
 
 export async function confirmEventSquadsAction(eventId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -260,7 +260,7 @@ export async function confirmEventSquadsAction(eventId: string) {
 }
 
 export async function unconfirmEventSquadsAction(eventId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -342,7 +342,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
 }
 
 export async function getEventSquadsStatusAction(eventId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   const squads = await db.eventSquad.findMany({
     where: { eventId, ...ctx.orgFilter.filter },

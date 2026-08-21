@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { suggestFormationForMatch, suggestLineupForFormation, type SuggestFormationInput, type SuggestLineupInput } from "@/lib/formations/suggest";
 import { createFormationSnapshot } from "@/lib/formations/snapshot";
@@ -27,7 +27,7 @@ async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode
 }
 
 export async function getSuggestFormationData(matchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findFirst({
@@ -114,7 +114,7 @@ export async function getSuggestFormationData(matchId: string) {
 }
 
 export async function getSuggestLineupData(matchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findFirst({
@@ -158,7 +158,7 @@ export async function getSuggestLineupData(matchId: string) {
 }
 
 export async function suggestLineupForMatch(matchId: string, formationId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const match = await db.match.findFirst({
@@ -244,7 +244,7 @@ export async function applySuggestedLineup(
   assignments: { slotId: string; playerId: string; source: "SUGGESTED" | "MANUAL" }[],
   benchPlayerIds: string[],
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
@@ -357,7 +357,7 @@ export async function applySuggestedLineup(
 }
 
 export async function clearSuggestedAssignments(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { matchId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
@@ -386,7 +386,7 @@ export async function clearSuggestedAssignments(lineupId: string) {
 }
 
 export async function fillEmptySlots(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { matchId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);

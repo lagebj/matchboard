@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
@@ -20,7 +20,7 @@ type PlayersPageProps = {
 
 export default async function PlayersPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: PlayersPageProps["searchParams"] }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const { mode, periodId, roundId, showRemoved, error, saved } = await searchParams;
   const includeRemoved = showRemoved === "1";
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { createLeagueSeason, getFootballGroupsForOrganisation } from "@/lib/seasons/create-league-season";
 import type { LeagueSeasonPart } from "@/lib/seasons/league-season";
 
@@ -9,7 +9,7 @@ export async function createLeagueSeasonAction(
   _prevState: { error?: string },
   formData: FormData,
 ): Promise<{ error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const yearStr = formData.get("year") as string | null;
@@ -42,6 +42,6 @@ export async function createLeagueSeasonAction(
 }
 
 export async function getFootballGroupsAction(): Promise<Array<{ id: string; name: string }>> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   return getFootballGroupsForOrganisation(ctx.organisationId);
 }

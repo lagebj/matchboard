@@ -6,11 +6,11 @@ import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/l
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { LiveEventInput } from "@/lib/live-match/live-match-types";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 
 export async function startLiveSessionAction(matchId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     await requireMatchGroupAccess(ctx, matchId);
     const session = await startLiveSession(matchId);
@@ -33,7 +33,7 @@ export async function getActiveSessionAction(matchId: string) {
 
 export async function endLiveSessionAction(sessionId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     const session = await endLiveSession(sessionId);
     const matchId = session.matchId;
@@ -48,7 +48,7 @@ export async function endLiveSessionAction(sessionId: string) {
 
 export async function heartbeatAction(sessionId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     await heartbeatSession(sessionId);
     return { success: true as const };
@@ -71,7 +71,7 @@ export async function recordLiveEventAction(input: {
   correctsEventId?: string;
 }) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     await requireMatchGroupAccess(ctx, input.matchId);
     const typedInput: LiveEventInput = {
@@ -116,7 +116,7 @@ export async function getRecentEventsAction(matchId: string, limit?: number) {
 
 export async function getLiveMatchPreMatchPackageAction(matchId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
 
     const match = await db.match.findUnique({
       where: { id: matchId },

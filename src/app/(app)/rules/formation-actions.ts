@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   validateFormationForMatchUse,
@@ -30,7 +30,7 @@ async function requireFormationOrgAccess(formationId: string, orgFilter: OrgFilt
 }
 
 export async function getFormationsForFormat(gameFormat: GameFormat) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const orgFilter = ctx.orgFilter;
   return db.formation.findMany({
     where: { gameFormat, isArchived: false, ...orgFilter.filter },
@@ -40,7 +40,7 @@ export async function getFormationsForFormat(gameFormat: GameFormat) {
 }
 
 export async function getFormationById(formationId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const orgFilter = ctx.orgFilter;
   await requireFormationOrgAccess(formationId, orgFilter);
   return db.formation.findFirst({
@@ -64,7 +64,7 @@ export async function createCustomFormation(data: {
     sortOrder: number;
   }[];
 }) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   if (data.teamId) await requireTeamGroupAccess(ctx, data.teamId);
   const orgFilter = ctx.orgFilter;
@@ -117,7 +117,7 @@ export async function createCustomFormation(data: {
 }
 
 export async function duplicateFormation(formationId: string, newName?: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -179,7 +179,7 @@ export async function updateCustomFormation(
     }[];
   },
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -264,7 +264,7 @@ export async function updateCustomFormation(
 }
 
 export async function archiveFormation(formationId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -290,7 +290,7 @@ export async function archiveFormation(formationId: string) {
 }
 
 export async function deleteCustomFormation(formationId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -327,7 +327,7 @@ export async function addFormationSlot(
   gridX: number,
   gridY: number,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const formationTeamId = await requireFormationOrgAccess(formationId, orgFilter);
@@ -379,7 +379,7 @@ export async function updateFormationSlot(
     acceptedPositionIds?: string[];
   },
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -408,7 +408,7 @@ export async function updateFormationSlot(
 }
 
 export async function removeFormationSlot(slotId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 

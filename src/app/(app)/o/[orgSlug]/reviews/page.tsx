@@ -1,10 +1,10 @@
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { ReviewListClient } from './review-list-client';
 
 export default async function ReviewsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const membership = await db.organisationMembership.findFirst({
     where: { userId: ctx.userId, organisationId: ctx.organisationId },

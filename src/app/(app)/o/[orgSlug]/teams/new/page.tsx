@@ -1,4 +1,4 @@
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { createTeamAction } from "@/app/(app)/teams/actions";
 import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ type NewTeamPageProps = {
 
 export default async function NewTeamPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: NewTeamPageProps["searchParams"] }) {
   const { orgSlug } = await params;
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
   const { error } = await searchParams;
 
   return (

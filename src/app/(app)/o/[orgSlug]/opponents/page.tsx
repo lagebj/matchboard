@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
@@ -10,7 +10,7 @@ export const metadata = { title: "Opponent teams" };
 
 export default async function OpponentsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const opponentTeams = await db.opponentTeam.findMany({
     where: {

@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 
 async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: ctx.orgFilter.filter },
     select: { eventId: true },
@@ -16,7 +16,7 @@ async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ event
 
 export async function endEventLiveSessionAndCreateReportAction(sessionId: string, eventMatchId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
 
     const session = await db.eventLiveMatchSession.findUnique({

@@ -1,7 +1,8 @@
 import type { OrganisationRole } from "@/generated/prisma/client";
+import { redirect } from "next/navigation";
 import { requireCoachAccess, AuthorizationError } from "@/lib/auth";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
-import { resolveOrgFilterForUser, type OrgFilterMode, type MultipleMembershipsError } from "@/lib/tenancy/resolve-org-filter";
+import { resolveOrgFilterForUser, MultipleMembershipsError, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
 import { withTenantContext } from "@/lib/tenancy/tenant-client";
@@ -100,6 +101,34 @@ export async function requireActorContext(
 }
 
 export { MultipleMembershipsError };
+
+/**
+ * Page/server-action variant of requireActorContext(): identical behavior, except an ambiguous
+ * or missing organisation context (MultipleMembershipsError, or the "No active organisation
+ * membership" case for a zero-membership user) redirects to /organisations instead of throwing
+ * uncaught to the generic error boundary. Only the two canonical entry points (`(app)/page.tsx`,
+ * `(app)/assistant/page.tsx` via resolveOrgSlugForLayout()) previously handled this gracefully;
+ * every other protected page/action crashed. Never use this from an API route handler — those
+ * must return a JSON error response, not trigger a browser redirect (see ADR-0082).
+ */
+export async function requirePageActorContext(
+  organisationSlug?: string,
+): Promise<ActorContext> {
+  try {
+    return await requireActorContext(organisationSlug);
+  } catch (error) {
+    if (error instanceof MultipleMembershipsError) {
+      redirect("/organisations");
+    }
+    if (
+      error instanceof AuthorizationError &&
+      error.message === "No active organisation membership"
+    ) {
+      redirect("/organisations");
+    }
+    throw error;
+  }
+}
 
 const MUTATION_ROLES: OrganisationRole[] = ["OWNER", "ADMIN", "COACH"];
 const ADMIN_ROLES: OrganisationRole[] = ["OWNER", "ADMIN"];

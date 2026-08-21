@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { supersedePendingReviews } from '@/lib/review/review-service';
 import { enqueueAndSendNotification } from '@/lib/email/outbox';
-import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
+import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { getOrCreateDefaultGroup } from '@/lib/groups/group-domain';
 import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
@@ -60,7 +60,7 @@ async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode):
 }
 
 export async function getEvents() {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   return db.event.findMany({
     where: {
       ...ctx.orgFilter.filter,
@@ -82,7 +82,7 @@ export async function getEvents() {
 }
 
 export async function getEventById(id: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   return db.event.findFirst({
     where: {
       id,
@@ -108,7 +108,7 @@ export async function getEventById(id: string) {
 }
 
 export async function createEventAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
@@ -182,7 +182,7 @@ export async function createEventAction(formData: FormData) {
 }
 
 export async function updateEventAction(id: string, formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
@@ -241,7 +241,7 @@ export async function updateEventAction(id: string, formData: FormData) {
 }
 
 export async function deleteEventAction(id: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const event = await db.event.findFirst({
@@ -273,7 +273,7 @@ export async function updateEventPlayerAvailability(
   playerId: string,
   status: EventPlayerStatus,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -304,7 +304,7 @@ export async function setEventPlayerPool(
   playerIds: string[],
   defaultStatus: EventPlayerStatus = 'AVAILABLE',
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -337,7 +337,7 @@ export async function addPlayersToEventPoolAction(
   playerIds: string[],
   defaultStatus: EventPlayerStatus = 'AVAILABLE',
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -372,7 +372,7 @@ export async function addPlayersToEventPoolAction(
 }
 
 export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -396,7 +396,7 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
 }
 
 export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -426,7 +426,7 @@ export async function assignPlayerToEventSquadAction(
   playerId: string,
   locked: boolean = false,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -463,7 +463,7 @@ export async function assignPlayerToEventSquadAction(
 }
 
 export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findFirst({
@@ -491,7 +491,7 @@ export async function addEventSquadAction(
   targetSize: number,
   formationId?: string,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -532,7 +532,7 @@ export async function updateEventSquadAction(
     formationId?: string;
   },
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
@@ -561,7 +561,7 @@ export async function updateEventSquadAction(
 }
 
 export async function updateEventSquadNameAction(squadId: string, name: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
@@ -578,7 +578,7 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
 }
 
 export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -595,7 +595,7 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
 }
 
 export async function removeEventSquadAction(squadId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
@@ -611,7 +611,7 @@ export async function movePlayerBetweenSquadsAction(
   fromSquadId: string,
   toSquadId: string,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const fromEventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
   const toEventId = await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
@@ -653,7 +653,7 @@ export async function togglePlayerLockAction(
   squadPlayerId: string,
   locked: boolean,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findFirst({
@@ -682,7 +682,7 @@ export async function togglePlayerLockAction(
 }
 
 export async function clearEventSquadsAction(eventId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -704,7 +704,7 @@ export async function clearEventSquadsAction(eventId: string) {
 }
 
 export async function getLeagueSeasons() {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   return db.leagueSeason.findMany({
     where: {
       ...ctx.orgFilter.filter,
@@ -714,7 +714,7 @@ export async function getLeagueSeasons() {
 }
 
 export async function getFormations() {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   return db.formation.findMany({
     where: {
       isArchived: false,
@@ -726,7 +726,7 @@ export async function getFormations() {
 }
 
 export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   return db.player.findMany({
     where: {
@@ -742,7 +742,7 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 }
 
 export async function generateEventSquadsAction(eventId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await requireEventNotFinalized(eventId, ctx.orgFilter);

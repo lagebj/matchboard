@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -46,7 +46,7 @@ export async function setCoachingIntentAction(
   category: string,
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgId = ctx.organisationId;
 
@@ -108,7 +108,7 @@ export async function setCoachingIntentAction(
 export async function removeCoachingIntentAction(
   intentId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   try {
@@ -144,7 +144,7 @@ export async function getCoachingIntentsAction(
   scopeType: string,
   scopeId: string,
 ): Promise<{ success: boolean; intents?: Array<{ id: string; category: string; note: string | null; scopeType: string; scopeId: string }>; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   try {
     const intents = await db.coachingIntent.findMany({

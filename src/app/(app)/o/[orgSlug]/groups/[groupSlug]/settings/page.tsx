@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getGroupDetailAction, listGroupMovementPathsAction, listAvailableMembersAction } from "@/app/(app)/o/[orgSlug]/groups/actions";
 import { notFound } from "next/navigation";
 import { GroupSettingsClient } from "./group-settings-client";
@@ -11,7 +11,7 @@ export default async function GroupSettingsPage({
   params: Promise<{ orgSlug: string; groupSlug: string }>;
 }) {
   const { orgSlug, groupSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const group = await getGroupDetailAction(groupSlug);
 
   if (!group) {

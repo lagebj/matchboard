@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { logDataExport } from '@/lib/security/audit-log';
 import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 
@@ -61,7 +61,7 @@ function addSectionHeader(ws: ExcelJS.Worksheet, text: string, colSpan: number) 
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const url = new URL(request.url);
   const leagueSeasonId = url.searchParams.get('leagueSeasonId');
 

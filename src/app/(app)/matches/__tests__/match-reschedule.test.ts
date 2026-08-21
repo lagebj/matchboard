@@ -32,6 +32,17 @@ vi.mock("@/lib/auth/actor-context", () => ({
     groupAccesses: [{ footballGroupId: "group-1", role: "GROUP_COACH" }],
     orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
   }),
+  requirePageActorContext: vi.fn().mockResolvedValue({
+    userId: "test-user",
+    email: "test@example.com",
+    membershipId: "mem-1",
+    organisationId: "org-1",
+    organisationSlug: "test-org",
+    role: "COACH",
+    accessibleGroupIds: ["group-1"],
+    groupAccesses: [{ footballGroupId: "group-1", role: "GROUP_COACH" }],
+    orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
+  }),
   requireMutationRole: vi.fn().mockResolvedValue({
     userId: "test-user",
     email: "test@example.com",

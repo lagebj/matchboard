@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { CreateOrganisationForm } from "./create-organisation-form";
 
 export default async function OrganisationsPage() {
   const session = await auth();
@@ -97,8 +98,12 @@ export default async function OrganisationsPage() {
               You are not a member of any organisation yet.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Ask an organisation owner or admin to invite you, or create a new organisation.
+              Ask an organisation owner or admin to invite you, or create a new organisation
+              below.
             </p>
+            <div className="mt-4 mx-auto max-w-md text-left">
+              <CreateOrganisationForm />
+            </div>
           </div>
         ) : (
           <div className="space-y-2">

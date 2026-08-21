@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { LeagueLiveMatchClient } from "@/components/live-match/league-live-match-client";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ interface LiveMatchPageProps {
 
 export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
   const { orgSlug, matchId } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },

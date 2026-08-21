@@ -1441,6 +1441,9 @@ Fixtures result display rules:
   does redirect to `/organisations`) remains correct for pages that explicitly want that
   behavior (`(app)/page.tsx`, `(app)/assistant/page.tsx`, `redirect-to-org.ts`) — it is a
   deliberate per-page choice, never something the shared layout should do unconditionally.
+- Every other page/action under `(app)` (not the layout, not the two canonical entry points
+  above) achieves the same graceful redirect by calling `requirePageActorContext()` instead of
+  `requireActorContext()` — see "Auth rules" below and ADR-0082.
 
 ### Season overview
 
@@ -1945,7 +1948,12 @@ Matchboard is a private coaching app. Auth is mandatory, not optional.
 - `requireCoachAccess()` is the shared authorization helper that all protected actions must use
 - Create, edit, delete, finalize, export, clear, manual-edit, and populate actions must all be protected
 - Unauthenticated users redirect to sign-in
-- Authenticated users without an organisation membership see the organisations page (create or join)
+- Authenticated users without an organisation membership, or with more than one, see the
+  organisations page (create or join) — page components and server actions under `(app)` must
+  call `requirePageActorContext()` (`src/lib/auth/actor-context.ts`), not `requireActorContext()`
+  directly, so an ambiguous/missing org context redirects to `/organisations` instead of crashing
+  to the generic error boundary (ADR-0082). API routes call `requireActorContext()` directly and
+  return their own JSON error response instead — never redirect from a route handler.
 - Tests or verification must cover unauthorized access scenarios
 
 ## Deployment and security

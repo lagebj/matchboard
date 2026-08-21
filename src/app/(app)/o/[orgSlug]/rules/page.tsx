@@ -7,7 +7,7 @@ import { RotationPathCard } from "@/components/rules/rotation-path-card";
 import { getRules } from "@/lib/rules/get-rules";
 import { validateRuleConfig } from "@/lib/rules/validate-rules";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 
 type RulesPageProps = {
   searchParams: Promise<{
@@ -19,7 +19,7 @@ type RulesPageProps = {
 
 export default async function RulesPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: RulesPageProps["searchParams"] }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
   const rules = await getRules(ctx.orgFilter);
   const { error, imported, saved } = await searchParams;

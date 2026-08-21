@@ -6,10 +6,10 @@ import { recordEventEvent, getEventMatchEvents, getRecentEventEvents } from "@/l
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { EventLiveEventInput } from "@/lib/live-match/event-live-match-event-store";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 
 async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: ctx.orgFilter.filter },
     select: { eventId: true },
@@ -42,7 +42,7 @@ export async function getEventActiveSessionAction(eventMatchId: string) {
 
 export async function endEventLiveSessionAction(sessionId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     const session = await db.eventLiveMatchSession.findFirst({
       where: { id: sessionId, eventMatch: { event: ctx.orgFilter.filter } },
@@ -61,7 +61,7 @@ export async function endEventLiveSessionAction(sessionId: string) {
 
 export async function heartbeatEventAction(sessionId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     const session = await db.eventLiveMatchSession.findFirst({
       where: { id: sessionId, eventMatch: { event: ctx.orgFilter.filter } },
@@ -89,7 +89,7 @@ export async function recordEventLiveEventAction(input: {
   correctsEventId?: string;
 }) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     await requireEventMatchOrgAccess(input.eventMatchId);
     const typedInput: EventLiveEventInput = {

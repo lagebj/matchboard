@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { FairPlayCategory } from "@/generated/prisma/client";
 
 const PERIOD_TO_INT: Record<string, number> = {
@@ -46,7 +46,7 @@ function fairPlayCategoryFromEvent(eventType: string, payload: Record<string, un
 
 export async function endLiveSessionAndCreateReportAction(sessionId: string, matchId: string) {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
 
     const session = await db.liveMatchSession.findUnique({

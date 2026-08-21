@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getTeamsResultsOverview } from "@/lib/teams/get-teams-results-overview";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import type { TeamPeriodResultsRow } from "@/lib/teams/get-teams-results-overview";
@@ -86,7 +86,7 @@ function MobileTeamCard({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: 
 
 export default async function TeamsPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: TeamsPageProps["searchParams"] }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const { periodId, error, saved } = await searchParams;
 
   const leagueSeasons = await db.leagueSeason.findMany({

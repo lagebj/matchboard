@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
@@ -42,7 +42,7 @@ function formatSavedMessage(saved?: string): string | null {
 export default async function PlayerPage({ params, searchParams }: PlayerPageProps) {
   const [{ orgSlug, playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([

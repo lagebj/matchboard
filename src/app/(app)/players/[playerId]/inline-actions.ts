@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requirePlayerGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { playerPositionValues } from "@/lib/player-form-options";
 import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
@@ -13,7 +13,7 @@ export async function updatePlayerFieldAction(
   field: string,
   value: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requirePlayerGroupAccess(ctx, playerId);
 

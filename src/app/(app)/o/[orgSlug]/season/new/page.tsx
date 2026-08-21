@@ -1,4 +1,4 @@
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getFootballGroupsAction } from "@/app/(app)/season/create-league-season-action";
 import { createLeagueSeasonAction } from "@/app/(app)/season/create-league-season-action";
 import { Surface } from "@/components/ui/surface";
@@ -13,7 +13,7 @@ type NewLeagueSeasonPageProps = {
 
 export default async function NewLeagueSeasonPage({ params, searchParams }: NewLeagueSeasonPageProps) {
   const { orgSlug } = await params;
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
   const { error } = await searchParams;
   const groups = await getFootballGroupsAction();
 
