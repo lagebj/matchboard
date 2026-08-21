@@ -118,8 +118,15 @@ All 30 server action files already have `"use server"` directive. Server Actions
   (`vercel.live`) violated `default-src 'self'` in every report-only deployment. Fixed by adding
   an explicit `frame-src https://vercel.live` directive (`src/lib/security/csp.ts`). No app-level
   `<iframe>` usage exists anywhere in `src/`, so no further `frame-src` sources are needed.
-  `CSP_ENFORCE=true` is being set in the relevant Vercel environments as a separate follow-up
-  provider action once this fix is merged.
+- 2026-08-21 (later): `CSP_ENFORCE=true` set via `vercel env add` in both linked projects
+  (`matchboard`, `matchboard-test`), Production and Preview environments, then a fresh
+  `vercel deploy --prod` triggered on each (environment variables are snapshotted at build time —
+  setting the var alone did not affect the already-running deployment). Verified live via direct
+  `curl -I`: both `https://app.matchboard.football` and `https://test.matchboard.football` now
+  return `content-security-policy` (not `-report-only`), with `frame-src https://vercel.live`
+  present and no `report-uri`. No PR was occupying the shared Test slot alias at the time, so the
+  `matchboard-test` redeploy only refreshed the baseline, per ADR-0075. CSP enforcement is now
+  live for real traffic on both environments.
 
 ## Related
 

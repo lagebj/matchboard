@@ -58,7 +58,7 @@ Before Matchboard enters paid-beta production use, all criteria below must be sa
 - [ ] GitHub secret scanning and push protection enabled
 - [ ] `matchboard_app` and `matchboard_admin` database roles created in Neon
 - [ ] RLS policies enforced in production (after role creation)
-- [ ] CSP enforcement mode tested and switched (`CSP_ENFORCE=true`)
+- [x] CSP enforcement mode tested and switched (`CSP_ENFORCE=true`) — 2026-08-21, see ADR-0031 History
 - [ ] Vercel log drain configured for persistent audit trail
 - [ ] Neon PITR backup verified
 
