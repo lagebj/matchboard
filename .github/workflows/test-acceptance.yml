@@ -58,26 +58,47 @@ jobs:
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+      # A docs/ADR/tracking-only push can't affect the running app, but still cost a full Neon
+      # branch deploy + Vercel deploy + Playwright run — exactly what exhausted this project's
+      # Vercel deploy quota on PR #313's trailing wording-only commit (2026-08-20). Skip the
+      # deploy (not the whole job, so acceptance-cleanup below is never affected by this check)
+      # when every file in the PR's compare range is docs/tracking-only. See
+      # docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History.
+      - name: Check whether this push only touched docs/tracking files
+        id: docs-only
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          FILES="$(gh api "repos/${{ github.repository }}/compare/${BASE_SHA}...${HEAD_SHA}" --paginate --jq '.files[].filename')"
+          if [ -z "$FILES" ]; then
+            echo "No changed files reported by the compare API — deploying to be safe."
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          elif echo "$FILES" | grep -qvE '^(docs/|\.matchboard-work/|.*\.md$)'; then
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Every changed file is docs/tracking-only — skipping the Test slot deploy."
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         with:
           node-version: "24"
           cache: npm
       - run: npm ci
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
       - name: Install neonctl and vercel CLIs
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npm install -g neonctl vercel
       - name: Deploy PR commit to isolated Test slot
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: bash scripts/test-acceptance/deploy.sh
       - name: Install Playwright browser
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npx playwright install --with-deps chromium
       - name: Functional acceptance (Playwright, against the aliased Test slot)
-        if: steps.check.outputs.configured == 'true'
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npm run test:e2e
       # deploy.sh's own ERR trap only covers failures inside that one bash process. A failure in
       # any *later* step (this job's Playwright step, or the Node.js/Playwright install steps
@@ -88,7 +109,7 @@ jobs:
       # test.matchboard.football slot stayed stuck on its deployment until manually restored).
       # `if: failure()` covers every prior step in the job, not just this one.
       - name: On any failure, restore Test slot alias to main baseline
-        if: failure() && steps.check.outputs.configured == 'true'
+        if: failure() && steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: bash scripts/test-acceptance/restore-baseline-alias.sh
 
   acceptance-cleanup:
