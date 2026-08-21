@@ -72,6 +72,8 @@ const EXCLUSION_PATTERNS = [
   /(^|\/)prisma\/migrations\//,
   /(^|\/)scripts\/check-terminology\.mjs/,
   /(^|\/)docs\/domain\/terminology\.md/,
+  /(^|\/)docs\/product\/glossary\.md/,
+  /(^|\/)docs\/product\/content-style-guide\.md/,
   /(^|\/)AGENTS\.md$/,
   /(^|\/)features\//,
   /\.test\./,
