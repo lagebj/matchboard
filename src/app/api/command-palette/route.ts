@@ -51,13 +51,14 @@ export async function GET(_request: NextRequest) {
 function getFilteredCommands(canCreate: boolean, canManageOrg: boolean, orgSlug: string): CommandItem[] {
   const prefix = `/o/${orgSlug}`;
   const commands: CommandItem[] = [
-    { id: "nav-assistant", label: "Assistant", description: "Next actions and blockers", href: `${prefix}/assistant`, category: "navigate", keywords: ["assistant", "dashboard", "home"] },
-    { id: "nav-fixtures", label: "Fixtures", description: "Season and match overview", href: `${prefix}/fixtures`, category: "navigate", keywords: ["fixtures", "matches", "rounds", "schedule"] },
-    { id: "nav-teams", label: "Teams", description: "Team registry and detail", href: `${prefix}/teams`, category: "navigate", keywords: ["teams", "squad"] },
+    { id: "nav-today", label: "Today", description: "Next actions and blockers", href: `${prefix}/today`, category: "navigate", keywords: ["today", "assistant", "dashboard", "home"] },
+    { id: "nav-league", label: "League", description: "Season and match overview", href: `${prefix}/fixtures`, category: "navigate", keywords: ["league", "fixtures", "matches", "rounds", "schedule"] },
+    { id: "nav-teams", label: "Teams", description: "League team registry and detail", href: `${prefix}/teams`, category: "navigate", keywords: ["teams", "squad", "league"] },
     { id: "nav-players", label: "Players", description: "Player registry and profiles", href: `${prefix}/players`, category: "navigate", keywords: ["players", "registry"] },
+    { id: "nav-events", label: "Events", description: "Event squads and planning", href: `${prefix}/events`, category: "navigate", keywords: ["events", "cups", "tournaments"] },
+    { id: "nav-more", label: "More", description: "Insights, opponents, groups, formations, rules", href: `${prefix}/more`, category: "navigate", keywords: ["more", "insights", "opponents", "groups", "formations", "settings"] },
     { id: "nav-season", label: "Season", description: "Season matrix and fairness", href: `${prefix}/season`, category: "navigate", keywords: ["season", "matrix", "fairness"] },
     { id: "nav-rules", label: "Rules", description: "Selection rules and rotation paths", href: `${prefix}/rules`, category: "navigate", keywords: ["rules", "config", "paths"] },
-    { id: "nav-events", label: "Events", description: "Event squads and planning", href: `${prefix}/events`, category: "navigate", keywords: ["events", "cups", "tournaments"] },
   ];
 
   if (canCreate) {

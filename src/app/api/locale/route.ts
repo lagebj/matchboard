@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * sets a locale preference, never reads or writes app data (see AGENTS.md's auth
  * rules: this is not a protected-data route, like /api/health).
  *
- * QA/Test use: visit `/api/locale?locale=en-XA&redirect=/o/{orgSlug}/assistant` to
+ * QA/Test use: visit `/api/locale?locale=en-XA&redirect=/o/{orgSlug}/today` to
  * activate the pseudo-locale. No settings-page toggle exists yet (out of scope for
  * this packet — see .matchboard-work/ux-branding-language-ui/CURRENT-WORK.md).
  */

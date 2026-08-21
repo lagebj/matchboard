@@ -24,7 +24,7 @@ async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: str
   revalidatePath("/fixtures");
   revalidatePath("/rounds");
   revalidatePath(`/rounds/${matchRoundId}`);
-  revalidatePath("/assistant");
+  revalidatePath("/today");
   for (const path of extraPaths) {
     revalidatePath(path);
   }

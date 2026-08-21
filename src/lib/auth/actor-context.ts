@@ -107,7 +107,7 @@ export { MultipleMembershipsError };
  * or missing organisation context (MultipleMembershipsError, or the "No active organisation
  * membership" case for a zero-membership user) redirects to /organisations instead of throwing
  * uncaught to the generic error boundary. Only the two canonical entry points (`(app)/page.tsx`,
- * `(app)/assistant/page.tsx` via resolveOrgSlugForLayout()) previously handled this gracefully;
+ * `(app)/today/page.tsx` via resolveOrgSlugForLayout()) previously handled this gracefully;
  * every other protected page/action crashed. Never use this from an API route handler — those
  * must return a JSON error response, not trigger a browser redirect (see ADR-0082).
  */

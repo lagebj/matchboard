@@ -212,7 +212,7 @@ The primary coach workflow is:
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
-The Assistant page must always show the next action based on this workflow state. The Assistant page derives work items from live database state using `getAssistantCommandCentre()`, not from persisted AssistantIssue rows.
+The Assistant page (presented at the canonical `/today` route since Phase 2.4 — see "Canonical routes") must always show the next action based on this workflow state. The Assistant page derives work items from live database state using `getAssistantCommandCentre()`, not from persisted AssistantIssue rows.
 
 The assistant must not skip steps or suggest finalization before draft review. Planning notes, scoring preferences, opponent observations, and seasonal context never appear as Assistant work items. The CoachingIntentSelector must not appear on the Assistant page — intent belongs on Fixtures and Round Board.
 
@@ -1171,21 +1171,31 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
  ### Canonical routes
  
-Primary navigation (4 items, in this order):
+Primary navigation (5 items, in this order) — the Today/League/Events/Players/More
+information architecture from the UI/UX programme (Phase 2.4,
+`.matchboard-work/ux-branding-language-ui/PROGRAMME.md` §6, gitignored working bundle):
 
-1. **Assistant** (`/o/{orgSlug}/assistant`) — next action, setup progress, blockers, urgent reviews and upcoming work.
-2. **Fixtures** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections.
-3. **Teams** (`/o/{orgSlug}/teams`) — team registry and access to team detail.
+1. **Today** (`/o/{orgSlug}/today`) — next action, setup progress, blockers, urgent reviews and upcoming work. Canonical operational landing surface; renders the same command-centre content previously called "Assistant" (`getAssistantCommandCentre()`, `AssistantCommandCentrePage`) — the underlying data/component did not change, only its canonical route and nav label.
+2. **League** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections. League teams (`/o/{orgSlug}/teams`) are reachable via a "League teams" link on this page's header, not their own primary sidebar item.
+3. **Events** (`/o/{orgSlug}/events`) — event squads and planning (cups, tournaments, friendly days). See "Event squad planning".
 4. **Players** (`/o/{orgSlug}/players`) — season participation, current planning attention, and base-group administration.
+5. **More** (`/o/{orgSlug}/more`) — analysis, administration, and secondary destinations: Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews, and (admin roles only) Simulation and Policy workbench.
 
-The following must not be primary sidebar items:
+The following must not be primary sidebar items — they moved under League or More above:
+- `/o/{orgSlug}/teams` (under League, via the League teams link)
 - `/o/{orgSlug}/rounds`
 - `/o/{orgSlug}/matches`
-- `/o/{orgSlug}/season`
-- `/o/{orgSlug}/history`
-- `/o/{orgSlug}/rules`
+- `/o/{orgSlug}/season` (under More)
+- `/o/{orgSlug}/history` (under More)
+- `/o/{orgSlug}/rules` (under More)
+- `/o/{orgSlug}/groups` (under More)
+- `/o/{orgSlug}/opponents` (under More)
+- `/o/{orgSlug}/formations` (under More)
+- `/o/{orgSlug}/insights` (under More)
+- `/o/{orgSlug}/settings` (under More)
+- `/o/{orgSlug}/reviews`, `/o/{orgSlug}/simulation`, `/o/{orgSlug}/workbench` (under More)
 
-These remain accessible through contextually appropriate links, buttons, tabs or secondary navigation.
+These remain accessible through contextually appropriate links, buttons, tabs or secondary navigation — never deleted or made unreachable, and no route that resolved before Phase 2.4 returns a 404 after it.
 
 Other canonical routes:
 | Route | Purpose |
@@ -1200,6 +1210,7 @@ Other canonical routes:
 | `/o/{orgSlug}/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
 | `/o/{orgSlug}/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
 | `/o/{orgSlug}/insights/player-pathways` | Player Pathways — season matrix, context transitions, fairness overview |
+| `/o/{orgSlug}/more` | More — hub page linking Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews (plus Simulation/Workbench for admin roles) |
 
 Setup registry create routes (no top-level nav):
 - `/o/{orgSlug}/teams/new` — create team form
@@ -1214,27 +1225,28 @@ Detail routes (no top-level nav):
 - `/o/{orgSlug}/matches/[matchId]/live` — live match reporting
 
 Canonical redirects:
-- `/` → `/o/{orgSlug}/assistant` (resolves orgSlug from session)
-- `/today` → `/o/{orgSlug}/assistant`
+- `/` → `/o/{orgSlug}/today` (resolves orgSlug from session)
+- `/assistant` → `/today`; `/o/{orgSlug}/assistant` → `/o/{orgSlug}/today` (deep-link aliases — Today is canonical, Assistant is the historical name, not the other way around)
 - `/matches` → `/o/{orgSlug}/fixtures`
-- Global routes (`/assistant`, `/fixtures`, `/teams`, etc.) redirect to `/o/{orgSlug}/` equivalents
+- Global routes (`/today`, `/fixtures`, `/teams`, etc.) redirect to `/o/{orgSlug}/` equivalents
 
 No navigation component, page header, CTA or breadcrumb may present `/matches` as a competing top-level destination. Match detail routes such as `/o/{orgSlug}/matches/[matchId]` remain valid.
 
 Active navigation state:
-- `/o/{orgSlug}/assistant` visibly activates Assistant.
-- `/o/{orgSlug}/fixtures` and fixture child/detail contexts visibly activate Fixtures.
-- `/o/{orgSlug}/teams` and `/o/{orgSlug}/teams/[teamId]` contexts visibly activate Teams.
+- `/o/{orgSlug}/today` visibly activates Today.
+- `/o/{orgSlug}/fixtures` and fixture/round/match/team/season child contexts visibly activate League.
+- `/o/{orgSlug}/events` contexts visibly activate Events.
 - `/o/{orgSlug}/players` and `/o/{orgSlug}/players/[playerId]` contexts visibly activate Players.
+- `/o/{orgSlug}/more` and its linked destinations (insights, opponents, groups, formations, rules, history, reviews, settings, simulation, workbench) visibly activate More.
 - Redirected routes do not produce an unselected or misleading sidebar state.
 
 Operational workflow hierarchy:
-1. Assistant identifies the next required action.
-2. Fixtures provides the season/league-season and round hierarchy.
+1. Today identifies the next required action.
+2. League provides the season/league-season and round hierarchy.
 3. Round Board is the primary squad decision surface.
 4. Match detail handles match-specific preparation, finalisation and post-match reporting.
 5. Team and Player pages provide supporting context and configuration.
-6. Season, History and Rules are secondary analysis/configuration destinations.
+6. More (Season, History, Rules, Insights, Groups, Formations, Opponents, Settings) holds secondary analysis/configuration destinations.
 
 ### Setup registries are table-first
 
@@ -1348,15 +1360,15 @@ Team detail has these sections:
 
 ### Navigation model
 
-- **Sidebar**: 4 items — Assistant, Fixtures, Teams, Players (in this order)
-- **Top context bar**: provides appropriate title/context for the current route. It must not describe `/assistant` as "Dashboard". It must not present `/matches` as an independent top-level workflow. It provides context appropriate to the current operational task. When a primary action exists in context, it is clearly prioritised.
-- **Mobile nav**: preserves the same four primary destinations, maintains active-state correctness, and ensures blockers and primary actions are not hidden behind inaccessible interactions.
+- **Sidebar**: 5 items — Today, League, Events, Players, More (in this order)
+- **Top context bar**: provides appropriate title/context for the current route. It must not describe `/today` as "Dashboard". It must not present `/matches` as an independent top-level workflow. It provides context appropriate to the current operational task. When a primary action exists in context, it is clearly prioritised.
+- **Mobile nav**: preserves the same five primary destinations, maintains active-state correctness, and ensures blockers and primary actions are not hidden behind inaccessible interactions.
 
 Status vocabulary: The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.
 
 Warning and signal hierarchy: Blocked conditions must be visually dominant and placed beside the affected round or match. Decision required conditions must be visible without opening hidden technical detail. Planning notes may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
 
-User-facing terminology: Use Assistant (not Dashboard), Fixtures (not Match list), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team), League season (not Phase or Planning period), Season (for the broad football-year context). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
+User-facing terminology: Use Today (not Dashboard, not Assistant as the primary nav label — "Assistant" remains a valid deep-link alias and historical name), League (not Fixtures as the primary nav label — the `/fixtures` route itself is unchanged), Round Board (not Command center or Decision inbox), Needs Action (not Decision inbox or Decision debt), Squad repair (not Backfill in current user-facing generated movement), Sent as support (not Demoted), Development movement (not Promoted), Not selected this round (not Benched), Short or Below target (not Weak team), League season (not Phase or Planning period), Season (for the broad football-year context). Internal enum BACKFILL remains for backward compatibility but must not appear as current user-facing terminology for generated squad repair.
 
 Season and Phase vocabulary:
 
@@ -1767,12 +1779,10 @@ Rules:
 
 ### Event routes and navigation
 
-- `/events` — event list page (secondary destination, accessible from Fixtures or navigation)
+- `/events` — event list page, now a primary sidebar destination (Today/League/Events/Players/More, Phase 2.4)
 - `/events/new` — create event
 - `/events/[eventId]` — event detail/planning page
 - `/events/[eventId]/export` — GET route: Excel workbook export (Squads, Match call-out, optional Conflicts sheets)
-- Events do not appear as primary sidebar items (the sidebar remains: Assistant, Fixtures, Teams, Players)
-- Events are accessible through Fixtures context or direct navigation
 
 ### Key engine files
 

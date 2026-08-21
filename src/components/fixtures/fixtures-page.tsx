@@ -348,6 +348,14 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
       <PageHeader
         title="Fixtures"
         description="League seasons, rounds, and matches. Open a round for squad work."
+        actions={
+          <Link
+            href={`/o/${orgSlug}/teams`}
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+          >
+            League teams
+          </Link>
+        }
       />
 
       {data && data.periods.length > 1 && (

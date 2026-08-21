@@ -19,7 +19,10 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      { source: "/today", destination: "/assistant", permanent: true },
+      // Today is now the canonical landing route (PROGRAMME.md §7); Assistant is the
+      // deep-link alias, not the other way around (see docs/product/navigation-model.md).
+      { source: "/assistant", destination: "/today", permanent: true },
+      { source: "/o/:orgSlug/assistant", destination: "/o/:orgSlug/today", permanent: true },
       { source: "/matches", destination: "/fixtures", permanent: true },
       { source: "/matchday", destination: "/fixtures", permanent: true },
       { source: "/availability", destination: "/players", permanent: true },

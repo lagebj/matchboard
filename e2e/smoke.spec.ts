@@ -9,7 +9,7 @@ test.describe("unauthenticated access", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test("redirects to /signin", async ({ page }) => {
-    await page.goto("/o/test-club-a/assistant");
+    await page.goto("/o/test-club-a/today");
     await expect(page).toHaveURL(/\/signin/);
   });
 });
@@ -28,7 +28,7 @@ const KNOWN_BENIGN_CONSOLE_MESSAGES = [
 ];
 
 test.describe("authenticated as coach-all-a", () => {
-  test("landing page resolves to the Assistant page for Org A", async ({ page }) => {
+  test("landing page resolves to the Today page for Org A", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       // Chrome appends a trailing newline to some console.error messages (confirmed: the
@@ -40,19 +40,18 @@ test.describe("authenticated as coach-all-a", () => {
     });
 
     await page.goto("/");
-    await expect(page).toHaveURL(/\/o\/test-club-a\/assistant/);
+    await expect(page).toHaveURL(/\/o\/test-club-a\/today/);
 
     expect(consoleErrors, `Unexpected console errors: ${consoleErrors.join("; ")}`).toHaveLength(0);
   });
 
-  test("can navigate to Fixtures", async ({ page }) => {
-    await page.goto("/o/test-club-a/assistant");
+  test("can navigate to League", async ({ page }) => {
+    await page.goto("/o/test-club-a/today");
 
-    // exact: true -- the sidebar's "Fixtures" nav link and an Assistant work-item action button
-    // labeled "View Fixtures" (surfaced when a round genuinely has no draft selections yet, ADR-
-    // 0083) both satisfy a substring match on "Fixtures". This test is specifically about primary
-    // navigation, not dashboard content.
-    await page.getByRole("link", { name: "Fixtures", exact: true }).click();
+    // exact: true -- the sidebar's "League" nav link and any future page content that happens to
+    // contain the substring "League" both satisfy a loose match. This test is specifically about
+    // primary navigation, not page content.
+    await page.getByRole("link", { name: "League", exact: true }).click();
     await expect(page).toHaveURL(/\/o\/test-club-a\/fixtures/);
   });
 });

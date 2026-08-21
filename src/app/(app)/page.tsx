@@ -3,5 +3,5 @@ import { resolveOrgSlugForLayout } from "@/lib/auth/resolve-org-slug";
 
 export default async function RootPage() {
   const orgSlug = await resolveOrgSlugForLayout();
-  redirect(`/o/${orgSlug}/assistant`);
+  redirect(`/o/${orgSlug}/today`);
 }
