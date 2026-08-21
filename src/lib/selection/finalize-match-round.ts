@@ -22,13 +22,25 @@ export async function finalizeMatchRound(
 ): Promise<FinalizeResult> {
   const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!matchRound) {
     return {
       success: false,
       warnings: ["Match round not found."],
+      hardBlocked: true,
+      needsOverride: false,
+      humanReviewRecommended: false,
+      finalizedSelectionCount: 0,
+      finalizedMatchIds: [],
+    };
+  }
+
+  if (matchRound.status === "FINALIZED") {
+    return {
+      success: false,
+      warnings: ["This round is already finalized."],
       hardBlocked: true,
       needsOverride: false,
       humanReviewRecommended: false,

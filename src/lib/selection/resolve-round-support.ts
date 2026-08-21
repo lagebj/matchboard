@@ -210,6 +210,31 @@ export async function resolveRoundSupport(
     let filled = 0;
     const _donorsMovedCount = new Map<string, number>();
 
+    // Batch-fetch every candidate donor player for this slot's donors in one query, instead of
+    // one db.player.findMany() per donor inside the loop below — the static eligibility filters
+    // (nonRotatable/removedAt/active/currentAvailability) don't change across donors within this
+    // synchronous resolution pass, so a single upfront fetch is equivalent (Phase 12 §75).
+    const allDonorPlayerIds = [
+      ...new Set(donorSlots.flatMap((d) => d.surplusCorePlayers.map((p) => p.playerId))),
+    ];
+    const eligibleDonorPlayersById = new Map(
+      (allDonorPlayerIds.length > 0
+        ? await db.player.findMany({
+            where: {
+              id: { in: allDonorPlayerIds },
+              nonRotatable: false,
+              removedAt: null,
+              active: true,
+              currentAvailability: "AVAILABLE",
+            },
+            include: {
+              coreTeam: { select: { id: true, name: true } },
+            },
+          })
+        : []
+      ).map((p) => [p.id, p] as const),
+    );
+
     for (const donor of donorSlots) {
       if (filled >= shortfall) break;
 
@@ -220,19 +245,10 @@ export async function resolveRoundSupport(
         (p) => !assignedPlayerIds.has(p.playerId) || results[donorResultIdx]!.selectedPlayers.some((sp) => sp.playerId === p.playerId && sp.coreTeamId === donor.teamId),
       );
 
-      const donorPlayers = await db.player.findMany({
-        where: {
-          id: { in: available.map((p) => p.playerId) },
-          nonRotatable: false,
-          removedAt: null,
-          active: true,
-          currentAvailability: "AVAILABLE",
-        },
-        include: {
-          coreTeam: { select: { id: true, name: true } },
-        },
-        orderBy: [{ playerCode: "asc" }],
-      });
+      const donorPlayers = available
+        .map((p) => eligibleDonorPlayersById.get(p.playerId))
+        .filter((p): p is NonNullable<typeof p> => p !== undefined)
+        .sort((a, b) => a.playerCode - b.playerCode);
 
       const donorPlayerConsecutive = new Map<string, number>();
       if (donorPlayers.length > 0) {
@@ -456,6 +472,23 @@ async function resolveSquadRepairInner(
 ): Promise<{ matchResults: GeneratedSelection[]; warnings: SelectionWarning[] }> {
   const warnings: SelectionWarning[] = [];
 
+  // Batch-fetch every support-assignment player referenced across all matches in one query,
+  // instead of one db.player.findFirst() per assignment inside the loop below — supportAssignments
+  // is fixed for the whole call, so this is safe regardless of which match is currently being
+  // repaired (Phase 12 §75).
+  const supportAssignmentPlayerIds = supportAssignments
+    ? [...new Set(supportAssignments.map((sa) => sa.playerId))]
+    : [];
+  const supportAssignmentPlayersById = new Map(
+    (supportAssignmentPlayerIds.length > 0
+      ? await db.player.findMany({
+          where: { id: { in: supportAssignmentPlayerIds } },
+          select: { id: true, firstName: true, lastName: true, primaryPosition: true, nonRotatable: true, active: true, currentAvailability: true, removedAt: true, coreTeam: { select: { id: true, name: true } } },
+        })
+      : []
+    ).map((p) => [p.id, p] as const),
+  );
+
   for (const match of matches) {
     const resultIdx = matchResults.findIndex((r) => r.matchId === match.id);
     if (resultIdx < 0) continue;
@@ -507,10 +540,7 @@ async function resolveSquadRepairInner(
           if (sameDay) continue;
         }
 
-        const player = await db.player.findFirst({
-          where: { id: sa.playerId },
-          select: { id: true, firstName: true, lastName: true, primaryPosition: true, nonRotatable: true, active: true, currentAvailability: true, removedAt: true, coreTeam: { select: { id: true, name: true } } },
-        });
+        const player = supportAssignmentPlayersById.get(sa.playerId);
         if (player && !player.nonRotatable && player.active && player.currentAvailability === "AVAILABLE" && !player.removedAt) {
           ownSupportPlayersMoved.push({
             playerId: player.id,
