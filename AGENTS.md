@@ -891,7 +891,6 @@ Structured categories:
 - support_missing
 - development_opportunity
 - no_planned_match_opportunity
-- double_load_needed (legacy — retained for backward compatibility only, must not be used for new planned assignments)
 - availability_changed
 - coach_judgement
 - match_already_played
@@ -907,6 +906,12 @@ Free-text detail is required for:
 - unavailable player selection
 - invalid path usage
 - finalized history edit
+
+`double_load_needed` was removed from the structured categories above (no UI ever offered it,
+and only historical rows could reference it). The `OverrideReasonCategory.DOUBLE_LOAD_NEEDED`
+Prisma enum value is retained so any existing historical row remains readable — matching the same
+retained-enum-value pattern already used for `SelectionRole.BACKFILL`. New code must never produce
+or accept it; the app-level type, validation, and display layers no longer include it at all.
 
 ## Movement ledger
 
@@ -2310,7 +2315,10 @@ Key rules:
 - Do not store player names inside assistant work items, explanations, recommendations, decision records, or cross-team impact payloads.
 - Do not introduce ability scores, best-XI language, permanent weak/strong labels, or public player ranking.
 - Overrides must require a reason.
-- Selection-affecting actions must create an auditable DecisionRecord.
+- Player-development and assistant-manager actions must create an auditable `DecisionRecord`.
+  Selection-engine actions (finalize, un-finalize, manual override, draft clear/regenerate) are
+  audited separately, via `logSecurityEvent()` and its named helpers (`logFinalization()`,
+  `logManualOverride()`, etc. — `src/lib/security/audit-log.ts`), not `DecisionRecord`.
 - Use the `git-branch-commit-pr` workflow.
 - Do not commit internal work logs, scratch notes, or handover documents.
 

@@ -299,7 +299,6 @@ describe("manual-draft-edit", () => {
         "squad_too_small",
         "support_missing",
         "development_opportunity",
-        "double_load_needed",
         "availability_changed",
         "coach_judgement",
         "match_already_played",
