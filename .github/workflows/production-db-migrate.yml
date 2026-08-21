@@ -10,6 +10,15 @@ run-name: >-
 # protection applies regardless of trigger type, so automating the trigger does not remove the
 # human checkpoint. workflow_dispatch is kept as a manual fallback (e.g. re-running after
 # approving too late for the original run, or triggering ad hoc without waiting for a CI event).
+#
+# The `check` job deliberately does NOT declare `environment: production-db` -- it must run
+# unattended so the pending-migration/destructive-scan summary is visible to the approver BEFORE
+# they approve, not after. That means it cannot see PRODUCTION_DATABASE_URL, which is scoped to
+# that environment. It uses PRODUCTION_DATABASE_URL_STATUS_CHECK instead: a separate, repo-level
+# (non-environment-scoped) secret for `matchboard_migration_status`, a minimal role granted only
+# CONNECT + SELECT on `_prisma_migrations` -- nothing else, no neon_superuser membership. Confirmed
+# by direct test: this role can run `prisma migrate status` successfully and gets "permission
+# denied" reading any application table. See ADR-0084.
 
 on:
   workflow_run:
@@ -39,8 +48,8 @@ jobs:
       has_destructive: ${{ steps.check.outputs.has_destructive }}
       ref: ${{ steps.resolve-ref.outputs.ref }}
     env:
-      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL_STATUS_CHECK }}
+      DIRECT_URL: ${{ secrets.PRODUCTION_DATABASE_URL_STATUS_CHECK }}
     steps:
       - name: Resolve ref to check
         id: resolve-ref
