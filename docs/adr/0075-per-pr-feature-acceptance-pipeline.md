@@ -189,3 +189,21 @@ not artificially triggered early, since a real close is the same signal either w
   `deploy.sh`'s `ERR` trap didn't cover a later workflow step failing, leaving the shared slot
   stuck on a broken deployment until manually restored. Fixed with a job-level `if: failure()`
   step in `test-acceptance.yml` (branch `fix/test-acceptance-failure-safety-gap`).
+- 2026-08-21: Vercel deploy-quota exhaustion found on PR #313 — a trailing, purely cosmetic
+  doc-wording commit (no application code touched) still triggered a full automatic Vercel
+  Preview build for both linked projects (`matchboard`, `matchboard-test`), and that push landed
+  after the session's cumulative deployment volume had already exhausted the project's build
+  quota, leaving PR #313's final checks stuck "rate limited — retry in 24 hours" for several
+  hours despite every substantive check already being green. Root cause: neither the automatic
+  Vercel Git-integration previews nor this workflow's own `acceptance-deploy` job had ever been
+  gated on what actually changed — every push deployed, regardless of whether the diff could
+  possibly affect the running app. Fixed two ways: (1) `vercel.json`'s new `ignoreCommand`
+  (`scripts/vercel-ignore-build-step.sh`) skips both projects' automatic previews when every file
+  changed since the last deployed commit (`$VERCEL_GIT_PREVIOUS_SHA`) is docs/tracking-only
+  (`docs/**`, `.matchboard-work/**`, any `*.md`); (2) this workflow's `acceptance-deploy` job gets
+  a new `docs-only` check (via `gh api .../compare`) that skips only the deploy steps — not the
+  whole job, and specifically not `acceptance-cleanup`, which must always run on `closed`
+  regardless of diff content, per the "Rollout safety" lesson above about the shared slot getting
+  stuck. Both checks fail open (deploy) on any ambiguity — an empty diff, a missing previous SHA,
+  or an unreadable compare response all default to building rather than silently skipping a real
+  change.
