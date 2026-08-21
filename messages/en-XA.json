@@ -1,0 +1,22 @@
+{
+  "Navigation": {
+    "assistant": "[Åšşíšţâñţ !]",
+    "fixtures": "[Fíxţüréš !]",
+    "events": "[Évéñţš !]",
+    "teams": "[Ţéâmš !]",
+    "groups": "[Grôüpš !]",
+    "players": "[Pļâyérš !]",
+    "opponents": "[Öppöñéñţš !]",
+    "formations": "[Förmâţíöñš !]"
+  },
+  "PageTitles": {
+    "roundBoard": "[Röüñd Böârd !!]",
+    "team": "[Ţéâm !]",
+    "player": "[Pļâyér !]",
+    "match": "[Mâţçh !]",
+    "opponent": "[Öppöñéñţ !]",
+    "newEvent": "[Ñéw Évéñţ !!]",
+    "event": "[Évéñţ !]",
+    "default": "Matchboard"
+  }
+}

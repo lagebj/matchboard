@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.14.6",
+  "version": "0.14.7",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -84,6 +84,7 @@
     "motion": "^12.43.0",
     "next": "16.3.1",
     "next-auth": "^5.0.0-beta.32",
+    "next-intl": "^4.13.7",
     "pg": "^8.22.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",

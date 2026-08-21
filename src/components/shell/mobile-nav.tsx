@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Bot,
   CalendarRange,
@@ -14,18 +15,18 @@ import {
 
 type MobileNavItem = {
   href: string;
-  label: string;
+  labelKey: "assistant" | "fixtures" | "teams" | "groups" | "players" | "opponents";
   icon: LucideIcon;
 };
 
 function mobileNavItems(orgSlug: string): MobileNavItem[] {
   return [
-    { href: `/o/${orgSlug}/assistant`, label: "Assistant", icon: Bot },
-    { href: `/o/${orgSlug}/fixtures`, label: "Fixtures", icon: CalendarRange },
-    { href: `/o/${orgSlug}/teams`, label: "Teams", icon: Shield },
-    { href: `/o/${orgSlug}/groups`, label: "Groups", icon: Layers },
-    { href: `/o/${orgSlug}/players`, label: "Players", icon: Users },
-    { href: `/o/${orgSlug}/opponents`, label: "Opponents", icon: Swords },
+    { href: `/o/${orgSlug}/assistant`, labelKey: "assistant", icon: Bot },
+    { href: `/o/${orgSlug}/fixtures`, labelKey: "fixtures", icon: CalendarRange },
+    { href: `/o/${orgSlug}/teams`, labelKey: "teams", icon: Shield },
+    { href: `/o/${orgSlug}/groups`, labelKey: "groups", icon: Layers },
+    { href: `/o/${orgSlug}/players`, labelKey: "players", icon: Users },
+    { href: `/o/${orgSlug}/opponents`, labelKey: "opponents", icon: Swords },
   ];
 }
 
@@ -43,6 +44,7 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function MobileNav({ orgSlug }: { orgSlug: string }) {
+  const t = useTranslations("Navigation");
   const pathname = usePathname();
   const items = mobileNavItems(orgSlug);
 
@@ -64,7 +66,7 @@ export function MobileNav({ orgSlug }: { orgSlug: string }) {
               href={item.href}
             >
               <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-              <span className="text-[9px] font-semibold uppercase tracking-[0.12em]">{item.label}</span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.12em]">{t(item.labelKey)}</span>
             </Link>
           );
         })}
