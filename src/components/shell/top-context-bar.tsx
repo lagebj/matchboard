@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/shell/command-palette";
 import { useOrgSlug } from "@/components/shell/org-slug-context";
 
@@ -21,21 +22,32 @@ type ContextData = {
   matchRound: { id: string; name: string; status: string } | null;
 };
 
-function getPageTitle(pathname: string): string {
-  if (pathname.includes("/rounds/") && !pathname.endsWith("/rounds")) return "Round Board";
-  if (pathname.includes("/teams/") && !pathname.endsWith("/teams")) return "Team";
-  if (pathname.includes("/players/") && !pathname.endsWith("/players")) return "Player";
-  if (pathname.includes("/matches/") && !pathname.endsWith("/matches")) return "Match";
-  if (pathname.includes("/opponents/") && !pathname.endsWith("/opponents")) return "Opponent";
-  if (pathname.includes("/events/new")) return "New Event";
-  if (pathname.includes("/events/") && !pathname.endsWith("/events")) return "Event";
-  return "Matchboard";
+type PageTitleKey =
+  | "roundBoard"
+  | "team"
+  | "player"
+  | "match"
+  | "opponent"
+  | "newEvent"
+  | "event"
+  | "default";
+
+function getPageTitleKey(pathname: string): PageTitleKey {
+  if (pathname.includes("/rounds/") && !pathname.endsWith("/rounds")) return "roundBoard";
+  if (pathname.includes("/teams/") && !pathname.endsWith("/teams")) return "team";
+  if (pathname.includes("/players/") && !pathname.endsWith("/players")) return "player";
+  if (pathname.includes("/matches/") && !pathname.endsWith("/matches")) return "match";
+  if (pathname.includes("/opponents/") && !pathname.endsWith("/opponents")) return "opponent";
+  if (pathname.includes("/events/new")) return "newEvent";
+  if (pathname.includes("/events/") && !pathname.endsWith("/events")) return "event";
+  return "default";
 }
 
 export function TopContextBar() {
+  const t = useTranslations("PageTitles");
   const pathname = usePathname();
   const orgSlug = useOrgSlug();
-  const title = getPageTitle(pathname);
+  const title = t(getPageTitleKey(pathname));
   const [ctx, setCtx] = useState<ContextData | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 

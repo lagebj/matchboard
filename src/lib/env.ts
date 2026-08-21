@@ -170,6 +170,7 @@ export const PUBLIC_ROUTES = [
   "/error",
   "/api/health",
   "/api/meta",
+  "/api/locale",
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];

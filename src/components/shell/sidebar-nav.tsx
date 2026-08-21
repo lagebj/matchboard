@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Bot,
   CalendarRange,
@@ -18,20 +19,20 @@ import { APP_VERSION } from "@/lib/version";
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: "assistant" | "fixtures" | "events" | "teams" | "groups" | "players" | "opponents" | "formations";
   icon: LucideIcon;
 };
 
 function navItems(orgSlug: string): NavItem[] {
   return [
-    { href: `/o/${orgSlug}/assistant`, label: "Assistant", icon: Bot },
-    { href: `/o/${orgSlug}/fixtures`, label: "Fixtures", icon: CalendarRange },
-    { href: `/o/${orgSlug}/events`, label: "Events", icon: CalendarDays },
-    { href: `/o/${orgSlug}/teams`, label: "Teams", icon: Shield },
-    { href: `/o/${orgSlug}/groups`, label: "Groups", icon: Layers },
-    { href: `/o/${orgSlug}/players`, label: "Players", icon: Users },
-    { href: `/o/${orgSlug}/opponents`, label: "Opponents", icon: Swords },
-    { href: `/o/${orgSlug}/formations`, label: "Formations", icon: LayoutGrid },
+    { href: `/o/${orgSlug}/assistant`, labelKey: "assistant", icon: Bot },
+    { href: `/o/${orgSlug}/fixtures`, labelKey: "fixtures", icon: CalendarRange },
+    { href: `/o/${orgSlug}/events`, labelKey: "events", icon: CalendarDays },
+    { href: `/o/${orgSlug}/teams`, labelKey: "teams", icon: Shield },
+    { href: `/o/${orgSlug}/groups`, labelKey: "groups", icon: Layers },
+    { href: `/o/${orgSlug}/players`, labelKey: "players", icon: Users },
+    { href: `/o/${orgSlug}/opponents`, labelKey: "opponents", icon: Swords },
+    { href: `/o/${orgSlug}/formations`, labelKey: "formations", icon: LayoutGrid },
   ];
 }
 
@@ -65,6 +66,7 @@ function isActive(pathname: string, href: string): boolean {
  * Version: barely visible footer text.
  */
 export function SidebarNav({ orgSlug }: { orgSlug: string }) {
+  const t = useTranslations("Navigation");
   const pathname = usePathname();
   const items = navItems(orgSlug);
 
@@ -103,7 +105,7 @@ export function SidebarNav({ orgSlug }: { orgSlug: string }) {
                     className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}`}
                     aria-hidden="true"
                   />
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">{t(item.labelKey)}</span>
                 </Link>
               </li>
             );
