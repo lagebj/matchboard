@@ -29,6 +29,13 @@ describe("CSP configuration", () => {
     expect(csp.value).toContain("form-action 'self'");
   });
 
+  it("explicitly allows Vercel's own toolbar iframe via frame-src", () => {
+    // Without this, enforcing CSP blocks Vercel's own Preview Comments/Toolbar, not app behavior
+    // (Phase 12 §77) — confirmed via a real report-only violation this policy was generating.
+    const csp = getContentSecurityPolicy();
+    expect(csp.value).toContain("frame-src https://vercel.live");
+  });
+
   it("includes report-uri in report-only mode", () => {
     delete process.env.CSP_ENFORCE;
     const csp = getContentSecurityPolicy();

@@ -15,6 +15,10 @@ export function getContentSecurityPolicy(): { header: string; value: string } {
     "img-src 'self' data: blob: https://lh3.googleusercontent.com https://accounts.google.com",
     "font-src 'self'",
     "connect-src 'self'",
+    // Vercel's own Preview Comments/Toolbar injects a vercel.live iframe on preview deployments.
+    // Without this, enforcing CSP blocks Vercel's own tooling, not app behavior — confirmed via
+    // the report-only violation this policy was already silently generating (Phase 12 §77).
+    "frame-src https://vercel.live",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

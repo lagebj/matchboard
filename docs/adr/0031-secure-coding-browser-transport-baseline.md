@@ -49,6 +49,8 @@ The CSP policy:
 - `img-src 'self' data: blob: https://lh3.googleusercontent.com https://accounts.google.com` — allow Google avatars
 - `font-src 'self'` — self-hosted fonts only
 - `connect-src 'self'` — same-origin API calls only
+- `frame-src https://vercel.live` — Vercel's own Preview Comments/Toolbar iframe (added 2026-08-21,
+  Phase 12 §77 — without it, enforcing CSP blocked Vercel's own tooling, not app behavior)
 - `frame-ancestors 'none'` — prevent framing
 - `base-uri 'self'` — prevent base tag injection
 - `form-action 'self'` — prevent form hijacking
@@ -107,8 +109,17 @@ All 30 server action files already have `"use server"` directive. Server Actions
 
 - Remaining API routes (insights, context, planning-period, health, league-season) should be updated to use Zod validation and safe error handling in follow-up
 - Server actions should be updated to use Zod validation and safe error handling in IMPROVE-0B when domain logic is extracted
-- CSP should be monitored in report-only mode for 2+ weeks before switching to enforcement
 - HSTS header should be added after HTTPS is verified in production (needs Vercel configuration — recorded as external action)
+
+## History
+
+- 2026-08-21: Report-only violation analysis done (Phase 12 §77 audit) — one real, actionable
+  finding: no `frame-src` directive existed, so Vercel's own Preview Comments/Toolbar iframe
+  (`vercel.live`) violated `default-src 'self'` in every report-only deployment. Fixed by adding
+  an explicit `frame-src https://vercel.live` directive (`src/lib/security/csp.ts`). No app-level
+  `<iframe>` usage exists anywhere in `src/`, so no further `frame-src` sources are needed.
+  `CSP_ENFORCE=true` is being set in the relevant Vercel environments as a separate follow-up
+  provider action once this fix is merged.
 
 ## Related
 
