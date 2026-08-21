@@ -99,15 +99,19 @@ describe("resolveOrCreateMatchRoundForDate", () => {
     expect(result.roundId).toBe("r-new");
     expect(result.created).toBe(true);
     expect(result.isoWeekLabel).toBe("W24 2026");
+    // No explicit status: the schema default (DRAFT) applies. NOT_GENERATED is a UI-derived
+    // display state (Phase 11 Sec68, ADR-0083), never a valid persisted value -- this call
+    // previously passed status: "NOT_GENERATED" (a confirmed bug, since fixed).
     expect(db.matchRound.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           name: "W24 2026",
           leagueSeasonId: PERIOD_ID,
-          status: "NOT_GENERATED",
         }),
       }),
     );
+    const createCall = vi.mocked(db.matchRound.create).mock.calls[0]![0];
+    expect(createCall.data).not.toHaveProperty("status");
   });
 
   it("rejects a date outside the Phase", async () => {

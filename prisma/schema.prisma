@@ -232,7 +232,7 @@ model MatchRound {
   organisationId String
   name           String
   leagueSeasonId String
-  status         String           @default("DRAFT")
+  status         MatchRoundStatus @default(DRAFT)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   availabilities Availability[]
@@ -1578,6 +1578,15 @@ enum MatchType {
 enum MatchStatus {
   SCHEDULED
   CANCELLED
+}
+
+// The only two values ever persisted (verified: every write site in src/ and scripts/ writes
+// either literal DRAFT or FINALIZED). BLOCKED/READY/NOT_GENERATED are UI-derived display states
+// computed live by deriveRoundStatus() (src/lib/round-status.ts) and must never be written to
+// this column — see ADR-0083 and Phase 11 §68.
+enum MatchRoundStatus {
+  DRAFT
+  FINALIZED
 }
 
 enum WarningSeverity {

@@ -339,7 +339,7 @@ export async function getSeasonReview(
   });
 
   const finalizedRounds = rounds.filter((r) => r.status === "FINALIZED").length;
-  const draftRounds = rounds.filter((r) => r.status === "DRAFT" || r.status === "BLOCKED" || r.status === "READY").length;
+  const draftRounds = rounds.filter((r) => r.status === "DRAFT").length;
 
   const matchRoundIds = rounds.map((r) => r.id);
 

@@ -51,7 +51,6 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
     const integrity = await computeRoundPlanIntegrity(round.id);
     const blockedCount = integrity.summary.blockerCount + integrity.summary.decisionRequiredCount;
     const hasDraftSelections = round.selections.length > 0;
-    const hasMatches = round.matches.length > 0;
 
     return {
       id: round.id,
@@ -61,7 +60,7 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
         : round.name,
       matchCount: round.matches.length,
       teamNames: [...new Set(round.matches.map((m) => m.team.name))],
-      derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, hasMatches, blockedSignalCount: blockedCount }),
+      derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, blockedSignalCount: blockedCount }),
     };
   }));
 

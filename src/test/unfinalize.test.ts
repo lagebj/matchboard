@@ -204,7 +204,11 @@ describe("Unfinalize match round", () => {
     expect(after!.status).not.toBe("FINALIZED");
   });
 
-  it("sets round status to BLOCKED when hard blocking warnings exist", async () => {
+  it("always reverts the persisted round status to DRAFT, even when hard blocking warnings exist", async () => {
+    // BLOCKED is a UI-derived display state computed live by deriveRoundStatus() (Phase 11 Sec68,
+    // ADR-0083) -- it must never be the persisted MatchRound.status value, regardless of whether
+    // blocking conditions exist. This test previously asserted the opposite (a confirmed bug,
+    // since fixed): un-finalizing wrote the computed display status back into the database.
     await createDraftSelections(testDb, fixtureIds);
 
     const firstMatchId = (await testDb.match.findFirst({
@@ -230,7 +234,7 @@ describe("Unfinalize match round", () => {
       where: { id: fixtureIds.matchRoundId },
       select: { status: true },
     });
-    expect(after!.status).toBe("BLOCKED");
+    expect(after!.status).toBe("DRAFT");
   });
 
   it("rejects un-finalization of a non-finalized round", async () => {

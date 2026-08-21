@@ -97,7 +97,10 @@ export async function resolveOrCreateMatchRoundForDate(
       name: isoWeekLabel,
       leagueSeasonId,
       organisationId: period.organisationId,
-      status: "NOT_GENERATED",
+      // No explicit status: the schema default (DRAFT) applies, matching every other round-
+      // creation site. NOT_GENERATED is a UI-derived display state (deriveRoundStatus(), based on
+      // whether any selections have been generated yet) — it was never a valid persisted value
+      // (Phase 11 Sec68, ADR-0083).
     },
     select: { id: true, name: true },
   });

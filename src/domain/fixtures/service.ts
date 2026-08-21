@@ -114,8 +114,10 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
         const derivedRoundStatus = deriveRoundStatus({
           dbStatus: round.status,
           hasDraftSelections,
-          hasMatches,
-          blockedSignalCount: blockerCount,
+          // Decision required conditions also require an override reason to finalize (same as
+          // Blocked) and must surface as BLOCKED here too — matching finalize-match-round.ts's
+          // own combined allOverrideSignals treatment.
+          blockedSignalCount: blockerCount + decisionRequiredCount,
         });
 
         const matches: FixtureMatch[] = round.matches.map((match) => {

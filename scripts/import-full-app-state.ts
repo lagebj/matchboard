@@ -240,13 +240,18 @@ async function main() {
     console.log("Importing match rounds...");
     const roundIdMap = new Map<string, string>();
     for (const mr of data.matchRounds) {
+      // MatchRound.status only ever accepts DRAFT/FINALIZED (Phase 11 Sec68, ADR-0083). An
+      // export taken before that migration could contain a corrupted BLOCKED/READY/NOT_GENERATED
+      // value (a confirmed bug in the generation engine, since fixed) -- coerce anything else
+      // back to DRAFT rather than let the insert fail on an invalid enum value.
+      const status = mr.status === "FINALIZED" ? "FINALIZED" : "DRAFT";
       const created = await db.matchRound.create({
         data: {
           organisationId,
           id: mr.id,
           name: mr.name,
           leagueSeasonId: periodIdMap.get(mr.leagueSeasonId) ?? mr.leagueSeasonId,
-          status: mr.status ?? "DRAFT",
+          status,
         },
       });
       roundIdMap.set(mr.id, created.id);
