@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Superseded
 
 ## Identified
 
@@ -32,3 +32,19 @@ Per ADR-0049, canonical routes include group scope: `/o/{orgSlug}/groups/{groupS
 ## Superseded by
 
 ADR-0049: Football Group as Operational Boundary
+
+## History
+
+### 2026-08-20
+
+Verified (consolidation programme residue reconciliation pass): the resolution plan this ARR
+describes (routes migrating to `/o/{orgSlug}/groups/{groupSlug}/teams` etc., group scope encoded
+in the URL) never happened and isn't planned — group access scoping was instead resolved
+server-side (`GroupAccess`/group-role checks) with `/o/{orgSlug}/teams` remaining canonical and
+ungrouped in the URL. `getTeamsResultsOverview()` and equivalent data-loading functions take no
+group-slug parameter; they work across every group the actor can access. There is consequently
+no "legacy route redirecting to new group-scoped route" compatibility residue to find, because
+the group-scoped-URL approach this ARR anticipated was never built — the underlying multi-group
+access-control goal was met a different way. Confirms the existing "Superseded by ADR-0049"
+note; `State` updated from `Identified` to `Superseded` to make that closure visible at the top
+of the file, not just in a trailing field.

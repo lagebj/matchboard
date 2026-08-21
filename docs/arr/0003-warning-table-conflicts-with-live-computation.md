@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -80,6 +80,15 @@ Resolved. All plan integrity display and finalization paths now use live computa
 - Migrated round board page (`/rounds/[matchRoundId]/page.tsx`) to use `computeRoundPlanIntegrity()` for signal display instead of `Warning.resolved` reads
 - `Warning.resolved` field is now effectively deprecated: no code path reads it for plan integrity or finalization decisions
 - ARR-0003 disposition changed from "In progress" to "Resolved"
+
+### 2026-08-20
+
+Re-verified independently (consolidation programme residue reconciliation pass): confirmed
+`finalize-match-round.ts`/`finalize-single-match.ts` both genuinely call
+`computeRoundPlanIntegrity()`; grepped all of `src/lib/selection/` and the round board page for
+`Warning.resolved` reads — zero matches. The `Disposition` field's "Resolved" claim holds up
+under direct verification. `State` updated from `Confirmed` to `Resolved` to match — this was
+pure clerical staleness at the top of the file, nothing left to fix in code.
 
 ## Related decisions
 

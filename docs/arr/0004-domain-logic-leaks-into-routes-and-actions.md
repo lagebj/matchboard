@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Partially resolved
 
 ## Identified
 
@@ -53,7 +53,16 @@ Per ADR-0030, each domain capability has one owning module. Server actions are t
 
 ## Disposition
 
-Pending. To be progressively addressed in IMPROVE-0B.
+Partially resolved. Spot-checked directly (2026-08-20, consolidation programme residue
+reconciliation pass): this ARR's own cited example, `src/app/api/generate-round/route.ts`, is
+now a clean thin adapter — auth (`requireActorContext`/`requireMutationRole`), rate limiting,
+Zod validation, one org-ownership lookup, then full delegation to `src/lib/selection/*` domain
+functions, no embedded selection logic. A second spot-check, `src/app/(app)/teams/actions.ts`
+(231 lines, only 2 direct `db.*` calls), shows the same thin-adapter pattern delegating to
+`src/lib/teams/team-domain.ts`. Claims 1 (routes) and 2 (server actions) both look substantially
+improved from the original IMPROVE-0A assessment, at least at these two sampled points — not a
+full sweep of every route/action file. Claim 3 (selection rules duplicated in React components)
+was **not verified** in this pass — remains open and unconfirmed either way.
 
 ## Related decisions
 

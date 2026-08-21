@@ -16,10 +16,19 @@ Per ADR-0035, the target model has four roles (OWNER, ADMIN, COACH, VIEWER) with
 
 **Partial resolution**: `requireActorContext()` in `src/lib/auth/actor-context.ts` now provides `userId`, `email`, `membershipId`, `organisationId`, `organisationSlug`, `role`, `delegatedTeamIds`, and `orgFilter` in a single call. All production server actions, API routes, and page components that previously called both `requireCoachAccess()` and `resolveOrgFilterForUser()` now use `requireActorContext()` instead.
 
-**Remaining residue**: Production files still calling `requireCoachAccess()` alone (without `resolveOrgFilterForUser`):
-1. **Admin API routes** (4 files): use `requireCoachAccess()` for auth-only checks
-2. **Page components and actions** (10 files): use `requireCoachAccess()` for redirect or identity only
-3. **Various action files** with `ctx.orgFilter.type === "org"` conditionals that are now always true (dead code, not security holes — RLS provides defense-in-depth)
+**Remaining residue** (re-verified 2026-08-20, consolidation programme residue reconciliation
+pass — down from 14 files recorded 2026-08-17 to 2 real production call sites now, real
+progress this ARR hadn't recorded): `requireCoachAccess()` is still called directly (not via
+`requireActorContext()`) in exactly 2 production files — `src/app/(app)/organisations/actions.ts`
+and `src/app/(app)/organisations/machine-principal-actions.ts` — plus 2 infrastructure
+references (`src/lib/auth.ts` itself, `organisation-resolver.ts`) and the test-mock support file,
+none of which are residue in the same sense. This ARR's own resolution criterion
+("`requireCoachAccess()` is removed or reduced to a thin wrapper for auth-only checks where org
+context is not needed") is now close to directly achievable given how few call sites remain.
+
+Separately, various action files still carry `ctx.orgFilter.type === "org"` conditionals that
+are now always true (dead code, not security holes — RLS provides defense-in-depth); not
+re-audited in this pass.
 
 ## Containment
 
