@@ -33,6 +33,25 @@ describe("getAssistantCommandCentre", () => {
     db = await setupTestDb();
     fixture = await seedTestFixture(db);
     auth.updateOrganisationId(fixture.organisationId);
+
+    // seedTestFixture() creates no Selection rows by default -- several tests in this file need
+    // fixture.matchRoundId to genuinely be a populated (not merely "not generated yet") round, so
+    // they can meaningfully test blocked/decision-required/ready outcomes on top of it (deleting
+    // down to below-minimum, adding an unselected extra player, etc.), matching how a real
+    // generated round would look. Team "Bla" needs at least minAcceptedSquadSize (9) selected.
+    const blaTeamId = fixture.teams["Bla"]!;
+    const blaMatchId = fixture.matches["Bla"]!;
+    const blaPlayers = fixture.players.filter((p) => p.coreTeamId === blaTeamId).slice(0, 9);
+    await db.selection.createMany({
+      data: blaPlayers.map((p) => ({
+        matchId: blaMatchId,
+        matchRoundId: fixture.matchRoundId,
+        playerId: p.id,
+        role: "CORE",
+        status: "DRAFT",
+        organisationId: fixture.organisationId,
+      })),
+    });
   });
 
   afterAll(async () => {
@@ -57,8 +76,16 @@ describe("getAssistantCommandCentre", () => {
     });
     if (!match) return;
 
-    await db.selection.deleteMany({
+    // Delete down to 1 selection, not 0 -- 0 draft selections is NOT_GENERATED (a different,
+    // non-blocked category, Phase 11 Sec68/ADR-0083), not squad-below-minimum. This test is
+    // specifically about a round that was generated but ended up short, not one never generated.
+    const remaining = await db.selection.findMany({
       where: { matchId: match.id, status: "DRAFT" },
+      select: { id: true },
+      skip: 1,
+    });
+    await db.selection.deleteMany({
+      where: { id: { in: remaining.map((s) => s.id) } },
     });
 
     const result = await getAssistantCommandCentre();
@@ -145,9 +172,11 @@ describe("getAssistantCommandCentre", () => {
   });
 
   it("shows populate_needed for not-generated rounds", async () => {
+    // NOT_GENERATED is never a persisted value (Phase 11 Sec68, ADR-0083) -- the round stays
+    // DRAFT in the database; "not generated" is derived live from having zero draft selections.
     await db.matchRound.update({
       where: { id: fixture.matchRoundId },
-      data: { status: "NOT_GENERATED" },
+      data: { status: "DRAFT" },
     });
     await db.selection.deleteMany({
       where: { matchRoundId: fixture.matchRoundId },
@@ -167,11 +196,15 @@ describe("getAssistantCommandCentre", () => {
       data: { status: "DRAFT" },
     });
 
+    // NOT_GENERATED/READY are never persisted values (Phase 11 Sec68, ADR-0083) -- the round is
+    // DRAFT in the database, and "ready" is derived live from having draft selections with no
+    // blocked/decision-required signals, so round2 needs a real draft selection below to
+    // genuinely exercise the ready_to_finalize path this test is about.
     const round2 = await db.matchRound.create({
       data: {
         leagueSeasonId: fixture.leagueSeasonId,
         name: "W20 Test",
-        status: "READY",
+        status: "DRAFT",
         organisationId: fixture.organisationId,
       },
     });
@@ -181,7 +214,7 @@ describe("getAssistantCommandCentre", () => {
     if (match2) {
       const team2 = Object.values(fixture.teams)[0]!;
       const oppTeam = match2.opponentTeamId;
-      await db.match.create({
+      const createdMatch2 = await db.match.create({
         data: {
           matchRoundId: round2.id,
           teamId: team2,
@@ -194,6 +227,19 @@ describe("getAssistantCommandCentre", () => {
           organisationId: fixture.organisationId,
         },
       });
+      const player2 = fixture.players.find((p) => p.coreTeamId === team2);
+      if (player2) {
+        await db.selection.create({
+          data: {
+            matchId: createdMatch2.id,
+            matchRoundId: round2.id,
+            playerId: player2.id,
+            role: "CORE",
+            status: "DRAFT",
+            organisationId: fixture.organisationId,
+          },
+        });
+      }
     }
 
     const result = await getAssistantCommandCentre();

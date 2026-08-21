@@ -96,6 +96,11 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
           startsAt: true,
         },
       },
+      selections: {
+        where: { status: "DRAFT" },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
 
@@ -140,7 +145,15 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   let hasUngenerated = false;
 
   for (const round of rounds) {
-    if (round.status === "NOT_GENERATED") {
+    // The persisted status is only ever DRAFT or FINALIZED (Phase 11 Sec68, ADR-0083) — whether
+    // anything has actually been generated is a separate, live signal. A DRAFT round with zero
+    // draft selections is NOT_GENERATED; previously this compared round.status directly against
+    // "NOT_GENERATED", which the database never actually stores, so this branch never fired and
+    // an ungenerated round fell through to the live-integrity branch below and was incorrectly
+    // recommended as "Ready to finalize."
+    const hasDraftSelections = round.selections.length > 0;
+
+    if (round.status === "DRAFT" && !hasDraftSelections) {
       if (!hasUngenerated) {
         items.push(
           makeItem({
@@ -172,7 +185,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       continue;
     }
 
-    if (round.status === "DRAFT" || round.status === "BLOCKED") {
+    if (round.status === "DRAFT") {
       const integrity = await computeRoundPlanIntegrity(round.id);
       const blockedSignals = integrity.signals.filter(
         (s) => s.kind === "BLOCKED",
@@ -242,22 +255,6 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
           }),
         );
       }
-      continue;
-    }
-
-    if (round.status === "READY") {
-      items.push(
-        makeItem({
-          category: "ready_to_finalize",
-          matchRoundId: round.id,
-          title: `${round.name} — Ready to finalize`,
-          summary: "No blocked conditions. Draft is ready to lock.",
-          primaryActionLabel: "Review round",
-          primaryActionHref: `/rounds/${round.id}`,
-          affectedTeamIds: [],
-          affectedPlayerIds: [],
-        }),
-      );
       continue;
     }
 

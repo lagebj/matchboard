@@ -377,26 +377,6 @@ export default async function RoundBoardPage({
     },
   ];
 
-  const _roundData = {
-    roundLabel,
-    roundId: matchRound.id,
-    roundStatus: matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED",
-    hasDraftSelections: selections.length > 0,
-    hasMatches: matchRound.matches.length > 0,
-    squads,
-    warnings,
-    signalSummary,
-    movementSummary: {
-      supportSent: totalSupportSent,
-      supportReceived: totalSupportReceived,
-      developmentSent: totalDevSent,
-      developmentReceived: totalDevReceived,
-      squadRepairReceived: totalSquadRepairReceived,
-      drops: totalDrops,
-    },
-    fairnessMetrics,
-  };
-
   const playerCoreTeamMap = new Map<string, string>();
   for (const sel of selections) {
     if (!playerCoreTeamMap.has(sel.player.id) && sel.player.coreTeamId) {
@@ -486,7 +466,6 @@ export default async function RoundBoardPage({
         roundStatus={matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED"}
         matchRoundId={matchRoundId}
         hasDraftSelections={selections.length > 0}
-        hasMatches={matchRound.matches.length > 0}
         matches={boardMatches}
         availablePlayers={boardAvailablePlayers}
         rotationPathMap={rotationPathMap}

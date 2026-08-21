@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { PrismaClient, MatchRoundStatus } from "@/generated/prisma/client";
 import { db as defaultDb } from "@/lib/db";
 import type { IntegrityFinding, ReconcileInput, ReconcileResult } from "./types";
 
@@ -229,7 +229,7 @@ async function rebuildActivePlanIntegrityProjection(
   const { computeRoundPlanIntegrity } = await import("@/lib/selection/compute-plan-integrity");
   const { replaceRoundActiveSignals } = await import("@/lib/selection/reconcile-integrity");
 
-  const whereClause: { status: string; id?: string; matchRound?: { leagueSeasonId?: string } } = {
+  const whereClause: { status: MatchRoundStatus; id?: string; matchRound?: { leagueSeasonId?: string } } = {
     status: "DRAFT",
   };
 

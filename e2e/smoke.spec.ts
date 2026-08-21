@@ -48,7 +48,11 @@ test.describe("authenticated as coach-all-a", () => {
   test("can navigate to Fixtures", async ({ page }) => {
     await page.goto("/o/test-club-a/assistant");
 
-    await page.getByRole("link", { name: "Fixtures" }).click();
+    // exact: true -- the sidebar's "Fixtures" nav link and an Assistant work-item action button
+    // labeled "View Fixtures" (surfaced when a round genuinely has no draft selections yet, ADR-
+    // 0083) both satisfy a substring match on "Fixtures". This test is specifically about primary
+    // navigation, not dashboard content.
+    await page.getByRole("link", { name: "Fixtures", exact: true }).click();
     await expect(page).toHaveURL(/\/o\/test-club-a\/fixtures/);
   });
 });

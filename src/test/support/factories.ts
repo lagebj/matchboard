@@ -1,4 +1,4 @@
-import type { PrismaClient, SecondaryFoot, BestSide, AvailabilityStatus, EventType, FootballGroupType, FootPreference } from "@/generated/prisma/client";
+import type { PrismaClient, SecondaryFoot, BestSide, AvailabilityStatus, EventType, FootballGroupType, FootPreference, MatchRoundStatus } from "@/generated/prisma/client";
 
 let counter = 0;
 function nextId(): number {
@@ -185,13 +185,13 @@ export async function createTestRound(
   db: PrismaClient,
   organisationId: string,
   leagueSeasonId: string,
-  overrides?: { name?: string; status?: string },
+  overrides?: { name?: string; status?: MatchRoundStatus },
 ) {
   return db.matchRound.create({
     data: {
       name: overrides?.name ?? `W${nextId()} Test`,
       leagueSeasonId,
-      status: (overrides?.status as "DRAFT" | "FINALIZED" | "BLOCKED" | "READY") ?? "DRAFT",
+      status: overrides?.status ?? "DRAFT",
       organisationId,
     },
   });

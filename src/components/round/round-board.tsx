@@ -100,7 +100,6 @@ type RoundBoardProps = {
   roundStatus: "NOT_GENERATED" | "DRAFT" | "FINALIZED";
   matchRoundId: string;
   hasDraftSelections: boolean;
-  hasMatches: boolean;
   matches: MatchColumn[];
   availablePlayers: PlayerInColumn[];
   rotationPathMap: Record<string, string[]>;
@@ -420,7 +419,6 @@ export function RoundBoard({
   roundStatus,
   matchRoundId,
   hasDraftSelections,
-  hasMatches,
   matches,
   availablePlayers: initialAvailable,
   rotationPathMap,
@@ -497,8 +495,13 @@ export function RoundBoard({
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
     hasDraftSelections,
-    hasMatches,
-    blockedSignalCount: blockedCount,
+    // Decision required conditions also require an override reason to finalize (same as Blocked
+    // conditions) and must surface as BLOCKED here too — matching finalize-match-round.ts's own
+    // combined allOverrideSignals treatment and every other deriveRoundStatus() call site. This
+    // was previously blockedCount alone, meaning a round with only Decision required conditions
+    // incorrectly showed as READY in the round badge despite its own "decisions need review"
+    // banner appearing right below it.
+    blockedSignalCount: blockedCount + decisionRequiredCount,
   });
 
   const assignedPlayerIds = new Set<string>();

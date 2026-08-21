@@ -1,7 +1,5 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
-import { deriveRoundStatus } from "@/lib/round-status";
 
 export type UnfinalizeSingleMatchResult = {
   success: boolean;
@@ -88,20 +86,12 @@ export async function unfinalizeSingleMatch(
   let roundStatusReverted = false;
 
   if (remainingFinalized === 0) {
-    const integrity = await computeRoundPlanIntegrity(matchRoundId);
-
-    const blockedSignalCount = integrity.summary.blockerCount + integrity.summary.decisionRequiredCount;
-
-    const newStatus = deriveRoundStatus({
-      dbStatus: "DRAFT",
-      hasDraftSelections: true,
-      hasMatches: true,
-      blockedSignalCount,
-    });
-
+    // The persisted status is always the literal DRAFT after un-finalizing — BLOCKED/READY/
+    // NOT_GENERATED are UI-derived display states computed live by deriveRoundStatus(), never
+    // values the database column itself should hold.
     await db.matchRound.update({
       where: { id: matchRoundId },
-      data: { status: newStatus },
+      data: { status: "DRAFT" },
     });
 
     roundStatusReverted = true;

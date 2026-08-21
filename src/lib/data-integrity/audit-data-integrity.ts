@@ -547,7 +547,7 @@ async function checkCandidateWarningProjectionDrift(
   }
 
   const rounds = await db.matchRound.findMany({
-    where: { ...where, status: { in: ["DRAFT", "BLOCKED", "READY"] } },
+    where: { ...where, status: "DRAFT" },
     select: { id: true, name: true },
     take: 50,
   });
