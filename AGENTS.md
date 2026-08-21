@@ -2192,6 +2192,23 @@ Avoid:
 | `src/app/(app)/o/[orgSlug]/reviews/page.tsx` | Reviews list page (server) |
 | `src/app/(app)/o/[orgSlug]/reviews/review-list-client.tsx` | Reviews list client component with resolve/cancel UI |
 
+### Command palette files
+
+Command registry architecture (UI/UX programme Phase 2.6): global commands are declared once in
+`src/lib/commands/registry.ts`, not inline inside the palette component or its API route.
+`availability(context)` runs server-side against a real `ActorContext` before a command is ever
+sent to the client — client-side keyword search is a UX layer on top, never a substitute for
+authorization. Contextual (current route/entity) and selection-aware commands (PROGRAMME.md §15,
+§16) are a deliberate follow-up, not yet modelled.
+
+| File | Purpose |
+|------|---------|
+| `src/lib/commands/types.ts` | `CommandDefinition`, `ResolvedCommand` types |
+| `src/lib/commands/registry.ts` | The canonical command registry and `getAvailableCommands(context)` |
+| `src/app/api/command-palette/route.ts` | GET route: resolves the registry against the caller's `ActorContext`, plus the organisation-switch list |
+| `src/components/shell/command-palette.tsx` | Palette UI: `Cmd/Ctrl+K`, grouped results, keyword search, live player/team entity search |
+| `src/components/shell/top-context-bar.tsx` | Renders the palette and its visible trigger |
+
 ### Formation/tactics files
 
 | File | Purpose |
