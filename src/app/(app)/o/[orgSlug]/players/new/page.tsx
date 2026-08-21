@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { createPlayerAction } from "@/app/(app)/players/actions";
 import { PlayerEditorForm } from "@/components/players/player-editor-form";
 import { Surface } from "@/components/ui/surface";
@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export default async function NewPlayerPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const teams = await db.team.findMany({
     where: { archivedAt: null, ...ctx.orgFilter.filter },

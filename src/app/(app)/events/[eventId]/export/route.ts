@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { db } from '@/lib/db';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { logDataExport } from '@/lib/security/audit-log';
 import {
   formatGoalkeeperAbility,
@@ -109,7 +109,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const { eventId } = await params;
 
   logDataExport(ctx.email || "unknown", "xlsx", "coach", "success");

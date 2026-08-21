@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
+import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchCategory } from '@/generated/prisma/client';
 import { getDefaultEventMatchCategory } from '@/lib/stats/event-match-stats';
@@ -51,7 +51,7 @@ async function resolveOpponent(orgId: string, opponentName: string, opponentTeam
 }
 
 export async function createEventMatchAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const eventId = formData.get('eventId') as string;
@@ -118,7 +118,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
   category?: string;
   eventSquadId?: string;
 }) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -189,7 +189,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
 }
 
 export async function deleteEventMatchAction(eventMatchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -214,7 +214,7 @@ export async function deleteEventMatchAction(eventMatchId: string) {
 }
 
 export async function cancelEventMatchAction(eventMatchId: string, reason?: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -248,14 +248,14 @@ export async function cancelEventMatchAction(eventMatchId: string, reason?: stri
 }
 
 export async function listEventMatchesAction(eventId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   const { getEventMatchesForEvent } = await import('@/lib/stats/event-match-stats');
   return getEventMatchesForEvent(eventId);
 }
 
 export async function reopenEventMatchAction(eventMatchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);

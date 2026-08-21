@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getFormationsForFormat } from "@/app/(app)/rules/formation-actions";
 import { formatGameFormatShort } from "@/lib/formations/types";
 import type { GameFormat } from "@/generated/prisma/client";
@@ -21,7 +21,7 @@ type FormationsPageProps = {
 
 export default async function FormationsPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: FormationsPageProps["searchParams"] }) {
   const { orgSlug } = await params;
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
   const { gameFormat } = await searchParams;
   const selectedFormat = (GAME_FORMATS.includes(gameFormat as GameFormat) ? gameFormat : "SEVEN_A_SIDE") as GameFormat;
 

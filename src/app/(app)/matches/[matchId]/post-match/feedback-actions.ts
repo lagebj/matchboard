@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -37,7 +37,7 @@ export async function createMatchFeedbackAction(
   nextAction: string | null,
   note: string | null,
 ): Promise<{ success: boolean; error?: string; readinessSuggestion?: ReadinessSuggestionFromFeedback | null }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
@@ -99,7 +99,7 @@ export async function updateMatchFeedbackAction(
     note?: string | null;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   if (data.nextAction && !FEEDBACK_NEXT_ACTIONS.includes(data.nextAction as FeedbackNextAction)) {
@@ -151,7 +151,7 @@ export async function updateMatchFeedbackAction(
 export async function deleteMatchFeedbackAction(
   feedbackId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   try {
@@ -182,7 +182,7 @@ export async function deleteMatchFeedbackAction(
 export async function getMatchFeedbackAction(
   matchId: string,
 ): Promise<{ success: boolean; feedback?: Array<{ id: string; playerId: string; category: string; value: string; observableBehavior: string | null; nextAction: string; note: string | null }>; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
@@ -212,7 +212,7 @@ export async function getMatchFeedbackAction(
 export async function getPlayerFeedbackAction(
   playerId: string,
 ): Promise<{ success: boolean; feedback?: Array<{ id: string; matchId: string; category: string; value: string; observableBehavior: string | null; nextAction: string; note: string | null }>; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   try {
     const feedback = await db.matchExecutionFeedback.findMany({

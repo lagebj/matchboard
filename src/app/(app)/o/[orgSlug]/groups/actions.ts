@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { resolveGroupContext, requireGroupMutationRole } from "@/lib/auth/group-context";
 import {
   createFootballGroup,
@@ -30,7 +30,7 @@ const VALID_GROUP_TYPES: Set<string> = new Set(["AGE_GROUP", "GENDER_GROUP", "CO
 const VALID_GROUP_ACCESS_ROLES: Set<string> = new Set(["GROUP_COACH", "GROUP_VIEWER"]);
 
 export async function createGroupAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const name = formData.get("name") as string | null;
@@ -68,7 +68,7 @@ export async function createGroupAction(formData: FormData) {
 }
 
 export async function updateGroupAction(groupId: string, formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -104,7 +104,7 @@ export async function updateGroupAction(groupId: string, formData: FormData) {
 }
 
 export async function deactivateGroupAction(groupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -120,7 +120,7 @@ export async function deactivateGroupAction(groupId: string) {
 }
 
 export async function addPlayerToGroupAction(groupId: string, playerId: string, formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -143,7 +143,7 @@ export async function addPlayerToGroupAction(groupId: string, playerId: string, 
 }
 
 export async function removePlayerFromGroupAction(groupId: string, playerId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -165,7 +165,7 @@ export async function transferPlayerAction(
   targetGroupId: string,
   formData: FormData,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   await resolveGroupContext(ctx.organisationId, sourceGroupId, ctx.membershipId, ctx.role);
@@ -187,7 +187,7 @@ export async function transferPlayerAction(
 }
 
 export async function addGroupAccessAction(groupId: string, membershipId: string, role: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -208,7 +208,7 @@ export async function addGroupAccessAction(groupId: string, membershipId: string
 }
 
 export async function removeGroupAccessAction(groupId: string, membershipId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -225,12 +225,12 @@ export async function removeGroupAccessAction(groupId: string, membershipId: str
 }
 
 export async function listGroupsAction() {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   return listGroupsForOrganisation(ctx.organisationId);
 }
 
 export async function getGroupDetailAction(groupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
   return getGroupWithDetails(groupId, ctx.organisationId);
 }
@@ -241,7 +241,7 @@ export async function createGroupMovementPathAction(
   role: string,
   scope: string = "MATCH",
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const VALID_ROLES = ["SUPPORT", "DEVELOPMENT", "CONFIDENCE_REBUILD", "BACKFILL"];
@@ -271,7 +271,7 @@ export async function createGroupMovementPathAction(
 }
 
 export async function deactivateGroupMovementPathAction(pathId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const path = await getGroupMovementPath(pathId, ctx.organisationId);
@@ -289,7 +289,7 @@ export async function deactivateGroupMovementPathAction(pathId: string) {
 }
 
 export async function reactivateGroupMovementPathAction(pathId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const result = await reactivateGroupMovementPath(pathId, ctx.organisationId);
@@ -306,7 +306,7 @@ export async function listGroupMovementPathsAction(options?: {
   activeOnly?: boolean;
   scope?: string;
 }) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   return listGroupMovementPaths(ctx.organisationId, {
     groupId: options?.groupId,
@@ -316,7 +316,7 @@ export async function listGroupMovementPathsAction(options?: {
 }
 
 export async function listAvailableMembersAction(groupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   const group = await db.footballGroup.findFirst({
     where: { id: groupId, organisationId: ctx.organisationId, isActive: true },

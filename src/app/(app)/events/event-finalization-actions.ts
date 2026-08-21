@@ -1,6 +1,6 @@
 "use server";
 
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { logEventFinalize, logEventUnfinalize } from "@/lib/security/audit-log";
@@ -40,7 +40,7 @@ async function requireEventOrgAccess(eventId: string, orgFilter: { type: string;
 
 export async function finalizeEventAction(eventId: string): Promise<FinalizeEventResult> {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
 
     await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -100,7 +100,7 @@ export async function finalizeEventAction(eventId: string): Promise<FinalizeEven
 
 export async function unfinalizeEventAction(eventId: string): Promise<UnfinalizeEventResult> {
   try {
-    const ctx = await requireActorContext();
+    const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
 
     await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -156,7 +156,7 @@ export async function getEventFinalizationStatusAction(eventId: string): Promise
   finalizedAt: Date | null;
   finalizedBy: string | null;
 }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },

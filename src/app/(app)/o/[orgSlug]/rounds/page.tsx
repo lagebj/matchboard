@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "@/app/(app)/rounds/round-list-client";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
@@ -18,7 +18,7 @@ type RoundItem = {
 
 export default async function RoundsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const activeLeagueSeason = await db.leagueSeason.findFirst({

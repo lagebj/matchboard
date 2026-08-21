@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { PlannedVsActualClient } from "@/app/(app)/insights/planned-vs-actual/planned-vs-actual-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlannedVsActualPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({

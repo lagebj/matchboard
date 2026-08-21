@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { supersedePendingReviews } from "@/lib/review/review-service";
 import { enqueueAndSendNotification } from "@/lib/email/outbox";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
@@ -41,7 +41,7 @@ async function requireAssignmentOrgAccess(assignmentId: string, orgFilter: OrgFi
 }
 
 export async function getMatchLineup(matchId: string, teamId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(matchId, orgFilter);
   return db.matchLineup.findFirst({
@@ -58,7 +58,7 @@ export async function createMatchLineup(data: {
   teamId: string;
   formationId: string;
 }) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(data.matchId, orgFilter);
@@ -75,7 +75,7 @@ export async function assignPlayerToSlot(
   playerId: string,
   locked: boolean = false,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
@@ -125,7 +125,7 @@ export async function assignPlayerToSlot(
 }
 
 export async function removePlayerFromSlot(assignmentId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
@@ -146,7 +146,7 @@ export async function removePlayerFromSlot(assignmentId: string) {
 }
 
 export async function toggleSlotLock(assignmentId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
@@ -167,7 +167,7 @@ export async function toggleSlotLock(assignmentId: string) {
 }
 
 export async function confirmLineup(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -218,7 +218,7 @@ export async function confirmLineup(lineupId: string) {
 }
 
 export async function archiveLineup(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -234,7 +234,7 @@ export async function archiveLineup(lineupId: string) {
 }
 
 export async function revertLineupToDraft(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -250,7 +250,7 @@ export async function revertLineupToDraft(lineupId: string) {
 }
 
 export async function updateLineupNotes(lineupId: string, notes: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -265,7 +265,7 @@ export async function updateLineupNotes(lineupId: string, notes: string) {
 }
 
 export async function updateBenchPlayers(lineupId: string, benchPlayerIds: string[]) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);

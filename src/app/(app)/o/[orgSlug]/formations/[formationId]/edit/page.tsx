@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getFormationById } from "@/app/(app)/rules/formation-actions";
 import { FormationsBuilderClient } from "@/components/formations/formations-builder";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 
@@ -19,7 +19,7 @@ export default async function EditFormationPage({ params, searchParams }: EditFo
   const { orgSlug, formationId } = await params;
   const { returnTo } = await searchParams;
 
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
 
   const formation = await getFormationById(formationId);
 

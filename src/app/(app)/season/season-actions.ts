@@ -5,14 +5,14 @@ import {
   unfinalizeLeagueSeason,
   validateLeagueSeasonFinalization,
 } from "@/lib/seasons/finalize-league-season";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 
 export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{
   success: boolean;
   error?: string;
   validation?: { canFinalize: boolean; errors: string[]; warnings: string[] };
 }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const validation = await validateLeagueSeasonFinalization(leagueSeasonId);
@@ -40,7 +40,7 @@ export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Prom
   success: boolean;
   error?: string;
 }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const orgFilter = ctx.orgFilter.filter;
@@ -60,7 +60,7 @@ export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Prom
 export async function getFinalizationValidationAction(leagueSeasonId: string): Promise<{
   validation: { canFinalize: boolean; errors: string[]; warnings: string[] };
 }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   const orgFilter = ctx.orgFilter.filter;
   const { db } = await import("@/lib/db");

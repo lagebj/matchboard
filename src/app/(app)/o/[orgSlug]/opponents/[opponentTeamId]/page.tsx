@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
@@ -17,7 +17,7 @@ type PageProps = {
 export default async function OpponentDetailPage({ params }: PageProps) {
   const { orgSlug, opponentTeamId } = await params;
 
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const opponentTeam = await db.opponentTeam.findFirst({
     where: {

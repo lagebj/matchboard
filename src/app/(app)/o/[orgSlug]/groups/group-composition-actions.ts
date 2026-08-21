@@ -1,10 +1,10 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 
 export async function getGroupCompositionData(footballGroupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   const orgWhere = ctx.orgFilter.filter;
 
   const group = await db.footballGroup.findUniqueOrThrow({

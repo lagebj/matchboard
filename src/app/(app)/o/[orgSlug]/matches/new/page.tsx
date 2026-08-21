@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { MatchCreateForm } from "@/components/matches/match-create-form";
 import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const [teams, opponentTeams] = await Promise.all([
     db.team.findMany({

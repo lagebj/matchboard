@@ -11,7 +11,7 @@ import {
   SecondaryFoot,
 } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireTeamGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { playerPositionValues } from "@/lib/player-form-options";
 import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
@@ -245,7 +245,7 @@ function getPlayerActionErrorMessage(error: unknown): string {
 }
 
 export async function createPlayerAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   try {
@@ -310,7 +310,7 @@ export async function createPlayerAction(formData: FormData) {
 }
 
 export async function updatePlayerAction(playerId: string, formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   try {
@@ -362,7 +362,7 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
 }
 
 export async function togglePlayerActiveAction(playerId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   const result = await togglePlayerActiveDomain(playerId, organisationId);
@@ -376,7 +376,7 @@ export async function togglePlayerActiveAction(playerId: string) {
 }
 
 export async function removePlayerAction(playerId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   const result = await removePlayerDomain(playerId, organisationId);
@@ -393,7 +393,7 @@ export async function removePlayerAction(playerId: string) {
 }
 
 export async function restorePlayerAction(playerId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   const result = await restorePlayerDomain(playerId, organisationId);
@@ -410,7 +410,7 @@ export async function restorePlayerAction(playerId: string) {
 }
 
 export async function setPlayerAvailabilityAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const playerId = formData.get("playerId");
   const availability = formData.get("availability");
@@ -430,7 +430,7 @@ export async function setPlayerAvailabilityAction(formData: FormData) {
 }
 
 export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: string | null) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   if (coreTeamId) await requireTeamGroupAccess(ctx, coreTeamId);
   const organisationId = ctx.organisationId;

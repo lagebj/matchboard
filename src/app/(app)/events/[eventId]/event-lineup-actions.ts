@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { requireActorContext, requireMutationRole } from '@/lib/auth/actor-context';
+import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
@@ -38,7 +38,7 @@ async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode
 }
 
 export async function getEventMatchLineup(eventMatchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { eventMatchId },
@@ -66,7 +66,7 @@ export async function createEventMatchLineup(input: {
   eventMatchId: string;
   formationId?: string;
 }) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireMatchOrgAccess(input.eventMatchId, ctx.orgFilter);
 
@@ -138,7 +138,7 @@ export async function assignPlayerToLineupSlot(
   assignmentId: string,
   playerId: string,
 ) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
@@ -189,7 +189,7 @@ export async function assignPlayerToLineupSlot(
 }
 
 export async function removePlayerFromLineupSlot(assignmentId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const assignment = await db.eventMatchLineupAssignment.findUnique({
@@ -213,7 +213,7 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
 }
 
 export async function saveEventMatchLineup(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
@@ -234,7 +234,7 @@ export async function saveEventMatchLineup(lineupId: string) {
 }
 
 export async function clearEventMatchLineup(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
@@ -255,7 +255,7 @@ export async function clearEventMatchLineup(lineupId: string) {
 }
 
 export async function deleteEventMatchLineup(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
@@ -279,7 +279,7 @@ export async function deleteEventMatchLineup(lineupId: string) {
 }
 
 export async function changeEventMatchLineupFormation(lineupId: string, formationId: string | null) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
@@ -343,7 +343,7 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
 }
 
 export async function autoFillEventMatchLineup(lineupId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
 
@@ -489,7 +489,7 @@ function scorePlayerForSlot(player: PlayerForScoring, slotPositions: string[]): 
 }
 
 export async function getAvailableFormations(gameFormat: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   return db.formation.findMany({
     where: {

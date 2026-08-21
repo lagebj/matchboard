@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { createOrRestoreTeam, archiveTeam } from "@/lib/teams/team-domain";
 
@@ -42,7 +42,7 @@ function getTeamErrorMessage(error: unknown): string {
 }
 
 export async function createTeamAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   try {
@@ -93,7 +93,7 @@ export async function createTeamAction(formData: FormData) {
 }
 
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireTeamGroupAccess(ctx, teamId);
   const organisationId = ctx.organisationId;
@@ -202,7 +202,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 }
 
 export async function deleteTeamAction(teamId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireTeamGroupAccess(ctx, teamId);
   const organisationId = ctx.organisationId;

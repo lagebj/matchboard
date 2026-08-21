@@ -7,7 +7,7 @@ import {
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
 import { SelectionRole } from "@/generated/prisma/client";
-import { requireActorContext, requireMutationRole, requirePlayerGroupAccess, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
@@ -28,7 +28,7 @@ async function reconcileAndRevalidate(matchRoundId: string) {
 }
 
 export async function addPlayerToMatchAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const matchId = formData.get("matchId");
@@ -70,7 +70,7 @@ export async function addPlayerToMatchAction(formData: FormData) {
 }
 
 export async function removePlayerFromMatchAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const matchId = formData.get("matchId");
@@ -99,7 +99,7 @@ export async function removePlayerFromMatchAction(formData: FormData) {
 }
 
 export async function changePlayerRoleAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const matchId = formData.get("matchId");
@@ -141,7 +141,7 @@ export async function changePlayerRoleAction(formData: FormData) {
 }
 
 export async function movePlayerWithinRoundAction(formData: FormData) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const matchRoundId = formData.get("matchRoundId");

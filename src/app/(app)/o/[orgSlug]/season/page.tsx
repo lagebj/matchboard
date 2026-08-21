@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { SeasonOverviewClient } from "@/app/(app)/season/season-client";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { SeasonFinalizeControls } from "@/app/(app)/season/season-finalize-controls";
@@ -18,7 +18,7 @@ const READINESS_LABELS: Record<string, string> = {
 export default async function SeasonPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: Promise<{ created?: string }> }) {
   const { orgSlug } = await params;
   const { created } = await searchParams;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({

@@ -3,7 +3,7 @@ import { MovementOverview, type MovementOverviewRow } from "@/components/history
 import { HistoryTable, type PlayerHistoryRow } from "@/components/history/history-table";
 import { ExportPanel } from "@/components/history/export-panel";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { formatDate } from "@/lib/date-utils";
 import { formatSelectionRole, isFloatingSelectionRole } from "@/lib/match-utils";
 import {
@@ -32,7 +32,7 @@ function formatPatternDate(matchDate: Date): string {
 
 export default async function HistoryPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const [players, rawSelectionSnapshots] = await Promise.all([

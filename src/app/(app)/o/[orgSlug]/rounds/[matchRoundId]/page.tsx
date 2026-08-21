@@ -5,7 +5,7 @@ import { RoundBoard } from "@/components/round/round-board";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
@@ -32,7 +32,7 @@ export default async function RoundBoardPage({
   const { orgSlug, matchRoundId } = await params;
   const { finalized, generated, error } = await searchParams;
 
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const matchRound = await db.matchRound.findUnique({

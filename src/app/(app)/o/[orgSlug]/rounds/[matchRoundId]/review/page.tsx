@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { RoundReviewPage } from "@/components/assistant/round-review-page";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 
 type RoundReviewRouteProps = {
   params: Promise<{ orgSlug: string; matchRoundId: string }>;
@@ -8,7 +8,7 @@ type RoundReviewRouteProps = {
 
 export default async function RoundReviewRoute({ params }: RoundReviewRouteProps) {
   const { orgSlug, matchRoundId } = await params;
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
   return (
     <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading round review...</div>}>
       <RoundReviewPage roundId={matchRoundId} />

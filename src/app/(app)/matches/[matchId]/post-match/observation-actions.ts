@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 import {
@@ -30,7 +30,7 @@ export async function saveObservationAction(
   _prevState: ObservationActionState,
   formData: FormData,
 ): Promise<ObservationActionState> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const matchId = formData.get("matchId") as string;
   if (!matchId) return { success: false, error: "Match ID is required." };
@@ -127,7 +127,7 @@ export async function updateMatchFitAction(
   _prevState: MatchFitActionState,
   formData: FormData,
 ): Promise<MatchFitActionState> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const matchId = formData.get("matchId") as string;
   const matchFit = formData.get("matchFit") as string;

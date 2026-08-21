@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export default async function MatchDetailPage({
 }) {
   const { orgSlug, matchId } = await params;
 
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
   const orgWhere = ctx.orgFilter.filter;
 
   const match = await db.match.findUnique({

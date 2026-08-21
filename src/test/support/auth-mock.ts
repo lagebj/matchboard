@@ -40,6 +40,10 @@ const {
 
 vi.mock("@/lib/auth/actor-context", () => ({
   requireActorContext: mockRequireActorContext,
+  // Page/action code calls requirePageActorContext (ADR-0082); tests don't need to distinguish
+  // it from requireActorContext's success path — same mock, so mockAuthContext()'s existing
+  // mockRequireActorContext.mockResolvedValue(...) drives both transparently.
+  requirePageActorContext: mockRequireActorContext,
   requireMutationRole: mockRequireMutationRole,
   requireAdminRole: mockRequireAdminRole,
   requireOwnerRole: mockRequireOwnerRole,

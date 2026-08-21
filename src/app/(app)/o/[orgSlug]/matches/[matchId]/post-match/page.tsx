@@ -5,7 +5,7 @@ import { MatchFeedbackSection } from "@/components/matches/match-feedback-sectio
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { DevelopmentObservationSection } from "@/components/player-development/development-observation-section";
-import { requireActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext } from "@/lib/auth/actor-context";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ type PageProps = {
 export default async function PostMatchRoute({ params }: PageProps) {
   const { orgSlug, matchId } = await params;
 
-  const ctx = await requireActorContext(orgSlug);
+  const ctx = await requirePageActorContext(orgSlug);
 
   const match = await db.match.findFirst({
     where: {

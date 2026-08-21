@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
@@ -32,7 +32,7 @@ export async function setMatchdayResponsibilityAction(
   selectionId: string,
   responsibility: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireSelectionOrgAccess(selectionId, ctx.orgFilter);
 
@@ -106,7 +106,7 @@ export async function setTeamReflectionAction(
     note?: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   const orgId = ctx.organisationId;
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
@@ -149,7 +149,7 @@ export async function setTeamReflectionAction(
 export async function getTeamReflectionAction(
   matchId: string,
 ): Promise<{ success: boolean; reflection?: { id: string; effort: string | null; teamCohesion: string | null; positionalShape: string | null; recoveryBehavior: string | null; note: string | null } | null; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {

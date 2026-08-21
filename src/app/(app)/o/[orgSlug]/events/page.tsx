@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { requireActorContext } from '@/lib/auth/actor-context';
+import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { getEvents } from '@/app/(app)/events/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BrandedSurface } from '@/components/ui/branded-surface';
@@ -10,7 +10,7 @@ export const metadata = { title: 'Events' };
 
 export default async function EventsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  await requireActorContext(orgSlug);
+  await requirePageActorContext(orgSlug);
   const events = await getEvents();
 
   return (

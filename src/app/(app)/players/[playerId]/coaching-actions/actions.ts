@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { requireActorContext, requireMutationRole, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import {
   type ReadinessSignalType,
@@ -16,7 +16,7 @@ export async function setReadinessSignalAction(
   value: string,
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requirePlayerGroupAccess(ctx, playerId);
 
@@ -69,7 +69,7 @@ export async function deleteReadinessSignalAction(
   playerId: string,
   signalType: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requirePlayerGroupAccess(ctx, playerId);
 
@@ -107,7 +107,7 @@ export async function deleteReadinessSignalAction(
 export async function getReadinessSignalsAction(
   playerId: string,
 ): Promise<{ success: boolean; signals?: Array<{ id: string; signalType: string; value: string; note: string | null }>; error?: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
 
   try {
     const signals = await db.playerReadinessSignal.findMany({

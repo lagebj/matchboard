@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import { logMutationEvent } from "@/lib/security/audit-log";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -43,7 +43,7 @@ async function addLeagueMatchHelperInternal(input: {
   playerId: string;
   note?: string;
 }): Promise<{ success: true; assignmentId: string } | { success: false; error: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
   await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, input.matchId);
@@ -131,7 +131,7 @@ export async function removeLeagueMatchHelperAction(
 async function removeLeagueMatchHelperInternal(
   assignmentId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
 
   const assignment = await db.matchHelperAssignment.findFirst({
@@ -183,7 +183,7 @@ async function removeLeagueMatchHelperInternal(
 }
 
 export async function getLeagueMatchHelpersAction(matchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const helpers = await db.matchHelperAssignment.findMany({
@@ -208,7 +208,7 @@ export async function getLeagueMatchHelpersAction(matchId: string) {
 }
 
 export async function getLeagueMatchHelperCandidatesAction(matchId: string) {
-  const ctx = await requireActorContext();
+  const ctx = await requirePageActorContext();
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
 
