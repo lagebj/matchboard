@@ -602,10 +602,6 @@ Rules:
 - No fallback can bypass path validation
 - Invalid path eligibility is a hard eligibility problem, not a ranking problem
 
-### Legacy relationship tables
-
-The `TeamSupportSource` and `TeamDevelopmentSource` tables must not drive selection eligibility or movement decisions. They exist for backward-compatible UI configuration display only and are scheduled for removal. The selection engine must use RotationPath exclusively.
-
 ### Movement candidates
 
 MovementCandidate is a coach-facing domain concept for marking individual players as suitable for temporary movement through a specific rotation path. It is a soft preference that augments — but does not replace — RotationPath eligibility and existing player attributes.
@@ -1580,7 +1576,7 @@ Cancelled match rules:
 - Planned selections for cancelled matches are preserved as context but excluded from stats
 - Matches with a completed (REPORTED or LOCKED) post-match report cannot be cancelled
 - Reopening a cancelled match clears the cancelledAt timestamp and cancelledReason, restoring SCHEDULED status
-- The MatchStatus enum retains legacy values for backward compatibility. The SelectionRole enum retains BACKFILL for backward compatibility; new generation never produces BACKFILL as a user-facing role (squad repair uses role=SUPPORT with an explanation code)
+- The SelectionRole enum retains BACKFILL for backward compatibility; new generation never produces BACKFILL as a user-facing role (squad repair uses role=SUPPORT with an explanation code)
 
 ## Event squad planning
 
