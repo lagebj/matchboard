@@ -7,7 +7,6 @@ export const overrideReasonCategorySchema = z.enum([
   "support_missing",
   "development_opportunity",
   "no_planned_match_opportunity",
-  "double_load_needed",
   "availability_changed",
   "coach_judgement",
   "match_already_played",

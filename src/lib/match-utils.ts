@@ -151,7 +151,6 @@ export const OVERRIDE_REASON_CATEGORY_LABELS: Record<string, string> = {
   support_missing: "Support missing",
   development_opportunity: "Development opportunity",
   no_planned_match_opportunity: "No planned match opportunity",
-  double_load_needed: "Double load needed (legacy)",
   availability_changed: "Availability changed",
   coach_judgement: "Coach judgement",
   match_already_played: "Match already played",
