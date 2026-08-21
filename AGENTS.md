@@ -1989,7 +1989,19 @@ See ADR-0057 for the full decision record.
 ### Production migrations
 
 - **Never run `prisma migrate dev` against production.**
-- Production migrations must be run deliberately from a local machine: `npx prisma migrate deploy` with `DIRECT_URL` targeting Neon.
+- Production migrations run through the `.github/workflows/production-db-migrate.yml` pipeline
+  (ADR-0084), not manually from a local machine. It always uses `npm run db:migrate` (`prisma
+  migrate deploy`) with `DATABASE_URL`/`DIRECT_URL` targeting Neon — the same command, run in CI
+  instead of by hand.
+- The pipeline runs automatically after CI succeeds on a push to `main`, and can also be triggered
+  manually via `workflow_dispatch` as a fallback. Either way, its `check` job (unattended) detects
+  whether any migration is actually pending — using `prisma migrate status`'s exit code, not
+  `prisma migrate diff --exit-code` (confirmed unreliable against this repo's migration history —
+  see ADR-0084) — and scans pending migration SQL for destructive operations
+  (`scripts/check-pending-migrations.mjs`). The `migrate` job that actually applies pending
+  migrations only runs when something is pending, and targets the `production-db` GitHub
+  Environment, whose `required_reviewers` protection rule gates it regardless of trigger type —
+  automating the trigger does not remove the human approval checkpoint.
 - Migrations must not run as part of the Vercel build process.
 - The `postinstall` script runs `prisma generate` only — not migrations.
 
