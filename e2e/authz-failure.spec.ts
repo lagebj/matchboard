@@ -35,7 +35,7 @@ test.describe("cross-organisation access is denied", () => {
     // throws OrganisationMembershipError (extends AuthorizationError) inside the page component,
     // which is likewise uncaught and surfaces via the same generic error boundary — never a page
     // that renders any of Org B's data.
-    await page.goto("/o/test-club-b/assistant");
+    await page.goto("/o/test-club-b/today");
 
     await expect(page.getByText("Something went wrong")).toBeVisible();
     await expect(page.getByText("B1 Lions")).toHaveCount(0);

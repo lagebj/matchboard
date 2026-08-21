@@ -1,13 +1,10 @@
 {
   "Navigation": {
-    "assistant": "[Åšşíšţâñţ !]",
-    "fixtures": "[Fíxţüréš !]",
+    "today": "[Tödäy !]",
+    "league": "[Léâgüé !]",
     "events": "[Évéñţš !]",
-    "teams": "[Ţéâmš !]",
-    "groups": "[Grôüpš !]",
     "players": "[Pļâyérš !]",
-    "opponents": "[Öppöñéñţš !]",
-    "formations": "[Förmâţíöñš !]"
+    "more": "[Möré !]"
   },
   "PageTitles": {
     "roundBoard": "[Röüñd Böârd !!]",

@@ -86,7 +86,7 @@ export async function clearAllDraftsAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/rounds");
   revalidatePath("/fixtures");
-  revalidatePath("/assistant");
+  revalidatePath("/today");
 }
 
 export async function generateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
@@ -133,7 +133,7 @@ export async function generateRoundAction(prevState: { error: string }, formData
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${roundId}`);
     revalidatePath("/fixtures");
-    revalidatePath("/assistant");
+    revalidatePath("/today");
 
     redirect(buildPathWithSearch(`/rounds/${roundId}`, { saved: "generated" }));
   } catch (error) {
@@ -257,7 +257,7 @@ export async function unfinalizeRoundFromListAction(prevState: { error: string }
     revalidatePath("/rounds");
     revalidatePath(`/rounds/${matchRoundId}`);
     revalidatePath("/fixtures");
-    revalidatePath("/assistant");
+    revalidatePath("/today");
 
     if (!result.success) {
       return { error: result.message };

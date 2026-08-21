@@ -306,7 +306,7 @@ export async function updateMatchAction(
       revalidatePath("/fixtures");
       revalidatePath(`/matches/${matchId}`);
       revalidatePath(`/rounds/${currentRoundId}`);
-      revalidatePath("/assistant");
+      revalidatePath("/today");
 
       return {
         success: true,
@@ -394,7 +394,7 @@ export async function updateMatchAction(
     revalidatePath(`/matches/${matchId}`);
     revalidatePath(`/rounds/${currentRoundId}`);
     revalidatePath(`/rounds/${targetRoundId}`);
-    revalidatePath("/assistant");
+    revalidatePath("/today");
 
     return {
       success: true,
@@ -482,7 +482,7 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 
   revalidatePath("/fixtures");
   revalidatePath(`/matches/${matchId}`);
-  revalidatePath("/assistant");
+  revalidatePath("/today");
   revalidatePath("/rounds");
 }
 
@@ -505,6 +505,6 @@ export async function reopenMatchAction(matchId: string) {
 
   revalidatePath("/fixtures");
   revalidatePath(`/matches/${matchId}`);
-  revalidatePath("/assistant");
+  revalidatePath("/today");
   revalidatePath("/rounds");
 }

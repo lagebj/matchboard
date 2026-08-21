@@ -90,7 +90,7 @@ export async function setCoachingIntentAction(
 
     revalidatePath(`/matches/${scopeType === "MATCH" ? scopeId : ""}`);
     revalidatePath(`/rounds`);
-    revalidatePath(`/assistant`);
+    revalidatePath(`/today`);
 
     if (scopeType === "MATCH_ROUND") {
       revalidatePath(`/rounds/${scopeId}`);
@@ -125,7 +125,7 @@ export async function removeCoachingIntentAction(
 
     revalidatePath(`/matches/${intent.scopeType === "MATCH" ? intent.scopeId : ""}`);
     revalidatePath(`/rounds`);
-    revalidatePath(`/assistant`);
+    revalidatePath(`/today`);
 
     if (intent.scopeType === "MATCH_ROUND") {
       revalidatePath(`/rounds/${intent.scopeId}`);

@@ -4,57 +4,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  Bot,
+  CalendarClock,
   CalendarRange,
   CalendarDays,
   Users,
-  Shield,
-  Swords,
-  LayoutGrid,
-  Layers,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { MatchboardLogo } from "@/components/shell/matchboard-logo";
+import { isNavItemActive } from "@/components/shell/nav-active";
 import { APP_VERSION } from "@/lib/version";
 
 type NavItem = {
   href: string;
-  labelKey: "assistant" | "fixtures" | "events" | "teams" | "groups" | "players" | "opponents" | "formations";
+  labelKey: "today" | "league" | "events" | "players" | "more";
   icon: LucideIcon;
 };
 
 function navItems(orgSlug: string): NavItem[] {
   return [
-    { href: `/o/${orgSlug}/assistant`, labelKey: "assistant", icon: Bot },
-    { href: `/o/${orgSlug}/fixtures`, labelKey: "fixtures", icon: CalendarRange },
+    { href: `/o/${orgSlug}/today`, labelKey: "today", icon: CalendarClock },
+    { href: `/o/${orgSlug}/fixtures`, labelKey: "league", icon: CalendarRange },
     { href: `/o/${orgSlug}/events`, labelKey: "events", icon: CalendarDays },
-    { href: `/o/${orgSlug}/teams`, labelKey: "teams", icon: Shield },
-    { href: `/o/${orgSlug}/groups`, labelKey: "groups", icon: Layers },
     { href: `/o/${orgSlug}/players`, labelKey: "players", icon: Users },
-    { href: `/o/${orgSlug}/opponents`, labelKey: "opponents", icon: Swords },
-    { href: `/o/${orgSlug}/formations`, labelKey: "formations", icon: LayoutGrid },
+    { href: `/o/${orgSlug}/more`, labelKey: "more", icon: MoreHorizontal },
   ];
-}
-
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  if (pathname === href) return true;
-  if (!pathname.startsWith(`${href}/`)) return false;
-  if (href.includes("/fixtures")) {
-    return ["/rounds", "/matches"].some(
-      (p) => pathname === p || pathname.startsWith(`${p}/`),
-    );
-  }
-  if (href.includes("/opponents")) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-  if (href.includes("/groups")) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-  if (href.includes("/formations")) {
-    return pathname.startsWith(`${href}/`);
-  }
-  return true;
 }
 
 /**
@@ -87,7 +61,7 @@ export function SidebarNav({ orgSlug }: { orgSlug: string }) {
       <div className="flex-1 overflow-y-auto px-2 pt-1">
         <ul className="flex flex-col gap-0.5" role="list">
           {items.map((item) => {
-            const active = isActive(pathname, item.href);
+            const active = isNavItemActive(pathname, item.href);
             const Icon = item.icon;
             return (
               <li key={item.href}>

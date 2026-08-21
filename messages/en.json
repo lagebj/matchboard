@@ -1,13 +1,10 @@
 {
   "Navigation": {
-    "assistant": "Assistant",
-    "fixtures": "Fixtures",
+    "today": "Today",
+    "league": "League",
     "events": "Events",
-    "teams": "Teams",
-    "groups": "Groups",
     "players": "Players",
-    "opponents": "Opponents",
-    "formations": "Formations"
+    "more": "More"
   },
   "PageTitles": {
     "roundBoard": "Round Board",

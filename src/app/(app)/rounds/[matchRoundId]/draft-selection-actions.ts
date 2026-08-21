@@ -24,7 +24,7 @@ async function reconcileAndRevalidate(matchRoundId: string) {
   revalidatePath("/rounds");
   revalidatePath(`/rounds/${matchRoundId}`);
   revalidatePath("/fixtures");
-  revalidatePath("/assistant");
+  revalidatePath("/today");
 }
 
 export async function addPlayerToMatchAction(formData: FormData) {

@@ -306,7 +306,7 @@ export function AssistantCommandCentrePage({
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <PageHeader
-            title="Assistant"
+            title="Today"
             description="What needs attention before the next matches."
             context={leagueSeasonName ? <span>{leagueSeasonName}</span> : null}
           />

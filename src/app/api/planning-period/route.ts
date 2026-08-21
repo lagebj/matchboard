@@ -41,7 +41,7 @@ export async function PATCH(request: Request) {
     revalidatePath("/fixtures");
     revalidatePath("/players");
     revalidatePath("/teams");
-    revalidatePath("/assistant");
+    revalidatePath("/today");
     revalidatePath("/season");
 
     return Response.json({ success: true, name: name.trim() });

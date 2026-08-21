@@ -494,7 +494,7 @@ export async function completeMatchReport(reportId: string): Promise<{ success: 
     revalidatePath("/fixtures");
     revalidatePath("/teams");
     revalidatePath("/players");
-    revalidatePath("/assistant");
+    revalidatePath("/today");
     revalidatePath("/");
 
     return { success: true };

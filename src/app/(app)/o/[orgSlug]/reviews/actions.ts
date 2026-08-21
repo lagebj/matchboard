@@ -44,7 +44,7 @@ export async function requestReviewAction(input: CreateReviewRequestInput) {
           targetId: input.targetId,
           targetLabel: input.targetId,
           requestMessage: input.requestMessage ?? null,
-          reviewUrl: `/assistant`,
+          reviewUrl: `/today`,
           organisationSlug: organisation?.slug ?? ctx.organisationSlug,
         },
         recipientEmail: reviewer.user.email,
@@ -53,7 +53,7 @@ export async function requestReviewAction(input: CreateReviewRequestInput) {
     }
   }
 
-  revalidatePath('/assistant');
+  revalidatePath('/today');
   revalidatePath('/events');
   return review;
 }
@@ -94,7 +94,7 @@ export async function resolveReviewAction(reviewId: string, input: ResolveReview
           targetId: review.targetId,
           targetLabel: review.targetId,
           reviewerComment: input.reviewerComment ?? null,
-          reviewUrl: `/assistant`,
+          reviewUrl: `/today`,
           organisationSlug: organisation?.slug ?? ctx.organisationSlug,
         },
         recipientEmail: requester.user.email,
@@ -103,7 +103,7 @@ export async function resolveReviewAction(reviewId: string, input: ResolveReview
     }
   }
 
-  revalidatePath('/assistant');
+  revalidatePath('/today');
   revalidatePath('/events');
   return { ...review, targetChanged };
 }
@@ -114,7 +114,7 @@ export async function cancelReviewAction(reviewId: string) {
   const { review } = await resolveReviewRequest(reviewId, {
     status: 'CANCELLED',
   }, ctx.organisationId, ctx.membershipId);
-  revalidatePath('/assistant');
+  revalidatePath('/today');
   return review;
 }
 
