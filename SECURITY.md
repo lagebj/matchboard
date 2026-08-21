@@ -129,6 +129,12 @@ OSV findings require triage:
 
 Do not blindly upgrade dependencies across major versions to silence scanner output.
 
+**Current automation state**: the table above is the triage policy applied by human/agent
+review, not (yet) an automated CI gate. `.github/workflows/security.yml`'s OSV and Semgrep jobs
+run non-blocking (`|| true`) and cannot fail a PR based on findings today — this is a known,
+tracked gap (consolidation programme Phase 10 §56), not a claim that severity-based blocking is
+currently enforced in CI.
+
 ## Secret policy
 
 Gitleaks configuration (`security/gitleaks.toml`) recognizes:
