@@ -88,6 +88,38 @@ triggered by:
    informational purposes only, not as a pass/fail gate — the resulting `migrate diff` output,
    since it is expected to be non-zero even on success per the Context finding above.
 
+### Secret scoping: a separate read-only role for the unattended check
+
+The first real run of this pipeline (triggered by the merge that shipped it) failed immediately:
+the `check` job's `DATABASE_URL`/`DIRECT_URL` came through empty, and `prisma generate` (run by
+`npm ci`'s `postinstall` hook) crashed validating its config. Root cause: `PRODUCTION_DATABASE_URL`
+is a secret scoped to the `production-db` GitHub Environment (both old workflows' single job
+always declared that environment, which is why this was never visible before). A job only sees an
+environment-scoped secret if it declares that `environment:` — and `check` deliberately does not,
+specifically so it can run unattended without waiting for approval. The two requirements
+(unattended check, environment-scoped credential) are mutually exclusive for the same secret.
+
+The fix is a second, narrower credential: `matchboard_migration_status`, a Postgres role granted
+only `CONNECT` on the database and `SELECT` on `_prisma_migrations` — nothing else. It cannot read
+any application table (verified directly: querying `"Organisation"` with this role returns
+`permission denied for table Organisation`), so exposing it as a plain repo-level secret
+(`PRODUCTION_DATABASE_URL_STATUS_CHECK`, not environment-scoped) carries none of the risk that
+justified gating `PRODUCTION_DATABASE_URL` behind an environment in the first place. Confirmed by
+direct test that this role is sufficient to run `prisma migrate status` and
+`scripts/check-pending-migrations.mjs` successfully end-to-end against the real production
+database.
+
+Creating this role surfaced a second, Neon-specific pitfall, now documented in
+`scripts/create-migration-status-role.sh`'s own header comment: a role created through Neon's
+control-plane API (`neonctl roles create`) is automatically added to the `neon_superuser` group
+role, and that membership cannot be revoked afterward by `neondb_owner` alone (`neondb_owner` has
+`CREATEROLE` but not `ADMIN OPTION` on a role it did not itself create) — confirmed by hitting
+exactly that error live. The role had to be deleted and recreated via direct SQL
+(`CREATE ROLE ... NOBYPASSRLS`, matching `scripts/create-rls-roles.sh`'s existing convention for
+`matchboard_app_runtime`/`matchboard_admin_migration`) to avoid the automatic membership entirely.
+This is the same caveat that script's own header comment already named for Neon Console-created
+roles; it turns out to apply equally to API-created ones.
+
 No destructive-operation hard-block was added beyond the job-summary warning: the user's own
 design decision (via AskUserQuestion) was to scan and flag, not to block, since CI's existing
 "Migration from Zero" check already covers full-history migration safety independently, and a hard
@@ -131,8 +163,14 @@ same now-rejected `migrate diff --exit-code` command.
   this request
 - `.github/workflows/production-db-migrate.yml`
 - `scripts/check-pending-migrations.mjs`
+- `scripts/create-migration-status-role.sh`
+- `scripts/create-rls-roles.sh` — established the NOBYPASSRLS/direct-SQL role-creation convention
+  this ADR's read-only role follows
 - `AGENTS.md` — "Production migrations" section, updated in the same change
 
 ## History
 
-- 2026-08-21: Accepted and implemented in the same change.
+- 2026-08-21: Accepted and implemented.
+- 2026-08-21: First live run failed on secret scoping (see "Secret scoping" above). Fixed same day
+  by provisioning `matchboard_migration_status`, a minimal read-only role, and a new repo-level
+  `PRODUCTION_DATABASE_URL_STATUS_CHECK` secret for the `check` job specifically.
