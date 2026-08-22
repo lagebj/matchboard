@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useTransition } from "react";
 import type { PathwayCellStatus, PlayerPathwayRow } from "@/lib/pathways/pathways-types";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { MatrixMobileCard } from "@/components/insights/matrix-mobile-card";
 
 interface LeagueSeasonOption {
   id: string;
@@ -209,7 +211,7 @@ export function PlayerPathwaysClient({
 
       {/* Summary metrics */}
       {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 medium:grid-cols-3 large:grid-cols-5 gap-3">
           <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
             <div className="text-xs text-zinc-400">Players shown</div>
             <div className="text-lg font-semibold text-zinc-100">{data.summary.playersShown}</div>
@@ -256,7 +258,11 @@ export function PlayerPathwaysClient({
           {data ? "No players match the current filters." : "Select a league season to view pathways."}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <ResponsiveTable
+          items={displayPlayers}
+          getKey={(player) => player.playerId}
+          renderTable={() => (
+          <div className="overflow-x-auto">
           <table className="text-xs border-collapse">
             <thead>
               <tr className="border-b border-zinc-700">
@@ -309,7 +315,39 @@ export function PlayerPathwaysClient({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+          )}
+          renderCard={(player) => (
+            <MatrixMobileCard
+              title={player.playerName}
+              subtitle={player.coreTeamName}
+              cells={rounds.map((r) => {
+                const cell = player.cells.find((c) => c.matchRoundId === r.matchRoundId);
+                if (!cell || cell.status === "no_data") {
+                  return {
+                    key: r.matchRoundId,
+                    roundLabel: r.matchRoundName.replace("Round ", "R"),
+                    value: "—",
+                    className: "bg-zinc-900 text-zinc-600",
+                  };
+                }
+                return {
+                  key: r.matchRoundId,
+                  roundLabel: r.matchRoundName.replace("Round ", "R"),
+                  value: CELL_STATUS_LABELS[cell.status],
+                  className: CELL_STATUS_STYLES[cell.status],
+                  title: `${CELL_STATUS_LABELS[cell.status]} · ${cell.teamName}${cell.opponent ? ` vs ${cell.opponent}` : ""}`,
+                };
+              })}
+              totals={[
+                { label: "Core", value: player.coreAppearances },
+                { label: "Sup", value: player.supportAppearances || "—" },
+                { label: "Dev", value: player.developmentAppearances || "—" },
+                { label: "Rep", value: player.squadRepairAppearances || "—" },
+              ]}
+            />
+          )}
+        />
       )}
     </div>
   );

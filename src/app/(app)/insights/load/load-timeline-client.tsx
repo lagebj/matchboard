@@ -4,6 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import type { LoadTimelineRow } from "@/lib/insights/insights-types";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { MatrixMobileCard } from "@/components/insights/matrix-mobile-card";
 
 type LeagueSeasonOption = {
   id: string;
@@ -23,6 +25,13 @@ const LOAD_CELL_STYLES: Record<string, string> = {
   helper_appearance: "bg-cyan-800/40 text-cyan-200",
   planned_only: "bg-blue-900/25 text-blue-300",
   unavailable: "bg-zinc-800/50 text-zinc-500",
+};
+
+const LOAD_CELL_LABELS: Record<string, string> = {
+  actual_appearance: "Played",
+  helper_appearance: "Helper",
+  planned_only: "Planned",
+  unavailable: "Not playing",
 };
 
 const ATTENTION_FLAG_LABELS: Record<string, string> = {
@@ -166,13 +175,7 @@ export function LoadTimelineClient({
       <div className="flex flex-wrap gap-3 text-[10px]">
         {Object.entries(LOAD_CELL_STYLES).map(([status, style]) => (
           <span key={status} className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${style}`}>
-            {status === "actual_appearance"
-              ? "Played"
-              : status === "helper_appearance"
-                ? "Helper"
-                : status === "planned_only"
-                  ? "Planned"
-                  : "Not playing"}
+            {LOAD_CELL_LABELS[status] ?? status}
           </span>
         ))}
       </div>
@@ -188,7 +191,11 @@ export function LoadTimelineClient({
       )}
 
       {timeline && timeline.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/50">
+        <ResponsiveTable
+          items={filteredRows}
+          getKey={(row) => row.playerId}
+          renderTable={() => (
+          <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/50">
           <table className="min-w-full text-xs">
             <thead>
               <tr className="border-b border-zinc-800">
@@ -251,7 +258,28 @@ export function LoadTimelineClient({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+          )}
+          renderCard={(row) => (
+            <MatrixMobileCard
+              title={row.playerName}
+              subtitle={row.coreTeamName ?? "—"}
+              note={
+                row.attentionFlags.length > 0
+                  ? row.attentionFlags.map((f) => ATTENTION_FLAG_LABELS[f] ?? f).join(", ")
+                  : undefined
+              }
+              cells={row.cells.map((cell) => ({
+                key: cell.matchRoundId,
+                roundLabel: cell.matchRoundLabel,
+                value: cell.matchCount > 0 ? cell.matchCount : "—",
+                className: LOAD_CELL_STYLES[cell.status] ?? "bg-zinc-800 text-zinc-400",
+                title: `${LOAD_CELL_LABELS[cell.status] ?? cell.status} (${cell.matchCount})`,
+              }))}
+              totals={[{ label: "Total", value: row.recentLoad }]}
+            />
+          )}
+        />
       )}
     </div>
   );

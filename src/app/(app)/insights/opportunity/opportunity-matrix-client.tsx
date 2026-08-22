@@ -4,6 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Table2 } from "lucide-react";
 import type { OpportunityMatrixRow, OpportunityCellStatus } from "@/lib/insights/insights-types";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { MatrixMobileCard } from "@/components/insights/matrix-mobile-card";
 
 type LeagueSeasonOption = {
   id: string;
@@ -235,7 +237,11 @@ export function OpportunityMatrixClient({
       )}
 
       {matrix && matrix.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/50">
+        <ResponsiveTable
+          items={filteredRows}
+          getKey={(row) => row.playerId}
+          renderTable={() => (
+          <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/50">
           <table className="min-w-full text-xs">
             <thead>
               <tr className="border-b border-zinc-800">
@@ -316,7 +322,33 @@ export function OpportunityMatrixClient({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+          )}
+          renderCard={(row) => (
+            <MatrixMobileCard
+              title={row.playerName}
+              subtitle={row.coreTeamName ?? "—"}
+              note={
+                row.attentionFlags.length > 0
+                  ? row.attentionFlags.map((f) => ATTENTION_FLAG_LABELS[f] ?? f).join(", ")
+                  : undefined
+              }
+              cells={row.cells.map((cell) => ({
+                key: cell.matchRoundId,
+                roundLabel: cell.matchRoundLabel,
+                value: STATUS_LABELS[cell.status],
+                className: STATUS_STYLES[cell.status] ?? "bg-zinc-800 text-zinc-400",
+                title: `${STATUS_LABELS[cell.status]}${cell.role ? ` (${cell.role})` : ""}${cell.explanation ? ` — ${cell.explanation}` : ""}`,
+              }))}
+              totals={[
+                { label: "Core", value: row.totals.coreAppearances },
+                { label: "Sup", value: row.totals.supportAppearances },
+                { label: "Dev", value: row.totals.developmentAppearances },
+                { label: "Actual", value: row.totals.actualAppearances },
+              ]}
+            />
+          )}
+        />
       )}
     </div>
   );
