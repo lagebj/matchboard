@@ -393,10 +393,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
       )}
 
       {data.squads.length === 0 ? (
-        <BrandIllustration name="eventHeaderSketch" className="h-24 md:h-32 w-auto opacity-70 dark:opacity-60" />
+        <BrandIllustration name="eventHeaderSketch" className="h-24 expanded:h-32 w-auto opacity-70 dark:opacity-60" />
       ) : (
         <div className="relative overflow-hidden rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3">
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 md:w-32 flex items-center justify-end pr-3 opacity-50 dark:opacity-40" aria-hidden="true">
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 expanded:w-32 flex items-center justify-end pr-3 opacity-50 dark:opacity-40" aria-hidden="true">
             <BrandIllustration name="eventHeaderSketch" decorative className="h-full max-h-24 w-auto object-contain object-right" />
           </div>
           <div className="relative">
@@ -406,7 +406,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 medium:grid-cols-4">
         <MetricTile label="Squads" value={data.squads.length} />
         <MetricTile label="Available" value={totalAvailable} />
         <MetricTile label="Assigned" value={totalAssigned} />
@@ -464,7 +464,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         <div className="space-y-4">
           <Surface variant="default" padding="md">
             <SectionHeader title="Event details" />
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid gap-3 medium:grid-cols-2">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Type</p>
                 <p className="text-sm text-zinc-100">{EVENT_TYPE_LABELS[data.eventType] ?? data.eventType}</p>
@@ -535,7 +535,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                 </div>
               )}
               {data.notes && (
-                <div className="sm:col-span-2">
+                <div className="medium:col-span-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Notes</p>
                   <p className="text-sm text-[var(--text-soft)] whitespace-pre-wrap">{data.notes}</p>
                 </div>
@@ -615,7 +615,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               illustration="emptyEvents"
             />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+            <div className="grid gap-4 large:grid-cols-[260px_1fr]">
               <div className="space-y-2">
                 <SectionHeader title="Unassigned" />
                 <div className="space-y-1">

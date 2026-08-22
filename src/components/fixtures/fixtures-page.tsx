@@ -274,7 +274,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
       </div>
 
       {/* Metric strip */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 medium:grid-cols-4">
         <MetricTile
           label="Rounds"
           value={period.rounds.length}

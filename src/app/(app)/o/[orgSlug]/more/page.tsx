@@ -83,7 +83,7 @@ export default async function MorePage({ params }: { params: Promise<{ orgSlug: 
           <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
             {section.title}
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 medium:grid-cols-2 large:grid-cols-3">
             {section.cards.map((card) => (
               <Link
                 key={card.href}
