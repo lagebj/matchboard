@@ -16,8 +16,12 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
 
 - `e2e/smoke.spec.ts` — unauthenticated redirect to `/signin`, authenticated landing resolves to
   the Assistant page, one core navigation (Fixtures), no console errors.
-- `e2e/accessibility.spec.ts` — `@axe-core/playwright` (WCAG 2.1 A/AA) against the Assistant and
-  Fixtures pages.
+- `e2e/accessibility.spec.ts` — `@axe-core/playwright` (WCAG 2.2 AA, superset of 2.1 A/AA) against
+  Today, League, Players, Opponents, and Round Board. Runs under three Playwright projects
+  (`chromium` desktop, `accessibility-phone` at 390×844, `accessibility-tablet` at 768×1024) —
+  this is currently the entire phone/tablet viewport matrix, scoped to this one spec rather than
+  every spec (Phase 2.18: the goal is catching responsive-layout a11y issues at real device
+  sizes, not redundantly re-running mutation/business-logic specs across viewports).
 - `e2e/round-mutation.spec.ts` — regenerates real draft selections for a round, verifies they
   persisted (a player chip on the Round Board), then clears them back to an empty draft.
   Deliberately self-cleaning, safe to run repeatedly against the shared Test slot.
@@ -33,7 +37,9 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
   Add this once team deletion/archival has a UI entry point.
 - Finalizing selections as a mutation flow (round generate/clear is covered; finalize/un-finalize
   round-trip coverage is a natural next slice once prioritized).
-- Broader page coverage beyond Assistant/Fixtures/Rounds/Teams.
+- Broader mutation/persistence-flow coverage beyond the one round-generation flow — accessibility
+  coverage now includes Today/League/Players/Opponents/Round Board (see above), but mutation
+  flows for those pages are still only the one round-mutation spec.
 - Running against a locally-started server in CI (currently CI runs against the hosted Test
   slot only — see the ADR for why).
 

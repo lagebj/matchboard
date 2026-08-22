@@ -7,6 +7,7 @@ import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
+import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 
 export const dynamic = "force-dynamic";
 
@@ -186,64 +187,111 @@ export default async function OpponentDetailPage({ params }: PageProps) {
       {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No encounter observations recorded for this opponent.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div>
           <h2 className="text-xl font-semibold text-zinc-50 mb-3">Encounter history</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
-                <th className="pb-2 pr-4">Date</th>
-                <th className="pb-2 pr-4">Our team</th>
-                <th className="pb-2 pr-4">Opponent</th>
-                <th className="pb-2 pr-4">H/A</th>
-                <th className="pb-2 pr-4">Result</th>
-                <th className="pb-2 pr-4">Sporting fit</th>
-                <th className="pb-2 pr-4">Environment</th>
-                <th className="pb-2 pr-4">Concerns</th>
-                <th className="pb-2 pr-4">Follow-up</th>
-                <th className="pb-2">Summary</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-soft)]">
-              {matches.map((match) => {
-                const obs = match.opponentObservation;
-                const result = postMatchResults[match.id];
-                return (
-                  <tr key={match.id} className="text-zinc-200">
-                    <td className="py-2 pr-4 whitespace-nowrap">
-                      <Link href={`/matches/${match.id}`} className="text-[var(--accent-strong)] hover:underline">
-                        {match.startsAt.toLocaleDateString()}
-                      </Link>
-                    </td>
-                    <td className="py-2 pr-4">{match.team.name}</td>
-                    <td className="py-2 pr-4">{match.opponent}</td>
-                    <td className="py-2 pr-4">{match.homeAway === "HOME" ? "Home" : "Away"}</td>
-                    <td className="py-2 pr-4">
-                      {result && result.homeGoals !== null ? `${result.homeGoals}\u2013${result.awayGoals}` : "\u2014"}
-                    </td>
-                    <td className="py-2 pr-4">
-                      <span className={match.matchFit !== "UNKNOWN" ? "text-zinc-100" : "text-zinc-500"}>
-                        {MATCH_FIT_LABELS[match.matchFit as keyof typeof MATCH_FIT_LABELS] ?? "Not assessed"}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4">
-                      {obs ? ENVIRONMENT_OBSERVATION_LABELS[obs.overallEnvironment as keyof typeof ENVIRONMENT_OBSERVATION_LABELS] : "\u2014"}
-                    </td>
-                    <td className="py-2 pr-4">
-                      {obs && obs.concernCategories.length > 0
-                        ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
-                        : "\u2014"}
-                    </td>
-                    <td className="py-2 pr-4">
-                      {obs && obs.followUp !== "NONE" ? FOLLOW_UP_LABELS[obs.followUp as keyof typeof FOLLOW_UP_LABELS] : "\u2014"}
-                    </td>
-                    <td className="py-2 max-w-[200px] truncate" title={obs?.factualSummary ?? undefined}>
-                      {obs?.factualSummary ? obs.factualSummary.slice(0, 60) + (obs.factualSummary.length > 60 ? "\u2026" : "") : "\u2014"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <ResponsiveTable
+            items={matches}
+            getKey={(match) => match.id}
+            renderTable={() => (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
+                      <th className="pb-2 pr-4">Date</th>
+                      <th className="pb-2 pr-4">Our team</th>
+                      <th className="pb-2 pr-4">Opponent</th>
+                      <th className="pb-2 pr-4">H/A</th>
+                      <th className="pb-2 pr-4">Result</th>
+                      <th className="pb-2 pr-4">Sporting fit</th>
+                      <th className="pb-2 pr-4">Environment</th>
+                      <th className="pb-2 pr-4">Concerns</th>
+                      <th className="pb-2 pr-4">Follow-up</th>
+                      <th className="pb-2">Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-soft)]">
+                    {matches.map((match) => {
+                      const obs = match.opponentObservation;
+                      const result = postMatchResults[match.id];
+                      return (
+                        <tr key={match.id} className="text-zinc-200">
+                          <td className="py-2 pr-4 whitespace-nowrap">
+                            <Link href={`/matches/${match.id}`} className="text-[var(--accent-strong)] hover:underline">
+                              {match.startsAt.toLocaleDateString()}
+                            </Link>
+                          </td>
+                          <td className="py-2 pr-4">{match.team.name}</td>
+                          <td className="py-2 pr-4">{match.opponent}</td>
+                          <td className="py-2 pr-4">{match.homeAway === "HOME" ? "Home" : "Away"}</td>
+                          <td className="py-2 pr-4">
+                            {result && result.homeGoals !== null ? `${result.homeGoals}\u2013${result.awayGoals}` : "\u2014"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            <span className={match.matchFit !== "UNKNOWN" ? "text-zinc-100" : "text-zinc-500"}>
+                              {MATCH_FIT_LABELS[match.matchFit as keyof typeof MATCH_FIT_LABELS] ?? "Not assessed"}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4">
+                            {obs ? ENVIRONMENT_OBSERVATION_LABELS[obs.overallEnvironment as keyof typeof ENVIRONMENT_OBSERVATION_LABELS] : "\u2014"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {obs && obs.concernCategories.length > 0
+                              ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
+                              : "\u2014"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {obs && obs.followUp !== "NONE" ? FOLLOW_UP_LABELS[obs.followUp as keyof typeof FOLLOW_UP_LABELS] : "\u2014"}
+                          </td>
+                          <td className="py-2 max-w-[200px] truncate" title={obs?.factualSummary ?? undefined}>
+                            {obs?.factualSummary ? obs.factualSummary.slice(0, 60) + (obs.factualSummary.length > 60 ? "\u2026" : "") : "\u2014"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            renderCard={(match) => {
+              const obs = match.opponentObservation;
+              const result = postMatchResults[match.id];
+              return (
+                <ResponsiveTableCard
+                  title={match.startsAt.toLocaleDateString()}
+                  titleHref={`/matches/${match.id}`}
+                  fields={[
+                    { label: "Our team", value: match.team.name },
+                    { label: "Opponent", value: match.opponent },
+                    { label: "H/A", value: match.homeAway === "HOME" ? "Home" : "Away" },
+                    {
+                      label: "Result",
+                      value: result && result.homeGoals !== null ? `${result.homeGoals}\u2013${result.awayGoals}` : "\u2014",
+                    },
+                    {
+                      label: "Sporting fit",
+                      value: MATCH_FIT_LABELS[match.matchFit as keyof typeof MATCH_FIT_LABELS] ?? "Not assessed",
+                    },
+                    {
+                      label: "Environment",
+                      value: obs ? ENVIRONMENT_OBSERVATION_LABELS[obs.overallEnvironment as keyof typeof ENVIRONMENT_OBSERVATION_LABELS] : "\u2014",
+                    },
+                    {
+                      label: "Concerns",
+                      value:
+                        obs && obs.concernCategories.length > 0
+                          ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
+                          : "\u2014",
+                    },
+                    {
+                      label: "Follow-up",
+                      value: obs && obs.followUp !== "NONE" ? FOLLOW_UP_LABELS[obs.followUp as keyof typeof FOLLOW_UP_LABELS] : "\u2014",
+                    },
+                    { label: "Summary", value: obs?.factualSummary || "\u2014" },
+                  ]}
+                />
+              );
+            }}
+          />
         </div>
       )}
     </div>

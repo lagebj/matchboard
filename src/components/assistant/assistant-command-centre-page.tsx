@@ -315,13 +315,13 @@ export function AssistantCommandCentrePage({
           <BrandIllustration
             name="matchdayPrepSketch"
             decorative
-            className="hidden md:block h-16 lg:h-20 w-auto opacity-60 dark:opacity-50 shrink-0"
+            className="hidden expanded:block h-16 large:h-20 w-auto opacity-60 dark:opacity-50 shrink-0"
           />
         )}
       </div>
 
       {/* Metric strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 medium:grid-cols-3 expanded:grid-cols-5">
         <MetricTile
           label="Blocked"
           value={blockedCount}

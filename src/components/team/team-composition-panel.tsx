@@ -334,7 +334,7 @@ function ScenarioSelector({
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col medium:flex-row gap-3">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">Game format</label>
           <select
@@ -370,7 +370,7 @@ function ScenarioSelector({
         The engine fills role requirements based on the selected format{selectedFormationId ? " and formation" : ""}.
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 medium:grid-cols-2 gap-3">
         {SCENARIOS.map((scenario) => {
           const gated = isScenarioPolicyGated(scenario.code);
           const isSelected = selectedScenario === scenario.code;
@@ -519,14 +519,14 @@ function ProposalPreview({
         </Surface>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 medium:grid-cols-4 gap-3">
         <MetricCard label="Teams" value={String(proposal.teamMetrics.length)} />
         <MetricCard label="Players assigned" value={String(proposal.assignments.length)} />
         <MetricCard label="Players moved" value={String(proposal.proposalMetrics.totalPlayersMoved)} />
         <MetricCard label="Avg team size" value={proposal.proposalMetrics.averageTeamSize.toFixed(1)} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 medium:grid-cols-2 gap-4">
         {proposal.teamMetrics.map((team) => {
           const teamAssignments = assignmentsByTeam.get(team.teamId) ?? [];
           const sortedAssignments = [...teamAssignments].sort((a, b) => {
@@ -584,7 +584,7 @@ function ProposalPreview({
 
       <Surface variant="subtle" padding="sm">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Spread metrics</p>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-[var(--text-soft)]">
+        <div className="grid grid-cols-2 medium:grid-cols-5 gap-2 text-xs text-[var(--text-soft)]">
           <SpreadMetric label="Overall" value={proposal.proposalMetrics.overallSpread} />
           <SpreadMetric label="Defence" value={proposal.proposalMetrics.defensiveSpread} />
           <SpreadMetric label="Midfield" value={proposal.proposalMetrics.midfieldSpread} />

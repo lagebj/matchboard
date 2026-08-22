@@ -12,6 +12,8 @@ import {
 } from "@/lib/table-sort";
 import { setPlayerAvailabilityAction } from "@/app/(app)/players/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
+import { Button } from "@/components/ui/button";
 
 type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
@@ -116,178 +118,252 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
-        <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
-          <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
-            <tr>
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Player"
-                onSort={updateSort}
-                sortKey="player"
-              />
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Core Team"
-                onSort={updateSort}
-                sortKey="coreTeam"
-              />
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Availability"
-                onSort={updateSort}
-                sortKey="availability"
-              />
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Positions"
-                onSort={updateSort}
-                sortKey="positions"
-              />
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Rotation"
-                onSort={updateSort}
-                sortKey="rotation"
-              />
-              <th className="px-4 py-3 font-semibold">Planning Flags</th>
-              <SortableHeader
-                activeKey={sortKey}
-                direction={sortDirection}
-                label="Status"
-                onSort={updateSort}
-                sortKey="status"
-              />
-              <th className="px-4 py-3 font-semibold">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y app-hairline">
-            {sortedPlayers.map((player) => (
-              <tr
-                key={player.id}
-                className="align-top hover:bg-[rgba(255,255,255,0.035)]"
-              >
-                <td className="px-4 py-3 font-medium text-zinc-50">
-                  <Link
-                    className="block rounded-xl px-2 py-2 -mx-2 -my-2 hover:bg-[rgba(255,255,255,0.05)]"
-                    href={`/players/${player.id}`}
+      <ResponsiveTable
+        items={sortedPlayers}
+        getKey={(player) => player.id}
+        emptyState={
+          <p className="rounded-xl border app-hairline bg-[rgba(12,15,20,0.45)] px-4 py-10 text-center app-copy-muted">
+            No players yet.{" "}
+            <Link href={orgUrl("/players/new")} className="underline text-[var(--accent-strong)]">
+              Create a player
+            </Link>
+          </p>
+        }
+        renderTable={() => (
+          <div className="overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
+            <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
+              <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
+                <tr>
+                  <SortableHeader
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    label="Player"
+                    onSort={updateSort}
+                    sortKey="player"
+                  />
+                  <SortableHeader
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    label="Core Team"
+                    onSort={updateSort}
+                    sortKey="coreTeam"
+                  />
+                  <SortableHeader
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    label="Availability"
+                    onSort={updateSort}
+                    sortKey="availability"
+                  />
+                  <SortableHeader
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    label="Positions"
+                    onSort={updateSort}
+                    sortKey="positions"
+                  />
+                  <SortableHeader
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    label="Rotation"
+                    onSort={updateSort}
+                    sortKey="rotation"
+                  />
+                  <th className="px-4 py-3 font-semibold">Planning Flags</th>
+                  <SortableHeader
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    label="Status"
+                    onSort={updateSort}
+                    sortKey="status"
+                  />
+                  <th className="px-4 py-3 font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y app-hairline">
+                {sortedPlayers.map((player) => (
+                  <tr
+                    key={player.id}
+                    className="align-top hover:bg-[rgba(255,255,255,0.035)]"
                   >
-                    {formatPlayerName(player)}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-zinc-100">{player.coreTeam?.name ?? "Unassigned"}</td>
-                <td className="px-4 py-3">
-                  {editingAvailabilityId === player.id ? (
-                    <select
-                      className={`rounded-full border px-2 py-1 text-xs font-medium uppercase tracking-[0.18em] ${getAvailabilityPillClassName(player.currentAvailability)} bg-transparent`}
-                      value={player.currentAvailability}
-                      disabled={isPending}
-                      autoFocus
-                      onChange={(e) => {
-                        const newStatus = e.target.value as AvailabilityStatus;
-                        startTransition(async () => {
-                          const fd = new FormData();
-                          fd.set("playerId", player.id);
-                          fd.set("availability", newStatus);
-                          await setPlayerAvailabilityAction(fd);
-                          setEditingAvailabilityId(null);
-                        });
-                      }}
-                      onBlur={() => setEditingAvailabilityId(null)}
-                    >
-                      {AVAILABILITY_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {formatAvailabilityStatus(opt)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <button
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] cursor-pointer hover:opacity-80 transition-opacity ${getAvailabilityPillClassName(player.currentAvailability)}`}
-                      onClick={() => setEditingAvailabilityId(player.id)}
-                      title="Click to change availability"
-                      type="button"
-                    >
-                      {formatAvailabilityStatus(player.currentAvailability)}
-                    </button>
-                  )}
-                </td>
-                <td className="px-4 py-3 app-copy-soft">{getPlayerPositionSummary(player)}</td>
-                <td className="px-4 py-3 app-copy-soft">{player.nonRotatable ? "No" : "Yes"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {player.nonRotatable && (
-                      <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--warning)]">
-                        Non-rot
-                      </span>
-                    )}
-                    {player.reducedMatchLoadAllowed && (
-                      <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[#b28cdb]">
-                        RML
-                      </span>
-                    )}
-                    {player.supportSuitability && player.supportSuitability !== "neutral" && (
-                      <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
-                        Sup {player.supportSuitability}
-                      </span>
-                    )}
-                    {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
-                      <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
-                        Dev {player.developmentReadiness}
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${
-                      player.active
-                        ? "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-zinc-100"
-                        : "border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.1)] text-[var(--danger)]"
-                    }`}
-                  >
-                    {player.active ? "Active" : "Inactive"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
-                      href={`/players/${player.id}`}
-                    >
-                      Open profile
-                    </Link>
-                    <form action={player.removeAction}>
-                      <button
-                        className="h-9 rounded-full border border-[rgba(185,128,119,0.3)] px-3 text-sm font-medium text-[var(--danger)] hover:bg-[rgba(185,128,119,0.08)]"
-                        type="submit"
+                    <td className="px-4 py-3 font-medium text-zinc-50">
+                      <Link
+                        className="block rounded-xl px-2 py-2 -mx-2 -my-2 hover:bg-[rgba(255,255,255,0.05)]"
+                        href={`/players/${player.id}`}
                       >
-                        Remove
-                      </button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {sortedPlayers.length === 0 ? (
-              <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={8}>
-                  No players yet.{" "}
-                  <Link href={orgUrl("/players/new")} className="underline text-[var(--accent-strong)]">
-                    Create a player
-                  </Link>
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+                        {formatPlayerName(player)}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-100">{player.coreTeam?.name ?? "Unassigned"}</td>
+                    <td className="px-4 py-3">
+                      {editingAvailabilityId === player.id ? (
+                        <select
+                          className={`rounded-full border px-2 py-1 text-xs font-medium uppercase tracking-[0.18em] ${getAvailabilityPillClassName(player.currentAvailability)} bg-transparent`}
+                          value={player.currentAvailability}
+                          disabled={isPending}
+                          autoFocus
+                          onChange={(e) => {
+                            const newStatus = e.target.value as AvailabilityStatus;
+                            startTransition(async () => {
+                              const fd = new FormData();
+                              fd.set("playerId", player.id);
+                              fd.set("availability", newStatus);
+                              await setPlayerAvailabilityAction(fd);
+                              setEditingAvailabilityId(null);
+                            });
+                          }}
+                          onBlur={() => setEditingAvailabilityId(null)}
+                        >
+                          {AVAILABILITY_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {formatAvailabilityStatus(opt)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] cursor-pointer hover:opacity-80 transition-opacity ${getAvailabilityPillClassName(player.currentAvailability)}`}
+                          onClick={() => setEditingAvailabilityId(player.id)}
+                          title="Click to change availability"
+                          type="button"
+                        >
+                          {formatAvailabilityStatus(player.currentAvailability)}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 app-copy-soft">{getPlayerPositionSummary(player)}</td>
+                    <td className="px-4 py-3 app-copy-soft">{player.nonRotatable ? "No" : "Yes"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {player.nonRotatable && (
+                          <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--warning)]">
+                            Non-rot
+                          </span>
+                        )}
+                        {player.reducedMatchLoadAllowed && (
+                          <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[#b28cdb]">
+                            RML
+                          </span>
+                        )}
+                        {player.supportSuitability && player.supportSuitability !== "neutral" && (
+                          <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                            Sup {player.supportSuitability}
+                          </span>
+                        )}
+                        {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
+                          <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                            Dev {player.developmentReadiness}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${
+                          player.active
+                            ? "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-zinc-100"
+                            : "border-[rgba(185,128,119,0.3)] bg-[rgba(185,128,119,0.1)] text-[var(--danger)]"
+                        }`}
+                      >
+                        {player.active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
+                          href={`/players/${player.id}`}
+                        >
+                          Open profile
+                        </Link>
+                        <form action={player.removeAction}>
+                          <button
+                            className="h-9 rounded-full border border-[rgba(185,128,119,0.3)] px-3 text-sm font-medium text-[var(--danger)] hover:bg-[rgba(185,128,119,0.08)]"
+                            type="submit"
+                          >
+                            Remove
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        renderCard={(player) => (
+          <ResponsiveTableCard
+            title={formatPlayerName(player)}
+            titleHref={`/players/${player.id}`}
+            fields={[
+              { label: "Core Team", value: player.coreTeam?.name ?? "Unassigned" },
+              {
+                label: "Availability",
+                value: (
+                  <span
+                    className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] ${getAvailabilityPillClassName(player.currentAvailability)}`}
+                  >
+                    {formatAvailabilityStatus(player.currentAvailability)}
+                  </span>
+                ),
+              },
+              { label: "Positions", value: getPlayerPositionSummary(player) },
+              { label: "Rotation", value: player.nonRotatable ? "No" : "Yes" },
+              {
+                label: "Status",
+                value: player.active ? "Active" : "Inactive",
+              },
+              ...(player.nonRotatable ||
+              player.reducedMatchLoadAllowed ||
+              (player.supportSuitability && player.supportSuitability !== "neutral") ||
+              (player.developmentReadiness && player.developmentReadiness !== "neutral")
+                ? [
+                    {
+                      label: "Planning Flags",
+                      value: (
+                        <div className="flex flex-wrap gap-1">
+                          {player.nonRotatable && (
+                            <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[var(--warning)]">
+                              Non-rot
+                            </span>
+                          )}
+                          {player.reducedMatchLoadAllowed && (
+                            <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[#b28cdb]">
+                              RML
+                            </span>
+                          )}
+                          {player.supportSuitability && player.supportSuitability !== "neutral" && (
+                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] app-copy-muted">
+                              Sup {player.supportSuitability}
+                            </span>
+                          )}
+                          {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
+                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] app-copy-muted">
+                              Dev {player.developmentReadiness}
+                            </span>
+                          )}
+                        </div>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+            actions={
+              <>
+                <Button as={Link} href={`/players/${player.id}`} variant="secondary" size="sm">
+                  Open profile
+                </Button>
+                <form action={player.removeAction}>
+                  <Button variant="danger" size="sm" type="submit">
+                    Remove
+                  </Button>
+                </form>
+              </>
+            }
+          />
+        )}
+      />
     </div>
   );
 }
