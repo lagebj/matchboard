@@ -53,7 +53,7 @@ export function InviteAcceptanceForm({
     return (
       <div className="rounded-md border border-[var(--border-soft)] p-4">
         <p className="text-sm font-medium">Invitation accepted!</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           Redirecting to {organisationName}...
         </p>
       </div>
@@ -64,7 +64,7 @@ export function InviteAcceptanceForm({
     return (
       <div className="rounded-md border border-[var(--border-soft)] p-4">
         <p className="text-sm font-medium">Invitation declined</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           You can request a new invitation if you change your mind.
         </p>
         <a
@@ -86,14 +86,14 @@ export function InviteAcceptanceForm({
         <button
           onClick={handleAccept}
           disabled={isAccepting || isDeclining}
-          className="rounded-md bg-[var(--surface-2)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-3)] disabled:opacity-50"
+          className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
         >
           {isAccepting ? "Accepting..." : "Accept Invitation"}
         </button>
         <button
           onClick={handleDecline}
           disabled={isAccepting || isDeclining}
-          className="rounded-md border border-[var(--border-soft)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)] disabled:opacity-50"
+          className="rounded-md border border-[var(--border-soft)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-muted)] disabled:opacity-50"
         >
           {isDeclining ? "Declining..." : "Decline"}
         </button>

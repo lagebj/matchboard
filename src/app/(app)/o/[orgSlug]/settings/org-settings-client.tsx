@@ -95,34 +95,34 @@ export function OrgSettingsClient({
     <div className="space-y-8" key={refreshKey}>
       <div>
         <h1 className="text-2xl font-bold">Organisation Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage {org.name}</p>
+        <p className="text-sm text-[var(--text-muted)]">Manage {org.name}</p>
       </div>
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Details</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">Name</span>
+            <span className="text-[var(--text-muted)]">Name</span>
             <p className="font-medium">{org.name}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">Slug</span>
+            <span className="text-[var(--text-muted)]">Slug</span>
             <p className="font-medium">{org.slug}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">Created</span>
+            <span className="text-[var(--text-muted)]">Created</span>
             <p className="font-medium">{new Date(org.createdAt).toLocaleDateString()}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">Members</span>
+            <span className="text-[var(--text-muted)]">Members</span>
             <p className="font-medium">{org._count.memberships}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">Teams</span>
+            <span className="text-[var(--text-muted)]">Teams</span>
             <p className="font-medium">{org._count.teams}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">Players</span>
+            <span className="text-[var(--text-muted)]">Players</span>
             <p className="font-medium">{org._count.players}</p>
           </div>
         </div>
@@ -134,19 +134,19 @@ export function OrgSettingsClient({
             <h2 className="text-lg font-semibold">Machine Principals</h2>
             <button
               onClick={() => { setShowCreatePrincipal(!showCreatePrincipal); setCreatedSecret(null); }}
-              className="rounded-md bg-[var(--surface-2)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-3)]"
+              className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-hover)]"
             >
               {showCreatePrincipal ? "Cancel" : "Create principal"}
             </button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--text-muted)]">
             Machine principals are API clients for automation. They are scoped to this organisation and cannot access data from other organisations.
           </p>
 
           {showCreatePrincipal && (
             <div className="rounded-md border border-[var(--border-soft)] p-4 space-y-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Name</label>
+                <label className="text-xs font-medium text-[var(--text-muted)]">Name</label>
                 <input
                   type="text"
                   value={principalName}
@@ -156,7 +156,7 @@ export function OrgSettingsClient({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Description (optional)</label>
+                <label className="text-xs font-medium text-[var(--text-muted)]">Description (optional)</label>
                 <input
                   type="text"
                   value={principalDescription}
@@ -166,7 +166,7 @@ export function OrgSettingsClient({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Scopes</label>
+                <label className="text-xs font-medium text-[var(--text-muted)]">Scopes</label>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {allScopes.map((scope) => (
                     <label key={scope} className="flex items-center gap-1 text-xs">
@@ -185,7 +185,7 @@ export function OrgSettingsClient({
               {createdSecret && (
                 <div className="rounded-md border border-green-800 bg-green-950/30 p-3">
                   <p className="text-sm font-medium text-green-400">Principal created!</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
                     Copy this client secret now. It will not be shown again.
                   </p>
                   <code className="block mt-2 rounded bg-[var(--surface-1)] px-2 py-1 text-xs break-all">{createdSecret}</code>
@@ -194,7 +194,7 @@ export function OrgSettingsClient({
               <button
                 onClick={handleCreatePrincipal}
                 disabled={!principalName.trim() || selectedScopes.length === 0 || createLoading}
-                className="rounded-md bg-[var(--surface-2)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-3)] disabled:opacity-50"
+                className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
               >
                 {createLoading ? "Creating..." : "Create principal"}
               </button>
@@ -202,7 +202,7 @@ export function OrgSettingsClient({
           )}
 
           {principals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No machine principals yet.</p>
+            <p className="text-sm text-[var(--text-muted)]">No machine principals yet.</p>
           ) : (
             <div className="space-y-2">
               {principals.map((p) => (
@@ -210,7 +210,7 @@ export function OrgSettingsClient({
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{p.name}</p>
-                      {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+                      {p.description && <p className="text-xs text-[var(--text-muted)]">{p.description}</p>}
                     </div>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded ${p.status === "ACTIVE" ? "bg-green-950/30 text-green-400" : "bg-red-950/30 text-red-400"}`}>
                       {p.status}
@@ -218,11 +218,11 @@ export function OrgSettingsClient({
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {p.scopes.map((s) => (
-                      <span key={s} className="text-xs bg-[var(--surface-2)] px-1.5 py-0.5 rounded">{s}</span>
+                      <span key={s} className="text-xs bg-[var(--surface-muted)] px-1.5 py-0.5 rounded">{s}</span>
                     ))}
                   </div>
                   {p.clientCredentialPrefix && (
-                    <p className="text-xs text-muted-foreground mt-1">Prefix: {p.clientCredentialPrefix}...</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Prefix: {p.clientCredentialPrefix}...</p>
                   )}
                   <div className="mt-2 flex gap-2">
                     {p.status === "ACTIVE" && (
@@ -252,9 +252,9 @@ export function OrgSettingsClient({
                 This organisation is suspended.
               </p>
               {suspendedReason && (
-                <p className="text-xs text-muted-foreground">Reason: {suspendedReason}</p>
+                <p className="text-xs text-[var(--text-muted)]">Reason: {suspendedReason}</p>
               )}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[var(--text-muted)]">
                 Suspended organisations block all member access. Reactivate to restore access.
               </p>
               <div className="flex gap-3">
@@ -264,7 +264,7 @@ export function OrgSettingsClient({
             </div>
           ) : (
             <div className="rounded-md border border-[var(--border-soft)] p-4 space-y-3">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-[var(--text-muted)]">
                 Suspending an organisation blocks all member access. This is reversible.
               </p>
               <SuspendActionButton orgSlug={orgSlug} action="suspend" />
@@ -435,7 +435,7 @@ function RotateSecretButton({ principalId, orgSlug }: { principalId: string; org
       <div className="rounded border border-green-800 bg-green-950/30 p-2">
         <p className="text-xs text-green-400 font-medium">New secret generated</p>
         <code className="text-xs break-all">{newSecret}</code>
-        <p className="text-xs text-muted-foreground mt-1">Copy now. Won&apos;t be shown again.</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Copy now. Won&apos;t be shown again.</p>
       </div>
     );
   }
@@ -444,7 +444,7 @@ function RotateSecretButton({ principalId, orgSlug }: { principalId: string; org
     <button
       onClick={handleRotate}
       disabled={loading}
-      className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+      className="text-xs text-[var(--text-muted)] hover:text-foreground disabled:opacity-50"
     >
       {loading ? "Rotating..." : "Rotate secret"}
     </button>

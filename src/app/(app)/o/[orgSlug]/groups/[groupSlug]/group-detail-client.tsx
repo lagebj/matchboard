@@ -114,17 +114,17 @@ export function GroupDetailClient({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{group.name}</h1>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
               {GROUP_TYPE_LABELS[group.type] ?? group.type}
             </span>
           </div>
           {group.cohortYear && (
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-[var(--text-muted)] mt-1">
               Born {group.cohortYear}
             </p>
           )}
           {group.description && (
-            <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{group.description}</p>
           )}
         </div>
         <Link
@@ -139,28 +139,28 @@ export function GroupDetailClient({
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-[var(--text-muted)]" />
             Players
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.playerCount}</p>
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <Shield className="h-4 w-4 text-muted-foreground" />
+            <Shield className="h-4 w-4 text-[var(--text-muted)]" />
             Teams
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.teams.length}</p>
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
+            <UserCheck className="h-4 w-4 text-[var(--text-muted)]" />
             Coaches
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.groupAccesses.length}</p>
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <GitBranch className="h-4 w-4 text-muted-foreground" />
+            <GitBranch className="h-4 w-4 text-[var(--text-muted)]" />
             Paths
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.outgoingPaths.length + group.incomingPaths.length}</p>
@@ -177,7 +177,7 @@ export function GroupDetailClient({
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-[var(--text-muted)] hover:text-foreground"
             }`}
           >
             {tab.label}
@@ -199,7 +199,7 @@ export function GroupDetailClient({
                     <span className="font-medium">
                       {access.membership.user.name ?? access.membership.user.email}
                     </span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
                     </span>
                   </div>
@@ -218,7 +218,7 @@ export function GroupDetailClient({
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     <span className="font-medium">{season.name}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {season.status}
                     </span>
                   </div>
@@ -230,7 +230,7 @@ export function GroupDetailClient({
           {group.events.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-muted-foreground" />
+                <Trophy className="h-4 w-4 text-[var(--text-muted)]" />
                 Events
               </h2>
               <div className="space-y-2">
@@ -241,7 +241,7 @@ export function GroupDetailClient({
                     className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
                   >
                     <span className="font-medium">{event.name}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
                     </span>
                   </Link>
@@ -255,7 +255,7 @@ export function GroupDetailClient({
       {activeTab === "teams" && (
         <div className="space-y-4">
           {group.teams.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
+            <p className="text-sm text-[var(--text-muted)] py-6 text-center">
               No teams in this group yet.
             </p>
           ) : (
@@ -269,7 +269,7 @@ export function GroupDetailClient({
                   <div>
                     <span className="font-medium">{team.name}</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
                 </Link>
               ))}
             </div>
@@ -280,7 +280,7 @@ export function GroupDetailClient({
       {activeTab === "players" && (
         <div className="space-y-4">
           {group.players.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
+            <p className="text-sm text-[var(--text-muted)] py-6 text-center">
               No players in this group yet.
             </p>
           ) : (
@@ -304,7 +304,7 @@ export function GroupDetailClient({
                           {gp.player.firstName}{gp.player.lastName ? ` ${gp.player.lastName}` : ""}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground">
+                      <td className="px-3 py-2 text-[var(--text-muted)]">
                         {gp.player.coreTeam?.name ?? "\u2014"}
                       </td>
                       <td className="px-3 py-2">
@@ -324,14 +324,14 @@ export function GroupDetailClient({
       {activeTab === "paths" && (
         <div className="space-y-4">
           {group.outgoingPaths.length === 0 && group.incomingPaths.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
+            <p className="text-sm text-[var(--text-muted)] py-6 text-center">
               No movement paths configured for this group.
             </p>
           ) : (
             <div className="space-y-2">
               {group.outgoingPaths.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Outgoing</h3>
+                  <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Outgoing</h3>
                   <div className="space-y-2">
                     {group.outgoingPaths.map((path) => (
                       <div
@@ -340,10 +340,10 @@ export function GroupDetailClient({
                       >
                         <span className="text-sm">
                           <span className="font-medium">{group.name}</span>
-                          <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
+                          <ArrowRight className="inline h-3 w-3 mx-1 text-[var(--text-muted)]" />
                           <span className="font-medium">{path.toGroupName}</span>
                         </span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                           {PATH_ROLE_LABELS[path.role] ?? path.role}
                         </span>
                       </div>
@@ -353,7 +353,7 @@ export function GroupDetailClient({
               )}
               {group.incomingPaths.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Incoming</h3>
+                  <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Incoming</h3>
                   <div className="space-y-2">
                     {group.incomingPaths.map((path) => (
                       <div
@@ -362,10 +362,10 @@ export function GroupDetailClient({
                       >
                         <span className="text-sm">
                           <span className="font-medium">{path.fromGroupName}</span>
-                          <ArrowRight className="inline h-3 w-3 mx-1 text-muted-foreground" />
+                          <ArrowRight className="inline h-3 w-3 mx-1 text-[var(--text-muted)]" />
                           <span className="font-medium">{group.name}</span>
                         </span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                           {PATH_ROLE_LABELS[path.role] ?? path.role}
                         </span>
                       </div>

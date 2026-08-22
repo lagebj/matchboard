@@ -25,7 +25,7 @@ export function AttentionPageClient({ entries }: { entries: AttentionEntry[] }) 
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Attention</h1>
-          <p className="text-muted-foreground mt-1">No items require your attention right now.</p>
+          <p className="text-[var(--text-muted)] mt-1">No items require your attention right now.</p>
         </div>
       </div>
     );
@@ -35,7 +35,7 @@ export function AttentionPageClient({ entries }: { entries: AttentionEntry[] }) 
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Attention</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-[var(--text-muted)] mt-1">
           {entries.length} item{entries.length === 1 ? '' : 's'} requiring your attention.
         </p>
       </div>
@@ -54,13 +54,13 @@ export function AttentionPageClient({ entries }: { entries: AttentionEntry[] }) 
                     {categoryLabels[entry.category] ?? entry.category}
                   </span>
                   {entry.dueAt && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-[var(--text-muted)]">
                       Due {entry.dueAt.toLocaleDateString()}
                     </span>
                   )}
                 </div>
                 <p className="mt-1 font-medium">{entry.title}</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">{entry.summary}</p>
+                <p className="mt-0.5 text-sm text-[var(--text-muted)]">{entry.summary}</p>
               </div>
             </div>
           </a>

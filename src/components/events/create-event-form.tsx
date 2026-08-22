@@ -69,7 +69,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Create Event</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-[var(--text-muted)] mt-1">
           Set up a cup, tournament, or friendly day for squad planning
         </p>
       </div>

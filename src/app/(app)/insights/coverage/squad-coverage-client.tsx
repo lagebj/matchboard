@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, ShieldAlert } from "lucide-react";
 import type { CoverageMatrixEntry, CoverageWarning } from "@/lib/insights/insights-types";
+import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 
 type LeagueSeasonOption = {
   id: string;
@@ -167,7 +168,11 @@ export function SquadCoverageClient({
       )}
 
       {filteredEntries.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/50">
+        <ResponsiveTable
+          items={filteredEntries}
+          getKey={(entry) => entry.squadId}
+          renderTable={() => (
+          <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/50">
           <table className="min-w-full text-xs">
             <thead>
               <tr className="border-b border-zinc-800">
@@ -233,7 +238,68 @@ export function SquadCoverageClient({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+          )}
+          renderCard={(entry) => (
+            <ResponsiveTableCard
+              title={entry.teamName}
+              fields={[
+                {
+                  label: "Primary GK",
+                  value: (
+                    <span className={entry.goalkeeperCoverage.primary > 0 ? "text-emerald-300" : "text-red-400"}>
+                      {entry.goalkeeperCoverage.primary}
+                    </span>
+                  ),
+                },
+                { label: "Emergency GK", value: entry.goalkeeperCoverage.emergency },
+                {
+                  label: "DEF",
+                  value: (
+                    <span className={entry.positionCoverage.defenders > 0 ? "" : "text-orange-400"}>
+                      {entry.positionCoverage.defenders}
+                    </span>
+                  ),
+                },
+                {
+                  label: "MID",
+                  value: (
+                    <span className={entry.positionCoverage.midfielders > 0 ? "" : "text-orange-400"}>
+                      {entry.positionCoverage.midfielders}
+                    </span>
+                  ),
+                },
+                {
+                  label: "ATT",
+                  value: (
+                    <span className={entry.positionCoverage.attackers > 0 ? "" : "text-orange-400"}>
+                      {entry.positionCoverage.attackers}
+                    </span>
+                  ),
+                },
+                { label: "Unassigned", value: entry.positionCoverage.unassigned },
+                {
+                  label: "Warnings",
+                  value:
+                    entry.warnings.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {entry.warnings.map((w) => (
+                          <span
+                            key={w}
+                            className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${WARNING_STYLES[w] ?? "bg-zinc-800 text-zinc-400"}`}
+                          >
+                            {WARNING_LABELS[w] ?? w}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-emerald-400">OK</span>
+                    ),
+                },
+              ]}
+            />
+          )}
+        />
       )}
     </div>
   );
