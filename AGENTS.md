@@ -1636,11 +1636,15 @@ Explicitly out of scope for v1 — do not add without a new decision:
 - Custom Web Push.
 - App-store packaging of any kind.
 
-Open item requiring owner input (not a coding-agent decision): a maskable icon variant and a
-visually distinct Test-marker home-screen icon are visual asset work, not pure code — per
-`docs/product/brand-strategy.md`'s existing owner-approval gate on "final logo/app icon." The
-manifest currently reuses the existing (non-maskable) icons for both environments; a naive
-programmatic padding transform is not assumed to be an acceptable "final" maskable icon.
+Maintainer decisions on the two v1 open items (2026-08-22):
+- **Maskable icon**: the existing `android-chrome-192x192.png`/`512x512.png` are declared
+  `purpose: "maskable"` in the manifest, reusing the existing asset rather than commissioning a
+  new safe-zoned variant — their full-bleed background already has the right structural shape.
+  No new asset was created.
+- **Test-marker home-screen icon**: deliberately not added for v1. The manifest's distinct
+  `name`/`short_name` ("Matchboard Test") plus the in-app Test badge are the distinguishing
+  signals instead. Revisit only if a real design need surfaces later — this is not tracked as
+  outstanding work.
 
 ## Event squad planning
 

@@ -62,4 +62,14 @@ describe("manifest (PWA, UX-2.10-01)", () => {
     expect(sizes).toContain("192x192");
     expect(sizes).toContain("512x512");
   });
+
+  it("declares maskable purpose for both sizes, reusing the existing icon files", async () => {
+    withHost("app.matchboard.football");
+    const result = await manifest();
+    const maskable = result.icons?.filter((i) => i.purpose === "maskable") ?? [];
+    expect(maskable.map((i) => i.sizes).sort()).toEqual(["192x192", "512x512"]);
+    for (const icon of maskable) {
+      expect(icon.src).toMatch(/^\/brand\/android-chrome-\d+x\d+\.png$/);
+    }
+  });
 });
