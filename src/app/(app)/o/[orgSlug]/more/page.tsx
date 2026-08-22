@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { requirePageActorContext, canAdmin } from "@/lib/auth/actor-context";
 import { PageHeader } from "@/components/ui/page-header";
+import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,8 @@ export default async function MorePage({ params }: { params: Promise<{ orgSlug: 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="More" description="Analysis, administration, and secondary destinations." />
+
+      <InstallPwaCard />
 
       {sections.map((section) => (
         <div key={section.title} className="flex flex-col gap-3">

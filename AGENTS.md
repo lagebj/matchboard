@@ -1611,6 +1611,37 @@ Cancelled match rules:
 - Reopening a cancelled match clears the cancelledAt timestamp and cancelledReason, restoring SCHEDULED status
 - The SelectionRole enum retains BACKFILL for backward compatibility; new generation never produces BACKFILL as a user-facing role (squad repair uses role=SUPPORT with an explanation code)
 
+### PWA (installable app)
+
+Matchboard is installable as a Progressive Web App. Scope is deliberately v1-only:
+
+- `src/app/manifest.ts` — dynamic manifest (Next.js `MetadataRoute.Manifest`), branches on
+  request hostname (`test.` prefix vs. everything else), not on a Vercel project-ID env var.
+  Produces a visually distinct `name`/`short_name` ("Matchboard Test" vs. "Matchboard") so the
+  installed Test app is never mistaken for Production. `start_url` is `/today` (the canonical
+  landing route). Shortcuts: Today, League, Events (max 3). Supersedes the old static
+  `public/brand/site.webmanifest`, which has been removed — do not reintroduce a static manifest
+  reference in root `layout.tsx`'s metadata; it would compete with the dynamic route.
+- An in-app "Test" badge renders in the top header on any `test.` hostname
+  (`(app)/layout.tsx`'s `TestEnvironmentBadge`) — a second, code-level safeguard against
+  mistaking installed Test for Production, independent of the home-screen icon.
+- "Install Matchboard" is a card on the More page (`src/components/pwa/install-prompt-card.tsx`),
+  visible to any authenticated coach (not gated to Owner/Admin, unlike Settings). Platform-aware:
+  captures `beforeinstallprompt` for Android/Chromium; shows static "tap Share → Add to Home
+  Screen" instructions on iOS (no programmatic install API exists there); shows an "installed"
+  state when already running in standalone mode; renders nothing when neither path applies.
+
+Explicitly out of scope for v1 — do not add without a new decision:
+- Service worker / offline caching.
+- Custom Web Push.
+- App-store packaging of any kind.
+
+Open item requiring owner input (not a coding-agent decision): a maskable icon variant and a
+visually distinct Test-marker home-screen icon are visual asset work, not pure code — per
+`docs/product/brand-strategy.md`'s existing owner-approval gate on "final logo/app icon." The
+manifest currently reuses the existing (non-maskable) icons for both environments; a naive
+programmatic padding transform is not assumed to be an acceptable "final" maskable icon.
+
 ## Event squad planning
 
 Matchboard supports temporary event squad planning for cups, tournaments, friendly days, and similar events. Event squads are separate from league match-round planning.

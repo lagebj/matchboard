@@ -8,12 +8,32 @@ import { OrgSlugCookieSetter } from "@/components/shell/org-slug-cookie-setter";
 import { getOrgSlugForUser } from "@/lib/auth/resolve-org-slug";
 import { resolveOrganisationAccess } from "@/lib/organisations/organisation-resolver";
 import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { headers } from "next/headers";
+
+/**
+ * TestEnvironmentBadge — an in-app marker so an installed Test PWA can never
+ * be mistaken for Production, even without looking at the home-screen icon
+ * (PROGRAMME.md §41). Host-detected server-side, same convention as
+ * src/app/manifest.ts. A distinct Test-marker home-screen icon is separate,
+ * owner-approval-adjacent asset work (UX-2.10-01) — this badge doesn't wait
+ * on that.
+ */
+function TestEnvironmentBadge() {
+  return (
+    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--warning)]">
+      Test
+    </span>
+  );
+}
 
 export default async function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const host = (await headers()).get("host") ?? "";
+  const isTestEnvironment = host.startsWith("test.");
+
   const orgSlug = await getOrgSlugForUser();
 
   if (!orgSlug) {
@@ -24,8 +44,9 @@ export default async function AppLayout({
     return (
       <div className="flex min-h-screen flex-col">
         <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[rgba(10,13,19,0.85)] backdrop-blur-2xl">
-          <div className="flex-1 min-w-0 px-4 py-3">
+          <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
             <span className="text-sm font-semibold">Matchboard</span>
+            {isTestEnvironment && <TestEnvironmentBadge />}
           </div>
           <div className="shrink-0 px-3">
             <UserNav />
@@ -63,6 +84,11 @@ export default async function AppLayout({
             <div className="flex-1 min-w-0">
               <TopContextBar />
             </div>
+            {isTestEnvironment && (
+              <div className="shrink-0 pr-1">
+                <TestEnvironmentBadge />
+              </div>
+            )}
             <div className="shrink-0 px-3">
               <UserNav />
             </div>
