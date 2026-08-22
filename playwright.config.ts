@@ -48,5 +48,27 @@ export default defineConfig({
       dependencies: ["setup"],
       testMatch: /authz-failure\.spec\.ts/,
     },
+    // Phone/tablet viewport matrix (Phase 2.18) — scoped to accessibility.spec.ts only, not
+    // every spec: the point is catching responsive/adaptive-layout a11y issues at real device
+    // sizes, not redundantly re-running mutation/business-logic specs across viewports for no
+    // accessibility benefit.
+    {
+      name: "accessibility-phone",
+      use: {
+        ...devices["iPhone 13"],
+        storageState: "e2e/.auth/coach.json",
+      },
+      dependencies: ["setup"],
+      testMatch: /accessibility\.spec\.ts/,
+    },
+    {
+      name: "accessibility-tablet",
+      use: {
+        ...devices["iPad Mini"],
+        storageState: "e2e/.auth/coach.json",
+      },
+      dependencies: ["setup"],
+      testMatch: /accessibility\.spec\.ts/,
+    },
   ],
 });
