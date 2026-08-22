@@ -155,3 +155,34 @@ describe("RoundBoard — non-drag Move alternative (UX-2.8-01)", () => {
     expect(addPlayerToMatchAction).not.toHaveBeenCalled();
   });
 });
+
+describe("RoundBoard — phone-responsive match columns", () => {
+  it("gives match columns horizontal-scroll-snap classes below the expanded tier, and a grid at expanded+", () => {
+    const { container } = render(<RoundBoard {...baseProps()} />);
+    const scrollContainer = container.querySelector('[data-drop-available]')?.parentElement;
+    expect(scrollContainer?.className).toContain("overflow-x-auto");
+    expect(scrollContainer?.className).toContain("snap-x");
+    expect(scrollContainer?.className).toContain("expanded:grid");
+    expect(scrollContainer?.className).toContain("expanded:snap-none");
+  });
+
+  it("gives each column a bounded width for snap-scrolling, reset to auto at expanded+", () => {
+    const { container } = render(<RoundBoard {...baseProps()} />);
+    const availableColumn = container.querySelector('[data-drop-available]');
+    const matchColumn = container.querySelector('[data-drop-match="m-blue"]');
+    for (const el of [availableColumn, matchColumn]) {
+      expect(el?.className).toContain("snap-start");
+      expect(el?.className).toContain("expanded:w-auto");
+    }
+  });
+
+  it("shows a swipe hint only when there is more than one match", () => {
+    const { rerender } = render(<RoundBoard {...baseProps()} />);
+    expect(screen.getByText(/swipe to see other matches/i)).toBeTruthy();
+
+    const singleMatchProps = baseProps();
+    singleMatchProps.matches = [singleMatchProps.matches[0]];
+    rerender(<RoundBoard {...singleMatchProps} />);
+    expect(screen.queryByText(/swipe to see other matches/i)).toBeNull();
+  });
+});

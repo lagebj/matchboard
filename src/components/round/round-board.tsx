@@ -298,6 +298,7 @@ function MatchColumnComponent({
       data-drop-match={match.matchId}
       className={[
         "flex flex-col rounded-xl border transition-colors",
+        "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
         highlightActive
           ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
           : "border-[var(--border-soft)] bg-[var(--surface-base)]",
@@ -892,8 +893,18 @@ export function RoundBoard({
         </details>
       )}
 
+      {matches.length > 1 && (
+        <p className="text-[11px] text-[var(--text-muted)] expanded:hidden">
+          Swipe to see other matches →
+        </p>
+      )}
+
+      {/* Below `expanded` (840px), fixed-width match columns don't fit — a phone or a
+          medium-tier tablet needs horizontal scroll-snap instead of a squeezed grid.
+          `gridTemplateColumns` only takes effect once `display: grid` is active
+          (expanded:grid below), so it's harmless to set unconditionally. */}
       <div
-        className="grid gap-4"
+        className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 expanded:mx-0 expanded:px-0 expanded:grid expanded:overflow-visible expanded:snap-none expanded:pb-0"
         style={{
           gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))`,
         }}
@@ -929,6 +940,7 @@ export function RoundBoard({
           data-drop-available
           className={[
             "flex flex-col rounded-xl border transition-colors",
+            "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
             availableDragOver || touchDropTarget === "available"
               ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
               : "border-[var(--border-soft)] bg-[var(--surface-base)]",
