@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { hashToken } from "@/lib/organisations/organisation-invitation";
@@ -38,12 +39,12 @@ export default async function InvitePage({
     return (
       <div className="mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Not Found</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           This invitation does not exist or has been removed.
         </p>
-        <a href="/organisations" className="text-sm underline">
+        <Link href="/organisations" className="text-sm underline">
           View your organisations
-        </a>
+        </Link>
       </div>
     );
   }
@@ -56,12 +57,12 @@ export default async function InvitePage({
     return (
       <div className="mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Revoked</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           This invitation has been revoked by the organisation.
         </p>
-        <a href="/organisations" className="text-sm underline">
+        <Link href="/organisations" className="text-sm underline">
           View your organisations
-        </a>
+        </Link>
       </div>
     );
   }
@@ -70,12 +71,12 @@ export default async function InvitePage({
     return (
       <div className="mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Declined</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           You have already declined this invitation. Contact the organisation to request a new one.
         </p>
-        <a href="/organisations" className="text-sm underline">
+        <Link href="/organisations" className="text-sm underline">
           View your organisations
-        </a>
+        </Link>
       </div>
     );
   }
@@ -92,12 +93,12 @@ export default async function InvitePage({
     return (
       <div className="mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Expired</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           This invitation expired on {invitation.expiresAt.toLocaleDateString()}.
         </p>
-        <a href="/organisations" className="text-sm underline">
+        <Link href="/organisations" className="text-sm underline">
           View your organisations
-        </a>
+        </Link>
       </div>
     );
   }
@@ -106,12 +107,12 @@ export default async function InvitePage({
     return (
       <div className="mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Unavailable</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           This invitation is no longer available.
         </p>
-        <a href="/organisations" className="text-sm underline">
+        <Link href="/organisations" className="text-sm underline">
           View your organisations
-        </a>
+        </Link>
       </div>
     );
   }
@@ -131,10 +132,10 @@ export default async function InvitePage({
     <div className="mx-auto max-w-md space-y-6 py-12">
       <div>
         <h1 className="text-xl font-bold">Organisation Invitation</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-[var(--text-muted)] mt-1">
           You have been invited to join <strong>{invitation.organisation.name}</strong> as <strong>{invitation.intendedRole}</strong>.
         </p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           Invited email: {invitation.invitedEmail}
         </p>
       </div>

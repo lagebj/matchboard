@@ -128,10 +128,10 @@ export function GroupSettingsClient({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            <Link href={`/o/${orgSlug}/groups/${group.slug}`} className="text-muted-foreground hover:underline">
+            <Link href={`/o/${orgSlug}/groups/${group.slug}`} className="text-[var(--text-muted)] hover:underline">
               {group.name}
             </Link>
-            <span className="mx-2 text-muted-foreground">/</span>
+            <span className="mx-2 text-[var(--text-muted)]">/</span>
             Settings
           </h1>
         </div>
@@ -147,17 +147,17 @@ export function GroupSettingsClient({
         ) : (
           <div className="rounded-lg border p-4 space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">Name</div>
+              <div className="text-[var(--text-muted)]">Name</div>
               <div className="font-medium">{group.name}</div>
-              <div className="text-muted-foreground">Type</div>
+              <div className="text-[var(--text-muted)]">Type</div>
               <div className="font-medium">{GROUP_TYPE_LABELS[group.type] ?? group.type}</div>
-              <div className="text-muted-foreground">Cohort year</div>
+              <div className="text-[var(--text-muted)]">Cohort year</div>
               <div className="font-medium">{group.cohortYear ?? "—"}</div>
-              <div className="text-muted-foreground">Slug</div>
+              <div className="text-[var(--text-muted)]">Slug</div>
               <div className="font-medium font-mono text-xs">{group.slug}</div>
-              <div className="text-muted-foreground">Description</div>
+              <div className="text-[var(--text-muted)]">Description</div>
               <div className="font-medium">{group.description ?? "—"}</div>
-              <div className="text-muted-foreground">Created</div>
+              <div className="text-[var(--text-muted)]">Created</div>
               <div className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</div>
             </div>
           </div>
@@ -170,7 +170,7 @@ export function GroupSettingsClient({
           Group access
         </h2>
         {group.groupAccesses.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-[var(--text-muted)]">
             No coaches or viewers have explicit group access yet.
             <br />
             OWNER and ADMIN have implicit access to all groups.
@@ -183,9 +183,9 @@ export function GroupSettingsClient({
                 className="flex items-center justify-between rounded-lg border p-3"
               >
                 <div className="flex items-center gap-3">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-[var(--text-muted)]" />
                   <span className="font-medium">{access.membership.user.name ?? access.membership.user.email}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
                   </span>
                 </div>
@@ -220,7 +220,7 @@ export function GroupSettingsClient({
           Player pool
         </h2>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-sm text-[var(--text-muted)] mb-3">
             {group.playerCount} player{group.playerCount !== 1 ? "s" : ""} in this group.
           </p>
           {group.players && group.players.length > 0 ? (
@@ -232,11 +232,11 @@ export function GroupSettingsClient({
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{p.player.firstName}{p.player.lastName ? ` ${p.player.lastName}` : ""}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {MEMBERSHIP_TYPE_LABELS[p.membershipType] ?? p.membershipType}
                     </span>
                     {p.player.coreTeam && (
-                      <span className="text-xs text-muted-foreground">{p.player.coreTeam.name}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{p.player.coreTeam.name}</span>
                     )}
                   </div>
       <section className="space-y-4">
@@ -244,11 +244,11 @@ export function GroupSettingsClient({
           <ArrowRight className="h-5 w-5" />
           Movement paths
         </h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           Movement paths define which groups players can move between and for what role.
         </p>
         {movementPaths.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-[var(--text-muted)]">
             No movement paths configured for this group yet.
           </div>
         ) : (
@@ -257,12 +257,12 @@ export function GroupSettingsClient({
               <div key={path.id} className="flex items-center justify-between rounded-lg border p-3">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-medium">{path.fromGroup.name}</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
                   <span className="font-medium">{path.toGroup.name}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {MOVEMENT_ROLE_LABELS[path.role] ?? path.role}
                   </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {MOVEMENT_SCOPE_LABELS[path.scope] ?? path.scope}
                   </span>
                   {!path.isActive && (
@@ -308,7 +308,7 @@ export function GroupSettingsClient({
                     >
                       <button
                         type="submit"
-                        className="rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="rounded-md p-1 text-[var(--text-muted)] hover:text-destructive hover:bg-destructive/10"
                         title="Remove from group"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -319,7 +319,7 @@ export function GroupSettingsClient({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No players in this group yet.</p>
+            <p className="text-sm text-[var(--text-muted)]">No players in this group yet.</p>
           )}
           {canMutate && (
             <AddPlayerForm groupId={group.id} />
@@ -331,7 +331,7 @@ export function GroupSettingsClient({
         <section className="space-y-4 pt-4 border-t">
           <h2 className="text-lg font-semibold text-destructive">Danger zone</h2>
           <div className="rounded-lg border border-destructive/20 p-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--text-muted)]">
               Deactivating this group will remove it from the active groups list.
               This cannot be undone if the group has players, teams, or seasons.
             </p>
@@ -366,27 +366,27 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
     return (
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Group details</span>
+          <span className="text-sm text-[var(--text-muted)]">Group details</span>
           <button
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-muted hover:text-foreground"
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="text-muted-foreground">Name</div>
+          <div className="text-[var(--text-muted)]">Name</div>
           <div className="font-medium">{group.name}</div>
-          <div className="text-muted-foreground">Type</div>
+          <div className="text-[var(--text-muted)]">Type</div>
           <div className="font-medium">{GROUP_TYPE_LABELS[group.type] ?? group.type}</div>
-          <div className="text-muted-foreground">Cohort year</div>
+          <div className="text-[var(--text-muted)]">Cohort year</div>
           <div className="font-medium">{group.cohortYear ?? "—"}</div>
-          <div className="text-muted-foreground">Slug</div>
+          <div className="text-[var(--text-muted)]">Slug</div>
           <div className="font-medium font-mono text-xs">{group.slug}</div>
-          <div className="text-muted-foreground">Description</div>
+          <div className="text-[var(--text-muted)]">Description</div>
           <div className="font-medium">{group.description ?? "—"}</div>
-          <div className="text-muted-foreground">Created</div>
+          <div className="text-[var(--text-muted)]">Created</div>
           <div className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</div>
         </div>
       </div>
@@ -411,14 +411,14 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+          className="rounded-md px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-muted"
         >
           Cancel
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Name</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Name</label>
           <input
             type="text"
             name="name"
@@ -429,7 +429,7 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
           />
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Type</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Type</label>
           <select
             name="type"
             value={type}
@@ -442,7 +442,7 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Cohort year</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Cohort year</label>
           <input
             type="number"
             name="cohortYear"
@@ -455,17 +455,17 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
           />
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Slug</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Slug</label>
           <input
             type="text"
             value={group.slug}
             disabled
-            className="w-full rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground"
+            className="w-full rounded-md border bg-muted px-3 py-2 text-sm font-mono text-[var(--text-muted)]"
           />
         </div>
       </div>
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Description</label>
+        <label className="block text-xs text-[var(--text-muted)] mb-1">Description</label>
         <textarea
           name="description"
           value={description}
@@ -502,12 +502,12 @@ function AddAccessForm({ groupId, availableMembers }: { groupId: string; availab
     <div className="rounded-lg border p-4 space-y-3">
       <h3 className="text-sm font-medium">Add group access</h3>
       {availableMembers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">All coaches and viewers already have access to this group.</p>
+        <p className="text-sm text-[var(--text-muted)]">All coaches and viewers already have access to this group.</p>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Member</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Member</label>
               <select
                 value={selectedMemberId}
                 onChange={(e) => setSelectedMemberId(e.target.value)}
@@ -522,7 +522,7 @@ function AddAccessForm({ groupId, availableMembers }: { groupId: string; availab
               </select>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Role</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
@@ -563,7 +563,7 @@ function AddPlayerForm({ groupId }: { groupId: string }) {
       <h3 className="text-sm font-medium">Add player to group</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Player ID</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Player ID</label>
           <input
             type="text"
             value={playerId}
@@ -573,7 +573,7 @@ function AddPlayerForm({ groupId }: { groupId: string }) {
           />
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Membership type</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Membership type</label>
           <select
             value={membershipType}
             onChange={(e) => setMembershipType(e.target.value)}
@@ -618,7 +618,7 @@ function AddMovementPathForm({ groupId }: { groupId: string }) {
       <h3 className="text-sm font-medium">Add movement path</h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Target group ID</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Target group ID</label>
           <input
             type="text"
             value={toGroupId}
@@ -628,7 +628,7 @@ function AddMovementPathForm({ groupId }: { groupId: string }) {
           />
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Role</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Role</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
@@ -640,7 +640,7 @@ function AddMovementPathForm({ groupId }: { groupId: string }) {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Scope</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">Scope</label>
           <select
             value={scope}
             onChange={(e) => setScope(e.target.value)}
@@ -652,7 +652,7 @@ function AddMovementPathForm({ groupId }: { groupId: string }) {
           </select>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-[var(--text-muted)]">
         This group will be the source. The target group ID is the group players can move to.
       </p>
       <button

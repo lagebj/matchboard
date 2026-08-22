@@ -27,7 +27,7 @@ export function CreateGroupForm({ orgSlug }: { orgSlug: string }) {
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Create group</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-[var(--text-muted)] mt-1">
           Groups are stable cohorts like &quot;Boys 2015&quot; that own a shared player pool, teams, and seasons.
         </p>
       </div>
@@ -46,7 +46,7 @@ export function CreateGroupForm({ orgSlug }: { orgSlug: string }) {
             placeholder="e.g. Boys 2015"
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
           />
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-[var(--text-muted)] mt-1">
             Use a stable identity like &quot;Boys 2015&quot;, not a seasonal label like &quot;U11&quot;.
           </p>
         </div>

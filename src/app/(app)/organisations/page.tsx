@@ -57,7 +57,7 @@ export default async function OrganisationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Organisations</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--text-muted)]">
             Your organisations and pending invitations
           </p>
         </div>
@@ -74,13 +74,13 @@ export default async function OrganisationsPage() {
               >
                 <div>
                   <p className="text-sm font-medium">{inv.organisation.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[var(--text-muted)]">
                     Invited as {inv.intendedRole} &middot; Expires {inv.expiresAt.toLocaleDateString()}
                   </p>
                 </div>
                 <a
                   href={`/invite/${inv.token}`}
-                  className="rounded-md bg-[var(--surface-2)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-3)]"
+                  className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-hover)]"
                 >
                   View invitation
                 </a>
@@ -94,10 +94,10 @@ export default async function OrganisationsPage() {
         <h2 className="text-lg font-semibold">Your Organisations</h2>
         {userOrgs.length === 0 ? (
           <div className="rounded-md border border-[var(--border-soft)] p-8 text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--text-muted)]">
               You are not a member of any organisation yet.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-1">
               Ask an organisation owner or admin to invite you, or create a new organisation
               below.
             </p>
@@ -111,16 +111,16 @@ export default async function OrganisationsPage() {
               <a
                 key={membership.id}
                 href={`/o/${membership.organisation.slug}`}
-                className="flex items-center justify-between rounded-md border border-[var(--border-soft)] px-4 py-3 hover:bg-[var(--surface-2)] transition-colors"
+                className="flex items-center justify-between rounded-md border border-[var(--border-soft)] px-4 py-3 hover:bg-[var(--surface-muted)] transition-colors"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{membership.organisation.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[var(--text-muted)]">
                     {membership.organisation._count.memberships} member{membership.organisation._count.memberships !== 1 ? "s" : ""} &middot; {membership.organisation._count.teams} team{membership.organisation._count.teams !== 1 ? "s" : ""}
                     {membership.organisation.isSynthetic ? " \u00b7 Synthetic" : ""}
                   </p>
                 </div>
-                <span className="ml-3 text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-2)]">
+                <span className="ml-3 text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-muted)]">
                   {membership.role}
                 </span>
               </a>

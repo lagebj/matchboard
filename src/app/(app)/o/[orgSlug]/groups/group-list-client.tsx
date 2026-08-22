@@ -37,7 +37,7 @@ export function GroupListClient({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Groups</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[var(--text-muted)] mt-1">
             Manage player pools, teams, and access for each group.
           </p>
         </div>
@@ -52,9 +52,9 @@ export function GroupListClient({
 
       {groups.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center">
-          <Users className="mx-auto h-10 w-10 text-muted-foreground/50" />
+          <Users className="mx-auto h-10 w-10 text-[var(--text-muted)]/50" />
           <h3 className="mt-4 text-sm font-medium">No groups yet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
             Create a group to start managing player pools and team access.
           </p>
           <Link
@@ -76,16 +76,16 @@ export function GroupListClient({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium">{group.name}</h3>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {GROUP_TYPE_LABELS[group.type] ?? group.type}
                   </span>
                   {group.cohortYear && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-[var(--text-muted)]">
                       Born {group.cohortYear}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-sm text-[var(--text-muted)]">
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
                     {group._count.players} players
@@ -100,7 +100,7 @@ export function GroupListClient({
                   </span>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
             </Link>
           ))}
         </div>

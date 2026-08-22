@@ -23,7 +23,7 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Events</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-[var(--text-muted)] mt-1">
               Cup, tournament, and friendly day squad planning
             </p>
           </div>
@@ -67,7 +67,7 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="font-semibold text-lg">{event.name}</h2>
-                    <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
+                    <div className="flex gap-3 mt-1 text-sm text-[var(--text-muted)]">
                       <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
                         {event.eventType}
                       </span>
@@ -79,7 +79,7 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
                       </span>
                     </div>
                   </div>
-                  <div className="text-right text-sm text-muted-foreground">
+                  <div className="text-right text-sm text-[var(--text-muted)]">
                     <div>{event.squads.length} squad{event.squads.length !== 1 ? 's' : ''}</div>
                     <div>{event.players.filter((p) => p.status === 'AVAILABLE').length} available player{event.players.filter((p) => p.status === 'AVAILABLE').length !== 1 ? 's' : ''}</div>
                     {totalSquadPlayers > 0 && (

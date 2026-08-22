@@ -104,7 +104,7 @@ export function OrgDetailClient({
     <div className="space-y-6" key={refreshKey}>
       <div>
         <h1 className="text-2xl font-bold">{org.name}</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           Slug: {org.slug}
           {org.isSynthetic ? " · Synthetic" : ""}
           {(canInvite || canManageRoles) && (
@@ -121,7 +121,7 @@ export function OrgDetailClient({
           {canInvite && (
             <button
               onClick={() => setShowInviteForm(!showInviteForm)}
-              className="rounded-md bg-[var(--surface-2)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-3)]"
+              className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-hover)]"
             >
               {showInviteForm ? "Cancel" : "Invite member"}
             </button>
@@ -131,7 +131,7 @@ export function OrgDetailClient({
         {showInviteForm && (
           <div className="rounded-md border border-[var(--border-soft)] p-4 mb-3 space-y-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Email</label>
+              <label className="text-xs font-medium text-[var(--text-muted)]">Email</label>
               <input
                 type="email"
                 value={inviteEmail}
@@ -141,7 +141,7 @@ export function OrgDetailClient({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Role</label>
+              <label className="text-xs font-medium text-[var(--text-muted)]">Role</label>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
@@ -157,7 +157,7 @@ export function OrgDetailClient({
             <button
               onClick={handleInvite}
               disabled={!inviteEmail.trim() || inviteSending}
-              className="rounded-md bg-[var(--surface-2)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-3)] disabled:opacity-50"
+              className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
             >
               {inviteSending ? "Sending..." : "Send invitation"}
             </button>
@@ -165,7 +165,7 @@ export function OrgDetailClient({
         )}
 
         {org.memberships.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No members yet.</p>
+          <p className="text-sm text-[var(--text-muted)]">No members yet.</p>
         ) : (
           <div className="space-y-2">
             {org.memberships
@@ -177,10 +177,10 @@ export function OrgDetailClient({
                     <p className="text-sm font-medium truncate">
                       {m.user.name || m.user.email}
                       {m.userId === currentUserId && (
-                        <span className="text-xs text-muted-foreground ml-2">(you)</span>
+                        <span className="text-xs text-[var(--text-muted)] ml-2">(you)</span>
                       )}
                     </p>
-                    <p className="text-xs text-muted-foreground">{m.user.email}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{m.user.email}</p>
                   </div>
                   <div className="shrink-0">
                     {canManageRoles && m.userId !== currentUserId ? (
@@ -188,14 +188,14 @@ export function OrgDetailClient({
                         value={m.role}
                         onChange={(e) => handleRoleChange(m.id, e.target.value)}
                         disabled={m.userId === currentUserId}
-                        className="text-xs font-medium px-2 py-1 rounded bg-[var(--surface-2)] border border-[var(--border-soft)]"
+                        className="text-xs font-medium px-2 py-1 rounded bg-[var(--surface-muted)] border border-[var(--border-soft)]"
                       >
                         {roleOrder.map((r) => (
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>
                     ) : (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-2)]">{m.role}</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-muted)]">{m.role}</span>
                     )}
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export function OrgDetailClient({
                       {m.groupAccesses.map((ga) => (
                         <span
                           key={ga.id}
-                          className="inline-flex items-center gap-1 text-xs bg-[var(--surface-2)] px-2 py-0.5 rounded"
+                          className="inline-flex items-center gap-1 text-xs bg-[var(--surface-muted)] px-2 py-0.5 rounded"
                         >
                           {ga.group.name} ({ga.role})
                         </span>
@@ -228,13 +228,13 @@ export function OrgDetailClient({
               <div key={inv.id} className="flex items-center gap-3 rounded-md border border-[var(--border-soft)] px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{inv.invitedEmail}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[var(--text-muted)]">
                     {inv.intendedRole} &middot; Expires {new Date(inv.expiresAt).toLocaleDateString()}
                   </p>
                 </div>
                 <button
                   onClick={() => handleRevokeInvitation(inv.id)}
-                  className="text-xs text-muted-foreground hover:text-red-500"
+                  className="text-xs text-[var(--text-muted)] hover:text-red-500"
                 >
                   Revoke
                 </button>
@@ -249,13 +249,13 @@ export function OrgDetailClient({
           <h2 className="text-lg font-semibold">Groups</h2>
           <a
             href={`/o/${orgSlug}/groups`}
-            className="rounded-md bg-[var(--surface-2)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-3)]"
+            className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-hover)]"
           >
             View all
           </a>
         </div>
         {org.footballGroups.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No groups yet. <a href={`/o/${orgSlug}/groups/new`} className="underline hover:text-foreground">Create a group</a>.</p>
+          <p className="text-sm text-[var(--text-muted)]">No groups yet. <a href={`/o/${orgSlug}/groups/new`} className="underline hover:text-foreground">Create a group</a>.</p>
         ) : (
           <div className="space-y-1">
             {org.footballGroups.map((g) => (

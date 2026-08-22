@@ -61,7 +61,7 @@ export function ReviewListClient({ reviews: initialReviews }: { reviews: ReviewR
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold tracking-tight">Reviews</h1>
-        <p className="text-muted-foreground">No review requests yet.</p>
+        <p className="text-[var(--text-muted)]">No review requests yet.</p>
       </div>
     );
   }
@@ -93,10 +93,10 @@ export function ReviewListClient({ reviews: initialReviews }: { reviews: ReviewR
                     {review.status === 'CHANGES_REQUESTED' ? 'Changes requested' : review.status.charAt(0) + review.status.slice(1).toLowerCase()}
                   </span>
                 </td>
-                <td className="px-4 py-3 max-w-xs truncate text-muted-foreground">
+                <td className="px-4 py-3 max-w-xs truncate text-[var(--text-muted)]">
                   {review.requestMessage ?? review.reviewerComment ?? '-'}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{review.createdAt.toLocaleDateString()}</td>
+                <td className="px-4 py-3 text-[var(--text-muted)]">{review.createdAt.toLocaleDateString()}</td>
                 <td className="px-4 py-3">
                   {review.status === 'PENDING' && (
                     <div className="flex items-center gap-2">
