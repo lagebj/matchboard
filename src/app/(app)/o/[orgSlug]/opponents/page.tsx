@@ -3,6 +3,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
+import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 
 export const dynamic = "force-dynamic";
 
@@ -43,34 +44,51 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
         </Surface>
       ) : (
         <Surface variant="default" padding="none">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
-                  <th className="px-4 py-3 pr-4">Opponent team</th>
-                  <th className="px-4 py-3 pr-4">League matches</th>
-                  <th className="px-4 py-3">Event matches</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-soft)]">
-                {opponentTeams.map((ot) => (
-                  <tr key={ot.id} className="text-zinc-200 hover:bg-[var(--surface-hover)]">
-                    <td className="px-4 py-3 pr-4">
-                      <Link href={`/o/${orgSlug}/opponents/${ot.id}`} className="text-[var(--accent-strong)] hover:underline">
-                        {ot.displayName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 pr-4 text-zinc-300">
-                      {ot._count.matches}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-300">
-                      {ot._count.eventMatches}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            items={opponentTeams}
+            getKey={(ot) => ot.id}
+            cardListClassName="p-3"
+            renderTable={() => (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
+                      <th className="px-4 py-3 pr-4">Opponent team</th>
+                      <th className="px-4 py-3 pr-4">League matches</th>
+                      <th className="px-4 py-3">Event matches</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-soft)]">
+                    {opponentTeams.map((ot) => (
+                      <tr key={ot.id} className="text-zinc-200 hover:bg-[var(--surface-hover)]">
+                        <td className="px-4 py-3 pr-4">
+                          <Link href={`/o/${orgSlug}/opponents/${ot.id}`} className="text-[var(--accent-strong)] hover:underline">
+                            {ot.displayName}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 pr-4 text-zinc-300">
+                          {ot._count.matches}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-300">
+                          {ot._count.eventMatches}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            renderCard={(ot) => (
+              <ResponsiveTableCard
+                title={ot.displayName}
+                titleHref={`/o/${orgSlug}/opponents/${ot.id}`}
+                fields={[
+                  { label: "League matches", value: ot._count.matches },
+                  { label: "Event matches", value: ot._count.eventMatches },
+                ]}
+              />
+            )}
+          />
         </Surface>
       )}
     </main>
