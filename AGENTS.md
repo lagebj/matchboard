@@ -1360,9 +1360,25 @@ Team detail has these sections:
 
 ### Navigation model
 
-- **Sidebar**: 5 items — Today, League, Events, Players, More (in this order)
+The app shell has three viewport tiers, each rendering the same five primary destinations
+(Today, League, Events, Players, More) with the same active-state logic
+(`isNavItemActive()` in `src/components/shell/nav-active.ts`, shared across all three so
+they cannot silently drift apart):
+
+- **Sidebar** (`SidebarNav`, expanded viewports, ≥840px): full 14rem sidebar, icon + label.
+- **Navigation rail** (`NavigationRail`, medium viewports, 600–839px): narrower rail
+  (`--rail-width`), icon + short label — not the phone bottom-nav treatment. A tablet-
+  portrait viewport must never fall back to the compact/phone nav.
+- **Mobile nav** (`MobileNav`, compact viewports, <600px): fixed bottom bar, preserves the
+  same five primary destinations, maintains active-state correctness, and ensures blockers
+  and primary actions are not hidden behind inaccessible interactions.
 - **Top context bar**: provides appropriate title/context for the current route. It must not describe `/today` as "Dashboard". It must not present `/matches` as an independent top-level workflow. It provides context appropriate to the current operational task. When a primary action exists in context, it is clearly prioritised.
-- **Mobile nav**: preserves the same five primary destinations, maintains active-state correctness, and ensures blockers and primary actions are not hidden behind inaccessible interactions.
+
+Breakpoint tokens (`globals.css`, `@theme`): `--breakpoint-medium: 600px`,
+`--breakpoint-expanded: 840px`, `--breakpoint-large: 1200px`, `--breakpoint-xlarge: 1600px`
+— deliberately distinct from Tailwind's default `sm`/`md`/`lg`/`xl`/`2xl` so they don't
+collide with pre-existing `xl:` usage elsewhere in the app. Compact is the unprefixed base
+(<600px); there is no token for it.
 
 Status vocabulary: The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.
 

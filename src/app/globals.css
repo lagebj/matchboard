@@ -64,6 +64,7 @@
 
   /* Layout */
   --sidebar-width: 14rem;
+  --rail-width: 4.75rem;
   --topbar-height: 3.25rem;
   --inspector-width: 22rem;
 
@@ -77,6 +78,16 @@
   --transition-fast: 140ms ease;
   --transition-smooth: 200ms ease-out;
   --transition-lift: 180ms ease-out;
+}
+
+/* Adaptive shell breakpoints (PROGRAMME.md §10) — distinct from Tailwind's default
+   sm/md/lg/xl/2xl (640/768/1024/1280/1536) so the 6 existing `xl:` grid-density call
+   sites are unaffected. Compact is the unprefixed base (< 600px), no token needed. */
+@theme {
+  --breakpoint-medium: 600px;
+  --breakpoint-expanded: 840px;
+  --breakpoint-large: 1200px;
+  --breakpoint-xlarge: 1600px;
 }
 
 @theme inline {
@@ -218,7 +229,7 @@ textarea:disabled {
   position: relative;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 599px) {
   .app-shell {
     flex-direction: column;
   }
