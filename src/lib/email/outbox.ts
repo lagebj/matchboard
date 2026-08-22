@@ -4,6 +4,7 @@ import { getEmailProvider } from "./provider-factory";
 import { renderTemplate } from "./templates/index";
 import { logNotificationSent } from "@/lib/security/audit-log";
 import { isTest } from "@/lib/env";
+import { logger } from "@/lib/logger";
 import type { SendEmailRequest } from "./provider";
 
 const RETRY_BASE_DELAY_MS = 60_000;
@@ -192,8 +193,9 @@ export async function processOutboxBatch(): Promise<{
         });
 
         retried++;
-        console.warn(
-          `[outbox] Failed to send notification ${entry.id}: ${result.error}. Retry ${entry.retryCount + 1}/${entry.maxRetries}.`,
+        logger.warn(
+          { notificationId: entry.id, error: result.error, retryCount: entry.retryCount + 1, maxRetries: entry.maxRetries },
+          "[outbox] Failed to send notification",
         );
       }
     } catch (err) {
@@ -211,7 +213,7 @@ export async function processOutboxBatch(): Promise<{
       });
 
       retried++;
-      console.error(`[outbox] Error processing notification ${entry.id}:`, err);
+      logger.error({ notificationId: entry.id, err }, "[outbox] Error processing notification");
     }
   }
 
@@ -296,7 +298,7 @@ export async function sendNotificationNow(outboxId: string): Promise<{
         },
       });
 
-      console.warn(`[outbox] Immediate send failed for ${entry.id}: ${result.error}. Will retry via cron.`);
+      logger.warn({ notificationId: entry.id, error: result.error }, "[outbox] Immediate send failed. Will retry via cron.");
 
       return { success: false, error: result.error };
     }
@@ -311,7 +313,7 @@ export async function sendNotificationNow(outboxId: string): Promise<{
     });
 
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[outbox] Immediate send error for ${entry.id}:`, err);
+    logger.error({ notificationId: entry.id, err }, "[outbox] Immediate send error");
 
     return { success: false, error: message };
   }

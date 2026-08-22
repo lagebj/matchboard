@@ -6,6 +6,7 @@ import type {
 } from "./provider";
 import { getEmailFromAddress, getEmailFromName } from "./provider";
 import { isProduction, getBrevoTestRecipients } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export function isTestRecipientAllowed(email: string): boolean {
   if (isProduction()) return true;
@@ -27,8 +28,9 @@ export class BrevoEmailProvider implements TransactionalEmailProvider {
       const blocked = request.to.filter((r) => !isTestRecipientAllowed(r.email));
       if (blocked.length > 0) {
         const blockedEmails = blocked.map((r) => r.email).join(", ");
-        console.warn(
-          `[email] Blocked non-production send to: ${blockedEmails}. Set BREVO_TEST_RECIPIENTS to allow specific addresses.`,
+        logger.warn(
+          { blockedEmails },
+          "[email] Blocked non-production send. Set BREVO_TEST_RECIPIENTS to allow specific addresses.",
         );
         if (blocked.length === request.to.length) {
           return {

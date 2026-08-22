@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 const ERROR_MESSAGES: Record<string, string> = {
   NOT_FOUND: "Resource not found",
   VALIDATION: "Invalid request",
@@ -56,7 +58,7 @@ export function safeErrorResponse(error: unknown): { error: string; code: string
     };
   }
 
-  console.error("[AppError] Unhandled error:", error);
+  logger.error({ err: error }, "[AppError] Unhandled error");
 
   return {
     error: ERROR_MESSAGES.INTERNAL,

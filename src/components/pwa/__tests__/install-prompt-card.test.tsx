@@ -31,13 +31,14 @@ describe("InstallPwaCard (UX-2.10-01)", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     setUserAgent(DEFAULT_UA);
+    window.localStorage.clear();
   });
 
-  it("renders nothing when not installed, not iOS, and no install prompt captured", () => {
+  it("shows generic browser-menu instructions when not installed, not iOS, and no install prompt captured", () => {
     mockMatchMedia(() => false);
     setUserAgent("Mozilla/5.0 (X11; Linux x86_64) Chrome/120");
-    const { container } = render(<InstallPwaCard />);
-    expect(container).toBeEmptyDOMElement();
+    render(<InstallPwaCard />);
+    expect(screen.getByText(/install app.*add to home screen/i)).toBeTruthy();
   });
 
   it("shows the installed state when running in standalone display mode", () => {
@@ -84,5 +85,37 @@ describe("InstallPwaCard (UX-2.10-01)", () => {
 
     fireEvent(window, new Event("appinstalled"));
     expect(screen.getByText("Matchboard is installed")).toBeTruthy();
+  });
+
+  describe("dismissible mode (first-visit banner)", () => {
+    it("shows a dismiss control and hides itself after dismissal, remembered across remounts", () => {
+      mockMatchMedia(() => false);
+      setUserAgent("Mozilla/5.0 (X11; Linux x86_64) Chrome/120");
+      const { unmount } = render(<InstallPwaCard dismissible />);
+
+      expect(screen.getByText(/install app.*add to home screen/i)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss install prompt" }));
+      expect(screen.queryByText(/install app.*add to home screen/i)).toBeNull();
+
+      unmount();
+      const { container } = render(<InstallPwaCard dismissible />);
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("renders nothing (not a confirmation) when already installed in dismissible mode", () => {
+      mockMatchMedia((query) => query === "(display-mode: standalone)");
+      const { container } = render(<InstallPwaCard dismissible />);
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("does not affect a separate non-dismissible instance", () => {
+      mockMatchMedia(() => false);
+      setUserAgent("Mozilla/5.0 (X11; Linux x86_64) Chrome/120");
+      render(<InstallPwaCard dismissible />);
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss install prompt" }));
+
+      render(<InstallPwaCard />);
+      expect(screen.getAllByText(/install app.*add to home screen/i).length).toBeGreaterThan(0);
+    });
   });
 });

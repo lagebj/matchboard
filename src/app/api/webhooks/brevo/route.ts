@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { processBrevoWebhookEvents } from "@/lib/email/webhook-handler";
 import type { BrevoWebhookEvent } from "@/lib/email/webhook-handler";
 import { isProduction, getBrevoWebhookBearerToken } from "@/lib/env";
+import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       ...result,
     });
   } catch (err) {
-    console.error("[webhooks:brevo] Error processing webhook events:", err);
+    logger.error({ err }, "[webhooks:brevo] Error processing webhook events");
     return NextResponse.json(
       { ok: false, error: "Internal server error" },
       { status: 500 },

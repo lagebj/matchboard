@@ -1640,11 +1640,25 @@ Matchboard is installable as a Progressive Web App. Scope is deliberately v1-onl
 - An in-app "Test" badge renders in the top header on any `test.` hostname
   (`(app)/layout.tsx`'s `TestEnvironmentBadge`) — a second, code-level safeguard against
   mistaking installed Test for Production, independent of the home-screen icon.
-- "Install Matchboard" is a card on the More page (`src/components/pwa/install-prompt-card.tsx`),
-  visible to any authenticated coach (not gated to Owner/Admin, unlike Settings). Platform-aware:
-  captures `beforeinstallprompt` for Android/Chromium; shows static "tap Share → Add to Home
-  Screen" instructions on iOS (no programmatic install API exists there); shows an "installed"
-  state when already running in standalone mode; renders nothing when neither path applies.
+- "Install Matchboard" (`src/components/pwa/install-prompt-card.tsx`, `InstallPwaCard`) is
+  visible to any authenticated coach (not gated to Owner/Admin, unlike Settings) in two places:
+  - **More page** (`src/app/(app)/o/[orgSlug]/more/page.tsx`) — always present, non-dismissible.
+  - **Today page** (`AssistantCommandCentrePage`, the canonical `/today` landing surface) —
+    rendered with `dismissible` so it surfaces the install path from the first visit (the
+    intended signup → visit → install flow) without permanently occupying the primary daily
+    landing page. Dismissal is a client-only `localStorage` preference
+    (`matchboard:pwa-install-dismissed`), not a server-side/per-user setting — no schema change.
+    The More instance is unaffected by dismissal; it's a separate, always-present entry point.
+  - Platform-aware, and — as of 2026-08-22 — never renders nothing: captures
+    `beforeinstallprompt` for Android/Chromium when the browser's own engagement heuristic allows
+    it (there is no API to force this early; that heuristic is a hard browser-vendor policy, not
+    something the app can bypass); shows static "tap Share → Add to Home Screen" instructions on
+    iOS (no programmatic install API exists there); shows an "installed" state when already
+    running in standalone mode (More instance only — the dismissible Today instance renders
+    nothing once installed, since there's nothing actionable left for a daily-landing banner);
+    and — new — shows generic "open your browser menu → Install app / Add to Home screen"
+    instructions for every other case (desktop Chromium, or Android/Chromium before the
+    engagement heuristic has allowed the native prompt), rather than the previous silent gap.
 
 Explicitly out of scope for v1 — do not add without a new decision:
 - Service worker / offline caching.
@@ -1770,7 +1784,7 @@ Before generation, show event pool validation:
 
 ### Formation/tactic selection
 
-Events reuse existing formation infrastructure (Formation, FormationSlot, FormationSlotRoleType, acceptedPositionIds, PlayerPosition).
+Events reuse existing formation infrastructure (Formation, FormationSlot, FormationSlotRoleType, acceptedPositionIds, Player.primaryPosition/secondaryPosition/tertiaryPosition).
 
 - Event has optional default formation
 - Each EventSquad may override the default formation
