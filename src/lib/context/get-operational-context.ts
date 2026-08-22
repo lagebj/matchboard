@@ -74,7 +74,14 @@ async function enrichMatchRound(id: string, name: string, status: string): Promi
 }
 
 export async function searchEntities(query: string, orgFilter?: OrgFilterMode) {
-  if (!query || query.trim().length < 2) return { players: [] as { id: string; name: string; coreTeamName: string }[], teams: [] as { id: string; name: string }[] };
+  if (!query || query.trim().length < 2) {
+    return {
+      players: [] as { id: string; name: string; coreTeamName: string }[],
+      teams: [] as { id: string; name: string }[],
+      events: [] as { id: string; name: string }[],
+      opponents: [] as { id: string; name: string }[],
+    };
+  }
 
   const orgWhere = orgFilter?.type === "org" ? orgFilter.filter : {};
   const q = query.trim();
@@ -106,6 +113,29 @@ export async function searchEntities(query: string, orgFilter?: OrgFilterMode) {
     take: 5,
   });
 
+  // Cross-domain command-palette search (A-016): events and opponents extend the same
+  // find-by-name-contains pattern as players/teams above. Fixtures/reports were deliberately
+  // not added here — matches don't have a natural searchable name (they're identified by
+  // team + date + opponent), which is a different search UX than these name-lookup entities.
+  const events = await db.event.findMany({
+    where: {
+      name: { contains: q },
+      ...orgWhere,
+    },
+    select: { id: true, name: true },
+    take: 5,
+  });
+
+  const opponents = await db.opponentTeam.findMany({
+    where: {
+      archivedAt: null,
+      displayName: { contains: q },
+      ...orgWhere,
+    },
+    select: { id: true, displayName: true },
+    take: 5,
+  });
+
   return {
     players: players.map((p) => ({
       id: p.id,
@@ -113,5 +143,7 @@ export async function searchEntities(query: string, orgFilter?: OrgFilterMode) {
       coreTeamName: p.coreTeam?.name ?? "Unassigned",
     })),
     teams: teams.map((t) => ({ id: t.id, name: t.name })),
+    events: events.map((e) => ({ id: e.id, name: e.name })),
+    opponents: opponents.map((o) => ({ id: o.id, name: o.displayName })),
   };
 }

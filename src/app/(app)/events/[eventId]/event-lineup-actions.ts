@@ -5,6 +5,7 @@ import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-c
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
+import { assertEligibleEventMatchPlayer } from '@/lib/events/event-match-eligibility';
 
 async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
   if (orgFilter.type !== 'org') {
@@ -146,28 +147,11 @@ export async function assignPlayerToLineupSlot(
     where: { id: lineupId },
     include: {
       assignments: true,
-      eventMatch: {
-        select: {
-          eventSquadId: true,
-        },
-      },
     },
   });
 
   if (!lineup) throw new Error('Lineup not found');
   if (lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
-
-  const existingAssignment = lineup.assignments.find((a) => a.playerId === playerId);
-  if (existingAssignment && existingAssignment.id !== assignmentId) {
-    await db.eventMatchLineupAssignment.update({
-      where: { id: existingAssignment.id },
-      data: { playerId: null },
-    });
-  }
-
-  const isInSquad = await db.eventSquadPlayer.findFirst({
-    where: { eventSquadId: lineup.eventMatch.eventSquadId, playerId },
-  });
 
   const playerInOrg = await db.player.findFirst({
     where: { id: playerId, ...ctx.orgFilter.filter },
@@ -177,7 +161,25 @@ export async function assignPlayerToLineupSlot(
     throw new Error('Player not found or access denied.');
   }
 
-  const source: 'BASE_SQUAD' | 'HELPER' = isInSquad ? 'BASE_SQUAD' : 'HELPER';
+  // Enforce the same squad/helper eligibility every other event match surface uses
+  // (getEligibleEventMatchPlayers/assertEligibleEventMatchPlayer) — a player is only
+  // assignable if they're in the match's own squad, or have an approved
+  // EventMatchSupportAssignment targeting it. Without this, any org player could be assigned
+  // to any lineup slot, bypassing the whole support/helper approval system.
+  const eligibility = await assertEligibleEventMatchPlayer(lineup.eventMatchId, playerId, ctx.orgFilter);
+  if (!eligibility.eligible) {
+    throw new Error(eligibility.reason ?? 'Player is not eligible for this match.');
+  }
+
+  const existingAssignment = lineup.assignments.find((a) => a.playerId === playerId);
+  if (existingAssignment && existingAssignment.id !== assignmentId) {
+    await db.eventMatchLineupAssignment.update({
+      where: { id: existingAssignment.id },
+      data: { playerId: null },
+    });
+  }
+
+  const source: 'BASE_SQUAD' | 'HELPER' = eligibility.source === 'squad' ? 'BASE_SQUAD' : 'HELPER';
 
   const assignment = await db.eventMatchLineupAssignment.update({
     where: { id: assignmentId },

@@ -12,11 +12,10 @@ const categoryLabels: Record<string, string> = {
   review_assigned: 'Review assigned',
   review_changes_requested: 'Changes requested',
   invitation_pending: 'Invitation pending',
-  stale_lineup: 'Stale lineup',
   missing_post_match_report: 'Missing report',
   expiring_support_access: 'Expiring access',
-  season_finalisation: 'Season finalisation',
-  event_review_needed: 'Event review needed',
+  unacknowledged_handover: 'Unacknowledged handover',
+  unowned_fixture: 'Unowned fixture',
 };
 
 export function AttentionPageClient({ entries }: { entries: AttentionEntry[] }) {

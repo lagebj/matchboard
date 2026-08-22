@@ -6,7 +6,6 @@ export type AttentionCategory =
   | 'review_changes_requested'
   | 'invitation_pending'
   | 'missing_post_match_report'
-  | 'event_review_needed'
   | 'expiring_support_access'
   | 'unacknowledged_handover'
   | 'unowned_fixture';
