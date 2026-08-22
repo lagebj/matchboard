@@ -8,7 +8,7 @@ import { safeErrorResponse } from "@/lib/security/errors";
 export async function GET(request: Request) {
   const ctx = await requireActorContext();
   requireAdminRole(ctx);
-  const { allowed } = rateLimit("admin-audit", 10, 60_000);
+  const { allowed } = await rateLimit("admin-audit", 10, 60_000);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many audit requests. Please wait a moment and try again." },

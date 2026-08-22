@@ -722,7 +722,7 @@ If a deployment has issues:
 
 ### Security notes
 
-- Rate limiting is in-memory only. It resets on server restart and does not work across multiple Vercel instances. For production, consider a Redis-backed rate limiter.
+- Rate limiting is distributed: counters live in a Postgres `RateLimitBucket` table (Neon in production), updated via an atomic upsert, so limits are enforced consistently across all Vercel instances — not an in-process counter.
 - The `/api/health` endpoint is public and returns `{ ok: true }` only — no business data is exposed.
 - All other API routes and server actions enforce `requireCoachAccess()`.
 - Never expose `DATABASE_URL`, `AUTH_SECRET`, or other secrets as `NEXT_PUBLIC_*` variables.

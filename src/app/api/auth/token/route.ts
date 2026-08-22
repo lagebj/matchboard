@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logMachineTokenIssued, logMachineTokenAuthFailure } from "@/lib/security/audit-log";
 
 export async function POST(request: NextRequest) {
-  const rl = rateLimit("machine:token", 10, 60_000);
+  const rl = await rateLimit("machine:token", 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait." },

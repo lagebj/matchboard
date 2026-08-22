@@ -57,7 +57,7 @@ type ParentRow = {
 
 export async function GET(request: Request) {
   const ctx = await requireActorContext();
-  const rl = rateLimit("exports:finalized-selections", 5, 60_000);
+  const rl = await rateLimit("exports:finalized-selections", 5, 60_000);
   if (!rl.allowed) {
     return new Response(JSON.stringify({ error: "Too many requests. Please wait." }), { status: 429, headers: { "Content-Type": "application/json" } });
   }

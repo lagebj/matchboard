@@ -9,7 +9,7 @@ import { safeErrorResponse } from "@/lib/security/errors";
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const { allowed } = rateLimit("clear-draft", 5, 60_000);
+  const { allowed } = await rateLimit("clear-draft", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }

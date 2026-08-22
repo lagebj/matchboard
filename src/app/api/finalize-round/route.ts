@@ -10,7 +10,7 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const { allowed } = rateLimit("finalize-round", 5, 60_000);
+  const { allowed } = await rateLimit("finalize-round", 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many finalization requests. Please wait a moment and try again." }, { status: 429 });
   }

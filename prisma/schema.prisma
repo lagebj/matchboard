@@ -1986,6 +1986,18 @@ model OrganisationInvitation {
   @@index([expiresAt])
 }
 
+// Distributed rate-limit counters (ARR-0019, platform-integrity-programme Phase 6).
+// Replaces the previous in-process Map, which couldn't enforce limits across serverless
+// instances. Not organisation-scoped — deliberately excluded from RLS_TABLES (src/lib/db.ts)
+// since rate-limit keys are IP/action composites, not tenant data.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model MachinePrincipal {
   id                     String                 @id @default(cuid())
   organisationId         String

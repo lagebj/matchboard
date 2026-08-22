@@ -241,6 +241,17 @@ It does not:
 
 Note: Matchboard does have a match creation form for recording match details (opponent, date, home/away, type, format). This is match data entry, not fixture creation or season scheduling.
 
+### Organisation (tenant) creation is invitation-only, not self-service
+
+Matchboard is invitation-only (ADR-0085). There is no in-app "create organisation" flow —
+authenticating with Google does not let a user create a new tenant for themselves. New
+organisations are provisioned by the maintainer/backend team via
+`scripts/bootstrap-organisation.ts`, not through the application UI. `/organisations` only
+shows a user's existing memberships and pending invitations; its empty state directs the
+user to ask an administrator for an invitation, with no create action. Do not reintroduce
+a self-service organisation-creation form or server action without a new explicit decision
+overriding ADR-0085 — this is a deliberate security-boundary choice, not an oversight.
+
 ## Core operating model
 
 Selections are generated per match round.
@@ -418,6 +429,10 @@ When consuming statistics:
 ### Coach-facing vs parent-facing language
 
 Internal planning reasons must not leak into parent/player exports.
+
+Full personal-data inventory (what's stored, where, retention/deletion capability):
+`docs/domain/pii-inventory.md`. Update it whenever the schema or handling of player/user
+personal data changes.
 
 Do not store player names inside assistant issues, explanations, recommendations, decision records, or cross-team impact payloads. Use player IDs. Resolve names for display only.
 
@@ -1893,6 +1908,10 @@ Required test coverage should include:
 - support before development
 - support not overridden by fairness scoring
 - backfill priority order (1 → 2 → 3)
+- support priority ordering when a higher-priority team has no valid rotation path (falls
+  back to self-squad-repair and/or a documented signal, never silently drops the requirement
+  or lets an invalid path block a lower-priority team that does have one)
+- cancelled fixture handling (excluded from draft generation and plan integrity computation)
 - non-rotatable exclusion from generic backfill
 - plan integrity signal generation when support/backfill fails
 - plan integrity signal persistence after generation
@@ -2080,7 +2099,7 @@ See ADR-0057 for the full decision record.
 - All data-mutating server actions must call `requireCoachAccess()` or equivalent
 - All data-reading server actions and API routes exposing app data must call `requireCoachAccess()` or equivalent
 - The `/api/health` endpoint returns `{ ok, version, environment }` — it must not expose business data (player counts, etc.)
-- Rate limiting is in-memory only — document this limitation for production
+- Rate limiting is distributed, backed by the `RateLimitBucket` Postgres table (`src/lib/rate-limit.ts`) via an atomic `INSERT ... ON CONFLICT` upsert — not an in-process `Map` (ARR-0019, resolved 2026-08-22)
 - All final changes must use the `git-branch-commit-pr` skill (see mandatory coding-agent workflow)
 
 ## Implementation style

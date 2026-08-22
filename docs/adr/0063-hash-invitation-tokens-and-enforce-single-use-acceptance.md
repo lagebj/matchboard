@@ -151,3 +151,10 @@ None.
 ### 2026-08-18
 
 Record created. Invitation token hashing and rate limiting.
+
+### 2026-08-22
+
+ARR-0019 resolved: the in-memory rate limiter referenced above (§4, §Consequences) was replaced
+with a Neon-backed `RateLimitBucket` table using an atomic upsert. See ARR-0019's `## Resolution`
+section for detail. This ADR's decision to add rate limiting at all is unaffected; only the
+storage backend changed.

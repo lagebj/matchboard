@@ -41,7 +41,7 @@ function buildFilename(format: ExportFormat) {
 
 export async function GET(request: NextRequest) {
   const ctx = await requireActorContext();
-  const rl = rateLimit("season:export", 5, 60_000);
+  const rl = await rateLimit("season:export", 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }

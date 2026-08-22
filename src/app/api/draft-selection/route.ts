@@ -11,7 +11,7 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const { allowed } = rateLimit("draft-selection", 10, 60_000);
+  const { allowed } = await rateLimit("draft-selection", 10, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }

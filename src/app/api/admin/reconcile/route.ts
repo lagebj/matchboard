@@ -8,7 +8,7 @@ import { safeErrorResponse } from "@/lib/security/errors";
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
   requireAdminRole(ctx);
-  const { allowed } = rateLimit("admin-reconcile", 2, 60_000);
+  const { allowed } = await rateLimit("admin-reconcile", 2, 60_000);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many reconciliation requests. Please wait a moment and try again." },

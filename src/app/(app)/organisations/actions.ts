@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCoachAccess } from "@/lib/auth";
+import { auth } from "@/auth";
 import { resolveOrganisationAccess, resolveOrganisationAdminOrOwner, resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
-import { createOrganisation, getOrganisationBySlug, getUserOrganisations, generateOrganisationSlug } from "@/lib/organisations/organisation-domain";
+import { getOrganisationBySlug, getUserOrganisations } from "@/lib/organisations/organisation-domain";
 import { createInvitation, acceptInvitation, revokeInvitation, declineInvitation } from "@/lib/organisations/organisation-invitation";
 import {
-  logOrganisationCreate,
   logOrganisationInvitationCreate,
   logOrganisationInvitationAccept,
   logOrganisationInvitationRevoke,
@@ -21,30 +21,6 @@ import { rateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/organisations/organisation-invitation";
 
 const VALID_ORGANISATION_ROLES = new Set<string>(["OWNER", "ADMIN", "COACH", "VIEWER", "SUPPORT"]);
-
-export async function createOrganisationAction(name: string) {
-  const coach = await requireCoachAccess();
-  const coachEmail: string = coach.email ?? "unknown";
-  const coachId: string = coach.id ?? "";
-
-  const trimmedName = name?.trim();
-  if (!trimmedName) {
-    return { success: false as const, error: "Organisation name is required." };
-  }
-
-  const slug = await generateOrganisationSlug(trimmedName);
-  const result = await createOrganisation({ name: trimmedName, slug, ownerUserId: coachId });
-
-  if (!result.success) {
-    logOrganisationCreate(coachEmail, "", "failure");
-    return { success: false as const, error: result.error };
-  }
-
-  logOrganisationCreate(coachEmail, result.id, "success");
-  revalidatePath("/organisations");
-
-  return { success: true as const, organisationId: result.id };
-}
 
 export async function getOrganisationAction(slug: string) {
   await resolveOrganisationAccess(slug);
@@ -62,15 +38,18 @@ export async function createInvitationAction(
   inviteeEmail: string,
   role: string,
 ) {
-  const coach = await requireCoachAccess();
   const ctx = await resolveOrganisationAdminOrOwner(organisationSlug);
 
   const createKey = `invitation-create:${ctx.userId}`;
-  const { allowed } = rateLimit(createKey, 10, 60_000);
+  const { allowed } = await rateLimit(createKey, 10, 60_000);
   if (!allowed) {
     return { success: false as const, error: "Too many invitation attempts. Please wait a minute and try again." };
   }
-  const inviterName = coach.name || ctx.userEmail;
+  // Display-name enrichment only — resolveOrganisationAdminOrOwner() above already
+  // performed the real authorization check (it calls requireCoachAccess() internally),
+  // so this is a plain session read, not a second authorization decision (ARR-0008).
+  const session = await auth();
+  const inviterName = session?.user?.name || ctx.userEmail;
 
   if (!role || !VALID_ORGANISATION_ROLES.has(role)) {
     return { success: false as const, error: "Valid role is required (OWNER, ADMIN, COACH, VIEWER)." };
@@ -156,7 +135,7 @@ export async function acceptInvitationAction(token: string) {
   }
 
   const tokenKey = `invitation-accept:${hashToken(token.trim())}`;
-  const { allowed } = rateLimit(tokenKey, 10, 60_000);
+  const { allowed } = await rateLimit(tokenKey, 10, 60_000);
   if (!allowed) {
     return { success: false as const, error: "Too many attempts. Please wait a minute and try again." };
   }
@@ -211,7 +190,7 @@ export async function declineInvitationAction(token: string) {
   }
 
   const tokenKey = `invitation-decline:${hashToken(token.trim())}`;
-  const { allowed } = rateLimit(tokenKey, 10, 60_000);
+  const { allowed } = await rateLimit(tokenKey, 10, 60_000);
   if (!allowed) {
     return { success: false as const, error: "Too many attempts. Please wait a minute and try again." };
   }

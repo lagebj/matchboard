@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function GET() {
   await requireActorContext();
 
-  const rl = rateLimit("workbench:diagnostics", 5, 60_000);
+  const rl = await rateLimit("workbench:diagnostics", 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }
