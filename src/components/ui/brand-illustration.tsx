@@ -21,23 +21,22 @@ export function BrandIllustration({
   const lightSrc = illustration.light;
   const darkSrc = illustration.dark;
 
+  // <picture> lets the browser fetch only the variant it actually needs
+  // (native media-query negotiation) instead of two <img> tags where the
+  // "hidden" one still triggers a real network request — a well-known
+  // performance pitfall for light/dark image swaps.
   return (
-    <>
-      {/* decorative illustration with light/dark toggle */}
+    <picture>
+      <source srcSet={darkSrc} media="(prefers-color-scheme: dark)" />
       <img
         src={lightSrc}
         alt={resolvedAlt}
         aria-hidden={decorative}
-        className={cn("dark:hidden", className)}
+        loading="lazy"
+        decoding="async"
+        className={className}
       />
-      {/* decorative illustration with light/dark toggle */}
-      <img
-        src={darkSrc}
-        alt={resolvedAlt}
-        aria-hidden={decorative}
-        className={cn("hidden dark:block", className)}
-      />
-    </>
+    </picture>
   );
 }
 
