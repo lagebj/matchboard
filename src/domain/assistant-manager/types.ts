@@ -46,13 +46,6 @@ export type DecisionType =
   | "TEAM_CONFIGURATION"
   | "TEAM_COMPOSITION";
 
-export type AttendanceStatus =
-  | "PRESENT"
-  | "NO_SHOW"
-  | "LATE_CANCELLATION"
-  | "ABSENT_CONFIRMED"
-  | "UNKNOWN";
-
 export interface RuleImpact {
   ruleId: string;
   ruleName: string;
@@ -169,19 +162,3 @@ export interface RoundReview {
   finalizeable: boolean;
 }
 
-export interface PostMatchPlayerActual {
-  playerId: string;
-  attendanceStatus: AttendanceStatus;
-  unplannedAppearanceReason?: string;
-  actualPositions?: string[];
-  note?: string;
-}
-
-export interface PostMatchReport {
-  matchId: string;
-  status: "NOT_STARTED" | "DRAFT" | "REPORTED" | "LOCKED";
-  teamNote?: string;
-  playerActuals: PostMatchPlayerActual[];
-  completedBy?: string;
-  completedAt?: string;
-}

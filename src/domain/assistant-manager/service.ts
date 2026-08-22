@@ -4,15 +4,13 @@ import type {
   DecisionRecord,
   DecisionType,
   MatchReview,
-  PostMatchReport,
-  PostMatchPlayerActual,
   ReadinessState,
   RoundReview,
   SelectionExplanation,
   TeamReadiness,
 } from "./types";
 import { db } from "@/lib/db";
-import { WarningSeverity, UnplannedAppearanceReason } from "@/generated/prisma/client";
+import { WarningSeverity } from "@/generated/prisma/client";
 import { signalCategoryFromSeverity } from "@/lib/selection/signal-category";
 
 function mapSeverityToState(severity: string): ReadinessState {
@@ -389,107 +387,3 @@ export async function recordDecision(input: {
   };
 }
 
-export async function getPostMatchReport(matchId: string): Promise<PostMatchReport> {
-  const report = await db.postMatchReport.findFirst({
-    where: { matchId },
-    include: { playerActuals: true },
-  });
-
-  if (!report) {
-    return { matchId, status: "NOT_STARTED", playerActuals: [] };
-  }
-
-  return {
-    matchId: report.matchId,
-    status: report.status as PostMatchReport["status"],
-    teamNote: report.teamNote ?? undefined,
-    playerActuals: report.playerActuals.map((p) => ({
-      playerId: p.playerId,
-      attendanceStatus: p.attendanceStatus as PostMatchPlayerActual["attendanceStatus"],
-      unplannedAppearanceReason: p.unplannedAppearanceReason ?? undefined,
-      actualPositions: (p.actualPositions as string[]) ?? [],
-      note: p.note ?? undefined,
-    })),
-    completedBy: report.completedBy ?? undefined,
-    completedAt: report.completedAt?.toISOString() ?? undefined,
-  };
-}
-
-export async function completePostMatchReport(
-  matchId: string,
-  input: {
-    teamNote?: string;
-    playerActuals: PostMatchPlayerActual[];
-  },
-): Promise<PostMatchReport> {
-  const unknownAttendance = input.playerActuals.filter(
-    (a) => a.attendanceStatus === "UNKNOWN",
-  );
-  if (unknownAttendance.length > 0) {
-    throw new Error(
-      `Cannot complete report: ${unknownAttendance.length} player(s) have UNKNOWN attendance. Resolve all attendance before completing.`,
-    );
-  }
-
-  const existing = await db.postMatchReport.findFirst({ where: { matchId } });
-
-  const match = await db.match.findFirst({ where: { id: matchId }, select: { organisationId: true } });
-  const organisationId = match?.organisationId ?? "";
-
-  if (existing) {
-    await db.postMatchReport.update({
-      where: { matchId },
-      data: {
-        status: "LOCKED",
-        teamNote: input.teamNote,
-        completedBy: "coach",
-        completedAt: new Date(),
-      },
-    });
-
-    await db.postMatchPlayerActual.deleteMany({ where: { matchId } });
-
-    for (const actual of input.playerActuals) {
-      await db.postMatchPlayerActual.create({
-        data: {
-          organisationId,
-          matchId,
-          playerId: actual.playerId,
-          attendanceStatus: actual.attendanceStatus,
-          unplannedAppearanceReason: (actual.unplannedAppearanceReason as UnplannedAppearanceReason | null | undefined) ?? null,
-          actualPositions: actual.actualPositions ?? [],
-          note: actual.note ?? null,
-          reportId: existing.id,
-        },
-      });
-    }
-  } else {
-    const report = await db.postMatchReport.create({
-      data: {
-        organisationId,
-        matchId,
-        status: "LOCKED",
-        teamNote: input.teamNote,
-        completedBy: "coach",
-        completedAt: new Date(),
-      },
-    });
-
-    for (const actual of input.playerActuals) {
-      await db.postMatchPlayerActual.create({
-        data: {
-          organisationId,
-          matchId,
-          playerId: actual.playerId,
-          attendanceStatus: actual.attendanceStatus,
-          unplannedAppearanceReason: (actual.unplannedAppearanceReason as UnplannedAppearanceReason | null | undefined) ?? null,
-          actualPositions: actual.actualPositions ?? [],
-          note: actual.note ?? null,
-          reportId: report.id,
-        },
-      });
-    }
-  }
-
-  return getPostMatchReport(matchId);
-}

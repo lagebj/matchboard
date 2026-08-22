@@ -245,9 +245,9 @@ describe('Event export route', () => {
         playerId: blaPlayers[0].id,
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
-        plannedRole: 'Defender cover',
-              organisationId: fixtureIds.organisationId,
-},
+        plannedRole: 'DEFENDER_COVER',
+        organisationId: fixtureIds.organisationId,
+      },
     });
 
     const { workbook } = await exportWorkbook(event.id);
@@ -500,7 +500,7 @@ describe('Event export route', () => {
         playerId: blaPlayers[0].id,
         sourceEventSquadId: squad1.id,
         targetEventSquadId: squad2.id,
-        plannedRole: 'GK cover',
+        plannedRole: 'GK_COVER',
               organisationId: fixtureIds.organisationId,
 },
     });
@@ -698,7 +698,7 @@ describe('Event export route', () => {
           playerId: blaPlayers[0].id,
           sourceEventSquadId: squad1.id,
           targetEventSquadId: squad2.id,
-          plannedRole: 'GK cover',
+          plannedRole: 'GK_COVER',
                   organisationId: fixtureIds.organisationId,
 },
       });

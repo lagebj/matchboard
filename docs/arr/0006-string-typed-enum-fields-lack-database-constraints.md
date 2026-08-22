@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved (2026-08-22)
 
 ## Identified
 
@@ -61,11 +61,65 @@ already resolved (now a real `AvailabilityStatus` enum) and removed from this li
 
 ## Disposition
 
-Pending, narrowed. 7 of the original 8 listed fields remain genuinely open (see Evidence);
-`Availability.status` is resolved and removed from the list. `MatchRound.status` is the
-highest-priority remaining instance — already scoped as a real, bounded (though live-column-
-migration-care-required) fix candidate in the consolidation programme's post-audit roadmap
-(Group C, item C1), given its confirmed connection to a real bug this session already hit.
+Resolved. Maintainer decision: convert all remaining fields to real Postgres enums now, rather
+than accept the risk via ADR.
+
+## Resolution
+
+Re-verification at implementation time found the "7 remaining fields" framing above was
+imprecise: `MatchRound.status` turned out to already be a real `MatchRoundStatus` Prisma enum
+(fixed in an earlier, undocumented pass — confirmed via direct schema read, not evidence of a
+new bug). `EventPostMatchPlayer.role` was investigated and found to be genuine free text
+interpolated at write time (`"Planned helper from {squad name}"` —
+`src/app/(app)/events/event-post-match-actions.ts`), not a mis-typed enum, and was deliberately
+left as `String?`. The actual scope was 8 fields across 6 models:
+
+- `PostMatchPlayerActual.attendanceStatus` → `PostMatchAttendanceStatus` (PRESENT/NO_SHOW/UNKNOWN)
+- `PostMatchPlayerActual.source` → `ParticipationSource` (6 values)
+- `Goal.type` → `GoalType` (NORMAL/OWN_GOAL/PENALTY)
+- `Assist.type` → `AssistType` (NORMAL/SECONDARY)
+- `EventGoalEvent.type` → `GoalType` (shared with `Goal.type` — same vocabulary, separate table)
+- `EventAssistEvent.type` → `AssistType` (shared with `Assist.type`)
+- `EventPostMatchPlayer.attendanceStatus` → `EventPostMatchAttendanceStatus` (5 values, nullable)
+- `EventMatchSupportAssignment.plannedRole` → `EventMatchSupportRole` (5 values, nullable)
+
+Value sets were derived from the CHECK constraints already enforcing them since
+`20260802120000_add_enum_check_constraints` — every existing row already satisfied the target
+enum, making the `USING` casts in the new migration safe.
+
+Two real, independent bugs were found and fixed as a direct result of this conversion (the
+enum's stricter typing surfaced both at compile time — they were previously invisible runtime
+risks):
+
+1. **Dead code with an invalid literal.** `domain/assistant-manager/service.ts`'s
+   `completePostMatchReport()`/`getPostMatchReport()` (and their action wrappers
+   `finalizePostMatchReport`/`fetchPostMatchReport`) had zero callers anywhere in the app — a
+   fully superseded post-match reporting path (the real one is
+   `src/lib/reports/report-mutations.ts`, per AGENTS.md's "Direct post-match workflow"). Its
+   input DTO type declared `attendanceStatus: AttendanceStatus` including `"LATE_CANCELLATION"`
+   and `"ABSENT_CONFIRMED"` — values that were never in the CHECK constraint and would have
+   thrown a Postgres constraint violation if ever actually written. Removed entirely (functions,
+   action wrappers, types, tests) rather than patched, since it was unreachable.
+2. **Live UI bug.** The event post-match report's attendance dropdown
+   (`event-match-report-panel.tsx`) offered an `"ABSENT"` option that was never a valid stored
+   value for `EventPostMatchPlayer.attendanceStatus` (not in the enum, not in the CHECK
+   constraint) — selecting it would have thrown a database error. Removed the option (`"No
+   show"` was already present as the correct equivalent). The migration includes a defensive
+   `UPDATE ... SET attendanceStatus = 'NO_SHOW' WHERE attendanceStatus = 'ABSENT'` in case any
+   legacy row predates the CHECK constraint.
+
+`EventMatchSupportRole` was initially modeled with `@map("GK cover")`-style Prisma enum values
+(preserving the exact human-readable strings already stored), but this was reverted: it's the
+only `@map` on an enum value anywhere in this schema, and it would have forced app code to pass
+the Prisma-facing key (`'GK_COVER'`) while the DB stored the mapped label (`'GK cover'`) — two
+representations for no benefit. Switched to plain `SCREAMING_SNAKE_CASE` values (consistent with
+every other enum in the schema) with a migration-time data conversion, plus a new
+`formatEventMatchSupportRole()` / `EVENT_MATCH_SUPPORT_ROLE_LABELS` in
+`src/lib/formatters/event-labels.ts` for display — matching the established formatter pattern
+used by every other enum in that file.
+
+Migration: `prisma/migrations/20260822160000_enum_fields_native_postgres_enums/` — applied to
+local dev + test databases; production applies via the standard CI pipeline (ADR-0084).
 
 ## Related decisions
 
@@ -88,3 +142,9 @@ None
 ### 2026-07-29
 
 Record created from IMPROVE-0A schema assessment.
+
+### 2026-08-22
+
+Resolved. Converted the 8 remaining string-typed fields to real Postgres enums; found and fixed
+2 independent latent bugs along the way (dead code with an unreachable invalid literal, and a
+live UI option that would have thrown a DB error). See `## Resolution` above.

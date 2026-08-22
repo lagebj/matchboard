@@ -104,21 +104,24 @@ All 55 Prisma models lack `organisationId` (single-tenant). This is a prerequisi
 
 ### String-typed enum fields
 
-The following fields store enum values as strings but should use proper enums for type safety and constraint enforcement:
+Resolved 2026-08-22 (ARR-0006). All fields below now use real Postgres enums except
+`EventPostMatchPlayer.role`, which was investigated and found to be genuine free text
+(interpolated at write time, e.g. `"Planned helper from {squad name}"`), not a mis-typed enum —
+left as `String?` deliberately.
 
-| Model | Field | Current | Target enum |
+| Model | Field | Current | Enum |
 |---|---|---|---|
-| MatchRound | status | String "DRAFT" | MatchRoundStatus (NOT_GENERATED, DRAFT, BLOCKED, READY, FINALIZED) |
-| Availability | status | String | AvailabilityStatus |
-| PostMatchPlayerActual | attendanceStatus | String | AttendanceStatusEnum |
-| PostMatchPlayerActual | source | String | ParticipationSourceEnum |
-| Goal | type | String | GoalTypeEnum |
-| Assist | type | String | AssistTypeEnum |
-| EventGoalEvent | type | String | GoalTypeEnum |
-| EventAssistEvent | type | String | AssistTypeEnum |
-| EventPostMatchPlayer | attendanceStatus | String | AttendanceStatusEnum |
-| EventPostMatchPlayer | role | String? | EventParticipationRoleEnum |
-| EventMatchSupportAssignment | plannedRole | String? | SupportRoleEnum |
+| MatchRound | status | `MatchRoundStatus` enum | MatchRoundStatus (DRAFT, FINALIZED — BLOCKED/READY/NOT_GENERATED are derived, never persisted) |
+| Availability | status | `AvailabilityStatus` enum | AvailabilityStatus |
+| PostMatchPlayerActual | attendanceStatus | `PostMatchAttendanceStatus` enum | PostMatchAttendanceStatus |
+| PostMatchPlayerActual | source | `ParticipationSource` enum | ParticipationSource |
+| Goal | type | `GoalType` enum | GoalType |
+| Assist | type | `AssistType` enum | AssistType |
+| EventGoalEvent | type | `GoalType` enum (shared with Goal.type) | GoalType |
+| EventAssistEvent | type | `AssistType` enum (shared with Assist.type) | AssistType |
+| EventPostMatchPlayer | attendanceStatus | `EventPostMatchAttendanceStatus` enum | EventPostMatchAttendanceStatus |
+| EventPostMatchPlayer | role | `String?` (deliberately not an enum — free text) | N/A |
+| EventMatchSupportAssignment | plannedRole | `EventMatchSupportRole` enum | EventMatchSupportRole |
 
 ### Missing database constraints
 
@@ -166,9 +169,9 @@ Fields and structures identified as potential duplicate or legacy sources. These
 | `Selection.role` / `MovementLedger` role values | Legacy BACKFILL vs new SUPPORT for squad repair | Display, movement tracking | Generation engine | Same movement shows different roles | No | IMPROVE-0C: complete BACKFILL→SUPPORT migration |
 | `Selection.controlledDoubleLoad` / `MovementLedger.controlledDoubleLoad` | Legacy double-load fields | Effective participation | Legacy generation | Fields may be inconsistent | No | IMPROVE-0C: deprecate when migration complete |
 | `Warning` rows / live plan integrity | Stale written projections vs canonical derived calculation | Formerly: Assistant issues; formerly: finalization; now: plan integrity display only | Generation engine writes, reconciliation updates | Stale Warning rows not matching canonical live state | Yes (ARR-0003 resolved) | ARR-0003 resolved: all finalization, unfinalization, and display paths use `computeRoundPlanIntegrity()`. Warning rows are derived projections only. `Warning.resolved` is deprecated — no code path reads it for plan integrity or finalization decisions. |
-| `PlayerPosition` table / `Player.primaryPosition` etc. | Two representations of player positions — table never read | No active read paths | Sync logic writes both | Table data stale relative to Player fields | Yes (confirmed) | IMPROVE-0B: Player scalar fields confirmed canonical; PlayerPosition retained as secondary derived store for future approved-position workflow |
+| ~~`PlayerPosition` table~~ / `Player.primaryPosition` etc. | Resolved 2026-08-22 (ARR-0001): `PlayerPosition` table, its enum, and sync logic removed entirely — never read, never became the approved-position workflow it was retained for. `Player.primaryPosition`/`secondaryPosition`/`tertiaryPosition` are now the sole representation. | N/A | Player scalar fields only | N/A | Resolved | ARR-0001 resolved by removal, not by promotion |
 | `Team.minSupportPlayers` (Int) | Appears unused alongside `minSupportCount` and `targetSupportCount` | Unknown | Team config UI | May not be actively used | No | IMPROVE-0B: audit read paths, remove if unused |
-| String-typed enum fields | Prisma stores enum values as strings without constraint enforcement | Application code | Application code + CHECK constraints | Application may write invalid values | Yes (partial) | IMPROVE-0C: Availability.status migrated to enum; CHECK constraints added for 9 string fields across 7 models |
+| ~~String-typed enum fields~~ | Resolved 2026-08-22 (ARR-0006): all 8 remaining fields converted to real Postgres enums. `EventPostMatchPlayer.role` deliberately excluded — genuine free text, not a mis-typed enum. | N/A | Native Postgres enums | N/A | Resolved | Found and fixed 2 latent bugs along the way — see ARR-0006's `## Resolution` |
 | CoachingIntentScopeType.PLANNING_PERIOD | Enum value uses legacy terminology | Intent display, selection engine | Admin config | Inconsistent with user-facing "League season" language | No | IMPROVE-0B: rename to LEAGUE_SEASON |
 
 ## Production correction principles
@@ -231,7 +234,6 @@ Fields and structures identified as potential duplicate or legacy sources. These
 |---|---|---|---|
 | Warning/plan integrity reconciliation | `reconcile-canonical-derived-data.ts` exists | Production dry-run and full sweep not yet executed | Medium |
 | `Team.minSupportCount` / `minSupportPlayers` divergence | Audit detects | No unification yet | Low |
-| `PlayerPosition` table vs `Player.primaryPosition` | Table never read, sync logic writes both | Player scalar fields confirmed canonical; table retained as secondary derived store | Medium |
 | `CoachingIntentScopeType.PLANNING_PERIOD` | Legacy enum value | Rename to `LEAGUE_SEASON` | Medium |
 | Missing unique constraint on Selection (playerId, matchRoundId) | Application enforced but DB did not | Partial unique index added (2026-07-29) | Critical — **Resolved** |
-| String-typed enum fields | No DB constraint on valid values | Migrate to proper enums | Medium |
+| String-typed enum fields | No DB constraint on valid values | Migrated to proper enums (2026-08-22) | Medium — **Resolved** |

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatSelectionRole, formatAttendanceStatus, formatUnplannedAppearanceReason, UNPLANNED_APPEARANCE_REASON_LABELS } from "@/lib/match-utils";
-import type { SelectionRole } from "@/generated/prisma/client";
+import type { SelectionRole, PostMatchAttendanceStatus } from "@/generated/prisma/client";
 import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -148,7 +148,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
     });
   };
 
-  const handleAttendanceChange = (appearanceId: string, newStatus: string) => {
+  const handleAttendanceChange = (appearanceId: string, newStatus: PostMatchAttendanceStatus) => {
     setError(null);
     startTransition(async () => {
       const result = await updateAttendanceStatus(appearanceId, newStatus);
@@ -635,7 +635,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
                 {!isLocked && (
                   <select
                     value={p.attendanceStatus}
-                    onChange={(e) => handleAttendanceChange(p.id, e.target.value)}
+                    onChange={(e) => handleAttendanceChange(p.id, e.target.value as PostMatchAttendanceStatus)}
                     className="rounded border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-1 py-0.5 text-[10px] text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
                   >
                     <option value="PRESENT">Present</option>

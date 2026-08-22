@@ -8,6 +8,7 @@ import { logMutationEvent } from '@/lib/security/audit-log';
 import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
 import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
+import { EventMatchSupportRole } from '@/generated/prisma/client';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== 'org') return;
@@ -28,17 +29,9 @@ async function requireEventNotFinalized(eventId: string, orgFilter: OrgFilterMod
   }
 }
 
-const VALID_PLANNED_ROLES = [
-  'GK cover',
-  'Defender cover',
-  'Midfield cover',
-  'Forward cover',
-  'General cover',
-] as const;
+const VALID_PLANNED_ROLES = Object.values(EventMatchSupportRole);
 
-type PlannedRole = (typeof VALID_PLANNED_ROLES)[number];
-
-function isValidPlannedRole(role: string | null | undefined): role is PlannedRole | null {
+function isValidPlannedRole(role: string | null | undefined): role is EventMatchSupportRole | null {
   if (role === null || role === undefined) return true;
   return (VALID_PLANNED_ROLES as readonly string[]).includes(role);
 }
@@ -46,7 +39,7 @@ function isValidPlannedRole(role: string | null | undefined): role is PlannedRol
 export async function addEventMatchSupportAssignmentAction(input: {
   eventMatchId: string;
   playerId: string;
-  plannedRole?: string;
+  plannedRole?: EventMatchSupportRole;
   note?: string;
 }) {
   const ctx = await requirePageActorContext();
@@ -203,7 +196,7 @@ export async function removeEventMatchSupportAssignmentAction(assignmentId: stri
 
 export async function updateEventMatchSupportAssignmentAction(input: {
   assignmentId: string;
-  plannedRole?: string;
+  plannedRole?: EventMatchSupportRole;
   note?: string;
 }) {
   const ctx = await requirePageActorContext();

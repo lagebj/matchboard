@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
-import { MatchReportStatus } from '@/generated/prisma/client';
+import { MatchReportStatus, EventPostMatchAttendanceStatus, GoalType, AssistType } from '@/generated/prisma/client';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   const event = await db.event.findFirst({
@@ -161,7 +161,7 @@ export async function updateEventMatchResultAction(
 
 export async function updateEventPlayerAttendanceAction(
   playerReportId: string,
-  attendanceStatus: string,
+  attendanceStatus: EventPostMatchAttendanceStatus,
 ) {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
@@ -195,7 +195,7 @@ export async function updateEventPlayerAttendanceAction(
 
 export async function addEventGoalAction(
   reportId: string,
-  data: { playerId?: string; minute?: number; type?: string; note?: string },
+  data: { playerId?: string; minute?: number; type?: GoalType; note?: string },
 ) {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
@@ -253,7 +253,7 @@ export async function removeEventGoalAction(goalId: string) {
 
 export async function addEventAssistAction(
   reportId: string,
-  data: { playerId: string; type?: string },
+  data: { playerId: string; type?: AssistType },
 ) {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);

@@ -29,8 +29,17 @@ import { StatusPill } from '@/components/ui/status-pill';
 import { EventMatchReportPanel } from './event-match-report-panel';
 import { EventMatchLineupPanel } from './event-match-lineup-panel';
 import { OpponentTeamSelect } from '@/components/opponents/opponent-team-select';
+import { formatEventMatchSupportRole } from '@/lib/formatters/event-labels';
+import type { EventMatchSupportRole } from '@/generated/prisma/client';
 
-const PLANNED_ROLE_OPTIONS = ['', 'GK cover', 'Defender cover', 'Midfield cover', 'Forward cover', 'General cover'];
+const PLANNED_ROLE_OPTIONS: { value: EventMatchSupportRole | ''; label: string }[] = [
+  { value: '', label: 'No specific role' },
+  { value: 'GK_COVER', label: 'GK cover' },
+  { value: 'DEFENDER_COVER', label: 'Defender cover' },
+  { value: 'MIDFIELD_COVER', label: 'Midfield cover' },
+  { value: 'FORWARD_COVER', label: 'Forward cover' },
+  { value: 'GENERAL_COVER', label: 'General cover' },
+];
 
 const CATEGORY_LABELS: Record<string, string> = {
   LEAGUE: 'League',
@@ -681,7 +690,7 @@ function EventMatchCard({
 }) {
   const [addingHelper, setAddingHelper] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedRole, setSelectedRole] = useState<EventMatchSupportRole | ''>('');
   const [candidates, setCandidates] = useState<EventSupportCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [helperError, setHelperError] = useState<string | null>(null);
@@ -881,7 +890,7 @@ function EventMatchCard({
                   <span className="text-zinc-200">
                     {a.firstName} {a.lastName}
                     <span className="text-[var(--text-muted)] ml-1">from {a.sourceEventSquadName}</span>
-                    {a.plannedRole && <span className="text-[var(--text-muted)] ml-1">({a.plannedRole})</span>}
+                    {a.plannedRole && <span className="text-[var(--text-muted)] ml-1">({formatEventMatchSupportRole(a.plannedRole)})</span>}
                     {a.isConflict && <span className="text-[var(--danger)] ml-1">⚠ {a.conflictReason}</span>}
                   </span>
                   <button
@@ -931,11 +940,11 @@ function EventMatchCard({
                         <div className="w-36">
                           <select
                             value={selectedRole}
-                            onChange={(e) => setSelectedRole(e.target.value)}
+                            onChange={(e) => setSelectedRole(e.target.value as EventMatchSupportRole | '')}
                             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
                           >
                             {PLANNED_ROLE_OPTIONS.map((r) => (
-                              <option key={r} value={r}>{r || 'No specific role'}</option>
+                              <option key={r.value} value={r.value}>{r.label}</option>
                             ))}
                           </select>
                         </div>

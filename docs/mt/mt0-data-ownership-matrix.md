@@ -26,7 +26,6 @@ These models own football-domain data that belongs to exactly one organisation. 
 | FormationSlot | `FormationSlot → Formation → Team → Organisation` (indirect) | Yes | Direct preferred |
 | MatchLineup | `MatchLineup → Match → Team → Organisation` (indirect) | Yes | Direct preferred |
 | MatchLineupAssignment | `MatchLineupAssignment → MatchLineup → Match → Organisation` (indirect) | Yes | Direct preferred |
-| PlayerPosition | `PlayerPosition → Player → Organisation` (indirect) | Yes | Direct preferred |
 | Warning | `Warning → Selection → Match → Team → Organisation` (indirect) | Yes | Direct preferred |
 | PlayerLock | `PlayerLock → Player → Organisation` (indirect) | Yes | Direct preferred |
 | SelectionAudit | `SelectionAudit → Selection → Match → Team → Organisation` (indirect) | Yes | Direct preferred |

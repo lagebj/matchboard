@@ -122,7 +122,7 @@ describe("Event support actions", () => {
       const assignment = await addEventMatchSupportAssignmentAction({
         eventMatchId: match1.id,
         playerId,
-        plannedRole: "Defender cover",
+        plannedRole: "DEFENDER_COVER",
         note: "Covering defense",
       });
 
@@ -130,7 +130,7 @@ describe("Event support actions", () => {
       expect(assignment.playerId).toBe(playerId);
       expect(assignment.sourceEventSquadId).toBe(squads[1]!.id);
       expect(assignment.targetEventSquadId).toBe(squads[0]!.id);
-      expect(assignment.plannedRole).toBe("Defender cover");
+      expect(assignment.plannedRole).toBe("DEFENDER_COVER");
       expect(assignment.note).toBe("Covering defense");
     });
 
@@ -277,7 +277,7 @@ describe("Event support actions", () => {
         addEventMatchSupportAssignmentAction({
           eventMatchId: match1.id,
           playerId,
-          plannedRole: "Invalid Role",
+          plannedRole: "Invalid Role" as never,
         }),
       ).rejects.toThrow("Invalid planned role");
     });
@@ -320,16 +320,16 @@ describe("Event support actions", () => {
       const assignment = await addEventMatchSupportAssignmentAction({
         eventMatchId: match1.id,
         playerId,
-        plannedRole: "Defender cover",
+        plannedRole: "DEFENDER_COVER",
       });
 
       const updated = await updateEventMatchSupportAssignmentAction({
         assignmentId: assignment.id,
-        plannedRole: "Midfield cover",
+        plannedRole: "MIDFIELD_COVER",
         note: "Updated role",
       });
 
-      expect(updated.plannedRole).toBe("Midfield cover");
+      expect(updated.plannedRole).toBe("MIDFIELD_COVER");
       expect(updated.note).toBe("Updated role");
     });
 
@@ -347,7 +347,7 @@ describe("Event support actions", () => {
       await expect(
         updateEventMatchSupportAssignmentAction({
           assignmentId: assignment.id,
-          plannedRole: "Invalid Role",
+          plannedRole: "Invalid Role" as never,
         }),
       ).rejects.toThrow("Invalid planned role");
     });
@@ -356,7 +356,7 @@ describe("Event support actions", () => {
       await expect(
         updateEventMatchSupportAssignmentAction({
           assignmentId: "nonexistent-id",
-          plannedRole: "General cover",
+          plannedRole: "GENERAL_COVER",
         }),
       ).rejects.toThrow("not found");
     });
@@ -370,7 +370,7 @@ describe("Event support actions", () => {
       const assignment = await addEventMatchSupportAssignmentAction({
         eventMatchId: match1.id,
         playerId,
-        plannedRole: "General cover",
+        plannedRole: "GENERAL_COVER",
       });
 
       const updated = await updateEventMatchSupportAssignmentAction({
@@ -399,7 +399,7 @@ describe("Event support actions", () => {
       await addEventMatchSupportAssignmentAction({
         eventMatchId: match1.id,
         playerId,
-        plannedRole: "General cover",
+        plannedRole: "GENERAL_COVER",
       });
 
       const result = await getEventMatchSupportAssignmentsAction(event.id);

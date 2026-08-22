@@ -177,7 +177,7 @@ export async function getPlayerHistory(
       else if (plannedRole === "DEVELOPMENT") developmentAppearances++;
       else if (plannedRole === "BACKFILL") squadRepairAppearances++;
       else if (!selection) unplannedAppearances++;
-    } else if (selection && selection.status === "FINALIZED" && actual?.attendanceStatus !== "PRESENT") {
+    } else if (selection && selection.status === "FINALIZED") {
       plannedButAbsent++;
     }
 

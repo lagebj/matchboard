@@ -77,7 +77,7 @@ Rename `PLANNING_PERIOD` to `LEAGUE_SEASON` in the enum and update all code refe
 ## Alternatives considered
 
 - **Merge league and event post-match models now**: Rejected — AGENTS.md explicitly states they are separate. Shared types may be extracted later.
-- **Remove PlayerPosition table immediately**: Deferred — verify no code path reads it first (assessment shows none, but migration should be staged)
+- **Remove PlayerPosition table immediately**: Deferred — verify no code path reads it first (assessment shows none, but migration should be staged). Done 2026-08-22 — see ARR-0001's `## Resolution`.
 - **Remove Warning table immediately**: Deferred — still actively written by generation pipeline. Must migrate to live computation first.
 
 ## Related

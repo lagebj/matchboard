@@ -102,7 +102,6 @@ model Player {
   organisation             Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   coreTeam                 Team?                          @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
   locks                    PlayerLock[]
-  positions                PlayerPosition[]
   readinessSignals         PlayerReadinessSignal[]
   developmentObservations  PlayerDevelopmentObservation[]
   profileSuggestions       PlayerProfileSuggestion[]
@@ -473,23 +472,6 @@ model MatchLineupAssignment {
   @@index([organisationId])
 }
 
-model PlayerPosition {
-  id             String                 @id @default(cuid())
-  organisationId String
-  playerId       String
-  positionId     String
-  priority       PlayerPositionPriority @default(PRIMARY)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  player         Player                 @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  organisation   Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-
-  @@unique([playerId, positionId])
-  @@index([playerId])
-  @@index([positionId])
-  @@index([organisationId])
-}
-
 model Warning {
   id             String          @id @default(cuid())
   organisationId String
@@ -652,13 +634,13 @@ model PostMatchPlayerActual {
   organisationId            String
   matchId                   String
   playerId                  String
-  attendanceStatus          String                     @default("UNKNOWN")
+  attendanceStatus          PostMatchAttendanceStatus  @default(UNKNOWN)
   actualPositions           Json?
   note                      String?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   reportId                  String
-  source                    String                     @default("PLANNED")
+  source                    ParticipationSource        @default(PLANNED)
   unplannedAppearanceReason UnplannedAppearanceReason?
   player                    Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
   report                    PostMatchReport            @relation(fields: [reportId], references: [id], onDelete: Cascade)
@@ -676,7 +658,7 @@ model Goal {
   reportId       String
   playerId       String?
   minute         Int?
-  type           String          @default("NORMAL")
+  type           GoalType        @default(NORMAL)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   player         Player?         @relation(fields: [playerId], references: [id], onDelete: SetNull)
@@ -693,7 +675,7 @@ model Assist {
   organisationId String
   reportId       String
   playerId       String
-  type           String          @default("NORMAL")
+  type           AssistType      @default(NORMAL)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   player         Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
@@ -1209,8 +1191,11 @@ model EventPostMatchPlayer {
   organisationId   String
   reportId         String
   playerId         String
-  attendanceStatus String   @default("UNKNOWN")
+  attendanceStatus EventPostMatchAttendanceStatus @default(UNKNOWN)
   minutesPlayed    Int?
+  // Genuinely free text, not a mis-typed enum: interpolated at write time, e.g.
+  // "Planned helper from {squad name}" (src/app/(app)/events/event-post-match-actions.ts).
+  // Confirmed during platform-integrity-programme Phase 4 audit — do not convert to an enum.
   role             String?
   note             String?
   createdAt        DateTime @default(now())
@@ -1232,7 +1217,7 @@ model EventGoalEvent {
   reportId       String
   playerId       String?
   minute         Int?
-  type           String   @default("NORMAL")
+  type           GoalType @default(NORMAL)
   note           String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -1247,11 +1232,11 @@ model EventGoalEvent {
 }
 
 model EventAssistEvent {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   organisationId String
   reportId       String
   playerId       String
-  type           String   @default("NORMAL")
+  type           AssistType @default(NORMAL)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -1271,7 +1256,7 @@ model EventMatchSupportAssignment {
   playerId           String
   sourceEventSquadId String
   targetEventSquadId String
-  plannedRole        String?
+  plannedRole        EventMatchSupportRole?
   note               String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -1562,11 +1547,6 @@ enum MatchLineupAssignmentSource {
   SUGGESTED
 }
 
-enum PlayerPositionPriority {
-  PRIMARY
-  SECONDARY
-  TERTIARY
-}
 
 enum MatchType {
   LEAGUE
@@ -1587,6 +1567,53 @@ enum MatchStatus {
 enum MatchRoundStatus {
   DRAFT
   FINALIZED
+}
+
+// Real Postgres enums added platform-integrity-programme Phase 4 / ARR-0006, replacing
+// String + CHECK constraint columns. Value sets verified against the CHECK constraints added
+// 2026-08-02 (prisma/migrations/20260802120000_add_enum_check_constraints), which had already
+// been enforcing exactly these sets in production since that date.
+
+enum PostMatchAttendanceStatus {
+  PRESENT
+  NO_SHOW
+  UNKNOWN
+}
+
+enum EventPostMatchAttendanceStatus {
+  PRESENT
+  NO_SHOW
+  UNKNOWN
+  LATE_ADDITION
+  WITHDRAWN
+}
+
+enum ParticipationSource {
+  PLANNED
+  UNPLANNED
+  ADDED_POST_MATCH
+  EMERGENCY_BACKFILL
+  PLANNED_DRAFT
+  PLANNED_FINALIZED
+}
+
+enum GoalType {
+  NORMAL
+  OWN_GOAL
+  PENALTY
+}
+
+enum AssistType {
+  NORMAL
+  SECONDARY
+}
+
+enum EventMatchSupportRole {
+  GK_COVER
+  DEFENDER_COVER
+  MIDFIELD_COVER
+  FORWARD_COVER
+  GENERAL_COVER
 }
 
 enum WarningSeverity {
@@ -1884,7 +1911,6 @@ model Organisation {
   formationSlots                FormationSlot[]
   matchLineups                  MatchLineup[]
   matchLineupAssignments        MatchLineupAssignment[]
-  playerPositions               PlayerPosition[]
   warnings                      Warning[]
   playerLocks                   PlayerLock[]
   selectionAudits               SelectionAudit[]
