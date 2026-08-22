@@ -35,7 +35,7 @@ export function MobileNav({ orgSlug }: { orgSlug: string }) {
   const items = mobileNavItems(orgSlug);
 
   return (
-    <nav aria-label="Mobile" className="app-mobile-nav lg:hidden">
+    <nav aria-label="Mobile" className="app-mobile-nav medium:hidden">
       <div className="mx-auto flex max-w-[96rem] items-center justify-around px-2 py-2">
         {items.map((item) => {
           const active = isNavItemActive(pathname, item.href);

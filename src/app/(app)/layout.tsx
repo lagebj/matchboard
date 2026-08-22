@@ -1,4 +1,5 @@
 import { SidebarNav } from "@/components/shell/sidebar-nav";
+import { NavigationRail } from "@/components/shell/navigation-rail";
 import { TopContextBar } from "@/components/shell/top-context-bar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserNav } from "@/components/shell/user-nav";
@@ -51,7 +52,10 @@ export default async function AppLayout({
     <OrgSlugProvider orgSlug={orgSlug}>
       <OrgSlugCookieSetter orgSlug={orgSlug} />
       <div className="app-shell flex min-h-full">
-        <aside className="sticky top-0 z-30 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl lg:flex">
+        <aside className="sticky top-0 z-30 hidden h-screen w-[var(--rail-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl medium:flex expanded:hidden">
+          <NavigationRail orgSlug={orgSlug} />
+        </aside>
+        <aside className="sticky top-0 z-30 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl expanded:flex">
           <SidebarNav orgSlug={orgSlug} />
         </aside>
         <div className="flex min-h-screen flex-1 flex-col">
@@ -63,7 +67,7 @@ export default async function AppLayout({
               <UserNav />
             </div>
           </header>
-          <main className="flex-1 pb-20 lg:pb-0">
+          <main className="flex-1 pb-20 medium:pb-0">
             <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
               {children}
             </div>
