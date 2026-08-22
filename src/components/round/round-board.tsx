@@ -46,6 +46,8 @@ import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Dialog } from "@/components/ui/dialog";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 
 type SelectionRole = UISelectionRole;
 
@@ -187,6 +189,7 @@ function BoardPlayerChip({
   isPending,
   onDragStart,
   onRemove,
+  onMove,
   onTouchStart,
   isTouchDragging,
 }: {
@@ -196,6 +199,7 @@ function BoardPlayerChip({
   isPending: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onRemove?: () => void;
+  onMove?: () => void;
   onTouchStart?: () => void;
   isTouchDragging?: boolean;
 }) {
@@ -213,6 +217,7 @@ function BoardPlayerChip({
       onTouchStart={onTouchStart}
       isTouchDragging={isTouchDragging}
       onRemove={onRemove}
+      onMove={onMove}
       title={`${player.name} · ${player.coreTeamName}`}
     />
   );
@@ -225,6 +230,7 @@ function MatchColumnComponent({
   onDrop,
   onDragStart,
   onRemovePlayer,
+  onMovePlayer,
   showFinalizeMatch,
   onTouchStartPlayer,
   isTouchHighlight,
@@ -242,6 +248,7 @@ function MatchColumnComponent({
     currentRole?: SelectionRole,
   ) => void;
   onRemovePlayer: (matchId: string, playerId: string) => void;
+  onMovePlayer: (matchId: string, playerId: string, playerName: string) => void;
   showFinalizeMatch: (matchId: string) => void;
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
@@ -392,6 +399,7 @@ function MatchColumnComponent({
                     isPending={isPending}
                     onDragStart={(e) => onDragStart(e, p.id, match.matchId, p.role)}
                     onRemove={() => onRemovePlayer(match.matchId, p.id)}
+                    onMove={() => onMovePlayer(match.matchId, p.id, p.name)}
                     onTouchStart={
                       onTouchStartPlayer
                         ? () => onTouchStartPlayer(p.id, match.matchId, p.role)
@@ -436,6 +444,17 @@ export function RoundBoard({
   const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
   const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
   const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState(false);
+
+  // Non-drag "Move to..." alternative (PROGRAMME.md §50). Desktop/expanded
+  // viewports get a Dialog-based list (no dropdown/menu primitive exists
+  // yet); medium/compact viewports get BottomSheet, matching §22's own
+  // "Tap player → Move to: ..." example.
+  const [movePicker, setMovePicker] = useState<{
+    playerId: string;
+    playerName: string;
+    fromMatchId: string | null;
+  } | null>(null);
+  const isCompactViewport = useMediaQuery("(max-width: 839px)");
 
   const touchDragRef = useRef<{
     playerId: string;
@@ -526,6 +545,44 @@ export function RoundBoard({
     [],
   );
 
+  // Single source of truth for "move a player to a match" — used by drag/drop,
+  // touch-drag, and the explicit non-drag Move action below. Never duplicate
+  // this sequence (PROGRAMME.md §50's non-drag alternative must produce the
+  // identical result as drag/drop, not a parallel implementation).
+  const movePlayerToMatch = useCallback(
+    async (playerId: string, fromMatchId: string | null, targetMatchId: string) => {
+      const role = determineRole(playerId, targetMatchId);
+      const isCoreMove =
+        initialAvailable.find((p) => p.id === playerId)?.coreTeamId ===
+        matches.find((m) => m.matchId === targetMatchId)?.teamId;
+
+      const addFd = new FormData();
+      addFd.set("matchId", targetMatchId);
+      addFd.set("playerId", playerId);
+      addFd.set("role", role);
+      addFd.set("matchRoundId", matchRoundId);
+      const reason =
+        overrideReason.trim() ||
+        (fromMatchId
+          ? `Moving player from another match`
+          : isCoreMove
+            ? undefined
+            : `Manual placement on non-core team`);
+      if (reason) addFd.set("overrideReason", reason);
+
+      const addResult = await addPlayerToMatchAction(addFd);
+
+      if (addResult?.success !== false && fromMatchId) {
+        const rmFd = new FormData();
+        rmFd.set("matchId", fromMatchId);
+        rmFd.set("playerId", playerId);
+        rmFd.set("matchRoundId", matchRoundId);
+        await removePlayerFromMatchAction(rmFd);
+      }
+    },
+    [matchRoundId, overrideReason, determineRole, initialAvailable, matches],
+  );
+
   const handleDropOnMatch = useCallback(
     (matchId: string, e: React.DragEvent) => {
       e.preventDefault();
@@ -535,41 +592,13 @@ export function RoundBoard({
 
         if (fromMatchId === matchId) return;
 
-        const role = determineRole(playerId, matchId);
-        const isCoreMove =
-          initialAvailable.find((p) => p.id === playerId)?.coreTeamId ===
-          matches.find((m) => m.matchId === matchId)?.teamId;
-
         startTransition(async () => {
-          const addFd = new FormData();
-          addFd.set("matchId", matchId);
-          addFd.set("playerId", playerId);
-          addFd.set("role", role);
-          addFd.set("matchRoundId", matchRoundId);
-          const reason =
-            overrideReason.trim() ||
-            (fromMatchId
-              ? `Moving player from another match`
-              : isCoreMove
-                ? undefined
-                : `Manual placement on non-core team`);
-          if (reason) addFd.set("overrideReason", reason);
-
-          const addResult = await addPlayerToMatchAction(addFd);
-
-          if (addResult?.success !== false && fromMatchId) {
-            const rmFd = new FormData();
-            rmFd.set("matchId", fromMatchId);
-            rmFd.set("playerId", playerId);
-            rmFd.set("matchRoundId", matchRoundId);
-            await removePlayerFromMatchAction(rmFd);
-          }
+          await movePlayerToMatch(playerId, fromMatchId, matchId);
           router.refresh();
         });
       } catch {}
     },
-    // initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
-    [matchRoundId, overrideReason, startTransition, determineRole, router],
+    [startTransition, movePlayerToMatch, router],
   );
 
   const handleDropOnAvailable = useCallback(
@@ -608,6 +637,19 @@ export function RoundBoard({
     [matchRoundId, startTransition, router],
   );
 
+  const handleConfirmMove = useCallback(
+    (targetMatchId: string) => {
+      if (!movePicker) return;
+      const { playerId, fromMatchId } = movePicker;
+      startTransition(async () => {
+        await movePlayerToMatch(playerId, fromMatchId, targetMatchId);
+        router.refresh();
+      });
+      setMovePicker(null);
+    },
+    [movePicker, movePlayerToMatch, startTransition, router],
+  );
+
   // Touch drag helpers — preserved verbatim from previous implementation.
   const findDropTargetAt = (
     x: number,
@@ -635,32 +677,8 @@ export function RoundBoard({
           setTouchDropTarget(null);
           return;
         }
-        const role = determineRole(dragData.playerId, matchId);
-        const isCoreMove =
-          initialAvailable.find((p) => p.id === dragData.playerId)?.coreTeamId ===
-          matches.find((m) => m.matchId === matchId)?.teamId;
         startTransition(async () => {
-          const addFd = new FormData();
-          addFd.set("matchId", matchId);
-          addFd.set("playerId", dragData.playerId);
-          addFd.set("role", role);
-          addFd.set("matchRoundId", matchRoundId);
-          const reason =
-            overrideReason.trim() ||
-            (dragData.fromMatchId
-              ? `Moving player from another match`
-              : isCoreMove
-                ? undefined
-                : `Manual placement on non-core team`);
-          if (reason) addFd.set("overrideReason", reason);
-          const addResult = await addPlayerToMatchAction(addFd);
-          if (addResult?.success !== false && dragData.fromMatchId) {
-            const rmFd = new FormData();
-            rmFd.set("matchId", dragData.fromMatchId);
-            rmFd.set("playerId", dragData.playerId);
-            rmFd.set("matchRoundId", matchRoundId);
-            await removePlayerFromMatchAction(rmFd);
-          }
+          await movePlayerToMatch(dragData.playerId, dragData.fromMatchId, matchId);
           router.refresh();
         });
       } else {
@@ -684,8 +702,7 @@ export function RoundBoard({
       setTouchDragPlayerId(null);
       setTouchDropTarget(null);
     },
-    // initialAvailable and matches are intentionally excluded to avoid re-renders on every data change
-    [matchRoundId, overrideReason, startTransition, determineRole, router],
+    [matchRoundId, startTransition, movePlayerToMatch, router],
   );
 
   const handleFinalize = (
@@ -725,6 +742,10 @@ export function RoundBoard({
   const planningNotes = warnings.filter((w) => w.severity === "WARNING");
 
   const [availableDragOver, setAvailableDragOver] = useState(false);
+
+  const moveDestinations = movePicker
+    ? matches.filter((m) => m.matchId !== movePicker.fromMatchId)
+    : [];
 
   const finalizingMatch = finalizingMatchId
     ? matches.find((m) => m.matchId === finalizingMatchId)
@@ -950,6 +971,11 @@ export function RoundBoard({
                     isFinalized={false}
                     isPending={isPending}
                     onDragStart={(e) => handleDragStart(e, p.id, null, p.role)}
+                    onMove={
+                      matches.length > 0
+                        ? () => setMovePicker({ playerId: p.id, playerName: p.name, fromMatchId: null })
+                        : undefined
+                    }
                     onTouchStart={() => {
                       touchDragRef.current = {
                         playerId: p.id,
@@ -977,6 +1003,9 @@ export function RoundBoard({
               handleDragStart(e, playerId, match.matchId, currentRole)
             }
             onRemovePlayer={handleRemovePlayer}
+            onMovePlayer={(matchId, playerId, playerName) =>
+              setMovePicker({ playerId, playerName, fromMatchId: matchId })
+            }
             showFinalizeMatch={(matchId: string) => {
               setFinalizingMatchId(matchId);
               setMatchOverrideReason({ category: "", detail: "" });
@@ -1171,6 +1200,78 @@ export function RoundBoard({
           </>
         }
       />
+
+      {isCompactViewport ? (
+        <BottomSheet
+          isOpen={!!movePicker}
+          onClose={() => setMovePicker(null)}
+          title={movePicker ? `Move ${movePicker.playerName} to...` : ""}
+          footer={
+            <Button variant="secondary" onClick={() => setMovePicker(null)}>
+              Cancel
+            </Button>
+          }
+        >
+          <MoveDestinationList
+            destinations={moveDestinations}
+            isPending={isPending}
+            onSelect={handleConfirmMove}
+          />
+        </BottomSheet>
+      ) : (
+        <Dialog
+          isOpen={!!movePicker}
+          onClose={() => setMovePicker(null)}
+          title={movePicker ? `Move ${movePicker.playerName} to...` : ""}
+          size="sm"
+          footer={
+            <Button variant="secondary" onClick={() => setMovePicker(null)}>
+              Cancel
+            </Button>
+          }
+        >
+          <MoveDestinationList
+            destinations={moveDestinations}
+            isPending={isPending}
+            onSelect={handleConfirmMove}
+          />
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function MoveDestinationList({
+  destinations,
+  isPending,
+  onSelect,
+}: {
+  destinations: MatchColumn[];
+  isPending: boolean;
+  onSelect: (matchId: string) => void;
+}) {
+  if (destinations.length === 0) {
+    return (
+      <p className="text-xs text-[var(--text-muted)]">
+        No other match in this round to move this player to.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {destinations.map((m) => (
+        <button
+          key={m.matchId}
+          type="button"
+          disabled={isPending}
+          onClick={() => onSelect(m.matchId)}
+          className="flex flex-col items-start gap-0.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-left text-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 disabled:opacity-50"
+        >
+          <span className="font-medium text-zinc-50">{m.teamName}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">vs {m.opponent}</span>
+        </button>
+      ))}
     </div>
   );
 }
