@@ -52,10 +52,20 @@ export default defineConfig({
     // every spec: the point is catching responsive/adaptive-layout a11y issues at real device
     // sizes, not redundantly re-running mutation/business-logic specs across viewports for no
     // accessibility benefit.
+    //
+    // Deliberately built from Desktop Chrome + a manual viewport/touch override rather than
+    // devices["iPhone 13"]/["iPad Mini"] — those presets default to WebKit, a browser engine
+    // this repo's CI never installs (only `npx playwright install --with-deps chromium` — see
+    // docs/development/browser-acceptance-testing.md). What actually matters for this matrix is
+    // viewport size + touch/mobile flags, not literally using Safari's engine, and this keeps
+    // every project on the one browser engine CI already has.
     {
       name: "accessibility-phone",
       use: {
-        ...devices["iPhone 13"],
+        ...devices["Desktop Chrome"],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
         storageState: "e2e/.auth/coach.json",
       },
       dependencies: ["setup"],
@@ -64,7 +74,10 @@ export default defineConfig({
     {
       name: "accessibility-tablet",
       use: {
-        ...devices["iPad Mini"],
+        ...devices["Desktop Chrome"],
+        viewport: { width: 768, height: 1024 },
+        isMobile: true,
+        hasTouch: true,
         storageState: "e2e/.auth/coach.json",
       },
       dependencies: ["setup"],

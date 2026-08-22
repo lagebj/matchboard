@@ -48,8 +48,11 @@ test.describe("accessibility", () => {
   test("Round Board has no automatically detectable violations", async ({ page }) => {
     // Round Board needs a real round ID — navigate via the rounds list like
     // round-mutation.spec.ts does, rather than hardcoding an ID from the seed dataset.
+    // Scoped to <main> (not page.getByRole("link").first()) — the sidebar/top-bar render
+    // their own links before the page content in the DOM, so an unscoped "first link" query
+    // clicks a nav link (e.g. Today) instead of a round card, as a live CI run confirmed.
     await page.goto("/o/test-club-a/rounds");
-    await page.getByRole("link").first().click();
+    await page.locator("main").getByRole("link").first().click();
     await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
 
     const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
