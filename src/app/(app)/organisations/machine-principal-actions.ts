@@ -1,6 +1,5 @@
 'use server'
 
-import { requireCoachAccess } from "@/lib/auth";
 import { resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
 import {
   createMachinePrincipal,
@@ -24,8 +23,6 @@ export async function createMachinePrincipalAction(
   description: string | undefined,
   scopes: string[],
 ) {
-  const coach = await requireCoachAccess();
-
   const ctx = await resolveOrganisationOwner(organisationSlug);
 
   const { valid, invalid } = validateScopes(scopes);
@@ -44,7 +41,7 @@ export async function createMachinePrincipalAction(
       scopes: valid as MachineScope[],
     });
 
-    logMachinePrincipalCreate(coach.email ?? "unknown", result.principal.id);
+    logMachinePrincipalCreate(ctx.userEmail, result.principal.id);
 
     return {
       success: true as const,
@@ -66,13 +63,11 @@ export async function revokeMachinePrincipalAction(
   organisationSlug: string,
   principalId: string,
 ) {
-  const coach = await requireCoachAccess();
-
-  await resolveOrganisationOwner(organisationSlug);
+  const ctx = await resolveOrganisationOwner(organisationSlug);
 
   try {
     await revokeMachinePrincipal(principalId);
-    logMachinePrincipalRevoke(coach.email ?? "unknown", principalId);
+    logMachinePrincipalRevoke(ctx.userEmail, principalId);
     return { success: true as const };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Failed to revoke machine principal" };
@@ -83,13 +78,11 @@ export async function reactivateMachinePrincipalAction(
   organisationSlug: string,
   principalId: string,
 ) {
-  const coach = await requireCoachAccess();
-
-  await resolveOrganisationOwner(organisationSlug);
+  const ctx = await resolveOrganisationOwner(organisationSlug);
 
   try {
     await reactivateMachinePrincipal(principalId);
-    logMachinePrincipalReactivate(coach.email ?? "unknown", principalId);
+    logMachinePrincipalReactivate(ctx.userEmail, principalId);
     return { success: true as const };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Failed to reactivate machine principal" };
@@ -100,13 +93,11 @@ export async function rotateMachinePrincipalSecretAction(
   organisationSlug: string,
   principalId: string,
 ) {
-  const coach = await requireCoachAccess();
-
-  await resolveOrganisationOwner(organisationSlug);
+  const ctx = await resolveOrganisationOwner(organisationSlug);
 
   try {
     const result = await rotateClientSecret(principalId);
-    logMachinePrincipalSecretRotate(coach.email ?? "unknown", principalId);
+    logMachinePrincipalSecretRotate(ctx.userEmail, principalId);
     return {
       success: true as const,
       data: {
@@ -120,8 +111,6 @@ export async function rotateMachinePrincipalSecretAction(
 }
 
 export async function listMachinePrincipalsAction(organisationSlug: string) {
-  const _coach = await requireCoachAccess();
-
   const ctx = await resolveOrganisationOwner(organisationSlug);
 
   const principals = await getMachinePrincipalsForOrganisation(ctx.organisationId);

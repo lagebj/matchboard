@@ -2,7 +2,29 @@
 
 ## State
 
-Confirmed
+Resolved (2026-08-22)
+
+## Resolution
+
+Maintainer decided `DecisionRecord` (matching AGENTS.md's stated scope for player-development
+actions, and what the dead code already assumed before removal — see `## Evidence` below).
+
+`updatePlayerCoreTeamAction` (`src/app/(app)/players/actions.ts`) now fetches the player's
+previous `coreTeamId` before calling the domain update, then calls `recordDecision({
+decisionType: "PLAYER_ASSIGNMENT", entityType: "PLAYER", action: "MOVE_PLAYER_TO_TEAM",
+beforeSnapshot: { coreTeamId: previous }, afterSnapshot: { coreTeamId: next }, organisationId
+})` — the same decision type/action the removed dead code used, so this isn't a new
+audit-mechanism precedent, just restoring the one that already existed before the dead UI was
+deleted. `removePlayerAction`/`restorePlayerAction`'s separate `logSecurityEvent`-style
+precedent in the same file was deliberately left as-is (not reconciled) — the maintainer's
+decision was specifically "use DecisionRecord for this one," not "unify all player-action
+auditing onto one mechanism," which remains a distinct, unresolved question if it matters later.
+
+Tests: `src/app/(app)/players/__tests__/update-core-team-audit.test.ts` (3 cases — records the
+decision on a real move, records a null afterSnapshot on unassignment, and does not record
+anything when the domain update fails).
+
+Programme: `platform-integrity-programme` Phase 15.
 
 ## Identified
 

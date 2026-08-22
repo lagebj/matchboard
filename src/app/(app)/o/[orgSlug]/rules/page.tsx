@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RulesForm } from "@/components/rules/rules-form";
 import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
 import { RotationPathCard } from "@/components/rules/rotation-path-card";
+import { RotationPathGraph } from "@/components/rules/rotation-path-graph";
 import { getRules } from "@/lib/rules/get-rules";
 import { validateRuleConfig } from "@/lib/rules/validate-rules";
 import { db } from "@/lib/db";
@@ -107,6 +108,22 @@ export default async function RulesPage({ params, searchParams }: { params: Prom
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Rotation paths</p>
           <span className="text-[10px] text-zinc-500">{rotationPathItems.length} active</span>
         </div>
+
+        {teamOptions.length > 0 && (
+          <RotationPathGraph
+            teams={teamOptions}
+            paths={rotationPathItems.map((p) => ({
+              id: p.id,
+              fromTeamId: p.fromTeamId,
+              fromTeamName: p.fromTeamName,
+              toTeamId: p.toTeamId,
+              toTeamName: p.toTeamName,
+              role: p.role,
+              purpose: p.purpose,
+              priority: p.priority,
+            }))}
+          />
+        )}
 
         {rotationPathItems.length > 0 ? (
           <div className="mt-2 flex flex-col gap-1.5">

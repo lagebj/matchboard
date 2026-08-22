@@ -23,6 +23,7 @@ import {
   updatePlayerCoreTeam as updatePlayerCoreTeamDomain,
 } from "@/lib/players/player-domain";
 import { logPlayerRemove, logPlayerRestore } from "@/lib/security/audit-log";
+import { recordDecision } from "@/domain/assistant-manager/service";
 
 type PlayerInput = {
   active: boolean;
@@ -434,8 +435,27 @@ export async function updatePlayerCoreTeamAction(playerId: string, coreTeamId: s
   requireMutationRole(ctx);
   if (coreTeamId) await requireTeamGroupAccess(ctx, coreTeamId);
   const organisationId = ctx.organisationId;
+
+  const previousPlayer = await db.player.findFirst({
+    where: { id: playerId, ...(organisationId ? { organisationId } : {}) },
+    select: { coreTeamId: true },
+  });
+
   const result = await updatePlayerCoreTeamDomain(playerId, coreTeamId, organisationId);
   if (!result.success) throw new Error(result.error);
+
+  // Player-development action — AGENTS.md requires a DecisionRecord audit trail here
+  // (distinct from logSecurityEvent()'s scope, which is selection-engine actions).
+  // See ARR-0022 / ADR-0085's sibling decision (platform-integrity-programme Phase 15).
+  await recordDecision({
+    decisionType: "PLAYER_ASSIGNMENT",
+    entityType: "PLAYER",
+    entityId: playerId,
+    action: "MOVE_PLAYER_TO_TEAM",
+    beforeSnapshot: { coreTeamId: previousPlayer?.coreTeamId ?? null },
+    afterSnapshot: { coreTeamId },
+    organisationId,
+  });
 
   revalidatePath("/players");
   revalidatePath(`/players/${playerId}`);

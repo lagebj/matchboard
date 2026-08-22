@@ -9,7 +9,7 @@ import { safeErrorResponse } from "@/lib/security/errors";
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
-  const { allowed } = rateLimit("populate-all", 3, 60_000);
+  const { allowed } = await rateLimit("populate-all", 3, 60_000);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many populate-all requests. Please wait a moment and try again." },

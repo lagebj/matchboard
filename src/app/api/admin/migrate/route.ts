@@ -8,7 +8,7 @@ import { backfillMovementLedger } from "@/lib/selection/backfill-movement-ledger
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
   requireAdminRole(ctx);
-  const { allowed } = rateLimit("admin-migrate", 2, 60_000);
+  const { allowed } = await rateLimit("admin-migrate", 2, 60_000);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many migration requests. Please wait a moment and try again." },

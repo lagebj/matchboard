@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   const ctx = await requireActorContext();
   requireMutationRole(ctx);
 
-  const rl = rateLimit("workbench:run", 5, 60_000);
+  const rl = await rateLimit("workbench:run", 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }

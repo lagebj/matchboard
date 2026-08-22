@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved (2026-08-22)
 
 ## Identified
 
@@ -82,8 +82,45 @@ None.
 
 None.
 
+## Resolution
+
+`src/lib/rate-limit.ts` now backs `rateLimit()`/`clearRateLimitStore()` with a `RateLimitBucket`
+Postgres table (Neon in production) instead of an in-process `Map`. The user explicitly rejected
+a paid subscription rate-limiting service (Upstash, etc.) and accepted the tradeoff of an extra
+DB round-trip per rate-limited call in exchange for no new external dependency.
+
+Mechanism: a single `INSERT ... ON CONFLICT ("key") DO UPDATE ... RETURNING` statement performs
+the fixed-window increment-or-reset atomically — concurrent callers for the same key serialize on
+the row lock, so there is no read-then-write race between instances. `RateLimitBucket` is
+deliberately excluded from `RLS_TABLES` (`src/lib/db.ts`) since its keys are IP/action composites,
+not tenant-scoped data.
+
+All 21 existing call sites (`organisations/actions.ts`, and 20 API routes: clear-draft,
+auth/token, generate-round, admin/{audit,reconcile,migrate}, simulation/{run,apply},
+exports/finalized-selections, draft-selection, workbench/{diagnostics,fixtures,run},
+populate-all, season/{movement-paths,player-timeline,export,path-detail,matrix},
+finalize-round) were updated to `await rateLimit(...)` — the interface-compatibility resolution
+criterion from `## Resolution criteria` above; no call site needed further changes since all were
+already inside `async` functions.
+
+Migration: `prisma/migrations/20260822145706_add_rate_limit_bucket/` (hand-authored — `prisma
+migrate dev` requires an interactive TTY not available in this environment; applied
+non-interactively via `prisma migrate deploy` to local dev and test databases; production applies
+through the standard CI migration pipeline per ADR-0084).
+
+Tests: `src/lib/__tests__/rate-limit.test.ts` rewritten against the real test-database fixture
+(`setupTestDb()`/`getTestDb()`, matching the `mandatory-scenarios.test.ts` pattern) rather than
+mocks, since the correctness claim here — atomicity under concurrency — cannot be verified against
+a mock. Includes a new concurrent-request test (5 parallel calls for the same key) asserting no
+double-counting. All 7 tests pass.
+
 ## History
 
 ### 2026-08-19
 
 Record created. Confirmed in-memory rate limiter as architectural residue. Accepted as documented risk per ADR-0063.
+
+### 2026-08-22
+
+Resolved. Replaced with a Neon-backed `RateLimitBucket` table and atomic upsert; all call sites
+migrated to the async interface; tests added against a real database. See `## Resolution` above.

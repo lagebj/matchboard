@@ -122,6 +122,11 @@ const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 const RLS_DEBUG = isRlsDebug();
 
+// Minimal performance visibility (platform-integrity-programme Phase 9): no APM/tracing
+// exists, so this is the cheapest signal available today — log any query slow enough to be
+// a real production concern. Not a substitute for real tracing if that's ever warranted.
+const SLOW_QUERY_THRESHOLD_MS = 500;
+
 type QueryArgs = Record<string, unknown>;
 
 function withOrgWhere(args: QueryArgs, orgId: string): QueryArgs {
@@ -141,7 +146,21 @@ function withOrgWhereAndData(args: QueryArgs, orgId: string): QueryArgs {
 const extendedClient = rawClient.$extends({
   name: "tenantRLS",
   query: {
-    async $allOperations({ model, operation, args, query }) {
+    async $allOperations({ model, operation, args, query: rawQuery }) {
+      const queryStart = performance.now();
+      const query = async (queryArgs: unknown) => {
+        try {
+          return await rawQuery(queryArgs as Parameters<typeof rawQuery>[0]);
+        } finally {
+          const durationMs = performance.now() - queryStart;
+          if (durationMs > SLOW_QUERY_THRESHOLD_MS) {
+            console.warn(
+              `[slow-query] ${model ?? "raw"}.${operation} took ${durationMs.toFixed(0)}ms`,
+            );
+          }
+        }
+      };
+
       const orgId = getTenantOrganisationId();
       const userId = getTenantUserId();
       const isRlsTable = model != null && RLS_TABLES.has(model);

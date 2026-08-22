@@ -1,11 +1,14 @@
 /**
  * Bootstrap Organisation Script
  *
- * Creates a bootstrap organisation and an OWNER membership for the
- * bootstrap user. Idempotent — safe to run multiple times.
+ * Matchboard is invitation-only (ADR-0085): there is no self-service
+ * "create organisation" flow in the app. This script is the maintainer/
+ * backend-team mechanism for provisioning a new organisation — run it once
+ * per new organisation, not just for the very first one. Idempotent — safe
+ * to run multiple times for the same slug.
  *
- * organisationId is non-nullable in the schema; row assignment is handled
- * by the database migration, not by this script.
+ * organisationId is non-nullable in the schema; row assignment for existing
+ * data is handled by database migrations, not by this script.
  *
  * Usage:
  *   npx tsx scripts/bootstrap-organisation.ts
@@ -13,11 +16,13 @@
  * Required environment variables:
  *   DATABASE_URL        — database connection
  *   BOOTSTRAP_OWNER_EMAIL — email of the user who will be the org OWNER
- *   BOOTSTRAP_ORGANIZATION_NAME — name of the bootstrap organisation
- *   BOOTSTRAP_ORGANIZATION_SLUG — URL-safe slug for the bootstrap organisation
+ *                           (must already have signed in once via Google OAuth)
+ *   BOOTSTRAP_ORGANIZATION_NAME — name of the organisation
+ *   BOOTSTRAP_ORGANIZATION_SLUG — URL-safe slug for the organisation
  */
 
 import { db } from "../src/lib/db";
+import { logOrganisationCreate } from "../src/lib/security/audit-log";
 
 const BOOTSTRAP_ORG_NAME = process.env.BOOTSTRAP_ORGANIZATION_NAME ?? "Default Club";
 const BOOTSTRAP_ORG_SLUG = process.env.BOOTSTRAP_ORGANIZATION_SLUG ?? "default-club";
@@ -67,6 +72,7 @@ async function main() {
       });
       orgId = org.id;
       console.log(`  Created organisation: ${org.name} (${org.id})`);
+      logOrganisationCreate(`script:bootstrap-organisation (run by env BOOTSTRAP_OWNER_EMAIL=${BOOTSTRAP_OWNER_EMAIL})`, org.id, "success");
     }
 
     const existingMembership = await db.organisationMembership.findUnique({

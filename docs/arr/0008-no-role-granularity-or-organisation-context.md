@@ -2,7 +2,34 @@
 
 ## Status
 
-Partially resolved
+Resolved (2026-08-22)
+
+## Final resolution (2026-08-22, platform-integrity-programme Phase 16)
+
+Re-investigated the "2 remaining production call sites" before touching them, since blindly
+migrating to `requireActorContext()` would have been wrong: `requireActorContext()` requires an
+*existing* organisation membership, but `acceptInvitationAction`/`declineInvitationAction`
+operate on users who explicitly do **not** have membership yet (that's the point of accepting an
+invitation), and `listUserOrganisationsAction` is deliberately cross-tenant (it lists every org a
+user belongs to, analogous to `/organisations` itself). These three call sites are genuinely
+auth-only — no organisation context exists to resolve — and correctly keep `requireCoachAccess()`
+per this ARR's own resolution criterion ("`requireCoachAccess()` is removed or reduced to a thin
+wrapper for auth-only checks where org context is not needed"). No change needed here.
+
+The real, fixable residue was different from what the ARR's history section implied: in both
+files, every OTHER call site already called a real org-scoped resolver
+(`resolveOrganisationOwner`/`resolveOrganisationAdminOrOwner`, which itself calls
+`requireCoachAccess()` internally) *and* called `requireCoachAccess()` a second time, purely to
+get `coach.email`/`coach.name` for audit logging — a redundant second auth/session check, not a
+missing one. Removed the redundant calls in `machine-principal-actions.ts` (5 functions) and
+`organisations/actions.ts`'s `createInvitationAction`, replacing `coach.email` with the resolver
+context's `ctx.userEmail` (already available, no extra lookup), and replacing `coach.name` with a
+direct `auth()` session read (display-name enrichment only, not an authorization decision).
+
+No test changes required — the underlying authorization (`resolveOrganisationOwner`/
+`resolveOrganisationAdminOrOwner`) is unchanged and already covered by
+`src/lib/organisations/__tests__/organisation-access.test.ts`; this was a pure redundancy
+removal, not new logic.
 
 ## Discovered
 

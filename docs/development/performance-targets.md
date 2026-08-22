@@ -32,6 +32,16 @@ or synthetic Lighthouse run as a substitute for real-user field data.
   no additional `next/dynamic` splitting is needed for route-level isolation.
 - `prefers-reduced-motion` handling in `globals.css` — avoids unnecessary animation work
   for users who've opted out at the OS level.
+- Vercel Functions request-duration logging — Vercel's own platform dashboard already logs
+  every function invocation's duration, no application code needed. This is the current
+  "basic request-duration logging" signal (platform-integrity-programme Phase 9's exit
+  condition), not a custom-built one — building a parallel in-app request timer would
+  duplicate a signal the platform already provides for free, with more code and more risk.
+- **Slow-query logging** (added this pass): `src/lib/db.ts`'s existing `tenantRLS` Prisma
+  extension (which already wraps every query for tenant-filtering) now also times each
+  query and logs a `[slow-query]` warning for anything over 500ms. This is genuinely new —
+  there was previously zero query-level timing visibility, only `warn`/`error` Prisma log
+  levels with no duration attached.
 
 ## What was found and fixed this pass
 
