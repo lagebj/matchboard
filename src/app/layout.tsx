@@ -19,7 +19,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Matchboard",
   description: "Squad selection and match-round planning for youth football.",
-  manifest: "/brand/site.webmanifest",
+  // No explicit `manifest` entry — src/app/manifest.ts (Next.js's dynamic
+  // MetadataRoute.Manifest convention) is auto-linked and branches per
+  // request hostname (Test vs Production). Do not reintroduce a static
+  // manifest reference here; it would compete with the dynamic route.
 };
 
 export default async function RootLayout({

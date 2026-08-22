@@ -11,7 +11,7 @@ Existing brand assets in active use:
 - `public/brand/logo.svg`, `public/brand/logo.eps`
 - `public/brand/favicon.svg`
 - `public/brand/android-chrome-192x192.png`, `public/brand/android-chrome-512x512.png`
-- `public/brand/site.webmanifest`
+- `src/app/manifest.ts` (dynamic PWA manifest, branches on request hostname for Test vs Production — superseded the static `public/brand/site.webmanifest`, removed)
 - `src/app/icon.png`, `src/app/apple-icon.png`, `src/app/favicon.ico`
 
 ## Name/trademark research on record

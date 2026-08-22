@@ -68,6 +68,27 @@ describe("PlayerChip", () => {
     expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
   });
 
+  it("renders move button when onMove is provided", () => {
+    const onMove = vi.fn();
+    render(<PlayerChip name="Movable" onMove={onMove} />);
+    const moveBtn = screen.getByRole("button", { name: /move movable to/i });
+    expect(moveBtn).toBeTruthy();
+    fireEvent.click(moveBtn);
+    expect(onMove).toHaveBeenCalledOnce();
+  });
+
+  it("does not render move button when disabled", () => {
+    const onMove = vi.fn();
+    render(<PlayerChip name="Disabled" onMove={onMove} disabled />);
+    expect(screen.queryByRole("button", { name: /move/i })).toBeNull();
+  });
+
+  it("renders both move and remove buttons together", () => {
+    render(<PlayerChip name="Both" onMove={() => {}} onRemove={() => {}} />);
+    expect(screen.getByRole("button", { name: /move both to/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /remove both/i })).toBeTruthy();
+  });
+
   it("renders drag handle when draggable", () => {
     const { container } = render(
       <PlayerChip name="Drag" draggable />,
