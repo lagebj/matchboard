@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=24 <25"
   },
+  "packageManager": "npm@11.16.0",
   "scripts": {
     "postinstall": "cp -n .env.example .env 2>/dev/null; prisma generate",
     "dev": "next dev -p 3333",
@@ -58,7 +59,8 @@
     "security:secrets": "gitleaks detect --source . --config security/gitleaks.toml --report-format json --report-path .security/results/gitleaks.json --no-git --verbose || true",
     "security:secrets:history": "gitleaks detect --source . --config security/gitleaks.toml --report-format json --report-path .security/results/gitleaks-history.json --verbose || true",
     "security:authz": "TEST_DATABASE_URL=$TEST_DATABASE_URL npx vitest run src/test/security-authz.test.ts",
-    "security:static": "npm run security:check-sql && npm run security:check-supply-chain && npm run security:semgrep && npm run security:deps && npm run security:secrets",
+    "security:sbom": "cyclonedx-npm --ignore-npm-errors --output-format JSON --output-file .security/results/sbom.cdx.json",
+    "security:static": "npm run security:check-sql && npm run security:check-supply-chain && npm run security:semgrep && npm run security:deps && npm run security:secrets && npm run security:sbom",
     "security:dast:baseline": "bash scripts/zap-baseline.sh",
     "security:dast:active": "bash scripts/zap-active.sh",
     "security:review": "bash scripts/security-review.sh",
@@ -95,6 +97,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@cyclonedx/cyclonedx-npm": "^6.0.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.0",

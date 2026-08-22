@@ -887,7 +887,7 @@ Each PR should:
 
 See [SECURITY.md](SECURITY.md) for the security development workflow, tooling, and policies.
 
-Security commands: `pnpm security:review` (non-destructive), `pnpm security:authz` (authorization tests), `pnpm security:static` (SAST + deps + secrets).
+Security commands: `npm run security:review` (non-destructive), `npm run security:authz` (authorization tests), `npm run security:static` (SAST + deps + secrets).
 
 Active DAST requires explicit opt-in and an isolated environment. Never run active scans against production.
 
