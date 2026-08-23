@@ -13,6 +13,12 @@ yarn-error.log*
 
 # Environment and local secrets
 .env
+workers/**/.dev.vars
+
+# Cloudflare Workers local dev/build state
+.wrangler/
+workers/**/.wrangler/
+workers/**/node_modules/
 .env.local
 .env.*.local
 .env.production

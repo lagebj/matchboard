@@ -1,0 +1,57 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "matchboard-live-match-realtime",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-23",
+  // ADR-0086: SQLite-backed storage explicitly (never `new_classes`/legacy KV-backed) —
+  // required to stay on the Cloudflare Workers/Durable Objects Free plan (D-004).
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["MatchSessionObject"] }
+  ],
+  // Not inherited by named environments below (confirmed via `wrangler deploy --dry-run`,
+  // which warns loudly if omitted from an environment) — must be repeated per environment.
+  "durable_objects": {
+    "bindings": [
+      { "name": "MATCH_SESSIONS", "class_name": "MatchSessionObject" }
+    ]
+  },
+  // Local `wrangler dev` default — matches the Next.js dev server port (SPEC.md §34).
+  "vars": {
+    "MATCHBOARD_APP_ORIGINS": "http://localhost:3333"
+  },
+  // ADR-0086: two separately-deployed Workers (distinct `name`s below), not one Worker
+  // serving both hostnames — isolates Durable Object storage/quota and blast radius between
+  // test and production traffic, mirroring the existing `matchboard`/`matchboard-test`
+  // Vercel project split. `LIVE_MATCH_REALTIME_SECRET` is set per-environment via
+  // `wrangler secret put --env <name>`, never in this file (see worker-types.ts).
+  "env": {
+    "production": {
+      "name": "matchboard-live-match-realtime-production",
+      "routes": [
+        { "pattern": "realtime.matchboard.football", "custom_domain": true }
+      ],
+      "durable_objects": {
+        "bindings": [
+          { "name": "MATCH_SESSIONS", "class_name": "MatchSessionObject" }
+        ]
+      },
+      "vars": {
+        "MATCHBOARD_APP_ORIGINS": "https://app.matchboard.football"
+      }
+    },
+    "test": {
+      "name": "matchboard-live-match-realtime-test",
+      "routes": [
+        { "pattern": "realtime-test.matchboard.football", "custom_domain": true }
+      ],
+      "durable_objects": {
+        "bindings": [
+          { "name": "MATCH_SESSIONS", "class_name": "MatchSessionObject" }
+        ]
+      },
+      "vars": {
+        "MATCHBOARD_APP_ORIGINS": "https://test.matchboard.football"
+      }
+    }
+  }
+}
