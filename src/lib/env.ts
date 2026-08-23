@@ -268,6 +268,16 @@ export function getAuthSecret(): string {
   return secret;
 }
 
+/** Dedicated signing secret for live-match realtime connection tickets — never reuse
+ * AUTH_SECRET (live-match-realtime-programme SPEC.md §11). */
+export function getLiveMatchRealtimeSecret(): string {
+  const secret = process.env.LIVE_MATCH_REALTIME_SECRET;
+  if (!secret) {
+    throw new Error("LIVE_MATCH_REALTIME_SECRET environment variable is not set.");
+  }
+  return secret;
+}
+
 export function isCspEnforceEnabled(): boolean {
   return process.env.CSP_ENFORCE === "true";
 }

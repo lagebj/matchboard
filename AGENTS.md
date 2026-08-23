@@ -2457,6 +2457,24 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
 | `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 
+### Live match realtime session files (live-match-realtime-programme, in progress)
+
+Evolves live-match reporting into a distributed `MatchSession` model — Neon remains system
+of record, IndexedDB remains the device-safety layer, a Cloudflare Durable Object becomes
+the temporary per-match coordination actor. See `.matchboard-work/live-match-realtime-programme/`
+(local, gitignored) for the full spec and phased rollout; Stages 1–2 (below) are pure
+Next.js application code with no new runtime yet.
+
+| File | Purpose |
+|------|---------|
+| `src/lib/live-match/realtime/protocol.ts` | RPC envelope types, error code set, method allowlists, protocol version |
+| `src/lib/live-match/realtime/protocol-schemas.ts` | Zod validation for the RPC envelope; `parseIncomingMessage`/`parseRawSocketMessage` |
+| `src/lib/live-match/realtime/realtime-messages.ts` | Business payload types (`MatchSessionSnapshot`, `ClockAnchor`, command/callback shapes) |
+| `src/lib/live-match/realtime/realtime-state.ts` | Client-side realtime version tracking (`RealtimeVersionTracker`) |
+| `src/lib/live-match/realtime/realtime-client.ts` | Browser `RealtimeMatchClient` abstraction: connect/reconnect, RPC call/response matching, callback dispatch |
+| `src/lib/live-match/realtime/realtime-ticket.ts` | Realtime connection ticket signing/verification (jose HS256, mirrors `machine-token.ts`'s pattern) |
+| `src/app/api/live-match/[matchId]/realtime-ticket/route.ts` | Issues short-lived realtime connection tickets; reuses live-match session authorization |
+
 ## Stale references removed
 
 - `docs/domain.md` — deleted, do not reference
