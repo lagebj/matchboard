@@ -45,6 +45,15 @@ interface LiveMatchClientProps {
 function useLiveBroadcast(matchId: string) {
   const clientRef = useRef<RealtimeMatchClient | null>(null);
   const clientIdRef = useRef<string>(crypto.randomUUID());
+  // Tracks the Durable Object's realtime version as last observed from a successful
+  // recordEvent response. Every accepted event (append-safe or state-sensitive) advances the
+  // object's version by one (state.ts's evaluateRecordEvent) — sending a stale baseVersion for
+  // a state-sensitive event type (PERIOD_START, ROTATION_OUT, ...) is rejected outright
+  // ("stale_state"), so a hardcoded baseVersion would only ever succeed for the first event of
+  // the match and silently fail every state-sensitive broadcast after it. Self-heals after a
+  // reconnect/rejection: any subsequent append-safe event (no baseVersion check) still
+  // succeeds and its response realigns this to the object's true current version.
+  const versionRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -74,9 +83,15 @@ function useLiveBroadcast(matchId: string) {
     clientRef.current = null;
   }
 
-  function broadcastEvent(input: { clientEventId: string; baseVersion: number; event: Record<string, unknown> }): void {
+  function broadcastEvent(input: { clientEventId: string; event: Record<string, unknown> }): void {
     clientRef.current
-      ?.recordEvent(input)
+      ?.recordEvent({ ...input, baseVersion: versionRef.current })
+      .then((result) => {
+        const version = (result as { version?: unknown } | undefined)?.version;
+        if (typeof version === "number") {
+          versionRef.current = version;
+        }
+      })
       .catch(() => {
         // Fire-and-forget — the coach's HTTP-recorded event already succeeded independently.
       });
@@ -112,15 +127,9 @@ function createLeagueActions(
     recordEvent: async (input) => {
       const result = await recordLiveEventAction(input);
       if (result.success && result.data) {
-        // Best-effort broadcast side-channel — see useLiveBroadcast's doc comment. baseVersion
-        // is not tracked client-side yet (no viewer-facing conflict resolution needed for a
-        // read-only broadcast), so 0 is always sent; the Durable Object only enforces
-        // baseVersion for state-sensitive event types when accepting via a *reporting*
-        // connection's own recordEvent call, which this is — a stale baseVersion here would
-        // only affect this broadcast attempt, never the canonical HTTP-recorded event.
+        // Best-effort broadcast side-channel — see useLiveBroadcast's doc comment.
         broadcast.broadcastEvent({
           clientEventId: input.clientEventId,
-          baseVersion: 0,
           event: { eventType: input.eventType, ...input.payload },
         });
         return { success: true as const, data: { id: result.data.eventId } };
