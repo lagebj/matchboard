@@ -357,3 +357,11 @@ Key implementation choices:
   (`LIVE_MATCH_INTERNAL_SECRET_PRODUCTION`/`_TEST`) that `deploy-live-match-worker.yml` now
   reads and pushes to each Worker automatically via `wrangler secret put` on every deploy —
   no manual `wrangler secret put` needed for this one, unlike `LIVE_MATCH_REALTIME_SECRET`.
+  Found and fixed during review, same day: the snapshot endpoint's GET request originally
+  signed a fixed empty string regardless of the `matchId`/`sessionId` query parameters it
+  carried — meaning a valid signature+timestamp pair from one legitimate request would still
+  verify if replayed with *different* query parameters within the 60-second tolerance window,
+  since the signature never actually bound to which match's data was being requested. Fixed
+  by signing the query string itself (`internal-auth.ts`/`internal-client.ts`'s
+  `fetchSnapshot`) instead of an empty body for GET requests, with a regression test proving
+  a signature issued for one matchId/sessionId is rejected against another.

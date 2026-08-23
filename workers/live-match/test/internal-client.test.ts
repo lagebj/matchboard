@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { buildSignedRequest, persistEvent, fetchSnapshot, PersistEventError } from "../src/internal-client";
-import { verifyInternalSignature } from "../../../src/lib/live-match/realtime/internal-signature";
+import { verifyInternalSignature, signInternalRequest } from "../../../src/lib/live-match/realtime/internal-signature";
 
 const SECRET = "worker-internal-test-secret";
 
@@ -103,14 +103,34 @@ describe("fetchSnapshot", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("GETs the snapshot endpoint with matchId/sessionId query params and an empty-body signature", async () => {
+  it("GETs the snapshot endpoint with matchId/sessionId query params, signed over the query string", async () => {
     const result = await fetchSnapshot({ baseUrl: "https://app.matchboard.football", secret: SECRET, matchId: "match-1", sessionId: "session-1" });
     expect(result.session.matchId).toBe("match-1");
 
     const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const url = new URL(call[0] as string);
+    const init = call[1] as { headers: Record<string, string>; body?: unknown };
     expect(url.pathname).toBe("/api/internal/live-match/snapshot");
     expect(url.searchParams.get("matchId")).toBe("match-1");
     expect(url.searchParams.get("sessionId")).toBe("session-1");
+    expect(init.body).toBeUndefined(); // GET never sends a body — the query string is signed, not transmitted as one.
+
+    const timestamp = Number(init.headers["x-matchboard-timestamp"]);
+    const expectedSignature = await signInternalRequest({ timestamp, rawBody: url.search, secret: SECRET });
+    expect(init.headers["x-matchboard-signature"]).toBe(expectedSignature);
+  });
+
+  it("signs a different query string differently, so a captured signature can't be replayed against another match/session", async () => {
+    await fetchSnapshot({ baseUrl: "https://app.matchboard.football", secret: SECRET, matchId: "match-1", sessionId: "session-1" });
+    const firstCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const firstInit = firstCall[1] as { headers: Record<string, string> };
+    const firstTimestamp = Number(firstInit.headers["x-matchboard-timestamp"]);
+
+    const otherSignature = await signInternalRequest({
+      timestamp: firstTimestamp,
+      rawBody: "?matchId=match-2&sessionId=session-2",
+      secret: SECRET,
+    });
+    expect(otherSignature).not.toBe(firstInit.headers["x-matchboard-signature"]);
   });
 });

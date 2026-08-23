@@ -4,10 +4,19 @@ import { getLiveMatchInternalSecret } from "@/lib/env";
 import { verifyInternalSignature } from "./internal-signature";
 
 /**
- * Vercel-side verification of an inbound Worker->Vercel signed request (SPEC.md §18). Reads
- * the raw body *before* any JSON parsing — the signature is computed over the exact raw bytes,
- * not a re-serialized/normalized version of them (re-serializing could silently accept a
- * tampered body that happens to parse to the same object shape but differs byte-for-byte).
+ * Vercel-side verification of an inbound Worker->Vercel signed request (SPEC.md §18). For a
+ * POST, reads the raw body *before* any JSON parsing — the signature is computed over the
+ * exact raw bytes, not a re-serialized/normalized version of them (re-serializing could
+ * silently accept a tampered body that happens to parse to the same object shape but differs
+ * byte-for-byte).
+ *
+ * For a GET (the snapshot endpoint has no body), the query string is the signable content
+ * instead — the URL's `search` (e.g. `?matchId=X&sessionId=Y`), never the empty string. A
+ * fixed empty-string signature would be valid for *any* matchId/sessionId combination within
+ * the timestamp tolerance window, since nothing would then bind the signature to which match's
+ * data the request actually asks for — a captured valid signed GET could be replayed with
+ * different query params to read a different match's snapshot. Signing the query string closes
+ * that: the signature is only valid for the exact matchId/sessionId it was issued for.
  */
 export type InternalRequestVerification =
   | { ok: true; rawBody: string; requestId: string }
@@ -27,7 +36,7 @@ export async function verifyInternalRequest(request: Request): Promise<InternalR
     return { ok: false, status: 401, error: "Invalid timestamp header" };
   }
 
-  const rawBody = await request.text();
+  const rawBody = request.method === "GET" ? new URL(request.url).search : await request.text();
   const secret = getLiveMatchInternalSecret();
 
   const result = await verifyInternalSignature({ timestamp, rawBody, signature, secret, now: Date.now() });

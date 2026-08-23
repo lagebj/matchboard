@@ -18,12 +18,37 @@ vi.mock("@/lib/env", async (importOriginal) => {
 
 const TEST_SECRET = "test-internal-secret";
 
-async function signedGetRequest(params: { matchId?: string; sessionId?: string; timestamp?: number; signature?: string }) {
-  const timestamp = params.timestamp ?? Date.now();
-  const signature = params.signature ?? (await signInternalRequest({ timestamp, rawBody: "", secret: TEST_SECRET }));
+function buildSnapshotUrl(matchId?: string, sessionId?: string): URL {
   const url = new URL("http://localhost/api/internal/live-match/snapshot");
-  if (params.matchId) url.searchParams.set("matchId", params.matchId);
-  if (params.sessionId) url.searchParams.set("sessionId", params.sessionId);
+  if (matchId) url.searchParams.set("matchId", matchId);
+  if (sessionId) url.searchParams.set("sessionId", sessionId);
+  return url;
+}
+
+async function signedGetRequest(params: {
+  matchId?: string;
+  sessionId?: string;
+  timestamp?: number;
+  signature?: string;
+  /** Sign for a *different* query string than the one actually sent — proves a signature
+   * issued for one matchId/sessionId is rejected when replayed against another (the exact
+   * scenario this signing scheme exists to close: the query string is now the signable
+   * content, not a fixed empty body every matchId/sessionId combination would satisfy). */
+  signForMatchId?: string;
+  signForSessionId?: string;
+}) {
+  const timestamp = params.timestamp ?? Date.now();
+  const url = buildSnapshotUrl(params.matchId, params.sessionId);
+
+  let signature = params.signature;
+  if (!signature) {
+    const signUrl =
+      params.signForMatchId !== undefined || params.signForSessionId !== undefined
+        ? buildSnapshotUrl(params.signForMatchId, params.signForSessionId)
+        : url;
+    signature = await signInternalRequest({ timestamp, rawBody: signUrl.search, secret: TEST_SECRET });
+  }
+
   return new Request(url, {
     method: "GET",
     headers: {
@@ -64,6 +89,20 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
   it("rejects an invalid signature", async () => {
     const { GET } = await import("../route");
     const res = await GET(await signedGetRequest({ matchId: "match-1", sessionId: "session-1", signature: "0".repeat(64) }));
+    expect(res.status).toBe(401);
+    expect(mockDb.liveMatchSession.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects a signature issued for a different matchId/sessionId (replay-with-substituted-params)", async () => {
+    const { GET } = await import("../route");
+    const res = await GET(
+      await signedGetRequest({
+        matchId: "match-1",
+        sessionId: "session-1",
+        signForMatchId: "match-2",
+        signForSessionId: "session-2",
+      }),
+    );
     expect(res.status).toBe(401);
     expect(mockDb.liveMatchSession.findUnique).not.toHaveBeenCalled();
   });

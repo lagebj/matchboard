@@ -93,13 +93,14 @@ export async function fetchSnapshot(params: {
   url.searchParams.set("matchId", params.matchId);
   url.searchParams.set("sessionId", params.sessionId);
 
-  // Nothing meaningful to sign over for a GET with no body — sign the empty string, keeping
-  // the same canonical-input shape (`<timestamp>.<rawBody>`) as the POST path rather than a
-  // special-cased scheme, per SPEC.md §18's single canonical signature input.
+  // Sign the query string itself (not an empty body) — binds the signature to exactly which
+  // matchId/sessionId this request is for, so a captured valid signed GET can't be replayed
+  // with different query params to read a different match's snapshot within the timestamp
+  // tolerance window. Mirrors internal-auth.ts's verification exactly (`new URL(...).search`).
   const signed = await buildSignedRequest({
     url: url.toString(),
     method: "GET",
-    rawBody: "",
+    rawBody: url.search,
     secret: params.secret,
     timestamp: Date.now(),
     requestId: crypto.randomUUID(),
