@@ -281,6 +281,50 @@ Key implementation choices:
   modest additional confidence. Revisit at Stage 6, which introduces genuinely
   hard-to-pure-function-test Durable Object–native behaviour (alarms, retry state machines).
 
+### Stage 5: realtime event path integration
+
+Flips the reporting coach's own write path from what PR #344 ("Follow live") shipped — HTTP
+unconditionally, realtime as a pure best-effort broadcast side-channel — to what SPEC.md §28
+actually specifies: realtime becomes the *primary* write when connected, HTTP is the
+*fallback* used specifically when realtime is unavailable. Stage 4's synchronous
+persist-then-reply behavior is what makes trusting the realtime path's own result safe to do
+here — before Stage 4, `recordEvent()`'s RPC response could never mean "canonically
+persisted," only "durably accepted by this object."
+
+Key implementation choices:
+- `LeagueLiveMatchClient`'s `useLiveBroadcast()` (renamed `useLiveRealtime()`) now exposes
+  `tryRecordEvent()`, tried first by `createLeagueActions.recordEvent`; the existing HTTP call
+  (`recordLiveEventAction`, byte-for-byte unchanged) only runs when `tryRecordEvent` returns
+  `null` (not connected, or the RPC threw/rejected — including a `STALE_STATE` rejection) *or*
+  the realtime result is `persistenceStatus: "pending"`. Falling through to HTTP on `"pending"`
+  is a deliberate choice beyond SPEC.md §28's literal "leave event unsynced": it's safe (the
+  same `clientEventId` dedup that makes racing HTTP-and-realtime safe elsewhere, SPEC.md §22
+  Case E) and gives an immediate, self-healing corrective write rather than waiting on Stage
+  6's alarm-based retry, which may not fire for tens of seconds under backoff.
+- A `STALE_STATE` rejection's `currentVersion` field realigns the client's tracked
+  `baseVersion` immediately, so a state-sensitive event type doesn't keep failing every
+  subsequent attempt — the same self-heal principle the original best-effort broadcast already
+  used for its own hardcoded-`baseVersion` bug (fixed during Stage 3/Follow-Live review).
+- `applyEvent`/`presenceChanged`/`sessionEnded` broadcasts now feed a new
+  `LiveMatchActions.onLiveUpdate` subscription, so a *second* reporter's action (SPEC.md §44
+  scenario 2) refreshes this client immediately rather than waiting up to 5s for the existing
+  poll — `LiveMatchClient` already polled `getRecentEvents` every 5s before this stage, so the
+  two reporters were never actually stuck needing a manual refresh, just slower than the spec's
+  "both clients show identical state without refresh" implies literally.
+- `LiveMatchActions.reconnectRealtime` lets the existing `online`/`visibilitychange` handlers
+  (which already drove HTTP's own `syncUnsyncedEvents()` before this stage) also force an
+  immediate realtime reconnect attempt, rather than waiting on the client's own backoff timer
+  (SPEC.md §27's "on browser online... reconnect" — a passive timer could otherwise leave a
+  coach on HTTP-only for up to ~30s after connectivity actually returns).
+- No changes to `RealtimeMatchClient` itself (Stage 1) — its reconnect/backoff/jitter,
+  fresh-ticket-per-attempt, and RPC reject-on-`ok:false` behavior were already correct and are
+  reused as-is; `connect()` is safely re-callable to force an immediate attempt.
+- "Replay unsynced local events" on reconnect (SPEC.md §27 step 5) needed no new code: the
+  existing `syncUnsyncedEvents()` already calls `actions.recordEvent(...)` for each unsynced
+  IndexedDB event, which now goes through the same realtime-primary/HTTP-fallback path as any
+  other recording — reconnecting and then replaying was already wired, it just started
+  benefiting from realtime once this stage made `recordEvent` realtime-aware.
+
 ## Consequences
 
 - Matchboard gains a second deployment target (Cloudflare Workers) alongside Vercel/Neon,
@@ -365,3 +409,9 @@ Key implementation choices:
   by signing the query string itself (`internal-auth.ts`/`internal-client.ts`'s
   `fetchSnapshot`) instead of an empty body for GET requests, with a regression test proving
   a signature issued for one matchId/sessionId is rejected against another.
+- 2026-08-23: Stage 5 ("realtime event path integration") implemented — see the Decision
+  section's own Stage 5 subsection above. The reporting coach's write path now tries realtime
+  first and falls back to HTTP, rather than running HTTP unconditionally alongside a
+  best-effort broadcast. No new external configuration — reuses the same
+  `NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL`/`LIVE_MATCH_REALTIME_SECRET` already provisioned for
+  "Follow live."

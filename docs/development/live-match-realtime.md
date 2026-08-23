@@ -7,7 +7,7 @@ of that using a Cloudflare Worker + Durable Object per active match. See
 decision (why Cloudflare Durable Objects, the trust boundary, the Free-plan design, and the
 HTTP-fallback rollback story) before changing anything here.
 
-## Current status: Stage 4 + "Follow live" viewer
+## Current status: Stage 5 + "Follow live" viewer
 
 This is being delivered in stages (see the ADR's linked programme spec), plus one
 maintainer-directed addition beyond the original stage plan. As of this document:
@@ -32,11 +32,12 @@ maintainer-directed addition beyond the original stage plan. As of this document
   reject any connection without `"report"` (previously unenforced — any authenticated
   connection could mutate). The reporting page
   (`src/components/live-match/league-live-match-client.tsx`) opens a `"report"`-mode
-  connection and best-effort broadcasts each event to the Worker purely so viewers see it —
-  Neon persistence is unaffected, still happening via the existing HTTP action. The viewer
-  itself is `src/components/live-match/follow-live-client.tsx`, reached via "Follow live" on
-  the match detail page (shown only when a session is `ACTIVE` and the coach has at least
-  `GROUP_VIEWER` access — enforced server-side, not just hidden in the UI).
+  connection so viewers see live updates; at the time this capability shipped, that connection
+  was a best-effort broadcast alongside an unconditional HTTP write — Stage 5 (below) later
+  made it the primary write path instead. The viewer itself is
+  `src/components/live-match/follow-live-client.tsx`, reached via "Follow live" on the match
+  detail page (shown only when a session is `ACTIVE` and the coach has at least `GROUP_VIEWER`
+  access — enforced server-side, not just hidden in the UI).
 - **Shipped**: Stage 4 — signed internal persistence API (SPEC.md §17-19). The Durable
   Object's `handleRecordEvent` now signs and sends accepted events to a new
   `POST /api/internal/live-match/events` (HMAC-only, never a browser-facing API), which calls
@@ -49,11 +50,22 @@ maintainer-directed addition beyond the original stage plan. As of this document
   it yet; the Durable Object *consuming* it for reconciliation is Stage 6 (§23). A direct,
   now-resolved consequence of Stage 4 landing: `endSession` can succeed for a session whose
   events have actually persisted, which was structurally impossible before this stage.
-- **Not yet implemented**: retry/backoff for failed persistence (Stage 6's outbox/alarms),
+- **Shipped**: Stage 5 — realtime event path integration (SPEC.md §5, §20, §22, §27, §28).
+  The reporting coach's own write path (`createLeagueActions.recordEvent` in
+  `league-live-match-client.tsx`) now tries realtime first via `tryRecordEvent()` and only
+  falls through to the existing, byte-for-byte-unchanged HTTP path
+  (`recordLiveEventAction`) when realtime is unavailable, the RPC throws/rejects, or
+  persistence comes back `"pending"` (a deliberate immediate corrective write, safe due to
+  `clientEventId` dedup — see ADR-0086's Stage 5 subsection for the full reasoning). A second
+  reporter's `applyEvent`/`presenceChanged`/`sessionEnded` broadcasts now trigger an immediate
+  refresh via a new `LiveMatchActions.onLiveUpdate` subscription instead of waiting up to 5s
+  for the existing poll, and the browser `online`/`visibilitychange` handlers now also force
+  an immediate realtime reconnect (`LiveMatchActions.reconnectRealtime`) rather than waiting on
+  the client's own backoff timer. No changes to `RealtimeMatchClient` itself (Stage 1) or to
+  the HTTP fallback path's own behavior.
+- **Not yet implemented**: retry/backoff for failed persistence (Stage 6's outbox/alarms), and
   the Durable Object consuming the snapshot endpoint for reconciliation after an HTTP-fallback
-  write it never saw (Stage 6, §23), and making the browser's own reporting flow use the
-  realtime path as primary rather than the current best-effort broadcast side-channel
-  (Stage 5).
+  write it never saw (Stage 6, §23).
 - **Explicitly out of scope**: PWA push notifications (service worker, Web Push) — discussed
   and deferred; "Follow live" is in-browser only for now, per `AGENTS.md`'s PWA section's
   existing v1 scope boundary.
@@ -176,6 +188,15 @@ React, or a running Prisma client (the one Prisma-derived type it touches,
   tests against a real test database (session/match/org consistency, dedup, explicit-actor
   usage with no `requireActorContext()` call) alongside the pre-existing `recordEvent()`
   tests, proving the refactor didn't change browser-facing behavior.
+- **Stage 5 additions** (`src/components/live-match/__tests__/`, plain Vitest against jsdom
+  via `vitest.config.components.ts` — no real WebSocket needed, `RealtimeMatchClient` is
+  faked): the primary/fallback decision in `createLeagueActions.recordEvent` (persisted skips
+  HTTP; pending, unavailable, and thrown-rejection cases all fall through to HTTP), the
+  `STALE_STATE` self-heal in `useLiveRealtime.tryRecordEvent`, `onLiveUpdate` firing for
+  `applyEvent`/`presenceChanged`/`sessionEnded` and stopping after unsubscribe,
+  `getSnapshot`-driven version re-derivation on reconnect, `reconnectNow`'s no-new-client
+  behavior, and `LiveMatchClient`'s own wiring of `onLiveUpdate`/`reconnectRealtime` (immediate
+  refresh on broadcast, immediate reconnect attempt on the browser `online` event).
 - **Not covered by an automated integration test**: the real `MatchSessionObject` class
   running inside an actual Workers runtime — WebSocket upgrade handling, hibernation
   survival, `ctx.getWebSockets()` behaviour, and the actual `handleRecordEvent` → sign → POST
