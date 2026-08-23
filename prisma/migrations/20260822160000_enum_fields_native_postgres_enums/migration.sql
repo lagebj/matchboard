@@ -9,12 +9,44 @@
 -- write time ("Planned helper from {squad name}"), not a mis-typed enum.
 
 -- CreateEnum
-CREATE TYPE "PostMatchAttendanceStatus" AS ENUM ('PRESENT', 'NO_SHOW', 'UNKNOWN');
-CREATE TYPE "EventPostMatchAttendanceStatus" AS ENUM ('PRESENT', 'NO_SHOW', 'UNKNOWN', 'LATE_ADDITION', 'WITHDRAWN');
-CREATE TYPE "ParticipationSource" AS ENUM ('PLANNED', 'UNPLANNED', 'ADDED_POST_MATCH', 'EMERGENCY_BACKFILL', 'PLANNED_DRAFT', 'PLANNED_FINALIZED');
-CREATE TYPE "GoalType" AS ENUM ('NORMAL', 'OWN_GOAL', 'PENALTY');
-CREATE TYPE "AssistType" AS ENUM ('NORMAL', 'SECONDARY');
-CREATE TYPE "EventMatchSupportRole" AS ENUM ('GK_COVER', 'DEFENDER_COVER', 'MIDFIELD_COVER', 'FORWARD_COVER', 'GENERAL_COVER');
+--
+-- Wrapped in DO/EXCEPTION guards: this migration failed partway through on its first real
+-- production attempt (see ADR-0084 History, 2026-08-23) at the very last statement block
+-- (EventMatchSupportAssignment.plannedRole). Prisma's `migrate deploy` does not wrap a
+-- migration.sql file in a single all-or-nothing transaction — confirmed empirically: every
+-- CREATE TYPE below, and every other field's conversion in this file, had already committed
+-- successfully by the time the final block failed, so a naive re-run fails immediately with
+-- "type already exists" on the very first statement. Making CREATE TYPE idempotent (and the two
+-- value-rewriting UPDATE blocks below, at EventPostMatchPlayer.attendanceStatus and
+-- EventMatchSupportAssignment.plannedRole, guarded against re-running once their column is
+-- already the target enum type) makes this file safely re-runnable from any partial-failure
+-- point, not just from the beginning. Every other statement here (DROP CONSTRAINT IF EXISTS,
+-- DROP DEFAULT, ALTER COLUMN TYPE using a self-cast, SET DEFAULT) is already naturally
+-- idempotent and needs no guard.
+DO $$ BEGIN
+  CREATE TYPE "PostMatchAttendanceStatus" AS ENUM ('PRESENT', 'NO_SHOW', 'UNKNOWN');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE "EventPostMatchAttendanceStatus" AS ENUM ('PRESENT', 'NO_SHOW', 'UNKNOWN', 'LATE_ADDITION', 'WITHDRAWN');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE "ParticipationSource" AS ENUM ('PLANNED', 'UNPLANNED', 'ADDED_POST_MATCH', 'EMERGENCY_BACKFILL', 'PLANNED_DRAFT', 'PLANNED_FINALIZED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE "GoalType" AS ENUM ('NORMAL', 'OWN_GOAL', 'PENALTY');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE "AssistType" AS ENUM ('NORMAL', 'SECONDARY');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE "EventMatchSupportRole" AS ENUM ('GK_COVER', 'DEFENDER_COVER', 'MIDFIELD_COVER', 'FORWARD_COVER', 'GENERAL_COVER');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- PostMatchPlayerActual.attendanceStatus
 ALTER TABLE "PostMatchPlayerActual" DROP CONSTRAINT IF EXISTS "PostMatchPlayerActual_attendanceStatus_check";
@@ -57,7 +89,15 @@ ALTER TABLE "EventAssistEvent" ALTER COLUMN "type" SET DEFAULT 'NORMAL'::"Assist
 -- was never a valid value (not in the CHECK constraint's set, and not in this enum). Any legacy
 -- row written before the 20260802120000 CHECK constraint existed would fail the USING cast below
 -- without this. Treated as the semantic equivalent of NO_SHOW.
-UPDATE "EventPostMatchPlayer" SET "attendanceStatus" = 'NO_SHOW' WHERE "attendanceStatus" = 'ABSENT';
+-- Guarded: 'ABSENT' is not a valid label of EventPostMatchAttendanceStatus, so re-running this
+-- comparison after the column has already been converted to that enum type would itself error
+-- ("invalid input value for enum") rather than no-op. Only run while the column is still text.
+DO $$ BEGIN
+  IF (SELECT data_type FROM information_schema.columns
+      WHERE table_name = 'EventPostMatchPlayer' AND column_name = 'attendanceStatus') = 'text' THEN
+    UPDATE "EventPostMatchPlayer" SET "attendanceStatus" = 'NO_SHOW' WHERE "attendanceStatus" = 'ABSENT';
+  END IF;
+END $$;
 ALTER TABLE "EventPostMatchPlayer" DROP CONSTRAINT IF EXISTS "EventPostMatchPlayer_attendanceStatus_check";
 ALTER TABLE "EventPostMatchPlayer" ALTER COLUMN "attendanceStatus" DROP DEFAULT;
 ALTER TABLE "EventPostMatchPlayer" ALTER COLUMN "attendanceStatus" TYPE "EventPostMatchAttendanceStatus" USING ("attendanceStatus"::"EventPostMatchAttendanceStatus");
@@ -79,10 +119,18 @@ ALTER TABLE "EventPostMatchPlayer" ALTER COLUMN "attendanceStatus" SET DEFAULT '
 -- "violates check constraint EventMatchSupportAssignment_plannedRole_check" — confirmed by a real
 -- production failure (see ADR-0084 History) that CI/local never caught because neither had a row
 -- with that value in this column, so the buggy ordering was never exercised.
-ALTER TABLE "EventMatchSupportAssignment" DROP CONSTRAINT IF EXISTS "EventMatchSupportAssignment_plannedRole_check";
-UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'GK_COVER' WHERE "plannedRole" = 'GK cover';
-UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'DEFENDER_COVER' WHERE "plannedRole" = 'Defender cover';
-UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'MIDFIELD_COVER' WHERE "plannedRole" = 'Midfield cover';
-UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'FORWARD_COVER' WHERE "plannedRole" = 'Forward cover';
-UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'GENERAL_COVER' WHERE "plannedRole" = 'General cover';
+-- Guarded the same way as EventPostMatchPlayer.attendanceStatus above: the old human-readable
+-- labels ('GK cover', etc.) are not valid labels of EventMatchSupportRole, so re-running these
+-- renames after the column is already that enum type would error rather than no-op.
+DO $$ BEGIN
+  IF (SELECT data_type FROM information_schema.columns
+      WHERE table_name = 'EventMatchSupportAssignment' AND column_name = 'plannedRole') = 'text' THEN
+    ALTER TABLE "EventMatchSupportAssignment" DROP CONSTRAINT IF EXISTS "EventMatchSupportAssignment_plannedRole_check";
+    UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'GK_COVER' WHERE "plannedRole" = 'GK cover';
+    UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'DEFENDER_COVER' WHERE "plannedRole" = 'Defender cover';
+    UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'MIDFIELD_COVER' WHERE "plannedRole" = 'Midfield cover';
+    UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'FORWARD_COVER' WHERE "plannedRole" = 'Forward cover';
+    UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'GENERAL_COVER' WHERE "plannedRole" = 'General cover';
+  END IF;
+END $$;
 ALTER TABLE "EventMatchSupportAssignment" ALTER COLUMN "plannedRole" TYPE "EventMatchSupportRole" USING ("plannedRole"::"EventMatchSupportRole");
