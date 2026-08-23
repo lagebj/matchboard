@@ -224,6 +224,9 @@ The assistant must not skip steps or suggest finalization before draft review. P
 - Prisma
 - PostgreSQL (Neon for production, Docker Compose for local dev)
 - Auth.js (Google OAuth, organisation membership)
+- Cloudflare Workers/Durable Objects (`workers/live-match/`) — optional live match realtime
+  coordination layer, additive to the primary Next.js/Vercel/Neon stack, not a replacement
+  for any of it. See ADR-0086 and `docs/development/live-match-realtime.md`.
 
 ## Product boundary
 
@@ -2461,9 +2464,11 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 
 Evolves live-match reporting into a distributed `MatchSession` model — Neon remains system
 of record, IndexedDB remains the device-safety layer, a Cloudflare Durable Object becomes
-the temporary per-match coordination actor. See `.matchboard-work/live-match-realtime-programme/`
-(local, gitignored) for the full spec and phased rollout; Stages 1–2 (below) are pure
-Next.js application code with no new runtime yet.
+the temporary per-match coordination actor. See ADR-0086 for the Stage 3 architecture
+decision and `.matchboard-work/live-match-realtime-programme/` (local, gitignored) for the
+full spec and phased rollout. Stages 1–2 are pure Next.js application code; Stage 3
+introduces the actual Cloudflare Worker/Durable Object but not yet canonical event
+persistence (see `docs/development/live-match-realtime.md`).
 
 | File | Purpose |
 |------|---------|
@@ -2474,6 +2479,13 @@ Next.js application code with no new runtime yet.
 | `src/lib/live-match/realtime/realtime-client.ts` | Browser `RealtimeMatchClient` abstraction: connect/reconnect, RPC call/response matching, callback dispatch |
 | `src/lib/live-match/realtime/realtime-ticket.ts` | Realtime connection ticket signing/verification (jose HS256, mirrors `machine-token.ts`'s pattern) |
 | `src/app/api/live-match/[matchId]/realtime-ticket/route.ts` | Issues short-lived realtime connection tickets; reuses live-match session authorization |
+| `workers/live-match/wrangler.jsonc` | Worker/Durable Object config: SQLite-backed DO storage, `production`/`test` environments |
+| `workers/live-match/src/index.ts` | Worker entry: WebSocket upgrade validation, Origin allowlist, matchId shape, routes to the object |
+| `workers/live-match/src/match-session-object.ts` | `MatchSessionObject` Durable Object: RPC dispatch, hibernation, presence, storage |
+| `workers/live-match/src/state.ts` | Pure MatchSession decision logic (event classification, authenticate/record/end-session outcomes) |
+| `workers/live-match/src/rpc.ts` | RPC envelope construction helpers used by the Durable Object |
+| `workers/live-match/src/auth.ts` | Worker-side ticket verification re-export, Origin/matchId validation |
+| `workers/live-match/src/worker-types.ts` | Worker `Env` bindings |
 
 ## Stale references removed
 
