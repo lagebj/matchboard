@@ -3,7 +3,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
 import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession } from "../live-match-session";
-import { recordEvent, getMatchEvents, getRecentEvents } from "../live-match-event-store";
+import { recordEvent, recordEventForActor, getMatchEvents, getRecentEvents } from "../live-match-event-store";
 import { validateLiveEventInput, isValidEventType, isGoalEventType, isPeriodTransition } from "../live-match-domain";
 import type { LiveMatchEventType } from "@/generated/prisma/client";
 import {
@@ -184,6 +184,93 @@ describe("Live match event recording", () => {
   it("retrieves recent events with limit", async () => {
     const events = await getRecentEvents(matchId, 3);
     expect(events.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("recordEventForActor (Stage 4 internal persistence, SPEC.md §19)", () => {
+  let sessionId: string;
+
+  beforeAll(async () => {
+    await testDb.liveMatchEvent.deleteMany({ where: { matchId } });
+    await testDb.liveMatchSession.deleteMany({ where: { matchId } });
+    const session = await startLiveSession(matchId);
+    sessionId = session.id;
+  });
+
+  it("persists an event given an explicit actor, with no requireActorContext() call", async () => {
+    // No auth mock manipulation here — this must work purely from the explicit actor param,
+    // proving the internal endpoint doesn't need a browser session to reach this code.
+    const canonical = await recordEventForActor(
+      {
+        matchId,
+        sessionId,
+        eventType: "GOAL_FOR",
+        period: "FIRST_HALF",
+        matchSeconds: 120,
+        playerId: fixture.players[0].id,
+        clientEventId: "evt-internal-goal-1",
+      },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+
+    expect(canonical.id).toBeDefined();
+    expect(canonical.clientEventId).toBe("evt-internal-goal-1");
+    expect(canonical.eventType).toBe("GOAL_FOR");
+    expect(canonical.createdAt).toBeDefined();
+  });
+
+  it("is idempotent on duplicate clientEventId — returns the existing canonical event, no second row", async () => {
+    const first = await recordEventForActor(
+      { matchId, sessionId, eventType: "GOAL_AGAINST", clientEventId: "evt-internal-dup" },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    const second = await recordEventForActor(
+      { matchId, sessionId, eventType: "GOAL_AGAINST", clientEventId: "evt-internal-dup" },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+
+    expect(second.id).toBe(first.id);
+    const rows = await testDb.liveMatchEvent.findMany({ where: { clientEventId: "evt-internal-dup" } });
+    expect(rows.length).toBe(1);
+  });
+
+  it("rejects an actor whose organisationId does not match the session's organisation", async () => {
+    await expect(
+      recordEventForActor(
+        { matchId, sessionId, eventType: "GOAL_FOR", clientEventId: "evt-internal-wrong-org" },
+        { userId: "attacker", organisationId: "some-other-org" },
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a payload whose matchId does not match the session's actual match", async () => {
+    await expect(
+      recordEventForActor(
+        { matchId: "a-different-match-id", sessionId, eventType: "GOAL_FOR", clientEventId: "evt-internal-wrong-match" },
+        { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+      ),
+    ).rejects.toThrow("Session does not belong to this match");
+  });
+
+  it("rejects an inactive/nonexistent session the same way recordEvent() does", async () => {
+    await expect(
+      recordEventForActor(
+        { matchId, sessionId: "nonexistent-session", eventType: "GOAL_FOR", clientEventId: "evt-internal-inactive" },
+        { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+      ),
+    ).rejects.toThrow("Session not found");
+  });
+
+  it("recordEvent() (the browser/server-action wrapper) still behaves identically after the refactor", async () => {
+    const result = await recordEvent({
+      matchId,
+      sessionId,
+      eventType: "MOMENT_MARKED",
+      clientEventId: "evt-wrapper-unchanged",
+    });
+    expect(result.eventId).toBeDefined();
+    const row = await testDb.liveMatchEvent.findUnique({ where: { clientEventId: "evt-wrapper-unchanged" } });
+    expect(row?.id).toBe(result.eventId);
   });
 });
 

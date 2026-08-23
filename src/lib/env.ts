@@ -278,6 +278,17 @@ export function getLiveMatchRealtimeSecret(): string {
   return secret;
 }
 
+/** Dedicated HMAC signing secret for Worker->Vercel internal live-match persistence requests
+ * (SPEC.md §18) — never reuse AUTH_SECRET or LIVE_MATCH_REALTIME_SECRET. The same value must
+ * also be set as the Worker's own secret via the deploy workflow's secret-sync step. */
+export function getLiveMatchInternalSecret(): string {
+  const secret = process.env.LIVE_MATCH_INTERNAL_SECRET;
+  if (!secret) {
+    throw new Error("LIVE_MATCH_INTERNAL_SECRET environment variable is not set.");
+  }
+  return secret;
+}
+
 export function isCspEnforceEnabled(): boolean {
   return process.env.CSP_ENFORCE === "true";
 }

@@ -1,19 +1,23 @@
 /**
- * `MatchSessionObject` — the Stage 3 Cloudflare Durable Object (SPEC.md §3, §14, §40 Stage
- * 3). Exactly one instance exists per Matchboard match (`env.MATCH_SESSIONS.idFromName(matchId)`,
- * done by `index.ts`, not here).
+ * `MatchSessionObject` — the Cloudflare Durable Object (SPEC.md §3, §14). Exactly one instance
+ * exists per Matchboard match (`env.MATCH_SESSIONS.idFromName(matchId)`, done by `index.ts`,
+ * not here).
  *
- * This class owns only I/O (WebSocket Hibernation API, Durable Object storage) and defers
- * every real decision to the pure functions in `./state.ts` — see that file's header for why,
- * and `../test/state.test.ts` for the behavioural test matrix this split makes possible.
+ * This class owns only I/O (WebSocket Hibernation API, Durable Object storage, the internal
+ * persistence HTTP call) and defers every real decision to the pure functions in `./state.ts`
+ * — see that file's header for why, and `../test/state.test.ts` for the behavioural test
+ * matrix this split makes possible.
  *
- * SPEC.md §40 Stage 3 boundary: "No event persistence migration yet." `recordEvent` here
- * durably accepts an event and assigns it a realtime version (SPEC.md §20 steps 1–5) but
- * never reaches Neon — `persistenceStatus` stays `"pending"` forever until Stage 4 ("signed
- * internal persistence API") adds the Worker→Vercel HMAC-signed call. A practical
- * consequence, also intentional: `endSession` can only ever succeed today for a session that
- * recorded zero events (SPEC.md §29's "pending > 0: do not silently discard" applies exactly
- * as literally as it reads, since nothing can ever un-pend yet).
+ * SPEC.md §20 steps 6-10 (Stage 4, "signed internal persistence API"): `handleRecordEvent`'s
+ * "accepted" branch now signs and sends the event to `POST /api/internal/live-match/events`
+ * (`./internal-client.ts`) *within the same RPC call*, awaited before responding — deliberately
+ * not fire-and-forget, since nothing here extends this Durable Object's execution past the
+ * point `webSocketMessage` returns (no `waitUntil`-equivalent for an already-hibernatable
+ * object), so an un-awaited persistence call could be interrupted before it completes. On
+ * success, `persistenceStatus` becomes `"persisted"` and the real canonical event (from
+ * Neon, via Vercel) replaces the placeholder broadcast. On failure, `persistenceStatus` stays
+ * `"pending"` exactly as before this stage — retrying it is explicitly Stage 6's outbox/alarm
+ * scope, not built here (see that method's own comment for the exact boundary).
  *
  * SPEC.md §5.2 client-callback acknowledgement is deliberately NOT implemented as a
  * request/response with a timeout in this stage: nothing here needs to wait for or react to
@@ -44,14 +48,17 @@ import type {
   EndSessionCommand,
   EndSessionResult,
   ApplyEventCallback,
+  PersistenceChangedCallback,
   PresenceChangedCallback,
   SessionEndedCallback,
   CanonicalLiveEvent,
+  InternalPersistEventRequest,
   MatchSessionSnapshot,
   LiveMatchRealtimeTicket,
 } from "../../../src/lib/live-match/realtime/realtime-messages";
 import { verifyRealtimeTicket } from "./auth";
 import { rpcOk, rpcFail, buildClientCall } from "./rpc";
+import { persistEvent, PersistEventError } from "./internal-client";
 import {
   evaluateAuthenticate,
   evaluateRecordEvent,
@@ -264,8 +271,11 @@ export class MatchSessionObject extends DurableObject<Env> {
         status: meta.endedAt === null ? "ACTIVE" : "ENDED",
       },
       clock: meta.clockAnchor,
-      // SPEC.md §40 Stage 3: no canonical persistence/reconciliation yet — Stage 4/6 fill
-      // this from Neon.
+      // Deliberately still empty: this object's own accepted-event storage (populated by
+      // handleRecordEvent, Stage 4) already covers "what has this object seen," but a
+      // reconnecting client also needs canonical events an HTTP-fallback write persisted
+      // *without* this object ever seeing them — that reconciliation against the internal
+      // snapshot endpoint (SPEC.md §23) is Stage 6 scope, not built here.
       events: [],
       persistence: { pendingClientEventIds },
       presence: { connectedCount: this.countAuthenticatedConnections() },
@@ -328,20 +338,75 @@ export class MatchSessionObject extends DurableObject<Env> {
         await this.putAcceptedEvent(decision.record);
         await this.ctx.storage.put("meta", { ...meta, version: decision.record.version } satisfies SessionMeta);
 
-        const canonicalLikeEvent: CanonicalLiveEvent = {
-          // No canonical Neon event exists yet (Stage 4) — clientEventId stands in as a
-          // temporary id, documented in state.ts's header and this file's header.
+        const eventFields = params.event as Record<string, unknown>;
+        const persistRequest: InternalPersistEventRequest = {
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          organisationId: meta.organisationId,
+          userId: attachment.userId,
+          clientEventId: decision.record.clientEventId,
+          eventType: String(eventType),
+          period:
+            typeof eventFields.period === "string"
+              ? (eventFields.period as InternalPersistEventRequest["period"])
+              : undefined,
+          matchSeconds: typeof eventFields.matchSeconds === "number" ? eventFields.matchSeconds : undefined,
+          playerId: typeof eventFields.playerId === "string" ? eventFields.playerId : undefined,
+          secondaryPlayerId:
+            typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
+          payload:
+            typeof eventFields.payload === "object" && eventFields.payload !== null
+              ? (eventFields.payload as Record<string, unknown>)
+              : undefined,
+          correctionType: typeof eventFields.correctionType === "string" ? eventFields.correctionType : undefined,
+          correctsEventId: typeof eventFields.correctsEventId === "string" ? eventFields.correctsEventId : undefined,
+          rpcId: call.id,
+        };
+
+        // Placeholder broadcast content, used only if persistence below fails or throws —
+        // Stage 3's original unconditional broadcast, kept as the fallback shape.
+        let canonicalEvent: CanonicalLiveEvent = {
           id: decision.record.clientEventId,
           clientEventId: decision.record.clientEventId,
           eventType: String(eventType),
           createdAt: new Date(decision.record.acceptedAt).toISOString(),
         };
+        let persistenceStatus: RecordEventResult["persistenceStatus"] = "pending";
+
+        try {
+          canonicalEvent = await persistEvent({
+            baseUrl: this.env.MATCHBOARD_API_BASE_URL,
+            secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+            body: persistRequest,
+          });
+          persistenceStatus = "persisted";
+          await this.markEventPersisted(decision.record.clientEventId, canonicalEvent.id);
+        } catch (error) {
+          // Stage 6 scope: retry via Durable Object alarms/outbox. For now this leaves
+          // persistenceStatus "pending" in storage exactly as putAcceptedEvent already set it
+          // — no regression, no crash, no event loss (the event remains durably recorded in
+          // this object regardless; only *canonical* persistence to Neon failed here). SPEC.md
+          // §32: never log the request body/signature/secret — only enough to diagnose which
+          // event failed and why.
+          const reason = error instanceof PersistEventError ? `HTTP ${error.status}` : "network error";
+          console.error(
+            `[MatchSessionObject] canonical persistence failed for clientEventId=${decision.record.clientEventId}: ${reason}`,
+          );
+        }
+
         this.broadcastToOthers(attachment.connectionId, "applyEvent", {
           version: decision.record.version,
-          event: canonicalLikeEvent,
+          event: canonicalEvent,
         } satisfies ApplyEventCallback);
 
-        const result: RecordEventResult = { version: decision.record.version, persistenceStatus: "pending" };
+        if (persistenceStatus === "persisted") {
+          this.broadcastToAll("eventPersistenceChanged", {
+            clientEventId: decision.record.clientEventId,
+            persistenceStatus: "persisted",
+          } satisfies PersistenceChangedCallback);
+        }
+
+        const result: RecordEventResult = { version: decision.record.version, persistenceStatus };
         return rpcOk(call.id, result);
       }
     }
@@ -412,6 +477,16 @@ export class MatchSessionObject extends DurableObject<Env> {
     const ids = new Set((await this.ctx.storage.get<string[]>("eventIds")) ?? []);
     ids.add(record.clientEventId);
     await this.ctx.storage.put("eventIds", Array.from(ids));
+  }
+
+  private async markEventPersisted(clientEventId: string, canonicalEventId: string): Promise<void> {
+    const record = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
+    if (!record) return;
+    await this.ctx.storage.put(`event:${clientEventId}`, {
+      ...record,
+      persistenceStatus: "persisted",
+      canonicalEventId,
+    } satisfies AcceptedEventRecord);
   }
 
   private async listAcceptedEvents(): Promise<AcceptedEventRecord[]> {

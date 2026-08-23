@@ -7,7 +7,7 @@ of that using a Cloudflare Worker + Durable Object per active match. See
 decision (why Cloudflare Durable Objects, the trust boundary, the Free-plan design, and the
 HTTP-fallback rollback story) before changing anything here.
 
-## Current status: Stage 3 + "Follow live" viewer
+## Current status: Stage 4 + "Follow live" viewer
 
 This is being delivered in stages (see the ADR's linked programme spec), plus one
 maintainer-directed addition beyond the original stage plan. As of this document:
@@ -37,13 +37,23 @@ maintainer-directed addition beyond the original stage plan. As of this document
   itself is `src/components/live-match/follow-live-client.tsx`, reached via "Follow live" on
   the match detail page (shown only when a session is `ACTIVE` and the coach has at least
   `GROUP_VIEWER` access — enforced server-side, not just hidden in the UI).
-- **Not yet implemented**: canonical event persistence. `recordEvent` durably accepts an
-  event and assigns it a realtime version, but nothing ever reaches Neon through the realtime
-  path — `persistenceStatus` stays `"pending"` forever until a future stage adds the signed
-  Worker→Vercel internal API. A direct, intentional consequence: `endSession` can only
-  succeed today for a session that recorded zero events. This does not affect "Follow live"
-  or the reporting coach's actual persistence, both of which are already independently
-  described above.
+- **Shipped**: Stage 4 — signed internal persistence API (SPEC.md §17-19). The Durable
+  Object's `handleRecordEvent` now signs and sends accepted events to a new
+  `POST /api/internal/live-match/events` (HMAC-only, never a browser-facing API), which calls
+  the same `recordEventForActor()` the browser-facing `recordEvent()` wrapper uses, writing
+  the canonical event to Neon and deduplicating by `clientEventId`. On success,
+  `persistenceStatus` becomes `"persisted"` and `eventPersistenceChanged` broadcasts to all
+  connections; on failure it stays `"pending"` (retry/backoff is Stage 6's outbox, not built
+  yet). A `GET /api/internal/live-match/snapshot` endpoint also exists (returns canonical
+  session status + events for a match/session) — built now per SPEC.md §17, but nothing calls
+  it yet; the Durable Object *consuming* it for reconciliation is Stage 6 (§23). A direct,
+  now-resolved consequence of Stage 4 landing: `endSession` can succeed for a session whose
+  events have actually persisted, which was structurally impossible before this stage.
+- **Not yet implemented**: retry/backoff for failed persistence (Stage 6's outbox/alarms),
+  the Durable Object consuming the snapshot endpoint for reconciliation after an HTTP-fallback
+  write it never saw (Stage 6, §23), and making the browser's own reporting flow use the
+  realtime path as primary rather than the current best-effort broadcast side-channel
+  (Stage 5).
 - **Explicitly out of scope**: PWA push notifications (service worker, Web Push) — discussed
   and deferred; "Follow live" is in-browser only for now, per `AGENTS.md`'s PWA section's
   existing v1 scope boundary.
@@ -62,15 +72,17 @@ Realtime Worker     ws://localhost:8787
 ```
 
 `workers/live-match/wrangler.jsonc`'s top-level (no `--env`) config is the local-dev
-default, with `MATCHBOARD_APP_ORIGINS` set to `http://localhost:3333`. The Worker also needs
-`LIVE_MATCH_REALTIME_SECRET` set locally to the same value as the Next.js app's own
-`.env` — Wrangler reads Worker secrets from a local `.dev.vars` file
+default, with `MATCHBOARD_APP_ORIGINS`/`MATCHBOARD_API_BASE_URL` both set to
+`http://localhost:3333`. The Worker also needs `LIVE_MATCH_REALTIME_SECRET` and (Stage 4)
+`LIVE_MATCH_INTERNAL_SECRET` set locally to the same values as the Next.js app's own `.env` —
+Wrangler reads Worker secrets from a local `.dev.vars` file
 (`workers/live-match/.dev.vars`, gitignored) for `wrangler dev`, not from the repository's
 root `.env`:
 
 ```text
 # workers/live-match/.dev.vars (not committed)
 LIVE_MATCH_REALTIME_SECRET=same-value-as-root-.env
+LIVE_MATCH_INTERNAL_SECRET=same-value-as-root-.env
 ```
 
 ## Deployed environments
@@ -90,12 +102,20 @@ Cloudflare's own auto-generated adjective-noun name rather than a chosen one. `w
 `npx wrangler deploy --env <name>` replaces the Worker in place (keeping its already-attached
 custom domain) instead of creating a new, unrelated Worker. Deploys run automatically via
 `.github/workflows/deploy-live-match-worker.yml` after every CI-green push to `main` — no
-manual `wrangler deploy` step. `LIVE_MATCH_REALTIME_SECRET` must be set per environment via
-`wrangler secret put LIVE_MATCH_REALTIME_SECRET --config workers/live-match/wrangler.jsonc
---env production` (and again with `--env test`) — a one-time, human-run step independent of
-code deploys, mirroring how `AUTH_SECRET` is already set
-by hand in Vercel's dashboard (`docs/security/secret-rotation-procedures.md`) — no vault is
-in use for either.
+manual `wrangler deploy` step.
+
+Two Worker secrets, two different provisioning stories:
+- `LIVE_MATCH_REALTIME_SECRET` must be set per environment via `wrangler secret put
+  LIVE_MATCH_REALTIME_SECRET --config workers/live-match/wrangler.jsonc --env production`
+  (and again with `--env test`) — a one-time, human-run step independent of code deploys,
+  mirroring how `AUTH_SECRET` is already set by hand in Vercel's dashboard
+  (`docs/security/secret-rotation-procedures.md`) — no vault is in use for either.
+- `LIVE_MATCH_INTERNAL_SECRET` (Stage 4) is different: `deploy-live-match-worker.yml` reads it
+  from two GitHub Actions secrets (`LIVE_MATCH_INTERNAL_SECRET_PRODUCTION`/`_TEST`) and pushes
+  it to each Worker via `wrangler secret put` automatically on every deploy — no manual
+  `wrangler secret put` needed for this one. The two GitHub secrets themselves are still a
+  one-time human-set step (same as any repository secret), and must match the corresponding
+  Vercel `LIVE_MATCH_INTERNAL_SECRET` env var exactly, per environment.
 
 ## Project layout and why it's separate from the main app
 
@@ -110,12 +130,23 @@ workers/live-match/
         state.ts                # pure decision functions (no Workers runtime dependency)
         rpc.ts                   # RPC envelope construction helpers
         auth.ts                  # ticket verification + Origin/matchId validation
+        internal-client.ts       # Stage 4: signs + sends persistence/snapshot requests to Vercel
         worker-types.ts          # Env bindings
     test/
         state.test.ts
         auth.test.ts
         rpc.test.ts
+        internal-client.test.ts
 ```
+
+Stage 4 also added, on the main Next.js side:
+
+| File | Purpose |
+|------|---------|
+| `src/lib/live-match/realtime/internal-signature.ts` | Shared HMAC sign/verify (Web Crypto, used by both the Worker and Vercel) |
+| `src/lib/live-match/realtime/internal-auth.ts` | Vercel-side `verifyInternalRequest()` — raw-body HMAC verification |
+| `src/app/api/internal/live-match/events/route.ts` | `POST` — HMAC-only internal endpoint, calls `recordEventForActor()` |
+| `src/app/api/internal/live-match/snapshot/route.ts` | `GET` — HMAC-only internal endpoint, canonical session/events for reconciliation |
 
 The root `tsconfig.json` excludes `workers/` entirely — Workers runtime types
 (`@cloudflare/workers-types`) are not compatible with the main app's `dom` lib, so they are
@@ -137,14 +168,24 @@ React, or a running Prisma client (the one Prisma-derived type it touches,
   version assignment, stale-state rejection, end-session pending-persistence gating), the
   Worker's Origin/matchId validation helpers, and RPC envelope construction. These need zero
   Workers runtime and are the highest-value tests for this stage's actual logic.
+- **Stage 4 additions**: HMAC sign/verify round-trip (including tampered-body, wrong-secret,
+  stale-timestamp, and boundary-timestamp cases) — `internal-signature.test.ts`, zero Workers
+  runtime needed (`crypto.subtle` works identically in Node). Both internal routes have full
+  request-level tests including a real end-to-end signature computed and verified through the
+  actual route handler, not just mocked-away. `recordEventForActor()` has direct integration
+  tests against a real test database (session/match/org consistency, dedup, explicit-actor
+  usage with no `requireActorContext()` call) alongside the pre-existing `recordEvent()`
+  tests, proving the refactor didn't change browser-facing behavior.
 - **Not covered by an automated integration test**: the real `MatchSessionObject` class
   running inside an actual Workers runtime — WebSocket upgrade handling, hibernation
-  survival, `ctx.getWebSockets()` behaviour. This repository does not yet have
-  `@cloudflare/vitest-pool-workers`/Miniflare wired up, and adding it was judged to add
-  meaningful new toolchain complexity for a first Worker with uncertain return, given that
-  every actual *decision* the object makes is already exercised via `state.ts`'s tests. What
-  substitutes for it today: `npx wrangler deploy --dry-run` (bundles and validates bindings
-  without touching Cloudflare) and manual verification via `npm run dev:realtime` against a
-  real local Worker runtime. This gap should be revisited once a later stage's own tests
-  (e.g. Stage 4's actual persistence round-trip) make Workers-runtime-level integration
-  testing worth the setup cost.
+  survival, `ctx.getWebSockets()` behaviour, and the actual `handleRecordEvent` → sign → POST
+  → mark-persisted orchestration end-to-end. This repository does not yet have
+  `@cloudflare/vitest-pool-workers`/Miniflare wired up. Re-evaluated at Stage 4 (the trigger
+  Stage 3 named for revisiting this) and still judged not worth the toolchain complexity: the
+  new security-critical logic (HMAC) is 100% covered by pure-function tests, the Vercel-side
+  domain logic needs no Workers-specific behaviour to test, and the remaining orchestration
+  glue is straightforward branch-on-success/failure logic. What substitutes for it today:
+  `npx wrangler deploy --dry-run` (bundles and validates bindings without touching
+  Cloudflare) and manual verification via `npm run dev:realtime` against a real local Worker
+  runtime. Revisit at Stage 6, which introduces genuinely hard-to-pure-function-test
+  Durable-Object-native behaviour (alarms, retry state machines).

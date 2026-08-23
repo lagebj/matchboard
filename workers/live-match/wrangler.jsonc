@@ -16,8 +16,12 @@
     ]
   },
   // Local `wrangler dev` default — matches the Next.js dev server port (SPEC.md §34).
+  // MATCHBOARD_API_BASE_URL (SPEC.md §17/§18, Stage 4): where this Worker signs and sends
+  // canonical persistence requests. Not a secret — the destination is not sensitive, only the
+  // request signature (LIVE_MATCH_INTERNAL_SECRET, a Worker secret, never in this file).
   "vars": {
-    "MATCHBOARD_APP_ORIGINS": "http://localhost:3333"
+    "MATCHBOARD_APP_ORIGINS": "http://localhost:3333",
+    "MATCHBOARD_API_BASE_URL": "http://localhost:3333"
   },
   // ADR-0086: two separately-deployed Workers (distinct `name`s below), not one Worker
   // serving both hostnames — isolates Durable Object storage/quota and blast radius between
@@ -36,7 +40,8 @@
         ]
       },
       "vars": {
-        "MATCHBOARD_APP_ORIGINS": "https://app.matchboard.football"
+        "MATCHBOARD_APP_ORIGINS": "https://app.matchboard.football",
+        "MATCHBOARD_API_BASE_URL": "https://app.matchboard.football"
       }
     },
     "test": {
@@ -50,7 +55,8 @@
         ]
       },
       "vars": {
-        "MATCHBOARD_APP_ORIGINS": "https://test.matchboard.football"
+        "MATCHBOARD_APP_ORIGINS": "https://test.matchboard.football",
+        "MATCHBOARD_API_BASE_URL": "https://test.matchboard.football"
       }
     }
   }
