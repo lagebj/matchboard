@@ -26,7 +26,7 @@
   // `wrangler secret put --env <name>`, never in this file (see worker-types.ts).
   "env": {
     "production": {
-      "name": "matchboard-live-match-realtime-production",
+      "name": "noisy-snowflake-faf0",
       "routes": [
         { "pattern": "realtime.matchboard.football", "custom_domain": true }
       ],
@@ -40,7 +40,7 @@
       }
     },
     "test": {
-      "name": "matchboard-live-match-realtime-test",
+      "name": "gentle-rice-ba83",
       "routes": [
         { "pattern": "realtime-test.matchboard.football", "custom_domain": true }
       ],

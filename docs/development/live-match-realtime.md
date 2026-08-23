@@ -59,14 +59,20 @@ project split (ADR-0086):
 
 | Environment | Worker name | Custom domain |
 |---|---|---|
-| Production | `matchboard-live-match-realtime-production` | `realtime.matchboard.football` |
-| Test | `matchboard-live-match-realtime-test` | `realtime-test.matchboard.football` |
+| Production | `noisy-snowflake-faf0` | `realtime.matchboard.football` |
+| Test | `gentle-rice-ba83` | `realtime-test.matchboard.football` |
 
-Both custom domains and their placeholder Workers already exist in the real Cloudflare
-account (ADR-0086's History) — deploying real code to them is a future action, not something
-this change performs. `LIVE_MATCH_REALTIME_SECRET` must be set per environment via
+Both custom domains and their Workers already exist in the real Cloudflare account
+(ADR-0086's History) — created via the dashboard's "Hello World" flow, which assigns
+Cloudflare's own auto-generated adjective-noun name rather than a chosen one. `wrangler.jsonc`'s
+`env.production.name`/`env.test.name` are pinned to these exact existing names so
+`npx wrangler deploy --env <name>` replaces the Worker in place (keeping its already-attached
+custom domain) instead of creating a new, unrelated Worker. Deploys run automatically via
+`.github/workflows/deploy-live-match-worker.yml` after every CI-green push to `main` — no
+manual `wrangler deploy` step. `LIVE_MATCH_REALTIME_SECRET` must be set per environment via
 `wrangler secret put LIVE_MATCH_REALTIME_SECRET --config workers/live-match/wrangler.jsonc
---env production` (and again with `--env test`), mirroring how `AUTH_SECRET` is already set
+--env production` (and again with `--env test`) — a one-time, human-run step independent of
+code deploys, mirroring how `AUTH_SECRET` is already set
 by hand in Vercel's dashboard (`docs/security/secret-rotation-procedures.md`) — no vault is
 in use for either.
 
