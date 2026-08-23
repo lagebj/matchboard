@@ -224,7 +224,27 @@ describe("MatchSessionObject — persistence outbox (SPEC.md §21, Stage 6)", ()
     expect(stored.retryCount).toBe(1);
   });
 
-  it("classifies a 4xx as terminal: marks failed_terminal immediately, no alarm scheduled, broadcasts eventPersistenceChanged", async () => {
+  it("classifies a 401 (HMAC/signature failure) as retryable, not terminal — a transient request-level problem must not permanently give up on the event's data", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockRejectedValueOnce(new TestPersistEventError("Invalid signature", 401));
+
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+
+    const result = ws.sent.at(-1) as { result: { persistenceStatus: string } };
+    expect(result.result.persistenceStatus).toBe("pending");
+    expect(await ctx.storage.getAlarm()).not.toBeNull();
+
+    const stored = (await ctx.storage.get("event:evt-1")) as { persistenceStatus: string; retryCount: number };
+    expect(stored.persistenceStatus).toBe("pending");
+    expect(stored.retryCount).toBe(1);
+  });
+
+  it("classifies a 422 (domain rejection) as terminal: marks failed_terminal immediately, no alarm scheduled, broadcasts eventPersistenceChanged", async () => {
     const { instance, ctx, ws } = await setUpConnectedObject("match-1");
     await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
 
@@ -268,6 +288,38 @@ describe("MatchSessionObject — persistence outbox (SPEC.md §21, Stage 6)", ()
 
     const broadcast = ws.sent.find((m) => (m as { method?: string }).method === "eventPersistenceChanged" && (m as { params: { persistenceStatus: string } }).params.persistenceStatus === "persisted");
     expect(broadcast).toBeDefined();
+  });
+
+  it("alarm() retry resends the full original event fields, not just eventType", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockRejectedValueOnce(new TestPersistEventError("Neon unavailable", 503));
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", {
+        clientEventId: "evt-1",
+        baseVersion: 0,
+        event: { eventType: "GOAL_FOR", playerId: "player-42", matchSeconds: 1234, period: "FIRST_HALF" },
+      }),
+    );
+
+    mockPersistEvent.mockResolvedValueOnce({ id: "canonical-1", clientEventId: "evt-1", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" });
+    advancePastFirstRetry();
+    await instance.alarm();
+
+    expect(mockPersistEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        body: expect.objectContaining({
+          clientEventId: "evt-1",
+          eventType: "GOAL_FOR",
+          playerId: "player-42",
+          matchSeconds: 1234,
+          period: "FIRST_HALF",
+        }),
+      }),
+    );
   });
 
   it("alarm() is idempotent: invoking it twice for an already-persisted event does not call persistEvent again", async () => {

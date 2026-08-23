@@ -348,7 +348,8 @@ export class MatchSessionObject extends DurableObject<Env> {
 
     const clientEventId = params.clientEventId;
     const existing = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
-    const eventType = (params.event as Record<string, unknown>).eventType;
+    const eventFields = params.event as Record<string, unknown>;
+    const eventType = eventFields.eventType;
 
     const decision = evaluateRecordEvent({
       meta,
@@ -356,6 +357,7 @@ export class MatchSessionObject extends DurableObject<Env> {
       clientEventId,
       baseVersion: params.baseVersion,
       eventType,
+      eventFields,
       actorUserId: attachment.userId,
       now: Date.now(),
     });
@@ -380,7 +382,6 @@ export class MatchSessionObject extends DurableObject<Env> {
         await this.putAcceptedEvent(decision.record);
         await this.ctx.storage.put("meta", { ...meta, version: decision.record.version } satisfies SessionMeta);
 
-        const eventFields = params.event as Record<string, unknown>;
         const persistRequest: InternalPersistEventRequest = {
           matchId: meta.matchId,
           sessionId: meta.sessionId,
@@ -388,20 +389,7 @@ export class MatchSessionObject extends DurableObject<Env> {
           userId: attachment.userId,
           clientEventId: decision.record.clientEventId,
           eventType: String(eventType),
-          period:
-            typeof eventFields.period === "string"
-              ? (eventFields.period as InternalPersistEventRequest["period"])
-              : undefined,
-          matchSeconds: typeof eventFields.matchSeconds === "number" ? eventFields.matchSeconds : undefined,
-          playerId: typeof eventFields.playerId === "string" ? eventFields.playerId : undefined,
-          secondaryPlayerId:
-            typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
-          payload:
-            typeof eventFields.payload === "object" && eventFields.payload !== null
-              ? (eventFields.payload as Record<string, unknown>)
-              : undefined,
-          correctionType: typeof eventFields.correctionType === "string" ? eventFields.correctionType : undefined,
-          correctsEventId: typeof eventFields.correctsEventId === "string" ? eventFields.correctsEventId : undefined,
+          ...buildPersistEventFields(eventFields),
           rpcId: call.id,
         };
 
@@ -610,6 +598,7 @@ export class MatchSessionObject extends DurableObject<Env> {
             userId: record.actorUserId,
             clientEventId: record.clientEventId,
             eventType: record.eventType,
+            ...buildPersistEventFields(record.eventFields ?? {}),
             rpcId: `alarm-retry-${record.clientEventId}`,
           },
         });
@@ -766,4 +755,33 @@ function extractIdIfPresent(raw: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Narrows the browser's untyped `RecordEventCommand.event` payload (or a stored
+ * `AcceptedEventRecord.eventFields`) down to `InternalPersistEventRequest`'s optional
+ * fields. Shared by `handleRecordEvent`'s first synchronous persistence attempt and
+ * `alarm()`'s retry sweep so both send the *identical* set of fields for the same event —
+ * before this existed, the alarm-driven retry only ever sent `eventType`, silently dropping
+ * `playerId`/`matchSeconds`/`payload`/etc. if the event's first attempt failed and only the
+ * alarm ever succeeded (see this file's Stage 6 review notes / ADR-0086's History).
+ */
+function buildPersistEventFields(
+  eventFields: Record<string, unknown>,
+): Pick<
+  InternalPersistEventRequest,
+  "period" | "matchSeconds" | "playerId" | "secondaryPlayerId" | "payload" | "correctionType" | "correctsEventId"
+> {
+  return {
+    period: typeof eventFields.period === "string" ? (eventFields.period as InternalPersistEventRequest["period"]) : undefined,
+    matchSeconds: typeof eventFields.matchSeconds === "number" ? eventFields.matchSeconds : undefined,
+    playerId: typeof eventFields.playerId === "string" ? eventFields.playerId : undefined,
+    secondaryPlayerId: typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
+    payload:
+      typeof eventFields.payload === "object" && eventFields.payload !== null
+        ? (eventFields.payload as Record<string, unknown>)
+        : undefined,
+    correctionType: typeof eventFields.correctionType === "string" ? eventFields.correctionType : undefined,
+    correctsEventId: typeof eventFields.correctsEventId === "string" ? eventFields.correctsEventId : undefined,
+  };
 }

@@ -250,6 +250,23 @@ describe("evaluateRecordEvent", () => {
     }
     expect(versions).toEqual([1, 2, 3]);
   });
+
+  it("threads eventFields through into the accepted record, so a later alarm retry can resend the full original payload", () => {
+    const decision = evaluateRecordEvent({
+      meta: makeMeta(),
+      existing: undefined,
+      clientEventId: "c1",
+      baseVersion: 5,
+      eventType: "GOAL_FOR",
+      eventFields: { eventType: "GOAL_FOR", playerId: "player-1", matchSeconds: 900 },
+      actorUserId: "user-1",
+      now: 1000,
+    });
+    expect(decision.outcome).toBe("accepted");
+    if (decision.outcome === "accepted") {
+      expect(decision.record.eventFields).toEqual({ eventType: "GOAL_FOR", playerId: "player-1", matchSeconds: 900 });
+    }
+  });
 });
 
 describe("evaluateSyncPending", () => {
@@ -303,14 +320,17 @@ describe("evaluateEndSession", () => {
 });
 
 describe("classifyPersistenceFailure", () => {
-  it("classifies every 4xx as terminal — will never succeed on retry", () => {
-    expect(classifyPersistenceFailure(400)).toBe("terminal");
-    expect(classifyPersistenceFailure(401)).toBe("terminal");
+  it("classifies exactly 422 (LiveMatchDomainError) as terminal — will never succeed on retry", () => {
     expect(classifyPersistenceFailure(422)).toBe("terminal");
-    expect(classifyPersistenceFailure(499)).toBe("terminal");
   });
 
-  it("classifies 5xx, and no response at all, as retryable", () => {
+  it("classifies 401 as retryable — an HMAC/signature failure is a transient request-level problem, not a domain rejection of the event's data", () => {
+    expect(classifyPersistenceFailure(401)).toBe("retryable");
+  });
+
+  it("classifies other 4xx (400, 499), 5xx, and no response at all as retryable", () => {
+    expect(classifyPersistenceFailure(400)).toBe("retryable");
+    expect(classifyPersistenceFailure(499)).toBe("retryable");
     expect(classifyPersistenceFailure(500)).toBe("retryable");
     expect(classifyPersistenceFailure(503)).toBe("retryable");
     expect(classifyPersistenceFailure(undefined)).toBe("retryable");

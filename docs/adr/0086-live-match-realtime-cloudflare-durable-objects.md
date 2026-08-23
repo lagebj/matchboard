@@ -339,10 +339,11 @@ Key implementation choices:
   identical to a caller. Added `LiveMatchDomainError` (`live-match-event-store.ts`) so
   `recordEventForActor`'s intentional validation rejections are a distinct type from an
   unexpected failure; the route now returns 422 for the former, 503 for the latter
-  (`classifyPersistenceFailure`, `workers/live-match/src/state.ts`, treats any 4xx as
-  terminal and everything else — 5xx or no response — as retryable). Without this, Stage 6
-  could not have told "never retry this" apart from "keep retrying this" using only the HTTP
-  status it already had access to.
+  (`classifyPersistenceFailure`, `workers/live-match/src/state.ts`, treats *exactly* 422 as
+  terminal and everything else — 401, other 4xx, 5xx, or no response — as retryable; see the
+  History entry below for why this is narrower than "any 4xx"). Without this, Stage 6 could
+  not have told "never retry this" apart from "keep retrying this" using only the HTTP status
+  it already had access to.
 - **One alarm slot per object, not one per event.** Cloudflare Durable Objects have exactly
   one alarm slot; `refreshAlarm()` recomputes it as the minimum `nextRetryAt` across every
   still-pending event (`nextAlarmTime`) after any state change, so a single firing
@@ -501,3 +502,40 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   as one final PR (per the maintainer's standing "minimize PRs, Vercel rate limits"
   instruction) covering Stages 4-7, since Stages 1-3 plus "Follow live" had already merged
   separately.
+- 2026-08-23: Found and fixed during review, same day: `classifyPersistenceFailure`
+  originally treated *any* 4xx status as terminal, not just 422 — meaning a 401 (HMAC
+  verification failure, `verifyInternalRequest`) would permanently mark an event
+  `"failed_terminal"` and stop retrying it. A 401 says the *request* wasn't verified, not
+  that the *event's data* is invalid — it can result from a momentary clock-skew edge case
+  against the 60-second timestamp tolerance, or a secret briefly out of sync during rotation,
+  either of which a fresh retry (re-signed with a newly-computed timestamp) could plausibly
+  resolve. Treating it as terminal would give up during exactly the kind of transient
+  infrastructure hiccup retries exist to survive, and would broadcast a misleading
+  permanent-failure signal to connected clients for an event the browser's own HTTP fallback
+  (never subject to this signing boundary) might persist successfully moments later. Narrowed
+  to classify exactly 422 as terminal, matching what `/api/internal/live-match/events` itself
+  actually documents (422 for a known `LiveMatchDomainError`, 503 for anything else) — 401,
+  other 4xx, 5xx, and no-response are all retryable. Added a regression test at both the pure
+  `classifyPersistenceFailure` level and the class-orchestration level
+  (`match-session-object.test.ts`) proving a 401 stays `"pending"` and schedules a retry
+  alarm rather than being marked terminal.
+- 2026-08-23: Found and fixed during the same review pass: `AcceptedEventRecord` stored only
+  `eventType`, not the rest of the browser's original event payload (`playerId`,
+  `matchSeconds`, `period`, `secondaryPlayerId`, `payload`, `correctionType`,
+  `correctsEventId`). `handleRecordEvent`'s first synchronous attempt built its persistence
+  request from the live `params.event` object, but `alarm()`'s retry could only reconstruct a
+  request from what was actually in storage — meaning if the first attempt failed
+  retryably and only the alarm ever succeeded, the canonical Neon event would be created with
+  `eventType` alone, silently missing which player, what match minute, and every other
+  contextual field the coach actually recorded. In practice this was a race rather than a
+  certainty (Stage 5's client-side "pending -> also call HTTP" fallback normally wins this
+  race within milliseconds, well before the alarm's earliest possible firing one second
+  later), but a browser tab closing immediately after receiving a `"pending"` response would
+  leave the alarm as the sole remaining path, and it would have lost the data. Fixed by adding
+  `eventFields?: Record<string, unknown>` to `AcceptedEventRecord`, threading the original
+  payload through `evaluateRecordEvent`, and extracting a shared `buildPersistEventFields()`
+  helper so `handleRecordEvent`'s first attempt and `alarm()`'s retry construct their
+  persistence request from the exact same logic instead of two independently-maintained
+  (and, as found, silently diverging) versions. Added regression tests at both the pure
+  `evaluateRecordEvent` level and the class-orchestration level proving a retried event
+  resends its full original fields, not just `eventType`.

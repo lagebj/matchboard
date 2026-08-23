@@ -59,13 +59,21 @@ export interface SessionMeta {
  * Stage 6's alarm sweep (`selectDueRetries`) only ever considers events that already have one
  * (a freshly-accepted event always gets its first attempt synchronously in
  * `handleRecordEvent`, never via the alarm). `eventType` is needed to reconstruct a
- * `CanonicalLiveEvent` for `handleGetSnapshot` (Stage 6) without a second Neon round-trip. */
+ * `CanonicalLiveEvent` for `handleGetSnapshot` (Stage 6) without a second Neon round-trip.
+ * `eventFields` is the rest of the browser's original `RecordEventCommand.event` payload
+ * (period, matchSeconds, playerId, secondaryPlayerId, payload, correctionType,
+ * correctsEventId) — stored so `alarm()`'s retry can resend the *exact* original persistence
+ * request, not a stripped-down eventType-only one. Optional because reconciled records
+ * (`evaluateReconciliation`) are already `"persisted"` and never need to be replayed — they
+ * came from the internal snapshot endpoint, which only returns canonical id/type/timestamp,
+ * never the original submitted fields. */
 export interface AcceptedEventRecord {
   clientEventId: string;
   version: number;
   actorUserId: string;
   acceptedAt: number;
   eventType: string;
+  eventFields?: Record<string, unknown>;
   persistenceStatus: "pending" | "persisted" | "failed_terminal";
   canonicalEventId?: string;
   retryCount: number;
@@ -175,6 +183,7 @@ export function evaluateRecordEvent(params: {
   clientEventId: string;
   baseVersion: number;
   eventType: unknown;
+  eventFields?: Record<string, unknown>;
   actorUserId: string;
   now: number;
 }): RecordEventDecision {
@@ -204,6 +213,7 @@ export function evaluateRecordEvent(params: {
       actorUserId: params.actorUserId,
       acceptedAt: params.now,
       eventType: params.eventType,
+      eventFields: params.eventFields,
       persistenceStatus: "pending",
       retryCount: 0,
     },
@@ -267,16 +277,26 @@ export function evaluateEndSession(params: {
  * SPEC.md §21 — a domain-validation failure (session not found, session not active,
  * session/match/org mismatch, invalid event) will never succeed no matter how many times
  * it's retried; only a genuinely transient failure (network error, Vercel/Neon temporarily
- * unavailable) is worth retrying. The internal persistence route
- * (`/api/internal/live-match/events`) returns 422 for a known `LiveMatchDomainError` and 503
- * for anything unexpected (`live-match-event-store.ts`) — `status` here is
- * `PersistEventError.status` (`undefined` for a network failure that never got an HTTP
- * response at all, which is retryable by definition). Any 4xx is treated as terminal (the
- * request itself was rejected, not merely delayed); everything else — 5xx, or no response —
- * is retryable.
+ * unavailable, or a transient signing failure) is worth retrying. The internal persistence
+ * route (`/api/internal/live-match/events`) returns exactly 422 for a known
+ * `LiveMatchDomainError` and 503 for anything unexpected (`live-match-event-store.ts`) —
+ * `status` here is `PersistEventError.status` (`undefined` for a network failure that never
+ * got an HTTP response at all, which is retryable by definition).
+ *
+ * Only 422 is treated as terminal — matching exactly what the route documents, not a broader
+ * "any 4xx" heuristic. In particular 401 (HMAC verification failure — `verifyInternalRequest`,
+ * `internal-auth.ts`) must stay retryable: it can result from a momentary clock-skew edge case
+ * against the 60-second timestamp tolerance, or a secret briefly out of sync during rotation —
+ * neither means *this event's data* is invalid, only that *this specific signed request*
+ * wasn't verified. A fresh retry re-signs with a newly-computed timestamp and would very
+ * plausibly succeed once whatever caused the 401 has passed. Treating 401 as terminal would
+ * permanently give up on an event during exactly the kind of transient infrastructure hiccup
+ * retries exist to survive, and would broadcast a misleading permanent-failure signal to
+ * connected clients for an event that a later attempt (or the browser's own HTTP fallback,
+ * which is never subject to this same signing) might persist successfully.
  */
 export function classifyPersistenceFailure(status: number | undefined): "terminal" | "retryable" {
-  if (status !== undefined && status >= 400 && status < 500) return "terminal";
+  if (status === 422) return "terminal";
   return "retryable";
 }
 
