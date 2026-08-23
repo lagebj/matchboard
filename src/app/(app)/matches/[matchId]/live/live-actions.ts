@@ -6,13 +6,19 @@ import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/l
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { LiveEventInput } from "@/lib/live-match/live-match-types";
 import { db } from "@/lib/db";
-import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import {
+  requirePageActorContext,
+  requireMutationRole,
+  requireMatchGroupAccess,
+  requireMatchGroupMutationRole,
+} from "@/lib/auth/actor-context";
 
 export async function startLiveSessionAction(matchId: string) {
   try {
     const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     await requireMatchGroupAccess(ctx, matchId);
+    await requireMatchGroupMutationRole(ctx, matchId);
     const session = await startLiveSession(matchId);
     revalidatePath(`/matches/${matchId}`);
     revalidatePath(`/matches/${matchId}/live`);
@@ -35,9 +41,20 @@ export async function endLiveSessionAction(sessionId: string) {
   try {
     const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
+    // Authorize against the session's match BEFORE mutating — a prior version of this action
+    // called endLiveSession() first and only checked group access afterward, which meant the
+    // session was already ended by the time an unauthorized caller's request was rejected.
+    const pendingSession = await db.liveMatchSession.findUnique({
+      where: { id: sessionId },
+      select: { matchId: true },
+    });
+    if (!pendingSession) {
+      return { success: false as const, error: "Live session not found." };
+    }
+    await requireMatchGroupAccess(ctx, pendingSession.matchId);
+    await requireMatchGroupMutationRole(ctx, pendingSession.matchId);
     const session = await endLiveSession(sessionId);
     const matchId = session.matchId;
-    await requireMatchGroupAccess(ctx, matchId);
     revalidatePath(`/matches/${matchId}`);
     revalidatePath(`/matches/${matchId}/live`);
     return { success: true as const, data: session };
@@ -74,6 +91,7 @@ export async function recordLiveEventAction(input: {
     const ctx = await requirePageActorContext();
     requireMutationRole(ctx);
     await requireMatchGroupAccess(ctx, input.matchId);
+    await requireMatchGroupMutationRole(ctx, input.matchId);
     const typedInput: LiveEventInput = {
       matchId: input.matchId,
       sessionId: input.sessionId,

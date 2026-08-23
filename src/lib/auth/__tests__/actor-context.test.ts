@@ -21,17 +21,23 @@ import {
   requireTeamGroupAccess,
   requirePlayerGroupAccess,
   requireMatchGroupAccess,
+  requireMatchGroupMutationRole,
   teamFilterFromContext,
   groupFilterFromContext,
   teamOrGroupFilter,
   type ActorContext,
 } from "../actor-context";
 import { AuthorizationError } from "@/lib/auth";
+import type { GroupAccessEntry } from "@/lib/auth/group-context";
 
 const ORG_ID = "org-test";
 const ORG_SLUG = "test-org";
 
-function makeContext(role: ActorContext["role"], accessibleGroupIds?: string[]): ActorContext {
+function makeContext(
+  role: ActorContext["role"],
+  accessibleGroupIds?: string[],
+  groupAccesses?: GroupAccessEntry[],
+): ActorContext {
   return {
     userId: "user-1",
     email: "coach@test.com",
@@ -40,7 +46,12 @@ function makeContext(role: ActorContext["role"], accessibleGroupIds?: string[]):
     organisationSlug: ORG_SLUG,
     role,
     accessibleGroupIds: accessibleGroupIds ?? [],
-    groupAccesses: [],
+    // Defaulting each accessible group to GROUP_COACH keeps every pre-existing role-blind test
+    // (which only ever passed accessibleGroupIds) exercising the same "has mutation access"
+    // path they always did — only tests that care about the GROUP_VIEWER distinction need to
+    // pass an explicit groupAccesses array.
+    groupAccesses:
+      groupAccesses ?? (accessibleGroupIds ?? []).map((footballGroupId) => ({ footballGroupId, role: "GROUP_COACH" as const })),
     orgFilter: { type: "org" as const, filter: { organisationId: ORG_ID }, filterNullable: { organisationId: ORG_ID }, organisationId: ORG_ID },
   };
 }
@@ -372,6 +383,56 @@ describe("requireMatchGroupAccess", () => {
     const ctx = makeContext("COACH", ["group-1"]);
     const result = await requireMatchGroupAccess(ctx, "match-1");
     expect(result).toBeNull();
+  });
+});
+
+describe("requireMatchGroupMutationRole", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows ADMIN without checking match team or group role", async () => {
+    const ctx = makeContext("ADMIN");
+    await expect(requireMatchGroupMutationRole(ctx, "match-1")).resolves.toBeUndefined();
+    expect(db.match.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows OWNER without checking match team or group role", async () => {
+    const ctx = makeContext("OWNER");
+    await expect(requireMatchGroupMutationRole(ctx, "match-1")).resolves.toBeUndefined();
+  });
+
+  it("allows a membership with GROUP_COACH role on the match's group", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ teamId: "team-1" });
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ footballGroupId: "group-1" });
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_COACH" }]);
+    await expect(requireMatchGroupMutationRole(ctx, "match-1")).resolves.toBeUndefined();
+  });
+
+  it("rejects a membership with only GROUP_VIEWER role on the match's group, even with org role COACH", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ teamId: "team-1" });
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ footballGroupId: "group-1" });
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_VIEWER" }]);
+    await expect(requireMatchGroupMutationRole(ctx, "match-1")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("rejects a membership with GROUP_COACH on a different group than the match's", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ teamId: "team-1" });
+    (db.team.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ footballGroupId: "group-2" });
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_COACH" }]);
+    await expect(requireMatchGroupMutationRole(ctx, "match-1")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("rejects when match not found in org", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_COACH" }]);
+    await expect(requireMatchGroupMutationRole(ctx, "match-missing")).rejects.toThrow(AuthorizationError);
+  });
+
+  it("allows COACH when match has no teamId (null)", async () => {
+    (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ teamId: null });
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_VIEWER" }]);
+    await expect(requireMatchGroupMutationRole(ctx, "match-1")).resolves.toBeUndefined();
   });
 });
 

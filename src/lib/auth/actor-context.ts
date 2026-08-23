@@ -258,6 +258,55 @@ export async function requireMatchGroupAccess(
   return match.teamId;
 }
 
+/**
+ * Group-role-aware variant of `requireMatchGroupAccess()`. That function only checks whether
+ * the caller has *any* `GroupAccess` row for the match's group (`GROUP_COACH` or
+ * `GROUP_VIEWER` both pass) — it never distinguishes the two roles, because until the
+ * "Follow live" viewer capability existed, every group-scoped operation in this codebase was
+ * a mutation, and the org-level `requireMutationRole()` check was assumed to be the only role
+ * gate needed. That assumption was wrong: a membership with org role COACH (a mutation role)
+ * but only `GROUP_VIEWER` access to a specific group could still start/record/end live match
+ * sessions for that group, because `requireMatchGroupAccess()` never checked the group-level
+ * role. This closes that gap — call it alongside `requireMatchGroupAccess()`, not instead of
+ * it, for any action that mutates a live match session.
+ */
+export async function requireMatchGroupMutationRole(
+  ctx: ActorContext,
+  matchId: string,
+): Promise<void> {
+  if (ADMIN_ROLES.includes(ctx.role)) return;
+
+  const match = await db.match.findFirst({
+    where: {
+      id: matchId,
+      ...ctx.orgFilter.filter,
+    },
+    select: { teamId: true },
+  });
+
+  if (!match) {
+    throw new AuthorizationError("Match not found or access denied.");
+  }
+
+  if (!match.teamId) return;
+
+  const team = await db.team.findFirst({
+    where: { id: match.teamId },
+    select: { footballGroupId: true },
+  });
+
+  if (!team) {
+    throw new AuthorizationError("Match not found or access denied.");
+  }
+
+  const access = ctx.groupAccesses.find((ga) => ga.footballGroupId === team.footballGroupId);
+  if (!access || access.role !== "GROUP_COACH") {
+    throw new AuthorizationError(
+      "You have view-only access to this match's group and cannot report on it.",
+    );
+  }
+}
+
 export function hasGroupAccess(ctx: ActorContext, groupId: string): boolean {
   if (ADMIN_ROLES.includes(ctx.role)) return true;
   return ctx.accessibleGroupIds.includes(groupId);
