@@ -242,6 +242,169 @@ the ticket route's `"report"` path. `endLiveSessionAction` additionally had an
 authorize-after-mutate ordering bug (it called `endLiveSession()` before either group check
 ran) — fixed by resolving the session's `matchId` and authorizing first.
 
+### Stage 4: signed internal persistence API
+
+Implements the trust boundary this ADR already specified (see "Trust boundary" above) —
+`persistenceStatus` no longer stays `"pending"` forever (Stage 3's documented limitation).
+`MatchSessionObject.handleRecordEvent`'s "accepted" branch now signs and sends the event to a
+new `POST /api/internal/live-match/events` endpoint, awaited within the same RPC call (no
+`waitUntil`-equivalent exists for a Durable Object past when its event handler returns, so an
+un-awaited persistence call could be interrupted before completing — this is why it's
+synchronous rather than fire-and-forget). Both internal endpoints
+(`/api/internal/live-match/events`, `/api/internal/live-match/snapshot`) are HMAC-only —
+no session-cookie/actor-context authentication, never exposed as browser APIs.
+
+Key implementation choices:
+- HMAC signing/verification is one shared module
+  (`src/lib/live-match/realtime/internal-signature.ts`) used by both the Worker (signs) and
+  Vercel (verifies), built on Web Crypto's `crypto.subtle` rather than Node's `crypto` module
+  — `crypto.subtle` is the only HMAC primitive available in both the Workers runtime and
+  Node, so both sides are provably computing the exact same signature over the exact same
+  input rather than two independently-written implementations that could silently drift.
+- `recordEventForActor()` (`src/lib/live-match/live-match-event-store.ts`) is the single
+  owning implementation of event persistence (AGENTS.md: "One business operation, one owning
+  implementation, multiple adapters") — both the browser-facing `recordEvent()` wrapper and
+  the internal endpoint call it, so match/session/org consistency checks and `clientEventId`
+  deduplication exist in exactly one place, not duplicated in the route handler.
+- On persistence failure, `handleRecordEvent` leaves `persistenceStatus: "pending"` exactly
+  as Stage 3 already did — no retry/backoff/alarms yet (explicitly Stage 6's outbox scope).
+  `applyEvent` still broadcasts immediately on acceptance regardless of persistence outcome
+  (preserving "goal appears immediately"); `eventPersistenceChanged` only broadcasts once
+  persistence actually succeeds.
+- Evaluated adopting `@cloudflare/vitest-pool-workers`/Miniflare for this stage (deferred at
+  Stage 3 pending exactly this trigger) and judged it still not worth the toolchain
+  complexity: the new security-critical logic (HMAC sign/verify) is 100% covered by
+  Workers-runtime-independent pure-function tests, the Vercel-side domain logic needs no
+  Workers-specific behaviour to test, and the remaining orchestration glue in
+  `handleRecordEvent` (call persistEvent, branch on success/failure) is straightforward
+  enough that a full Miniflare Durable Object harness would add substantial setup cost for
+  modest additional confidence. Revisit at Stage 6, which introduces genuinely
+  hard-to-pure-function-test Durable Object–native behaviour (alarms, retry state machines).
+
+### Stage 5: realtime event path integration
+
+Flips the reporting coach's own write path from what PR #344 ("Follow live") shipped — HTTP
+unconditionally, realtime as a pure best-effort broadcast side-channel — to what SPEC.md §28
+actually specifies: realtime becomes the *primary* write when connected, HTTP is the
+*fallback* used specifically when realtime is unavailable. Stage 4's synchronous
+persist-then-reply behavior is what makes trusting the realtime path's own result safe to do
+here — before Stage 4, `recordEvent()`'s RPC response could never mean "canonically
+persisted," only "durably accepted by this object."
+
+Key implementation choices:
+- `LeagueLiveMatchClient`'s `useLiveBroadcast()` (renamed `useLiveRealtime()`) now exposes
+  `tryRecordEvent()`, tried first by `createLeagueActions.recordEvent`; the existing HTTP call
+  (`recordLiveEventAction`, byte-for-byte unchanged) only runs when `tryRecordEvent` returns
+  `null` (not connected, or the RPC threw/rejected — including a `STALE_STATE` rejection) *or*
+  the realtime result is `persistenceStatus: "pending"`. Falling through to HTTP on `"pending"`
+  is a deliberate choice beyond SPEC.md §28's literal "leave event unsynced": it's safe (the
+  same `clientEventId` dedup that makes racing HTTP-and-realtime safe elsewhere, SPEC.md §22
+  Case E) and gives an immediate, self-healing corrective write rather than waiting on Stage
+  6's alarm-based retry, which may not fire for tens of seconds under backoff.
+- A `STALE_STATE` rejection's `currentVersion` field realigns the client's tracked
+  `baseVersion` immediately, so a state-sensitive event type doesn't keep failing every
+  subsequent attempt — the same self-heal principle the original best-effort broadcast already
+  used for its own hardcoded-`baseVersion` bug (fixed during Stage 3/Follow-Live review).
+- `applyEvent`/`presenceChanged`/`sessionEnded` broadcasts now feed a new
+  `LiveMatchActions.onLiveUpdate` subscription, so a *second* reporter's action (SPEC.md §44
+  scenario 2) refreshes this client immediately rather than waiting up to 5s for the existing
+  poll — `LiveMatchClient` already polled `getRecentEvents` every 5s before this stage, so the
+  two reporters were never actually stuck needing a manual refresh, just slower than the spec's
+  "both clients show identical state without refresh" implies literally.
+- `LiveMatchActions.reconnectRealtime` lets the existing `online`/`visibilitychange` handlers
+  (which already drove HTTP's own `syncUnsyncedEvents()` before this stage) also force an
+  immediate realtime reconnect attempt, rather than waiting on the client's own backoff timer
+  (SPEC.md §27's "on browser online... reconnect" — a passive timer could otherwise leave a
+  coach on HTTP-only for up to ~30s after connectivity actually returns).
+- No changes to `RealtimeMatchClient` itself (Stage 1) — its reconnect/backoff/jitter,
+  fresh-ticket-per-attempt, and RPC reject-on-`ok:false` behavior were already correct and are
+  reused as-is; `connect()` is safely re-callable to force an immediate attempt.
+- "Replay unsynced local events" on reconnect (SPEC.md §27 step 5) needed no new code: the
+  existing `syncUnsyncedEvents()` already calls `actions.recordEvent(...)` for each unsynced
+  IndexedDB event, which now goes through the same realtime-primary/HTTP-fallback path as any
+  other recording — reconnecting and then replaying was already wired, it just started
+  benefiting from realtime once this stage made `recordEvent` realtime-aware.
+
+### Stage 6: reliability
+
+Closes Stage 4's two explicitly-deferred gaps: a canonical-persistence failure retries itself
+rather than staying `"pending"` forever, and a Durable Object can discover events the HTTP
+fallback wrote while it was disconnected (or before it ever existed).
+
+Key implementation choices:
+- **Terminal vs. retryable classification is a new distinction, not previously possible.**
+  Before this stage, `/api/internal/live-match/events` returned 422 for *every* failure
+  (`recordEventForActor` throwing a plain `Error`), whether the cause was "this session
+  doesn't exist" (permanent) or "Neon connection timed out" (transient) — both looked
+  identical to a caller. Added `LiveMatchDomainError` (`live-match-event-store.ts`) so
+  `recordEventForActor`'s intentional validation rejections are a distinct type from an
+  unexpected failure; the route now returns 422 for the former, 503 for the latter
+  (`classifyPersistenceFailure`, `workers/live-match/src/state.ts`, treats *exactly* 422 as
+  terminal and everything else — 401, other 4xx, 5xx, or no response — as retryable; see the
+  History entry below for why this is narrower than "any 4xx"). Without this, Stage 6 could
+  not have told "never retry this" apart from "keep retrying this" using only the HTTP status
+  it already had access to.
+- **One alarm slot per object, not one per event.** Cloudflare Durable Objects have exactly
+  one alarm slot; `refreshAlarm()` recomputes it as the minimum `nextRetryAt` across every
+  still-pending event (`nextAlarmTime`) after any state change, so a single firing
+  (`alarm()`) sweeps every currently-due event in one pass. This is what makes the alarm
+  handler naturally idempotent (Cloudflare's own stated requirement, since alarms "may be
+  retried"): it only ever touches events still in `"pending"` state, so a duplicate firing
+  for already-resolved events is a no-op, and `recordEventForActor`'s `clientEventId` dedup
+  (Stage 4) means even a genuinely-duplicated persistence attempt can't create a second
+  canonical row.
+- **Reconciliation runs once per session initialization, not on every reconnect.**
+  `evaluateAuthenticate`'s `"initialize"` outcome (a fresh object, or re-arming for a new
+  `LiveMatchSession` after the previous one ended) is the trigger — a plain `"attach"` (a
+  second connection to an already-initialized session) does not re-reconcile, since that
+  session's canonical history was already folded in the one time it mattered. A snapshot
+  fetch failure during reconciliation does not block authentication — reconciliation is an
+  enhancement, not a dependency, matching this ADR's own additive-realtime principle.
+- **`handleGetSnapshot` now reads its own storage, not a second network call.** Because
+  reconciliation already happened during `authenticate` (which always precedes `getSnapshot`
+  per SPEC.md §27's connection sequence), the snapshot response can be assembled entirely from
+  local Durable Object storage — no extra round-trip to the internal endpoint per
+  `getSnapshot` call.
+- **Testing without Miniflare, a third time.** `workers/live-match/test/
+  match-session-object.test.ts` mocks the unresolvable `cloudflare:workers` module with a
+  minimal `DurableObject` base class and hand-rolled in-memory storage/WebSocket fakes,
+  exercising the *real* class's `webSocketMessage`/`handleAuthenticate`/`handleRecordEvent`/
+  `alarm()` methods rather than a parallel reimplementation. This is a step beyond Stages
+  3-5's pure-function-only approach (genuinely testing the orchestration, not just the
+  decisions it makes) without adopting the full `@cloudflare/vitest-pool-workers` toolchain —
+  judged sufficient because the one thing it still can't cover (`WebSocketPair`/hibernation
+  platform mechanics themselves) has no meaningful Node equivalent to fake credibly anyway;
+  `wrangler deploy --dry-run` plus manual `dev:realtime` verification remain the substitute
+  for that specific residual gap.
+
+### Stage 7: production hardening
+
+Mostly confirmation, not new mechanism: message size limits (64 KiB) and protocol-version
+rejection (`PROTOCOL_UNSUPPORTED`) were already built and tested in Stage 1
+(`protocol-schemas.ts`) — re-verified here that both are still correctly wired into
+`webSocketMessage` and that the browser client's generic RPC-rejection fallback
+(`tryRecordEvent`'s catch-all, Stage 5) already covers `PROTOCOL_UNSUPPORTED` without needing
+special-casing, with a test added to prove it explicitly rather than leave it merely implied.
+Structured logging (SPEC.md §32) extended on both sides: the Worker's previously-plain
+`console.error` string interpolation is now a JSON object (queryable in `wrangler tail`);
+the internal Vercel routes log `latencyMs`/`errorCode` alongside their existing correlation
+ids. `docs/development/live-match-realtime.md`'s "Architecture walkthrough" section is the
+SPEC.md §42 documentation deliverable (Match/LiveMatchSession/MatchSessionObject/
+MatchClientCapability relationships, responsibility boundaries, a Mermaid sequence diagram of
+the full event-persistence flow, and an explicit "why the Durable Object is not another
+source of business truth" — referencing this ADR's own "What system of record still means"
+section rather than re-arguing it).
+
+**Final security review findings**: reconciliation's `fetchSnapshot` call always uses the
+object's own `meta.matchId`/`meta.sessionId` (server-established at authenticate time from a
+verified ticket), never anything the browser could influence per-call — no cross-organisation
+data-pull path exists. Alarm/retry cannot be amplified into a denial-of-service vector beyond
+what the existing rate limit on ticket issuance already bounds: the one-alarm-per-object
+design means N pending events produce one scheduled alarm, not N, and a client that spams
+distinct `clientEventId`s just produces more pending records to eventually retry or terminate,
+not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain` both pass
+(this stage touches no SQL and adds no dependencies).
+
 ## Consequences
 
 - Matchboard gains a second deployment target (Cloudflare Workers) alongside Vercel/Neon,
@@ -311,3 +474,68 @@ ran) — fixed by resolving the session's `matchId` and authorizing first.
   group-role authorization gap described above — both maintainer-directed, beyond the
   original SPEC.md's 7-stage scope. PWA push notifications were discussed and explicitly
   deferred in the same conversation (in-browser viewing only for now).
+- 2026-08-23: Stage 4 ("signed internal persistence API") implemented — see the Decision
+  section's own Stage 4 subsection above for the full design. `LIVE_MATCH_INTERNAL_SECRET`
+  provisioned the same way `LIVE_MATCH_REALTIME_SECRET` was: generated by the maintainer,
+  set in Vercel (both projects) and as two new GitHub Actions secrets
+  (`LIVE_MATCH_INTERNAL_SECRET_PRODUCTION`/`_TEST`) that `deploy-live-match-worker.yml` now
+  reads and pushes to each Worker automatically via `wrangler secret put` on every deploy —
+  no manual `wrangler secret put` needed for this one, unlike `LIVE_MATCH_REALTIME_SECRET`.
+  Found and fixed during review, same day: the snapshot endpoint's GET request originally
+  signed a fixed empty string regardless of the `matchId`/`sessionId` query parameters it
+  carried — meaning a valid signature+timestamp pair from one legitimate request would still
+  verify if replayed with *different* query parameters within the 60-second tolerance window,
+  since the signature never actually bound to which match's data was being requested. Fixed
+  by signing the query string itself (`internal-auth.ts`/`internal-client.ts`'s
+  `fetchSnapshot`) instead of an empty body for GET requests, with a regression test proving
+  a signature issued for one matchId/sessionId is rejected against another.
+- 2026-08-23: Stage 5 ("realtime event path integration") implemented — see the Decision
+  section's own Stage 5 subsection above. The reporting coach's write path now tries realtime
+  first and falls back to HTTP, rather than running HTTP unconditionally alongside a
+  best-effort broadcast. No new external configuration — reuses the same
+  `NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL`/`LIVE_MATCH_REALTIME_SECRET` already provisioned for
+  "Follow live."
+- 2026-08-23: Stages 6 ("reliability") and 7 ("production hardening") implemented — see the
+  Decision section's own subsections above. This completes all 7 stages of the original
+  programme spec plus the maintainer-directed "Follow live" addition. No new external
+  configuration — reuses the same secrets/domains already provisioned. All 7 stages landed
+  as one final PR (per the maintainer's standing "minimize PRs, Vercel rate limits"
+  instruction) covering Stages 4-7, since Stages 1-3 plus "Follow live" had already merged
+  separately.
+- 2026-08-23: Found and fixed during review, same day: `classifyPersistenceFailure`
+  originally treated *any* 4xx status as terminal, not just 422 — meaning a 401 (HMAC
+  verification failure, `verifyInternalRequest`) would permanently mark an event
+  `"failed_terminal"` and stop retrying it. A 401 says the *request* wasn't verified, not
+  that the *event's data* is invalid — it can result from a momentary clock-skew edge case
+  against the 60-second timestamp tolerance, or a secret briefly out of sync during rotation,
+  either of which a fresh retry (re-signed with a newly-computed timestamp) could plausibly
+  resolve. Treating it as terminal would give up during exactly the kind of transient
+  infrastructure hiccup retries exist to survive, and would broadcast a misleading
+  permanent-failure signal to connected clients for an event the browser's own HTTP fallback
+  (never subject to this signing boundary) might persist successfully moments later. Narrowed
+  to classify exactly 422 as terminal, matching what `/api/internal/live-match/events` itself
+  actually documents (422 for a known `LiveMatchDomainError`, 503 for anything else) — 401,
+  other 4xx, 5xx, and no-response are all retryable. Added a regression test at both the pure
+  `classifyPersistenceFailure` level and the class-orchestration level
+  (`match-session-object.test.ts`) proving a 401 stays `"pending"` and schedules a retry
+  alarm rather than being marked terminal.
+- 2026-08-23: Found and fixed during the same review pass: `AcceptedEventRecord` stored only
+  `eventType`, not the rest of the browser's original event payload (`playerId`,
+  `matchSeconds`, `period`, `secondaryPlayerId`, `payload`, `correctionType`,
+  `correctsEventId`). `handleRecordEvent`'s first synchronous attempt built its persistence
+  request from the live `params.event` object, but `alarm()`'s retry could only reconstruct a
+  request from what was actually in storage — meaning if the first attempt failed
+  retryably and only the alarm ever succeeded, the canonical Neon event would be created with
+  `eventType` alone, silently missing which player, what match minute, and every other
+  contextual field the coach actually recorded. In practice this was a race rather than a
+  certainty (Stage 5's client-side "pending -> also call HTTP" fallback normally wins this
+  race within milliseconds, well before the alarm's earliest possible firing one second
+  later), but a browser tab closing immediately after receiving a `"pending"` response would
+  leave the alarm as the sole remaining path, and it would have lost the data. Fixed by adding
+  `eventFields?: Record<string, unknown>` to `AcceptedEventRecord`, threading the original
+  payload through `evaluateRecordEvent`, and extracting a shared `buildPersistEventFields()`
+  helper so `handleRecordEvent`'s first attempt and `alarm()`'s retry construct their
+  persistence request from the exact same logic instead of two independently-maintained
+  (and, as found, silently diverging) versions. Added regression tests at both the pure
+  `evaluateRecordEvent` level and the class-orchestration level proving a retried event
+  resends its full original fields, not just `eventType`.

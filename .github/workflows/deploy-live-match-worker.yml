@@ -31,9 +31,15 @@ run-name: >-
 # replaces each Worker's code in place; it does not create a new Worker or touch DNS/custom
 # domain bindings.
 #
-# This workflow only ever runs `wrangler deploy` (code). Worker secrets (LIVE_MATCH_REALTIME_SECRET)
-# are set once per environment via `wrangler secret put`, independently of code deploys, and are
-# never touched by this workflow.
+# LIVE_MATCH_REALTIME_SECRET was set once by hand via `wrangler secret put` and is never
+# touched by this workflow. LIVE_MATCH_INTERNAL_SECRET (Stage 4 — Worker->Vercel HMAC signing,
+# ADR-0086) is different: this workflow pushes it to each Worker environment on every deploy,
+# reading from the corresponding GitHub Actions secret
+# (LIVE_MATCH_INTERNAL_SECRET_PRODUCTION/_TEST). `wrangler secret put` is idempotent — re-running
+# it with the same value on every deploy is a harmless no-op, and this removes the need for a
+# human to ever run it by hand for this specific secret. The two GitHub secrets themselves must
+# still be set by hand once (same as any repository secret) and must match the corresponding
+# Vercel LIVE_MATCH_INTERNAL_SECRET env var exactly, per environment.
 
 on:
   workflow_run:
@@ -61,6 +67,8 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      LIVE_MATCH_INTERNAL_SECRET_PRODUCTION: ${{ secrets.LIVE_MATCH_INTERNAL_SECRET_PRODUCTION }}
+      LIVE_MATCH_INTERNAL_SECRET_TEST: ${{ secrets.LIVE_MATCH_INTERNAL_SECRET_TEST }}
     steps:
       - name: Resolve ref to deploy
         id: resolve-ref
@@ -89,5 +97,13 @@ jobs:
       - name: Deploy production Worker
         run: npx wrangler deploy --config workers/live-match/wrangler.jsonc --env production
 
+      - name: Sync production Worker internal secret
+        if: env.LIVE_MATCH_INTERNAL_SECRET_PRODUCTION != ''
+        run: printf '%s' "$LIVE_MATCH_INTERNAL_SECRET_PRODUCTION" | npx wrangler secret put LIVE_MATCH_INTERNAL_SECRET --config workers/live-match/wrangler.jsonc --env production
+
       - name: Deploy test Worker
         run: npx wrangler deploy --config workers/live-match/wrangler.jsonc --env test
+
+      - name: Sync test Worker internal secret
+        if: env.LIVE_MATCH_INTERNAL_SECRET_TEST != ''
+        run: printf '%s' "$LIVE_MATCH_INTERNAL_SECRET_TEST" | npx wrangler secret put LIVE_MATCH_INTERNAL_SECRET --config workers/live-match/wrangler.jsonc --env test

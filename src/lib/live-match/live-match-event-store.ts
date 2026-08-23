@@ -6,43 +6,82 @@ import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from ".
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
 import { validateLiveEventInput } from "./live-match-domain";
+import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
 
-export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {
-  const ctx = await requireActorContext();
+/**
+ * A rejection `recordEventForActor` throws intentionally, for a request that is invalid on
+ * its own terms and will never succeed no matter how many times it's retried (session
+ * missing/inactive, session/match/org mismatch, failed domain validation). Distinct from an
+ * unexpected error (Prisma/network failure) so `/api/internal/live-match/events` (Stage 4)
+ * can return a different status for each, and the Durable Object's outbox (Stage 6,
+ * `classifyPersistenceFailure` in `workers/live-match/src/state.ts`) can tell "never retry
+ * this" apart from "this is transient, keep retrying" using nothing more than the HTTP status
+ * it already gets back.
+ */
+export class LiveMatchDomainError extends Error {}
 
+/**
+ * live-match-realtime-programme SPEC.md §19 — the actor-scoped core of event persistence,
+ * split out of `recordEvent()` so the internal signed persistence endpoint
+ * (`/api/internal/live-match/events`, Stage 4) can call it with an explicit,
+ * already-authenticated `actor` instead of resolving one from a session cookie via
+ * `requireActorContext()`. `recordEvent()` below is now a thin wrapper preserving the exact
+ * original browser/server-action behavior — same checks, same errors, same return shape.
+ *
+ * Every check this function performs (session exists/active, session belongs to the claimed
+ * match, session's organisation matches the actor's) is independent of *how* the actor was
+ * authenticated — the internal endpoint still must not skip any of it just because the caller
+ * arrived via a signed Worker request rather than a browser session (SPEC.md §19: "internal
+ * realtime endpoint may call recordEventForActor only after... match/session/org consistency
+ * validation").
+ */
+export async function recordEventForActor(
+  input: LiveEventInput,
+  actor: { userId: string; organisationId: string },
+): Promise<CanonicalLiveEvent> {
   const session = await db.liveMatchSession.findUnique({
     where: { id: input.sessionId },
     select: { id: true, status: true, matchId: true, organisationId: true },
   });
 
   if (!session) {
-    throw new Error("Session not found");
+    throw new LiveMatchDomainError("Session not found");
   }
 
   if (session.status !== "ACTIVE") {
-    throw new Error("Session is not active");
+    throw new LiveMatchDomainError("Session is not active");
   }
 
   if (session.matchId !== input.matchId) {
-    throw new Error("Session does not belong to this match");
+    throw new LiveMatchDomainError("Session does not belong to this match");
   }
 
-  if (session.organisationId !== ctx.organisationId) {
-    throw new Error("Session not found or access denied");
+  if (session.organisationId !== actor.organisationId) {
+    throw new LiveMatchDomainError("Session not found or access denied");
   }
 
   const validationError = validateLiveEventInput(input);
   if (validationError) {
-    throw new Error(validationError);
+    throw new LiveMatchDomainError(validationError);
   }
 
   if (input.clientEventId) {
+    // Idempotency (SPEC.md §20 step 7, §35): the realtime broadcast side-channel added in the
+    // "Follow live" PR sends the same clientEventId the HTTP path already persisted, and the
+    // HTTP call always completes first (recordLiveEventAction awaits before the broadcast is
+    // even attempted) — this dedup path is what makes it safe for both to eventually reach
+    // recordEventForActor for the same event without creating a duplicate canonical row.
     const existing = await db.liveMatchEvent.findUnique({
       where: { clientEventId: input.clientEventId },
-      select: { id: true },
+      select: { id: true, clientEventId: true, eventType: true, createdAt: true },
     });
     if (existing) {
-      return { eventId: existing.id };
+      return {
+        id: existing.id,
+        clientEventId: existing.clientEventId ?? input.clientEventId,
+        eventType: existing.eventType,
+        createdAt: existing.createdAt.toISOString(),
+      };
     }
   }
 
@@ -64,7 +103,21 @@ export async function recordEvent(input: LiveEventInput): Promise<{ eventId: str
     },
   });
 
-  return { eventId: event.id };
+  return {
+    id: event.id,
+    clientEventId: input.clientEventId,
+    eventType: event.eventType,
+    createdAt: event.createdAt.toISOString(),
+  };
+}
+
+export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {
+  const ctx = await requireActorContext();
+  const canonical = await recordEventForActor(input, {
+    userId: ctx.userId,
+    organisationId: ctx.organisationId,
+  });
+  return { eventId: canonical.id };
 }
 
 export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[]> {

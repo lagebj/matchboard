@@ -94,7 +94,11 @@ export interface RecordEventCommand {
 
 export interface RecordEventResult {
   version: number;
-  persistenceStatus: "pending" | "persisted";
+  /** Stage 6 — `"failed_terminal"` is possible here (not just via the later
+   * `eventPersistenceChanged` callback) because the first persistence attempt happens
+   * synchronously within the same RPC call (Stage 4); a domain-validation failure is known
+   * immediately, not just after a later retry. */
+  persistenceStatus: "pending" | "persisted" | "failed_terminal";
 }
 
 /** SPEC.md §5.1 `syncPending` — minimal for Stage 1. */
@@ -141,4 +145,49 @@ export interface SessionEndedCallback {
 
 export interface ForceResyncCallback {
   reason: string;
+}
+
+/**
+ * SPEC.md §17-19, Stage 4 — payload the Durable Object signs and sends to the internal
+ * persistence endpoint (`POST /api/internal/live-match/events`). Carries the actor identity
+ * established when the connection's ticket was verified (never re-derived from anything the
+ * browser could influence afterward) plus the event fields `recordEventForActor` needs.
+ * Deliberately mirrors `LiveEventInput` field-for-field rather than importing it — that type
+ * lives in the main app's domain layer (`src/lib/live-match/live-match-types.ts`), which this
+ * Worker-shared module must not depend on transitively.
+ */
+export interface InternalPersistEventRequest {
+  matchId: string;
+  sessionId: string;
+  organisationId: string;
+  userId: string;
+  clientEventId: string;
+  eventType: string;
+  period?: MatchPeriod;
+  matchSeconds?: number;
+  playerId?: string;
+  secondaryPlayerId?: string;
+  payload?: Record<string, unknown>;
+  correctionType?: string;
+  correctsEventId?: string;
+  /** SPEC.md §18 "propagate requestId/rpcId for tracing" — the originating browser RPC call's
+   * id, so one action can be correlated across both runtimes (SPEC.md §32). */
+  rpcId: string;
+}
+
+/** SPEC.md §17 — response shape for both internal endpoints' event data: the POST endpoint
+ * returns one on successful/deduplicated persistence, the GET snapshot endpoint returns an
+ * array of them. Identical to `CanonicalLiveEvent` — no separate type needed. */
+export type InternalPersistEventResponse = CanonicalLiveEvent;
+
+/** SPEC.md §17, §23 — response shape for `GET /api/internal/live-match/snapshot`, consumed by
+ * Stage 6's reconciliation (the Durable Object discovering HTTP-fallback-written events it
+ * never saw). Defined now since the endpoint itself is Stage 4 scope. */
+export interface InternalSnapshotResponse {
+  session: {
+    sessionId: string;
+    matchId: string;
+    status: "ACTIVE" | "ENDED";
+  };
+  events: CanonicalLiveEvent[];
 }

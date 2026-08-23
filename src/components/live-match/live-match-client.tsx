@@ -69,6 +69,18 @@ export interface LiveMatchActions {
     error?: string;
   }>;
   reportUrl?: (reportId: string) => string;
+  /**
+   * Realtime integration (SPEC.md §5 scenario 2, §27) — optional because non-League live
+   * match clients may not implement realtime at all. Subscribes `callback` to fire whenever
+   * *another* connection's action (a second reporter, or the Durable Object's own
+   * `presenceChanged`/`sessionEnded`) is broadcast, so this client can refresh without
+   * waiting for the next 5s poll or a manual reload. Returns an unsubscribe function.
+   */
+  onLiveUpdate?: (callback: () => void) => () => void;
+  /** Force an immediate realtime reconnect attempt (SPEC.md §27: "on browser online... 1.
+   * obtain a fresh connection ticket 2. reconnect") rather than waiting for the client's own
+   * backoff timer, which could otherwise take up to ~30s after connectivity actually returns. */
+  reconnectRealtime?: () => void;
   recordEventToServer?: (input: {
     matchId: string;
     sessionId: string;
@@ -399,31 +411,46 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     return () => clearInterval(interval);
   }, [sessionActive, sessionId, actions]);
 
+  const fetchEvents = useCallback(async () => {
+    const result = await actions.getRecentEvents(matchId, 20);
+    if (result.success && result.data) {
+      setRecentEvents(result.data);
+    }
+  }, [actions, matchId]);
+
   useEffect(() => {
     if (!sessionActive) return;
-    let mounted = true;
-    async function fetchEvents() {
-      const result = await actions.getRecentEvents(matchId, 20);
-      if (mounted && result.success && result.data) {
-        setRecentEvents(result.data);
-      }
-    }
     fetchEvents();
     const interval = setInterval(fetchEvents, 5_000);
-    return () => { mounted = false; clearInterval(interval); };
-  }, [sessionActive, matchId, actions]);
+    return () => clearInterval(interval);
+  }, [sessionActive, fetchEvents]);
+
+  // SPEC.md §5 scenario 2 / §27 — a second reporter's action (or a presence/session-ended
+  // broadcast) refreshes this client immediately, instead of waiting for the next 5s poll.
+  useEffect(() => {
+    if (!sessionActive || !actions.onLiveUpdate) return;
+    return actions.onLiveUpdate(fetchEvents);
+  }, [sessionActive, actions, fetchEvents]);
 
   // Sync on reconnect
   useEffect(() => {
-    const handleOnline = () => { syncUnsyncedEvents(); };
+    const handleOnline = () => {
+      syncUnsyncedEvents();
+      actions.reconnectRealtime?.();
+    };
     window.addEventListener("online", handleOnline);
-    const handleVisibility = () => { if (!document.hidden) syncUnsyncedEvents(); };
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        syncUnsyncedEvents();
+        actions.reconnectRealtime?.();
+      }
+    };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [syncUnsyncedEvents]);
+  }, [syncUnsyncedEvents, actions]);
 
   // Restore local events on mount
   useEffect(() => {

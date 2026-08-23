@@ -1,19 +1,48 @@
 /**
- * `MatchSessionObject` — the Stage 3 Cloudflare Durable Object (SPEC.md §3, §14, §40 Stage
- * 3). Exactly one instance exists per Matchboard match (`env.MATCH_SESSIONS.idFromName(matchId)`,
- * done by `index.ts`, not here).
+ * `MatchSessionObject` — the Cloudflare Durable Object (SPEC.md §3, §14). Exactly one instance
+ * exists per Matchboard match (`env.MATCH_SESSIONS.idFromName(matchId)`, done by `index.ts`,
+ * not here).
  *
- * This class owns only I/O (WebSocket Hibernation API, Durable Object storage) and defers
- * every real decision to the pure functions in `./state.ts` — see that file's header for why,
- * and `../test/state.test.ts` for the behavioural test matrix this split makes possible.
+ * This class owns only I/O (WebSocket Hibernation API, Durable Object storage, the internal
+ * persistence HTTP call) and defers every real decision to the pure functions in `./state.ts`
+ * — see that file's header for why, and `../test/state.test.ts` for the behavioural test
+ * matrix this split makes possible.
  *
- * SPEC.md §40 Stage 3 boundary: "No event persistence migration yet." `recordEvent` here
- * durably accepts an event and assigns it a realtime version (SPEC.md §20 steps 1–5) but
- * never reaches Neon — `persistenceStatus` stays `"pending"` forever until Stage 4 ("signed
- * internal persistence API") adds the Worker→Vercel HMAC-signed call. A practical
- * consequence, also intentional: `endSession` can only ever succeed today for a session that
- * recorded zero events (SPEC.md §29's "pending > 0: do not silently discard" applies exactly
- * as literally as it reads, since nothing can ever un-pend yet).
+ * SPEC.md §20 steps 6-10 (Stage 4, "signed internal persistence API"): `handleRecordEvent`'s
+ * "accepted" branch signs and sends the event to `POST /api/internal/live-match/events`
+ * (`./internal-client.ts`) *within the same RPC call*, awaited before responding — deliberately
+ * not fire-and-forget, since nothing here extends this Durable Object's execution past the
+ * point `webSocketMessage` returns (no `waitUntil`-equivalent for an already-hibernatable
+ * object), so an un-awaited persistence call could be interrupted before it completes. On
+ * success, `persistenceStatus` becomes `"persisted"` and the real canonical event (from
+ * Neon, via Vercel) replaces the placeholder broadcast.
+ *
+ * SPEC.md §21 (Stage 6, "persistence outbox"): on failure, the first synchronous attempt's
+ * outcome is classified (`classifyPersistenceFailure`, `./state.ts`) into terminal (a 4xx —
+ * this exact request will never succeed, whatever `LiveMatchDomainError` `recordEventForActor`
+ * rejected with is still true tomorrow) or retryable (5xx, or no response at all — a
+ * genuinely transient failure). Terminal failures are marked `"failed_terminal"` immediately
+ * and clients are notified via `eventPersistenceChanged`; nothing is ever retried past that.
+ * Retryable failures are left `"pending"` with a `nextRetryAt` (exponential backoff,
+ * `computeBackoffDelayMs`), and a single Durable Object alarm is (re)scheduled for the
+ * earliest `nextRetryAt` across every still-pending event (`nextAlarmTime`) — one alarm slot
+ * per object, not one per event (Cloudflare Durable Objects only have one alarm slot; a
+ * second `setAlarm` call replaces the first, so `alarm()` always sweeps every currently-due
+ * event in one firing rather than assuming it fired for exactly one). The `alarm()` handler
+ * is naturally idempotent (Cloudflare's own stated requirement, since alarms may be retried):
+ * it only ever re-attempts events still in `"pending"` state, so a duplicate firing for
+ * already-resolved events is a no-op, and `recordEventForActor`'s own `clientEventId` dedup
+ * (Stage 4) means even a genuinely-duplicated persistence attempt can never create a second
+ * canonical Neon row.
+ *
+ * SPEC.md §23 (Stage 6, "reconciliation"): `handleAuthenticate`'s `"initialize"` outcome (a
+ * genuinely new session for this object, or the first authenticate this object has ever seen)
+ * now calls the internal snapshot endpoint (`fetchSnapshot`) to discover canonical events that
+ * reached Neon via the HTTP fallback path without ever going through this object — assigning
+ * each one a new realtime version and idempotency mapping (`evaluateReconciliation`) before
+ * the connection is considered attached. `handleGetSnapshot` (SPEC.md §25) now returns these
+ * reconciled events (plus every event accepted directly), so a reconnecting client's snapshot
+ * is genuinely complete rather than the Stage 3/4 placeholder empty array.
  *
  * SPEC.md §5.2 client-callback acknowledgement is deliberately NOT implemented as a
  * request/response with a timeout in this stage: nothing here needs to wait for or react to
@@ -44,23 +73,32 @@ import type {
   EndSessionCommand,
   EndSessionResult,
   ApplyEventCallback,
+  PersistenceChangedCallback,
   PresenceChangedCallback,
   SessionEndedCallback,
   CanonicalLiveEvent,
+  InternalPersistEventRequest,
   MatchSessionSnapshot,
   LiveMatchRealtimeTicket,
 } from "../../../src/lib/live-match/realtime/realtime-messages";
 import { verifyRealtimeTicket } from "./auth";
 import { rpcOk, rpcFail, buildClientCall } from "./rpc";
+import { persistEvent, PersistEventError } from "./internal-client";
 import {
   evaluateAuthenticate,
   evaluateRecordEvent,
   evaluateSyncPending,
   evaluateEndSession,
   hasReportCapability,
+  classifyPersistenceFailure,
+  computeBackoffDelayMs,
+  selectDueRetries,
+  nextAlarmTime,
+  evaluateReconciliation,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "./state";
+import { fetchSnapshot } from "./internal-client";
 import type { Env } from "./worker-types";
 
 /** SPEC.md §12 — per-socket metadata preserved across hibernation via
@@ -223,6 +261,7 @@ export class MatchSessionObject extends DurableObject<Env> {
         await this.clearAcceptedEvents();
       }
       await this.ctx.storage.put("meta", decision.meta);
+      await this.reconcileFromCanonicalSnapshot(decision.meta);
     }
 
     const updated: ConnectionAttachment = {
@@ -255,6 +294,21 @@ export class MatchSessionObject extends DurableObject<Env> {
       .filter((event) => event.persistenceStatus === "pending")
       .map((event) => event.clientEventId);
 
+    // SPEC.md §25: a complete snapshot, not a partial replay window. `accepted` already
+    // includes both directly-recorded events and anything Stage 6's reconciliation
+    // (`handleAuthenticate` -> `reconcileFromCanonicalSnapshot`) discovered from the HTTP
+    // fallback path — this object's own storage is the single source `getSnapshot` reads
+    // from, so it never needs its own extra network round-trip per call.
+    const events: CanonicalLiveEvent[] = accepted
+      .slice()
+      .sort((a, b) => a.version - b.version)
+      .map((event) => ({
+        id: event.canonicalEventId ?? event.clientEventId,
+        clientEventId: event.clientEventId,
+        eventType: event.eventType,
+        createdAt: new Date(event.acceptedAt).toISOString(),
+      }));
+
     const snapshot: MatchSessionSnapshot = {
       protocolVersion: 1,
       version: meta.version,
@@ -264,9 +318,7 @@ export class MatchSessionObject extends DurableObject<Env> {
         status: meta.endedAt === null ? "ACTIVE" : "ENDED",
       },
       clock: meta.clockAnchor,
-      // SPEC.md §40 Stage 3: no canonical persistence/reconciliation yet — Stage 4/6 fill
-      // this from Neon.
-      events: [],
+      events,
       persistence: { pendingClientEventIds },
       presence: { connectedCount: this.countAuthenticatedConnections() },
     };
@@ -296,7 +348,8 @@ export class MatchSessionObject extends DurableObject<Env> {
 
     const clientEventId = params.clientEventId;
     const existing = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
-    const eventType = (params.event as Record<string, unknown>).eventType;
+    const eventFields = params.event as Record<string, unknown>;
+    const eventType = eventFields.eventType;
 
     const decision = evaluateRecordEvent({
       meta,
@@ -304,6 +357,7 @@ export class MatchSessionObject extends DurableObject<Env> {
       clientEventId,
       baseVersion: params.baseVersion,
       eventType,
+      eventFields,
       actorUserId: attachment.userId,
       now: Date.now(),
     });
@@ -328,20 +382,69 @@ export class MatchSessionObject extends DurableObject<Env> {
         await this.putAcceptedEvent(decision.record);
         await this.ctx.storage.put("meta", { ...meta, version: decision.record.version } satisfies SessionMeta);
 
-        const canonicalLikeEvent: CanonicalLiveEvent = {
-          // No canonical Neon event exists yet (Stage 4) — clientEventId stands in as a
-          // temporary id, documented in state.ts's header and this file's header.
+        const persistRequest: InternalPersistEventRequest = {
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          organisationId: meta.organisationId,
+          userId: attachment.userId,
+          clientEventId: decision.record.clientEventId,
+          eventType: String(eventType),
+          ...buildPersistEventFields(eventFields),
+          rpcId: call.id,
+        };
+
+        // Placeholder broadcast content, used only if persistence below fails or throws —
+        // Stage 3's original unconditional broadcast, kept as the fallback shape.
+        let canonicalEvent: CanonicalLiveEvent = {
           id: decision.record.clientEventId,
           clientEventId: decision.record.clientEventId,
           eventType: String(eventType),
           createdAt: new Date(decision.record.acceptedAt).toISOString(),
         };
+        let persistenceStatus: RecordEventResult["persistenceStatus"] = "pending";
+
+        try {
+          canonicalEvent = await persistEvent({
+            baseUrl: this.env.MATCHBOARD_API_BASE_URL,
+            secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+            body: persistRequest,
+          });
+          persistenceStatus = "persisted";
+          await this.markEventPersisted(decision.record.clientEventId, canonicalEvent.id);
+        } catch (error) {
+          // SPEC.md §21, Stage 6 — classify before deciding whether to ever try again.
+          // Never log the request body/signature/secret (SPEC.md §32) — only enough
+          // ids/status to diagnose which event failed and why.
+          const status = error instanceof PersistEventError ? error.status : undefined;
+          const classification = classifyPersistenceFailure(status);
+          this.logStructured("error", "canonical persistence attempt failed", {
+            clientEventId: decision.record.clientEventId,
+            rpcId: call.id,
+            errorCode: classification === "terminal" ? "PERSISTENCE_FAILED" : "PERSISTENCE_UNAVAILABLE",
+            retryable: classification === "retryable",
+          });
+
+          if (classification === "terminal") {
+            persistenceStatus = "failed_terminal";
+            await this.markEventFailedTerminal(decision.record.clientEventId);
+          } else {
+            await this.scheduleRetry(decision.record.clientEventId);
+          }
+        }
+
         this.broadcastToOthers(attachment.connectionId, "applyEvent", {
           version: decision.record.version,
-          event: canonicalLikeEvent,
+          event: canonicalEvent,
         } satisfies ApplyEventCallback);
 
-        const result: RecordEventResult = { version: decision.record.version, persistenceStatus: "pending" };
+        if (persistenceStatus === "persisted" || persistenceStatus === "failed_terminal") {
+          this.broadcastToAll("eventPersistenceChanged", {
+            clientEventId: decision.record.clientEventId,
+            persistenceStatus,
+          } satisfies PersistenceChangedCallback);
+        }
+
+        const result: RecordEventResult = { version: decision.record.version, persistenceStatus };
         return rpcOk(call.id, result);
       }
     }
@@ -414,6 +517,167 @@ export class MatchSessionObject extends DurableObject<Env> {
     await this.ctx.storage.put("eventIds", Array.from(ids));
   }
 
+  private async markEventPersisted(clientEventId: string, canonicalEventId: string): Promise<void> {
+    const record = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
+    if (!record) return;
+    await this.ctx.storage.put(`event:${clientEventId}`, {
+      ...record,
+      persistenceStatus: "persisted",
+      canonicalEventId,
+      nextRetryAt: undefined,
+    } satisfies AcceptedEventRecord);
+  }
+
+  /** SPEC.md §21 — a terminal domain failure. Stops retrying immediately: no `nextRetryAt`, so
+   * this event is permanently excluded from `selectDueRetries`/`nextAlarmTime` from here on. */
+  private async markEventFailedTerminal(clientEventId: string): Promise<void> {
+    const record = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
+    if (!record) return;
+    await this.ctx.storage.put(`event:${clientEventId}`, {
+      ...record,
+      persistenceStatus: "failed_terminal",
+      nextRetryAt: undefined,
+    } satisfies AcceptedEventRecord);
+  }
+
+  /** SPEC.md §21 — records a retryable failure's backoff schedule and (re)arms the object's
+   * single alarm slot for the earliest currently-due retry across every pending event, not
+   * just this one. */
+  private async scheduleRetry(clientEventId: string): Promise<void> {
+    const record = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
+    if (!record) return;
+    const nextRetryAt = Date.now() + computeBackoffDelayMs(record.retryCount);
+    await this.ctx.storage.put(`event:${clientEventId}`, {
+      ...record,
+      retryCount: record.retryCount + 1,
+      nextRetryAt,
+    } satisfies AcceptedEventRecord);
+    await this.refreshAlarm();
+  }
+
+  /** (Re)computes the object's single alarm slot from current storage state — the earliest
+   * `nextRetryAt` across every still-pending event, or clears the alarm entirely when nothing
+   * is waiting (SPEC.md §21: "do not wake the object every second"). Cloudflare Durable
+   * Objects have exactly one alarm slot per object; calling `setAlarm` again simply replaces
+   * whatever was scheduled before, which is exactly what's wanted here — one slot serving
+   * every pending event, not one per event. */
+  private async refreshAlarm(): Promise<void> {
+    const accepted = await this.listAcceptedEvents();
+    const alarmTime = nextAlarmTime(accepted);
+    if (alarmTime === null) {
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
+    await this.ctx.storage.setAlarm(alarmTime);
+  }
+
+  /**
+   * SPEC.md §21 "Durable Object alarms to retry pending persistence." Sweeps every event
+   * currently due for a retry (`selectDueRetries`) in one firing — not one alarm per event —
+   * and re-arms the alarm afterward for whatever is still pending. Naturally idempotent: a
+   * duplicate firing (Cloudflare's own documented "alarms may be retried") only ever touches
+   * events still in `"pending"` state, so nothing here can double-persist or double-broadcast
+   * an event that a previous firing (or the original synchronous attempt) already resolved.
+   */
+  async alarm(): Promise<void> {
+    const meta = await this.ctx.storage.get<SessionMeta>("meta");
+    if (!meta) return;
+
+    const accepted = await this.listAcceptedEvents();
+    const due = selectDueRetries(accepted, Date.now());
+
+    for (const record of due) {
+      try {
+        const canonical = await persistEvent({
+          baseUrl: this.env.MATCHBOARD_API_BASE_URL,
+          secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+          body: {
+            matchId: meta.matchId,
+            sessionId: meta.sessionId,
+            organisationId: meta.organisationId,
+            userId: record.actorUserId,
+            clientEventId: record.clientEventId,
+            eventType: record.eventType,
+            ...buildPersistEventFields(record.eventFields ?? {}),
+            rpcId: `alarm-retry-${record.clientEventId}`,
+          },
+        });
+        await this.markEventPersisted(record.clientEventId, canonical.id);
+        this.broadcastToAll("eventPersistenceChanged", {
+          clientEventId: record.clientEventId,
+          persistenceStatus: "persisted",
+        } satisfies PersistenceChangedCallback);
+      } catch (error) {
+        const status = error instanceof PersistEventError ? error.status : undefined;
+        const classification = classifyPersistenceFailure(status);
+        this.logStructured("error", "alarm retry failed", {
+          clientEventId: record.clientEventId,
+          errorCode: classification === "terminal" ? "PERSISTENCE_FAILED" : "PERSISTENCE_UNAVAILABLE",
+          retryable: classification === "retryable",
+        });
+
+        if (classification === "terminal") {
+          await this.markEventFailedTerminal(record.clientEventId);
+          this.broadcastToAll("eventPersistenceChanged", {
+            clientEventId: record.clientEventId,
+            persistenceStatus: "failed_terminal",
+          } satisfies PersistenceChangedCallback);
+        } else {
+          await this.scheduleRetry(record.clientEventId);
+        }
+      }
+    }
+
+    // Every branch above (success, terminal, or a fresh retry schedule) may have changed which
+    // event is now the next-soonest — recompute once at the end rather than per-event.
+    await this.refreshAlarm();
+  }
+
+  /**
+   * SPEC.md §23 — discover canonical events that reached Neon via the HTTP fallback path
+   * without ever going through this object (a device that used HTTP while realtime was
+   * unavailable, or simply the first-ever connection for a session that already has HTTP
+   * history). Runs once per `"initialize"` outcome (a fresh object, or re-arming for a new
+   * session after the previous one ended) — never on a plain reconnect/`"attach"` to an
+   * already-initialized session, since that session's history was already reconciled the one
+   * time it was initialized. A failure here (network hiccup reaching the internal endpoint)
+   * must not block authentication — reconciliation is an enhancement, not a dependency,
+   * exactly like realtime itself is additive to the existing HTTP-first model (ADR-0086).
+   */
+  private async reconcileFromCanonicalSnapshot(meta: SessionMeta): Promise<void> {
+    let snapshot;
+    try {
+      snapshot = await fetchSnapshot({
+        baseUrl: this.env.MATCHBOARD_API_BASE_URL,
+        secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+        matchId: meta.matchId,
+        sessionId: meta.sessionId,
+      });
+    } catch (error) {
+      this.logStructured("error", "reconciliation snapshot fetch failed", {
+        matchId: meta.matchId,
+        sessionId: meta.sessionId,
+        errorCode: "PERSISTENCE_UNAVAILABLE",
+      });
+      void error;
+      return;
+    }
+
+    const known = new Set((await this.ctx.storage.get<string[]>("eventIds")) ?? []);
+    const result = evaluateReconciliation({
+      currentVersion: meta.version,
+      knownClientEventIds: known,
+      canonicalEvents: snapshot.events,
+    });
+
+    if (result.newRecords.length === 0) return;
+
+    for (const record of result.newRecords) {
+      await this.putAcceptedEvent(record);
+    }
+    await this.ctx.storage.put("meta", { ...meta, version: result.finalVersion } satisfies SessionMeta);
+  }
+
   private async listAcceptedEvents(): Promise<AcceptedEventRecord[]> {
     const ids = (await this.ctx.storage.get<string[]>("eventIds")) ?? [];
     if (ids.length === 0) return [];
@@ -427,6 +691,21 @@ export class MatchSessionObject extends DurableObject<Env> {
       await this.ctx.storage.delete(ids.map((id) => `event:${id}`));
     }
     await this.ctx.storage.delete("eventIds");
+  }
+
+  /**
+   * SPEC.md §32 — structured fields only (matchId/sessionId/clientEventId/errorCode/etc.),
+   * never the internal secret, an HMAC signature, or a full event payload/fair-play free
+   * text. Cloudflare Workers have no `pino`; `console.error`/`console.log` with a JSON object
+   * (not string interpolation) is what's actually queryable in `wrangler tail`/the dashboard.
+   */
+  private logStructured(level: "error" | "log", message: string, fields: Record<string, unknown>): void {
+    const line = { message, ...fields };
+    if (level === "error") {
+      console.error(JSON.stringify(line));
+    } else {
+      console.log(JSON.stringify(line));
+    }
   }
 
   // -------------------------------------------------------------------------------------
@@ -476,4 +755,33 @@ function extractIdIfPresent(raw: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Narrows the browser's untyped `RecordEventCommand.event` payload (or a stored
+ * `AcceptedEventRecord.eventFields`) down to `InternalPersistEventRequest`'s optional
+ * fields. Shared by `handleRecordEvent`'s first synchronous persistence attempt and
+ * `alarm()`'s retry sweep so both send the *identical* set of fields for the same event —
+ * before this existed, the alarm-driven retry only ever sent `eventType`, silently dropping
+ * `playerId`/`matchSeconds`/`payload`/etc. if the event's first attempt failed and only the
+ * alarm ever succeeded (see this file's Stage 6 review notes / ADR-0086's History).
+ */
+function buildPersistEventFields(
+  eventFields: Record<string, unknown>,
+): Pick<
+  InternalPersistEventRequest,
+  "period" | "matchSeconds" | "playerId" | "secondaryPlayerId" | "payload" | "correctionType" | "correctsEventId"
+> {
+  return {
+    period: typeof eventFields.period === "string" ? (eventFields.period as InternalPersistEventRequest["period"]) : undefined,
+    matchSeconds: typeof eventFields.matchSeconds === "number" ? eventFields.matchSeconds : undefined,
+    playerId: typeof eventFields.playerId === "string" ? eventFields.playerId : undefined,
+    secondaryPlayerId: typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
+    payload:
+      typeof eventFields.payload === "object" && eventFields.payload !== null
+        ? (eventFields.payload as Record<string, unknown>)
+        : undefined,
+    correctionType: typeof eventFields.correctionType === "string" ? eventFields.correctionType : undefined,
+    correctsEventId: typeof eventFields.correctsEventId === "string" ? eventFields.correctsEventId : undefined,
+  };
 }

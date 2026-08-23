@@ -2444,7 +2444,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
 | `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
 | `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions |
-| `src/lib/live-match/live-match-event-store.ts` | Server functions: record events (idempotent), get events, get recent events |
+| `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events |
 | `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
 | `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |
 | `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |
@@ -2467,14 +2467,16 @@ of record, IndexedDB remains the device-safety layer, a Cloudflare Durable Objec
 the temporary per-match coordination actor. See ADR-0086 for the Stage 3 architecture
 decision and `.matchboard-work/live-match-realtime-programme/` (local, gitignored) for the
 full spec and phased rollout. Stages 1–2 are pure Next.js application code; Stage 3
-introduces the actual Cloudflare Worker/Durable Object but not yet canonical event
-persistence (see `docs/development/live-match-realtime.md`). "Follow live" (a read-only
-viewer capability, maintainer-directed scope beyond the original SPEC.md — ADR-0086's
-amendment) layers on top of Stage 3: a second coach with at least `GROUP_VIEWER` access to
-the match's group can watch live broadcasts without any reporting controls, while the
-reporting coach's page best-effort broadcasts events to the Worker purely as a side-channel
-(Neon persistence still happens via the existing HTTP path, unchanged — this is explicitly
-not Stage 4's signed persistence API).
+introduces the actual Cloudflare Worker/Durable Object; Stage 4 adds the signed Worker→Vercel
+internal persistence API (see `docs/development/live-match-realtime.md`) so canonical events
+now actually reach Neon through the realtime path, not just through HTTP. "Follow live" (a
+read-only viewer capability, maintainer-directed scope beyond the original SPEC.md —
+ADR-0086's amendment) layers on top of Stage 3: a second coach with at least `GROUP_VIEWER`
+access to the match's group can watch live broadcasts without any reporting controls, while
+the reporting coach's page best-effort broadcasts events to the Worker purely as a
+side-channel — Neon persistence still happens via the existing HTTP path as the source of
+truth; Stage 4's internal API is a separate, additional path the Durable Object itself now
+uses for its own accepted events, not something "Follow live" depends on.
 
 | File | Purpose |
 |------|---------|
@@ -2495,6 +2497,11 @@ not Stage 4's signed persistence API).
 | `src/lib/live-match/realtime/fetch-ticket.ts` | Client-side `fetchRealtimeTicket(matchId, mode)` helper, shared by the reporting broadcast side-channel and the "Follow live" viewer |
 | `src/components/live-match/follow-live-client.tsx` | Read-only "Follow live" viewer — `getSnapshot()` + callback handlers only, never calls `recordEvent`/`endSession` |
 | `src/app/(app)/matches/[matchId]/live/follow/page.tsx`, `src/app/(app)/o/[orgSlug]/matches/[matchId]/live/follow/page.tsx` | "Follow live" route: global redirect + org-scoped page enforcing `requireMatchGroupAccess()` server-side before rendering |
+| `src/lib/live-match/realtime/internal-signature.ts` | Shared HMAC sign/verify (Web Crypto `crypto.subtle`) — used by both the Worker (signs) and Vercel (verifies) |
+| `src/lib/live-match/realtime/internal-auth.ts` | Vercel-side `verifyInternalRequest()` — raw-body HMAC verification for internal endpoints |
+| `src/app/api/internal/live-match/events/route.ts` | `POST` — HMAC-only internal endpoint; calls `recordEventForActor()`, never a browser API |
+| `src/app/api/internal/live-match/snapshot/route.ts` | `GET` — HMAC-only internal endpoint; canonical session/events for Stage 6 reconciliation |
+| `workers/live-match/src/internal-client.ts` | Worker-side: signs and sends persistence/snapshot requests to Vercel |
 
 Group-role-aware live match authorization (added alongside "Follow live", closing a
 pre-existing gap — see ADR-0086's amendment): `requireMatchGroupMutationRole(ctx, matchId)`
