@@ -279,6 +279,8 @@ ran) — fixed by resolving the session's `matchId` and authorizing first.
   this ADR's secret-distribution decision mirrors
 - `AGENTS.md` — "Live Match Reporting" file table and "Stack" section, to be updated when
   Stage 3 code lands
+- `.github/workflows/deploy-live-match-worker.yml` — automates `wrangler deploy` to both
+  environments after CI success on `main`
 
 ## History
 
@@ -290,6 +292,21 @@ ran) — fixed by resolving the session's `matchId` and authorizing first.
   attached) rather than assumed, per this programme's standing rule against guessing at
   external provider state. No Worker/Durable Object code exists yet; this ADR unblocks Stage
   3 implementation, it is not a record of that implementation having happened.
+- 2026-08-23: Stage 3 code merged (PR #342). Two follow-up corrections, both same day:
+  (1) `wrangler.jsonc`'s `env.production.name`/`env.test.name` originally guessed at chosen
+  names (`matchboard-live-match-realtime-production`/`-test`); the actual two Workers created
+  via the dashboard's "Hello World" flow carry Cloudflare's own auto-generated adjective-noun
+  names (`noisy-snowflake-faf0`, `gentle-rice-ba83`) instead. Corrected to the real names so
+  `wrangler deploy` replaces the existing Workers (keeping their already-attached custom
+  domains) rather than creating new, domain-less ones. (2) The maintainer flagged that a
+  manual, human-run `wrangler deploy` for every future code change was not sustainable.
+  Added `.github/workflows/deploy-live-match-worker.yml`, deploying both environments
+  automatically after every CI-green push to `main` (no approval gate — see the workflow's
+  own header comment for why, mirroring `test-db-migrate.yml`'s reasoning), authenticated via
+  `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repository secrets rather than a local
+  `.env`. That Cloudflare API token was separately upgraded from DNS-only scope to include
+  Workers Scripts:Edit — confirmed necessary directly: `wrangler deployments list` 403'd with
+  "Authentication error [code: 10000]" against the original DNS-scoped token.
 - 2026-08-23: Amended to add the "Follow live" read-only viewer capability and fix the
   group-role authorization gap described above — both maintainer-directed, beyond the
   original SPEC.md's 7-stage scope. PWA push notifications were discussed and explicitly

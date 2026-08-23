@@ -1,0 +1,93 @@
+name: Deploy Live Match Realtime Worker
+
+run-name: >-
+  Deploy live match realtime Worker (${{ github.event_name == 'workflow_run' && 'auto after CI' || 'manual' }})
+
+# Deploys workers/live-match/ (the Cloudflare Worker + MatchSessionObject Durable Object,
+# ADR-0086) to both the production and test environments after every CI-green push to main.
+#
+# Before this workflow existed, deploying updated Worker code required a human running
+# `npx wrangler deploy` by hand from a local machine with a Cloudflare-authenticated
+# CLOUDFLARE_API_TOKEN in their environment — exactly the kind of manual step this repo's
+# other infrastructure (production-db-migrate.yml, test-db-migrate.yml) already automates for
+# database migrations. This workflow closes the same gap for Worker deploys.
+#
+# No approval gate, unlike production-db-migrate.yml: a Worker deploy is stateless code, not a
+# data-destructive migration. Per ADR-0086's own design principle ("Realtime failure changes
+# collaboration quality, not the coach's ability to report the match"), a bad deploy here
+# degrades to the existing HTTP/local-first reporting path — it cannot corrupt data or block
+# match reporting. This is the same risk profile as Vercel's own automatic production deploy on
+# every push to main, which also has no approval gate.
+#
+# Deploys unconditionally on every CI-green push to main, with no path filter: `workflow_run`
+# events cannot be path-filtered against the files changed in the triggering push, and
+# re-deploying unchanged Worker code is a harmless no-op (same reasoning test-db-migrate.yml
+# uses for running unconditionally rather than diffing changed files).
+#
+# `env.production.name`/`env.test.name` in wrangler.jsonc are pinned to the exact Cloudflare
+# auto-generated names of the two Workers already created (and already carrying their custom
+# domains, realtime.matchboard.football / realtime-test.matchboard.football) via the dashboard
+# — see docs/development/live-match-realtime.md and ADR-0086's History. `wrangler deploy`
+# replaces each Worker's code in place; it does not create a new Worker or touch DNS/custom
+# domain bindings.
+#
+# This workflow only ever runs `wrangler deploy` (code). Worker secrets (LIVE_MATCH_REALTIME_SECRET)
+# are set once per environment via `wrangler secret put`, independently of code deploys, and are
+# never touched by this workflow.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-match-worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Worker
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-24.04
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Resolve ref to deploy
+        id: resolve-ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ steps.resolve-ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy production Worker
+        run: npx wrangler deploy --config workers/live-match/wrangler.jsonc --env production
+
+      - name: Deploy test Worker
+        run: npx wrangler deploy --config workers/live-match/wrangler.jsonc --env test
