@@ -9,6 +9,18 @@ import { validateLiveEventInput } from "./live-match-domain";
 import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
 
 /**
+ * A rejection `recordEventForActor` throws intentionally, for a request that is invalid on
+ * its own terms and will never succeed no matter how many times it's retried (session
+ * missing/inactive, session/match/org mismatch, failed domain validation). Distinct from an
+ * unexpected error (Prisma/network failure) so `/api/internal/live-match/events` (Stage 4)
+ * can return a different status for each, and the Durable Object's outbox (Stage 6,
+ * `classifyPersistenceFailure` in `workers/live-match/src/state.ts`) can tell "never retry
+ * this" apart from "this is transient, keep retrying" using nothing more than the HTTP status
+ * it already gets back.
+ */
+export class LiveMatchDomainError extends Error {}
+
+/**
  * live-match-realtime-programme SPEC.md §19 — the actor-scoped core of event persistence,
  * split out of `recordEvent()` so the internal signed persistence endpoint
  * (`/api/internal/live-match/events`, Stage 4) can call it with an explicit,
@@ -33,24 +45,24 @@ export async function recordEventForActor(
   });
 
   if (!session) {
-    throw new Error("Session not found");
+    throw new LiveMatchDomainError("Session not found");
   }
 
   if (session.status !== "ACTIVE") {
-    throw new Error("Session is not active");
+    throw new LiveMatchDomainError("Session is not active");
   }
 
   if (session.matchId !== input.matchId) {
-    throw new Error("Session does not belong to this match");
+    throw new LiveMatchDomainError("Session does not belong to this match");
   }
 
   if (session.organisationId !== actor.organisationId) {
-    throw new Error("Session not found or access denied");
+    throw new LiveMatchDomainError("Session not found or access denied");
   }
 
   const validationError = validateLiveEventInput(input);
   if (validationError) {
-    throw new Error(validationError);
+    throw new LiveMatchDomainError(validationError);
   }
 
   if (input.clientEventId) {

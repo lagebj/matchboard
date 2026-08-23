@@ -52,17 +52,24 @@ export interface SessionMeta {
   endedAt: number | null;
 }
 
-/** SPEC.md §15 "accepted_events" row. `persistenceStatus` stays `"pending"` forever in
- * Stage 3 — there is no persistence path yet (SPEC.md §40 Stage 3: "No event persistence
- * migration yet"); Stage 4 is what ever transitions this to `"persisted"`/`"failed_terminal"`. */
+/** SPEC.md §15 "accepted_events" row. `persistenceStatus` transitions "pending" ->
+ * "persisted" (Stage 4, synchronous first attempt, or Stage 6's alarm retry) or "pending" ->
+ * "failed_terminal" (Stage 6 — a domain-validation failure that will never succeed no matter
+ * how many times it's retried). `nextRetryAt` is undefined until the first attempt fails;
+ * Stage 6's alarm sweep (`selectDueRetries`) only ever considers events that already have one
+ * (a freshly-accepted event always gets its first attempt synchronously in
+ * `handleRecordEvent`, never via the alarm). `eventType` is needed to reconstruct a
+ * `CanonicalLiveEvent` for `handleGetSnapshot` (Stage 6) without a second Neon round-trip. */
 export interface AcceptedEventRecord {
   clientEventId: string;
   version: number;
   actorUserId: string;
   acceptedAt: number;
+  eventType: string;
   persistenceStatus: "pending" | "persisted" | "failed_terminal";
   canonicalEventId?: string;
   retryCount: number;
+  nextRetryAt?: number;
 }
 
 export function initialClockAnchor(now: number): ClockAnchor {
@@ -196,6 +203,7 @@ export function evaluateRecordEvent(params: {
       version: params.meta.version + 1,
       actorUserId: params.actorUserId,
       acceptedAt: params.now,
+      eventType: params.eventType,
       persistenceStatus: "pending",
       retryCount: 0,
     },
@@ -249,4 +257,127 @@ export function evaluateEndSession(params: {
     return { outcome: "pending_persistence", pendingCount: params.pendingCount };
   }
   return { outcome: "ended" };
+}
+
+// ---------------------------------------------------------------------------------------
+// persistence outbox: retry classification, backoff, alarm scheduling (SPEC.md §21, Stage 6)
+// ---------------------------------------------------------------------------------------
+
+/**
+ * SPEC.md §21 — a domain-validation failure (session not found, session not active,
+ * session/match/org mismatch, invalid event) will never succeed no matter how many times
+ * it's retried; only a genuinely transient failure (network error, Vercel/Neon temporarily
+ * unavailable) is worth retrying. The internal persistence route
+ * (`/api/internal/live-match/events`) returns 422 for a known `LiveMatchDomainError` and 503
+ * for anything unexpected (`live-match-event-store.ts`) — `status` here is
+ * `PersistEventError.status` (`undefined` for a network failure that never got an HTTP
+ * response at all, which is retryable by definition). Any 4xx is treated as terminal (the
+ * request itself was rejected, not merely delayed); everything else — 5xx, or no response —
+ * is retryable.
+ */
+export function classifyPersistenceFailure(status: number | undefined): "terminal" | "retryable" {
+  if (status !== undefined && status >= 400 && status < 500) return "terminal";
+  return "retryable";
+}
+
+/** SPEC.md §21 "exponential backoff; capped retry delay." `retryCount` is the number of
+ * *retry* attempts already made (the initial synchronous attempt in `handleRecordEvent` is
+ * attempt zero, not a retry) — `computeBackoffDelayMs(0)` is the delay before the *first*
+ * alarm-driven retry. Base and cap are implementation choices SPEC.md leaves unspecified
+ * ("such as" language only): 1s base, doubling, capped at 60s, matching the same order of
+ * magnitude as `RealtimeMatchClient`'s own reconnect backoff (Stage 1, capped at 30s) without
+ * being identical — this is a distinct concern (canonical persistence retry, not WebSocket
+ * reconnect) and coupling the two constants would be a coincidence, not a real relationship. */
+const RETRY_BASE_MS = 1_000;
+const RETRY_CAP_MS = 60_000;
+
+export function computeBackoffDelayMs(retryCount: number): number {
+  const delay = RETRY_BASE_MS * 2 ** retryCount;
+  return Math.min(delay, RETRY_CAP_MS);
+}
+
+/** Which currently-pending events are due for a retry attempt right now. An event with no
+ * `nextRetryAt` yet has never failed (its only attempt so far was the synchronous one in
+ * `handleRecordEvent`, which either succeeded or is still in flight) — the alarm sweep never
+ * originates a first attempt, only retries ones that have already failed at least once. */
+export function selectDueRetries(
+  events: readonly AcceptedEventRecord[],
+  now: number,
+): AcceptedEventRecord[] {
+  return events.filter(
+    (event) =>
+      event.persistenceStatus === "pending" &&
+      event.nextRetryAt !== undefined &&
+      event.nextRetryAt <= now,
+  );
+}
+
+/** The single Durable Object alarm slot's next firing time — the minimum `nextRetryAt`
+ * across every still-pending event, or `null` when nothing is waiting on a retry (in which
+ * case the caller should clear any previously-scheduled alarm rather than let it fire and
+ * find nothing to do — SPEC.md §21 "do not wake the object every second"). */
+export function nextAlarmTime(events: readonly AcceptedEventRecord[]): number | null {
+  const candidates = events
+    .filter((event) => event.persistenceStatus === "pending" && event.nextRetryAt !== undefined)
+    .map((event) => event.nextRetryAt as number);
+  if (candidates.length === 0) return null;
+  return Math.min(...candidates);
+}
+
+// ---------------------------------------------------------------------------------------
+// reconciliation after HTTP fallback (SPEC.md §23, Stage 6)
+// ---------------------------------------------------------------------------------------
+
+/** One canonical event as returned by the internal snapshot endpoint
+ * (`InternalSnapshotResponse.events`, shared type lives in `realtime-messages.ts` — kept as a
+ * narrower local shape here so this module's zero-Prisma-dependency guarantee, documented at
+ * the top of this file, extends to not importing that type either). */
+export interface ReconcilableCanonicalEvent {
+  clientEventId: string;
+  id: string;
+  eventType: string;
+  createdAt: string;
+}
+
+export interface ReconciliationResult {
+  newRecords: AcceptedEventRecord[];
+  finalVersion: number;
+}
+
+/**
+ * SPEC.md §23 — events that reached Neon via the HTTP fallback path while this object either
+ * didn't exist yet or was disconnected never went through `evaluateRecordEvent`, so they have
+ * no realtime version and no local `AcceptedEventRecord`. This assigns each one a new
+ * realtime version (in the snapshot endpoint's already-deterministic order, SPEC.md §24) and
+ * an idempotency mapping, so a later realtime `recordEvent` retry for the same
+ * `clientEventId` (e.g. from a client that also tried the realtime path before falling back
+ * to HTTP) is still correctly deduped. `actorUserId` is left empty — reconciled events are
+ * already canonical (their real authorship lives in Neon); this object never learns who wrote
+ * them from the snapshot response alone, and nothing here needs to know (SPEC.md §23:
+ * realtime version is coordination metadata, not business event sequence).
+ */
+export function evaluateReconciliation(params: {
+  currentVersion: number;
+  knownClientEventIds: ReadonlySet<string>;
+  canonicalEvents: readonly ReconcilableCanonicalEvent[];
+}): ReconciliationResult {
+  let version = params.currentVersion;
+  const newRecords: AcceptedEventRecord[] = [];
+
+  for (const event of params.canonicalEvents) {
+    if (params.knownClientEventIds.has(event.clientEventId)) continue;
+    version += 1;
+    newRecords.push({
+      clientEventId: event.clientEventId,
+      version,
+      actorUserId: "",
+      acceptedAt: new Date(event.createdAt).getTime(),
+      eventType: event.eventType,
+      persistenceStatus: "persisted",
+      canonicalEventId: event.id,
+      retryCount: 0,
+    });
+  }
+
+  return { newRecords, finalVersion: version };
 }

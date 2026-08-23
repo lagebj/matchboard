@@ -1,15 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { signInternalRequest } from "@/lib/live-match/realtime/internal-signature";
 
-const { mockRecordEventForActor, mockLoggerError } = vi.hoisted(() => ({
-  mockRecordEventForActor: vi.fn(),
-  mockLoggerError: vi.fn(),
-}));
+// `LiveMatchDomainError` is a real, dependency-free class (no Prisma/db/auth imports) — hoisted
+// and shared between the mock factory and this file's `it` blocks so `instanceof` checks in the
+// route work exactly as they would against the real module, without pulling in
+// `live-match-event-store.ts`'s real `db`/`requireActorContext` imports just to get one class.
+const { mockRecordEventForActor, mockLoggerError, TestLiveMatchDomainError } = vi.hoisted(() => {
+  class TestLiveMatchDomainError extends Error {}
+  return {
+    mockRecordEventForActor: vi.fn(),
+    mockLoggerError: vi.fn(),
+    TestLiveMatchDomainError,
+  };
+});
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/live-match/live-match-event-store", () => ({
   recordEventForActor: mockRecordEventForActor,
+  LiveMatchDomainError: TestLiveMatchDomainError,
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -129,8 +138,8 @@ describe("POST /api/internal/live-match/events (SPEC.md §17-19, Stage 4)", () =
     expect(mockRecordEventForActor).not.toHaveBeenCalled();
   });
 
-  it("maps a recordEventForActor domain rejection (e.g. session/match mismatch) to 422, not 500", async () => {
-    mockRecordEventForActor.mockRejectedValue(new Error("Session does not belong to this match"));
+  it("maps a recordEventForActor domain rejection (e.g. session/match mismatch) to 422, terminal — never retry (SPEC.md §21, Stage 6)", async () => {
+    mockRecordEventForActor.mockRejectedValue(new TestLiveMatchDomainError("Session does not belong to this match"));
 
     const { POST } = await import("../route");
     const res = await POST(await signedRequest(VALID_BODY));
@@ -139,8 +148,18 @@ describe("POST /api/internal/live-match/events (SPEC.md §17-19, Stage 4)", () =
     expect(json.error).toBe("Session does not belong to this match");
   });
 
+  it("maps an unexpected failure (not a LiveMatchDomainError) to 503, retryable (SPEC.md §21, Stage 6)", async () => {
+    mockRecordEventForActor.mockRejectedValue(new Error("connect ECONNREFUSED (Neon unreachable)"));
+
+    const { POST } = await import("../route");
+    const res = await POST(await signedRequest(VALID_BODY));
+    expect(res.status).toBe(503);
+    const json = await res.json();
+    expect(json.error).toBe("connect ECONNREFUSED (Neon unreachable)");
+  });
+
   it("never logs the raw request body/payload on failure", async () => {
-    mockRecordEventForActor.mockRejectedValue(new Error("Session not found"));
+    mockRecordEventForActor.mockRejectedValue(new TestLiveMatchDomainError("Session not found"));
 
     const { POST } = await import("../route");
     await POST(await signedRequest({ ...VALID_BODY, payload: { note: "sensitive fair-play text" } }));

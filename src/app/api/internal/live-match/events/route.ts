@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { recordEventForActor } from "@/lib/live-match/live-match-event-store";
+import { recordEventForActor, LiveMatchDomainError } from "@/lib/live-match/live-match-event-store";
 import { verifyInternalRequest } from "@/lib/live-match/realtime/internal-auth";
 import type { InternalPersistEventRequest } from "@/lib/live-match/realtime/realtime-messages";
 import type { LiveMatchEventType, LiveEventCorrectionType } from "@/lib/live-match/live-match-types";
@@ -16,6 +16,7 @@ import { logger } from "@/lib/logger";
  * adapter that authenticates via HMAC instead of a session, then delegates.
  */
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const verification = await verifyInternalRequest(request);
   if (!verification.ok) {
     return NextResponse.json({ error: verification.error }, { status: verification.status });
@@ -57,16 +58,46 @@ export async function POST(request: Request) {
       { userId: body.userId, organisationId: body.organisationId },
     );
 
+    // SPEC.md §32 — structured, ids-and-timing only, no event payload/fair-play text.
+    logger.info(
+      {
+        requestId: verification.requestId,
+        rpcId: body.rpcId,
+        matchId: body.matchId,
+        sessionId: body.sessionId,
+        clientEventId: body.clientEventId,
+        latencyMs: Date.now() - startedAt,
+      },
+      "[internal:live-match:events] Persisted event",
+    );
+
     return NextResponse.json(canonical);
   } catch (error) {
+    // Stage 6 (SPEC.md §21): the status code here is the only signal the Durable Object's
+    // outbox (`classifyPersistenceFailure`, workers/live-match/src/state.ts) has to decide
+    // whether to ever retry this event. A `LiveMatchDomainError` is a request that is invalid
+    // on its own terms (session missing/inactive, org/match mismatch, failed validation) and
+    // will never succeed no matter how many times it's retried — 422, terminal. Anything else
+    // is unexpected (Prisma/network failure) and may well succeed on retry — 503, retryable.
+    const latencyMs = Date.now() - startedAt;
+    const isDomainError = error instanceof LiveMatchDomainError;
     // SPEC.md §32 — never log full event payloads (may carry fair-play free text) or the
     // request's own signature/secret; the error message and correlation ids are enough to
     // diagnose a rejection without ever needing to log the sensitive body itself.
     logger.error(
-      { err: error, requestId: verification.requestId, rpcId: body.rpcId, matchId: body.matchId, sessionId: body.sessionId },
+      {
+        err: error,
+        requestId: verification.requestId,
+        rpcId: body.rpcId,
+        matchId: body.matchId,
+        sessionId: body.sessionId,
+        clientEventId: body.clientEventId,
+        latencyMs,
+        errorCode: isDomainError ? "DOMAIN_REJECTED" : "PERSISTENCE_FAILED",
+      },
       "[internal:live-match:events] Failed to persist event",
     );
     const message = error instanceof Error ? error.message : "Failed to persist event";
-    return NextResponse.json({ error: message }, { status: 422 });
+    return NextResponse.json({ error: message }, { status: isDomainError ? 422 : 503 });
   }
 }

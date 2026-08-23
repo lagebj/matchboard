@@ -325,6 +325,85 @@ Key implementation choices:
   other recording — reconnecting and then replaying was already wired, it just started
   benefiting from realtime once this stage made `recordEvent` realtime-aware.
 
+### Stage 6: reliability
+
+Closes Stage 4's two explicitly-deferred gaps: a canonical-persistence failure retries itself
+rather than staying `"pending"` forever, and a Durable Object can discover events the HTTP
+fallback wrote while it was disconnected (or before it ever existed).
+
+Key implementation choices:
+- **Terminal vs. retryable classification is a new distinction, not previously possible.**
+  Before this stage, `/api/internal/live-match/events` returned 422 for *every* failure
+  (`recordEventForActor` throwing a plain `Error`), whether the cause was "this session
+  doesn't exist" (permanent) or "Neon connection timed out" (transient) — both looked
+  identical to a caller. Added `LiveMatchDomainError` (`live-match-event-store.ts`) so
+  `recordEventForActor`'s intentional validation rejections are a distinct type from an
+  unexpected failure; the route now returns 422 for the former, 503 for the latter
+  (`classifyPersistenceFailure`, `workers/live-match/src/state.ts`, treats any 4xx as
+  terminal and everything else — 5xx or no response — as retryable). Without this, Stage 6
+  could not have told "never retry this" apart from "keep retrying this" using only the HTTP
+  status it already had access to.
+- **One alarm slot per object, not one per event.** Cloudflare Durable Objects have exactly
+  one alarm slot; `refreshAlarm()` recomputes it as the minimum `nextRetryAt` across every
+  still-pending event (`nextAlarmTime`) after any state change, so a single firing
+  (`alarm()`) sweeps every currently-due event in one pass. This is what makes the alarm
+  handler naturally idempotent (Cloudflare's own stated requirement, since alarms "may be
+  retried"): it only ever touches events still in `"pending"` state, so a duplicate firing
+  for already-resolved events is a no-op, and `recordEventForActor`'s `clientEventId` dedup
+  (Stage 4) means even a genuinely-duplicated persistence attempt can't create a second
+  canonical row.
+- **Reconciliation runs once per session initialization, not on every reconnect.**
+  `evaluateAuthenticate`'s `"initialize"` outcome (a fresh object, or re-arming for a new
+  `LiveMatchSession` after the previous one ended) is the trigger — a plain `"attach"` (a
+  second connection to an already-initialized session) does not re-reconcile, since that
+  session's canonical history was already folded in the one time it mattered. A snapshot
+  fetch failure during reconciliation does not block authentication — reconciliation is an
+  enhancement, not a dependency, matching this ADR's own additive-realtime principle.
+- **`handleGetSnapshot` now reads its own storage, not a second network call.** Because
+  reconciliation already happened during `authenticate` (which always precedes `getSnapshot`
+  per SPEC.md §27's connection sequence), the snapshot response can be assembled entirely from
+  local Durable Object storage — no extra round-trip to the internal endpoint per
+  `getSnapshot` call.
+- **Testing without Miniflare, a third time.** `workers/live-match/test/
+  match-session-object.test.ts` mocks the unresolvable `cloudflare:workers` module with a
+  minimal `DurableObject` base class and hand-rolled in-memory storage/WebSocket fakes,
+  exercising the *real* class's `webSocketMessage`/`handleAuthenticate`/`handleRecordEvent`/
+  `alarm()` methods rather than a parallel reimplementation. This is a step beyond Stages
+  3-5's pure-function-only approach (genuinely testing the orchestration, not just the
+  decisions it makes) without adopting the full `@cloudflare/vitest-pool-workers` toolchain —
+  judged sufficient because the one thing it still can't cover (`WebSocketPair`/hibernation
+  platform mechanics themselves) has no meaningful Node equivalent to fake credibly anyway;
+  `wrangler deploy --dry-run` plus manual `dev:realtime` verification remain the substitute
+  for that specific residual gap.
+
+### Stage 7: production hardening
+
+Mostly confirmation, not new mechanism: message size limits (64 KiB) and protocol-version
+rejection (`PROTOCOL_UNSUPPORTED`) were already built and tested in Stage 1
+(`protocol-schemas.ts`) — re-verified here that both are still correctly wired into
+`webSocketMessage` and that the browser client's generic RPC-rejection fallback
+(`tryRecordEvent`'s catch-all, Stage 5) already covers `PROTOCOL_UNSUPPORTED` without needing
+special-casing, with a test added to prove it explicitly rather than leave it merely implied.
+Structured logging (SPEC.md §32) extended on both sides: the Worker's previously-plain
+`console.error` string interpolation is now a JSON object (queryable in `wrangler tail`);
+the internal Vercel routes log `latencyMs`/`errorCode` alongside their existing correlation
+ids. `docs/development/live-match-realtime.md`'s "Architecture walkthrough" section is the
+SPEC.md §42 documentation deliverable (Match/LiveMatchSession/MatchSessionObject/
+MatchClientCapability relationships, responsibility boundaries, a Mermaid sequence diagram of
+the full event-persistence flow, and an explicit "why the Durable Object is not another
+source of business truth" — referencing this ADR's own "What system of record still means"
+section rather than re-arguing it).
+
+**Final security review findings**: reconciliation's `fetchSnapshot` call always uses the
+object's own `meta.matchId`/`meta.sessionId` (server-established at authenticate time from a
+verified ticket), never anything the browser could influence per-call — no cross-organisation
+data-pull path exists. Alarm/retry cannot be amplified into a denial-of-service vector beyond
+what the existing rate limit on ticket issuance already bounds: the one-alarm-per-object
+design means N pending events produce one scheduled alarm, not N, and a client that spams
+distinct `clientEventId`s just produces more pending records to eventually retry or terminate,
+not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain` both pass
+(this stage touches no SQL and adds no dependencies).
+
 ## Consequences
 
 - Matchboard gains a second deployment target (Cloudflare Workers) alongside Vercel/Neon,
@@ -415,3 +494,10 @@ Key implementation choices:
   best-effort broadcast. No new external configuration — reuses the same
   `NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL`/`LIVE_MATCH_REALTIME_SECRET` already provisioned for
   "Follow live."
+- 2026-08-23: Stages 6 ("reliability") and 7 ("production hardening") implemented — see the
+  Decision section's own subsections above. This completes all 7 stages of the original
+  programme spec plus the maintainer-directed "Follow live" addition. No new external
+  configuration — reuses the same secrets/domains already provisioned. All 7 stages landed
+  as one final PR (per the maintainer's standing "minimize PRs, Vercel rate limits"
+  instruction) covering Stages 4-7, since Stages 1-3 plus "Follow live" had already merged
+  separately.

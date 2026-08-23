@@ -151,6 +151,18 @@ describe("useLiveRealtime", () => {
     expect(client.recordEvent).toHaveBeenNthCalledWith(2, { clientEventId: "e2", baseVersion: 0, event: { eventType: "GOAL_FOR" } });
   });
 
+  it("falls through to null (and so to HTTP, via createLeagueActions) on a PROTOCOL_UNSUPPORTED rejection (SPEC.md §31)", async () => {
+    const { result } = renderHook(() => useLiveRealtime("match-1"));
+    act(() => {
+      result.current.ensureConnected();
+    });
+    const client = instances[0];
+    client.recordEvent.mockRejectedValueOnce({ code: "PROTOCOL_UNSUPPORTED", message: "Unsupported protocol version: 2" });
+
+    const outcome = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "GOAL_FOR" } });
+    expect(outcome).toBeNull();
+  });
+
   it("notifies onLiveUpdate subscribers when applyEvent/presenceChanged/sessionEnded broadcasts arrive (SPEC.md §44 scenario 2)", () => {
     const { result } = renderHook(() => useLiveRealtime("match-1"));
     act(() => {

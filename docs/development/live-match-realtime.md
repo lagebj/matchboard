@@ -7,9 +7,9 @@ of that using a Cloudflare Worker + Durable Object per active match. See
 decision (why Cloudflare Durable Objects, the trust boundary, the Free-plan design, and the
 HTTP-fallback rollback story) before changing anything here.
 
-## Current status: Stage 5 + "Follow live" viewer
+## Current status: all 7 stages + "Follow live" viewer complete
 
-This is being delivered in stages (see the ADR's linked programme spec), plus one
+This was delivered in stages (see the ADR's linked programme spec), plus one
 maintainer-directed addition beyond the original stage plan. As of this document:
 
 - **Shipped**: Stage 1 (protocol types, browser realtime client abstraction — `src/lib/
@@ -63,9 +63,31 @@ maintainer-directed addition beyond the original stage plan. As of this document
   an immediate realtime reconnect (`LiveMatchActions.reconnectRealtime`) rather than waiting on
   the client's own backoff timer. No changes to `RealtimeMatchClient` itself (Stage 1) or to
   the HTTP fallback path's own behavior.
-- **Not yet implemented**: retry/backoff for failed persistence (Stage 6's outbox/alarms), and
-  the Durable Object consuming the snapshot endpoint for reconciliation after an HTTP-fallback
-  write it never saw (Stage 6, §23).
+- **Shipped**: Stage 6 — reliability (SPEC.md §21, §23, §29). A retryable canonical-persistence
+  failure (5xx, or no response at all) leaves the event `"pending"` with an exponential
+  backoff (`computeBackoffDelayMs`, 1s base doubling to a 60s cap) and (re)arms the Durable
+  Object's single alarm slot for the earliest still-due retry (`nextAlarmTime`) — one alarm
+  firing sweeps every currently-due event, never one alarm per event. A terminal
+  domain-validation failure (4xx — `LiveMatchDomainError`, `live-match-event-store.ts`) is
+  classified separately (`classifyPersistenceFailure`) and marked `"failed_terminal"`
+  immediately, with no retry ever scheduled; `RecordEventResult`/`PersistenceChangedCallback`
+  both now carry `"failed_terminal"` as a real outcome, not just `"pending"`/`"persisted"`.
+  `handleAuthenticate`'s `"initialize"` outcome now reconciles against the internal snapshot
+  endpoint (`evaluateReconciliation`) — canonical events the HTTP fallback wrote while this
+  object was disconnected (or never existed yet) are assigned a realtime version and folded
+  into this object's own storage, so `handleGetSnapshot` returns a genuinely complete event
+  list instead of Stage 3/4's placeholder empty array. `endSession` can now resolve for real
+  once a previously-pending event's retry succeeds (end-to-end tested, not just structurally
+  possible).
+- **Shipped**: Stage 7 — production hardening (SPEC.md §31, §32, §35, §42). Message size
+  limits (64 KiB) and protocol-version rejection (`PROTOCOL_UNSUPPORTED`) were already built
+  and tested in Stage 1 (`protocol-schemas.ts`) — confirmed still correctly enforced and that
+  the browser client's generic RPC-rejection fallback covers this error code too. Structured
+  logging added on both sides: the Worker's `console.error`/`console.log` calls are now JSON
+  objects (ids/status/timing only, per §32's never-log list — no secrets, signatures, or full
+  payloads), and the internal Vercel routes log `latencyMs`/`errorCode` alongside the existing
+  correlation ids. This document's "Architecture walkthrough" section below is §42's required
+  documentation deliverable.
 - **Explicitly out of scope**: PWA push notifications (service worker, Web Push) — discussed
   and deferred; "Follow live" is in-browser only for now, per `AGENTS.md`'s PWA section's
   existing v1 scope boundary.
@@ -149,6 +171,7 @@ workers/live-match/
         auth.test.ts
         rpc.test.ts
         internal-client.test.ts
+        match-session-object.test.ts  # Stage 6: class-level orchestration (alarm sweep, reconciliation)
 ```
 
 Stage 4 also added, on the main Next.js side:
@@ -197,16 +220,158 @@ React, or a running Prisma client (the one Prisma-derived type it touches,
   `getSnapshot`-driven version re-derivation on reconnect, `reconnectNow`'s no-new-client
   behavior, and `LiveMatchClient`'s own wiring of `onLiveUpdate`/`reconnectRealtime` (immediate
   refresh on broadcast, immediate reconnect attempt on the browser `online` event).
-- **Not covered by an automated integration test**: the real `MatchSessionObject` class
-  running inside an actual Workers runtime — WebSocket upgrade handling, hibernation
-  survival, `ctx.getWebSockets()` behaviour, and the actual `handleRecordEvent` → sign → POST
-  → mark-persisted orchestration end-to-end. This repository does not yet have
-  `@cloudflare/vitest-pool-workers`/Miniflare wired up. Re-evaluated at Stage 4 (the trigger
-  Stage 3 named for revisiting this) and still judged not worth the toolchain complexity: the
-  new security-critical logic (HMAC) is 100% covered by pure-function tests, the Vercel-side
-  domain logic needs no Workers-specific behaviour to test, and the remaining orchestration
-  glue is straightforward branch-on-success/failure logic. What substitutes for it today:
-  `npx wrangler deploy --dry-run` (bundles and validates bindings without touching
-  Cloudflare) and manual verification via `npm run dev:realtime` against a real local Worker
-  runtime. Revisit at Stage 6, which introduces genuinely hard-to-pure-function-test
-  Durable-Object-native behaviour (alarms, retry state machines).
+- **Stage 6 additions**: `classifyPersistenceFailure`/`computeBackoffDelayMs`/
+  `selectDueRetries`/`nextAlarmTime`/`evaluateReconciliation` (`state.ts`) are all pure and
+  fully covered the same way as every prior stage's decision logic. Beyond that,
+  `match-session-object.test.ts` exercises the *real* `MatchSessionObject` class end to end —
+  `webSocketMessage` → `dispatch` → `handleRecordEvent`/`handleAuthenticate`/`alarm()` — not a
+  reimplementation of its logic. This still does not use `@cloudflare/vitest-pool-workers`/
+  Miniflare (re-evaluated a third time at Stage 6, the trigger Stage 3/4 both named for
+  revisiting this — see ADR-0086's Stage 6 amendment for the fuller reasoning); instead,
+  `cloudflare:workers` (unresolvable outside the real Workers runtime) is mocked with a
+  minimal `DurableObject` base class, and Durable Object storage/WebSocket primitives are
+  hand-rolled in-memory fakes (a `Map`-backed storage supporting `get`/`put`/`delete`/
+  `setAlarm`/`deleteAlarm`/`getAlarm`, and a fake `WebSocket` supporting `serializeAttachment`/
+  `send`/`close`). Tickets are genuinely signed with the real `signRealtimeTicket` (pure
+  crypto, no I/O) rather than faked, so `verifyRealtimeTicket` inside `handleAuthenticate` is
+  exercised for real too. This proves the alarm sweep's actual storage mutations (retry count,
+  `nextRetryAt`, terminal vs. persisted transitions, alarm scheduling/clearing) and
+  reconciliation's actual effect on a subsequent `getSnapshot` call, using the real class —
+  meaningfully more than pure-function tests alone, without adopting the full Miniflare
+  toolchain. What this still doesn't cover: WebSocket upgrade handling and hibernation
+  survival themselves (the literal `WebSocketPair`/`ctx.acceptWebSocket` platform mechanics,
+  which have no Node equivalent to fake credibly) — `npx wrangler deploy --dry-run` and manual
+  verification via `npm run dev:realtime` against a real local Worker runtime remain the
+  substitute for that specific gap.
+- **Stage 7 additions**: a test confirming `useLiveRealtime.tryRecordEvent` falls through
+  (returns `null`, so `createLeagueActions.recordEvent` falls through to HTTP) on a
+  `PROTOCOL_UNSUPPORTED` rejection specifically, not just the generic-rejection case already
+  covered. Message-size and protocol-version enforcement themselves were already tested in
+  Stage 1 (`protocol-schemas.test.ts`).
+
+## Architecture walkthrough (SPEC.md §42)
+
+### The four concepts and how they relate
+
+- **`Match`** — the durable, canonical Matchboard fixture (Prisma model). Exists whether or
+  not it is ever reported live.
+- **`LiveMatchSession`** — one reporting session for a `Match` (start/end timestamps, status).
+  A `Match` may have zero or more `LiveMatchSession`s over time (e.g. a re-opened report).
+  This is the row `MatchSessionObject` authenticates against and the row `endSession`
+  ultimately reflects.
+- **`MatchSessionObject`** — the Cloudflare Durable Object actor coordinating exactly one
+  currently-active `LiveMatchSession` in real time (`env.MATCH_SESSIONS.idFromName(matchId)`
+  — keyed by `matchId`, so a match's object persists conceptually across a session's
+  start/end, but its *storage* is cleared and re-initialized each time a genuinely new session
+  authenticates — see "Version semantics" below).
+- **`MatchClientCapability`** — SPEC.md's name for the server→browser RPC interface
+  (`applySnapshot`/`applyEvent`/`eventPersistenceChanged`/`presenceChanged`/`sessionEnded`/
+  `forceResync`, `protocol.ts`'s `CLIENT_METHODS`) — not a permission concept despite the
+  name; ticket **capabilities** (`"report"`/`"view"`, a separate and unrelated string field on
+  the connection ticket) are what actually gates who may call `recordEvent`/`endSession`.
+
+### Responsibility boundaries
+
+| Layer | Answers | Never |
+|---|---|---|
+| IndexedDB (browser) | "What has this device recorded that Neon hasn't confirmed yet?" | Business truth beyond this one device's unsynced queue |
+| `MatchSessionObject` (Durable Object) | "Who's connected, what order were actions accepted in, what's still waiting on Neon?" | A second season history database — storage is minimal and short-lived (SPEC.md §15) |
+| Neon (via the internal API) | "What actually happened? Which events are canonical?" | Realtime coordination — Neon has no idea a WebSocket exists |
+
+**Why the Durable Object is not another source of business truth** (SPEC.md §42's own explicit
+requirement — ADR-0086's "What system of record still means" section makes the same argument
+in more detail, referenced rather than repeated here): the object's `version` counter and
+`AcceptedEventRecord` storage exist purely to answer realtime-coordination questions —
+ordering, dedup, "is this client caught up." Every one of those records is disposable: if the
+object were destroyed and recreated from scratch, `reconcileFromCanonicalSnapshot` would
+rebuild an equivalent (if renumbered) view purely from what Neon already has. Nothing a coach
+or parent ultimately sees — season stats, match reports, fairness calculations — ever reads
+from Durable Object storage; all of it reads Neon, via the exact same domain code
+(`recordEventForActor`, `getMatchEvents`, etc.) whether the event arrived via HTTP or realtime.
+
+### End-to-end flow
+
+```mermaid
+sequenceDiagram
+    participant IDB as IndexedDB
+    participant RC as RealtimeMatchClient
+    participant DO as MatchSessionObject
+    participant API as Vercel internal API
+    participant Neon
+
+    IDB->>IDB: save event (synced=false)
+    RC->>DO: recordEvent(clientEventId, baseVersion, event)
+    DO->>DO: evaluateRecordEvent (dedup, version, stale-state check)
+    DO-->>RC: applyEvent broadcast (immediate, optimistic)
+    DO->>API: POST /internal/live-match/events (HMAC-signed)
+    API->>API: verify signature, timestamp
+    API->>Neon: recordEventForActor (session/match/org check, dedup, write)
+    Neon-->>API: canonical event
+    API-->>DO: canonical event
+    DO->>DO: mark persisted
+    DO-->>RC: eventPersistenceChanged (persisted)
+    RC-->>IDB: mark synced=true
+```
+
+**Where HTTP fallback re-enters**: if `RC->>DO` never happens (no connection) or the RPC call
+itself throws, the browser calls the existing `recordLiveEventAction` (HTTP) directly instead
+— skipping the Durable Object entirely and going straight to the same `recordEventForActor` the
+internal API also calls. If the Durable Object *did* accept the event but the `DO->>API` leg
+failed (Vercel/Neon temporarily down), the browser's realtime result comes back
+`persistenceStatus: "pending"`, and Stage 5's client-side logic immediately also calls the
+HTTP path as a corrective write — safe regardless of whether the Durable Object's own attempt
+partially succeeded, because `recordEventForActor`'s `clientEventId` dedup means at most one
+canonical Neon row is ever created no matter how many paths attempt it (SPEC.md §22 Case E).
+Independently, Stage 6's alarm-driven retry (`alarm()`) will also keep attempting the same
+call on the Durable Object's own schedule until it succeeds or is classified terminal — the
+two retry paths (immediate client-side, and the Durable Object's own backoff) are complementary,
+not conflicting: whichever succeeds first wins, and the dedup makes either order safe.
+
+### Authentication flow
+
+1. Browser calls `POST /api/live-match/[matchId]/realtime-ticket` with `{ mode: "report" |
+   "view" }` — authenticated via the normal session cookie, authorized via
+   `requireMatchGroupMutationRole` (report) or `requireMatchGroupAccess` (view).
+2. Vercel issues a short-lived (60-120s) JWT ticket (`LIVE_MATCH_REALTIME_SECRET`) carrying
+   `userId`/`organisationId`/`matchId`/`sessionId`/`capabilities`.
+3. Browser opens a WebSocket to the Worker; the connection starts **unauthenticated** — the
+   only RPC it may call is `authenticate`.
+4. `authenticate` verifies the ticket, checks it matches the object's own routed `matchId` and
+   (if a session is already active) `sessionId`/`organisationId`, and — on first
+   authentication for a session — runs reconciliation (see below).
+5. Every subsequent RPC trusts only the connection's own server-attached identity
+   (`ConnectionAttachment`, populated once at authenticate time), never anything the browser
+   sends as RPC parameters (SPEC.md §13, §35).
+6. The Worker→Vercel leg is a *separate* trust boundary: `LIVE_MATCH_INTERNAL_SECRET` (never
+   the ticket secret) signs each request via HMAC-SHA256 over `<timestamp>.<raw body>` (or, for
+   the snapshot `GET`, `<timestamp>.<query string>` — binding the signature to exactly which
+   match/session is being asked for, not just that *some* valid Worker request arrived).
+
+### Version semantics
+
+The Durable Object's `version` counter is **coordination metadata**, not a business sequence
+number (SPEC.md §23) — it exists only so connected clients can detect gaps ("I'm at version 5,
+I just received version 8, I'm missing something — request a fresh snapshot") and so
+state-sensitive actions (period transitions, rotations) can be rejected as stale when another
+client already moved the match forward. It resets to 0 every time `evaluateAuthenticate`
+returns `"initialize"` — either a truly fresh object, or re-arming for a *new*
+`LiveMatchSession` after the previous one ended. `clientEventId` is the durable, cross-session
+idempotency key that survives this reset (it's what Neon's own dedup keys on); realtime
+`version` never is.
+
+### Failure handling summary
+
+| Failure | What happens |
+|---|---|
+| WebSocket unavailable | HTTP fallback handles everything; realtime never re-enters (SPEC.md §22 Case A) |
+| Durable Object accepts, Vercel/Neon down | Event stays `"pending"`; Stage 6 alarm retries with backoff; client-side immediate HTTP write also attempts it (§22 Case B) |
+| Domain-validation failure (4xx) | `"failed_terminal"` immediately, never retried, clients notified via `eventPersistenceChanged` |
+| Entire network down | IndexedDB records locally; replays on reconnect (§22 Case C/D) |
+| Duplicate delivery (HTTP + realtime both eventually try the same event) | `clientEventId` dedup guarantees exactly one canonical row (§22 Case E) |
+| Reconnect after being offline | Fresh ticket, reconnect, authenticate (reconciles if a new session), `getSnapshot`, replay unsynced local events (§27) |
+| Protocol version mismatch | `PROTOCOL_UNSUPPORTED`; browser falls through to HTTP exactly like any other RPC rejection |
+| Oversized message | Rejected before JSON parsing (`MESSAGE_TOO_LARGE`, 64 KiB limit, Stage 1) |
+| Match ends with pending events | Blocked (`PERSISTENCE_UNAVAILABLE`) until they resolve — never silently discarded (§29) |
+
+See "Local development" and "Deployed environments" above for the operational
+configuration side of this walkthrough.

@@ -94,7 +94,11 @@ export interface RecordEventCommand {
 
 export interface RecordEventResult {
   version: number;
-  persistenceStatus: "pending" | "persisted";
+  /** Stage 6 — `"failed_terminal"` is possible here (not just via the later
+   * `eventPersistenceChanged` callback) because the first persistence attempt happens
+   * synchronously within the same RPC call (Stage 4); a domain-validation failure is known
+   * immediately, not just after a later retry. */
+  persistenceStatus: "pending" | "persisted" | "failed_terminal";
 }
 
 /** SPEC.md §5.1 `syncPending` — minimal for Stage 1. */

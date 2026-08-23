@@ -7,6 +7,11 @@ import {
   evaluateEndSession,
   hasReportCapability,
   initialClockAnchor,
+  classifyPersistenceFailure,
+  computeBackoffDelayMs,
+  selectDueRetries,
+  nextAlarmTime,
+  evaluateReconciliation,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "../src/state";
@@ -29,6 +34,7 @@ function makeRecord(overrides: Partial<AcceptedEventRecord> = {}): AcceptedEvent
     version: 6,
     actorUserId: "user-1",
     acceptedAt: 1000,
+    eventType: "GOAL_FOR",
     persistenceStatus: "pending",
     retryCount: 0,
     ...overrides,
@@ -293,5 +299,101 @@ describe("evaluateEndSession", () => {
   it("ends cleanly when baseVersion matches and nothing is pending", () => {
     const decision = evaluateEndSession({ meta: makeMeta({ version: 10 }), baseVersion: 10, pendingCount: 0 });
     expect(decision.outcome).toBe("ended");
+  });
+});
+
+describe("classifyPersistenceFailure", () => {
+  it("classifies every 4xx as terminal — will never succeed on retry", () => {
+    expect(classifyPersistenceFailure(400)).toBe("terminal");
+    expect(classifyPersistenceFailure(401)).toBe("terminal");
+    expect(classifyPersistenceFailure(422)).toBe("terminal");
+    expect(classifyPersistenceFailure(499)).toBe("terminal");
+  });
+
+  it("classifies 5xx, and no response at all, as retryable", () => {
+    expect(classifyPersistenceFailure(500)).toBe("retryable");
+    expect(classifyPersistenceFailure(503)).toBe("retryable");
+    expect(classifyPersistenceFailure(undefined)).toBe("retryable");
+  });
+});
+
+describe("computeBackoffDelayMs", () => {
+  it("doubles with each retry count, starting from a 1s base", () => {
+    expect(computeBackoffDelayMs(0)).toBe(1000);
+    expect(computeBackoffDelayMs(1)).toBe(2000);
+    expect(computeBackoffDelayMs(2)).toBe(4000);
+    expect(computeBackoffDelayMs(3)).toBe(8000);
+  });
+
+  it("caps the delay rather than growing unbounded", () => {
+    expect(computeBackoffDelayMs(10)).toBe(60_000);
+    expect(computeBackoffDelayMs(30)).toBe(60_000);
+  });
+});
+
+describe("selectDueRetries", () => {
+  it("selects only pending events whose nextRetryAt has arrived", () => {
+    const events: AcceptedEventRecord[] = [
+      makeRecord({ clientEventId: "due", persistenceStatus: "pending", nextRetryAt: 1000 }),
+      makeRecord({ clientEventId: "not-due-yet", persistenceStatus: "pending", nextRetryAt: 5000 }),
+      makeRecord({ clientEventId: "never-failed", persistenceStatus: "pending", nextRetryAt: undefined }),
+      makeRecord({ clientEventId: "already-persisted", persistenceStatus: "persisted", nextRetryAt: 500 }),
+      makeRecord({ clientEventId: "terminal", persistenceStatus: "failed_terminal", nextRetryAt: 500 }),
+    ];
+
+    const due = selectDueRetries(events, 2000);
+    expect(due.map((e) => e.clientEventId)).toEqual(["due"]);
+  });
+});
+
+describe("nextAlarmTime", () => {
+  it("returns the minimum nextRetryAt across pending events", () => {
+    const events: AcceptedEventRecord[] = [
+      makeRecord({ clientEventId: "a", persistenceStatus: "pending", nextRetryAt: 5000 }),
+      makeRecord({ clientEventId: "b", persistenceStatus: "pending", nextRetryAt: 2000 }),
+      makeRecord({ clientEventId: "c", persistenceStatus: "persisted", nextRetryAt: 500 }),
+    ];
+    expect(nextAlarmTime(events)).toBe(2000);
+  });
+
+  it("returns null when nothing is pending a retry (do not keep the object awake needlessly)", () => {
+    const events: AcceptedEventRecord[] = [
+      makeRecord({ clientEventId: "a", persistenceStatus: "persisted" }),
+      makeRecord({ clientEventId: "b", persistenceStatus: "pending", nextRetryAt: undefined }),
+    ];
+    expect(nextAlarmTime(events)).toBeNull();
+  });
+});
+
+describe("evaluateReconciliation", () => {
+  it("assigns new versions only to events this object has never seen, in snapshot order", () => {
+    const result = evaluateReconciliation({
+      currentVersion: 3,
+      knownClientEventIds: new Set(["known-1"]),
+      canonicalEvents: [
+        { clientEventId: "known-1", id: "canon-1", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" },
+        { clientEventId: "unknown-1", id: "canon-2", eventType: "GOAL_AGAINST", createdAt: "2026-08-23T00:00:01.000Z" },
+        { clientEventId: "unknown-2", id: "canon-3", eventType: "PERIOD_START", createdAt: "2026-08-23T00:00:02.000Z" },
+      ],
+    });
+
+    expect(result.finalVersion).toBe(5);
+    expect(result.newRecords).toEqual([
+      expect.objectContaining({ clientEventId: "unknown-1", version: 4, persistenceStatus: "persisted", canonicalEventId: "canon-2" }),
+      expect.objectContaining({ clientEventId: "unknown-2", version: 5, persistenceStatus: "persisted", canonicalEventId: "canon-3" }),
+    ]);
+  });
+
+  it("is a no-op when every canonical event is already known", () => {
+    const result = evaluateReconciliation({
+      currentVersion: 7,
+      knownClientEventIds: new Set(["a", "b"]),
+      canonicalEvents: [
+        { clientEventId: "a", id: "canon-a", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" },
+        { clientEventId: "b", id: "canon-b", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:01.000Z" },
+      ],
+    });
+    expect(result.finalVersion).toBe(7);
+    expect(result.newRecords).toEqual([]);
   });
 });
