@@ -70,10 +70,19 @@ ALTER TABLE "EventPostMatchPlayer" ALTER COLUMN "attendanceStatus" SET DEFAULT '
 -- anywhere else in this schema and would force app code to juggle two representations for no
 -- benefit). Display formatting moves to src/lib/formatters/event-labels.ts, matching the
 -- established pattern for every other enum's human-readable label.
+--
+-- The CHECK constraint added in 20260802120000 only allows the OLD human-readable strings
+-- ('GK cover', ... 'General cover'). It must be dropped BEFORE the UPDATE statements below run,
+-- not after — an UPDATE that rewrites a value to the NEW SCREAMING_SNAKE_CASE form is itself
+-- checked against whatever constraint is active at that moment. Doing the rename first (as this
+-- migration originally did) fails against any real 'General cover' row with
+-- "violates check constraint EventMatchSupportAssignment_plannedRole_check" — confirmed by a real
+-- production failure (see ADR-0084 History) that CI/local never caught because neither had a row
+-- with that value in this column, so the buggy ordering was never exercised.
+ALTER TABLE "EventMatchSupportAssignment" DROP CONSTRAINT IF EXISTS "EventMatchSupportAssignment_plannedRole_check";
 UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'GK_COVER' WHERE "plannedRole" = 'GK cover';
 UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'DEFENDER_COVER' WHERE "plannedRole" = 'Defender cover';
 UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'MIDFIELD_COVER' WHERE "plannedRole" = 'Midfield cover';
 UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'FORWARD_COVER' WHERE "plannedRole" = 'Forward cover';
 UPDATE "EventMatchSupportAssignment" SET "plannedRole" = 'GENERAL_COVER' WHERE "plannedRole" = 'General cover';
-ALTER TABLE "EventMatchSupportAssignment" DROP CONSTRAINT IF EXISTS "EventMatchSupportAssignment_plannedRole_check";
 ALTER TABLE "EventMatchSupportAssignment" ALTER COLUMN "plannedRole" TYPE "EventMatchSupportRole" USING ("plannedRole"::"EventMatchSupportRole");

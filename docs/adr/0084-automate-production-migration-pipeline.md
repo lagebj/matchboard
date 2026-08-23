@@ -174,3 +174,36 @@ same now-rejected `migrate diff --exit-code` command.
 - 2026-08-21: First live run failed on secret scoping (see "Secret scoping" above). Fixed same day
   by provisioning `matchboard_migration_status`, a minimal read-only role, and a new repo-level
   `PRODUCTION_DATABASE_URL_STATUS_CHECK` secret for the `check` job specifically.
+- 2026-08-23: The pipeline's first real FAILED-migration incident. `platform-integrity-programme`'s
+  closure PR (#337) shipped `20260822160000_enum_fields_native_postgres_enums`, which renames
+  `EventMatchSupportAssignment.plannedRole` values from human-readable labels ('GK cover', ...)
+  to SCREAMING_SNAKE_CASE enum keys ('GK_COVER', ...) via `UPDATE` statements, then converts the
+  column to a real Postgres enum. The migration dropped the OLD check constraint (added in
+  `20260802120000_add_enum_check_constraints`, which only allows the human-readable labels) *after*
+  those `UPDATE` statements instead of before. Locally and in CI this was invisible — neither
+  database had a row with `plannedRole = 'General cover'` to exercise the bug — but production did,
+  and the `migrate` job failed with `P3018`: `new row for relation "EventMatchSupportAssignment"
+  violates check constraint "EventMatchSupportAssignment_plannedRole_check"`. Prisma then marked
+  the migration FAILED in its bookkeeping (`_prisma_migrations`), which blocks `migrate deploy`
+  from attempting anything else until explicitly resolved (`prisma migrate resolve`) — exactly the
+  "migration stuck in a failed state" case this ADR's `check` job design already anticipated
+  (see "Decision" above, item 1's bullet on `check`'s exit-non-zero conditions) but never built a
+  recovery path for.
+
+  Fixed the migration file itself (reordered: `DROP CONSTRAINT` now runs before the value-renaming
+  `UPDATE`s) and added the actual missing recovery path: `production-db-migrate.yml` gained a
+  `workflow_dispatch` `resolve_migration`/`resolve_mode` input pair and a new
+  `resolve-failed-migration` job (gated by the same `production-db` environment approval as every
+  other production-touching job — no new approval mechanism, reusing the existing one per this
+  ADR's "What did not change" section) that runs `prisma migrate resolve` on demand.
+  `check-pending-migrations.mjs` also gained explicit detection of Prisma's "Following migration
+  have failed:" output format (previously fell through to a generic "could not parse output"
+  failure, which was safe — it still refused to proceed blind — but didn't tell the approver what
+  was actually wrong or how to fix it).
+
+  This does not change any earlier consequence of this ADR: the `migrate` job is still the only
+  job that ever mutates production, still requires the same human approval, and `prisma migrate
+  dev` is still never run anywhere near production. It only adds a way to clear Prisma's own
+  failed-migration bookkeeping — a metadata operation, not a schema/data change — through the same
+  authenticated, approval-gated pipeline instead of requiring an out-of-band manual command against
+  production credentials this pipeline was specifically built to avoid.
