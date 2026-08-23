@@ -207,3 +207,35 @@ not artificially triggered early, since a real close is the same signal either w
   stuck. Both checks fail open (deploy) on any ambiguity — an empty diff, a missing previous SHA,
   or an unreadable compare response all default to building rather than silently skipping a real
   change.
+- 2026-08-23: **The persistent Neon "test" parent branch itself was never migrated by anything.**
+  `deploy.sh` migrates each PR's isolated *child* branch, forked fresh from "test" — but nothing
+  ever ran `prisma migrate deploy` against "test" directly, so it silently fell behind every time
+  a migration merged to main. This surfaced as four consecutive PRs (#337–#340) all failing the
+  same 7 Playwright specs on `Deploy PR to Test slot`, misdiagnosed at first as "known flake"
+  because a `pull_request: closed` event's cleanup-only job (`acceptance-cleanup`, which does no
+  testing) was mistaken for a genuine successful retry in the GitHub Actions run list — a real
+  investigation only started once someone pointed out this couldn't just be flake. Directly
+  confirmed via read-only queries against the actual persistent branch (using
+  `TEST_DATABASE_DIRECT_URL`, the `matchboard_admin_migration`-role credential already present —
+  commented out — in `.env`): 3 pending migrations, and separately, `coach-all-a`'s `User` row
+  existed with **zero** organisation memberships, alongside 2 other orphaned users, 3
+  `Organisation` rows, and 0 rows in `Team`/`Player`/`Match`/every other seeded table. This is the
+  exact signature of a `seed-test-dataset.ts` run that started (created users/orgs) and then
+  crashed before finishing (memberships/groups/teams/players) — almost certainly a run predating
+  the `max: 1` connection-pool fix documented in this repo's own operator memory
+  (`scripts/seed-test-dataset.ts`'s `createAdapter()` comment), never re-run to completion since.
+  `getOrgSlugForUser()`/`resolveOrgFilterForUser()` correctly redirect a zero-membership user to
+  `/organisations` — the *auth code* was working exactly as designed against genuinely corrupt
+  data, not buggy.
+
+  Fixed in two parts: (1) immediate remediation — applied the 3 pending migrations directly, then
+  ran the existing `restore-test-baseline` swamp procedure (`docs/development/swamp-workflows.md`)
+  to fully re-seed the branch from scratch, restoring `coach-all-a` to its correct single-org
+  state (confirmed by direct query afterward) and repopulating all other tables (70 players, 7
+  teams, 7 matches). (2) structural fix — added `.github/workflows/test-db-migrate.yml`, triggered
+  the same way as `production-db-migrate.yml` (after CI succeeds on push to `main`, plus a
+  `workflow_dispatch` fallback), running `prisma migrate deploy` against the persistent branch via
+  a new `TEST_DATABASE_DIRECT_URL` repository secret. Deliberately no approval gate (unlike
+  production) — this is disposable, fully-reseedable test data, and deliberately migration-only —
+  it never reseeds automatically; reseeding stays a separate, deliberate, human-invoked
+  `restore-test-baseline` call.

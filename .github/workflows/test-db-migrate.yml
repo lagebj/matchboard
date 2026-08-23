@@ -1,0 +1,83 @@
+name: Test DB Migration
+
+run-name: >-
+  Test DB migration (${{ github.event_name == 'workflow_run' && 'auto after CI' || 'manual' }})
+
+# Keeps the persistent Neon "test" branch up to date with the migration history on main.
+#
+# This branch is not the same thing as any CI job's own database: `ci-checks.yml`'s "Tests" job
+# spins up a fresh, disposable postgres:17 service container per run (always migrated from zero,
+# never at risk of drift). The persistent "test" branch is a different, longer-lived resource:
+# every per-PR Test-slot deploy (test-acceptance.yml, ADR-0075) forks an isolated Neon *child*
+# branch from it and migrates only that child — never the parent itself. Before this workflow
+# existed, nothing ever migrated the parent directly, so it silently fell behind every time a new
+# migration merged to main. Confirmed live, 2026-08-23: this branch was 3 migrations behind and,
+# separately, had a partially-seeded dataset (2 orphaned users, 0 memberships) left over from an
+# old pre-fix seed run (see docs/adr/0075's History) — both were masquerading as "Test-slot
+# flake" across four consecutive PRs before being root-caused and fixed by hand.
+#
+# No approval gate, unlike production-db-migrate.yml: this targets disposable, canonical test
+# data (scripts/seed-test-dataset.ts, invoked via the `restore-test-baseline` swamp procedure,
+# fully re-seeds it from scratch on demand) — a bad migration here has none of the blast radius a
+# bad production migration has, so a human-approval checkpoint on every routine run would be pure
+# friction with no matching safety benefit. This workflow only ever runs `prisma migrate deploy`
+# (schema, additive) — it never reseeds data; reseeding remains a deliberate, separate,
+# human-invoked action (`restore-test-baseline`), not something that happens automatically on
+# every push to main.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-database
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate persistent test branch
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-24.04
+    env:
+      NODE_ENV: test
+      TEST_DATABASE_DIRECT_URL: ${{ secrets.TEST_DATABASE_DIRECT_URL }}
+    steps:
+      - name: Resolve ref to migrate
+        id: resolve-ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ steps.resolve-ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply pending migrations to the persistent test branch
+        run: npm run db:migrate
+
+      - name: Verify all migrations are applied
+        run: npx prisma migrate status

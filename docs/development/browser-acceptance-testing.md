@@ -94,6 +94,23 @@ A separate `e2e` job in `.github/workflows/ci-checks.yml` runs on every push/PR,
 local runs — there is no separate CI-only environment for this. The job is decoupled from
 `build`'s `needs:` (a slow/flaky Test-slot-dependent job shouldn't block the build check).
 
+### Keeping the persistent test branch migrated
+
+Each PR's `test-acceptance.yml` deploy forks an isolated Neon *child* branch from the
+persistent `test` branch and migrates only that child (ADR-0075) — nothing ever migrated the
+parent branch itself until `.github/workflows/test-db-migrate.yml` was added
+(2026-08-23, see ADR-0075's History). That workflow runs `prisma migrate deploy` against the
+persistent branch automatically after every CI success on `main`. If a fresh per-PR fork or a
+local devcontainer run (pointed at the same branch via ambient `TEST_DATABASE_URL`) starts
+failing with `type "X" does not exist` or similar schema-mismatch errors across many unrelated
+specs, suspect this branch falling behind before assuming a real regression — check whether
+`test-db-migrate.yml` has run recently and successfully.
+
+That workflow only ever migrates schema — it never reseeds data. If the persistent branch's
+canonical dataset itself becomes corrupted (e.g. a crashed seed run leaving partial data —
+this happened for real, 2026-08-23, see ADR-0075's History), the fix is the `restore-test-baseline`
+swamp procedure (`docs/development/swamp-workflows.md`), not this workflow.
+
 The job deliberately does **not** set `BYPASS_AUTH` — see ARR-0021
 (`docs/arr/0021-ci-bypass-auth-env-var-residue.md`), which records that other CI/test config
 files still do despite ADR-0067 stating the mechanism was fully removed. Don't copy that pattern
