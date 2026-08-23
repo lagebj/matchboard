@@ -193,6 +193,55 @@ establish the Vercel↔Worker trust boundary, distributed manually the same way 
 already is, via Vercel's dashboard and Wrangler/Cloudflare's dashboard — no vault is
 introduced.
 
+### Amendment: "Follow live" read-only viewer capability
+
+Maintainer-directed scope beyond the original SPEC.md (see History): a second coach with
+group-level access to a match, distinct from the coach actually reporting it, can open a
+read-only "Follow live" view and see the match update as it happens. This reuses the
+existing `FootballGroup`/`GroupAccess` authorization model — `GROUP_COACH` (mutation) vs
+`GROUP_VIEWER` (read-only) — rather than introducing a new one, and reuses the ticket's
+already-generic `capabilities: string[]` field (left deliberately unrefined in Stage 2 for
+exactly this kind of later branching):
+
+- `POST /api/live-match/[matchId]/realtime-ticket` accepts `{ mode: "report" | "view" }`
+  (defaults to `"report"` for backward compatibility). `"report"` requires org-level
+  mutation role plus `GROUP_COACH` specifically on the match's group (new
+  `requireMatchGroupMutationRole()` — see the authorization fix below) and issues
+  `capabilities: ["report"]`. `"view"` requires only `GROUP_COACH`-or-`GROUP_VIEWER` group
+  access (existing `requireMatchGroupAccess()`) and issues `capabilities: ["view"]`.
+- `MatchSessionObject` now persists a connection's `capabilities` in its hibernation-safe
+  attachment and rejects `recordEvent`/`endSession` (`FORBIDDEN`) from any connection whose
+  capabilities don't include `"report"` — previously nothing checked capabilities at all,
+  so any authenticated connection could mutate regardless of which ticket mode issued it.
+  `authenticate`/`getSnapshot`/`syncPending` remain available to any authenticated
+  connection; broadcasts (`applyEvent`/`presenceChanged`/`sessionEnded`) already reached
+  every connection and needed no change.
+- The reporting coach's page (`league-live-match-client.tsx`) now also opens a `"report"`-
+  mode realtime connection and best-effort broadcasts each recorded event to the Worker,
+  purely so "Follow live" viewers see it — this is **not** Stage 4's signed Worker→Vercel
+  persistence path. Neon persistence continues exactly as today via the existing HTTP
+  action (`recordLiveEventAction`); the realtime broadcast is a strictly additive
+  side-channel that silently no-ops if the connection is unavailable, matching this ADR's
+  kill-switch principle. A future Stage 4 implementation must not mistake this fire-and-
+  forget call for the real persistence integration.
+- PWA push notifications (surfacing a "Follow live" update when the app isn't open) were
+  explicitly considered and deferred — this remains an in-browser-only capability, no
+  service worker, no Web Push, per `AGENTS.md`'s PWA section's existing v1 scope boundary.
+
+### Authorization fix: group-role was not checked for live match mutation
+
+Discovered while scoping the above, not introduced by it: `requireMatchGroupAccess()` (used
+by every live-match mutation action) only checks whether a membership has *any*
+`GroupAccess` row for the match's group — it never distinguished `GROUP_COACH` from
+`GROUP_VIEWER`. A membership with org role COACH (a mutation-capable org role) but only
+`GROUP_VIEWER` access to a specific group could therefore start/record/end live sessions
+for that group, which defeats the point of the `GROUP_VIEWER` role. Fixed by adding
+`requireMatchGroupMutationRole(ctx, matchId)` (`src/lib/auth/actor-context.ts`), called
+alongside the existing check (not replacing it) in every live-match mutation action and in
+the ticket route's `"report"` path. `endLiveSessionAction` additionally had an
+authorize-after-mutate ordering bug (it called `endLiveSession()` before either group check
+ran) — fixed by resolving the session's `matchId` and authorizing first.
+
 ## Consequences
 
 - Matchboard gains a second deployment target (Cloudflare Workers) alongside Vercel/Neon,
@@ -241,3 +290,7 @@ introduced.
   attached) rather than assumed, per this programme's standing rule against guessing at
   external provider state. No Worker/Durable Object code exists yet; this ADR unblocks Stage
   3 implementation, it is not a record of that implementation having happened.
+- 2026-08-23: Amended to add the "Follow live" read-only viewer capability and fix the
+  group-role authorization gap described above — both maintainer-directed, beyond the
+  original SPEC.md's 7-stage scope. PWA push notifications were discussed and explicitly
+  deferred in the same conversation (in-browser viewing only for now).

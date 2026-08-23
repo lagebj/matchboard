@@ -5,6 +5,7 @@ import {
   evaluateRecordEvent,
   evaluateSyncPending,
   evaluateEndSession,
+  hasReportCapability,
   initialClockAnchor,
   type SessionMeta,
   type AcceptedEventRecord,
@@ -256,6 +257,20 @@ describe("evaluateSyncPending", () => {
 
   it("returns an empty list when nothing matches", () => {
     expect(evaluateSyncPending(["x"], new Map())).toEqual([]);
+  });
+});
+
+describe("hasReportCapability", () => {
+  it("allows a connection whose capabilities include report", () => {
+    expect(hasReportCapability(["report"])).toBe(true);
+  });
+
+  it("rejects a view-only connection", () => {
+    expect(hasReportCapability(["view"])).toBe(false);
+  });
+
+  it("rejects a connection with no capabilities at all", () => {
+    expect(hasReportCapability([])).toBe(false);
   });
 });
 

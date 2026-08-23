@@ -7,25 +7,46 @@ of that using a Cloudflare Worker + Durable Object per active match. See
 decision (why Cloudflare Durable Objects, the trust boundary, the Free-plan design, and the
 HTTP-fallback rollback story) before changing anything here.
 
-## Current status: Stage 3 only
+## Current status: Stage 3 + "Follow live" viewer
 
-This is being delivered in stages (see the ADR's linked programme spec). As of this document:
+This is being delivered in stages (see the ADR's linked programme spec), plus one
+maintainer-directed addition beyond the original stage plan. As of this document:
 
 - **Shipped**: Stage 1 (protocol types, browser realtime client abstraction — `src/lib/
   live-match/realtime/`) and Stage 2 (`/api/live-match/[matchId]/realtime-ticket`, short-lived
   connection tickets).
-- **Shipped in this change**: Stage 3 — the Cloudflare Worker and `MatchSessionObject`
-  Durable Object (`workers/live-match/`). One object per match, WebSocket Hibernation API,
+- **Shipped**: Stage 3 — the Cloudflare Worker and `MatchSessionObject` Durable Object
+  (`workers/live-match/`). One object per match, WebSocket Hibernation API,
   `authenticate`/`getSnapshot`/`recordEvent`/`syncPending`/`endSession` RPC handling, session
   versioning, minimal presence.
+- **Shipped in this change**: "Follow live" — a read-only viewer capability (ADR-0086's
+  amendment), beyond Stage 3's original scope. A ticket is now issued in one of two modes:
+  - `mode: "report"` (default, existing behavior) — the coach actually running the match.
+    Requires org mutation role **and** `GROUP_COACH` role on the match's `FootballGroup`
+    (`requireMatchGroupMutationRole()`, new — closes a gap where a `GROUP_VIEWER`-role coach
+    with an org-mutation-capable role could otherwise report). Capability: `["report"]`.
+  - `mode: "view"` — a second coach following along read-only. Requires only group access
+    (`GROUP_COACH` or `GROUP_VIEWER`, no org-mutation-role requirement). Capability:
+    `["view"]`.
+  `MatchSessionObject` now enforces capabilities server-side: `recordEvent`/`endSession`
+  reject any connection without `"report"` (previously unenforced — any authenticated
+  connection could mutate). The reporting page
+  (`src/components/live-match/league-live-match-client.tsx`) opens a `"report"`-mode
+  connection and best-effort broadcasts each event to the Worker purely so viewers see it —
+  Neon persistence is unaffected, still happening via the existing HTTP action. The viewer
+  itself is `src/components/live-match/follow-live-client.tsx`, reached via "Follow live" on
+  the match detail page (shown only when a session is `ACTIVE` and the coach has at least
+  `GROUP_VIEWER` access — enforced server-side, not just hidden in the UI).
 - **Not yet implemented**: canonical event persistence. `recordEvent` durably accepts an
-  event and assigns it a realtime version, but nothing ever reaches Neon yet —
-  `persistenceStatus` stays `"pending"` forever until a future stage adds the signed
+  event and assigns it a realtime version, but nothing ever reaches Neon through the realtime
+  path — `persistenceStatus` stays `"pending"` forever until a future stage adds the signed
   Worker→Vercel internal API. A direct, intentional consequence: `endSession` can only
-  succeed today for a session that recorded zero events. Nothing in the existing browser UI
-  calls any of this yet — `RealtimeMatchClient` (Stage 1) is not wired into
-  `recordEventLocallyFirst()` until a later stage, so this change has no effect on normal
-  live match reporting.
+  succeed today for a session that recorded zero events. This does not affect "Follow live"
+  or the reporting coach's actual persistence, both of which are already independently
+  described above.
+- **Explicitly out of scope**: PWA push notifications (service worker, Web Push) — discussed
+  and deferred; "Follow live" is in-browser only for now, per `AGENTS.md`'s PWA section's
+  existing v1 scope boundary.
 
 ## Local development
 
