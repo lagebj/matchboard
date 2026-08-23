@@ -207,3 +207,37 @@ same now-rejected `migrate diff --exit-code` command.
   failed-migration bookkeeping — a metadata operation, not a schema/data change — through the same
   authenticated, approval-gated pipeline instead of requiring an out-of-band manual command against
   production credentials this pipeline was specifically built to avoid.
+
+- 2026-08-23 (same day, second finding): resolving the FAILED bookkeeping above and re-running
+  `migrate deploy` failed again, differently: `Error: P1... type "PostMatchAttendanceStatus"
+  already exists` (Postgres code 42710) on the very *first* statement in the migration file. This
+  disproved an assumption made while writing the first fix: that Prisma wraps an entire
+  `migration.sql` file in one all-or-nothing transaction, so a mid-file failure would leave the
+  database exactly as it was before the attempt. It does not. Confirmed directly: every `CREATE
+  TYPE` and every field conversion before the `EventMatchSupportAssignment.plannedRole` block (the
+  last block in the file, where the original bug lived) had already committed successfully during
+  the *first* failed attempt — only the final block never got a chance to run. Prisma's own
+  `migrate resolve --rolled-back` vs `--applied` choice was itself the tell this was missed the
+  first time: Prisma cannot know whether a failed migration's DDL actually rolled back, which is
+  exactly why it asks the operator to say which happened, rather than checking automatically.
+
+  Fixed by making the migration file idempotent/resumable from any partial-failure point rather
+  than assuming a clean slate: each `CREATE TYPE` wrapped in a `DO $$ ... EXCEPTION WHEN
+  duplicate_object THEN NULL; END $$;` guard, and the two blocks with value-*rewriting* `UPDATE`s
+  (`EventPostMatchPlayer.attendanceStatus`'s `'ABSENT'` → `'NO_SHOW'` fix, and
+  `EventMatchSupportAssignment.plannedRole`'s five label renames) guarded to only run while their
+  column is still `text` — re-running either after the column is already the target enum type
+  would itself error (`invalid input value for enum`), since the old string values are not valid
+  labels of the new enum. Every other statement in the file (`DROP CONSTRAINT IF EXISTS`, `DROP
+  DEFAULT`, `ALTER COLUMN TYPE ... USING` as a same-type self-cast, `SET DEFAULT`) was already
+  naturally idempotent and needed no change — verified by re-deriving, from the exact error message
+  and the file's linear top-to-bottom statement order, precisely which statements the first failed
+  attempt reached and which it did not, rather than guessing.
+
+  Verified locally before touching production again, against two disposable scratch databases (not
+  the shared Neon branches): (1) the corrected file applies cleanly from a fully fresh
+  86-migration-from-zero state, and (2) applying only the first 85 migrations, then manually
+  reproducing the exact partial-commit state the first failed attempt left behind (all six enum
+  types plus all seven other field conversions applied, `plannedRole` still original text with a
+  real `'General cover'` row and the old check constraint), the corrected migration completes
+  cleanly and the row correctly ends up as `'GENERAL_COVER'`.
