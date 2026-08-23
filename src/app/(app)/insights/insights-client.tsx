@@ -9,6 +9,12 @@ import {
   GitCompare,
   ShieldAlert,
   Table2,
+  ListChecks,
+  TrendingDown,
+  Repeat,
+  Users2,
+  Shuffle,
+  Activity,
 } from "lucide-react";
 import type { InsightOverview } from "@/lib/insights/insights-types";
 
@@ -66,6 +72,42 @@ const SURFACE_CARDS = [
     icon: CalendarRange,
     label: "Conflict Review",
     description: "Overlapping selections, helper conflicts, and double-planned players across rounds",
+  },
+  {
+    href: "/insights/opportunity-quality",
+    icon: ListChecks,
+    label: "Opportunity Quality",
+    description: "Factual context for every planned opportunity — team, role, position, and realised attendance",
+  },
+  {
+    href: "/insights/opportunity-gap",
+    icon: TrendingDown,
+    label: "Opportunity Gap",
+    description: "Planned vs realised opportunity over a period — descriptive, not a debt score",
+  },
+  {
+    href: "/insights/position-exposure",
+    icon: Repeat,
+    label: "Position & Formation Exposure",
+    description: "Planned lineup slots and realised positions per player — unused assignments don't count",
+  },
+  {
+    href: "/insights/player-combinations",
+    icon: Users2,
+    label: "Player Combinations",
+    description: "Co-selection and co-appearance frequency between players — frequency is not effectiveness",
+  },
+  {
+    href: "/insights/continuity",
+    icon: Shuffle,
+    label: "Continuity vs Exploration",
+    description: "Round-over-round retained vs new players and formation repeats per team",
+  },
+  {
+    href: "/insights/operational-health",
+    icon: Activity,
+    label: "Operational Health",
+    description: "Concrete grouped facts about planning state — incomplete lineups, missing reports, stale assignments",
   },
 ];
 

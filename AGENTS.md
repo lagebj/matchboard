@@ -1225,6 +1225,12 @@ Other canonical routes:
 | `/o/{orgSlug}/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
 | `/o/{orgSlug}/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
 | `/o/{orgSlug}/insights/player-pathways` | Player Pathways — season matrix, context transitions, fairness overview |
+| `/o/{orgSlug}/insights/opportunity-quality` | Opportunity Quality (I-002) — factual per-opportunity record |
+| `/o/{orgSlug}/insights/opportunity-gap` | Opportunity Gap (I-003) — descriptive planned-vs-realised gap, not a debt score |
+| `/o/{orgSlug}/insights/position-exposure` | Position & Formation Exposure (I-004) — planned vs realised positions per player |
+| `/o/{orgSlug}/insights/player-combinations` | Player Combinations (I-005) — co-selection/co-appearance frequency |
+| `/o/{orgSlug}/insights/continuity` | Continuity vs Exploration (I-006) — round-over-round retained/new players and formation repeats |
+| `/o/{orgSlug}/insights/operational-health` | Operational Health (I-007) — 9 grouped concrete facts, no composite score |
 | `/o/{orgSlug}/more` | More — hub page linking Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews (plus Simulation/Workbench for admin roles) |
 
 Setup registry create routes (no top-level nav):
@@ -2376,6 +2382,36 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/app/(app)/insights/planned-vs-actual/planned-vs-actual-client.tsx` | Planned vs Actual interactive client component |
 | `src/app/(app)/insights/conflicts/page.tsx` | Conflict Review page |
 | `src/app/(app)/insights/conflicts/conflict-review-client.tsx` | Conflict Review interactive client component |
+| `src/lib/insights/opportunity-quality.ts` | I-002: `getOpportunityQuality()` — one factual record per planned opportunity (team, opponent, role, position, realised attendance) |
+| `src/lib/insights/opportunity-quality-helpers.ts` | Pure helpers: support-burden counts, attendance label formatting |
+| `src/app/api/insights/opportunity-quality/route.ts` | GET `/api/insights/opportunity-quality` — opportunity quality API |
+| `src/app/(app)/insights/opportunity-quality/page.tsx` | Opportunity Quality page |
+| `src/app/(app)/insights/opportunity-quality/opportunity-quality-client.tsx` | Opportunity Quality interactive client component |
+| `src/lib/insights/opportunity-gap.ts` | I-003: `getOpportunityGap()` — descriptive planned-vs-realised gap per player, not a debt score |
+| `src/lib/insights/opportunity-gap-helpers.ts` | Pure helpers: gap sorting, has-gap predicate |
+| `src/app/api/insights/opportunity-gap/route.ts` | GET `/api/insights/opportunity-gap` — opportunity gap API |
+| `src/app/(app)/insights/opportunity-gap/page.tsx` | Opportunity Gap page |
+| `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Opportunity Gap interactive client component |
+| `src/lib/insights/position-exposure.ts` | I-004: `getPositionExposure()` — planned lineup slots vs realised positions; unused lineup assignments are not realised exposure |
+| `src/lib/insights/position-exposure-helpers.ts` | Pure helpers: frequency counting, top-position lookup, evidence-completeness formatting |
+| `src/app/api/insights/position-exposure/route.ts` | GET `/api/insights/position-exposure` — position exposure API |
+| `src/app/(app)/insights/position-exposure/page.tsx` | Position & Formation Exposure page |
+| `src/app/(app)/insights/position-exposure/position-exposure-client.tsx` | Position & Formation Exposure interactive client component |
+| `src/lib/insights/player-combinations.ts` | I-005: `getPlayerCombinations()` — co-selection/co-appearance frequency per player pair; frequency is not effectiveness |
+| `src/lib/insights/player-combinations-helpers.ts` | Pure helpers: order-independent pair keying |
+| `src/app/api/insights/player-combinations/route.ts` | GET `/api/insights/player-combinations` — player combinations API |
+| `src/app/(app)/insights/player-combinations/page.tsx` | Player Combinations page |
+| `src/app/(app)/insights/player-combinations/player-combinations-client.tsx` | Player Combinations interactive client component |
+| `src/lib/insights/continuity-review.ts` | I-006: `getContinuityReview()` — round-over-round retained/new players and formation repeats per team; no prescribed ideal balance |
+| `src/lib/insights/continuity-review-helpers.ts` | Pure helpers: continuity ratio, formation-change formatting |
+| `src/app/api/insights/continuity/route.ts` | GET `/api/insights/continuity` — continuity review API |
+| `src/app/(app)/insights/continuity/page.tsx` | Continuity vs Exploration page |
+| `src/app/(app)/insights/continuity/continuity-review-client.tsx` | Continuity vs Exploration interactive client component |
+| `src/lib/insights/operational-health.ts` | I-007: `getOperationalHealth()` — 9 concrete grouped facts (incomplete lineups, stale assignments, missing reports, unresolved reviews, unowned upcoming work, expiring support access, availability conflicts, invalid rotation paths, finalisation checkpoints); no composite score |
+| `src/lib/insights/operational-health-helpers.ts` | Category labels, total-count helper |
+| `src/app/api/insights/operational-health/route.ts` | GET `/api/insights/operational-health` — operational health API |
+| `src/app/(app)/insights/operational-health/page.tsx` | Operational Health page |
+| `src/app/(app)/insights/operational-health/operational-health-client.tsx` | Operational Health interactive client component |
 
 ### Player Pathways files
 
