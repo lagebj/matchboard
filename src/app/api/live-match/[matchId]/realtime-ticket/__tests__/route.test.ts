@@ -1,10 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { verifyRealtimeTicket } from "@/lib/live-match/realtime/realtime-ticket";
+import { AuthorizationError } from "@/lib/auth";
 
-const { mockRequireActorContext, mockRequireMutationRole, mockRateLimit, mockDb } = vi.hoisted(() => ({
+const {
+  mockRequireActorContext,
+  mockRequireMutationRole,
+  mockRequireMatchGroupAccess,
+  mockRequireMatchGroupMutationRole,
+  mockRateLimit,
+  mockDb,
+} = vi.hoisted(() => ({
   mockRequireActorContext: vi.fn(),
   mockRequireMutationRole: vi.fn(),
+  mockRequireMatchGroupAccess: vi.fn(),
+  mockRequireMatchGroupMutationRole: vi.fn(),
   mockRateLimit: vi.fn(),
   mockDb: {
     match: { findUnique: vi.fn() },
@@ -17,6 +27,8 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/actor-context", () => ({
   requireActorContext: mockRequireActorContext,
   requireMutationRole: mockRequireMutationRole,
+  requireMatchGroupAccess: mockRequireMatchGroupAccess,
+  requireMatchGroupMutationRole: mockRequireMatchGroupMutationRole,
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
@@ -42,8 +54,11 @@ const ctx = {
   orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
 };
 
-function makeRequest() {
-  return new NextRequest("http://localhost:3000/api/live-match/match-1/realtime-ticket", { method: "POST" });
+function makeRequest(body?: { mode?: "report" | "view" }) {
+  return new NextRequest("http://localhost:3000/api/live-match/match-1/realtime-ticket", {
+    method: "POST",
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
 }
 
 function makeParams(matchId: string) {
@@ -55,6 +70,8 @@ describe("POST /api/live-match/[matchId]/realtime-ticket", () => {
     vi.clearAllMocks();
     mockRequireActorContext.mockResolvedValue(ctx);
     mockRequireMutationRole.mockImplementation(() => {});
+    mockRequireMatchGroupAccess.mockResolvedValue(null);
+    mockRequireMatchGroupMutationRole.mockResolvedValue(undefined);
     mockRateLimit.mockResolvedValue({ allowed: true });
   });
 
@@ -126,5 +143,51 @@ describe("POST /api/live-match/[matchId]/realtime-ticket", () => {
     expect(claims.organisationId).toBe(ctx.organisationId);
     expect(claims.matchId).toBe("match-1");
     expect(claims.sessionId).toBe("session-1");
+  });
+
+  it("defaults to report mode when no body is sent (backward compatible), issuing a report capability", async () => {
+    mockDb.match.findUnique.mockResolvedValue({ id: "match-1", organisationId: "org-1" });
+    mockDb.liveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest(), makeParams("match-1"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const claims = await verifyRealtimeTicket(body.ticket, TEST_SECRET);
+    expect(claims.capabilities).toEqual(["report"]);
+    expect(mockRequireMutationRole).toHaveBeenCalled();
+    expect(mockRequireMatchGroupMutationRole).toHaveBeenCalledWith(ctx, "match-1");
+    expect(mockRequireMatchGroupAccess).not.toHaveBeenCalled();
+  });
+
+  it("rejects report mode when the caller only has GROUP_VIEWER access to the match's group", async () => {
+    mockDb.match.findUnique.mockResolvedValue({ id: "match-1", organisationId: "org-1" });
+    mockDb.liveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    mockRequireMatchGroupMutationRole.mockRejectedValue(new AuthorizationError("You have view-only access to this match's group."));
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ mode: "report" }), makeParams("match-1"));
+    expect(res.status).toBe(403);
+  });
+
+  it("issues a view-only ticket in view mode without requiring org mutation role", async () => {
+    mockDb.match.findUnique.mockResolvedValue({ id: "match-1", organisationId: "org-1" });
+    mockDb.liveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ mode: "view" }), makeParams("match-1"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const claims = await verifyRealtimeTicket(body.ticket, TEST_SECRET);
+    expect(claims.capabilities).toEqual(["view"]);
+    expect(mockRequireMutationRole).not.toHaveBeenCalled();
+    expect(mockRequireMatchGroupAccess).toHaveBeenCalledWith(ctx, "match-1");
+    expect(mockRequireMatchGroupMutationRole).not.toHaveBeenCalled();
+  });
+
+  it("rejects view mode when the caller has no access at all to the match's group", async () => {
+    mockDb.match.findUnique.mockResolvedValue({ id: "match-1", organisationId: "org-1" });
+    mockDb.liveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    mockRequireMatchGroupAccess.mockRejectedValue(new AuthorizationError("You do not have access to this match's team."));
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ mode: "view" }), makeParams("match-1"));
+    expect(res.status).toBe(403);
   });
 });

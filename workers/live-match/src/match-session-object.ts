@@ -57,13 +57,16 @@ import {
   evaluateRecordEvent,
   evaluateSyncPending,
   evaluateEndSession,
+  hasReportCapability,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "./state";
 import type { Env } from "./worker-types";
 
 /** SPEC.md §12 — per-socket metadata preserved across hibernation via
- * `serializeAttachment`/`deserializeAttachment`. */
+ * `serializeAttachment`/`deserializeAttachment`. `capabilities` (added for "Follow live") is
+ * copied verbatim from the verified ticket at authenticate time — see `hasReportCapability()`
+ * in `./state.ts` for the enforcement this exists to support. */
 interface ConnectionAttachment {
   authenticated: boolean;
   connectionId: string;
@@ -73,6 +76,7 @@ interface ConnectionAttachment {
   sessionId: string;
   authValidUntil: number;
   lastAckVersion: number;
+  capabilities: string[];
 }
 
 const UNAUTHENTICATED_ATTACHMENT: Omit<ConnectionAttachment, "connectionId"> = {
@@ -83,6 +87,7 @@ const UNAUTHENTICATED_ATTACHMENT: Omit<ConnectionAttachment, "connectionId"> = {
   sessionId: "",
   authValidUntil: 0,
   lastAckVersion: 0,
+  capabilities: [],
 };
 
 export class MatchSessionObject extends DurableObject<Env> {
@@ -171,7 +176,7 @@ export class MatchSessionObject extends DurableObject<Env> {
       case "syncPending":
         return this.handleSyncPending(call);
       case "endSession":
-        return this.handleEndSession(call);
+        return this.handleEndSession(attachment, call);
       default:
         return rpcFail(call.id, "METHOD_NOT_FOUND", `Unknown method: ${call.method}`);
     }
@@ -229,6 +234,7 @@ export class MatchSessionObject extends DurableObject<Env> {
       sessionId: ticket.sessionId,
       authValidUntil: ticket.exp * 1000,
       lastAckVersion: 0,
+      capabilities: ticket.capabilities,
     };
     ws.serializeAttachment(updated);
 
@@ -268,6 +274,10 @@ export class MatchSessionObject extends DurableObject<Env> {
   }
 
   private async handleRecordEvent(attachment: ConnectionAttachment, call: RpcCall): Promise<RpcResult> {
+    if (!hasReportCapability(attachment.capabilities)) {
+      return rpcFail(call.id, "FORBIDDEN", "This connection is view-only and cannot record events.");
+    }
+
     const params = call.params as Partial<RecordEventCommand> | undefined;
     if (
       !params ||
@@ -349,7 +359,11 @@ export class MatchSessionObject extends DurableObject<Env> {
     return rpcOk(call.id, result);
   }
 
-  private async handleEndSession(call: RpcCall): Promise<RpcResult> {
+  private async handleEndSession(attachment: ConnectionAttachment, call: RpcCall): Promise<RpcResult> {
+    if (!hasReportCapability(attachment.capabilities)) {
+      return rpcFail(call.id, "FORBIDDEN", "This connection is view-only and cannot end the session.");
+    }
+
     const params = call.params as Partial<EndSessionCommand> | undefined;
     if (!params || typeof params.baseVersion !== "number") {
       return rpcFail(call.id, "INVALID_PARAMS", "endSession requires { baseVersion }.");

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import {
+  requireActorContext,
+  requireMutationRole,
+  requireMatchGroupAccess,
+  requireMatchGroupMutationRole,
+} from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import { getLiveMatchRealtimeSecret } from "@/lib/env";
@@ -9,20 +14,48 @@ import {
   REALTIME_TICKET_DEFAULT_TTL_SECONDS,
 } from "@/lib/live-match/realtime/realtime-ticket";
 
+type TicketMode = "report" | "view";
+
+function parseMode(value: unknown): TicketMode {
+  return value === "view" ? "view" : "report";
+}
+
 /**
  * Issues a short-lived realtime connection ticket (SPEC.md §11) for a live match session.
- * Reuses the exact same authorization path as other live-match mutations
- * (`requireActorContext()`, `requireMutationRole()`, direct organisationId ownership check —
- * see `src/lib/live-match/live-match-session.ts`'s `startLiveSession()`), plus confirms an
- * active live session exists for this match before issuing a ticket. This route never
- * creates or mutates a live session itself — it only vouches for a caller who already has
- * one.
+ *
+ * Two modes, selected by an optional `{ "mode": "report" | "view" }` JSON body (defaults to
+ * "report" — the only mode that existed before "Follow live" viewing, so an empty/missing
+ * body keeps the original behavior):
+ *
+ * - `"report"`: the coach actually running the match. Requires org-level mutation role
+ *   (`requireMutationRole`) AND group-level `GROUP_COACH` role for the match's group
+ *   (`requireMatchGroupMutationRole` — closes a gap where a GROUP_VIEWER-role coach with an
+ *   org-mutation-capable role like COACH could otherwise report on a group they were only
+ *   granted read-only access to). Capability: `["report"]`.
+ * - `"view"`: a second coach following along read-only ("Follow live"). Requires only
+ *   group-level access to the match's group (`requireMatchGroupAccess` — `GROUP_COACH` or
+ *   `GROUP_VIEWER`, no org-mutation-role requirement, so an org VIEWER/SUPPORT member with
+ *   group access can watch). Capability: `["view"]`. The Durable Object
+ *   (`workers/live-match/src/match-session-object.ts`) rejects `recordEvent`/`endSession`
+ *   from any connection whose capabilities don't include `"report"` — this ticket's
+ *   capability is the only thing standing between a viewer and match mutation, so it must
+ *   never include `"report"` for this mode.
+ *
+ * Both modes still require an active `LiveMatchSession` to exist for the match — you can only
+ * report on or watch a session that has actually started, per the existing check below. This
+ * route never creates or mutates a live session itself — it only vouches for a caller who
+ * already has (report) or has permission to observe (view) one.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ matchId: string }> }) {
+  const body = await request.json().catch(() => ({}));
+  const mode = parseMode((body as { mode?: unknown } | null)?.mode);
+
   let ctx;
   try {
     ctx = await requireActorContext();
-    requireMutationRole(ctx);
+    if (mode === "report") {
+      requireMutationRole(ctx);
+    }
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -59,6 +92,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
       return NextResponse.json({ error: "Live session has ended." }, { status: 409 });
     }
 
+    if (mode === "report") {
+      await requireMatchGroupMutationRole(ctx, matchId);
+    } else {
+      await requireMatchGroupAccess(ctx, matchId);
+    }
+
     const secret = getLiveMatchRealtimeSecret();
     const ticket = await signRealtimeTicket(
       {
@@ -66,10 +105,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
         organisationId: ctx.organisationId,
         matchId: match.id,
         sessionId: session.id,
-        // Minimal for Stage 2 — refined once Stage 3+ actually branches behaviour on
-        // capability values (SPEC.md §5.1/§5.2's method set is the same for every
-        // authenticated connection today, so a single capability is honest, not a guess).
-        capabilities: ["report"],
+        // Capability drives server-side mutation enforcement in the Durable Object
+        // (match-session-object.ts) — a "view" ticket must never include "report".
+        capabilities: mode === "report" ? ["report"] : ["view"],
       },
       secret,
     );

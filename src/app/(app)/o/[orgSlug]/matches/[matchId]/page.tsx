@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
-import { requirePageActorContext } from "@/lib/auth/actor-context";
+import { requirePageActorContext, hasGroupAccess } from "@/lib/auth/actor-context";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,19 @@ export default async function MatchDetailPage({
     where: { matchId, ...orgWhere },
     select: { status: true },
   });
+
+  const liveSession = await db.liveMatchSession.findUnique({
+    where: { matchId, ...orgWhere },
+    select: { status: true },
+  });
+  const isLive = liveSession?.status === "ACTIVE";
+  // "Follow live" is a read-only viewer entry point (ADR-0086 amendment) — gated server-side
+  // on the same GroupAccess (GROUP_COACH or GROUP_VIEWER) chain the realtime ticket route
+  // itself enforces independently. Hiding the button when false is a UX convenience, not the
+  // actual security boundary (AGENTS.md: "UI-only protection is insufficient").
+  const canFollowLive = match.team.footballGroupId
+    ? hasGroupAccess(ctx, match.team.footballGroupId)
+    : false;
 
   const selectionData = match.selections.map((s) => {
     const explanation = s.explanation as Record<string, unknown> | null;
@@ -156,6 +169,8 @@ export default async function MatchDetailPage({
           opponentLatestConcernDate,
           phaseStartDate: match.matchRound.leagueSeason.startDate,
           phaseEndDate: match.matchRound.leagueSeason.endDate,
+          isLive,
+          canFollowLive,
         }}
       />
     </div>

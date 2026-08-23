@@ -19,6 +19,7 @@ import {
   XCircle,
   RotateCcw,
   Radio,
+  Tv,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
@@ -94,6 +95,14 @@ type MatchData = {
   inheritedIntentScope?: "round" | "league season";
   opponentTeamId?: string | null;
   footballGroupId?: string;
+  /** Whether an ACTIVE LiveMatchSession currently exists for this match — gates the "Follow
+   * live" entry point below. Computed server-side; this component never re-derives it. */
+  isLive?: boolean;
+  /** Whether the current actor has at least GROUP_VIEWER access to this match's group —
+   * computed server-side (AGENTS.md: "UI-only protection is insufficient"). The "Follow
+   * live" button is hidden entirely when false, but the realtime ticket route enforces this
+   * independently regardless of what this flag says. */
+  canFollowLive?: boolean;
   opponentHistory?: OpponentHistoryData | null;
   opponentConcernCount?: number;
   opponentLatestConcernDate?: string | null;
@@ -322,6 +331,11 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {matchFinalized && !isCancelled && (
               <Button as={Link} href={`/matches/${match.id}/live`} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
                 Live reporting
+              </Button>
+            )}
+            {match.isLive && match.canFollowLive && (
+              <Button as={Link} href={`/matches/${match.id}/live/follow`} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
+                Follow live
               </Button>
             )}
           </div>

@@ -70,6 +70,23 @@ export function initialClockAnchor(now: number): ClockAnchor {
 }
 
 // ---------------------------------------------------------------------------------------
+// capability enforcement ("Follow live" read-only viewers)
+// ---------------------------------------------------------------------------------------
+
+/**
+ * A ticket's `capabilities` (SPEC.md §11) is the only thing distinguishing a reporting
+ * coach's connection from a read-only "Follow live" viewer's — the ticket is issued by
+ * `/api/live-match/[matchId]/realtime-ticket` with `["report"]` or `["view"]` depending on
+ * the caller's group-level role, and the Durable Object must not trust anything else about
+ * the connection to decide whether a mutation is allowed. `authenticate`/`getSnapshot`/
+ * `syncPending` are readable by any authenticated connection regardless of capability — only
+ * `recordEvent`/`endSession` require `"report"`.
+ */
+export function hasReportCapability(capabilities: readonly string[]): boolean {
+  return capabilities.includes("report");
+}
+
+// ---------------------------------------------------------------------------------------
 // authenticate
 // ---------------------------------------------------------------------------------------
 

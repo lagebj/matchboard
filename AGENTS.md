@@ -2468,7 +2468,13 @@ the temporary per-match coordination actor. See ADR-0086 for the Stage 3 archite
 decision and `.matchboard-work/live-match-realtime-programme/` (local, gitignored) for the
 full spec and phased rollout. Stages 1–2 are pure Next.js application code; Stage 3
 introduces the actual Cloudflare Worker/Durable Object but not yet canonical event
-persistence (see `docs/development/live-match-realtime.md`).
+persistence (see `docs/development/live-match-realtime.md`). "Follow live" (a read-only
+viewer capability, maintainer-directed scope beyond the original SPEC.md — ADR-0086's
+amendment) layers on top of Stage 3: a second coach with at least `GROUP_VIEWER` access to
+the match's group can watch live broadcasts without any reporting controls, while the
+reporting coach's page best-effort broadcasts events to the Worker purely as a side-channel
+(Neon persistence still happens via the existing HTTP path, unchanged — this is explicitly
+not Stage 4's signed persistence API).
 
 | File | Purpose |
 |------|---------|
@@ -2486,6 +2492,27 @@ persistence (see `docs/development/live-match-realtime.md`).
 | `workers/live-match/src/rpc.ts` | RPC envelope construction helpers used by the Durable Object |
 | `workers/live-match/src/auth.ts` | Worker-side ticket verification re-export, Origin/matchId validation |
 | `workers/live-match/src/worker-types.ts` | Worker `Env` bindings |
+| `src/lib/live-match/realtime/fetch-ticket.ts` | Client-side `fetchRealtimeTicket(matchId, mode)` helper, shared by the reporting broadcast side-channel and the "Follow live" viewer |
+| `src/components/live-match/follow-live-client.tsx` | Read-only "Follow live" viewer — `getSnapshot()` + callback handlers only, never calls `recordEvent`/`endSession` |
+| `src/app/(app)/matches/[matchId]/live/follow/page.tsx`, `src/app/(app)/o/[orgSlug]/matches/[matchId]/live/follow/page.tsx` | "Follow live" route: global redirect + org-scoped page enforcing `requireMatchGroupAccess()` server-side before rendering |
+
+Group-role-aware live match authorization (added alongside "Follow live", closing a
+pre-existing gap — see ADR-0086's amendment): `requireMatchGroupMutationRole(ctx, matchId)`
+(`src/lib/auth/actor-context.ts`) requires `GROUP_COACH` specifically on the match's group,
+not merely any `GroupAccess` row — `requireMatchGroupAccess()` alone (any role) was
+insufficient to gate live match mutation, since a `GROUP_VIEWER`-role coach with an
+org-mutation-capable role (e.g. COACH) could otherwise start/record/end live sessions for a
+group they were only granted read-only access to. Call both together for any live-match
+mutation; `requireMatchGroupAccess()` alone remains correct for the read-only "view" path
+(both `GROUP_COACH` and `GROUP_VIEWER` may follow live).
+
+"Follow live" vs "Live reporting" — coach-facing terminology:
+
+| Concept | Use | Never use |
+|---------|-----|-----------|
+| Reporting coach's active recording session | Live reporting | Broadcasting, streaming |
+| Read-only remote viewing of an active session | Follow live | Watch mode, spectate, viewer mode |
+| A coach following along | Following live | Viewer, spectator, observer |
 
 ## Stale references removed
 
