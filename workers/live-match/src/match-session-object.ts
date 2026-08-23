@@ -187,11 +187,13 @@ export class MatchSessionObject extends DurableObject<Env> {
     try {
       ticket = await verifyRealtimeTicket(params.ticket, this.env.LIVE_MATCH_REALTIME_SECRET);
     } catch {
+      // `verifyRealtimeTicket` (jose `jwtVerify`) already rejects an expired token before
+      // returning, collapsed into this one generic error — it does not currently distinguish
+      // "expired" from "otherwise invalid" for the caller to re-surface as `AUTH_EXPIRED`.
+      // A separate `ticket.exp` re-check here would never fire (expiry is already enforced
+      // above) and was removed as dead code. `AUTH_EXPIRED` remains a valid protocol error
+      // code (`protocol.ts`) for whenever that distinction is worth threading through.
       return rpcFail(call.id, "AUTH_INVALID", "Invalid or expired realtime ticket.");
-    }
-
-    if (ticket.exp * 1000 <= Date.now()) {
-      return rpcFail(call.id, "AUTH_EXPIRED", "Realtime ticket has expired.");
     }
 
     const routedMatchId = await this.ctx.storage.get<string>("routedMatchId");
