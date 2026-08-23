@@ -14,7 +14,6 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { playerPositionValues } from "@/lib/player-form-options";
-import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
 import {
   togglePlayerActive as togglePlayerActiveDomain,
   removePlayer as removePlayerDomain,
@@ -287,13 +286,6 @@ export async function createPlayerAction(formData: FormData) {
     if (!createdPlayerId) {
       throw new Error("Could not generate a unique player code after multiple attempts.");
     }
-
-    await syncPlayerPositions({
-      playerId: createdPlayerId,
-      primaryPosition: playerInput.primaryPosition,
-      secondaryPosition: playerInput.secondaryPosition,
-      tertiaryPosition: playerInput.tertiaryPosition,
-    });
   } catch (error) {
     redirect(
       buildPathWithSearch("/players/new", {
@@ -337,13 +329,6 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
       data: {
         ...playerInput,
       },
-    });
-
-    await syncPlayerPositions({
-      playerId: player.id,
-      primaryPosition: playerInput.primaryPosition,
-      secondaryPosition: playerInput.secondaryPosition,
-      tertiaryPosition: playerInput.tertiaryPosition,
     });
   } catch (error) {
     redirect(

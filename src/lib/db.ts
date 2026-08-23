@@ -6,6 +6,7 @@ import pg from "pg";
 import { isRlsDebug } from "@/lib/env";
 import { getTenantOrganisationId, getTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 import { isProduction } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -69,7 +70,6 @@ export const RLS_TABLES = new Set([
   "formationSlot",
   "matchLineup",
   "matchLineupAssignment",
-  "playerPosition",
   "warning",
   "playerLock",
   "selectionAudit",
@@ -154,8 +154,9 @@ const extendedClient = rawClient.$extends({
         } finally {
           const durationMs = performance.now() - queryStart;
           if (durationMs > SLOW_QUERY_THRESHOLD_MS) {
-            console.warn(
-              `[slow-query] ${model ?? "raw"}.${operation} took ${durationMs.toFixed(0)}ms`,
+            logger.warn(
+              { model: model ?? "raw", operation, durationMs: Math.round(durationMs) },
+              "[slow-query]",
             );
           }
         }
@@ -168,9 +169,9 @@ const extendedClient = rawClient.$extends({
 
       if (RLS_DEBUG && isRlsTable) {
         if (!orgId) {
-          console.warn(`[RLS] FALLTHROUGH ${model}.${operation} — no tenant context set`);
+          logger.warn({ model, operation }, "[RLS] FALLTHROUGH — no tenant context set");
         } else {
-          console.log(`[RLS] ${model}.${operation} orgId=${orgId}`);
+          logger.debug({ model, operation, orgId }, "[RLS]");
         }
       }
 

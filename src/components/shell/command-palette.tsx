@@ -13,6 +13,8 @@ import {
   Command,
   Building2,
   Wrench,
+  CalendarDays,
+  Shield,
 } from "lucide-react";
 import { useOrgSlug } from "@/components/shell/org-slug-context";
 
@@ -52,6 +54,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 type SearchResult = {
   players: { id: string; name: string; coreTeamName: string }[];
   teams: { id: string; name: string }[];
+  events: { id: string; name: string }[];
+  opponents: { id: string; name: string }[];
 };
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -156,9 +160,27 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     keywords: [t.name],
   }));
 
+  const eventItems: CommandItem[] = (searchResults?.events ?? []).map((e) => ({
+    id: `event-${e.id}`,
+    label: e.name,
+    icon: <CalendarDays className="h-4 w-4" />,
+    href: `/o/${orgSlug}/events/${e.id}`,
+    category: "search" as const,
+    keywords: [e.name],
+  }));
+
+  const opponentItems: CommandItem[] = (searchResults?.opponents ?? []).map((o) => ({
+    id: `opponent-${o.id}`,
+    label: o.name,
+    icon: <Shield className="h-4 w-4" />,
+    href: `/o/${orgSlug}/opponents/${o.id}`,
+    category: "search" as const,
+    keywords: [o.name],
+  }));
+
   const allItems =
     query.trim().length >= 2
-      ? [...searchItems, ...teamItems, ...filteredCommands]
+      ? [...searchItems, ...teamItems, ...eventItems, ...opponentItems, ...filteredCommands]
       : filteredCommands;
 
   const totalItems = allItems.length;
@@ -202,6 +224,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     : [
         ...(searchItems.length > 0 ? [{ label: "Players", items: searchItems }] : []),
         ...(teamItems.length > 0 ? [{ label: "Teams", items: teamItems }] : []),
+        ...(eventItems.length > 0 ? [{ label: "Events", items: eventItems }] : []),
+        ...(opponentItems.length > 0 ? [{ label: "Opponents", items: opponentItems }] : []),
         ...(filteredCommands.filter((i) => i.category === "switch").length > 0 ? [{ label: "Switch organisation", items: filteredCommands.filter((i) => i.category === "switch") }] : []),
         ...(filteredCommands.filter((i) => i.category === "create").length > 0 ? [{ label: "Create", items: filteredCommands.filter((i) => i.category === "create") }] : []),
         ...(filteredCommands.filter((i) => i.category === "navigate" || i.category === "admin").length > 0 ? [{ label: "Commands", items: filteredCommands.filter((i) => i.category === "navigate" || i.category === "admin") }] : []),

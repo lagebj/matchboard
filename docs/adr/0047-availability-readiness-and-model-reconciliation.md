@@ -51,6 +51,11 @@ Several domain models have dual writable representations or inconsistent state m
 4. All writes migrate to `PlayerPosition`
 5. Prevent future drift
 
+> **Superseded (2026-08-22):** This subsection's proposed direction was not taken. ARR-0001
+> resolved instead by removing `PlayerPosition` entirely — it had zero read consumers in its
+> whole lifetime, and the string fields were already the de facto canonical source everywhere.
+> See ARR-0001's `## Resolution` for detail. The other sections of this ADR are unaffected.
+
 ### Canonical selection explanations
 
 1. `SelectionExplanation` table is the single canonical representation

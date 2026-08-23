@@ -8,6 +8,7 @@ import {
   clearPackCaches as clearPackCachesFromPack,
 } from "./policy-pack";
 import { isRegoEnabled, getRegoFailureMode } from "./policy-pack";
+import { logger } from "@/lib/logger";
 
 export { isRegoEnabled, getRegoFailureMode };
 
@@ -249,10 +250,10 @@ export class RegoPolicyAdapter implements SelectionPolicyAdapter {
       }
 
       const message = error instanceof Error ? error.message : String(error);
-      console.error("[Policy/Rego] Evaluation failed:", message);
+      logger.error({ message }, "[Policy/Rego] Evaluation failed");
 
       if (getRegoFailureMode() === "fail_open") {
-        console.warn("[Policy/Rego] fail_open mode: returning empty result (default policy still applies).");
+        logger.warn("[Policy/Rego] fail_open mode: returning empty result (default policy still applies).");
         return {
           allowedPlayerIds: input.players.map((p) => p.id),
           blocked: {},

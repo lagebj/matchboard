@@ -37,6 +37,14 @@ export const GOALKEEPER_ABILITY_LABELS: Record<string, string> = {
   YES: 'Yes',
 };
 
+export const EVENT_MATCH_SUPPORT_ROLE_LABELS: Record<string, string> = {
+  GK_COVER: 'GK cover',
+  DEFENDER_COVER: 'Defender cover',
+  MIDFIELD_COVER: 'Midfield cover',
+  FORWARD_COVER: 'Forward cover',
+  GENERAL_COVER: 'General cover',
+};
+
 export function formatEventType(type: string): string {
   return EVENT_TYPE_LABELS[type] ?? type;
 }
@@ -51,6 +59,11 @@ export function formatEventPlayerStatus(status: string): string {
 
 export function formatEventMatchStatus(status: string): string {
   return EVENT_MATCH_STATUS_LABELS[status] ?? status;
+}
+
+export function formatEventMatchSupportRole(role: string | null | undefined): string {
+  if (!role) return '';
+  return EVENT_MATCH_SUPPORT_ROLE_LABELS[role] ?? role;
 }
 
 export function formatGoalkeeperAbility(ability: string | null): string {

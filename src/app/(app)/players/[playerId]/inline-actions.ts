@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { playerPositionValues } from "@/lib/player-form-options";
-import { syncPlayerPositions } from "@/lib/players/sync-player-positions";
 
 const VALID_POSITIONS: ReadonlySet<string> = new Set(playerPositionValues);
 
@@ -147,20 +146,6 @@ export async function updatePlayerFieldAction(
       where: { id: player.id },
       data: { [field]: parsedValue },
     });
-
-    const isPositionField = field === "primaryPosition" || field === "secondaryPosition" || field === "tertiaryPosition";
-    if (isPositionField) {
-      const updated = await db.player.findFirstOrThrow({
-        where: { id: player.id, ...ctx.orgFilter.filter },
-        select: { primaryPosition: true, secondaryPosition: true, tertiaryPosition: true },
-      });
-      await syncPlayerPositions({
-        playerId: player.id,
-        primaryPosition: updated.primaryPosition,
-        secondaryPosition: updated.secondaryPosition,
-        tertiaryPosition: updated.tertiaryPosition,
-      });
-    }
 
     revalidatePath(`/players/${playerId}`);
     revalidatePath("/players");

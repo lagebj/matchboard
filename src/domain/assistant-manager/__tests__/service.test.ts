@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb } from "@/test/test-db";
-import { getRoundReview, getTeamReadiness, getMatchReview, getPostMatchReport, completePostMatchReport, recordDecision, getSelectionExplanation } from "../service";
+import { getRoundReview, getTeamReadiness, getMatchReview, recordDecision, getSelectionExplanation } from "../service";
 
 vi.mock("@/lib/db", () => ({
   get db() { return getTestDb(); },
@@ -115,41 +115,6 @@ describe("Assistant Manager Service (DB)", () => {
 
       const dbRecord = await testDb.decisionRecord.findUnique({ where: { id: decision.id } });
       expect(dbRecord!.reason).toBe("Coach decided to publish despite blocker");
-    });
-  });
-
-  describe("getPostMatchReport", () => {
-    it("returns NOT_STARTED for nonexistent match", async () => {
-      const report = await getPostMatchReport("nonexistent-match");
-      expect(report.status).toBe("NOT_STARTED");
-      expect(report.playerActuals).toHaveLength(0);
-    });
-  });
-
-  describe("completePostMatchReport", () => {
-    it("creates a new report when none exists", async () => {
-      const match = await testDb.match.findFirst();
-      if (!match) {
-        return;
-      }
-
-      const report = await completePostMatchReport(match.id, {
-        playerActuals: [
-          { playerId: "player-1", attendanceStatus: "PRESENT" },
-        ],
-        teamNote: "Good effort",
-      });
-
-      expect(report.status).toBe("LOCKED");
-      expect(report.playerActuals).toHaveLength(1);
-      expect(report.teamNote).toBe("Good effort");
-
-      const dbRecord = await testDb.postMatchReport.findUnique({
-        where: { matchId: match.id },
-        include: { playerActuals: true },
-      });
-      expect(dbRecord).not.toBeNull();
-      expect(dbRecord!.playerActuals).toHaveLength(1);
     });
   });
 });

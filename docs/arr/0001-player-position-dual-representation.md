@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved (2026-08-22)
 
 ## Identified
 
@@ -52,7 +52,27 @@ One authoritative writable representation for player position priority. The cano
 
 ## Disposition
 
-Accepted. Player scalar fields (`primaryPosition`, `secondaryPosition`, `tertiaryPosition`) are confirmed canonical. `PlayerPosition` table is a secondary derived store written by `syncPlayerPositions()` with no active read paths, deliberately retained for a future approved-position workflow rather than removed. This is a settled decision, not further in-progress work — re-verified independently 2026-08-20, zero read paths still confirmed.
+Resolved by removal. The 2026-08-02/2026-08-20 decision to retain `PlayerPosition` for a future
+approved-position workflow was explicitly reversed by the maintainer on 2026-08-22: given the
+table had zero read consumers across its entire lifetime and no approved-position workflow was
+ever built against it, keeping it around as speculative future capacity contradicted the "don't
+design for hypothetical future requirements" principle. The table, its `PlayerPositionPriority`
+enum, both relation fields (`Player.positions`, `Organisation.playerPositions`), and
+`syncPlayerPositions()` (and its three call sites in `players/actions.ts` and
+`players/[playerId]/inline-actions.ts`) were removed. `Player.primaryPosition`/
+`secondaryPosition`/`tertiaryPosition` remain the sole representation, exactly as they already
+were in practice.
+
+## Resolution
+
+- Removed `model PlayerPosition` and `enum PlayerPositionPriority` from `prisma/schema.prisma`
+- Removed `Player.positions` and `Organisation.playerPositions` relation fields
+- Removed `src/lib/players/sync-player-positions.ts` and its 3 call sites
+- Removed `"playerPosition"` from `RLS_TABLES` in `src/lib/db.ts`
+- Migration: `prisma/migrations/20260822153000_drop_player_position_table/` — `DROP TABLE` +
+  `DROP TYPE`, applied to local dev + test databases; production applies via the standard CI
+  pipeline (ADR-0084)
+- `npm run typecheck` clean after removal (no dangling references)
 
 ## History
 
@@ -71,6 +91,11 @@ Accepted. Player scalar fields (`primaryPosition`, `secondaryPosition`, `tertiar
   "Accepted" to match the substance of that decision; `State` intentionally remains `Confirmed`
   (the dual representation still literally exists, by design — matches ARR-0019's precedent for
   a verified, accepted, non-code-resolved residue).
+
+### 2026-08-22
+
+Maintainer reversed the 2026-08-02 decision: remove `PlayerPosition` rather than keep it for a
+never-built future workflow. Resolved by removal — see `## Resolution` above.
 
 ## Related decisions
 

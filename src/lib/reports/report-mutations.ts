@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason } from "@/generated/prisma/client";
+import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason, PostMatchAttendanceStatus, GoalType, AssistType } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
   VALID_UNPLANNED_APPEARANCE_REASONS,
@@ -52,8 +52,8 @@ export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: 
             organisationId: match.organisationId,
             matchId,
             playerId: s.playerId,
-            source: "PLANNED",
-            attendanceStatus: "UNKNOWN",
+            source: "PLANNED" as const,
+            attendanceStatus: "UNKNOWN" as const,
           })),
           // League Match helpers (ADR-0077): seeded unconditionally, same as the planned squad,
           // so a helper added before the match is already present here — the coach never adds
@@ -65,8 +65,8 @@ export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: 
               organisationId: match.organisationId,
               matchId,
               playerId: h.playerId,
-              source: "EMERGENCY_BACKFILL",
-              attendanceStatus: "UNKNOWN",
+              source: "EMERGENCY_BACKFILL" as const,
+              attendanceStatus: "UNKNOWN" as const,
               unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
             })),
         ],
@@ -102,7 +102,7 @@ export async function updateReportResult(
 
 export async function addActualPlayerToReport(
   reportId: string,
-  data: { playerId: string; attendanceStatus?: string; unplannedAppearanceReason?: string },
+  data: { playerId: string; attendanceStatus?: PostMatchAttendanceStatus; unplannedAppearanceReason?: string },
   orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
   const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
@@ -128,7 +128,7 @@ export async function addActualPlayerToReport(
       reportId,
       matchId: report.matchId,
       playerId: data.playerId,
-      source: "ADDED_POST_MATCH",
+      source: "ADDED_POST_MATCH" as const,
       attendanceStatus: data.attendanceStatus ?? "PRESENT",
       unplannedAppearanceReason,
     },
@@ -160,7 +160,7 @@ export async function removeActualPlayerFromReport(appearanceId: string, orgFilt
 
 export async function updateAttendanceInReport(
   appearanceId: string,
-  attendanceStatus: string,
+  attendanceStatus: PostMatchAttendanceStatus,
   orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
   const appearance = await db.postMatchPlayerActual.findFirst({
@@ -393,7 +393,7 @@ export async function reopenReport(
 
 export async function addGoalToReportMutation(
   reportId: string,
-  data: { playerId?: string; minute?: number; type?: string },
+  data: { playerId?: string; minute?: number; type?: GoalType },
   orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
   const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });
@@ -432,7 +432,7 @@ export async function removeGoalFromReportMutation(goalId: string, orgFilter?: O
 
 export async function addAssistToReportMutation(
   reportId: string,
-  data: { playerId: string; type?: string },
+  data: { playerId: string; type?: AssistType },
   orgFilter?: OrgFilterMode,
 ): Promise<ReportTransitionResult> {
   const report = await db.postMatchReport.findFirst({ where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) } });

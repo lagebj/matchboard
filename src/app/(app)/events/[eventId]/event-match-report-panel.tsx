@@ -12,6 +12,7 @@ import {
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
+import type { EventPostMatchAttendanceStatus, GoalType } from '@/generated/prisma/client';
 
 interface PlayerReport {
   id: string;
@@ -57,10 +58,13 @@ interface EventMatchReportPanelProps {
   onRefresh: () => void;
 }
 
-const ATTENDANCE_OPTIONS = [
+// "ABSENT" was removed (platform-integrity-programme Phase 4): it was never a valid stored
+// value (not in EventPostMatchAttendanceStatus, not in the pre-existing CHECK constraint) —
+// selecting it would throw a database constraint violation. "No show" is the correct option
+// for this case and was already present as a separate, valid choice.
+const ATTENDANCE_OPTIONS: { value: EventPostMatchAttendanceStatus; label: string }[] = [
   { value: 'PRESENT', label: 'Present' },
   { value: 'NO_SHOW', label: 'No show' },
-  { value: 'ABSENT', label: 'Absent' },
   { value: 'UNKNOWN', label: 'Unknown' },
 ];
 
@@ -73,7 +77,7 @@ export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatc
   const [notes, setNotes] = useState(report.notes ?? '');
   const [goalPlayerId, setGoalPlayerId] = useState('');
   const [goalMinute, setGoalMinute] = useState('');
-  const [goalType, setGoalType] = useState('NORMAL');
+  const [goalType, setGoalType] = useState<GoalType>('NORMAL');
   const [assistPlayerId, setAssistPlayerId] = useState('');
   const [showResultForm, setShowResultForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
@@ -93,7 +97,7 @@ export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatc
     });
   }
 
-  function handleAttendanceChange(playerReportId: string, status: string) {
+  function handleAttendanceChange(playerReportId: string, status: EventPostMatchAttendanceStatus) {
     startTransition(async () => {
       await updateEventPlayerAttendanceAction(playerReportId, status);
       onRefresh();
@@ -274,7 +278,7 @@ export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatc
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Type</label>
                   <select
                     value={goalType}
-                    onChange={(e) => setGoalType(e.target.value)}
+                    onChange={(e) => setGoalType(e.target.value as GoalType)}
                     className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
                   >
                     <option value="NORMAL">Normal</option>
@@ -351,7 +355,7 @@ export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatc
                     ) : (
                       <select
                         value={pr.attendanceStatus}
-                        onChange={(e) => handleAttendanceChange(pr.id, e.target.value)}
+                        onChange={(e) => handleAttendanceChange(pr.id, e.target.value as EventPostMatchAttendanceStatus)}
                         className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
                       >
                         {ATTENDANCE_OPTIONS.map((o) => (

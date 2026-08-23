@@ -13,6 +13,7 @@ import {
   logOrganisationInvitationDecline,
   logOrganisationMembershipUpdate,
 } from "@/lib/security/audit-log";
+import { logger } from "@/lib/logger";
 import { suspendOrganisation, reactivateOrganisation, deleteOrganisation } from "@/lib/organisations/organisation-lifecycle";
 import { enqueueNotification, sendNotificationNow, cancelNotificationByIdempotencyKey } from "@/lib/email/outbox";
 import { db } from "@/lib/db";
@@ -119,7 +120,7 @@ export async function createInvitationAction(
   revalidatePath(`/o/${organisationSlug}`);
 
   sendNotificationNow(outboxId).catch((err) => {
-    console.error("[invitation] Immediate send failed, will retry via cron:", err);
+    logger.error({ err }, "[invitation] Immediate send failed, will retry via cron");
   });
 
   return { success: true as const, invitationId };
@@ -174,7 +175,7 @@ export async function revokeInvitationAction(organisationSlug: string, invitatio
   revalidatePath(`/o/${organisationSlug}`);
 
   cancelNotificationByIdempotencyKey(`invitation-${invitationId.trim()}`).catch((err) => {
-    console.error("[invitation] Failed to cancel notification on revoke:", err);
+    logger.error({ err }, "[invitation] Failed to cancel notification on revoke");
   });
 
   return { success: true as const };
@@ -205,7 +206,7 @@ export async function declineInvitationAction(token: string) {
   logOrganisationInvitationDecline(coachEmail, result.invitationId, "success");
 
   cancelNotificationByIdempotencyKey(`invitation-${result.invitationId}`).catch((err) => {
-    console.error("[invitation] Failed to cancel notification on decline:", err);
+    logger.error({ err }, "[invitation] Failed to cancel notification on decline");
   });
 
   revalidatePath("/organisations");

@@ -1,4 +1,4 @@
-import type { MatchReportStatus } from "@/generated/prisma/client";
+import type { MatchReportStatus, GoalType, AssistType } from "@/generated/prisma/client";
 
 export const VALID_REPORT_STATUSES: MatchReportStatus[] = ["DRAFT", "REPORTED", "LOCKED"];
 export const COMPLETED_REPORT_STATUSES: MatchReportStatus[] = ["REPORTED", "LOCKED"];
@@ -11,8 +11,8 @@ export const VALID_UNPLANNED_APPEARANCE_REASONS: string[] = [
   "OTHER_RECORDED_REASON",
 ];
 
-export const DEFAULT_GOAL_TYPE = "NORMAL";
-export const DEFAULT_ASSIST_TYPE = "NORMAL";
+export const DEFAULT_GOAL_TYPE: GoalType = "NORMAL";
+export const DEFAULT_ASSIST_TYPE: AssistType = "NORMAL";
 
 export const VALID_PLANNED_ABSENCE_REASONS: string[] = [
   "INJURED",

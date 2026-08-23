@@ -19,6 +19,7 @@ import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
+import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-automatic-role";
 import {
   clearRoundDraftAction,
   regenerateRoundAction,
@@ -474,13 +475,8 @@ export function RoundBoard({
         player?.coreTeamId ??
         matches.flatMap((m) => m.players).find((p) => p.id === playerId)?.playerCoreTeamId;
 
-      if (playerCoreTeamId === match.teamId) return "CORE";
-
       const paths = rotationPathMap[`${playerCoreTeamId ?? ""}:${match.teamId}`] ?? [];
-      if (paths.includes("SUPPORT") && !paths.includes("DEVELOPMENT")) return "SUPPORT";
-      if (paths.includes("DEVELOPMENT") && !paths.includes("SUPPORT")) return "DEVELOPMENT";
-      if (paths.includes("SUPPORT")) return "SUPPORT";
-      return "CORE";
+      return determineAutomaticRoleFromPaths(playerCoreTeamId, match.teamId, paths);
     },
     [matches, initialAvailable, rotationPathMap],
   );

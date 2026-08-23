@@ -252,3 +252,111 @@ export interface PlayerGKCapability {
   playerId: string;
   goalkeeperAbility: GKCapabilityLevel;
 }
+
+// I-002: Opportunity quality (per-selection factual record — see AGENTS.md's I-001 "evidence
+// semantics": planned vs realised vs unknown, never inferred).
+export interface OpportunityQualityEntry {
+  playerId: string;
+  playerName: string;
+  coreTeamId: string | null;
+  coreTeamName: string | null;
+  matchId: string;
+  matchRoundId: string;
+  matchRoundLabel: string;
+  matchDate: string;
+  teamId: string;
+  teamName: string;
+  opponentName: string | null;
+  role: SelectionRole;
+  isCore: boolean;
+  supportBurden: boolean;
+  plannedPosition: string | null;
+  realisedAttendance: "present" | "no_show" | "unknown";
+  realisedMinutes: number | null;
+  minutesEvidence: "tracked" | "not_tracked";
+  cancelled: boolean;
+}
+
+// I-003: Opportunity gap (descriptive, not punitive — no debt score).
+export interface OpportunityGapRow {
+  playerId: string;
+  playerName: string;
+  coreTeamId: string | null;
+  coreTeamName: string | null;
+  plannedOpportunities: number;
+  realisedOpportunities: number;
+  gap: number;
+  unavailableRounds: number;
+  cancelledMatches: number;
+  helperElsewhereCount: number;
+  noShowCount: number;
+  unknownAttendanceCount: number;
+}
+
+// I-004: Position and formation exposure.
+export interface PositionExposureRow {
+  playerId: string;
+  playerName: string;
+  coreTeamId: string | null;
+  coreTeamName: string | null;
+  sampleSize: number;
+  plannedPositions: Record<string, number>;
+  realisedPositions: Record<string, number>;
+  formationsExperienced: string[];
+  evidenceCompleteness: number;
+}
+
+// I-005: Player combinations.
+export interface PlayerCombinationRow {
+  playerAId: string;
+  playerAName: string;
+  playerBId: string;
+  playerBName: string;
+  coSelectionCount: number;
+  realisedCoAppearanceCount: number;
+  positionPairing: string | null;
+  seasonTotal: number;
+  recentTotal: number;
+}
+
+// I-006: Continuity vs exploration (round-over-round comparison).
+export interface ContinuityRow {
+  teamId: string;
+  teamName: string;
+  matchRoundId: string;
+  matchRoundLabel: string;
+  previousMatchRoundId: string | null;
+  retainedStarterCount: number;
+  newPlayerCount: number;
+  retainedFormation: boolean | null;
+  formationName: string | null;
+  previousFormationName: string | null;
+  supportPlayerChanges: number;
+}
+
+// I-007: Operational health (grouped facts — no composite score).
+export interface OperationalHealthGroup {
+  category:
+    | "incomplete_lineups"
+    | "stale_assignments"
+    | "missing_reports"
+    | "unresolved_reviews"
+    | "unowned_upcoming_work"
+    | "expiring_support_access"
+    | "availability_conflicts"
+    | "invalid_rotation_paths"
+    | "finalisation_checkpoints";
+  label: string;
+  count: number;
+  entries: OperationalHealthEntry[];
+}
+
+export interface OperationalHealthEntry {
+  id: string;
+  detail: string;
+  matchRoundId?: string;
+  matchRoundLabel?: string;
+  matchId?: string;
+  teamId?: string;
+  teamName?: string;
+}

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
-import type { MatchReportStatus, PlannedAbsenceReason } from "@/generated/prisma/client";
+import type { MatchReportStatus, PlannedAbsenceReason, PostMatchAttendanceStatus, GoalType, AssistType } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   seedReportFromFinalizedSquad,
@@ -284,7 +284,7 @@ export async function updateMatchResult(
 
 export async function addActualPlayer(
   reportId: string,
-  data: { playerId: string; attendanceStatus?: string; unplannedAppearanceReason?: string },
+  data: { playerId: string; attendanceStatus?: PostMatchAttendanceStatus; unplannedAppearanceReason?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
@@ -329,7 +329,7 @@ export async function removeActualPlayer(appearanceId: string): Promise<{ succes
 
 export async function updateAttendanceStatus(
   appearanceId: string,
-  attendanceStatus: string,
+  attendanceStatus: PostMatchAttendanceStatus,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
@@ -543,7 +543,7 @@ export async function reopenMatchReport(
 
 export async function addGoalToReport(
   reportId: string,
-  data: { playerId?: string; minute?: number; type?: string },
+  data: { playerId?: string; minute?: number; type?: GoalType },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);
@@ -590,7 +590,7 @@ export async function removeGoalFromReport(goalId: string): Promise<{ success: b
 
 export async function addAssistToReport(
   reportId: string,
-  data: { playerId: string; type?: string },
+  data: { playerId: string; type?: AssistType },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
   requireMutationRole(ctx);

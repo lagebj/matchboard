@@ -1225,6 +1225,12 @@ Other canonical routes:
 | `/o/{orgSlug}/formations/[formationId]/edit` | Edit custom formation (supports `?returnTo=Y`) |
 | `/o/{orgSlug}/workbench` | Policy and generation workbench — dry-run policy evaluation, fixture comparison |
 | `/o/{orgSlug}/insights/player-pathways` | Player Pathways — season matrix, context transitions, fairness overview |
+| `/o/{orgSlug}/insights/opportunity-quality` | Opportunity Quality (I-002) — factual per-opportunity record |
+| `/o/{orgSlug}/insights/opportunity-gap` | Opportunity Gap (I-003) — descriptive planned-vs-realised gap, not a debt score |
+| `/o/{orgSlug}/insights/position-exposure` | Position & Formation Exposure (I-004) — planned vs realised positions per player |
+| `/o/{orgSlug}/insights/player-combinations` | Player Combinations (I-005) — co-selection/co-appearance frequency |
+| `/o/{orgSlug}/insights/continuity` | Continuity vs Exploration (I-006) — round-over-round retained/new players and formation repeats |
+| `/o/{orgSlug}/insights/operational-health` | Operational Health (I-007) — 9 grouped concrete facts, no composite score |
 | `/o/{orgSlug}/more` | More — hub page linking Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews (plus Simulation/Workbench for admin roles) |
 
 Setup registry create routes (no top-level nav):
@@ -1640,11 +1646,25 @@ Matchboard is installable as a Progressive Web App. Scope is deliberately v1-onl
 - An in-app "Test" badge renders in the top header on any `test.` hostname
   (`(app)/layout.tsx`'s `TestEnvironmentBadge`) — a second, code-level safeguard against
   mistaking installed Test for Production, independent of the home-screen icon.
-- "Install Matchboard" is a card on the More page (`src/components/pwa/install-prompt-card.tsx`),
-  visible to any authenticated coach (not gated to Owner/Admin, unlike Settings). Platform-aware:
-  captures `beforeinstallprompt` for Android/Chromium; shows static "tap Share → Add to Home
-  Screen" instructions on iOS (no programmatic install API exists there); shows an "installed"
-  state when already running in standalone mode; renders nothing when neither path applies.
+- "Install Matchboard" (`src/components/pwa/install-prompt-card.tsx`, `InstallPwaCard`) is
+  visible to any authenticated coach (not gated to Owner/Admin, unlike Settings) in two places:
+  - **More page** (`src/app/(app)/o/[orgSlug]/more/page.tsx`) — always present, non-dismissible.
+  - **Today page** (`AssistantCommandCentrePage`, the canonical `/today` landing surface) —
+    rendered with `dismissible` so it surfaces the install path from the first visit (the
+    intended signup → visit → install flow) without permanently occupying the primary daily
+    landing page. Dismissal is a client-only `localStorage` preference
+    (`matchboard:pwa-install-dismissed`), not a server-side/per-user setting — no schema change.
+    The More instance is unaffected by dismissal; it's a separate, always-present entry point.
+  - Platform-aware, and — as of 2026-08-22 — never renders nothing: captures
+    `beforeinstallprompt` for Android/Chromium when the browser's own engagement heuristic allows
+    it (there is no API to force this early; that heuristic is a hard browser-vendor policy, not
+    something the app can bypass); shows static "tap Share → Add to Home Screen" instructions on
+    iOS (no programmatic install API exists there); shows an "installed" state when already
+    running in standalone mode (More instance only — the dismissible Today instance renders
+    nothing once installed, since there's nothing actionable left for a daily-landing banner);
+    and — new — shows generic "open your browser menu → Install app / Add to Home screen"
+    instructions for every other case (desktop Chromium, or Android/Chromium before the
+    engagement heuristic has allowed the native prompt), rather than the previous silent gap.
 
 Explicitly out of scope for v1 — do not add without a new decision:
 - Service worker / offline caching.
@@ -1770,7 +1790,7 @@ Before generation, show event pool validation:
 
 ### Formation/tactic selection
 
-Events reuse existing formation infrastructure (Formation, FormationSlot, FormationSlotRoleType, acceptedPositionIds, PlayerPosition).
+Events reuse existing formation infrastructure (Formation, FormationSlot, FormationSlotRoleType, acceptedPositionIds, Player.primaryPosition/secondaryPosition/tertiaryPosition).
 
 - Event has optional default formation
 - Each EventSquad may override the default formation
@@ -2362,6 +2382,36 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/app/(app)/insights/planned-vs-actual/planned-vs-actual-client.tsx` | Planned vs Actual interactive client component |
 | `src/app/(app)/insights/conflicts/page.tsx` | Conflict Review page |
 | `src/app/(app)/insights/conflicts/conflict-review-client.tsx` | Conflict Review interactive client component |
+| `src/lib/insights/opportunity-quality.ts` | I-002: `getOpportunityQuality()` — one factual record per planned opportunity (team, opponent, role, position, realised attendance) |
+| `src/lib/insights/opportunity-quality-helpers.ts` | Pure helpers: support-burden counts, attendance label formatting |
+| `src/app/api/insights/opportunity-quality/route.ts` | GET `/api/insights/opportunity-quality` — opportunity quality API |
+| `src/app/(app)/insights/opportunity-quality/page.tsx` | Opportunity Quality page |
+| `src/app/(app)/insights/opportunity-quality/opportunity-quality-client.tsx` | Opportunity Quality interactive client component |
+| `src/lib/insights/opportunity-gap.ts` | I-003: `getOpportunityGap()` — descriptive planned-vs-realised gap per player, not a debt score |
+| `src/lib/insights/opportunity-gap-helpers.ts` | Pure helpers: gap sorting, has-gap predicate |
+| `src/app/api/insights/opportunity-gap/route.ts` | GET `/api/insights/opportunity-gap` — opportunity gap API |
+| `src/app/(app)/insights/opportunity-gap/page.tsx` | Opportunity Gap page |
+| `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Opportunity Gap interactive client component |
+| `src/lib/insights/position-exposure.ts` | I-004: `getPositionExposure()` — planned lineup slots vs realised positions; unused lineup assignments are not realised exposure |
+| `src/lib/insights/position-exposure-helpers.ts` | Pure helpers: frequency counting, top-position lookup, evidence-completeness formatting |
+| `src/app/api/insights/position-exposure/route.ts` | GET `/api/insights/position-exposure` — position exposure API |
+| `src/app/(app)/insights/position-exposure/page.tsx` | Position & Formation Exposure page |
+| `src/app/(app)/insights/position-exposure/position-exposure-client.tsx` | Position & Formation Exposure interactive client component |
+| `src/lib/insights/player-combinations.ts` | I-005: `getPlayerCombinations()` — co-selection/co-appearance frequency per player pair; frequency is not effectiveness |
+| `src/lib/insights/player-combinations-helpers.ts` | Pure helpers: order-independent pair keying |
+| `src/app/api/insights/player-combinations/route.ts` | GET `/api/insights/player-combinations` — player combinations API |
+| `src/app/(app)/insights/player-combinations/page.tsx` | Player Combinations page |
+| `src/app/(app)/insights/player-combinations/player-combinations-client.tsx` | Player Combinations interactive client component |
+| `src/lib/insights/continuity-review.ts` | I-006: `getContinuityReview()` — round-over-round retained/new players and formation repeats per team; no prescribed ideal balance |
+| `src/lib/insights/continuity-review-helpers.ts` | Pure helpers: continuity ratio, formation-change formatting |
+| `src/app/api/insights/continuity/route.ts` | GET `/api/insights/continuity` — continuity review API |
+| `src/app/(app)/insights/continuity/page.tsx` | Continuity vs Exploration page |
+| `src/app/(app)/insights/continuity/continuity-review-client.tsx` | Continuity vs Exploration interactive client component |
+| `src/lib/insights/operational-health.ts` | I-007: `getOperationalHealth()` — 9 concrete grouped facts (incomplete lineups, stale assignments, missing reports, unresolved reviews, unowned upcoming work, expiring support access, availability conflicts, invalid rotation paths, finalisation checkpoints); no composite score |
+| `src/lib/insights/operational-health-helpers.ts` | Category labels, total-count helper |
+| `src/app/api/insights/operational-health/route.ts` | GET `/api/insights/operational-health` — operational health API |
+| `src/app/(app)/insights/operational-health/page.tsx` | Operational Health page |
+| `src/app/(app)/insights/operational-health/operational-health-client.tsx` | Operational Health interactive client component |
 
 ### Player Pathways files
 

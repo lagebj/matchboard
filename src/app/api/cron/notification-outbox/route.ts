@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { processOutboxBatch } from "@/lib/email/outbox";
 import { getCronSecret } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const CRON_SECRET = getCronSecret();
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
       ...result,
     });
   } catch (err) {
-    console.error("[cron:notification-outbox] Error processing outbox batch:", err);
+    logger.error({ err }, "[cron:notification-outbox] Error processing outbox batch");
     return NextResponse.json(
       { ok: false, error: "Internal server error" },
       { status: 500 },

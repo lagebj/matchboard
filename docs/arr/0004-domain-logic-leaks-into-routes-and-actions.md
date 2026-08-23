@@ -61,8 +61,27 @@ functions, no embedded selection logic. A second spot-check, `src/app/(app)/team
 (231 lines, only 2 direct `db.*` calls), shows the same thin-adapter pattern delegating to
 `src/lib/teams/team-domain.ts`. Claims 1 (routes) and 2 (server actions) both look substantially
 improved from the original IMPROVE-0A assessment, at least at these two sampled points — not a
-full sweep of every route/action file. Claim 3 (selection rules duplicated in React components)
-was **not verified** in this pass — remains open and unconfirmed either way.
+full sweep of every route/action file.
+
+Claim 3 verified 2026-08-22 (platform-integrity-programme Phase 3, one bounded slice per this
+ARR's own exit condition — not a full sweep): `src/components/round/round-board.tsx`'s
+`determineRole()` duplicated the exact SUPPORT-preferred-over-DEVELOPMENT rotation-path
+preference logic that also lives server-side (`src/lib/selection/manual-draft-edit.ts` via
+`canMoveForRole()`). Not a security or data-integrity gap — `manual-draft-edit.ts` independently
+re-validates the submitted role and requires an override reason when it's wrong, so a stale
+client-side guess can't bypass rotation-path rules — but a real violation of the explicit rule in
+AGENTS.md's "Selection architecture" section ("Do not duplicate selection-engine logic in UI
+components"). Extracted the shared preference logic into a new pure function,
+`src/lib/selection/determine-automatic-role.ts` (`determineAutomaticRoleFromPaths()`, 6 unit
+tests), and had `round-board.tsx` call it instead of reimplementing it inline. A grep swept the
+rest of `src/components/` for the same pattern (score-adjustment/eligibility computation, not
+just display of already-computed props) — no other instance found; every other component only
+filters or displays server-resolved data (`rotationPaths`, `eligibleCandidates`, etc.), which is
+not a Claim 3 violation.
+
+Claims 1 and 2 remain spot-checked only, not swept — a full sweep of every route/action file was
+explicitly out of scope for this bounded pass (see this ARR's Exit condition / PHASES.md Phase
+3), consistent with the two prior spot-checks finding no violations.
 
 ## Related decisions
 

@@ -8,8 +8,6 @@ import { getTeamReadiness } from "@/domain/assistant-manager/service";
 import { getMatchReview } from "@/domain/assistant-manager/service";
 import { getSelectionExplanation } from "@/domain/assistant-manager/service";
 import { recordDecision } from "@/domain/assistant-manager/service";
-import { getPostMatchReport } from "@/domain/assistant-manager/service";
-import { completePostMatchReport } from "@/domain/assistant-manager/service";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
 async function requireRoundOrgAccess(roundId: string, orgFilter: OrgFilterMode): Promise<void> {
@@ -84,14 +82,3 @@ export async function createDecision(input: Omit<Parameters<typeof recordDecisio
   return recordDecision({ ...input, organisationId: ctx.organisationId });
 }
 
-export async function fetchPostMatchReport(matchId: string) {
-  const ctx = await requireActorContext();
-  await requireMatchOrgAccess(matchId, ctx.orgFilter);
-  return getPostMatchReport(matchId);
-}
-
-export async function finalizePostMatchReport(matchId: string, input: Parameters<typeof completePostMatchReport>[1]) {
-  const ctx = await requireActorContext();
-  await requireMatchOrgAccess(matchId, ctx.orgFilter);
-  return completePostMatchReport(matchId, input);
-}

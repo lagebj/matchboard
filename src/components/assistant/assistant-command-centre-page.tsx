@@ -12,6 +12,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
+import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import {
   OctagonAlert,
@@ -319,6 +320,8 @@ export function AssistantCommandCentrePage({
           />
         )}
       </div>
+
+      <InstallPwaCard dismissible />
 
       {/* Metric strip */}
       <div className="grid grid-cols-2 gap-3 medium:grid-cols-3 expanded:grid-cols-5">

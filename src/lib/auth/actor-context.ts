@@ -7,6 +7,7 @@ import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
 import { withTenantContext } from "@/lib/tenancy/tenant-client";
 import { setTenantOrganisationId, setTenantUserId } from "@/lib/tenancy/tenant-async-storage";
+import { setCorrelationId } from "@/lib/logging/correlation-context";
 import { db } from "@/lib/db";
 
 export type ActorContext = {
@@ -28,6 +29,7 @@ export async function requireActorContext(
   const userId = coach.id ?? "";
   const email = coach.email ?? "";
 
+  setCorrelationId(crypto.randomUUID());
   setTenantUserId(userId);
 
   const resolvedSlug = organisationSlug ?? await getOrgSlugFromCookie();
