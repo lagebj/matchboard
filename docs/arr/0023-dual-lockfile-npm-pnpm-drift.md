@@ -2,7 +2,9 @@
 
 ## State
 
-Confirmed
+Confirmed — and the initial fix attempt in this same pass was empirically proven wrong by CI
+(see History 2026-08-23). Vercel's actual production build uses **pnpm**, not npm, contradicting
+every local dev script/doc signal.
 
 ## Identified
 
@@ -66,33 +68,43 @@ so tooling (Vercel, corepack) doesn't have to guess from lockfile presence.
 
 ## Containment
 
-- Do not remove `pnpm-lock.yaml` without confirming, via the actual Vercel project configuration
-  (dashboard or `vercel env pull`/CLI inspection — not accessible from this session), which
-  package manager Vercel's build currently invokes for this project. Removing it blind risks
-  changing what the next production deploy actually installs.
-- `package.json` now declares `"packageManager": "npm@11.16.0"` (added in this pass) so that,
-  regardless of the `pnpm-lock.yaml` question, corepack/Vercel have an explicit, unambiguous
-  signal favoring npm rather than inferring from lockfile presence.
+- Do not add a `packageManager` field pinning npm, and do not remove `pnpm-lock.yaml` — both were
+  tried in this pass and the former was directly proven wrong by two failed Vercel deployments
+  (see History 2026-08-23). Vercel auto-detects `pnpm-lock.yaml`'s presence and runs `pnpm
+  install` for the actual production/preview build; an explicit `packageManager: npm` field makes
+  corepack refuse that with `ERROR This project is configured to use npm`, hard-failing the build.
 - `pnpm-lock.yaml` was resynced against the current `package.json` in this pass (via `pnpm
-  install --lockfile-only`) so it is not left in a *worse*, silently-stale state than before this
-  investigation — but this does not resolve the underlying drift risk, only resets the clock on it.
+  install --lockfile-only`) so it is not left in a worse, silently-stale state than before this
+  investigation — this remains a correct, safe interim step regardless of which lockfile ends up
+  authoritative.
+- Local development tooling (every `npm run ...` script, this repository's own AGENTS.md/README)
+  genuinely does use npm — that part of the original assumption was correct. What was wrong was
+  concluding that npm must therefore also be what Vercel builds with. **Local dev and Vercel's
+  build can use two different package managers today, and currently do.**
 
 ## Resolution criteria
 
-- Maintainer confirms Vercel's actual configured install command / detected package manager for
-  this project.
-- Based on that, either: (a) `pnpm-lock.yaml` is removed and Vercel's project settings/`
-  packageManager` field are confirmed to force npm, or (b) if pnpm genuinely is what Vercel uses
-  to build, `package-lock.json`'s role is reconsidered instead (the reverse of the current
-  npm-everywhere assumption) — either way, exactly one lockfile should remain tracked.
-- CI or a pre-commit check ideally verifies only one lockfile is ever added going forward.
+- Maintainer confirms, from the Vercel dashboard (Project Settings → General → Install Command /
+  detected framework), whether pnpm is the deliberately chosen build tool or an accidental
+  side-effect of `pnpm-lock.yaml`'s presence dating back to commit `718a3614`.
+- If pnpm is deliberate: align local dev docs/scripts to pnpm (or accept the split deliberately
+  and document it), and stop treating `package-lock.json` as if it were the deployed
+  dependency tree for OSV/security triage purposes — `pnpm-lock.yaml` is what actually ships.
+- If pnpm was accidental: switch Vercel's project settings to force npm explicitly (Vercel
+  Project Settings, not just a repo file — a `packageManager` field alone was proven
+  insufficient/actively harmful without a matching Vercel-side change), then remove
+  `pnpm-lock.yaml` and re-verify with a real deployment before considering it safe.
+- Either way, exactly one lockfile should remain tracked once the decision is made — the
+  interim state (both present, resynced) is deliberately conservative, not a stopping point.
 
 ## Disposition
 
-Confirmed, contained but not resolved — the actual fix requires a maintainer decision about live
-Vercel project configuration that cannot be verified from this environment. Interim mitigation
-(packageManager field added, pnpm-lock.yaml resynced, stale README pnpm command references
-fixed) reduces but does not eliminate the risk.
+Confirmed, contained but not resolved — worse, the natural-seeming interim fix (pin npm
+explicitly) was tried in this same pass and directly broke both Vercel deployments (`matchboard`
+and `matchboard-test`), proving pnpm is what Vercel's build actually uses today. Reverted the
+`packageManager` field immediately. The actual resolution still requires a maintainer decision
+about live Vercel project configuration that cannot be verified or safely guessed at from this
+environment — this pass proved that guessing is actively dangerous here, not just unresolved.
 
 ## Related decisions
 
@@ -100,9 +112,9 @@ None yet — the resolution requires a new decision once Vercel's actual configu
 
 ## Related implementation
 
-- `package.json` (`packageManager` field)
 - `pnpm-lock.yaml`, `package-lock.json`
-- `README.md` (stale `pnpm security:...` command references, fixed)
+- `README.md` (stale `pnpm security:...` command references, fixed — this part remains correct
+  regardless of the build-tool question, since it's about documented developer commands)
 
 ## Supersedes
 
@@ -119,3 +131,17 @@ None.
 Record created. Discovered during platform-integrity-programme Phase 10 (OSV dependency finding
 triage). Interim mitigation applied (packageManager field, lockfile resync, README fix); full
 resolution requires maintainer confirmation of Vercel's actual build configuration.
+
+### 2026-08-23
+
+The `packageManager: "npm@11.16.0"` field added the day before was directly proven wrong: PR
+#337's two Vercel deployment checks (`matchboard` and `matchboard-test`) both failed within
+seconds with `ERROR This project is configured to use npm` / `Command "pnpm install" exited with
+1`. Vercel's build log explicitly showed it detecting `pnpm-lock.yaml` and running `pnpm
+install`, which corepack then refused because of the conflicting `packageManager` field. This is
+direct, empirical proof that Vercel's real build uses pnpm today — reverted the field
+immediately (removed, not repointed to pnpm, since the exact previously-working pnpm version
+wasn't verified and guessing again after just being proven wrong once was not warranted).
+Updated Containment/Resolution criteria/Disposition above to reflect that local-dev-uses-npm and
+Vercel-builds-with-pnpm currently coexist, and that this is exactly the kind of live provider
+configuration this session cannot safely guess at — confirmed by getting it wrong once already.
