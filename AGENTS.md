@@ -2104,6 +2104,16 @@ See ADR-0057 for the full decision record.
   automating the trigger does not remove the human approval checkpoint.
 - Migrations must not run as part of the Vercel build process.
 - The `postinstall` script runs `prisma generate` only — not migrations.
+- If a migration's own SQL fails partway through applying to production, Prisma marks it FAILED
+  in its bookkeeping and refuses to attempt anything else until resolved — this is a different
+  state from a normal pending migration, and the pipeline's `check` job deliberately does not
+  treat it as one (`scripts/check-pending-migrations.mjs` detects and reports it distinctly). Do
+  not run `prisma migrate resolve` by hand against production credentials. Trigger
+  `production-db-migrate.yml` manually with the `resolve_migration`/`resolve_mode` inputs instead
+  — this runs the same command through the same approval-gated pipeline (see ADR-0084's
+  2026-08-23 History entry for the incident that added this). Fix the underlying SQL bug in the
+  same change, not just the bookkeeping — resolving without fixing the SQL fails again identically
+  on the next apply attempt.
 
 ### Hard rules
 

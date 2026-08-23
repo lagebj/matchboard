@@ -66,6 +66,25 @@ function parsePendingMigrationNames(output) {
   return names;
 }
 
+// A FAILED migration ("Following migration have failed:") is a different state from a normal
+// pending one ("...have not yet been applied:") — a previous `migrate deploy` attempt errored
+// partway through. `prisma migrate status` exits 1 for both, but a FAILED migration needs
+// `prisma migrate resolve` before anything else can run; treating it as ordinary "pending" would
+// let the `migrate` job retry the exact same failing SQL. See
+// .github/workflows/production-db-migrate.yml's "Recovering a FAILED migration" section.
+function parseFailedMigrationNames(output) {
+  const lines = output.split("\n").map((l) => l.trim());
+  const startIdx = lines.findIndex((l) => /^Following migration.* have failed:$/i.test(l));
+  if (startIdx === -1) return [];
+  const names = [];
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === "") break;
+    names.push(line);
+  }
+  return names;
+}
+
 function scanMigrationForDestructiveOps(migrationName) {
   const sqlPath = resolve(MIGRATIONS_DIR, migrationName, "migration.sql");
   let sql;
@@ -114,6 +133,28 @@ function main() {
     writeGithubOutput("has_destructive", "false");
     writeSummary("## Production DB migration check\n\nNo pending migrations. Nothing to do.");
     return;
+  }
+
+  const failedNames = parseFailedMigrationNames(output);
+  if (failedNames.length > 0) {
+    const lines = [
+      "## Production DB migration check",
+      "",
+      "### One or more migrations are stuck in a FAILED state",
+      "",
+      ...failedNames.map((name) => `- \`${name}\``),
+      "",
+      "This is not a normal pending migration — a previous `migrate deploy` attempt errored " +
+        "partway through applying it. The `migrate` job will not run until this is resolved: " +
+        "trigger this workflow manually (workflow_dispatch) with `resolve_migration` set to the " +
+        "exact name above. See this workflow file's \"Recovering a FAILED migration\" section.",
+    ];
+    writeSummary(lines.join("\n"));
+    console.error(output);
+    console.error(lines.join("\n"));
+    writeGithubOutput("has_pending", "false");
+    writeGithubOutput("has_destructive", "false");
+    process.exit(1);
   }
 
   const pendingNames = parsePendingMigrationNames(output);

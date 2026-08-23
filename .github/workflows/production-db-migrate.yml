@@ -19,13 +19,56 @@ run-name: >-
 # CONNECT + SELECT on `_prisma_migrations` -- nothing else, no neon_superuser membership. Confirmed
 # by direct test: this role can run `prisma migrate status` successfully and gets "permission
 # denied" reading any application table. See ADR-0084.
+#
+# ## Recovering a FAILED migration
+#
+# `prisma migrate status` reports a migration in one of three states: up to date, pending
+# ("have not yet been applied"), or FAILED ("have failed" -- a previous `migrate deploy` attempt
+# errored partway through). ADR-0084 anticipated the FAILED case as a `check`-job failure mode but
+# did not originally build a recovery path for it (see ADR-0084 History, 2026-08-23 entry) --
+# `check-pending-migrations.mjs` deliberately refuses to treat a FAILED migration as a normal
+# pending one, so `has_pending` never becomes `true` and the normal `migrate` job never runs while
+# a migration is stuck FAILED, by design.
+#
+# To recover: trigger this workflow manually (workflow_dispatch) with `resolve_migration` set to
+# the exact migration folder name `check`/`migrate`'s logs report as failed, and `resolve_mode`
+# left at its default (`rolled-back`) unless the database was already fixed by hand. This runs
+# `prisma migrate resolve` -- bookkeeping only, it does not touch application data or schema --
+# through the `resolve-failed-migration` job below, gated by the same `production-db` environment
+# approval as every other production-touching job in this pipeline. Once resolved, trigger this
+# workflow again with no inputs (or just push to main) to run the normal check+apply flow, which
+# will now see the migration as cleanly pending. If the migration's own SQL had a bug (the actual
+# cause of the 2026-08-23 incident), fix that in the migration file in the same PR that adds the
+# resolve trigger -- resolving bookkeeping without fixing the SQL just fails again identically.
 
 on:
   workflow_run:
     workflows: ["CI"]
     branches: [main]
     types: [completed]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      resolve_migration:
+        description: >-
+          Recovery-only: name of a migration Prisma reports as FAILED (not a normal pending
+          migration) that needs `prisma migrate resolve` before the normal check+apply flow can
+          run again. Leave empty for the normal check+apply flow. See "Recovering a FAILED
+          migration" below.
+        required: false
+        type: string
+      resolve_mode:
+        description: >-
+          Only used when resolve_migration is set. Use rolled-back when the migration's DDL did
+          not durably apply (the normal case — Postgres runs each migration.sql in one
+          transaction, so an error partway through rolls back everything in that file). Use
+          applied only if someone already fixed the database by hand to match what the migration
+          intended.
+        required: false
+        type: choice
+        options:
+          - rolled-back
+          - applied
+        default: rolled-back
 
 permissions:
   contents: read
@@ -35,10 +78,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve-failed-migration:
+    name: Resolve FAILED migration (requires approval)
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.resolve_migration != ''
+    runs-on: ubuntu-24.04
+
+    environment:
+      name: production-db
+
+    env:
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Migration status before resolve
+        run: npx prisma migrate status || true
+
+      - name: Resolve
+        run: |
+          npx prisma migrate resolve \
+            --${{ github.event.inputs.resolve_mode }} \
+            "${{ github.event.inputs.resolve_migration }}"
+
+      - name: Migration status after resolve
+        run: npx prisma migrate status || true
+
   check:
     name: Check for pending migrations
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.resolve_migration == '') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
