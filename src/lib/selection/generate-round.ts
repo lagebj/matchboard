@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { generateSelection } from "@/lib/selection/generate-selection";
 import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotation-paths";
-import { resolveRoundSupport, resolveSquadRepair } from "@/lib/selection/resolve-round-support";
+import { resolveRoundSupport, resolveSquadRepair, selfSquadRepairBelowTarget } from "@/lib/selection/resolve-round-support";
 import { routeCoreMatchDrops, type RoutedDrop } from "@/lib/selection/route-core-match-drops";
 import { resolveRoundConflicts } from "@/lib/selection/resolve-round-conflicts";
 import { validateGeneratedRoundInvariants } from "@/lib/selection/validate-generated-round-invariants";
@@ -481,58 +481,3 @@ function applyRoutedDrops(
   return result;
 }
 
-function selfSquadRepairBelowTarget(
-  matchResults: GeneratedSelection[],
-  sortedMatches: Array<{ team: { name: string; targetSquadSize: number } }>,
-  assignedPlayerIds: Set<string>,
-): GeneratedSelection[] {
-  const teamTargets = new Map(sortedMatches.map((m) => [m.team.name, m.team.targetSquadSize]));
-
-  return matchResults.map((result) => {
-    const target = teamTargets.get(result.teamName) ?? 11;
-    const shortfall = target - result.selectedPlayers.length;
-    if (shortfall <= 0) return result;
-
-    const ownExcluded = result.excludedPlayers.filter(
-      (p) => p.coreTeamId !== undefined && p.coreTeamName === result.teamName,
-    );
-
-    const available = ownExcluded.filter((p) => !assignedPlayerIds.has(p.playerId) && p.eligibility !== false);
-    const toReinclude = available.slice(0, shortfall);
-
-    if (toReinclude.length === 0) return result;
-
-    const reincludedIds = new Set(toReinclude.map((p) => p.playerId));
-
-    const reincludePlayers: SelectedPlayer[] = toReinclude.map((p) => ({
-      autoSelected: p.autoSelected,
-      chosenPosition: p.playerPosition,
-      coreTeamId: p.coreTeamId ?? "",
-      coreTeamName: p.coreTeamName ?? result.teamName,
-      eligibility: p.eligibility,
-      explanations: [
-        ...p.explanations,
-        { code: "self_squad_repair", summary: `${p.playerName} was re-included in ${result.teamName} because the squad was below target after round-level support resolution.`, hardRule: false },
-      ],
-      finalSelected: false,
-      manualOverride: p.manualOverride,
-      nonRotatable: p.nonRotatable,
-      playerId: p.playerId,
-      playerName: p.playerName,
-      playerPosition: p.playerPosition,
-      priorityScore: p.priorityScore ?? 0,
-      selectionCategory: "SUPPORT" as const,
-      selectionReason: `Re-included in ${result.teamName} as squad repair to meet target squad size after support rotation.`,
-    }));
-
-    for (const p of toReinclude) {
-      assignedPlayerIds.add(p.playerId);
-    }
-
-    return {
-      ...result,
-      selectedPlayers: [...result.selectedPlayers, ...reincludePlayers],
-      excludedPlayers: result.excludedPlayers.filter((p) => !reincludedIds.has(p.playerId)),
-    };
-  });
-}
