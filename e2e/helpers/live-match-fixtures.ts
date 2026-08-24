@@ -119,3 +119,24 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
 
   return { opponentName, matchId };
 }
+
+/**
+ * Waits for a just-recorded live-match event to actually finish syncing (SyncStatusIndicator
+ * clears), actively nudging a retry if it lands in the "Sync issue" error state rather than
+ * passively waiting — confirmed live in CI: a single recordEvent round trip can genuinely fail
+ * (not just run slow) against a cold Vercel function on a freshly forked branch, and passively
+ * waiting for "syncing…" text to disappear is a false negative in that case (the text disappears
+ * because the attempt already gave up, not because it succeeded). Mirrors what the app itself
+ * does on network recovery (the "online" window event handler in live-match-client.tsx) rather
+ * than reimplementing retry logic — this is a nudge, not a different code path.
+ */
+export async function waitForEventsToSync(page: Page, timeoutMs = 45_000): Promise<void> {
+  await expect(async () => {
+    const stillPending = await page.getByText(/event.*syncing/).isVisible().catch(() => false);
+    const hasError = await page.getByText(/Sync issue/).isVisible().catch(() => false);
+    if (hasError) {
+      await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    }
+    expect(stillPending || hasError).toBe(false);
+  }).toPass({ timeout: timeoutMs, intervals: [1_000, 2_000, 3_000, 5_000] });
+}

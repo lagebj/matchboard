@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createFinalizedLiveTestMatch } from "./helpers/live-match-fixtures";
+import { createFinalizedLiveTestMatch, waitForEventsToSync } from "./helpers/live-match-fixtures";
 
 // Live match reporting coverage (follow-up to ADR-0086/the live-match-realtime-programme).
 // Runs under the default "chromium" project (coach-all-a). See
@@ -35,9 +35,11 @@ test("start live reporting, record a goal, verify the score updates, then finish
   // finish (real network latency, not instant) before finishing the session — otherwise
   // handleEndSession's real getUnsyncedEvents() check (the 2026-08-24 fix) correctly blocks on
   // a still-genuinely-pending event, which is a false negative for *this* test's purpose (that
-  // exact blocking behavior is what the second test below verifies deliberately).
-  await expect(page.getByText(/event.*syncing/)).toBeVisible({ timeout: 5_000 }).catch(() => {});
-  await expect(page.getByText(/event.*syncing/)).toHaveCount(0, { timeout: 20_000 });
+  // exact blocking behavior is what the second test below verifies deliberately). Passively
+  // waiting for "syncing…" text to disappear is a false positive if the attempt instead lands in
+  // the terminal "Sync issue" error state (confirmed live in CI) — waitForEventsToSync actively
+  // detects and recovers from that case instead of trusting the text's mere absence.
+  await waitForEventsToSync(page);
 
   await page.getByRole("button", { name: "Finish live reporting" }).click();
   const dialog = page.getByRole("alertdialog");
@@ -80,8 +82,11 @@ test("blocks finishing the session while events are still unsynced, then complet
   await expect(page).toHaveURL(/\/live$/);
   await expect(page.getByText(/could not sync and would be lost/i)).toBeVisible({ timeout: 10_000 });
 
-  // Back online: the same finish action should now succeed once the event actually syncs.
+  // Back online: the same finish action should now succeed once the event actually syncs. Wait
+  // for the real resync round trip first — clicking immediately can race a still-pending or
+  // errored sync attempt and hit the same block dialog again.
   await context.setOffline(false);
+  await waitForEventsToSync(page);
   await page.getByRole("button", { name: "Finish live reporting" }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click();
