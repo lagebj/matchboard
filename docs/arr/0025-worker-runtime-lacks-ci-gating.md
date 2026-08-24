@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -95,7 +95,22 @@ and the downstream deploy trigger on failure.
 
 ## Disposition
 
-Open. Scoped to AIP-1.
+Resolved (AIP-1, Architecture Integrity Programme). `typecheck:workers`/`test:workers` are now
+part of `npm run validate` and run as their own `typecheck-workers`/`test-workers` jobs in
+`.github/workflows/ci-checks.yml`, kept independent from the main app's `typecheck`/`test` jobs
+(separate tsconfig/vitest config, incompatible Workers types) for clear per-runtime failure
+attribution. `deploy-live-match-worker.yml` needed no changes — its `workflow_run` trigger
+already gates on this workflow's overall `conclusion`, which now genuinely covers the Worker.
+`docs/development/live-match-realtime.md` and `docs/security/branch-protection-and-secret-scanning.md`
+updated to match. Branch protection itself is not currently configured on `main` at all
+(pre-existing gap, separate from this ARR — see `EXT-002` in the local programme's
+`state/EXTERNAL-ACTIONS.md`, AIP-6 territory).
+
+## History
+
+### 2026-08-24
+
+Resolved. See `.github/workflows/ci-checks.yml`'s `typecheck-workers`/`test-workers` jobs.
 
 ## Related decisions
 
