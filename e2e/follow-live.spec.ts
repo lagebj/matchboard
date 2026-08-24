@@ -12,9 +12,14 @@ import { createFinalizedLiveTestMatch } from "./helpers/live-match-fixtures";
 // route, WebSocket upgrade, and the Worker's own auth/session checks — not just the app's own
 // code, which is exactly what code review alone could not confirm or deny for the "Connection
 // problem" issue this spec is written to reproduce/verify.
+//
+// 180s test timeout (not the usual 90s): confirmed live in CI that create + generate + finalize
+// alone can consume most of a 90s budget on a freshly forked per-PR Neon branch (cold compute),
+// leaving no headroom for the connection test itself — the failure wasn't any single step being
+// slow, it was the cumulative pipeline exceeding the total budget.
 
 test("a second coach can follow a live match in real time via the Cloudflare realtime path", async ({ page, browser }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   const { matchId } = await createFinalizedLiveTestMatch(page, "FollowLive");
 
   await page.getByRole("link", { name: "Live reporting" }).click();

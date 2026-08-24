@@ -5,9 +5,14 @@ import { createFinalizedLiveTestMatch } from "./helpers/live-match-fixtures";
 // Runs under the default "chromium" project (coach-all-a). See
 // e2e/helpers/live-match-fixtures.ts for why each test creates its own throwaway match rather
 // than reusing/mutating the shared canonical seed dataset.
+//
+// 180s test timeout (not the usual 90s): confirmed live in CI that create + generate + finalize
+// alone can consume most of a 90s budget on a freshly forked per-PR Neon branch (cold compute),
+// leaving no headroom for the live-reporting flow itself — the failure wasn't any single step
+// being slow, it was the cumulative pipeline exceeding the total budget.
 
 test("start live reporting, record a goal, verify the score updates, then finish cleanly", async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   const { opponentName } = await createFinalizedLiveTestMatch(page, "Core");
 
   await page.getByRole("link", { name: "Live reporting" }).click();
@@ -44,7 +49,7 @@ test("start live reporting, record a goal, verify the score updates, then finish
 });
 
 test("blocks finishing the session while events are still unsynced, then completes once back online", async ({ page, context }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   await createFinalizedLiveTestMatch(page, "OfflineSync");
 
   await page.getByRole("link", { name: "Live reporting" }).click();
