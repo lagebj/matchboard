@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { endEventLiveSession } from "@/lib/live-match/event-live-match-session";
+import { seedEventReportFromLiveSession } from "@/lib/reports/event-report-mutations";
 
 async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
   const ctx = await requirePageActorContext();
@@ -14,6 +16,13 @@ async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ event
   return { eventId: match.eventId };
 }
 
+/**
+ * Event-side Run -> Learn handoff adapter (ADR-0088), parallel to
+ * `endLiveSessionAndCreateReportAction` for League matches: validates session/match/organisation
+ * consistency for this entry point, then delegates the two owning transitions — "this live
+ * session ends" and "the first DRAFT event post-match report exists" — to their domain
+ * functions instead of reimplementing either write here.
+ */
 export async function endEventLiveSessionAndCreateReportAction(sessionId: string, eventMatchId: string) {
   try {
     const ctx = await requirePageActorContext();
@@ -40,128 +49,11 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       return { success: false as const, error: "Session not found or access denied." };
     }
 
-    const eventMatch = await db.eventMatch.findUnique({
-      where: { id: eventMatchId },
-      select: {
-        eventId: true,
-        eventSquadId: true,
-        eventSquad: {
-          select: {
-            id: true,
-            name: true,
-            players: {
-              select: {
-                playerId: true,
-                assignedRoleType: true,
-                source: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    await endEventLiveSession(sessionId);
 
-    if (!eventMatch) {
-      return { success: false as const, error: "Event match not found." };
-    }
-
-    await db.eventLiveMatchSession.update({
-      where: { id: sessionId },
-      data: { status: "ENDED", endedAt: new Date() },
-    });
-
-    const existingReport = await db.eventPostMatchReport.findUnique({
-      where: { eventMatchId },
-      select: { id: true, status: true },
-    });
-
-    let reportResult: { id: string; status: string; eventMatchId: string };
-
-    if (existingReport) {
-      reportResult = {
-        id: existingReport.id,
-        status: existingReport.status,
-        eventMatchId,
-      };
-    } else {
-      const supportAssignments = await db.eventMatchSupportAssignment.findMany({
-        where: { eventMatchId },
-        select: { playerId: true, plannedRole: true },
-      });
-
-      const squadPlayerIds = new Set(eventMatch.eventSquad.players.map((sp) => sp.playerId));
-      const allPlayerIds = new Set<string>([
-        ...squadPlayerIds,
-        ...supportAssignments.map((sa) => sa.playerId),
-      ]);
-
-      const supportPlayerRoles = new Map<string, string>();
-      for (const sa of supportAssignments) {
-        if (sa.plannedRole) {
-          supportPlayerRoles.set(sa.playerId, sa.plannedRole);
-        }
-      }
-
-      const liveEvents = await db.eventLiveMatchEvent.findMany({
-        where: {
-          eventMatchId,
-          OR: [
-            { correctionType: null },
-            { correctionType: "CORRECTION" },
-          ],
-          eventType: { in: ["GOAL_FOR", "GOAL_AGAINST", "SCORER_SET", "ASSIST_SET"] },
-        },
-        select: {
-          eventType: true,
-          playerId: true,
-          secondaryPlayerId: true,
-        },
-        orderBy: { createdAt: "asc" },
-      });
-
-      const goalsFor = liveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
-      const goalsAgainst = liveEvents.filter((e) => e.eventType === "GOAL_AGAINST").length;
-
-      const scorerEvents = liveEvents.filter((e) => e.eventType === "SCORER_SET" && e.playerId !== null);
-      const assistEvents = liveEvents.filter((e) => e.eventType === "ASSIST_SET" && e.playerId !== null);
-
-      const report = await db.eventPostMatchReport.create({
-        data: {
-          eventMatchId,
-          status: "DRAFT",
-          ourScore: goalsFor,
-          opponentScore: goalsAgainst,
-          organisationId: session.organisationId,
-          playerReports: {
-            create: Array.from(allPlayerIds).map((playerId) => ({
-              playerId,
-              attendanceStatus: "PRESENT",
-              role: supportPlayerRoles.get(playerId) ?? undefined,
-              organisationId: session.organisationId,
-            })),
-          },
-          goalEvents: {
-            create: scorerEvents.map((e) => ({
-              playerId: e.playerId!,
-              type: "NORMAL",
-              organisationId: session.organisationId,
-            })),
-          },
-          assistEvents: {
-            create: assistEvents.map((e) => ({
-              playerId: e.playerId!,
-              type: "NORMAL",
-              organisationId: session.organisationId,
-            })),
-          },
-        },
-      });
-
-      reportResult = {
-        id: report.id,
-        status: report.status,
-        eventMatchId: report.eventMatchId,
-      };
+    const result = await seedEventReportFromLiveSession(eventMatchId, session.organisationId);
+    if (!result.success) {
+      return { success: false as const, error: result.error };
     }
 
     const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
@@ -173,8 +65,8 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       data: {
         sessionId,
         eventMatchId,
-        reportId: reportResult.id,
-        reportStatus: reportResult.status,
+        reportId: result.reportId,
+        reportStatus: result.status,
       },
     };
   } catch (error) {

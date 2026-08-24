@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { getRules } from "@/lib/rules/get-rules";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
-import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
+import { formatOverrideReason } from "@/lib/selection/override-reason-utils";
+import { finalizeSelectionsForScope, finalizeRoundRecord } from "@/lib/selection/round-finalization-transitions";
 
 export type FinalizeResult = {
   success: boolean;
@@ -108,39 +109,17 @@ export async function finalizeMatchRound(
   const currentRuleConfigVersion = rules.version;
 
   await db.$transaction(async (tx) => {
-    await tx.selection.updateMany({
-      where: {
-        matchRoundId,
-        status: SelectionStatus.DRAFT,
-      },
-      data: {
-        status: SelectionStatus.FINALIZED,
-        ruleConfigVersion: currentRuleConfigVersion,
-        overrideReason: hasHardOverrides ? formattedOverrideReason : null,
-        overrideReasonCategory: overrideReasonCategory ? toPrismaCategory(overrideReasonCategory) : null,
-        overrideReasonDetail: overrideReasonDetail ?? null,
-      },
-    });
+    await finalizeSelectionsForScope(
+      tx,
+      { matchRoundId },
+      currentRuleConfigVersion,
+      overrideReasonCategory,
+      hasHardOverrides ? formattedOverrideReason : null,
+      overrideReasonDetail,
+      hasHardOverrides,
+    );
 
-    await tx.movementLedger.updateMany({
-      where: {
-        matchRoundId,
-        isDraft: true,
-      },
-      data: {
-        isDraft: false,
-      },
-    });
-
-    await tx.matchRound.update({
-      where: { id: matchRoundId },
-      data: { status: "FINALIZED" },
-    });
-
-    await tx.ruleConfig.update({
-      where: { id: rules.id },
-      data: { version: currentRuleConfigVersion + 1 },
-    });
+    await finalizeRoundRecord(tx, matchRoundId, rules.id, currentRuleConfigVersion);
   });
 
   const allWarningMessages = allOverrideSignals.map((s) => {

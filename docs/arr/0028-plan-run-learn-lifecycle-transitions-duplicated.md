@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -131,4 +131,27 @@ realtime) are each scoped to one phase and do not address cross-phase transition
 
 ## Disposition
 
-Pending. Targeted at AIP-3 (Lifecycle contract) of the Architecture Integrity Programme.
+Resolved by ADR-0088 (AIP-3, Architecture Integrity Programme). `src/lib/selection/round-finalization-transitions.ts`
+now owns the shared Plan-phase writes (`finalizeSelectionsForScope`/`unfinalizeSelectionsForScope`,
+`finalizeRoundRecord`/`unfinalizeRoundRecord`), called by all four of
+`finalize-match-round.ts`/`finalize-single-match.ts`/`unfinalize-match-round.ts`/`unfinalize-single-match.ts`
+instead of each reimplementing the writes. `seedReportFromLiveSession()`
+(`src/lib/reports/report-mutations.ts`) and `seedEventReportFromLiveSession()` (new
+`src/lib/reports/event-report-mutations.ts`) now own the Run->Learn report-seeding logic
+previously inlined in `live-report-handoff.ts`/`event-live-report-handoff.ts`, which are now thin
+adapters. Both handoff actions now call `endLiveSession()`/`endEventLiveSession()` instead of
+writing `LiveMatchSession`/`EventLiveMatchSession.status` inline. New tests:
+`src/lib/selection/__tests__/round-finalization-transitions.test.ts`,
+`src/lib/reports/__tests__/report-mutations.test.ts`.
+
+A related, lower-severity finding surfaced during this investigation — Event report *completion*
+(DRAFT->LOCKED) is still reimplemented inline in `event-post-match-actions.ts`, unlike League's
+already-centralized `report-mutations.ts`/`report-domain.ts` — is explicitly **not** resolved
+here; recorded separately as ARR-0030 since it needs its own Event-report state-machine
+investigation rather than reusing this fix.
+
+## History
+
+### 2026-08-24
+
+Resolved. See ADR-0088. Related deferred finding: ARR-0030.

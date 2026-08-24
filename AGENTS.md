@@ -2177,6 +2177,7 @@ Avoid:
 | `src/lib/selection/migrate-double-load-roles.ts` | Migration: merge standalone DOUBLE_LOAD rows into base role rows with controlledDoubleLoad=true |
 | `src/lib/selection/migrate-squad-repair-roles.ts` | Migration: role=CORE with "squad repair" explanation → role=BACKFILL |
 | `src/lib/selection/backfill-movement-ledger.ts` | Normalization: create MovementLedger entries for existing non-core selections without ledger entries |
+| `src/lib/selection/round-finalization-transitions.ts` | Owning writes for the Plan-phase finalize/un-finalize transition (ADR-0088): shared selection/movement-ledger/round-record writes called by all four functions below, scoped by `{ matchRoundId }` or `{ matchId }` |
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
@@ -2460,9 +2461,12 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config) |
 | `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) |
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
-| `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action: end session and create/seed post-match report |
+| `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endLiveSession()` and `seedReportFromLiveSession()` — does not reimplement either write |
+| `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
+| `src/lib/reports/report-domain.ts` | League report transition validation: `canTransitionTo`, `isReportLocked`, `hasUnknownAttendance` |
 | `src/app/(app)/events/[eventId]/event-live-actions.ts` | Server actions: event live session lifecycle, event recording, pre-match package |
-| `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action: end event live session and create/seed event post-match report |
+| `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endEventLiveSession()` and `seedEventReportFromLiveSession()` |
+| `src/lib/reports/event-report-mutations.ts` | Event Run->Learn handoff domain mutation: `seedEventReportFromLiveSession` (ADR-0088). Report *completion* (DRAFT->LOCKED) is not yet domain-owned — see ARR-0030 |
 | `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
 | `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 
