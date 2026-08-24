@@ -19,7 +19,7 @@ test("start live reporting, record a goal, verify the score updates, then finish
   // Cold Vercel functions on CI's freshly forked per-PR Neon branch (ADR-0075) can make this
   // slower than the default 5s expect timeout, confirmed live against the shared hosted Test slot.
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
-  await expect(page.getByText(`vs ${opponentName}`)).toBeVisible();
+  await expect(page.getByText(`vs ${opponentName}`)).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Start live reporting" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });

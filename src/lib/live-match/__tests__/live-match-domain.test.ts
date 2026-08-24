@@ -62,13 +62,18 @@ describe("validateLiveEventInput", () => {
     expect(validateLiveEventInput({ ...validBase, eventType: "INVALID" as LiveMatchEventType })).toContain("Invalid event type");
   });
 
-  it("requires playerId for goal events", () => {
-    expect(validateLiveEventInput({ ...validBase, playerId: undefined })).toContain("requires a playerId");
+  it("does not require playerId for GOAL_FOR (scorer attribution is a separate, optional SCORER_SET event)", () => {
+    expect(validateLiveEventInput({ ...validBase, playerId: undefined })).toBeNull();
   });
 
   it("does not require playerId for GOAL_AGAINST", () => {
     const input = { ...validBase, eventType: "GOAL_AGAINST" as LiveMatchEventType, playerId: undefined };
     expect(validateLiveEventInput(input)).toBeNull();
+  });
+
+  it("requires playerId for SCORER_SET", () => {
+    const input = { ...validBase, eventType: "SCORER_SET" as LiveMatchEventType, playerId: undefined };
+    expect(validateLiveEventInput(input)).toContain("requires a playerId");
   });
 
   it("requires correctsEventId when correctionType is set", () => {
