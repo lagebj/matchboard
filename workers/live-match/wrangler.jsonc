@@ -48,7 +48,11 @@
       "vars": {
         "MATCHBOARD_APP_ORIGINS": "https://app.matchboard.football",
         "MATCHBOARD_API_BASE_URL": "https://app.matchboard.football"
-      }
+      },
+      // Workers Logs — included on the Free plan (200k events/day, 3-day retention; confirmed
+      // against Cloudflare's own pricing docs, 2026-08-24), not a paid-tier feature. Lets us
+      // query real console.log/request activity in the dashboard instead of only live-tailing.
+      "observability": { "logs": { "enabled": true } }
     },
     "test": {
       "name": "gentle-rice-ba83",
@@ -63,7 +67,8 @@
       "vars": {
         "MATCHBOARD_APP_ORIGINS": "https://test.matchboard.football",
         "MATCHBOARD_API_BASE_URL": "https://test.matchboard.football"
-      }
+      },
+      "observability": { "logs": { "enabled": true } }
     }
   }
 }

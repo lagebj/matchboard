@@ -573,3 +573,10 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   outstanding item (test-environment `LIVE_MATCH_REALTIME_SECRET` rotation/sync) was also closed
   out in the same session: both the production and test values were re-confirmed matching Vercel
   before being pushed to their respective Workers.
+- 2026-08-24: Enabled Workers Logs (`observability.logs.enabled: true`) on both environments in
+  `workers/live-match/wrangler.jsonc`, to support diagnosing "Follow live" connectivity issues
+  without needing a live `wrangler tail` session running at the exact moment of a repro.
+  Confirmed against Cloudflare's own pricing documentation before enabling: Workers Logs is
+  included on the Free plan (200,000 events/day, 3-day retention) — not a paid-tier feature, and
+  does not conflict with D-004's Free-plan constraint. This Worker's traffic (a handful of live
+  matches per week) is far below the daily cap.
