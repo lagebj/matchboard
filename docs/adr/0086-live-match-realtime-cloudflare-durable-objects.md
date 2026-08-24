@@ -539,3 +539,37 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   (and, as found, silently diverging) versions. Added regression tests at both the pure
   `evaluateRecordEvent` level and the class-orchestration level proving a retried event
   resends its full original fields, not just `eventType`.
+- 2026-08-24: Deploy-auth incident (opened 2026-08-23, see the entry above about upgrading the
+  token to Workers Scripts:Edit) resolved — that earlier fix was necessary but not sufficient.
+  Root-caused directly against the Cloudflare API with `curl` (bypassing wrangler) rather than
+  guessing at permission names: the "Unable to get membership roles... `User->Memberships->Read`"
+  message wrangler prints is a generic footer on *any* auth error, not a real diagnosis. The
+  actual finding was that the **Account-owned** API token — correctly scoped to "Entire Account",
+  with `Workers Scripts:Edit` confirmed present — still 403'd (`code: 10000`) on the single most
+  basic Workers Scripts call (`GET /accounts/{id}/workers/scripts`, a plain list, no per-script
+  scoping involved), and did so identically across 7+ distinct fresh tokens and permission
+  combinations. That pattern (every variation failing identically) pointed away from "wrong
+  permission checkbox" and toward something systemic to Account-owned tokens on this account.
+  Switching to a **User-owned** API token (same Cloudflare user, `My Profile -> API Tokens`
+  rather than the account's own token page) resolved it immediately — proven first with the same
+  raw `curl` calls (200 OK across the board) before touching CI. The underlying Cloudflare-side
+  reason Account-owned tokens failed here was not established (not a documented, reproducible
+  Cloudflare bug found in public trackers); the fix is empirical, not fully explained. Separately,
+  once the Worker script itself deployed with the User token, `wrangler deploy` still failed on
+  `GET /zones/{zoneId}/workers/routes` (403) while resolving the `custom_domain: true` route —
+  a genuinely different, well-understood gap (zone-scoped operation, account-scoped token
+  permissions), fixed by adding `Zone: Workers Routes:Edit` to the same token. Also found and
+  fixed in the same investigation: `LIVE_MATCH_REALTIME_SECRET` was confirmed via `wrangler
+  secret list` to be **absent from both Workers** despite an earlier dashboard check reporting it
+  present as an encrypted Secret — meaning realtime ticket verification had been silently broken
+  on both live Workers since Stage 3/"Follow live" shipped. Pushed via `wrangler versions secret
+  put` + `wrangler versions deploy ...@100` (required because Gradual Deployments/Versions is
+  active on this account, which makes the classic `wrangler secret put` refuse to auto-deploy on
+  top of an undeployed version) after confirming the values matched Vercel's on both sides. With
+  both fixes applied, `deploy-live-match-worker.yml` succeeded end-to-end for the first time
+  (run `32700681745`) — Stages 3-7's Worker code is now genuinely live on both
+  `realtime.matchboard.football` and `realtime-test.matchboard.football`, not the placeholder
+  "Hello World" script referenced in the CRITICAL note above. The exposed-secret incident's
+  outstanding item (test-environment `LIVE_MATCH_REALTIME_SECRET` rotation/sync) was also closed
+  out in the same session: both the production and test values were re-confirmed matching Vercel
+  before being pushed to their respective Workers.
