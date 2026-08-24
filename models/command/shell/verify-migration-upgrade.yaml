@@ -1,0 +1,12 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: cacdc922-2ec0-4f0a-8475-26fbfc269e86
+name: verify-migration-upgrade
+version: 1
+tags:
+  swamp-procedure: verify-migration-upgrade
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      run: bash scripts/verify-migration-upgrade.sh

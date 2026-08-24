@@ -2113,6 +2113,13 @@ See ADR-0057 for the where-clause-injection design and ADR-0087 for the fail-clo
   automating the trigger does not remove the human approval checkpoint.
 - Migrations must not run as part of the Vercel build process.
 - The `postinstall` script runs `prisma generate` only — not migrations.
+- Before a migration reaches the production pipeline, CI's `migration-upgrade-from-populated-state`
+  job (ADR-0090, `scripts/verify-migration-upgrade.sh`) applies it to a disposable Neon branch
+  forked from the persistent `test` branch (which carries real, populated data at its current
+  migration state) — catching a migration that's safe against an empty schema (the separate
+  `migration-from-zero` job) but unsafe against existing rows, before it ever reaches the
+  human-approval gate below. This does not replace `check-pending-migrations.mjs`'s
+  destructive-keyword scan; both run.
 - If a migration's own SQL fails partway through applying to production, Prisma marks it FAILED
   in its bookkeeping and refuses to attempt anything else until resolved — this is a different
   state from a normal pending migration, and the pipeline's `check` job deliberately does not

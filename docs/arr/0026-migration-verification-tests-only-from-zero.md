@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -92,7 +92,18 @@ state, not only migration from zero."
 
 ## Disposition
 
-Open. Scoped to AIP-5.
+Resolved by ADR-0090 (AIP-5, Architecture Integrity Programme). New `scripts/verify-migration-upgrade.sh`
+(+ `verify-migration-upgrade.ts`, + the `verify-migration-upgrade` swamp model) forks a disposable
+Neon branch from the persistent `test` branch, applies pending migrations against it, verifies
+representative-table row counts don't decrease and the application can read expected records
+afterward, then deletes the branch. Wired as a new `migration-upgrade-from-populated-state` CI
+job in `ci-checks.yml`, gated cleanly on `NEON_API_KEY`/`NEON_PROJECT_ID` being configured.
+
+## History
+
+### 2026-08-24
+
+Resolved. See ADR-0090.
 
 ## Related decisions
 
