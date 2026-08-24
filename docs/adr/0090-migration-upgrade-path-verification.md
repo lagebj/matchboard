@@ -63,17 +63,24 @@ of invariants (below), then always deletes the branch.
    proving the application can actually read expected records afterward, not just that the SQL
    applied without a database-level error.
 
-### Where it runs: CI only, not also `production-db-migrate.yml`
+### Where it runs: CI, on push to `main` only — not `pull_request`, not also `production-db-migrate.yml`
 
 Wired into `ci-checks.yml` as a new job (`migration-upgrade-from-populated-state`), gated on
 `NEON_API_KEY`/`NEON_PROJECT_ID` being configured (skips cleanly otherwise, same pattern as the
 `e2e` job's `TEST_AGENT_AUTH_SECRET` gate) — **not** duplicated into
-`production-db-migrate.yml`'s `check` job. Running in CI catches a bad migration before merge
-(ARR-0026's acceptance criterion: "A bad migration ordering/conversion can fail before production
-deployment"), which is strictly earlier and more useful than only catching it at the production
-deploy gate. Adding a second, redundant Neon branch fork+delete cycle to every production deploy
-attempt would slow that pipeline down and consume Neon branch-creation quota for a check CI
-already performed on the same commit.
+`production-db-migrate.yml`'s `check` job, for the same reason `e2e` above it is push-only: this
+forks a real Neon branch, which spends Neon compute-hour quota shared with
+`test-acceptance.yml`'s own per-PR branches. **Originally scoped to run on every `pull_request`
+push too** (catching a bad migration before merge, not just before production deploy) — changed
+to push-only after this exact design failed live on its first real CI run: running on a
+`pull_request` `synchronize` event exhausted the Neon project's compute quota within one session's
+worth of PR pushes (`ERROR: compute time quota exceeded; usage:"398508", limit:"396000"`, observed
+2026-08-24). Running only on push-to-main still satisfies ARR-0026's "before production
+deployment" acceptance criterion — `production-db-migrate.yml` also triggers off push-to-main CI
+success — just not "before merge to main." Accepted trade-off given the shared, currently-tight
+resource constraint; revisit if Neon compute quota is increased or per-PR branch usage is reduced
+elsewhere. Not duplicated into `production-db-migrate.yml`'s `check` job either, for the original
+reason (redundant fork+delete cycle on the same commit CI already checked).
 
 ## Rationale
 
@@ -153,6 +160,12 @@ already performed on the same commit.
   additive evidence, not a claim of exhaustive verification — `check-pending-migrations.mjs`'s
   destructive-keyword scan and the required human-reviewer approval in `production-db-migrate.yml`
   remain in place as further layers.
+- Risk (observed live, not merely theoretical): the shared Neon project's compute-hour quota is
+  currently tight enough that adding Neon-branch-creating CI work can exhaust it outright, failing
+  the job for a reason unrelated to migration safety. Mitigation: push-only trigger (see above) —
+  if quota exhaustion recurs even at that reduced frequency, the next response should be
+  investigating actual quota usage/limits with the Neon project owner, not adding more retry
+  logic around an already-exhausted budget.
 
 ## Migration and compatibility
 
@@ -187,3 +200,12 @@ None.
 
 Record created. Architecture Integrity Programme AIP-5 (Migration upgrade safety). Resolves
 ARR-0026.
+
+### 2026-08-24 (same day, follow-up)
+
+First real CI run of `migration-upgrade-from-populated-state` (triggered on a `pull_request`
+push, as originally scoped) failed — not from a script defect, but because the Neon project's
+compute-hour quota was already exhausted (`usage:"398508", limit:"396000"`), shared with
+`test-acceptance.yml`'s own per-PR Neon branches. Changed the job to `push`-only (matching the
+`e2e` job's existing pattern/reasoning), reducing Neon branch-creation frequency from "every push
+to an open PR" to "once per merge to main." Still satisfies ARR-0026's acceptance criterion.

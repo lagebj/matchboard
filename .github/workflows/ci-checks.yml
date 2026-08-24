@@ -237,6 +237,15 @@ jobs:
   # gate — the `secrets` context cannot appear in any `if:` expression (see e2e job's own comment).
   migration-upgrade-from-populated-state:
     name: Migration Upgrade (Populated State)
+    # push-only (not pull_request), same reasoning as the e2e job above: this forks a real Neon
+    # branch, which costs Neon compute-hour quota shared with test-acceptance.yml's per-PR
+    # branches. Confirmed live (2026-08-24): running on every PR push exhausted the project's
+    # Neon compute quota within one session's worth of pushes ("compute time quota exceeded;
+    # usage 398508, limit 396000"). Running only on push-to-main still satisfies ARR-0026's "before
+    # production deployment" acceptance criterion (production-db-migrate.yml also triggers off
+    # push-to-main CI success), just not "before merge" — an accepted trade-off given the shared
+    # resource constraint. See ADR-0090's History.
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     env:
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
