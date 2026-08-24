@@ -14,6 +14,7 @@ function mapReadiness(blockerCount: number, decisionRequiredCount: number): "REA
 
 export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<FixturesOverview> {
   const organisationId = orgFilter.organisationId;
+  const now = new Date();
   const seasons = await db.season.findMany({
     where: { organisationId },
     orderBy: { name: "desc" },
@@ -214,6 +215,7 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
         blockerCount: periodBlockerCount,
         decisionRequiredCount: periodDecisionCount,
         rounds,
+        isCurrent: period.startDate <= now && now <= period.endDate,
       });
     }
   }

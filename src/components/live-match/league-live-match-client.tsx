@@ -12,7 +12,8 @@ import {
   getLiveMatchPreMatchPackageAction,
 } from "@/app/(app)/matches/[matchId]/live/live-actions";
 import { endLiveSessionAndCreateReportAction } from "@/app/(app)/matches/[matchId]/live/live-report-handoff";
-import { LEAGUE_PERIOD_CONFIG } from "@/lib/live-match/period-config";
+import { getLeaguePeriodConfig } from "@/lib/live-match/period-config";
+import type { MatchType } from "@/generated/prisma/client";
 import { RealtimeMatchClient } from "@/lib/live-match/realtime/realtime-client";
 import { fetchRealtimeTicket } from "@/lib/live-match/realtime/fetch-ticket";
 import type {
@@ -35,6 +36,7 @@ interface LiveMatchClientProps {
     teamName: string;
     teamId: string;
     roundName: string | null;
+    matchType: MatchType;
   };
 }
 
@@ -280,7 +282,7 @@ export function LeagueLiveMatchClient({ matchId, matchInfo }: LiveMatchClientPro
       teamName={matchInfo.teamName}
       opponentName={matchInfo.opponent}
       contextLabel={matchInfo.roundName}
-      periodConfig={LEAGUE_PERIOD_CONFIG}
+      periodConfig={getLeaguePeriodConfig(matchInfo.matchType)}
       actions={leagueActions}
     />
   );

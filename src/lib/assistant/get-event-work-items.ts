@@ -79,7 +79,20 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
         where: { eventId: event.id, status: "DRAFT" },
       });
 
-      if (draftSquadCount === squadCount) {
+      // Squad locking is optional/advisory (no approval gate), so draftSquadCount === squadCount
+      // stays true forever once an event is done being played — without this check the nudge
+      // never expires. Once every match is played and reported, reviewing draft squads is no
+      // longer a meaningful next action.
+      const eventIsFullyPlayedAndReported = eventMatches.every((match) => {
+        const hasPassed = hasMatchPassed(
+          { startsAt: match.startsAt, matchDurationMinutes: event.matchDurationMinutes, status: match.status },
+          now,
+        );
+        const reportCompleted = !!match.postMatchReport && match.postMatchReport.status !== "DRAFT";
+        return hasPassed && reportCompleted;
+      });
+
+      if (draftSquadCount === squadCount && !eventIsFullyPlayedAndReported) {
         items.push({
           id: `event-squads-draft-${event.id}`,
           category: "event_squads_draft",

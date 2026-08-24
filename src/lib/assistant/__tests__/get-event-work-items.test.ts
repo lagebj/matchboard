@@ -503,6 +503,57 @@ describe("getEventWorkItems", () => {
     await cleanEventTables(db);
   });
 
+  it("does not return event_squads_draft once the event is fully played and reported (2026-08-24 stale-item regression)", async () => {
+    const event = await db.event.create({
+      data: {
+        name: "Sandar Cup 2026",
+        eventType: "CUP",
+        startsAt: new Date("2020-03-01T09:00:00Z"),
+        endsAt: new Date("2020-03-01T17:00:00Z"),
+        gameFormat: "SEVEN_A_SIDE",
+        matchDurationMinutes: 20,
+        organisationId: testOrgId,
+        footballGroupId: testGroupId,
+      },
+    });
+    const squad = await db.eventSquad.create({
+      data: {
+        eventId: event.id,
+        name: "Draft Squad",
+        intent: "COMPETITIVE",
+        targetSize: 7,
+        status: "DRAFT",
+        organisationId: testOrgId,
+      },
+    });
+    const match = await db.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        category: "CUP",
+        opponentName: "Finished Rivals",
+        opponentTeamId: opponentTeamId,
+        startsAt: new Date("2020-03-01T10:00:00Z"),
+        organisationId: testOrgId,
+      },
+    });
+    await db.eventPostMatchReport.create({
+      data: {
+        eventMatchId: match.id,
+        status: "LOCKED",
+        organisationId: testOrgId,
+      },
+    });
+
+    const items = await getEventWorkItems();
+    const draftItems = items.filter(
+      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
+    );
+    expect(draftItems.length).toBe(0);
+
+    await cleanEventTables(db);
+  });
+
   it("still surfaces report items for past events", async () => {
     const pastEvent = await db.event.create({
       data: {

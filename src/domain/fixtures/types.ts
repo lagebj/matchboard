@@ -35,6 +35,9 @@ export interface FixturePeriod {
   blockerCount: number;
   decisionRequiredCount: number;
   rounds: FixtureRound[];
+  /** True when today's date falls within this league season's date range. At most one period
+   * should have this true; the client should default its selection to it when present. */
+  isCurrent: boolean;
 }
 
 export interface FixtureRound {

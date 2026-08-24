@@ -66,7 +66,7 @@ export async function createMatchLineup(data: {
 
   const lineup = await createLineupFromFormation({ ...data, orgFilter: ctx.orgFilter });
 
-  revalidatePath(`/matches/${data.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${data.matchId}`);
   return lineup;
 }
 
@@ -120,7 +120,7 @@ export async function assignPlayerToSlot(
     });
   }
 
-  revalidatePath(`/matches/${assignment.matchLineup.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${assignment.matchLineup.matchId}`);
   return updated;
 }
 
@@ -141,7 +141,7 @@ export async function removePlayerFromSlot(assignmentId: string) {
     data: { playerId: null, locked: false },
   });
 
-  revalidatePath(`/matches/${assignment.matchLineup.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${assignment.matchLineup.matchId}`);
   return updated;
 }
 
@@ -162,7 +162,7 @@ export async function toggleSlotLock(assignmentId: string) {
     data: { locked: !assignment.locked },
   });
 
-  revalidatePath(`/matches/${assignment.matchLineup.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${assignment.matchLineup.matchId}`);
   return updated;
 }
 
@@ -213,7 +213,7 @@ export async function confirmLineup(lineupId: string) {
     }
   }
 
-  revalidatePath(`/matches/${lineup.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${lineup.matchId}`);
   return updated;
 }
 
@@ -229,7 +229,7 @@ export async function archiveLineup(lineupId: string) {
     data: { status: "ARCHIVED" },
   });
 
-  revalidatePath(`/matches/${updated.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${updated.matchId}`);
   return updated;
 }
 
@@ -245,7 +245,7 @@ export async function revertLineupToDraft(lineupId: string) {
     data: { status: "DRAFT" },
   });
 
-  revalidatePath(`/matches/${updated.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${updated.matchId}`);
   return updated;
 }
 
@@ -288,6 +288,6 @@ export async function updateBenchPlayers(lineupId: string, benchPlayerIds: strin
     data: { benchPlayerIds: uniqueBench },
   });
 
-  revalidatePath(`/matches/${updated.matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${updated.matchId}`);
   return updated;
 }
