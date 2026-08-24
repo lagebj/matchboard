@@ -3,6 +3,12 @@
   "name": "matchboard-live-match-realtime",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-23",
+  // Explicit, not just via the CLOUDFLARE_ACCOUNT_ID env var — avoids an extra account-resolution
+  // API call/prompt in CI where wrangler otherwise has to infer the account from the token.
+  // Not a secret — this ID appears in every wrangler output already. (Not the fix for the
+  // 2026-08 deploy-auth incident — that was a broken Account API token, unrelated to this field;
+  // see ADR-0086's history log.)
+  "account_id": "283cbba5eee92418c712d5600e90d50f",
   // ADR-0086: SQLite-backed storage explicitly (never `new_classes`/legacy KV-backed) —
   // required to stay on the Cloudflare Workers/Durable Objects Free plan (D-004).
   "migrations": [
