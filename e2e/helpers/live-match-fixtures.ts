@@ -44,7 +44,11 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   await page.locator("#teamId").click();
   await page.getByRole("button", { name: "Create match" }).click();
 
-  await expect(page).toHaveURL(/\/o\/test-club-a\/fixtures/);
+  // The default 5s expect timeout isn't enough here on CI's isolated per-PR Neon branch (ADR-0075)
+  // — createMatchAction's server round trip is genuinely slower against a freshly forked branch's
+  // cold Vercel functions than against the already-warm shared hosted Test slot. Confirmed live:
+  // this exact assertion timed out in CI while working reliably locally.
+  await expect(page).toHaveURL(/\/o\/test-club-a\/fixtures/, { timeout: 20_000 });
 
   // Fixtures' period selector defaults to whichever league season isCurrent (see
   // FixturePeriod.isCurrent) and this match's far-future date deliberately isn't it — so rather
@@ -54,7 +58,7 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   await page.goto("/o/test-club-a/rounds");
   const roundCard = page.locator("div.rounded-xl").first();
   await roundCard.getByRole("link").click();
-  await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
+  await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//, { timeout: 15_000 });
 
   await page.getByRole("button", { name: "Regenerate" }).click();
   // Real persisted draft selections: at least one player chip is now on the board.
@@ -95,7 +99,7 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   }
   await expect(matchLink).toBeVisible({ timeout: 15_000 });
   await matchLink.click();
-  await expect(page).toHaveURL(/\/o\/test-club-a\/matches\/([^/]+)$/);
+  await expect(page).toHaveURL(/\/o\/test-club-a\/matches\/([^/]+)$/, { timeout: 15_000 });
 
   const urlMatch = page.url().match(/\/matches\/([^/]+)$/);
   if (!urlMatch) throw new Error(`Could not extract matchId from URL: ${page.url()}`);

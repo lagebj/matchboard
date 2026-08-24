@@ -18,7 +18,9 @@ test("a second coach can follow a live match in real time via the Cloudflare rea
   const { matchId } = await createFinalizedLiveTestMatch(page, "FollowLive");
 
   await page.getByRole("link", { name: "Live reporting" }).click();
-  await expect(page).toHaveURL(/\/live$/);
+  // Cold Vercel functions on CI's freshly forked per-PR Neon branch (ADR-0075) can make this
+  // slower than the default 5s expect timeout, confirmed live against the shared hosted Test slot.
+  await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
   await page.getByRole("button", { name: "Start live reporting" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
