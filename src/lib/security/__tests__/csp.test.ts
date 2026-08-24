@@ -40,6 +40,12 @@ describe("CSP configuration", () => {
     expect(csp.value).toContain("frame-src https://vercel.live");
   });
 
+  it("allows the live-match-realtime Cloudflare Worker WebSocket origins (2026-08-24 regression — CSP silently blocked every realtime connection, both prod and test)", () => {
+    const csp = getContentSecurityPolicy();
+    expect(csp.value).toContain("wss://realtime.matchboard.football");
+    expect(csp.value).toContain("wss://realtime-test.matchboard.football");
+  });
+
   it("includes report-uri in report-only mode", () => {
     delete process.env.CSP_ENFORCE;
     const csp = getContentSecurityPolicy();

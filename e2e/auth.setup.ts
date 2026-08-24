@@ -4,12 +4,17 @@ import { test as setup, type APIRequestContext } from "@playwright/test";
 // ADR-0069). POST /api/auth/test-agent upserts a user but does not establish a session — a real
 // session requires this CSRF + credentials-callback exchange.
 //
-// Two personas from the canonical seed dataset (scripts/seed-test-dataset.ts) are authenticated
-// here, producing two separate storageState files:
+// Three personas from the canonical seed dataset (scripts/seed-test-dataset.ts) are authenticated
+// here, producing three separate storageState files:
 // - coach-all-a: full mutation access to Org A's two groups (A1, A2) — the representative
 //   default persona for smoke/accessibility/mutation-flow coverage.
 // - viewer-a: read-only VIEWER role in Org A only — used by e2e/authz-failure.spec.ts to assert
 //   real denial of both a role-restricted mutation and cross-organisation access (ADR-0078).
+// - coach-a1: GROUP_COACH on group A1 only (not A2) — a second, distinct real login that still
+//   shares group A1 with coach-all-a. Used by e2e/follow-live.spec.ts as the "second coach
+//   following along" persona in a genuine two-actor scenario (reporter + follower), opened via
+//   a manual browser.newContext({ storageState }) rather than a dedicated Playwright project,
+//   since both personas are needed within the same test.
 
 const NAMESPACE = process.env.TEST_AGENT_AUTH_NAMESPACE ?? "test-agent.matchboard.football";
 // Auth.js's callback route is /api/auth/callback/<provider id>, not the generic "credentials" —
@@ -64,4 +69,8 @@ setup("authenticate as coach-all-a", async ({ request }) => {
 
 setup("authenticate as viewer-a", async ({ request }) => {
   await authenticateAndSaveState(request, `viewer-a@${NAMESPACE}`, "e2e/.auth/viewer.json");
+});
+
+setup("authenticate as coach-a1", async ({ request }) => {
+  await authenticateAndSaveState(request, `coach-a1@${NAMESPACE}`, "e2e/.auth/coach-a1.json");
 });

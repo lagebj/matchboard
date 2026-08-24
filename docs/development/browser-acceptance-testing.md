@@ -28,6 +28,90 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
 - `e2e/authz-failure.spec.ts` — runs under a separate `chromium-viewer` project as `viewer-a` (a
   real VIEWER-role persona): asserts creating a team is denied and never persisted, and asserts
   cross-organisation access (Org B) is denied and leaks no Org B data.
+- `e2e/live-reporting.spec.ts` — creates a throwaway finalized match (see
+  `e2e/helpers/live-match-fixtures.ts`), then covers the real live-reporting flow: start session,
+  record a goal, verify the scoreboard updates, finish cleanly; and a regression test for the
+  2026-08-24 score data-integrity fix (`handleEndSession` in `live-match-client.tsx`) — going
+  offline mid-session, recording an event, and confirming "Finish live reporting" refuses to end
+  the session and lose the event, then succeeds once back online.
+- `e2e/follow-live.spec.ts` — a genuine two-actor scenario: the reporting coach (`coach-all-a`)
+  starts a live session; a second, distinct login (`coach-a1`, GROUP_COACH on the same group,
+  opened via `browser.newContext({ storageState: "e2e/.auth/coach-a1.json" })`) opens "Follow
+  live" for the same match and asserts the connection actually reaches the Cloudflare Durable
+  Object over a real WebSocket, and that an event the reporter records actually arrives.
+
+Unlike `round-mutation.spec.ts`, the live-reporting/follow-live specs cannot be made
+self-cleaning — finalizing creates real selections and (once a session ends) a permanent
+`PostMatchReport`, with no "delete match" UI action. Each test creates its own throwaway match
+(unique opponent name, and deliberately spread across a wide randomized *future* date range —
+see the comment in `live-match-fixtures.ts` for why matches dated "today" collided with each
+other's player pool in round-level generation) rather than mutating the shared canonical seed
+dataset. This is accepted as ongoing accumulation in the shared Test dataset.
+
+**Live match reporting and CSP** — while building this coverage (2026-08-24), a Playwright
+console listener caught the real root cause of both the "Follow live" `Connection problem` UI
+state and reporting-coach events occasionally getting stuck in `Sync issue — data saved locally`:
+the app's own Content-Security-Policy `connect-src` directive (`src/lib/security/csp.ts`) never
+listed the Cloudflare Worker's WebSocket origins (`wss://realtime.matchboard.football`,
+`wss://realtime-test.matchboard.football`) when the live-match-realtime-programme shipped, so the
+*browser itself* silently blocked every connection attempt regardless of server-side
+correctness. Fixed by adding both origins to `connect-src`; confirmed live in CI that the
+connection now succeeds (the "Live" connected-state check in `follow-live.spec.ts` passes).
+
+Two further bugs surfaced only once the CSP fix let these specs run past the connection step,
+both fixed the same day: `follow-live.spec.ts` asserted rendered text that
+`follow-live-client.tsx` could never produce (`"goal for us"` vs. the actual `"goal for"` —
+`eventType.replaceAll("_", " ").toLowerCase()`), and `live-reporting.spec.ts`'s sync wait only
+checked that "syncing…" text had disappeared, which is a false positive when an attempt instead
+lands in the terminal `Sync issue` error state — `waitForEventsToSync()` in
+`live-match-fixtures.ts` now polls for both states and actively nudges a retry (dispatching the
+same `"online"` window event the app's own reconnect handler listens for) rather than trusting
+the pending state's mere absence.
+
+**A fourth, far more significant bug surfaced after all of the above were fixed and
+`waitForEventsToSync` still timed out even on a plain online run with no offline simulation at
+all**: every goal recorded without an immediately-attributed scorer had been silently failing
+server validation and getting permanently stuck in `Sync issue`, since the very first commit that
+introduced the live-match data layer. `live-match-client.tsx`'s `handleGoalFor` records `GOAL_FOR`
+immediately with no `playerId` by design — attribution is a separate, optional `SCORER_SET` event
+recorded later if/when the coach picks a scorer from the "Who scored?" sheet ("Skip" is a
+supported, intentional choice) — but `GOAL_FOR` was also listed in
+`LIVE_EVENT_TYPES_THAT_REQUIRE_PLAYER`, so `validateLiveEventInput` rejected every one of those
+calls outright. Found by adding a temporary `page.on("response", ...)` listener locally (against a
+live deployment, for fast iteration — see "Debugging a failing run" below) and reading the actual
+`recordEvent` response body: `{"success":false,"error":"Event type GOAL_FOR requires a playerId"}`.
+Fixed by removing `GOAL_FOR` from the required-player set; see the fix commit and
+`src/lib/live-match/live-match-types.ts` for detail.
+
+A third, unrelated bug also surfaced under CI's `fullyParallel`/2-worker concurrency: the shared
+fixture identified "my" newly created round by assuming it was always the first card in
+`/rounds`' org-wide, `createdAt desc`-ordered list — true for a single test running alone, but
+not guaranteed once multiple specs create matches concurrently against the same shared,
+unbounded, never-cleaned org. The fixture now locates the round by its rendered ISO week label
+instead (the round card shows no opponent/match-identifying text, only the week label), which is
+specific to the match this fixture just created regardless of what other tests are doing
+concurrently.
+
+**Round-generation transaction contention (`playwright.config.ts`'s `workers: 1`)** — even after
+the fix above, CI still failed: `round-mutation.spec.ts`'s own pre-existing, unrelated round
+lookup came up empty, and the round board crashed outright with a redacted "Server Components
+render" error (React digest, no detail in the Playwright output). `vercel logs` against the
+failed run's still-live ephemeral preview deployment (found via the CI job log's `Deployment:
+<url>` line) surfaced the real, unredacted error: `PrismaClientKnownRequestError: Transaction API
+error: Unable to start a transaction in the given time` (P2028). Each of `round-mutation.spec.ts`,
+`live-reporting.spec.ts` (2 tests), and `follow-live.spec.ts` triggers a full round-level
+generation transaction (AGENTS.md: per-match core selection, support resolution, conflict
+resolution, development routing, squad repair, validation, policy evaluation); with 2 Playwright
+workers, several of these could be mid-generation at once. Dropping CI to `workers: 1` reduces
+that contention (roughly doubles wall-clock time, ~10min → ~20min observed) and is worth keeping
+regardless, but investigating *why* transaction pressure was severe enough to matter at all led to
+a much bigger finding: this per-PR run wasn't actually hitting its own isolated Neon branch in the
+first place — it (and, it turned out, every PR before it) was mutating the shared, persistent
+`test` branch, the same one every *other* concurrent PR's run and `ci-checks.yml`'s post-merge job
+also use. See ARR-0024 and ADR-0075's History for the full record and fix (a missing checkout
+`ref:`, causing Vercel's git-metadata branch-scoped env var selection to silently fail). `workers:
+1` remains a reasonable safety margin against a freshly forked child branch's smaller initial
+compute allocation, but the *cross-PR* contention is what the isolation fix actually addresses.
 
 **Not yet implemented** — explicitly flagged, not silently missing:
 
@@ -87,12 +171,57 @@ opens Playwright's UI mode for step-by-step replay. `playwright-report/` (gitign
 HTML report after any run; `trace: "on-first-retry"` in the config means a trace file is captured
 automatically once a test has failed once.
 
+In CI, both the `e2e` job (`ci-checks.yml`) and `test-acceptance.yml`'s Playwright step upload
+`test-results/` (screenshots, traces, `error-context.md` for every failure) as a
+`playwright-results-<run-id>` build artifact, 5-day retention, regardless of outcome — added
+2026-08-24 after a flaky-fixture failure took a full debugging cycle to diagnose from the console
+log's text summary alone, with no screenshot or trace available. Download via the run's Actions
+summary page or `gh run download <run-id> -n playwright-results-<run-id>`.
+
+Next.js redacts Server Component render error messages in production builds down to a generic
+`Minified React error #441` with an opaque digest — exactly what the deploy target runs, so
+`error-context.md`/screenshots alone won't show the real error for a server-side crash. If the
+failed run's deployment step logged a `Deployment: <url>` line (both `deploy.sh` and CI's own
+`vercel deploy` steps do) and the deployment hasn't been torn down yet, `vercel logs <url>`
+retrieves real runtime error logs (unredacted) for that specific ephemeral deployment — this is
+how the 2026-08-24 `P2028` transaction-timeout root cause below was actually found, after the
+Playwright output alone gave nothing but the redacted digest.
+
+**Fast local iteration against a live deployment** — waiting for a full CI run (~10-20 minutes:
+deploy + browser install + the whole serialized suite) to debug one failing spec is slow. Once a
+PR's deploy step has run at least once, `test.matchboard.football` is already aliased to that
+exact commit's build — run just the failing spec directly against it locally instead of waiting
+on CI again:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://test.matchboard.football TEST_AGENT_AUTH_SECRET=<secret> \
+  npx playwright test e2e/live-reporting.spec.ts -g "start live reporting" \
+  --project=chromium --retries=0 --reporter=list --workers=1
+```
+
+This turns a ~2-minute local loop instead of a ~20-minute CI round trip. Two caveats: (1) hitting
+a raw `*.vercel.app` preview URL directly (rather than the aliased custom domain) fails with an
+HTML deployment-protection page instead of a JSON auth response — always go through the alias;
+(2) this shares the same isolated per-PR Neon branch as any CI run currently using it, so avoid
+running both at once (the transaction contention this section already describes applies here too).
+For genuinely opaque failures, add a temporary `page.on("response", ...)` listener to log response
+bodies (Next.js Server Action responses are RSC-stream-encoded, but the actual `{"success":
+false, "error": "..."}` payload is still readable in the raw text) — this is how the `GOAL_FOR`
+bug two sections up was actually found, after `vercel logs` alone wasn't the right tool (that PR's
+build was fine; the bug was in application logic, not deployment). Remove such instrumentation
+before committing — it's a debugging aid, not permanent test code.
+
 ## CI
 
-A separate `e2e` job in `.github/workflows/ci-checks.yml` runs on every push/PR, using a
-`TEST_AGENT_AUTH_SECRET` GitHub Actions secret. It runs against the same hosted Test slot as
-local runs — there is no separate CI-only environment for this. The job is decoupled from
-`build`'s `needs:` (a slow/flaky Test-slot-dependent job shouldn't block the build check).
+A separate `e2e` job in `.github/workflows/ci-checks.yml` (named "Browser Acceptance Tests") runs
+**only on `push`** (post-merge), not on `pull_request` — pre-merge PR-level Playwright validation
+is `test-acceptance.yml`'s job instead, which deploys the PR commit to an isolated per-PR Neon
+branch and Vercel preview and aliases `test.matchboard.football` to it for the duration of the
+run (ADR-0075), rather than racing the shared hosted Test slot against whatever other PR might be
+running at the same time. The `ci-checks.yml` job serves post-merge smoke validation against the
+just-restored baseline instead, using a `TEST_AGENT_AUTH_SECRET` GitHub Actions secret. The job is
+decoupled from `build`'s `needs:` (a slow/flaky Test-slot-dependent job shouldn't block the build
+check).
 
 ### Keeping the persistent test branch migrated
 
@@ -118,11 +247,16 @@ into future jobs either.
 
 ## Test data
 
-`e2e/auth.setup.ts` authenticates two personas from the canonical seed dataset
+`e2e/auth.setup.ts` authenticates three personas from the canonical seed dataset
 (`scripts/seed-test-dataset.ts`): `coach-all-a@test-agent.matchboard.football` (full access to
 Org A's two groups, A1/A2 — used by `smoke.spec.ts`, `accessibility.spec.ts`,
-`round-mutation.spec.ts`) and `viewer-a@test-agent.matchboard.football` (VIEWER role, Org A only
-— used by `authz-failure.spec.ts`).
+`round-mutation.spec.ts`, and as the reporting coach in `live-reporting.spec.ts`/
+`follow-live.spec.ts`), `viewer-a@test-agent.matchboard.football` (VIEWER role, Org A only — used
+by `authz-failure.spec.ts`), and `coach-a1@test-agent.matchboard.football` (GROUP_COACH on group
+A1 only — a second, genuinely distinct login used as the following coach in
+`follow-live.spec.ts`'s two-actor scenario, opened via a manual
+`browser.newContext({ storageState: "e2e/.auth/coach-a1.json" })` rather than a second Playwright
+project, since both personas are needed live within the same test).
 
 `round-mutation.spec.ts` is the one spec that mutates data. It's deliberately self-cleaning
 (generate → verify → clear, ending in the same not-generated state it started from), so it needs

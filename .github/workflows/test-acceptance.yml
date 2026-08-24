@@ -62,25 +62,53 @@ jobs:
       # branch deploy + Vercel deploy + Playwright run — exactly what exhausted this project's
       # Vercel deploy quota on PR #313's trailing wording-only commit (2026-08-20). Skip the
       # deploy (not the whole job, so acceptance-cleanup below is never affected by this check)
-      # when every file in the PR's compare range is docs/tracking-only. See
+      # when this push's own changes are docs/tracking-only. See
       # docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History.
+      #
+      # Compare range depends on the triggering action, not always base...head: for `synchronize`
+      # (a new push to an already-open PR), `github.event.before`...`github.event.after` scopes
+      # to exactly this push's own diff. Using base...head here — the PR's *entire* cumulative
+      # diff versus main — was a real bug (found 2026-08-24, see ADR-0075's History): once a PR
+      # has any substantive non-docs commit in its history, base...head is never docs-only again
+      # for the rest of that PR's life, so this check silently stopped skipping anything and every
+      # later push (even a pure docs cleanup commit) triggered a full extra deploy+alias-flip —
+      # directly observed racing against, and corrupting the result of, a deliberate verification
+      # run on this same PR. `opened`/`reopened` have no prior push to diff against, so those keep
+      # using base...head (the whole PR is genuinely new to this pipeline at that point).
       - name: Check whether this push only touched docs/tracking files
         id: docs-only
         run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          FILES="$(gh api "repos/${{ github.repository }}/compare/${BASE_SHA}...${HEAD_SHA}" --paginate --jq '.files[].filename')"
+          if [ "${{ github.event.action }}" = "synchronize" ]; then
+            COMPARE_RANGE="${{ github.event.before }}...${{ github.event.after }}"
+          else
+            COMPARE_RANGE="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+          fi
+          FILES="$(gh api "repos/${{ github.repository }}/compare/${COMPARE_RANGE}" --paginate --jq '.files[].filename')"
           if [ -z "$FILES" ]; then
             echo "No changed files reported by the compare API — deploying to be safe."
             echo "only_docs=false" >> "$GITHUB_OUTPUT"
           elif echo "$FILES" | grep -qvE '^(docs/|\.matchboard-work/|.*\.md$)'; then
             echo "only_docs=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Every changed file is docs/tracking-only — skipping the Test slot deploy."
+            echo "Every changed file in this push (${COMPARE_RANGE}) is docs/tracking-only — skipping the Test slot deploy."
             echo "only_docs=true" >> "$GITHUB_OUTPUT"
           fi
+      # ref: github.head_ref is required here — without it, actions/checkout's default behavior
+      # for a pull_request event checks out the refs/pull/<PR>/merge commit in DETACHED HEAD
+      # state, not a real branch. deploy.sh's `vercel deploy` relies on Vercel's own git-metadata
+      # auto-detection (reading the local .git checkout) to pick the branch-scoped DATABASE_URL/
+      # DIRECT_URL Preview env vars deploy.sh sets further down — a detached HEAD can't match a
+      # named-branch scope, so the build silently fell back to this Vercel project's generic
+      # "Production, Preview" DATABASE_URL instead of the isolated per-PR Neon branch. Confirmed
+      # live, 2026-08-24 (see ADR-0075's History and ARR-0024): every Playwright run against this
+      # PR was actually mutating the shared, persistent `test` Neon branch — the exact data other
+      # PRs, ci-checks.yml's post-merge smoke job, and local `npm run test:e2e` also depend on —
+      # not the intended isolated `pr-<N>` branch, silently defeating the entire point of
+      # ADR-0075's per-PR isolation design.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         with:
@@ -100,6 +128,20 @@ jobs:
       - name: Functional acceptance (Playwright, against the aliased Test slot)
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npm run test:e2e
+      # Without this, a Playwright failure's only diagnostic evidence is the console summary
+      # (call log + surrounding source lines) — no screenshot, no DOM snapshot, no trace. That
+      # gap materially slowed diagnosing a 2026-08-24 flaky-fixture failure (root cause required
+      # guessing from text output alone). Uploads regardless of outcome so a passing run's traces
+      # remain available too; short retention since these are debugging aids, not release
+      # artifacts.
+      - name: Upload Playwright results (screenshots, traces, error context)
+        if: always() && steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 5
+          if-no-files-found: ignore
       # deploy.sh's own ERR trap only covers failures inside that one bash process. A failure in
       # any *later* step (this job's Playwright step, or the Node.js/Playwright install steps
       # before it) happens after deploy.sh already succeeded and already moved the alias — those

@@ -18,7 +18,16 @@ export function getContentSecurityPolicy(): { header: string; value: string } {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://lh3.googleusercontent.com https://accounts.google.com",
     "font-src 'self'",
-    "connect-src 'self' https://vercel.live wss://vercel.live",
+    // ADR-0086 live-match-realtime-programme: the browser client connects directly to the
+    // Cloudflare Worker's WebSocket endpoint (RealtimeMatchClient, follow-live-client.tsx) — CSP
+    // was never updated when that shipped, so the browser silently blocked every connection
+    // attempt regardless of server-side correctness. Discovered live via a Playwright console
+    // listener during E2E testing (2026-08-24): "violates ... connect-src" on
+    // wss://realtime-test.matchboard.football, explaining both "Follow live" showing
+    // "Connection problem" and reporting-coach events getting stuck in "Sync issue" whenever the
+    // realtime-first path (Stage 5) was attempted. Both hostnames are allowed unconditionally
+    // (harmless in either environment) rather than branching on isDev/isCspEnforceEnabled.
+    "connect-src 'self' https://vercel.live wss://vercel.live wss://realtime.matchboard.football wss://realtime-test.matchboard.football",
     "frame-src https://vercel.live",
     "frame-ancestors 'none'",
     "base-uri 'self'",

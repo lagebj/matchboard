@@ -287,8 +287,9 @@ describe("Live match domain validation", () => {
     expect(isValidEventType("INVALID_TYPE")).toBe(false);
   });
 
-  it("requires playerId for certain event types", () => {
-    expect(validateLiveEventInput({ matchId: "m1", sessionId: "s1", eventType: "GOAL_FOR", clientEventId: "c1" })).toContain("requires a playerId");
+  it("requires playerId for certain event types, but not GOAL_FOR (scorer attribution is a separate, optional SCORER_SET event)", () => {
+    expect(validateLiveEventInput({ matchId: "m1", sessionId: "s1", eventType: "GOAL_FOR", clientEventId: "c1" })).toBeNull();
+    expect(validateLiveEventInput({ matchId: "m1", sessionId: "s1", eventType: "SCORER_SET", clientEventId: "c1" })).toContain("requires a playerId");
   });
 
   it("classifies event types correctly", () => {

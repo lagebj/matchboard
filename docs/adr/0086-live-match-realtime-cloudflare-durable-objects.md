@@ -573,3 +573,42 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   outstanding item (test-environment `LIVE_MATCH_REALTIME_SECRET` rotation/sync) was also closed
   out in the same session: both the production and test values were re-confirmed matching Vercel
   before being pushed to their respective Workers.
+- 2026-08-24: Enabled Workers Logs (`observability.logs.enabled: true`) on both environments in
+  `workers/live-match/wrangler.jsonc`, to support diagnosing "Follow live" connectivity issues
+  without needing a live `wrangler tail` session running at the exact moment of a repro.
+  Confirmed against Cloudflare's own pricing documentation before enabling: Workers Logs is
+  included on the Free plan (200,000 events/day, 3-day retention) — not a paid-tier feature, and
+  does not conflict with D-004's Free-plan constraint. This Worker's traffic (a handful of live
+  matches per week) is far below the daily cap.
+- 2026-08-24: **Root cause found and fixed for the "Follow live" `Connection problem` issue**
+  (open since the amendment above) — and for reporting-coach events occasionally getting stuck
+  in `Sync issue — data saved locally`. Both were the same bug: `src/lib/security/csp.ts`'s
+  `connect-src` directive never listed the Cloudflare Worker's WebSocket origins
+  (`wss://realtime.matchboard.football`, `wss://realtime-test.matchboard.football`) when this
+  programme shipped, so the *browser itself* silently blocked every `RealtimeMatchClient`
+  connection attempt via Content-Security-Policy — a client-side block that never reaches the
+  network, invisible to every server-side check (Worker deploy status, secrets, Origin allowlist,
+  ticket verification) done earlier while diagnosing this. All of those were independently
+  confirmed correct and remain correct; none of them was the actual cause. Found via a Playwright
+  `page.on("console", ...)` listener during new E2E test development (`e2e/live-reporting.spec.ts`,
+  `e2e/follow-live.spec.ts` — see `docs/development/browser-acceptance-testing.md`), which
+  surfaced the literal browser CSP violation message on first repro — the fix followed
+  immediately once the actual error was visible, after none of the server-side hypotheses in the
+  amendment above had panned out. Fixed by adding both origins to `connect-src`; both are
+  allowed unconditionally rather than branching per environment (harmless either way). Not yet
+  deployed/verified end-to-end at the time of this entry — the new E2E specs are expected to go
+  green once this reaches the Test slot; re-run them after deploy to confirm.
+- 2026-08-24: **Real Cloudflare Durable Object round trip confirmed working in CI** (ticket
+  issuance, WebSocket upgrade, Worker auth) — a CI run reached `follow-live.spec.ts`'s "Live"
+  connected-state check and it passed, proving the CSP fix above resolves the connectivity issue
+  end-to-end, not just in theory. That run still failed, but only on a trivial wrong text
+  assertion further down the same test (fixed same day: `follow-live-client.tsx` renders
+  `"goal for"`, not `"goal for us"`). A second bug found the same way: `live-reporting.spec.ts`'s
+  sync wait only checked that "syncing…" text had disappeared, a false positive when an attempt
+  instead lands in the terminal `Sync issue` state (fixed via `waitForEventsToSync()` in
+  `live-match-fixtures.ts`, which actively nudges a retry). A third, unrelated bug then surfaced
+  under CI's parallel workers once those two were fixed: the shared fixture's round lookup assumed
+  "first card in the list" — not safe once multiple specs create matches concurrently against the
+  same shared org (also fixed). See `docs/development/browser-acceptance-testing.md` for detail.
+  Awaiting a fully green CI run with all three fixes applied together to close out the "Follow
+  live" connectivity work opened by the amendment above.

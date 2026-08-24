@@ -14,6 +14,15 @@ if [ -z "${VERCEL_GIT_PREVIOUS_SHA:-}" ]; then
   exit 1
 fi
 
+# A rebased/force-pushed branch can point VERCEL_GIT_PREVIOUS_SHA at a commit that no longer
+# exists in this history (confirmed live, 2026-08-24: "fatal: bad object" broke every deploy on
+# a branch after a routine rebase-onto-main + force-push). git diff has no graceful failure mode
+# for a missing object, so check reachability first and fail safe (build) rather than error out.
+if ! git cat-file -e "${VERCEL_GIT_PREVIOUS_SHA}^{commit}" 2>/dev/null; then
+  echo "Previous deployed SHA ${VERCEL_GIT_PREVIOUS_SHA} not found in this history (rebase/force-push?) — building to be safe."
+  exit 1
+fi
+
 CHANGED_FILES="$(git diff --name-only "$VERCEL_GIT_PREVIOUS_SHA" HEAD)"
 
 if [ -z "$CHANGED_FILES" ]; then
