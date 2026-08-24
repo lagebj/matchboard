@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
+import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
@@ -39,76 +40,84 @@ export async function recordEventForActor(
   input: LiveEventInput,
   actor: { userId: string; organisationId: string },
 ): Promise<CanonicalLiveEvent> {
-  const session = await db.liveMatchSession.findUnique({
-    where: { id: input.sessionId },
-    select: { id: true, status: true, matchId: true, organisationId: true },
-  });
-
-  if (!session) {
-    throw new LiveMatchDomainError("Session not found");
-  }
-
-  if (session.status !== "ACTIVE") {
-    throw new LiveMatchDomainError("Session is not active");
-  }
-
-  if (session.matchId !== input.matchId) {
-    throw new LiveMatchDomainError("Session does not belong to this match");
-  }
-
-  if (session.organisationId !== actor.organisationId) {
-    throw new LiveMatchDomainError("Session not found or access denied");
-  }
-
-  const validationError = validateLiveEventInput(input);
-  if (validationError) {
-    throw new LiveMatchDomainError(validationError);
-  }
-
-  if (input.clientEventId) {
-    // Idempotency (SPEC.md §20 step 7, §35): the realtime broadcast side-channel added in the
-    // "Follow live" PR sends the same clientEventId the HTTP path already persisted, and the
-    // HTTP call always completes first (recordLiveEventAction awaits before the broadcast is
-    // even attempted) — this dedup path is what makes it safe for both to eventually reach
-    // recordEventForActor for the same event without creating a duplicate canonical row.
-    const existing = await db.liveMatchEvent.findUnique({
-      where: { clientEventId: input.clientEventId },
-      select: { id: true, clientEventId: true, eventType: true, createdAt: true },
+  // Scoped by the caller's already-authenticated organisationId (ADR-0087) — trusted whether
+  // `actor` came from a browser session (`recordEvent()` below, via `requireActorContext()`) or
+  // from the HMAC-verified internal Worker endpoint (`/api/internal/live-match/events`, which
+  // resolves its own actor before calling this function). This makes every RLS-scoped query
+  // below auto-scoped by the tenantRLS extension, not just protected by the manual
+  // `session.organisationId !== actor.organisationId` check.
+  return runWithTenantOrganisationId(actor.organisationId, async () => {
+    const session = await db.liveMatchSession.findUnique({
+      where: { id: input.sessionId },
+      select: { id: true, status: true, matchId: true, organisationId: true },
     });
-    if (existing) {
-      return {
-        id: existing.id,
-        clientEventId: existing.clientEventId ?? input.clientEventId,
-        eventType: existing.eventType,
-        createdAt: existing.createdAt.toISOString(),
-      };
+
+    if (!session) {
+      throw new LiveMatchDomainError("Session not found");
     }
-  }
 
-  const event = await db.liveMatchEvent.create({
-    data: {
-      matchId: input.matchId,
-      sessionId: input.sessionId,
-      eventType: input.eventType as LiveMatchEventType,
-      period: input.period ? MATCH_PERIOD_ORDER.indexOf(input.period) : undefined,
-      matchSeconds: input.matchSeconds,
-      wallClockTime: new Date(),
-      playerId: input.playerId,
-      secondaryPlayerId: input.secondaryPlayerId,
-      payload: input.payload ? JSON.parse(JSON.stringify(input.payload)) : undefined,
-      correctionType: input.correctionType as LiveEventCorrectionType | undefined,
-      correctsEventId: input.correctsEventId,
+    if (session.status !== "ACTIVE") {
+      throw new LiveMatchDomainError("Session is not active");
+    }
+
+    if (session.matchId !== input.matchId) {
+      throw new LiveMatchDomainError("Session does not belong to this match");
+    }
+
+    if (session.organisationId !== actor.organisationId) {
+      throw new LiveMatchDomainError("Session not found or access denied");
+    }
+
+    const validationError = validateLiveEventInput(input);
+    if (validationError) {
+      throw new LiveMatchDomainError(validationError);
+    }
+
+    if (input.clientEventId) {
+      // Idempotency (SPEC.md §20 step 7, §35): the realtime broadcast side-channel added in the
+      // "Follow live" PR sends the same clientEventId the HTTP path already persisted, and the
+      // HTTP call always completes first (recordLiveEventAction awaits before the broadcast is
+      // even attempted) — this dedup path is what makes it safe for both to eventually reach
+      // recordEventForActor for the same event without creating a duplicate canonical row.
+      const existing = await db.liveMatchEvent.findUnique({
+        where: { clientEventId: input.clientEventId },
+        select: { id: true, clientEventId: true, eventType: true, createdAt: true },
+      });
+      if (existing) {
+        return {
+          id: existing.id,
+          clientEventId: existing.clientEventId ?? input.clientEventId,
+          eventType: existing.eventType,
+          createdAt: existing.createdAt.toISOString(),
+        };
+      }
+    }
+
+    const event = await db.liveMatchEvent.create({
+      data: {
+        matchId: input.matchId,
+        sessionId: input.sessionId,
+        eventType: input.eventType as LiveMatchEventType,
+        period: input.period ? MATCH_PERIOD_ORDER.indexOf(input.period) : undefined,
+        matchSeconds: input.matchSeconds,
+        wallClockTime: new Date(),
+        playerId: input.playerId,
+        secondaryPlayerId: input.secondaryPlayerId,
+        payload: input.payload ? JSON.parse(JSON.stringify(input.payload)) : undefined,
+        correctionType: input.correctionType as LiveEventCorrectionType | undefined,
+        correctsEventId: input.correctsEventId,
+        clientEventId: input.clientEventId,
+        organisationId: session.organisationId,
+      },
+    });
+
+    return {
+      id: event.id,
       clientEventId: input.clientEventId,
-      organisationId: session.organisationId,
-    },
+      eventType: event.eventType,
+      createdAt: event.createdAt.toISOString(),
+    };
   });
-
-  return {
-    id: event.id,
-    clientEventId: input.clientEventId,
-    eventType: event.eventType,
-    createdAt: event.createdAt.toISOString(),
-  };
 }
 
 export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {

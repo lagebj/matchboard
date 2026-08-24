@@ -2085,9 +2085,15 @@ Matchboard is deployed to **Vercel** with **Neon Postgres**. SQLite is not used 
 
 The primary tenant isolation mechanism is **Prisma where-clause injection** in `src/lib/db.ts` (`tenantRLS` extension). Every query on an RLS-scoped table has `organisationId` injected into its `where` clause (and `data` for creates). `findUnique` converts to `findFirst` to allow additional filtering.
 
-Database RLS policies serve as defence-in-depth. They are **permissive when `app.current_organization_id` is not set** (null or empty), trusting application-layer filtering. When the session variable IS set, RLS still enforces as an additional layer.
+**The extension fails closed (ADR-0087).** A query on an RLS-scoped table with no trusted organisation context (`getTenantOrganisationId()` returns nothing, or an org ID present but failing `ORG_ID_PATTERN`) throws `TenantContextError` instead of running unscoped. There are exactly two exceptions, both narrow and explicit:
+- The pre-existing `organisationMembership` self-read-by-`userId` case (ADR-0052), used only during auth resolution before an organisation is known.
+- `runWithSystemPrivilege(reason, fn)` (`src/lib/tenancy/tenant-async-storage.ts`) — an explicit, reason-required opt-in for a genuinely privileged system operation with no tenant/user identity to scope by (today: one call site, the internal live-match snapshot reconciliation endpoint). Do not reach for this as a convenience escape for a route/action/script that should just call `requireActorContext()` or `runWithTenantOrganisationId()` first — prefer scoping by an already-trusted ID (`runWithTenantOrganisationId()`) over a privilege escape wherever one is available (see `recordEventForActor()`, `resolveOrgFilterForMachine()`, `scripts/bootstrap-organisation.ts` for the pattern).
 
-See ADR-0057 for the full decision record.
+`withTenantContext()` (`src/lib/tenancy/tenant-client.ts`) establishes real tenant context via `runWithTenantOrganisationId()` around the transaction it wraps — despite its pre-ADR-0087 name, it previously only wrapped a `$transaction()` and never actually set context, so callers without their own explicit `where: { organisationId }` filter (e.g. `getEffectiveGroupAccess()`'s `groupAccess.findMany`) ran unscoped. Do not reintroduce a "wraps a transaction but doesn't set context" helper.
+
+Database RLS policies serve as defence-in-depth. They are **permissive when `app.current_organization_id` is not set** (null or empty), trusting application-layer filtering — this remains true at the database layer; it no longer describes the primary application-level `tenantRLS` extension, which now fails closed instead. When the session variable IS set, RLS still enforces as an additional layer.
+
+See ADR-0057 for the where-clause-injection design and ADR-0087 for the fail-closed behavior and `runWithSystemPrivilege()`.
 
 ### Production migrations
 

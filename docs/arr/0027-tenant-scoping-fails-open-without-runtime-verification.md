@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -108,4 +108,22 @@ activates when every caller has already done the right thing upstream.
 
 ## Disposition
 
-Pending. Targeted at AIP-2 (Fail-closed tenancy) of the Architecture Integrity Programme.
+Resolved by ADR-0087 (AIP-2, Architecture Integrity Programme). The `tenantRLS` extension
+(`src/lib/db.ts`) now throws `TenantContextError` for any RLS-scoped model query with no trusted
+organisation context, unless the existing narrow `organisationMembership` self-read exception
+(ADR-0052) applies or the caller explicitly opts in via `runWithSystemPrivilege()` (one call site:
+the internal live-match snapshot endpoint). `withTenantContext()` was also fixed to actually
+establish tenant context (it previously only wrapped a transaction, despite its name), closing a
+second, related gap in `getEffectiveGroupAccess()`. See ADR-0087 for the full design and
+`src/lib/__tests__/db-tenant-fail-closed.test.ts` for negative/abuse test coverage.
+
+Writing that test also surfaced a more severe, pre-existing bug: the extension's model-name
+matching had a casing mismatch that meant it never actually recognized any RLS-scoped model in
+the first place (silently inert since ADR-0057, 2026-08-05) — see ARR-0029, resolved in the same
+change.
+
+## History
+
+### 2026-08-24
+
+Resolved. See ADR-0087.

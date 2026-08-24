@@ -4,9 +4,25 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import { isRlsDebug } from "@/lib/env";
-import { getTenantOrganisationId, getTenantUserId } from "@/lib/tenancy/tenant-async-storage";
+import {
+  getTenantOrganisationId,
+  getTenantUserId,
+  getSystemPrivilegeReason,
+} from "@/lib/tenancy/tenant-async-storage";
 import { isProduction } from "@/lib/env";
 import { logger } from "@/lib/logger";
+
+/**
+ * Thrown by the tenantRLS extension when an RLS-scoped model is queried with no trusted
+ * organisation context and no explicit system privilege (ADR-0087). Distinct class so callers
+ * can distinguish this from an ordinary AuthorizationError if they ever need to.
+ */
+export class TenantContextError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TenantContextError";
+  }
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -147,6 +163,14 @@ const extendedClient = rawClient.$extends({
   name: "tenantRLS",
   query: {
     async $allOperations({ model, operation, args, query: rawQuery }) {
+      // The generated client (Prisma 7's "prisma-client" generator) reports `model` in
+      // PascalCase matching the schema declaration ("Team"), not the lowerCamelCase client
+      // accessor ("team") RLS_TABLES has always been keyed by (see security-audit.test.ts's
+      // own PascalCase->lowerCamelCase conversion, which proves that convention was always
+      // intended). Comparing the raw PascalCase `model` against RLS_TABLES/"organisationMembership"
+      // directly silently never matched anything — normalize once, here, so both this and the
+      // organisationMembership self-read special case below actually fire. See ARR-0029.
+      const modelName = model ? model.charAt(0).toLowerCase() + model.slice(1) : null;
       const queryStart = performance.now();
       const query = async (queryArgs: unknown) => {
         try {
@@ -164,7 +188,7 @@ const extendedClient = rawClient.$extends({
 
       const orgId = getTenantOrganisationId();
       const userId = getTenantUserId();
-      const isRlsTable = model != null && RLS_TABLES.has(model);
+      const isRlsTable = modelName != null && RLS_TABLES.has(modelName);
       const needsOrgFilter = isRlsTable && !!orgId && ORG_ID_PATTERN.test(orgId);
 
       if (RLS_DEBUG && isRlsTable) {
@@ -180,7 +204,7 @@ const extendedClient = rawClient.$extends({
       // This ensures that auth resolution queries (which happen before org context
       // is known) only see the authenticated user's own memberships, preventing
       // cross-tenant membership leakage. See ARR-0052.
-      if (!needsOrgFilter && model === "organisationMembership" && userId) {
+      if (!needsOrgFilter && modelName === "organisationMembership" && userId) {
         const typedArgs = args as QueryArgs;
         switch (operation) {
           case "findUnique":
@@ -205,6 +229,31 @@ const extendedClient = rawClient.$extends({
       }
 
       if (!needsOrgFilter) {
+        if (isRlsTable) {
+          const privilegeReason = getSystemPrivilegeReason();
+          if (privilegeReason) {
+            if (RLS_DEBUG) {
+              logger.warn(
+                { model, operation, privilegeReason },
+                "[RLS] SYSTEM PRIVILEGE — unscoped by explicit runWithSystemPrivilege() opt-in",
+              );
+            }
+            return query(args);
+          }
+
+          // Fail closed (ADR-0087): an RLS-scoped model with no trusted organisation context
+          // and no explicit system privilege must never run unscoped. This includes the case
+          // where orgId is present but fails ORG_ID_PATTERN — a malformed/tampered value is
+          // not a softer case than "absent", it is refused the same way.
+          throw new TenantContextError(
+            `Refusing unscoped query on RLS-scoped model "${model}" (operation "${operation}"): ` +
+              "no trusted organisation context is set. Call requireActorContext() / " +
+              "requirePageActorContext() / runWithTenantOrganisationId() before this query, or, " +
+              "for a genuinely privileged system operation only, wrap it in runWithSystemPrivilege() " +
+              "with a specific reason. See ADR-0087.",
+          );
+        }
+
         return query(args);
       }
 
@@ -214,7 +263,10 @@ const extendedClient = rawClient.$extends({
         // findUnique requires unique fields in where, so we convert to findFirst
         // to safely add organisationId filtering without breaking unique constraints.
         case "findUnique": {
-          const modelDelegate = (rawClient as unknown as Record<string, Record<string, (...a: unknown[]) => Promise<unknown>>>)[model as string];
+          // Indexed by modelName (lowerCamelCase), not the raw PascalCase `model` — rawClient's
+          // properties are the lowerCamelCase client accessors (rawClient.team), same casing
+          // bug as isRlsTable above.
+          const modelDelegate = (rawClient as unknown as Record<string, Record<string, (...a: unknown[]) => Promise<unknown>>>)[modelName as string];
           return modelDelegate.findFirst(withOrgWhere(typedArgs, orgId!));
         }
 
