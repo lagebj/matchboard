@@ -46,6 +46,52 @@ Pinned in `.devcontainer/Dockerfile`:
 - Gitleaks: v8.22.1
 - ZAP: via Docker container (softwaresecurityproject/zap-stable:2.16.0)
 
+## Scanner execution vs. findings (AIP-6, ADR-0091)
+
+Every scanner check in this repository falls into exactly one of four result classes. A finding
+existing is never, by itself, the same thing as the check failing — but the scanner *not running
+at all* always is:
+
+| Class | Meaning | Examples | CI outcome |
+|-------|---------|----------|------------|
+| **Execution failure** | The tool itself did not complete a scan (crashed, bad config, missing binary, unparseable output) | A corrupted `security/*.toml`, a renamed CLI flag, a missing dependency | **Blocks** — always fails the job, regardless of what the underlying check is |
+| **Blocking check** | A specific, narrow, deterministic Matchboard invariant with no ambiguity | `security:check-sql` (forbidden raw SQL), `security:check-supply-chain` (unpinned GitHub Actions), `security:authz` (authorization test suite) | **Blocks** on any violation |
+| **Advisory finding** | The tool ran successfully and reported N findings requiring human/agent triage | Semgrep matches, OSV-Scanner CVEs, Gitleaks secret candidates | **Does not block** — printed as a `::warning::` annotation for review, per the FIND → TRIAGE → VERIFY → FIX → RETEST philosophy above |
+| **Platform-managed** | Enforced by GitHub's own hosted infrastructure, not a repository script | CodeQL (default setup, ADR-0070) | Governed by GitHub's own Security tab / branch protection, not this repo's scripts |
+
+Before AIP-6, Semgrep/OSV/Gitleaks conflated the first and third classes: every invocation ended
+in `|| true`, so "the scanner crashed and never ran" and "the scanner ran and found nothing"
+produced the exact same green CI outcome — there was no way to tell them apart from the check
+result alone (this is exactly how OSV and Gitleaks silently never ran at all for a period, per
+ADR-0081, without a single failed check surfacing it). `scripts/check-scanner-execution.mjs` is
+now the one place that distinction is decided: after each scanner runs (still non-blocking on its
+own findings-related exit code), the checker verifies the scanner actually wrote a valid JSON
+output file. A missing or unparseable file — the one thing that reliably only happens on a real
+execution failure, since every one of these tools writes its output file unconditionally
+(including an empty results array) on a normal completed run — fails the step. A parseable file,
+regardless of finding count, passes. Wired into both `.github/workflows/security.yml` and the
+equivalent local `npm run security:semgrep`/`security:deps`/`security:secrets` commands, so local
+and CI behavior match. Tested directly: `src/test/check-scanner-execution.test.ts`.
+
+This does not change whether *findings* block — that remains the deliberate advisory-only policy
+described above. It changes whether a broken scanner can silently look like a clean one.
+
+### Suppression / waiver formats
+
+Each scanner already has its own native mechanism for marking a finding as reviewed and
+intentionally accepted — this repo does not add a second, parallel suppression format on top:
+
+| Tool | Mechanism | Requires |
+|------|-----------|----------|
+| OSV-Scanner | `[[IgnoredVulns]]` in `security/osv-scanner.toml`, with an `id`, a human-readable `reason`, and (where the risk is time-bound rather than permanently accepted) an `ignoreUntil` date | A reason and, where applicable, an expiry — see the existing `GO-2024-2687` entry |
+| Gitleaks | `[allowlist]` (singular, one global table — see ADR-0081's History for why the plural `[[allowlists]]` form silently does nothing) in `security/gitleaks.toml`, scoped by `paths`/`regexes` | A specific path or regex scope, not a blanket allowlist |
+| Semgrep | Inline `// nosemgrep: <rule-id>` comment at the flagged line, or a rule-level exclusion in `security/semgrep/matchboard-rules.yml` | The rule id and, in a code comment, why — reviewed the same as any other code change |
+
+None of these formats currently enforce an expiry/review reminder automatically (OSV's
+`ignoreUntil` is the closest — it is a real date the tool itself checks, not just documentation).
+A suppression without a genuine reason is itself a finding-classification error — see "Finding
+classification" below.
+
 ## Generated results
 
 Scanner output goes to `.security/results/` which is gitignored. Never commit scanner reports.
@@ -133,10 +179,13 @@ OSV findings require triage:
 Do not blindly upgrade dependencies across major versions to silence scanner output.
 
 **Current automation state**: the table above is the triage policy applied by human/agent
-review, not (yet) an automated CI gate. `.github/workflows/security.yml`'s OSV and Semgrep jobs
-run non-blocking (`|| true`) and cannot fail a PR based on findings today — this is a known,
-tracked gap (consolidation programme Phase 10 §56), not a claim that severity-based blocking is
-currently enforced in CI.
+review, not an automated CI gate on *findings* — `.github/workflows/security.yml`'s Semgrep,
+OSV, and Gitleaks jobs run non-blocking (`|| true` on the scan itself) and cannot fail a PR based
+on finding count or severity today. This is a deliberate, documented policy choice (AIP-6,
+ADR-0091), not an oversight: automatic severity-based blocking would need this repo's own
+finding-normalization/baseline layer to avoid false-positive noise blocking unrelated PRs (the
+`architectural-residue-records`/`adr-governance` skills' own "don't build machinery you don't
+need yet" guidance applies) — see "Scanner execution vs. findings" below for what *is* enforced.
 
 ### Current OSV triage (2026-08-22)
 

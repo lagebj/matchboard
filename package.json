@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.26.9",
+  "version": "0.26.10",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -56,10 +56,10 @@
     "security:check-sql": "npx tsx scripts/check-forbidden-sql.ts",
     "security:check-supply-chain": "npx tsx scripts/check-supply-chain.ts",
     "security:tools": "bash scripts/security-tools-verify.sh",
-    "security:semgrep": "semgrep scan --config auto --config security/semgrep/matchboard-rules.yml --json -o .security/results/semgrep.json --force --no-git-ignore src/ && semgrep scan --config auto --config security/semgrep/matchboard-rules.yml --force --no-git-ignore src/ || true",
-    "security:deps": "osv-scanner scan --lockfile=package-lock.json --config=security/osv-scanner.toml --format json --output .security/results/osv.json . || osv-scanner scan --lockfile=package-lock.json --config=security/osv-scanner.toml . || true",
-    "security:secrets": "gitleaks detect --source . --config security/gitleaks.toml --report-format json --report-path .security/results/gitleaks.json --no-git --verbose || true",
-    "security:secrets:history": "gitleaks detect --source . --config security/gitleaks.toml --report-format json --report-path .security/results/gitleaks-history.json --verbose || true",
+    "security:semgrep": "mkdir -p .security/results && (semgrep scan --config auto --config security/semgrep/matchboard-rules.yml --json -o .security/results/semgrep.json --force --no-git-ignore src/ || true); (semgrep scan --config auto --config security/semgrep/matchboard-rules.yml --force --no-git-ignore src/ || true); node scripts/check-scanner-execution.mjs --tool semgrep --file .security/results/semgrep.json",
+    "security:deps": "mkdir -p .security/results && (osv-scanner scan --lockfile=package-lock.json --config=security/osv-scanner.toml --format json --output .security/results/osv.json . || true); node scripts/check-scanner-execution.mjs --tool osv --file .security/results/osv.json",
+    "security:secrets": "mkdir -p .security/results && (gitleaks detect --source . --config security/gitleaks.toml --report-format json --report-path .security/results/gitleaks.json --no-git --verbose || true); node scripts/check-scanner-execution.mjs --tool gitleaks --file .security/results/gitleaks.json",
+    "security:secrets:history": "mkdir -p .security/results && (gitleaks detect --source . --config security/gitleaks.toml --report-format json --report-path .security/results/gitleaks-history.json --verbose || true); node scripts/check-scanner-execution.mjs --tool gitleaks --file .security/results/gitleaks-history.json",
     "security:authz": "TEST_DATABASE_URL=$TEST_DATABASE_URL npx vitest run src/test/security-authz.test.ts",
     "security:sbom": "cyclonedx-npm --ignore-npm-errors --output-format JSON --output-file .security/results/sbom.cdx.json",
     "security:static": "npm run security:check-sql && npm run security:check-supply-chain && npm run security:semgrep && npm run security:deps && npm run security:secrets && npm run security:sbom",
