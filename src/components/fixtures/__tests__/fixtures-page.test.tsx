@@ -67,6 +67,7 @@ const makePeriod = (overrides: Partial<FixturePeriod> = {}): FixturePeriod => ({
   blockerCount: 0,
   decisionRequiredCount: 0,
   rounds: [makeRound()],
+  isCurrent: false,
   ...overrides,
 });
 
@@ -88,6 +89,41 @@ describe("FixturesPage", () => {
       expect(screen.getByText("Spring 2025")).toBeInTheDocument();
       expect(screen.getByText("Round 1")).toBeInTheDocument();
       expect(screen.getByText("Bla")).toBeInTheDocument();
+    });
+  });
+
+  it("defaults to the period marked isCurrent, not periods[0] (2026-08-24 League-default regression)", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [
+        makePeriod({ id: "old", title: "Spring 2025", isCurrent: false }),
+        makePeriod({ id: "current", title: "Fall 2026", isCurrent: true }),
+      ],
+    });
+
+    await act(() => {
+      render(<FixturesPage orgSlug="test-org" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Fall 2026")).toBeInTheDocument();
+      expect(screen.queryByText("Spring 2025")).not.toBeInTheDocument();
+    });
+  });
+
+  it("falls back to periods[0] when no period is marked isCurrent", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [
+        makePeriod({ id: "old", title: "Spring 2025", isCurrent: false }),
+        makePeriod({ id: "older", title: "Fall 2024", isCurrent: false }),
+      ],
+    });
+
+    await act(() => {
+      render(<FixturesPage orgSlug="test-org" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Spring 2025")).toBeInTheDocument();
     });
   });
 

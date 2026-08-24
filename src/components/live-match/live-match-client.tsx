@@ -482,8 +482,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const handleEndSession = useCallback(async () => {
     if (!sessionId) return;
     setConfirmDialog(null);
-    // Try syncing before ending
+    // Try syncing before ending, then verify against the local store directly — syncUnsyncedEvents
+    // can fail partway through and swallow the error, so stale unsyncedCount state can't be trusted.
     await syncUnsyncedEvents();
+    const stillUnsynced = await getUnsyncedEvents(matchId);
+    if (stillUnsynced.length > 0) {
+      setUnsyncedCount(stillUnsynced.length);
+      setSyncStatus("error");
+      setError(
+        `${stillUnsynced.length} event${stillUnsynced.length > 1 ? "s" : ""} could not sync and would be lost. Check your connection and try finishing again.`,
+      );
+      return;
+    }
     const result = await actions.endSession(sessionId);
     if (result.success) {
       setSessionActive(false);

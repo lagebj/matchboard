@@ -167,8 +167,8 @@ export default async function MatchDetailPage({
           opponentHistory,
           opponentConcernCount,
           opponentLatestConcernDate,
-          phaseStartDate: match.matchRound.leagueSeason.startDate,
-          phaseEndDate: match.matchRound.leagueSeason.endDate,
+          phaseStartDate: match.matchRound.leagueSeason?.startDate,
+          phaseEndDate: match.matchRound.leagueSeason?.endDate,
           isLive,
           canFollowLive,
         }}

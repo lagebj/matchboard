@@ -128,5 +128,33 @@ describe("Fixtures Service", () => {
       const match = overview.periods[0].rounds[0].matches.find((m) => m.id === matchId);
       expect(match?.postMatchStatus).toBe("LOCKED");
     });
+
+    it("marks isCurrent true only for the league season whose date range contains today (2026-08-24 League-default regression)", async () => {
+      const season = await testDb.season.findFirstOrThrow({ where: { organisationId: fixture.organisationId } });
+
+      const now = new Date();
+      const currentPeriod = await testDb.leagueSeason.create({
+        data: {
+          name: "Current Period",
+          part: "FALL",
+          seasonId: season.id,
+          startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+          endDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
+        },
+      });
+
+      const overview = await getFixturesOverview(testOrgFilter(fixture.organisationId));
+      const currentInResult = overview.periods.find((p) => p.id === currentPeriod.id);
+      const otherPeriods = overview.periods.filter((p) => p.id !== currentPeriod.id);
+
+      expect(currentInResult?.isCurrent).toBe(true);
+      expect(overview.periods.filter((p) => p.isCurrent).length).toBe(1);
+      // The originally-seeded period (2025-01-06 to 2025-06-30) does not contain today — must stay false.
+      for (const other of otherPeriods) expect(other.isCurrent).toBe(false);
+
+      await testDb.leagueSeason.delete({ where: { id: currentPeriod.id } });
+    });
   });
 });

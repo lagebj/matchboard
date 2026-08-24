@@ -1,4 +1,4 @@
-import type { MatchPeriod } from "@/generated/prisma/client";
+import type { MatchPeriod, MatchType } from "@/generated/prisma/client";
 
 export interface PeriodConfig {
   key: MatchPeriod;
@@ -7,6 +7,9 @@ export interface PeriodConfig {
   durationMs: number | null;
 }
 
+// Extra time is only a plausible outcome for a knockout-stage CUP match — ordinary LEAGUE,
+// FRIENDLY, and DEVELOPMENT fixtures never go to ET. Kept as its own config (rather than only
+// exposing getLeaguePeriodConfig) since it doubles as the ET-inclusive list for CUP matches.
 export const LEAGUE_PERIOD_CONFIG: PeriodConfig[] = [
   { key: "BEFORE", label: "Before match", type: "break", durationMs: null },
   { key: "FIRST_HALF", label: "First half", type: "playing", durationMs: 25 * 60 * 1000 },
@@ -17,6 +20,20 @@ export const LEAGUE_PERIOD_CONFIG: PeriodConfig[] = [
   { key: "EXTRA_SECOND_HALF", label: "ET — 2nd half", type: "playing", durationMs: 10 * 60 * 1000 },
   { key: "FULL_TIME", label: "Full time", type: "break", durationMs: null },
 ];
+
+// Regulation time only — ending the second half ends the match outright, matching what a coach
+// expects for a normal league/friendly/development fixture.
+export const REGULATION_ONLY_PERIOD_CONFIG: PeriodConfig[] = [
+  { key: "BEFORE", label: "Before match", type: "break", durationMs: null },
+  { key: "FIRST_HALF", label: "First half", type: "playing", durationMs: 25 * 60 * 1000 },
+  { key: "HALF_TIME", label: "Half time", type: "break", durationMs: null },
+  { key: "SECOND_HALF", label: "Second half", type: "playing", durationMs: 25 * 60 * 1000 },
+  { key: "FULL_TIME", label: "Full time", type: "break", durationMs: null },
+];
+
+export function getLeaguePeriodConfig(matchType: MatchType): PeriodConfig[] {
+  return matchType === "CUP" ? LEAGUE_PERIOD_CONFIG : REGULATION_ONLY_PERIOD_CONFIG;
+}
 
 export function getEventPeriodConfig(matchDurationMinutes: number | null): PeriodConfig[] {
   const durationMs = matchDurationMinutes != null ? matchDurationMinutes * 60 * 1000 : null;

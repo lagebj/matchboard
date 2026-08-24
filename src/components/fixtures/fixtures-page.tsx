@@ -334,7 +334,8 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
       const result = await fetchFixturesOverview();
       setData(result);
       if (result.periods.length > 0 && !selectedPeriodId) {
-        setSelectedPeriodId(result.periods[0].id);
+        const currentPeriod = result.periods.find((p) => p.isCurrent);
+        setSelectedPeriodId((currentPeriod ?? result.periods[0]).id);
       }
     });
   }, [startTransition]);

@@ -31,6 +31,7 @@ describe("Fixtures Service unit tests", () => {
         blockerCount: 0,
         decisionRequiredCount: 0,
         rounds: [],
+        isCurrent: false,
       };
       expect(period.id).toBe("p1");
       expect(period.readinessState).toBe("READY");

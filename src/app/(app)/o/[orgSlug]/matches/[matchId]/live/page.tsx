@@ -21,6 +21,7 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
       gameFormat: true,
       startsAt: true,
       status: true,
+      matchType: true,
       teamId: true,
       team: { select: { id: true, name: true } },
       matchRound: { select: { id: true, name: true } },
@@ -44,6 +45,7 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
         teamName: match.team.name,
         teamId: match.teamId,
         roundName: match.matchRound?.name ?? null,
+        matchType: match.matchType,
       }}
     />
   );
