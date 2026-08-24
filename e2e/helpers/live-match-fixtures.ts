@@ -105,7 +105,11 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   if (!urlMatch) throw new Error(`Could not extract matchId from URL: ${page.url()}`);
   const matchId = urlMatch[1];
 
-  await expect(page.getByRole("link", { name: "Live reporting" })).toBeVisible({ timeout: 10_000 });
+  // match-detail.tsx's server component runs several sequential DB queries (team, matchRound +
+  // leagueSeason, selections, postMatchReport, liveSession, warnings, coachingIntent,
+  // opponentHistory) before rendering — genuinely slower under cold-start conditions than the
+  // other, lighter navigations above.
+  await expect(page.getByRole("link", { name: "Live reporting" })).toBeVisible({ timeout: 20_000 });
 
   return { opponentName, matchId };
 }
