@@ -136,6 +136,69 @@ function checkADRSupersession() {
   return issues;
 }
 
+// AIP-7 (Architecture Integrity Programme): prevents the exact drift found and fixed during
+// this phase — AGENTS.md's "Primary navigation" list and features/matchboard.feature's
+// "Primary navigation contains exactly N items" scenario silently fell out of sync after a
+// navigation model change (Phase 2.4), and nothing caught it automatically. Compares only the
+// ordered list of item *labels* (Today, League, Events, ...), not exact route strings — AGENTS.md
+// writes org-scoped routes (`/o/{orgSlug}/today`) while the feature file intentionally uses bare
+// routes (`/today`) as its own established convention, so route-string comparison would be a
+// false-positive trap, not a real consistency signal. Label order/set drifting is the actual
+// failure mode this guards against.
+function checkPrimaryNavConsistency() {
+  const issues = [];
+  const agentsPath = join(REPO_ROOT, "AGENTS.md");
+  const featurePath = join(REPO_ROOT, "features/matchboard.feature");
+  if (!existsSync(agentsPath) || !existsSync(featurePath)) return issues;
+
+  const agentsContent = readFileSync(agentsPath, "utf-8");
+  const agentsSection = agentsContent.match(
+    /Primary navigation \(\d+ items?, in this order\)[\s\S]*?(?=\n##)/,
+  )?.[0];
+  if (!agentsSection) {
+    issues.push({
+      file: "AGENTS.md",
+      line: 0,
+      message: "Could not locate the \"Primary navigation (N items, in this order)\" section — " +
+        "check-primary-nav-consistency's extraction pattern may need updating alongside any " +
+        "heading/wording change there.",
+    });
+    return issues;
+  }
+  const agentsLabels = [...agentsSection.matchAll(/^\d+\.\s+\*\*(\w+)\*\*/gm)].map((m) => m[1]);
+
+  const featureContent = readFileSync(featurePath, "utf-8");
+  const featureSection = featureContent.match(
+    /Primary navigation contains exactly \w+ items[\s\S]*?And the navigation must not include/,
+  )?.[0];
+  if (!featureSection) {
+    issues.push({
+      file: "features/matchboard.feature",
+      line: 0,
+      message: "Could not locate the \"Primary navigation contains exactly N items\" scenario — " +
+        "check-primary-nav-consistency's extraction pattern may need updating alongside any " +
+        "scenario rename.",
+    });
+    return issues;
+  }
+  const featureRows = [...featureSection.matchAll(/^\s*\|\s*(\w+)\s*\|\s*\/\S*\s*\|/gm)]
+    .map((m) => m[1])
+    .filter((label) => label !== "item");
+
+  if (JSON.stringify(agentsLabels) !== JSON.stringify(featureRows)) {
+    issues.push({
+      file: "features/matchboard.feature",
+      line: 0,
+      message:
+        `Primary navigation item list does not match AGENTS.md. AGENTS.md: [${agentsLabels.join(", ")}]. ` +
+        `features/matchboard.feature: [${featureRows.join(", ")}]. Update whichever is stale — ` +
+        "AGENTS.md is canonical (see docs/product/navigation-model.md).",
+    });
+  }
+
+  return issues;
+}
+
 function main() {
   const allIssues = [];
 
@@ -156,6 +219,7 @@ function main() {
   }
 
   allIssues.push(...checkADRSupersession());
+  allIssues.push(...checkPrimaryNavConsistency());
 
   // Empty directories
   allIssues.push(...docsResult.issues);
