@@ -598,3 +598,17 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   allowed unconditionally rather than branching per environment (harmless either way). Not yet
   deployed/verified end-to-end at the time of this entry — the new E2E specs are expected to go
   green once this reaches the Test slot; re-run them after deploy to confirm.
+- 2026-08-24: **Real Cloudflare Durable Object round trip confirmed working in CI** (ticket
+  issuance, WebSocket upgrade, Worker auth) — a CI run reached `follow-live.spec.ts`'s "Live"
+  connected-state check and it passed, proving the CSP fix above resolves the connectivity issue
+  end-to-end, not just in theory. That run still failed, but only on a trivial wrong text
+  assertion further down the same test (fixed same day: `follow-live-client.tsx` renders
+  `"goal for"`, not `"goal for us"`). A second bug found the same way: `live-reporting.spec.ts`'s
+  sync wait only checked that "syncing…" text had disappeared, a false positive when an attempt
+  instead lands in the terminal `Sync issue` state (fixed via `waitForEventsToSync()` in
+  `live-match-fixtures.ts`, which actively nudges a retry). A third, unrelated bug then surfaced
+  under CI's parallel workers once those two were fixed: the shared fixture's round lookup assumed
+  "first card in the list" — not safe once multiple specs create matches concurrently against the
+  same shared org (also fixed). See `docs/development/browser-acceptance-testing.md` for detail.
+  Awaiting a fully green CI run with all three fixes applied together to close out the "Follow
+  live" connectivity work opened by the amendment above.

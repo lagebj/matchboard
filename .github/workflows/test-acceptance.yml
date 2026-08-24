@@ -100,6 +100,20 @@ jobs:
       - name: Functional acceptance (Playwright, against the aliased Test slot)
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npm run test:e2e
+      # Without this, a Playwright failure's only diagnostic evidence is the console summary
+      # (call log + surrounding source lines) — no screenshot, no DOM snapshot, no trace. That
+      # gap materially slowed diagnosing a 2026-08-24 flaky-fixture failure (root cause required
+      # guessing from text output alone). Uploads regardless of outcome so a passing run's traces
+      # remain available too; short retention since these are debugging aids, not release
+      # artifacts.
+      - name: Upload Playwright results (screenshots, traces, error context)
+        if: always() && steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 5
+          if-no-files-found: ignore
       # deploy.sh's own ERR trap only covers failures inside that one bash process. A failure in
       # any *later* step (this job's Playwright step, or the Node.js/Playwright install steps
       # before it) happens after deploy.sh already succeeded and already moved the alias — those

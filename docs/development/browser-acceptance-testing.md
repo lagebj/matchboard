@@ -55,9 +55,27 @@ the app's own Content-Security-Policy `connect-src` directive (`src/lib/security
 listed the Cloudflare Worker's WebSocket origins (`wss://realtime.matchboard.football`,
 `wss://realtime-test.matchboard.football`) when the live-match-realtime-programme shipped, so the
 *browser itself* silently blocked every connection attempt regardless of server-side
-correctness. Fixed by adding both origins to `connect-src`. The live-reporting/follow-live specs
-above were failing against the CSP bug at the time this was written and are expected to pass once
-the fix is deployed to the Test slot — re-run them after deploy to confirm.
+correctness. Fixed by adding both origins to `connect-src`; confirmed live in CI that the
+connection now succeeds (the "Live" connected-state check in `follow-live.spec.ts` passes).
+
+Two further bugs surfaced only once the CSP fix let these specs run past the connection step,
+both fixed the same day: `follow-live.spec.ts` asserted rendered text that
+`follow-live-client.tsx` could never produce (`"goal for us"` vs. the actual `"goal for"` —
+`eventType.replaceAll("_", " ").toLowerCase()`), and `live-reporting.spec.ts`'s sync wait only
+checked that "syncing…" text had disappeared, which is a false positive when an attempt instead
+lands in the terminal `Sync issue` error state — `waitForEventsToSync()` in
+`live-match-fixtures.ts` now polls for both states and actively nudges a retry (dispatching the
+same `"online"` window event the app's own reconnect handler listens for) rather than trusting
+the pending state's mere absence.
+
+A third, unrelated bug also surfaced under CI's `fullyParallel`/2-worker concurrency: the shared
+fixture identified "my" newly created round by assuming it was always the first card in
+`/rounds`' org-wide, `createdAt desc`-ordered list — true for a single test running alone, but
+not guaranteed once multiple specs create matches concurrently against the same shared,
+unbounded, never-cleaned org. The fixture now locates the round by its rendered ISO week label
+instead (the round card shows no opponent/match-identifying text, only the week label), which is
+specific to the match this fixture just created regardless of what other tests are doing
+concurrently.
 
 **Not yet implemented** — explicitly flagged, not silently missing:
 
@@ -117,12 +135,24 @@ opens Playwright's UI mode for step-by-step replay. `playwright-report/` (gitign
 HTML report after any run; `trace: "on-first-retry"` in the config means a trace file is captured
 automatically once a test has failed once.
 
+In CI, both the `e2e` job (`ci-checks.yml`) and `test-acceptance.yml`'s Playwright step upload
+`test-results/` (screenshots, traces, `error-context.md` for every failure) as a
+`playwright-results-<run-id>` build artifact, 5-day retention, regardless of outcome — added
+2026-08-24 after a flaky-fixture failure took a full debugging cycle to diagnose from the console
+log's text summary alone, with no screenshot or trace available. Download via the run's Actions
+summary page or `gh run download <run-id> -n playwright-results-<run-id>`.
+
 ## CI
 
-A separate `e2e` job in `.github/workflows/ci-checks.yml` runs on every push/PR, using a
-`TEST_AGENT_AUTH_SECRET` GitHub Actions secret. It runs against the same hosted Test slot as
-local runs — there is no separate CI-only environment for this. The job is decoupled from
-`build`'s `needs:` (a slow/flaky Test-slot-dependent job shouldn't block the build check).
+A separate `e2e` job in `.github/workflows/ci-checks.yml` (named "Browser Acceptance Tests") runs
+**only on `push`** (post-merge), not on `pull_request` — pre-merge PR-level Playwright validation
+is `test-acceptance.yml`'s job instead, which deploys the PR commit to an isolated per-PR Neon
+branch and Vercel preview and aliases `test.matchboard.football` to it for the duration of the
+run (ADR-0075), rather than racing the shared hosted Test slot against whatever other PR might be
+running at the same time. The `ci-checks.yml` job serves post-merge smoke validation against the
+just-restored baseline instead, using a `TEST_AGENT_AUTH_SECRET` GitHub Actions secret. The job is
+decoupled from `build`'s `needs:` (a slow/flaky Test-slot-dependent job shouldn't block the build
+check).
 
 ### Keeping the persistent test branch migrated
 
@@ -148,11 +178,16 @@ into future jobs either.
 
 ## Test data
 
-`e2e/auth.setup.ts` authenticates two personas from the canonical seed dataset
+`e2e/auth.setup.ts` authenticates three personas from the canonical seed dataset
 (`scripts/seed-test-dataset.ts`): `coach-all-a@test-agent.matchboard.football` (full access to
 Org A's two groups, A1/A2 — used by `smoke.spec.ts`, `accessibility.spec.ts`,
-`round-mutation.spec.ts`) and `viewer-a@test-agent.matchboard.football` (VIEWER role, Org A only
-— used by `authz-failure.spec.ts`).
+`round-mutation.spec.ts`, and as the reporting coach in `live-reporting.spec.ts`/
+`follow-live.spec.ts`), `viewer-a@test-agent.matchboard.football` (VIEWER role, Org A only — used
+by `authz-failure.spec.ts`), and `coach-a1@test-agent.matchboard.football` (GROUP_COACH on group
+A1 only — a second, genuinely distinct login used as the following coach in
+`follow-live.spec.ts`'s two-actor scenario, opened via a manual
+`browser.newContext({ storageState: "e2e/.auth/coach-a1.json" })` rather than a second Playwright
+project, since both personas are needed live within the same test).
 
 `round-mutation.spec.ts` is the one spec that mutates data. It's deliberately self-cleaning
 (generate → verify → clear, ending in the same not-generated state it started from), so it needs

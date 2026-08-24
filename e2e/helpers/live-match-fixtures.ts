@@ -26,19 +26,37 @@ import { type Page, expect } from "@playwright/test";
  * run minutes later, same round: 0/11) — not a flaky test, a real shared-fixture collision.
  * Spreading ~1-10 years out makes same-round collisions between runs astronomically unlikely.
  */
-function randomFutureMatchDateInput(): string {
+function randomFutureMatchDate(): Date {
   const weeksOut = 60 + Math.floor(Math.random() * 500);
-  const date = new Date(Date.now() + weeksOut * 7 * 24 * 60 * 60 * 1000);
-  return date.toISOString().split("T")[0];
+  return new Date(Date.now() + weeksOut * 7 * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Mirrors src/lib/date-utils.ts's getIsoWeekParts/formatIsoWeekLabel exactly (duplicated, not
+ * imported — this is e2e test code, not app code). Needed because round-list-client.tsx's round
+ * card renders only the ISO week label ("W18 2026"), no opponent or match-identifying text, so
+ * this is the only content-based way to find "my" round precisely.
+ */
+function isoWeekLabel(date: Date): string {
+  const isoDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const weekday = isoDate.getUTCDay() || 7;
+  isoDate.setUTCDate(isoDate.getUTCDate() + 4 - weekday);
+  const year = isoDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const dayOffset = Math.floor((isoDate.getTime() - yearStart.getTime()) / (24 * 60 * 60 * 1000));
+  const week = Math.ceil((dayOffset + 1) / 7);
+  return `W${String(week).padStart(2, "0")} ${year}`;
 }
 
 export async function createFinalizedLiveTestMatch(page: Page, label: string): Promise<{ opponentName: string; matchId: string }> {
   const opponentName = `E2E Live ${label} ${Date.now()}`;
 
+  const matchDate = randomFutureMatchDate();
+
   await page.goto("/o/test-club-a/matches/new");
   await page.locator("#teamId").selectOption({ label: "A1 Blues" });
   await page.locator("#opponent-select").fill(opponentName);
-  await page.locator("#startsAt").fill(randomFutureMatchDateInput());
+  await page.locator("#startsAt").fill(matchDate.toISOString().split("T")[0]);
   // Blur the combobox so it commits the free-text value into the hidden `opponent` field
   // instead of staying "open" and intercepting the next click.
   await page.locator("#teamId").click();
@@ -53,10 +71,20 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   // Fixtures' period selector defaults to whichever league season isCurrent (see
   // FixturePeriod.isCurrent) and this match's far-future date deliberately isn't it — so rather
   // than hunt through periods, use /rounds instead: it lists every MatchRound unfiltered by
-  // period, ordered by createdAt desc (src/app/(app)/o/[orgSlug]/rounds/page.tsx), so the round
-  // this match just created is always the very first card.
+  // period (src/app/(app)/o/[orgSlug]/rounds/page.tsx).
+  //
+  // Identify the round by its rendered week label, not by list position ("first card" —
+  // ordered by createdAt desc). Confirmed live in CI (2026-08-24): with fullyParallel + 2
+  // workers, this and follow-live.spec.ts/live-reporting.spec.ts's second test all call this
+  // fixture concurrently against the same shared, unbounded, never-cleaned org — "first card"
+  // assumes no other test's match round is created in the gap between this match's creation and
+  // this page load, which is not actually guaranteed under concurrency. The round card
+  // (round-list-client.tsx) renders no opponent/match-identifying text, only the ISO week label,
+  // so that's the only content-based way to find *this* round precisely.
+  const weekLabel = isoWeekLabel(matchDate);
   await page.goto("/o/test-club-a/rounds");
-  const roundCard = page.locator("div.rounded-xl").first();
+  const roundCard = page.locator("div.rounded-xl").filter({ hasText: weekLabel });
+  await expect(roundCard).toHaveCount(1, { timeout: 20_000 });
   await roundCard.getByRole("link").click();
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//, { timeout: 15_000 });
 
