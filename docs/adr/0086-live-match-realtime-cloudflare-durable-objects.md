@@ -580,3 +580,21 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   included on the Free plan (200,000 events/day, 3-day retention) — not a paid-tier feature, and
   does not conflict with D-004's Free-plan constraint. This Worker's traffic (a handful of live
   matches per week) is far below the daily cap.
+- 2026-08-24: **Root cause found and fixed for the "Follow live" `Connection problem` issue**
+  (open since the amendment above) — and for reporting-coach events occasionally getting stuck
+  in `Sync issue — data saved locally`. Both were the same bug: `src/lib/security/csp.ts`'s
+  `connect-src` directive never listed the Cloudflare Worker's WebSocket origins
+  (`wss://realtime.matchboard.football`, `wss://realtime-test.matchboard.football`) when this
+  programme shipped, so the *browser itself* silently blocked every `RealtimeMatchClient`
+  connection attempt via Content-Security-Policy — a client-side block that never reaches the
+  network, invisible to every server-side check (Worker deploy status, secrets, Origin allowlist,
+  ticket verification) done earlier while diagnosing this. All of those were independently
+  confirmed correct and remain correct; none of them was the actual cause. Found via a Playwright
+  `page.on("console", ...)` listener during new E2E test development (`e2e/live-reporting.spec.ts`,
+  `e2e/follow-live.spec.ts` — see `docs/development/browser-acceptance-testing.md`), which
+  surfaced the literal browser CSP violation message on first repro — the fix followed
+  immediately once the actual error was visible, after none of the server-side hypotheses in the
+  amendment above had panned out. Fixed by adding both origins to `connect-src`; both are
+  allowed unconditionally rather than branching per environment (harmless either way). Not yet
+  deployed/verified end-to-end at the time of this entry — the new E2E specs are expected to go
+  green once this reaches the Test slot; re-run them after deploy to confirm.

@@ -28,6 +28,36 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
 - `e2e/authz-failure.spec.ts` — runs under a separate `chromium-viewer` project as `viewer-a` (a
   real VIEWER-role persona): asserts creating a team is denied and never persisted, and asserts
   cross-organisation access (Org B) is denied and leaks no Org B data.
+- `e2e/live-reporting.spec.ts` — creates a throwaway finalized match (see
+  `e2e/helpers/live-match-fixtures.ts`), then covers the real live-reporting flow: start session,
+  record a goal, verify the scoreboard updates, finish cleanly; and a regression test for the
+  2026-08-24 score data-integrity fix (`handleEndSession` in `live-match-client.tsx`) — going
+  offline mid-session, recording an event, and confirming "Finish live reporting" refuses to end
+  the session and lose the event, then succeeds once back online.
+- `e2e/follow-live.spec.ts` — a genuine two-actor scenario: the reporting coach (`coach-all-a`)
+  starts a live session; a second, distinct login (`coach-a1`, GROUP_COACH on the same group,
+  opened via `browser.newContext({ storageState: "e2e/.auth/coach-a1.json" })`) opens "Follow
+  live" for the same match and asserts the connection actually reaches the Cloudflare Durable
+  Object over a real WebSocket, and that an event the reporter records actually arrives.
+
+Unlike `round-mutation.spec.ts`, the live-reporting/follow-live specs cannot be made
+self-cleaning — finalizing creates real selections and (once a session ends) a permanent
+`PostMatchReport`, with no "delete match" UI action. Each test creates its own throwaway match
+(unique opponent name, and deliberately spread across a wide randomized *future* date range —
+see the comment in `live-match-fixtures.ts` for why matches dated "today" collided with each
+other's player pool in round-level generation) rather than mutating the shared canonical seed
+dataset. This is accepted as ongoing accumulation in the shared Test dataset.
+
+**Live match reporting and CSP** — while building this coverage (2026-08-24), a Playwright
+console listener caught the real root cause of both the "Follow live" `Connection problem` UI
+state and reporting-coach events occasionally getting stuck in `Sync issue — data saved locally`:
+the app's own Content-Security-Policy `connect-src` directive (`src/lib/security/csp.ts`) never
+listed the Cloudflare Worker's WebSocket origins (`wss://realtime.matchboard.football`,
+`wss://realtime-test.matchboard.football`) when the live-match-realtime-programme shipped, so the
+*browser itself* silently blocked every connection attempt regardless of server-side
+correctness. Fixed by adding both origins to `connect-src`. The live-reporting/follow-live specs
+above were failing against the CSP bug at the time this was written and are expected to pass once
+the fix is deployed to the Test slot — re-run them after deploy to confirm.
 
 **Not yet implemented** — explicitly flagged, not silently missing:
 
