@@ -78,12 +78,18 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   await page.goto("/o/test-club-a/fixtures");
   const matchLink = page.getByRole("link", { name: new RegExp(`vs ${opponentName}$`) });
   const periodSelect = page.locator("#league-season-select");
-  // Fixtures fetches its data client-side after mount ("Loading fixtures…") — the select doesn't
-  // exist in the DOM until that resolves. Without this wait, the loop below silently iterated
-  // zero options (evaluateAll on a not-yet-rendered select resolves empty rather than waiting),
-  // and the final assertion just timed out on whatever period happened to be showing.
-  await expect(periodSelect).toBeVisible({ timeout: 20_000 });
-  if (!(await matchLink.isVisible().catch(() => false))) {
+  // fixtures-page.tsx only renders #league-season-select when data.periods.length > 1 — on a
+  // fresh/isolated branch with few accumulated periods, this match may be the *only* period, in
+  // which case the selector never appears at all and searching for it would hang forever.
+  // Wait for the match link directly first (covers both "only period" and "already isCurrent"
+  // cases, and the initial client-side fetch settling — "Loading fixtures…" beforehand); only
+  // fall back to hunting through the multi-period selector if that genuinely times out.
+  const foundDirectly = await matchLink
+    .waitFor({ state: "visible", timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!foundDirectly) {
+    await expect(periodSelect).toBeVisible({ timeout: 5_000 });
     const optionValues = await periodSelect.locator("option").evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
     for (const value of optionValues) {
       await periodSelect.selectOption(value);
