@@ -239,3 +239,16 @@ not artificially triggered early, since a real close is the same signal either w
   production) — this is disposable, fully-reseedable test data, and deliberately migration-only —
   it never reseeds automatically; reseeding stays a separate, deliberate, human-invoked
   `restore-test-baseline` call.
+- 2026-08-24: **This workflow's core isolation guarantee was never actually in effect** — see
+  ARR-0024 for the full record. `test-acceptance.yml`'s checkout steps had no `ref:` override, so
+  `actions/checkout` used its default `pull_request`-event behavior: checking out
+  `refs/pull/<PR>/merge` in detached HEAD state. `deploy.sh`'s branch-scoped Vercel Preview env
+  vars depend on `vercel deploy`'s git-metadata auto-detection matching the checked-out branch
+  name — a detached HEAD can't match, so every deploy silently used this Vercel project's generic
+  "Production, Preview" `DATABASE_URL`/`DIRECT_URL` instead of the freshly created, correctly
+  migrated, intentionally isolated `pr-<N>` branch. Confirmed by direct `neonctl`/`psql` query
+  against both branches: the isolated branch had none of a PR's Playwright-created data across 4
+  separate CI runs; the shared persistent `test` branch had all of it (97 extra `MatchRound` rows,
+  dozens of extra `Match` rows). This had been true since the pipeline shipped (2026-08-20) — every
+  PR's "isolated" run had actually been mutating the shared Test dataset the whole time. Fixed by
+  adding `ref: ${{ github.head_ref }}` to both checkout steps.

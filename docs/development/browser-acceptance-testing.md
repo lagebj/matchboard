@@ -83,16 +83,20 @@ lookup came up empty, and the round board crashed outright with a redacted "Serv
 render" error (React digest, no detail in the Playwright output). `vercel logs` against the
 failed run's still-live ephemeral preview deployment (found via the CI job log's `Deployment:
 <url>` line) surfaced the real, unredacted error: `PrismaClientKnownRequestError: Transaction API
-error: Unable to start a transaction in the given time` (P2028). With 2 workers, `round-mutation.
-spec.ts`, `live-reporting.spec.ts` (2 tests), and `follow-live.spec.ts` can all be mid-generation
-at once — each triggers a full round-level generation transaction (AGENTS.md: per-match core
-selection, support resolution, conflict resolution, development routing, squad repair,
-validation, policy evaluation) — and enough concurrent heavy transactions exhausted the target
-Neon branch's transaction capacity. Fixed by dropping CI to `workers: 1`, serializing all e2e
-specs — the earlier failures had no useful error surfaced to Playwright's own output at all (a
-redacted RSC digest, or just "0 elements found"); `vercel logs` on the actual deployment was what
-made this diagnosable. Costs roughly double the wall-clock time (~10min → ~20min observed) but
-removes an entire class of intermittent, hard-to-diagnose CI failures.
+error: Unable to start a transaction in the given time` (P2028). Each of `round-mutation.spec.ts`,
+`live-reporting.spec.ts` (2 tests), and `follow-live.spec.ts` triggers a full round-level
+generation transaction (AGENTS.md: per-match core selection, support resolution, conflict
+resolution, development routing, squad repair, validation, policy evaluation); with 2 Playwright
+workers, several of these could be mid-generation at once. Dropping CI to `workers: 1` reduces
+that contention (roughly doubles wall-clock time, ~10min → ~20min observed) and is worth keeping
+regardless, but investigating *why* transaction pressure was severe enough to matter at all led to
+a much bigger finding: this per-PR run wasn't actually hitting its own isolated Neon branch in the
+first place — it (and, it turned out, every PR before it) was mutating the shared, persistent
+`test` branch, the same one every *other* concurrent PR's run and `ci-checks.yml`'s post-merge job
+also use. See ARR-0024 and ADR-0075's History for the full record and fix (a missing checkout
+`ref:`, causing Vercel's git-metadata branch-scoped env var selection to silently fail). `workers:
+1` remains a reasonable safety margin against a freshly forked child branch's smaller initial
+compute allocation, but the *cross-PR* contention is what the isolation fix actually addresses.
 
 **Not yet implemented** — explicitly flagged, not silently missing:
 

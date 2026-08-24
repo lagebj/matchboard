@@ -79,8 +79,22 @@ jobs:
             echo "Every changed file is docs/tracking-only — skipping the Test slot deploy."
             echo "only_docs=true" >> "$GITHUB_OUTPUT"
           fi
+      # ref: github.head_ref is required here — without it, actions/checkout's default behavior
+      # for a pull_request event checks out the refs/pull/<PR>/merge commit in DETACHED HEAD
+      # state, not a real branch. deploy.sh's `vercel deploy` relies on Vercel's own git-metadata
+      # auto-detection (reading the local .git checkout) to pick the branch-scoped DATABASE_URL/
+      # DIRECT_URL Preview env vars deploy.sh sets further down — a detached HEAD can't match a
+      # named-branch scope, so the build silently fell back to this Vercel project's generic
+      # "Production, Preview" DATABASE_URL instead of the isolated per-PR Neon branch. Confirmed
+      # live, 2026-08-24 (see ADR-0075's History and ARR-0024): every Playwright run against this
+      # PR was actually mutating the shared, persistent `test` Neon branch — the exact data other
+      # PRs, ci-checks.yml's post-merge smoke job, and local `npm run test:e2e` also depend on —
+      # not the intended isolated `pr-<N>` branch, silently defeating the entire point of
+      # ADR-0075's per-PR isolation design.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         with:
