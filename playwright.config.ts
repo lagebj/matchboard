@@ -15,7 +15,20 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  // 1, not 2: confirmed live in CI (2026-08-24) that 2 workers running round-generation-heavy
+  // specs concurrently (round-mutation.spec.ts, live-reporting.spec.ts, follow-live.spec.ts —
+  // each triggers a full round-level generation transaction) can exhaust the target Neon
+  // branch's transaction capacity: `PrismaClientKnownRequestError: Transaction API error: Unable
+  // to start a transaction in the given time` (P2028), pulled from the deployment's Vercel
+  // runtime logs. This hit hardest against test-acceptance.yml's freshly forked, smaller-capacity
+  // per-PR child branch, but the risk isn't specific to that branch's sizing — it's concurrent
+  // heavy transactions against one Postgres instance, so this applies to ci-checks.yml's run
+  // against the persistent Test branch too. Serializing removes the contention outright at the
+  // cost of roughly doubling wall-clock time (~10min -> ~20min observed) — a correctness/speed
+  // trade worth taking over intermittent, hard-to-diagnose failures with no useful error surfaced
+  // to the test itself (this one only became visible via direct Vercel log access, not from
+  // Playwright's own output).
+  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL,

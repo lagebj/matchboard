@@ -77,6 +77,23 @@ instead (the round card shows no opponent/match-identifying text, only the week 
 specific to the match this fixture just created regardless of what other tests are doing
 concurrently.
 
+**Round-generation transaction contention (`playwright.config.ts`'s `workers: 1`)** — even after
+the fix above, CI still failed: `round-mutation.spec.ts`'s own pre-existing, unrelated round
+lookup came up empty, and the round board crashed outright with a redacted "Server Components
+render" error (React digest, no detail in the Playwright output). `vercel logs` against the
+failed run's still-live ephemeral preview deployment (found via the CI job log's `Deployment:
+<url>` line) surfaced the real, unredacted error: `PrismaClientKnownRequestError: Transaction API
+error: Unable to start a transaction in the given time` (P2028). With 2 workers, `round-mutation.
+spec.ts`, `live-reporting.spec.ts` (2 tests), and `follow-live.spec.ts` can all be mid-generation
+at once — each triggers a full round-level generation transaction (AGENTS.md: per-match core
+selection, support resolution, conflict resolution, development routing, squad repair,
+validation, policy evaluation) — and enough concurrent heavy transactions exhausted the target
+Neon branch's transaction capacity. Fixed by dropping CI to `workers: 1`, serializing all e2e
+specs — the earlier failures had no useful error surfaced to Playwright's own output at all (a
+redacted RSC digest, or just "0 elements found"); `vercel logs` on the actual deployment was what
+made this diagnosable. Costs roughly double the wall-clock time (~10min → ~20min observed) but
+removes an entire class of intermittent, hard-to-diagnose CI failures.
+
 **Not yet implemented** — explicitly flagged, not silently missing:
 
 - Team-creation mutation coverage — there is currently no UI-driven way to delete or archive a
@@ -141,6 +158,15 @@ In CI, both the `e2e` job (`ci-checks.yml`) and `test-acceptance.yml`'s Playwrig
 2026-08-24 after a flaky-fixture failure took a full debugging cycle to diagnose from the console
 log's text summary alone, with no screenshot or trace available. Download via the run's Actions
 summary page or `gh run download <run-id> -n playwright-results-<run-id>`.
+
+Next.js redacts Server Component render error messages in production builds down to a generic
+`Minified React error #441` with an opaque digest — exactly what the deploy target runs, so
+`error-context.md`/screenshots alone won't show the real error for a server-side crash. If the
+failed run's deployment step logged a `Deployment: <url>` line (both `deploy.sh` and CI's own
+`vercel deploy` steps do) and the deployment hasn't been torn down yet, `vercel logs <url>`
+retrieves real runtime error logs (unredacted) for that specific ephemeral deployment — this is
+how the 2026-08-24 `P2028` transaction-timeout root cause below was actually found, after the
+Playwright output alone gave nothing but the redacted digest.
 
 ## CI
 
