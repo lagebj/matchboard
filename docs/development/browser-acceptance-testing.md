@@ -68,6 +68,21 @@ lands in the terminal `Sync issue` error state — `waitForEventsToSync()` in
 same `"online"` window event the app's own reconnect handler listens for) rather than trusting
 the pending state's mere absence.
 
+**A fourth, far more significant bug surfaced after all of the above were fixed and
+`waitForEventsToSync` still timed out even on a plain online run with no offline simulation at
+all**: every goal recorded without an immediately-attributed scorer had been silently failing
+server validation and getting permanently stuck in `Sync issue`, since the very first commit that
+introduced the live-match data layer. `live-match-client.tsx`'s `handleGoalFor` records `GOAL_FOR`
+immediately with no `playerId` by design — attribution is a separate, optional `SCORER_SET` event
+recorded later if/when the coach picks a scorer from the "Who scored?" sheet ("Skip" is a
+supported, intentional choice) — but `GOAL_FOR` was also listed in
+`LIVE_EVENT_TYPES_THAT_REQUIRE_PLAYER`, so `validateLiveEventInput` rejected every one of those
+calls outright. Found by adding a temporary `page.on("response", ...)` listener locally (against a
+live deployment, for fast iteration — see "Debugging a failing run" below) and reading the actual
+`recordEvent` response body: `{"success":false,"error":"Event type GOAL_FOR requires a playerId"}`.
+Fixed by removing `GOAL_FOR` from the required-player set; see the fix commit and
+`src/lib/live-match/live-match-types.ts` for detail.
+
 A third, unrelated bug also surfaced under CI's `fullyParallel`/2-worker concurrency: the shared
 fixture identified "my" newly created round by assuming it was always the first card in
 `/rounds`' org-wide, `createdAt desc`-ordered list — true for a single test running alone, but
@@ -171,6 +186,30 @@ failed run's deployment step logged a `Deployment: <url>` line (both `deploy.sh`
 retrieves real runtime error logs (unredacted) for that specific ephemeral deployment — this is
 how the 2026-08-24 `P2028` transaction-timeout root cause below was actually found, after the
 Playwright output alone gave nothing but the redacted digest.
+
+**Fast local iteration against a live deployment** — waiting for a full CI run (~10-20 minutes:
+deploy + browser install + the whole serialized suite) to debug one failing spec is slow. Once a
+PR's deploy step has run at least once, `test.matchboard.football` is already aliased to that
+exact commit's build — run just the failing spec directly against it locally instead of waiting
+on CI again:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://test.matchboard.football TEST_AGENT_AUTH_SECRET=<secret> \
+  npx playwright test e2e/live-reporting.spec.ts -g "start live reporting" \
+  --project=chromium --retries=0 --reporter=list --workers=1
+```
+
+This turns a ~2-minute local loop instead of a ~20-minute CI round trip. Two caveats: (1) hitting
+a raw `*.vercel.app` preview URL directly (rather than the aliased custom domain) fails with an
+HTML deployment-protection page instead of a JSON auth response — always go through the alias;
+(2) this shares the same isolated per-PR Neon branch as any CI run currently using it, so avoid
+running both at once (the transaction contention this section already describes applies here too).
+For genuinely opaque failures, add a temporary `page.on("response", ...)` listener to log response
+bodies (Next.js Server Action responses are RSC-stream-encoded, but the actual `{"success":
+false, "error": "..."}` payload is still readable in the raw text) — this is how the `GOAL_FOR`
+bug two sections up was actually found, after `vercel logs` alone wasn't the right tool (that PR's
+build was fine; the bug was in application logic, not deployment). Remove such instrumentation
+before committing — it's a debugging aid, not permanent test code.
 
 ## CI
 
