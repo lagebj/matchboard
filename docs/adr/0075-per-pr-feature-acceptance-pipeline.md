@@ -251,4 +251,7 @@ not artificially triggered early, since a real close is the same signal either w
   separate CI runs; the shared persistent `test` branch had all of it (97 extra `MatchRound` rows,
   dozens of extra `Match` rows). This had been true since the pipeline shipped (2026-08-20) — every
   PR's "isolated" run had actually been mutating the shared Test dataset the whole time. Fixed by
-  adding `ref: ${{ github.head_ref }}` to both checkout steps.
+  adding `ref: ${{ github.head_ref }}` to both checkout steps. The `test` branch's accumulated
+  pollution (97 extra `MatchRound` rows, dozens of extra `Match` rows) was cleaned up the same day
+  via a user-authorized `restore-test-baseline` run — verified afterward back to the pristine
+  4-round, 7-team canonical baseline. See ARR-0024's History for both parts.

@@ -86,14 +86,15 @@ touched by per-PR runs — only by `ci-checks.yml`'s post-merge smoke job and lo
 - `test-acceptance.yml`'s checkout steps pin `ref: ${{ github.head_ref }}`.
 - A fresh PR run's Playwright-created data verifiably lands on that PR's isolated `pr-<N>` Neon
   branch (confirmed via direct query), not on `test`.
-- The `test` branch's accumulated pollution from this incident is cleaned up (surgical delete of
-  `opponent LIKE 'E2E Live%'` matches/rounds and their cascade — not a full baseline restore,
-  which would discard unrelated legitimate state).
+- The `test` branch's accumulated pollution from this incident is cleaned up.
 
 ## Disposition
 
-Resolved. `ref: ${{ github.head_ref }}` added to both checkout steps in
-`test-acceptance.yml`. Pollution cleanup and re-verification tracked in this record's History.
+Resolved. `ref: ${{ github.head_ref }}` added to both checkout steps in `test-acceptance.yml`.
+The `test` branch's pollution was cleaned up via the `restore-test-baseline` swamp procedure
+(user-authorized full wipe-and-reseed, rather than a surgical delete) — verified afterward by
+direct query: 4 `MatchRound` rows (matching the pristine baseline), 0 `Match` rows matching
+`opponent LIKE 'E2E Live%'`, and the correct 7-team canonical set restored.
 
 ## Related decisions
 
@@ -123,3 +124,13 @@ deployment revealed a Prisma P2028 transaction-timeout error, which led to inspe
 Neon branch the deployment was using — at which point direct `neonctl`/`psql` queries showed the
 isolated `pr-349` branch had none of the run's data, and the shared `test` branch had all of it.
 Root-caused to the missing `ref:` on `actions/checkout`. Fixed in the same PR.
+
+### 2026-08-24 (pollution cleanup)
+
+User authorized a full reset of the shared `test` branch to its intended canonical state. Ran
+`restore-test-baseline` (`swamp --no-telemetry model method run restore-test-baseline execute
+--input env.CONFIRM=yes --input env.MATCHBOARD_ENV=test --input env.TEST_DATABASE_URL=...`,
+`matchboard_admin_migration` role connection string for the `test` branch) — completed in 27.6s.
+Verified via direct `psql` query afterward: 4 `MatchRound` rows, 0 `Match` rows matching
+`opponent LIKE 'E2E Live%'`, correct 7-team set (`A1 Blues`/`A1 Reds`/`A1 Whites`/`A2 Eagles`/
+`A2 Hawks`/`B1 Lions`/`B1 Wolves`). All resolution criteria met.
