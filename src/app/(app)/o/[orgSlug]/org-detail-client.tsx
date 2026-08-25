@@ -5,6 +5,7 @@ import {
   createInvitationAction,
   revokeInvitationAction,
   updateMembershipRoleAction,
+  removeMemberAction,
 } from "@/app/(app)/organisations/actions";
 
 type GroupAccess = {
@@ -98,6 +99,18 @@ export function OrgDetailClient({
     setRefreshKey((k) => k + 1);
   }
 
+  async function handleRemoveMember(membershipId: string, memberName: string) {
+    if (!confirm(`Remove ${memberName || "this member"} from the organisation? This cannot be undone.`)) {
+      return;
+    }
+    const result = await removeMemberAction(orgSlug, membershipId);
+    if (result.success) {
+      setRefreshKey((k) => k + 1);
+    } else {
+      alert(result.error);
+    }
+  }
+
   const roleOrder = ["OWNER", "ADMIN", "COACH", "VIEWER"];
 
   return (
@@ -182,7 +195,7 @@ export function OrgDetailClient({
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">{m.user.email}</p>
                   </div>
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-2">
                     {canManageRoles && m.userId !== currentUserId ? (
                       <select
                         value={m.role}
@@ -196,6 +209,14 @@ export function OrgDetailClient({
                       </select>
                     ) : (
                       <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--surface-muted)]">{m.role}</span>
+                    )}
+                    {(canManageRoles || (isOwner && m.userId !== currentUserId)) && m.role !== "OWNER" && m.userId !== currentUserId && (
+                      <button
+                        onClick={() => handleRemoveMember(m.id, m.user.name || m.user.email)}
+                        className="text-xs text-[var(--text-muted)] hover:text-red-500"
+                      >
+                        Remove
+                      </button>
                     )}
                   </div>
                 </div>

@@ -38,10 +38,26 @@ export type AssistantWorkItem = {
   primaryActionHref: string;
 };
 
+export type TodayMatchStatus = "not_generated" | "draft" | "blocked" | "ready" | "finalized";
+
+export type TodayMatch = {
+  matchId: string;
+  matchRoundId: string;
+  matchRoundName: string;
+  teamName: string;
+  opponent: string;
+  homeAway: "HOME" | "AWAY";
+  startsAt: string | null;
+  squadStatus: TodayMatchStatus;
+  hasActiveLiveSession: boolean;
+  reportStatus: "none" | "draft" | "reported" | "locked" | null;
+};
+
 export type AssistantCommandCentre = {
   leagueSeasonId: string | null;
   leagueSeasonName: string | null;
   items: AssistantWorkItem[];
+  todayMatches: TodayMatch[];
   computedAt: Date;
 };
 

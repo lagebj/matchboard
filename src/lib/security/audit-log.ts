@@ -39,6 +39,7 @@ type SecurityEventAction =
   | "organisation_invitation_decline"
   | "organisation_invitation_expire"
   | "organisation_membership_update"
+  | "organisation_membership_remove"
   | "organisation_team_access_add"
   | "organisation_team_access_add"
   | "organisation_team_access_remove"
@@ -380,6 +381,18 @@ export function logOrganisationMembershipUpdate(actor: string, organisationId: s
   logSecurityEvent({
     category: "mutation",
     action: "organisation_membership_update",
+    actor,
+    resource: "organisation",
+    resourceId: organisationId,
+    result,
+    reason,
+  });
+}
+
+export function logOrganisationMembershipRemove(actor: string, organisationId: string, result: "success" | "failure", reason?: string): void {
+  logSecurityEvent({
+    category: "mutation",
+    action: "organisation_membership_remove",
     actor,
     resource: "organisation",
     resourceId: organisationId,

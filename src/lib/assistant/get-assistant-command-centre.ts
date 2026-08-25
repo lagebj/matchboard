@@ -5,6 +5,8 @@ import type {
   AssistantCommandCentre,
   AssistantWorkCategory,
   AssistantWorkItem,
+  TodayMatch,
+  TodayMatchStatus,
 } from "./types";
 import { CATEGORY_PRIORITY } from "./types";
 import { getEventWorkItems } from "./get-event-work-items";
@@ -349,14 +351,35 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       id: true,
       opponent: true,
       homeAway: true,
+      startsAt: true,
       teamId: true,
       matchRoundId: true,
       team: { select: { name: true } },
       matchRound: { select: { id: true, name: true } },
     },
+    orderBy: { startsAt: "asc" },
   });
 
   const todayMatchIds = todayMatches.map((m) => m.id);
+
+  const matchSelections = await db.selection.findMany({
+    where: { matchId: { in: todayMatchIds } },
+    select: { matchId: true, status: true },
+  });
+  const matchSelectionMap = new Map<string, Set<string>>();
+  for (const sel of matchSelections) {
+    if (!matchSelectionMap.has(sel.matchId)) matchSelectionMap.set(sel.matchId, new Set());
+    matchSelectionMap.get(sel.matchId)!.add(sel.status);
+  }
+
+  const matchReports = await db.postMatchReport.findMany({
+    where: { matchId: { in: todayMatchIds } },
+    select: { matchId: true, status: true },
+  });
+  const matchReportMap = new Map<string, string>();
+  for (const r of matchReports) {
+    matchReportMap.set(r.matchId, r.status);
+  }
 
   const finalizedSquadCounts = await db.selection.groupBy({
     by: ["matchId"],
@@ -378,6 +401,30 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   });
 
   const matchesWithSession = new Set(activeSessions.map((s) => s.matchId));
+
+  const todayMatchData: TodayMatch[] = todayMatches.map((match) => {
+    const selStatuses = matchSelectionMap.get(match.id);
+    let squadStatus: TodayMatchStatus = "not_generated";
+    if (selStatuses?.has("FINALIZED")) {
+      squadStatus = "finalized";
+    } else if (selStatuses?.has("DRAFT")) {
+      squadStatus = "draft";
+    }
+
+    const reportStatus = matchReportMap.get(match.id);
+    return {
+      matchId: match.id,
+      matchRoundId: match.matchRoundId,
+      matchRoundName: match.matchRound.name,
+      teamName: match.team.name,
+      opponent: match.opponent,
+      homeAway: match.homeAway,
+      startsAt: match.startsAt?.toISOString() ?? null,
+      squadStatus,
+      hasActiveLiveSession: matchesWithSession.has(match.id),
+      reportStatus: (reportStatus as TodayMatch["reportStatus"]) ?? null,
+    };
+  });
 
   for (const match of todayMatches) {
     if (matchesWithSession.has(match.id)) continue;
@@ -474,6 +521,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     leagueSeasonId: leagueSeason.id,
     leagueSeasonName: leagueSeason.name,
     items,
+    todayMatches: todayMatchData,
     computedAt: new Date(),
   };
 }
@@ -507,6 +555,7 @@ function emptyResult(
     leagueSeasonId,
     leagueSeasonName,
     items,
+    todayMatches: [],
     computedAt: new Date(),
   };
 }

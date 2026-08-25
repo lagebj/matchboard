@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { AssistantCommandCentre, AssistantWorkItem } from "@/lib/assistant/types";
+import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
@@ -24,6 +24,8 @@ import {
   ArrowRight,
   ShieldAlert,
   Eye,
+  Radio,
+  FileText,
 } from "lucide-react";
 
 /**
@@ -242,6 +244,99 @@ function GroupedReports({ items }: { items: AssistantWorkItem[] }) {
   );
 }
 
+const SQUAD_STATUS_PILL: Record<string, { label: string; variant: "neutral" | "warning" | "danger" | "success" | "finalized" }> = {
+  not_generated: { label: "Not generated", variant: "neutral" },
+  draft: { label: "Draft", variant: "warning" },
+  blocked: { label: "Blocked", variant: "danger" },
+  ready: { label: "Ready", variant: "success" },
+  finalized: { label: "Finalised", variant: "finalized" },
+};
+
+const REPORT_STATUS_LABEL: Record<string, string> = {
+  none: "No report",
+  draft: "Draft report",
+  reported: "Reported",
+  locked: "Complete",
+};
+
+function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: string) => string }) {
+  const homeAway = match.homeAway === "HOME" ? "vs" : "@";
+  const timeStr = match.startsAt
+    ? new Date(match.startsAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : "";
+  const statusConfig = SQUAD_STATUS_PILL[match.squadStatus] ?? SQUAD_STATUS_PILL.not_generated;
+  const squadHref = match.squadStatus === "not_generated"
+    ? orgUrl(`/fixtures`)
+    : orgUrl(`/matches/${match.matchId}`);
+
+  return (
+    <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm font-medium text-zinc-100 truncate">
+          {match.teamName} {homeAway} {match.opponent}
+        </span>
+        <span className="text-xs text-[var(--text-muted)]">
+          {match.matchRoundName}
+          {timeStr ? ` · ${timeStr}` : ""}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {match.hasActiveLiveSession && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--success)]">
+            <Radio className="h-3 w-3 animate-pulse" aria-hidden="true" />
+            Live
+          </span>
+        )}
+        <StatusPill variant={statusConfig.variant} size="sm">
+          {statusConfig.label}
+        </StatusPill>
+        {match.reportStatus && match.reportStatus !== "none" && (
+          <span className="text-[10px] text-[var(--text-muted)]">
+            {REPORT_STATUS_LABEL[match.reportStatus] ?? match.reportStatus}
+          </span>
+        )}
+        <Button as={Link} href={squadHref} variant="ghost" size="sm">
+          View
+        </Button>
+        {match.hasActiveLiveSession && (
+          <Button as={Link} href={orgUrl(`/matches/${match.matchId}/live`)} variant="primary" size="sm">
+            Follow live
+          </Button>
+        )}
+        {match.squadStatus === "finalized" && !match.hasActiveLiveSession && (
+          <Button as={Link} href={orgUrl(`/matches/${match.matchId}`)} variant="ghost" size="sm" trailingIcon={<FileText className="h-3 w-3" aria-hidden="true" />}>
+            Report
+          </Button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function TodayMatchesSection({ matches, orgUrl }: { matches: TodayMatch[]; orgUrl: (path: string) => string }) {
+  if (matches.length === 0) return null;
+
+  return (
+    <Surface padding="md" className="flex flex-col gap-3">
+      <SectionHeader
+        title="Today's matches"
+        description={`${matches.length} match${matches.length === 1 ? "" : "es"} today.`}
+        eyebrow={`${matches.filter((m) => m.hasActiveLiveSession).length} live`}
+        actions={
+          <StatusPill variant="info" size="sm" icon={CalendarDays}>
+            {matches.length}
+          </StatusPill>
+        }
+      />
+      <ul className="flex flex-col">
+        {matches.map((match) => (
+          <TodayMatchRow key={match.matchId} match={match} orgUrl={orgUrl} />
+        ))}
+      </ul>
+    </Surface>
+  );
+}
+
 function StandardGroup({
   group,
   items,
@@ -378,6 +473,9 @@ export function AssistantCommandCentrePage({
           }
         />
       )}
+
+      {/* Today's matches */}
+      <TodayMatchesSection matches={commandCentre.todayMatches} orgUrl={orgUrl} />
 
       {/* Review/attention link */}
       {reviewCount > 0 && (
