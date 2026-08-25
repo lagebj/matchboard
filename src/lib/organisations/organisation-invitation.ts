@@ -3,6 +3,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { requireValidOrganisationRole, canInviteRole } from "@/lib/organisations/organisation-domain";
 import { createHash } from "crypto";
+import { runWithSystemPrivilege } from "@/lib/tenancy/tenant-async-storage";
 
 export type InvitationResult =
   | { success: true; invitationId: string; token?: string }
@@ -105,17 +106,21 @@ export async function acceptInvitation(data: {
 }, client: PrismaClient = db): Promise<InvitationResult> {
   const tokenHash = hashToken(data.token);
 
-  const invitation = await client.organisationInvitation.findFirst({
-    where: { tokenHash },
-    select: {
-      id: true,
-      organisationId: true,
-      invitedEmail: true,
-      intendedRole: true,
-      status: true,
-      expiresAt: true,
-    },
-  });
+  const invitation = await runWithSystemPrivilege(
+    "accept-invitation-token-lookup",
+    async () =>
+      client.organisationInvitation.findFirst({
+        where: { tokenHash },
+        select: {
+          id: true,
+          organisationId: true,
+          invitedEmail: true,
+          intendedRole: true,
+          status: true,
+          expiresAt: true,
+        },
+      }),
+  );
 
   if (!invitation) {
     return { success: false, error: "Invitation not found." };
@@ -126,10 +131,14 @@ export async function acceptInvitation(data: {
   }
 
   if (invitation.expiresAt < new Date()) {
-    await client.organisationInvitation.update({
-      where: { id: invitation.id },
-      data: { status: "EXPIRED", token: null as unknown as string },
-    });
+    await runWithSystemPrivilege(
+      "accept-invitation-mark-expired",
+      async () =>
+        client.organisationInvitation.update({
+          where: { id: invitation.id },
+          data: { status: "EXPIRED", token: null as unknown as string },
+        }),
+    );
     return { success: false, error: "Invitation has expired." };
   }
 
@@ -137,12 +146,10 @@ export async function acceptInvitation(data: {
     return { success: false, error: "This invitation was sent to a different email address." };
   }
 
-  const existingMembership = await client.organisationMembership.findUnique({
+  const existingMembership = await client.organisationMembership.findFirst({
     where: {
-      userId_organisationId: {
-        userId: data.userId,
-        organisationId: invitation.organisationId,
-      },
+      userId: data.userId,
+      organisationId: invitation.organisationId,
     },
     select: { id: true },
   });
@@ -151,19 +158,21 @@ export async function acceptInvitation(data: {
     return { success: false, error: "You are already a member of this organisation." };
   }
 
-  await client.$transaction([
-    client.organisationMembership.create({
-      data: {
-        userId: data.userId,
-        organisationId: invitation.organisationId,
-        role: invitation.intendedRole,
-      },
-    }),
-    client.organisationInvitation.update({
-      where: { id: invitation.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date(), token: null as unknown as string },
-    }),
-  ]);
+  await runWithSystemPrivilege("accept-invitation-create-membership", async () =>
+    client.$transaction([
+      client.organisationMembership.create({
+        data: {
+          userId: data.userId,
+          organisationId: invitation.organisationId,
+          role: invitation.intendedRole,
+        },
+      }),
+      client.organisationInvitation.update({
+        where: { id: invitation.id },
+        data: { status: "ACCEPTED", acceptedAt: new Date(), token: null as unknown as string },
+      }),
+    ]),
+  );
 
   return { success: true, invitationId: invitation.id };
 }
@@ -204,15 +213,19 @@ export async function declineInvitation(data: {
 }, client: PrismaClient = db): Promise<InvitationResult> {
   const tokenHash = hashToken(data.token);
 
-  const invitation = await client.organisationInvitation.findFirst({
-    where: { tokenHash },
-    select: {
-      id: true,
-      invitedEmail: true,
-      status: true,
-      expiresAt: true,
-    },
-  });
+  const invitation = await runWithSystemPrivilege(
+    "decline-invitation-token-lookup",
+    async () =>
+      client.organisationInvitation.findFirst({
+        where: { tokenHash },
+        select: {
+          id: true,
+          invitedEmail: true,
+          status: true,
+          expiresAt: true,
+        },
+      }),
+  );
 
   if (!invitation) {
     return { success: false, error: "Invitation not found." };
@@ -226,10 +239,14 @@ export async function declineInvitation(data: {
     return { success: false, error: "This invitation was sent to a different email address." };
   }
 
-  await client.organisationInvitation.update({
-    where: { id: invitation.id },
-    data: { status: "DECLINED", revokedAt: new Date(), token: null as unknown as string },
-  });
+  await runWithSystemPrivilege(
+    "decline-invitation-update",
+    async () =>
+      client.organisationInvitation.update({
+        where: { id: invitation.id },
+        data: { status: "DECLINED", revokedAt: new Date(), token: null as unknown as string },
+      }),
+  );
 
   return { success: true, invitationId: invitation.id };
 }

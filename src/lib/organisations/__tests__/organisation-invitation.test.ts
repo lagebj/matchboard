@@ -327,7 +327,7 @@ describe("organisation-invitation", () => {
         organisationId: "org1",
         expiresAt: new Date(Date.now() + 86400000),
       } as unknown as Awaited<ReturnType<typeof db.organisationInvitation.findFirst>>);
-      vi.mocked(db.organisationMembership.findUnique).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findUnique>>);
+      vi.mocked(db.organisationMembership.findFirst).mockResolvedValue({ id: "mem1" } as unknown as Awaited<ReturnType<typeof db.organisationMembership.findFirst>>);
       const result = await acceptInvitation({
         token: "valid-token",
         userId: "user1",
