@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatSelectionRole, formatAttendanceStatus, formatUnplannedAppearanceReason, UNPLANNED_APPEARANCE_REASON_LABELS } from "@/lib/match-utils";
@@ -86,15 +86,35 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
   const [error, setError] = useState<string | null>(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
   const moreActionsRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
   useEffect(() => {
     if (!showMoreActions) return;
+    const btn = moreActionsRef.current?.querySelector("button");
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 4,
+        left: rect.left,
+        zIndex: 50,
+      });
+    }
     function handleClickOutside(e: MouseEvent) {
       if (moreActionsRef.current && !moreActionsRef.current.contains(e.target as Node)) {
         setShowMoreActions(false);
       }
     }
+    function handleScroll() {
+      setShowMoreActions(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
+    };
   }, [showMoreActions]);
 
   const report = initialReport;
@@ -334,12 +354,12 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
             </Button>
           )}
           {(isDraft || isReported) && !isLocked && (
-            <div className="relative" ref={moreActionsRef}>
+            <div ref={moreActionsRef}>
               <Button variant="secondary" size="sm" onClick={() => setShowMoreActions((v) => !v)}>
                 More actions
               </Button>
               {showMoreActions && (
-                <div className="absolute left-0 top-full mt-1 z-10 flex flex-col gap-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-lg">
+                <div style={dropdownStyle} className="flex flex-col gap-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-lg">
                   {isDraft && (
                     <button
                       className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
