@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { hashToken } from "@/lib/organisations/organisation-invitation";
 import { logOrganisationInvitationExpire } from "@/lib/security/audit-log";
+import { setTenantUserId, runWithSystemPrivilege } from "@/lib/tenancy/tenant-async-storage";
 
 import { InviteAcceptanceForm } from "./invite-acceptance-form";
 
@@ -19,21 +20,27 @@ export default async function InvitePage({
     redirect(`/api/auth/signin?callbackUrl=/invite/${encodeURIComponent(token)}`);
   }
 
+  setTenantUserId(session.user.id);
+
   const tokenHash = hashToken(token);
 
-  const invitation = await db.organisationInvitation.findFirst({
-    where: { tokenHash },
-    select: {
-      id: true,
-      invitedEmail: true,
-      intendedRole: true,
-      status: true,
-      expiresAt: true,
-      organisation: {
-        select: { id: true, name: true, slug: true },
-      },
-    },
-  });
+  const invitation = await runWithSystemPrivilege(
+    "invite-page-token-lookup",
+    async () =>
+      db.organisationInvitation.findFirst({
+        where: { tokenHash },
+        select: {
+          id: true,
+          invitedEmail: true,
+          intendedRole: true,
+          status: true,
+          expiresAt: true,
+          organisation: {
+            select: { id: true, name: true, slug: true },
+          },
+        },
+      }),
+  );
 
   if (!invitation) {
     return (
@@ -83,10 +90,14 @@ export default async function InvitePage({
 
   if (invitation.status === "EXPIRED" || new Date(invitation.expiresAt) < new Date()) {
     if (invitation.status === "PENDING") {
-      await db.organisationInvitation.update({
-        where: { id: invitation.id },
-        data: { status: "EXPIRED", token: null as unknown as string },
-      });
+      await runWithSystemPrivilege(
+        "invite-page-expire-invitation",
+        async () =>
+          db.organisationInvitation.update({
+            where: { id: invitation.id },
+            data: { status: "EXPIRED", token: null as unknown as string },
+          }),
+      );
       logOrganisationInvitationExpire(session.user.email ?? "unknown", invitation.organisation.id);
     }
 

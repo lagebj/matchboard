@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { setTenantUserId, runWithSystemPrivilege } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function OrganisationsPage() {
   const session = await auth();
@@ -8,6 +9,10 @@ export default async function OrganisationsPage() {
   if (!session?.user?.email) {
     redirect("/api/auth/signin");
   }
+
+  const userId = session.user.id ?? "";
+
+  setTenantUserId(userId);
 
   const userOrgs = await db.organisationMembership.findMany({
     where: { userId: session.user.id ?? "" },
@@ -33,23 +38,27 @@ export default async function OrganisationsPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  const pendingInvitations = await db.organisationInvitation.findMany({
-    where: {
-      invitedEmail: session.user.email,
-      status: "PENDING",
-      expiresAt: { gte: new Date() },
-    },
-    select: {
-      id: true,
-      token: true,
-      intendedRole: true,
-      organisation: {
-        select: { name: true, slug: true },
-      },
-      expiresAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const pendingInvitations = await runWithSystemPrivilege(
+    "organisations-page-invitation-self-read",
+    async () =>
+      db.organisationInvitation.findMany({
+        where: {
+          invitedEmail: session.user!.email as string,
+          status: "PENDING",
+          expiresAt: { gte: new Date() },
+        },
+        select: {
+          id: true,
+          token: true,
+          intendedRole: true,
+          organisation: {
+            select: { name: true, slug: true },
+          },
+          expiresAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+  );
 
   return (
     <div className="space-y-6">
