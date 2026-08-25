@@ -5,7 +5,6 @@ import { resolveOrganisationAccess } from "@/lib/organisations/organisation-reso
 import { resolveOrgFilterForUser, MultipleMembershipsError, type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { getOrgSlugFromCookie } from "@/lib/auth/org-slug-cookie";
 import { getEffectiveGroupAccess, type GroupAccessEntry } from "@/lib/auth/group-context";
-import { withTenantContext } from "@/lib/tenancy/tenant-client";
 import { setTenantOrganisationId, setTenantUserId } from "@/lib/tenancy/tenant-async-storage";
 import { setCorrelationId } from "@/lib/logging/correlation-context";
 import { db } from "@/lib/db";
@@ -61,11 +60,14 @@ export async function requireActorContext(
     throw new AuthorizationError("No active organisation membership");
   }
 
-  const membership = await withTenantContext(db, orgFilter.organisationId, async (tx) => {
-    return tx.organisationMembership.findFirst({
-      where: { userId, organisationId: orgFilter.organisationId },
-      select: { id: true, role: true, organisationId: true },
-    });
+  // Set context once, here, before the membership check — see getEffectiveGroupAccess()'s doc
+  // comment and ARR-0029 "Bug 2b": mixing scoped run() calls with a later
+  // setTenantOrganisationId() in the same continuation is unsafe under concurrent request load.
+  setTenantOrganisationId(orgFilter.organisationId);
+
+  const membership = await db.organisationMembership.findFirst({
+    where: { userId, organisationId: orgFilter.organisationId },
+    select: { id: true, role: true, organisationId: true },
   });
 
   if (!membership) {
@@ -86,8 +88,6 @@ export async function requireActorContext(
     membership.organisationId,
     membership.role,
   );
-
-  setTenantOrganisationId(membership.organisationId);
 
   return {
     userId,

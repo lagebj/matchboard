@@ -106,6 +106,66 @@ Both now `await` the Prisma call *inside* an `async` callback passed to `.run()`
 `recordEventForActor()`, the internal snapshot route, and `scripts/bootstrap-organisation.ts`
 were already written with internal `await`s inside their `async` callbacks and were not affected.
 
+### Bug 2b (found 2026-08-25, live in CI, after Bug 1b was fixed): `enterWith()` does not
+### reliably persist after prior `run()` calls, under concurrent request load
+
+The most severe finding in this ARR. After Bug 1b's fix shipped, a re-triggered CI run still
+failed — 8 Playwright tests across `accessibility.spec.ts`, `follow-live.spec.ts`,
+`live-reporting.spec.ts`, `round-mutation.spec.ts`, `smoke.spec.ts` — and Vercel's runtime-error
+log (`get_runtime_errors`, not local reasoning) showed `TenantContextError` on `LeagueSeason`,
+`Team`, `Player`, `OpponentTeam`, `Season` across nearly every `/o/{orgSlug}/...` route, each
+failing on the query *immediately following* a successful `requirePageActorContext()` call in the
+very same function body (no intervening Server Component boundary, no un-awaited promise). The
+failure was **intermittent** — 19 of 27 Playwright tests passed in the same run — ruling out "the
+mechanism never works" and pointing at a race.
+
+Isolated with a standalone Node.js timer-interleaving stress test (`node script.mjs`, no
+Next.js/Vercel involved — see the investigation transcript, not reproduced as a committed test
+since it does not reproduce deterministically inside vitest's own scheduler): calling
+`store.enterWith()` in a continuation that has already passed through **two or more** earlier
+`store.run()` call exits, while **20+ other independent async chains are doing the same thing
+concurrently** (`Promise.all`), loses the `enterWith()`-set value 100% of the time — the store
+reads back `undefined`, not a wrong-tenant value. A single `run()` followed by `enterWith()`, or
+`enterWith()` alone, both stayed 100% correct under the identical concurrency stress. This matches
+Node's own documented caution that `run()` "correctly restores the previous store" while
+`enterWith()` "does not automatically restore state" — but the practical failure mode (silent
+total loss, not a documented crash) only shows up under real concurrent load, which is exactly
+what Vercel Fluid Compute's function-instance reuse produces and a local/low-concurrency dev
+session does not.
+
+`requireActorContext()`'s two branches exhibited exactly this composition:
+`resolveOrganisationAccess()` (membership lookup) and `getEffectiveGroupAccess()` (called from
+both branches) each wrapped their own query in `withTenantContext()`/`runWithTenantOrganisationId()`
+(a `run()` call) — two or three `run()` calls per request — followed by a final
+`setTenantOrganisationId()` (`enterWith()`) intended to persist context for the rest of the page
+render. Under concurrent traffic this silently failed, and every subsequent RLS-scoped query in
+that page's render saw no context at all.
+
+Fixed by eliminating the dangerous composition rather than patching around it: `getEffectiveGroupAccess()`
+(`src/lib/auth/group-context.ts`) no longer wraps its queries in `withTenantContext()` — it now
+relies on the caller having already established context, documented as an explicit precondition.
+Both `requireActorContext()` branches (`src/lib/auth/actor-context.ts`) and
+`resolveOrganisationAccess()` (`src/lib/organisations/organisation-resolver.ts`) now call
+`setTenantOrganisationId()` exactly once, as early as the organisation identity is known (right
+after it's found/not-suspended, before membership is even verified), with every later query in
+that call graph — including inside `getEffectiveGroupAccess()` — relying on that single
+already-set context. No `run()` call happens anywhere in this call graph after that point.
+
+`resolveOrgFilterForMachine()` (`resolve-org-filter.ts`) still uses a self-contained `run()` (safe
+— nothing after it in the same continuation calls `enterWith()`, and it has no current callers in
+application code); `recordEventForActor()` and the internal snapshot route wrap their *entire*
+remaining body in one `run()` call and never call `enterWith()` afterward — also safe, matching the
+"final `run()` wrap instead of a later `enterWith()`" pattern proven correct under the same stress
+test. Any future caller that needs "resolve context once, then use it for arbitrarily more code
+after this function returns" must follow the `setTenantOrganisationId()`-once, no-later-`run()`
+pattern established here — never mix scoped `run()` calls with a later `enterWith()` in the same
+request continuation.
+
+Regression coverage: `src/lib/tenancy/__tests__/tenant-async-storage-concurrency.test.ts` exercises
+the real `getEffectiveGroupAccess()` under `Promise.all` concurrency across 8 organisations, each
+setting context once with no prior `run()` (mirroring the fixed call path), and asserts each
+resolves only its own organisation's groups.
+
 ## Intended architecture
 
 Programme outcome #2 and ADR-0087 both assume the `tenantRLS` extension's where-clause injection
@@ -185,7 +245,15 @@ inert due to Bug 1), ADR-0087 (fail-closed tenant scoping — ships together wit
   `flattenCompoundUniqueWhere()` for Bug 1b)
 - `src/lib/tenancy/tenant-client.ts` (`withTenantContext` await-inside-callback fix)
 - `src/lib/tenancy/resolve-org-filter.ts` (`resolveOrgFilterForMachine` await-inside-callback fix)
-- `src/lib/__tests__/db-tenant-fail-closed.test.ts` (regression coverage for all three bugs)
+- `src/lib/auth/group-context.ts` (`getEffectiveGroupAccess` no longer wraps its own `run()` —
+  Bug 2b)
+- `src/lib/auth/actor-context.ts` (`requireActorContext`'s two branches set context once, early —
+  Bug 2b)
+- `src/lib/organisations/organisation-resolver.ts` (`resolveOrganisationAccess` sets context once,
+  early — Bug 2b)
+- `src/lib/__tests__/db-tenant-fail-closed.test.ts` (regression coverage for Bugs 1, 1b, 2)
+- `src/lib/tenancy/__tests__/tenant-async-storage-concurrency.test.ts` (regression coverage for
+  Bug 2b)
 
 ## Supersedes
 
@@ -204,8 +272,19 @@ PR to Test slot" CI run (`32759398542`) deployed and migrated successfully, but 
 the Playwright job running far past its usual time and cancelled it, suspecting a genuine
 regression. Live investigation (Vercel `get_runtime_errors` against the `matchboard-test` project,
 not local reasoning) found Bug 1b above, plus confirmation the CI failures traced to it, not to
-EXT-003 or a Playwright flake. Fixed and covered by a new regression test in the same session; see
-Bug 1b for detail.
+EXT-003 or a Playwright flake. Fixed and covered by a new regression test, committed and pushed to
+PR #351's branch, and CI was re-triggered to confirm.
+
+The re-run (`32819771904`) deployed cleanly (confirming Bug 1b's fix worked and no compound-key
+crash recurred) but still failed — 8 Playwright tests, across a *wider* set of routes than before.
+Live investigation again via `get_runtime_errors` found Bug 2b above: a far larger, previously
+masked issue underneath Bug 1b. Asked the user how to proceed given the severity (nearly the whole
+app affected, and PR #351 unmerged so nothing was live in production) rather than continuing to
+push speculative fixes unasked; the user chose to have it investigated and fixed immediately.
+Root-caused empirically (a standalone Node.js concurrency stress script, not guesswork) and fixed
+by removing the dangerous `run()`-then-`enterWith()` composition from the actual auth-resolution
+call graph. See Bug 2b for full detail. Re-validation against a fresh CI run is the natural next
+step once this fix is committed and pushed.
 
 ### 2026-08-24
 
