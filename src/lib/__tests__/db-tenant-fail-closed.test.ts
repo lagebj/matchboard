@@ -143,5 +143,31 @@ describe("tenantRLS extension: fail-closed tenant scoping (ADR-0087)", () => {
       const scopedTeams = (await withTenantContext(db, org1.id, (tx) => tx.team.findMany())) as any[];
       expect(scopedTeams.map((t: any) => t.name)).toEqual(["WTC Org1 Team"]);
     });
+
+    it("findUnique with a compound-unique where (e.g. userId_organisationId) still works once org-scoped -> findFirst conversion kicks in", async () => {
+      // Regression test: converting findUnique -> findFirst (to safely merge organisationId
+      // into `where`) previously kept Prisma's compound-unique-key shape
+      // (`{ userId_organisationId: { userId, organisationId } }`), which findFirst's WhereInput
+      // rejects as an unknown argument (`findFirst` only accepts flattened filter fields, unlike
+      // `findUnique`). This bug was fully dormant until ARR-0029's casing fix made this
+      // conversion path actually run for the first time — it then broke every real caller of
+      // this pattern (resolveOrganisationAccess, organisation-invitation.ts,
+      // organisation-domain.ts), crashing every `/o/{orgSlug}/...` page load.
+      const org = await db.organisation.create({ data: { name: "CU Org", slug: `cu-org-${Date.now()}` } });
+      const user = await db.user.create({ data: { email: `cu-${Date.now()}@example.com`, name: "CU" } });
+      const membership = await runWithTenantOrganisationId(org.id, async () =>
+        await db.organisationMembership.create({
+          data: { userId: user.id, organisationId: org.id, role: "OWNER" },
+        }),
+      );
+
+      const found = await runWithTenantOrganisationId(org.id, async () =>
+        await db.organisationMembership.findUnique({
+          where: { userId_organisationId: { userId: user.id, organisationId: org.id } },
+        }),
+      );
+
+      expect((found as any)?.id).toBe(membership.id);
+    });
   });
 });

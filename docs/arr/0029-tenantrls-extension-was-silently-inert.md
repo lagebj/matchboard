@@ -49,6 +49,39 @@ containing `"team"` — **never true, for any model, ever**. Consequences:
   RLS-scoped table with valid organisation context — i.e., on most ordinary authenticated
   requests.
 
+### Bug 1b (found 2026-08-25, live in CI): compound-unique-key `findUnique` shape rejected by `findFirst`
+
+A third dormant instance of "this branch never ran until Bug 1 was fixed." The `findUnique` ->
+`findFirst` conversion merges `organisationId` into the caller's `where` via `withOrgWhere`, but
+never flattened Prisma's compound-unique-key shape first — e.g.
+`db.organisationMembership.findUnique({ where: { userId_organisationId: { userId, organisationId
+} } })`, generated from `@@unique([userId, organisationId])`. That shape is valid Prisma input for
+`findUnique` (a unique-identifier lookup) but not for `findFirst`, whose `WhereInput` type has no
+such key — Prisma rejects it with `PrismaClientValidationError: Unknown argument
+userId_organisationId`.
+
+Found live on `test.matchboard.football` (Vercel runtime-error log, `matchboard-test` project) the
+day after ARR-0029's original fix shipped: 47 occurrences across `/o/[orgSlug]/{rounds,opponents,
+players,fixtures,matches/new,today}` in a 28-minute window, causing every `/o/{orgSlug}/...` page
+to crash during `resolveOrganisationAccess()` (`src/lib/organisations/organisation-resolver.ts`)
+before it ever reached `setTenantOrganisationId()` — the exact class of failure this ARR exists to
+document, still surfacing one bug at a time as previously-dead code paths go live for the first
+time. Two more call sites share the identical pattern and were equally affected:
+`organisation-invitation.ts` (`getExistingMembership`-style lookup) and
+`organisation-domain.ts`'s `getOrganisationMembership()`. This is also what actually broke the
+`e2e/live-reporting.spec.ts` and `e2e/follow-live.spec.ts` / `e2e/accessibility.spec.ts` CI
+failures the user reported and cancelled (run `32759398542`) — not a genuine test flake, and not
+(as first suspected) evidence the Neon "Launch" plan upgrade hadn't fixed EXT-003; the deploy and
+migration steps in that run had in fact succeeded.
+
+Fixed generically in `src/lib/db.ts` via `flattenCompoundUniqueWhere()`: any `where` key
+containing `_` whose value is a plain object is treated as a Prisma compound-unique accessor and
+spread to the top level before the `findFirst` conversion. Safe as a blanket heuristic in this
+schema specifically — verified no real filter/relation field name contains a literal underscore
+(the only snake_case fields in `schema.prisma` are Auth.js `Account` scalars, which are strings/
+ints, never objects). Regression test: `db-tenant-fail-closed.test.ts`'s "findUnique with a
+compound-unique where ... still works" case, which fails without the fix.
+
 ### Bug 2: AsyncLocalStorage context does not propagate through an un-awaited Prisma call
 
 Prisma queries (and `$transaction()`) are lazy — calling `db.team.findMany()` synchronously
@@ -148,10 +181,11 @@ inert due to Bug 1), ADR-0087 (fail-closed tenant scoping — ships together wit
 
 ## Related implementation
 
-- `src/lib/db.ts` (`modelName` normalization, `findUnique` rawClient lookup fix)
+- `src/lib/db.ts` (`modelName` normalization, `findUnique` rawClient lookup fix,
+  `flattenCompoundUniqueWhere()` for Bug 1b)
 - `src/lib/tenancy/tenant-client.ts` (`withTenantContext` await-inside-callback fix)
 - `src/lib/tenancy/resolve-org-filter.ts` (`resolveOrgFilterForMachine` await-inside-callback fix)
-- `src/lib/__tests__/db-tenant-fail-closed.test.ts` (regression coverage for both bugs)
+- `src/lib/__tests__/db-tenant-fail-closed.test.ts` (regression coverage for all three bugs)
 
 ## Supersedes
 
@@ -162,6 +196,16 @@ None.
 None.
 
 ## History
+
+### 2026-08-25
+
+The user upgraded the Neon project to the "Launch" plan, resolving EXT-003. The re-triggered "Deploy
+PR to Test slot" CI run (`32759398542`) deployed and migrated successfully, but the user observed
+the Playwright job running far past its usual time and cancelled it, suspecting a genuine
+regression. Live investigation (Vercel `get_runtime_errors` against the `matchboard-test` project,
+not local reasoning) found Bug 1b above, plus confirmation the CI failures traced to it, not to
+EXT-003 or a Playwright flake. Fixed and covered by a new regression test in the same session; see
+Bug 1b for detail.
 
 ### 2026-08-24
 

@@ -159,6 +159,24 @@ function withOrgWhereAndData(args: QueryArgs, orgId: string): QueryArgs {
   return withOrgData(withOrgWhere(args, orgId), orgId);
 }
 
+// Prisma's compound-unique-key where shape (e.g. `{ userId_organisationId: { userId, organisationId } }`,
+// generated from `@@unique([userId, organisationId])`) is only valid for `findUnique`. Converting
+// findUnique -> findFirst (below) to safely add organisationId filtering must flatten any such key
+// first, or Prisma rejects it as an unknown findFirst argument. Every compound-unique accessor in
+// this schema is camelCase-field-joined-by-underscore with an object value; no real filter field in
+// this codebase is named that way (verified against schema.prisma), so this heuristic is safe here.
+function flattenCompoundUniqueWhere(where: QueryArgs): QueryArgs {
+  const flattened: QueryArgs = {};
+  for (const [key, value] of Object.entries(where)) {
+    if (key.includes("_") && value !== null && typeof value === "object" && !Array.isArray(value)) {
+      Object.assign(flattened, value as QueryArgs);
+    } else {
+      flattened[key] = value;
+    }
+  }
+  return flattened;
+}
+
 const extendedClient = rawClient.$extends({
   name: "tenantRLS",
   query: {
@@ -267,7 +285,8 @@ const extendedClient = rawClient.$extends({
           // properties are the lowerCamelCase client accessors (rawClient.team), same casing
           // bug as isRlsTable above.
           const modelDelegate = (rawClient as unknown as Record<string, Record<string, (...a: unknown[]) => Promise<unknown>>>)[modelName as string];
-          return modelDelegate.findFirst(withOrgWhere(typedArgs, orgId!));
+          const flatWhere = flattenCompoundUniqueWhere((typedArgs.where ?? {}) as QueryArgs);
+          return modelDelegate.findFirst(withOrgWhere({ ...typedArgs, where: flatWhere }, orgId!));
         }
 
         case "findMany":
