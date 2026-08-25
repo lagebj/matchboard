@@ -86,6 +86,42 @@ export default async function MatchDetailPage({
     };
   });
 
+  const helpers = await db.matchHelperAssignment.findMany({
+    where: { matchId: match.id },
+    select: {
+      id: true,
+      playerId: true,
+      plannedRole: true,
+      player: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          primaryPosition: true,
+          secondaryPosition: true,
+          coreTeam: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const helperSelectionData = helpers.map((h) => ({
+    id: `helper-${h.id}`,
+    playerId: h.playerId,
+    playerName: `${h.player.firstName} ${h.player.lastName ?? ""}`.trim(),
+    coreTeamName: h.player.coreTeam?.name ?? "Unassigned",
+    role: "HELPER" as const,
+    primaryPosition: h.player.primaryPosition,
+    secondaryPosition: h.player.secondaryPosition,
+    status: "FINALIZED" as const,
+    manualOverride: false,
+    selectionReason: "Helper assignment",
+    priorityScore: null,
+    overrideReason: null,
+    controlledDoubleLoad: false,
+    matchdayResponsibility: undefined,
+  }));
+
   const warnings = await db.warning.findMany({
     where: { matchId: match.id, ...orgWhere },
     orderBy: [{ severity: "desc" }],
@@ -157,7 +193,7 @@ export default async function MatchDetailPage({
           cancelledAt: match.cancelledAt,
           cancelledReason: match.cancelledReason,
           postMatchStatus: postMatchReport?.status ?? undefined,
-          selections: selectionData,
+          selections: [...selectionData, ...helperSelectionData],
           warnings: warningData,
           coachingIntent: activeIntent?.category ?? undefined,
           coachingIntentId: matchIntent[0]?.id ?? undefined,

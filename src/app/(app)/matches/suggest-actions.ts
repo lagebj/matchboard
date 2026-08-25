@@ -10,6 +10,85 @@ import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
+type PlayerPoolEntry = {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  primaryPosition: string;
+  secondaryPosition: string | null;
+  coreTeamId: string | null;
+  coreTeamName?: string;
+  isHelper?: boolean;
+};
+
+const NEUTRAL_POSITION = "FLEX";
+
+async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMode): Promise<PlayerPoolEntry[]> {
+  const [selections, helpers] = await Promise.all([
+    db.selection.findMany({
+      where: { matchId, status: { in: ["DRAFT", "FINALIZED"] } },
+      select: {
+        playerId: true,
+        role: true,
+        player: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            primaryPosition: true,
+            secondaryPosition: true,
+            coreTeamId: true,
+            coreTeam: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+    db.matchHelperAssignment.findMany({
+      where: { matchId },
+      select: {
+        playerId: true,
+        player: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            primaryPosition: true,
+            secondaryPosition: true,
+            coreTeamId: true,
+            coreTeam: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const pool: PlayerPoolEntry[] = selections.map((s) => ({
+    id: s.player.id,
+    firstName: s.player.firstName,
+    lastName: s.player.lastName,
+    primaryPosition: s.player.primaryPosition ?? NEUTRAL_POSITION,
+    secondaryPosition: s.player.secondaryPosition,
+    coreTeamId: s.player.coreTeamId,
+    coreTeamName: s.player.coreTeam?.name ?? undefined,
+    isHelper: false,
+  }));
+
+  for (const h of helpers) {
+    pool.push({
+      id: h.player.id,
+      firstName: h.player.firstName,
+      lastName: h.player.lastName,
+      primaryPosition: h.player.primaryPosition ?? NEUTRAL_POSITION,
+      secondaryPosition: h.player.secondaryPosition,
+      coreTeamId: h.player.coreTeamId,
+      coreTeamName: h.player.coreTeam?.name ?? undefined,
+      isHelper: true,
+    });
+  }
+
+  return pool;
+}
+
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
@@ -39,47 +118,23 @@ export async function getSuggestFormationData(matchId: string) {
       teamId: true,
       gameFormat: true,
       team: { select: { id: true, name: true } },
-      selections: {
-        where: { status: { in: ["DRAFT", "FINALIZED"] } },
-        select: {
-          playerId: true,
-          role: true,
-          player: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              primaryPosition: true,
-              secondaryPosition: true,
-              coreTeamId: true,
-            },
-          },
-        },
-      },
     },
   });
 
   if (!match) throw new Error("Match not found");
 
-  const formations = await db.formation.findMany({
-    where: { gameFormat: match.gameFormat as GameFormat, isArchived: false, ...ctx.orgFilter.filter },
-    include: { slots: { orderBy: { sortOrder: "asc" } } },
-  });
-
-  const recentLineup = await db.matchLineup.findFirst({
-    where: { teamId: match.teamId, status: "CONFIRMED", ...ctx.orgFilter.filter },
-    orderBy: { createdAt: "desc" },
-    select: { formationId: true },
-  });
-
-  const playerPool = match.selections.map((s) => ({
-    id: s.player.id,
-    firstName: s.player.firstName,
-    lastName: s.player.lastName,
-    primaryPosition: s.player.primaryPosition,
-    secondaryPosition: s.player.secondaryPosition,
-    coreTeamId: s.player.coreTeamId,
-  }));
+  const [formations, recentLineup, playerPool] = await Promise.all([
+    db.formation.findMany({
+      where: { gameFormat: match.gameFormat as GameFormat, isArchived: false, ...ctx.orgFilter.filter },
+      include: { slots: { orderBy: { sortOrder: "asc" } } },
+    }),
+    db.matchLineup.findFirst({
+      where: { teamId: match.teamId, status: "CONFIRMED", ...ctx.orgFilter.filter },
+      orderBy: { createdAt: "desc" },
+      select: { formationId: true },
+    }),
+    getPlayerPoolWithHelpers(matchId, ctx.orgFilter),
+  ]);
 
   const formationData: SuggestFormationInput["formations"] = formations.map((f) => ({
     id: f.id,
@@ -127,37 +182,23 @@ export async function getSuggestLineupData(matchId: string) {
       teamId: true,
       gameFormat: true,
       team: { select: { id: true, name: true } },
-      selections: {
-        where: { status: { in: ["DRAFT", "FINALIZED"] } },
-        select: {
-          playerId: true,
-          role: true,
-          player: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              primaryPosition: true,
-              secondaryPosition: true,
-              coreTeamId: true,
-            },
-          },
-        },
-      },
     },
   });
 
   if (!match) throw new Error("Match not found");
 
-  const lineup = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
-    include: {
-      formation: { include: { slots: { orderBy: { sortOrder: "asc" } } } },
-      assignments: true,
-    },
-  });
+  const [lineup, playerPool] = await Promise.all([
+    db.matchLineup.findFirst({
+      where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
+      include: {
+        formation: { include: { slots: { orderBy: { sortOrder: "asc" } } } },
+        assignments: true,
+      },
+    }),
+    getPlayerPoolWithHelpers(matchId, ctx.orgFilter),
+  ]);
 
-  return { match, lineup };
+  return { match, lineup, playerPool };
 }
 
 export async function suggestLineupForMatch(matchId: string, formationId: string) {
@@ -171,39 +212,24 @@ export async function suggestLineupForMatch(matchId: string, formationId: string
       id: true,
       teamId: true,
       gameFormat: true,
-      selections: {
-        where: { status: { in: ["DRAFT", "FINALIZED"] } },
-        select: {
-          playerId: true,
-          role: true,
-          player: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              primaryPosition: true,
-              secondaryPosition: true,
-              coreTeamId: true,
-            },
-          },
-        },
-      },
     },
   });
 
   if (!match) throw new Error("Match not found");
 
-  const formation = await db.formation.findFirst({
-    where: { id: formationId, ...ctx.orgFilter.filter },
-    include: { slots: { orderBy: { sortOrder: "asc" } } },
-  });
+  const [formation, existingLineup, playerPool] = await Promise.all([
+    db.formation.findFirst({
+      where: { id: formationId, ...ctx.orgFilter.filter },
+      include: { slots: { orderBy: { sortOrder: "asc" } } },
+    }),
+    db.matchLineup.findFirst({
+      where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
+      include: { assignments: true },
+    }),
+    getPlayerPoolWithHelpers(matchId, ctx.orgFilter),
+  ]);
 
   if (!formation) throw new Error("Formation not found");
-
-  const existingLineup = await db.matchLineup.findFirst({
-    where: { matchId, teamId: match.teamId, ...ctx.orgFilter.filter },
-    include: { assignments: true },
-  });
 
   let existingAssignments: SuggestLineupInput["existingAssignments"] = [];
 
@@ -228,14 +254,7 @@ export async function suggestLineupForMatch(matchId: string, formationId: string
       acceptedPositionIds: s.acceptedPositionIds as BroadPosition[],
       sortOrder: s.sortOrder,
     })),
-    playerPool: match.selections.map((s) => ({
-      id: s.player.id,
-      firstName: s.player.firstName,
-      lastName: s.player.lastName,
-      primaryPosition: s.player.primaryPosition,
-      secondaryPosition: s.player.secondaryPosition,
-      coreTeamId: s.player.coreTeamId,
-    })),
+    playerPool,
     existingAssignments,
   });
 
@@ -416,36 +435,21 @@ export async function fillEmptySlots(lineupId: string) {
     where: { id: lineup.matchId, ...ctx.orgFilter.filter },
     select: {
       gameFormat: true,
-      selections: {
-        where: { status: { in: ["DRAFT", "FINALIZED"] } },
-        select: {
-          playerId: true,
-          player: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              primaryPosition: true,
-              secondaryPosition: true,
-              coreTeamId: true,
-            },
-          },
-        },
-      },
     },
   });
 
   if (!match) throw new Error("Match not found");
 
+  const fullPool = await getPlayerPoolWithHelpers(lineup.matchId, ctx.orgFilter);
+
   const emptySlots = lineup.assignments.filter((a) => a.playerId === null);
   if (emptySlots.length === 0) return { filled: 0 };
 
-  const playerPool = match.selections.map((s) => s.player);
   const assignedPlayerIds = new Set(
     lineup.assignments.filter((a) => a.playerId !== null).map((a) => a.playerId!),
   );
 
-  const availablePlayers = playerPool.filter((p) => !assignedPlayerIds.has(p.id));
+  const availablePlayers = fullPool.filter((p) => !assignedPlayerIds.has(p.id));
 
   const suggestion = suggestLineupForFormation({
     formationSlots: lineup.formation.slots.map((s) => ({
@@ -461,7 +465,7 @@ export async function fillEmptySlots(lineupId: string) {
     playerPool: availablePlayers.map((p) => ({
       id: p.id,
       firstName: p.firstName,
-      lastName: p.lastName,
+      lastName: p.lastName ?? "",
       primaryPosition: p.primaryPosition,
       secondaryPosition: p.secondaryPosition,
       coreTeamId: p.coreTeamId,
