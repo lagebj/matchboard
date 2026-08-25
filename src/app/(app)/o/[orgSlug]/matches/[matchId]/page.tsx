@@ -91,7 +91,6 @@ export default async function MatchDetailPage({
     select: {
       id: true,
       playerId: true,
-      plannedRole: true,
       player: {
         select: {
           id: true,
