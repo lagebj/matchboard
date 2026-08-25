@@ -115,6 +115,7 @@ const roleOrder = [
   "SUPPORT",
   "BACKFILL",
   "DEVELOPMENT",
+  "HELPER",
   "REDUCED_MATCH_LOAD_DROP",
   "CORE_MATCH_DROP",
   "UNAVAILABLE",

@@ -5,6 +5,7 @@ import {
   ArrowUpDown,
   TrendingDown,
   Ban,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
@@ -20,7 +21,8 @@ export type SelectionRole =
   | "DROPPED"
   | "UNAVAILABLE"
   | "MANUAL"
-  | "MANUAL_OVERRIDE";
+  | "MANUAL_OVERRIDE"
+  | "HELPER";
 
 /**
  * Per ADR 0007 these badges now lean on the calm semantic-token palette via
@@ -45,6 +47,7 @@ const roleConfig: Record<SelectionRole, RoleConfig> = {
   UNAVAILABLE: { label: "Unavailable", icon: Ban, variant: "neutral" },
   MANUAL: { label: "Manual", icon: ShieldCheck, variant: "neutral" },
   MANUAL_OVERRIDE: { label: "Override", icon: ShieldCheck, variant: "warning" },
+  HELPER: { label: "Helper", icon: UserPlus, variant: "info" },
 };
 
 export function RoleBadge({ role }: { role: SelectionRole }) {
