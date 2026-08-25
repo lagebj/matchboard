@@ -9,6 +9,7 @@ import { getRules } from "@/lib/rules/get-rules";
 import { validateRuleConfig } from "@/lib/rules/validate-rules";
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type RulesPageProps = {
   searchParams: Promise<{
@@ -21,6 +22,7 @@ type RulesPageProps = {
 export default async function RulesPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: RulesPageProps["searchParams"] }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
   const rules = await getRules(ctx.orgFilter);
   const { error, imported, saved } = await searchParams;

@@ -3,12 +3,14 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightFilters, OpportunityQualityEntry } from "./insights-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // I-002: Opportunity quality — one factual record per planned opportunity. Realised minutes
 // are not a tracked field for league matches (only Event reports track minutesPlayed), so this
 // is reported honestly as untracked rather than inferred (I-001 evidence semantics).
 export async function getOpportunityQuality(filters: InsightFilters): Promise<OpportunityQualityEntry[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeInactive

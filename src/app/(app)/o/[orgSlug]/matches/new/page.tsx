@@ -5,10 +5,12 @@ import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { PageHeader } from "@/components/ui/page-header";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const [teams, opponentTeams] = await Promise.all([
     db.team.findMany({

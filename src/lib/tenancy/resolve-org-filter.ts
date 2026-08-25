@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import { AuthorizationError } from "@/lib/auth";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
-import { setTenantUserId } from "@/lib/tenancy/tenant-async-storage";
+import { setTenantUserId, runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { db } from "@/lib/db";
 
 export type OrgFilterMode =
@@ -72,9 +72,16 @@ export async function resolveOrgFilterForMachine(
   organisationId: string,
   client: PrismaClient = db,
 ): Promise<OrgFilterMode> {
-  const principal = await client.machinePrincipal.findUnique({
-    where: { id: principalId },
-    select: { id: true, organisationId: true, status: true },
+  // Scoped by the caller-supplied organisationId (ADR-0087) rather than fetched unscoped and
+  // checked after the fact: a principal belonging to a different organisation now simply isn't
+  // found, instead of being fetched and then compared. Must `await` inside the callback (not
+  // just return the promise) — Prisma queries are lazy, so AsyncLocalStorage context set by
+  // `.run()` is only visible to work that happens within its own continuation.
+  const principal = await runWithTenantOrganisationId(organisationId, async () => {
+    return await client.machinePrincipal.findUnique({
+      where: { id: principalId },
+      select: { id: true, organisationId: true, status: true },
+    });
   });
 
   if (!principal) {

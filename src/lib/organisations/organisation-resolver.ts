@@ -5,7 +5,7 @@ import { canAccessAllGroups, canInviteRole, canManageRole, canCreateTeam, canMan
 import type { OrganisationAccessContext } from "@/lib/organisations/organisation-access";
 import type { OrganisationRole } from "@/generated/prisma/client";
 import { getEffectiveGroupAccess } from "@/lib/auth/group-context";
-import { withTenantContext } from "@/lib/tenancy/tenant-client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 class OrganisationNotFoundError extends AuthorizationError {
   constructor(message: string) {
@@ -61,11 +61,16 @@ export async function resolveOrganisationAccess(
     throw new OrganisationSuspendedError("This organisation is suspended.");
   }
 
-  const membership = await withTenantContext(db, org.id, async (tx) => {
-    return tx.organisationMembership.findUnique({
-      where: { userId_organisationId: { userId: coachId, organisationId: org.id } },
-      select: { id: true, userId: true, organisationId: true, role: true, expiresAt: true, createdAt: true, updatedAt: true },
-    });
+  // Establish tenant context once, here, as early as the org identity is known — every query
+  // below (including inside getEffectiveGroupAccess()) relies on this already being set rather
+  // than each wrapping its own scoped run(). See getEffectiveGroupAccess()'s doc comment and
+  // ARR-0029 "Bug 2b" for why mixing multiple run()-scoped calls with a later
+  // setTenantOrganisationId() in the same continuation is unsafe under concurrent request load.
+  setTenantOrganisationId(org.id);
+
+  const membership = await db.organisationMembership.findUnique({
+    where: { userId_organisationId: { userId: coachId, organisationId: org.id } },
+    select: { id: true, userId: true, organisationId: true, role: true, expiresAt: true, createdAt: true, updatedAt: true },
   });
 
   if (!membership) {

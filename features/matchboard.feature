@@ -4400,28 +4400,30 @@ Feature: Matchboard football operations workspace
 
   Rule: Canonical navigation and route model
 
-    Matchboard has exactly four primary navigation items. All other routes are secondary, accessible through contextual links rather than competing top-level navigation.
+    Matchboard has exactly five primary navigation items (UI/UX programme Phase 2.4). All other routes are secondary, accessible through contextual links rather than competing top-level navigation.
 
-    Scenario: Primary navigation contains exactly four items
+    Scenario: Primary navigation contains exactly five items
       Given the coach is using the app
       When the primary sidebar or mobile navigation is visible
       Then the navigation must contain exactly these items in order:
-        | item       | route        |
-        | Assistant  | /assistant   |
-        | Fixtures   | /fixtures    |
-        | Teams      | /teams       |
-        | Players    | /players     |
-      And the navigation must not include /rounds, /matches, /season, /history, or /rules as primary items
+        | item     | route     |
+        | Today    | /today    |
+        | League   | /fixtures |
+        | Events   | /events   |
+        | Players  | /players  |
+        | More     | /more     |
+      And the navigation must not include /teams, /rounds, /matches, /season, /history, /rules, /groups, /opponents, /formations, /insights, /settings, /reviews, /simulation, or /workbench as primary items
 
-    Scenario: Root redirects to Assistant
+    Scenario: Root redirects to Today
       Given the coach navigates to the root URL
       When the app loads
-      Then the app must redirect to /assistant
+      Then the app must redirect to /today
 
-    Scenario: Today redirects to Assistant
-      Given the coach navigates to /today
+    Scenario: Assistant redirects to Today
+      Given the coach navigates to /assistant
       When the app loads
-      Then the app must redirect to /assistant
+      Then the app must redirect to /today
+      And /assistant remains a valid deep-link alias, not a competing canonical route
 
     Scenario: Matches redirects to Fixtures
       Given the coach navigates to /matches
@@ -4434,30 +4436,35 @@ Feature: Matchboard football operations workspace
       Then no link may point to /matches as the main fixture-list destination
       And match detail routes such as /matches/[matchId] may remain where required
 
-    Scenario: Assistant navigation is active on /assistant
-      Given the coach navigates to /assistant
+    Scenario: Today navigation is active on /today
+      Given the coach navigates to /today
       When the sidebar renders
-      Then the Assistant item must show active state
+      Then the Today item must show active state
 
-    Scenario: Fixtures navigation is active in fixture and round contexts
-      Given the coach navigates to /fixtures or /rounds/[matchRoundId]
+    Scenario: League navigation is active in fixture, round, match, team, and season contexts
+      Given the coach navigates to /fixtures, /rounds/[matchRoundId], /matches/[matchId], /teams, /teams/[teamId], or /season
       When the sidebar renders
-      Then the Fixtures item must show active state
+      Then the League item must show active state
 
-    Scenario: Teams navigation is active in team contexts
-      Given the coach navigates to /teams or /teams/[teamId]
+    Scenario: Events navigation is active in event contexts
+      Given the coach navigates to /events or /events/[eventId]
       When the sidebar renders
-      Then the Teams item must show active state
+      Then the Events item must show active state
 
     Scenario: Players navigation is active in player contexts
       Given the coach navigates to /players or /players/[playerId]
       When the sidebar renders
       Then the Players item must show active state
 
+    Scenario: More navigation is active in its linked secondary destinations
+      Given the coach navigates to /more, /insights, /opponents, /groups, /formations, /rules, /history, /reviews, or /settings
+      When the sidebar renders
+      Then the More item must show active state
+
     Scenario: Redirected routes do not show unselected sidebar
-      Given the coach is redirected from / or /today to /assistant
+      Given the coach is redirected from / or /assistant to /today
       When the page loads
-      Then the Assistant sidebar item must be active
+      Then the Today sidebar item must be active
       And no navigation state must appear unselected or misleading
 
 
@@ -4465,12 +4472,13 @@ Feature: Matchboard football operations workspace
 
     The visible daily workflow follows a clear hierarchy.
 
-    Scenario: Assistant identifies the next required action
+    Scenario: Today identifies the next required action
       Given the coach opens the app
-      Then the Assistant page must show the next action based on setup progress and current workflow state
+      Then the Today page must show the next action based on setup progress and current workflow state
+      And /assistant remains a valid deep-link alias to the same page and data
 
-    Scenario: Fixtures provides the season and round hierarchy
-      Given the coach opens Fixtures
+    Scenario: League provides the season and round hierarchy
+      Given the coach opens League
       Then the page must show the league season and round hierarchy
       And each round must show its status and the correct next action
 
@@ -4479,9 +4487,17 @@ Feature: Matchboard football operations workspace
       Then the Round Board must be the primary surface for squad review and changes
       And actions must include Generate, Resolve blockers, Finalise, and View finalised plan
 
-    Scenario: Season, History and Rules are secondary destinations
+    Scenario: Match detail handles match-specific preparation and reporting
+      Given the coach opens a match
+      Then the page must support match-specific preparation, finalisation, and post-match reporting
+
+    Scenario: Team and Player pages provide supporting context
+      Given the coach opens a team or player
+      Then the page must provide supporting context and configuration for that team or player
+
+    Scenario: More holds secondary analysis and configuration destinations
       Given the coach is using the app
-      Then /season, /history, and /rules must be accessible through contextual links
+      Then /season, /history, /rules, /insights, /groups, /formations, /opponents, and /settings must be accessible through More or contextual links
       And they must not be primary sidebar items
 
 

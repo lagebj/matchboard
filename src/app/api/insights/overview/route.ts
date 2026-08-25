@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { getInsightOverview } from "@/lib/insights/insights-overview";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,7 @@ export async function GET(request: Request) {
   let ctx;
   try {
     ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

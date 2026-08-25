@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { getSeasonReview } from "@/lib/audit/planned-vs-actual";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const { searchParams } = new URL(request.url);
   const leagueSeasonId = searchParams.get("leagueSeasonId");

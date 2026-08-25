@@ -9,6 +9,7 @@ import {
   validateEventForUnfinalization,
   type EventFinalizationValidationResult,
 } from "@/lib/events/event-finalization-validation";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export type FinalizeEventResult = {
   success: boolean;
@@ -41,6 +42,7 @@ async function requireEventOrgAccess(eventId: string, orgFilter: { type: string;
 export async function finalizeEventAction(eventId: string): Promise<FinalizeEventResult> {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -101,6 +103,7 @@ export async function finalizeEventAction(eventId: string): Promise<FinalizeEven
 export async function unfinalizeEventAction(eventId: string): Promise<UnfinalizeEventResult> {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -157,6 +160,7 @@ export async function getEventFinalizationStatusAction(eventId: string): Promise
   finalizedBy: string | null;
 }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },

@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchReportStatus, EventPostMatchAttendanceStatus, GoalType, AssistType } from '@/generated/prisma/client';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   const event = await db.event.findFirst({
@@ -34,6 +35,7 @@ async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode
 
 export async function seedEventMatchReportAction(eventMatchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -110,6 +112,7 @@ export async function seedEventMatchReportAction(eventMatchId: string) {
 
 export async function getEventMatchReport(eventMatchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
@@ -130,6 +133,7 @@ export async function updateEventMatchResultAction(
   data: { ourScore?: number; opponentScore?: number; teamReflection?: string; opponentObservation?: string; notes?: string },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
@@ -164,6 +168,7 @@ export async function updateEventPlayerAttendanceAction(
   attendanceStatus: EventPostMatchAttendanceStatus,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const playerReport = await db.eventPostMatchPlayer.findFirst({
@@ -198,6 +203,7 @@ export async function addEventGoalAction(
   data: { playerId?: string; minute?: number; type?: GoalType; note?: string },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
@@ -228,6 +234,7 @@ export async function addEventGoalAction(
 
 export async function removeEventGoalAction(goalId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const goal = await db.eventGoalEvent.findFirst({ where: { id: goalId, ...ctx.orgFilter.filter } });
@@ -256,6 +263,7 @@ export async function addEventAssistAction(
   data: { playerId: string; type?: AssistType },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
@@ -284,6 +292,7 @@ export async function addEventAssistAction(
 
 export async function removeEventAssistAction(assistId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const assist = await db.eventAssistEvent.findFirst({ where: { id: assistId, ...ctx.orgFilter.filter } });
@@ -309,6 +318,7 @@ export async function removeEventAssistAction(assistId: string) {
 
 export async function completeEventMatchReportAction(reportId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
@@ -352,6 +362,7 @@ export async function completeEventMatchReportAction(reportId: string) {
 
 export async function reopenEventMatchReportAction(reportId: string, targetStatus?: 'DRAFT' | 'REPORTED') {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);

@@ -168,10 +168,23 @@ ADR-0037 (row-level security and database role isolation — the `SET LOCAL` app
 
 ## Superseded by
 
-None.
+None. Amended by ADR-0087 (fail-closed tenant scoping and an explicit system-privilege
+capability) — the where-clause-injection design here is unchanged; ADR-0087 changes what happens
+when `orgId` is absent (previously: execute unscoped; now: refuse, with a narrow explicit
+privileged-access opt-in). The "Negative" consequence below ("RLS policies are permissive when
+app context is not set, which means direct database access without context sees all data") still
+describes the database-level RLS defence-in-depth layer accurately — that has not changed — but
+no longer describes the primary application-level `tenantRLS` extension, which is the layer
+ADR-0087 changes.
 
 ## History
 
 ### 2026-08-05
 
 Record created. Where-clause injection deployed to production and verified working. RLS migration applied to production database. ADR-0037's `SET LOCAL` approach is superseded.
+
+### 2026-08-24
+
+Amended by ADR-0087: the `tenantRLS` extension's behaviour when organisation context is absent
+changes from "execute unscoped" to "fail closed" (throw), with a narrow explicit
+`runWithSystemPrivilege()` opt-in for genuinely privileged system callers. Resolves ARR-0027.

@@ -3,12 +3,14 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightFilters, ContinuityRow } from "./insights-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // I-006: Continuity vs exploration — round-over-round comparison per team. "Do not prescribe
 // one universal ideal" (per spec): this reports facts (retained/new players, formation repeat,
 // role churn), not a recommended balance.
 export async function getContinuityReview(filters: InsightFilters): Promise<ContinuityRow[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({

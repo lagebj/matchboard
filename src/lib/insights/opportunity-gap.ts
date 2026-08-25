@@ -3,12 +3,14 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightFilters, OpportunityGapRow } from "./insights-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // I-003: Opportunity gap — descriptive gap between intended and realised opportunity over a
 // period. Deliberately not a punitive debt score or automatic future-selection obligation (see
 // AGENTS.md / 08-COACHING-INTELLIGENCE-MODELS.md's I-003).
 export async function getOpportunityGap(filters: InsightFilters): Promise<OpportunityGapRow[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeInactive

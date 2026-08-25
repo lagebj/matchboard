@@ -34,7 +34,8 @@ swamp --no-telemetry model method run <name> execute --input env.KEY=value  # wi
 |---|---|---|
 | `verify-repository` | `npm run validate` | Implemented |
 | `verify-security` | `bash scripts/security-review.sh` | Implemented |
-| `verify-database-change` | `bash scripts/verify-migration-from-zero.sh` | Implemented |
+| `verify-database-change` | `bash scripts/verify-migration-from-zero.sh` — migration chain against an EMPTY database | Implemented |
+| `verify-migration-upgrade` | `bash scripts/verify-migration-upgrade.sh` — pending migrations against a POPULATED database (ARR-0026, ADR-0090) | Implemented, requires `NEON_API_KEY`/`NEON_PROJECT_ID` — takes `--input env.NEON_API_KEY=<key>`, `--input env.NEON_PROJECT_ID=<id>` |
 | `investigate-ci-failure` | `gh run list`, points at `gh run view --log-failed` | Implemented |
 | `inspect-deployment` | `curl .../api/meta` + `vercel project inspect` | Implemented — takes `--input env.TARGET=test\|production` (defaults to `test`) |
 | `verify-test-candidate` | Compares the deployed Test slot's commit against local `HEAD` | Implemented, read-only |

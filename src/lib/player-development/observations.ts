@@ -4,6 +4,7 @@ import { DevelopmentObservationSource } from "@/generated/prisma/client";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./constants";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export type DevelopmentObservationInput = {
   playerId: string;
@@ -55,6 +56,7 @@ export async function createDevelopmentObservation(
   input: DevelopmentObservationInput,
 ): Promise<{ id: string }> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const _kind = input.kind;
   const attributeKey = validateAttributeKey(input.attributeKey, input.kind);
@@ -120,6 +122,7 @@ export async function deleteDevelopmentObservation(
   observationId: string,
 ): Promise<{ success: boolean }> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const observation = await db.playerDevelopmentObservation.findUnique({
     where: { id: observationId },

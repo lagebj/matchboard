@@ -6,6 +6,7 @@ import { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { logEventSquadLock, logEventSquadUnlock } from "@/lib/security/audit-log";
 import { supersedePendingReviews } from "@/lib/review/review-service";
 import { enqueueAndSendNotification } from "@/lib/email/outbox";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -33,6 +34,7 @@ export async function validateEventSquadsBeforeCommit(
   eventId: string,
 ): Promise<EventSquadValidationResult> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const issues: EventSquadValidationIssue[] = [];
 
@@ -175,6 +177,7 @@ export async function validateEventSquadsBeforeCommit(
 
 export async function confirmEventSquadsAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -261,6 +264,7 @@ export async function confirmEventSquadsAction(eventId: string) {
 
 export async function unconfirmEventSquadsAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireEventOrgAccess(eventId, ctx.orgFilter);
@@ -343,6 +347,7 @@ export async function unconfirmEventSquadsAction(eventId: string) {
 
 export async function getEventSquadsStatusAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const squads = await db.eventSquad.findMany({
     where: { eventId, ...ctx.orgFilter.filter },

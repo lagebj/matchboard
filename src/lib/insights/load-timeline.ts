@@ -9,11 +9,13 @@ import type {
   LoadTimelineCell,
   LoadCellStatus,
 } from "./insights-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function getLoadTimeline(
   filters: InsightFilters,
 ): Promise<LoadTimelineRow[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeRemoved

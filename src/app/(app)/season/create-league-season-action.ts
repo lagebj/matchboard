@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { createLeagueSeason, getFootballGroupsForOrganisation } from "@/lib/seasons/create-league-season";
 import type { LeagueSeasonPart } from "@/lib/seasons/league-season";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function createLeagueSeasonAction(
   _prevState: { error?: string },
   formData: FormData,
 ): Promise<{ error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const yearStr = formData.get("year") as string | null;
@@ -43,5 +45,6 @@ export async function createLeagueSeasonAction(
 
 export async function getFootballGroupsAction(): Promise<Array<{ id: string; name: string }>> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getFootballGroupsForOrganisation(ctx.organisationId);
 }

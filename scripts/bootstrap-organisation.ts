@@ -23,6 +23,7 @@
 
 import { db } from "../src/lib/db";
 import { logOrganisationCreate } from "../src/lib/security/audit-log";
+import { runWithTenantOrganisationId } from "../src/lib/tenancy/tenant-async-storage";
 
 const BOOTSTRAP_ORG_NAME = process.env.BOOTSTRAP_ORGANIZATION_NAME ?? "Default Club";
 const BOOTSTRAP_ORG_SLUG = process.env.BOOTSTRAP_ORGANIZATION_SLUG ?? "default-club";
@@ -75,22 +76,29 @@ async function main() {
       logOrganisationCreate(`script:bootstrap-organisation (run by env BOOTSTRAP_OWNER_EMAIL=${BOOTSTRAP_OWNER_EMAIL})`, org.id, "success");
     }
 
-    const existingMembership = await db.organisationMembership.findUnique({
-      where: { userId_organisationId: { userId: user.id, organisationId: orgId } },
-    });
-
-    if (!existingMembership) {
-      await db.organisationMembership.create({
-        data: {
-          userId: user.id,
-          organisationId: orgId,
-          role: "OWNER",
-        },
+    // Scoped by the orgId this script itself just resolved/created (ADR-0087) — this is a
+    // trusted maintainer-run script, not an ordinary request, so there is no
+    // requireActorContext() session to establish tenant context; runWithTenantOrganisationId
+    // scopes it explicitly instead of relying on the fail-closed default's system-privilege
+    // escape hatch, since the organisationId is already known and trusted here.
+    await runWithTenantOrganisationId(orgId, async () => {
+      const existingMembership = await db.organisationMembership.findUnique({
+        where: { userId_organisationId: { userId: user.id, organisationId: orgId } },
       });
-      console.log(`  Created OWNER membership for ${user.email}`);
-    } else {
-      console.log(`  Membership already exists for ${user.email} (role: ${existingMembership.role})`);
-    }
+
+      if (!existingMembership) {
+        await db.organisationMembership.create({
+          data: {
+            userId: user.id,
+            organisationId: orgId,
+            role: "OWNER",
+          },
+        });
+        console.log(`  Created OWNER membership for ${user.email}`);
+      } else {
+        console.log(`  Membership already exists for ${user.email} (role: ${existingMembership.role})`);
+      }
+    });
 
     console.log("\nBootstrap organisation complete.");
   } catch (error) {

@@ -12,10 +12,12 @@ import {
   requireMatchGroupAccess,
   requireMatchGroupMutationRole,
 } from "@/lib/auth/actor-context";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function startLiveSessionAction(matchId: string) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
     await requireMatchGroupAccess(ctx, matchId);
     await requireMatchGroupMutationRole(ctx, matchId);
@@ -40,6 +42,7 @@ export async function getActiveSessionAction(matchId: string) {
 export async function endLiveSessionAction(sessionId: string) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
     // Authorize against the session's match BEFORE mutating — a prior version of this action
     // called endLiveSession() first and only checked group access afterward, which meant the
@@ -66,6 +69,7 @@ export async function endLiveSessionAction(sessionId: string) {
 export async function heartbeatAction(sessionId: string) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
     await heartbeatSession(sessionId);
     return { success: true as const };
@@ -89,6 +93,7 @@ export async function recordLiveEventAction(input: {
 }) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
     await requireMatchGroupAccess(ctx, input.matchId);
     await requireMatchGroupMutationRole(ctx, input.matchId);
@@ -135,6 +140,7 @@ export async function getRecentEventsAction(matchId: string, limit?: number) {
 export async function getLiveMatchPreMatchPackageAction(matchId: string) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
 
     const match = await db.match.findUnique({
       where: { id: matchId },

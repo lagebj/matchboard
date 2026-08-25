@@ -16,12 +16,14 @@ import {
   mapSelectionRoleToCellStatus,
   computePathwaySummaryMetrics,
 } from "./pathways-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function getPlayerPathways(
   filters: PathwayFilters,
   viewMode: PathwayViewMode = "finalized_only",
 ): Promise<PlayerPathwayData> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere =
     ctx.orgFilter.filter;
 

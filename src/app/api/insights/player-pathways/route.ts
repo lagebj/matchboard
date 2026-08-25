@@ -4,6 +4,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { getPlayerPathways } from "@/lib/pathways/get-player-pathways";
 import type { InsightScope, InsightContext } from "@/lib/insights/insights-types";
 import type { PathwayViewMode } from "@/lib/pathways/pathways-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ export async function GET(request: Request) {
   let ctx;
   try {
     ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

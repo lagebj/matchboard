@@ -2085,9 +2085,17 @@ Matchboard is deployed to **Vercel** with **Neon Postgres**. SQLite is not used 
 
 The primary tenant isolation mechanism is **Prisma where-clause injection** in `src/lib/db.ts` (`tenantRLS` extension). Every query on an RLS-scoped table has `organisationId` injected into its `where` clause (and `data` for creates). `findUnique` converts to `findFirst` to allow additional filtering.
 
-Database RLS policies serve as defence-in-depth. They are **permissive when `app.current_organization_id` is not set** (null or empty), trusting application-layer filtering. When the session variable IS set, RLS still enforces as an additional layer.
+**The extension fails closed (ADR-0087).** A query on an RLS-scoped table with no trusted organisation context (`getTenantOrganisationId()` returns nothing, or an org ID present but failing `ORG_ID_PATTERN`) throws `TenantContextError` instead of running unscoped. There are exactly two exceptions, both narrow and explicit:
+- The pre-existing `organisationMembership` self-read-by-`userId` case (ADR-0052), used only during auth resolution before an organisation is known.
+- `runWithSystemPrivilege(reason, fn)` (`src/lib/tenancy/tenant-async-storage.ts`) — an explicit, reason-required opt-in for a genuinely privileged system operation with no tenant/user identity to scope by (today: one call site, the internal live-match snapshot reconciliation endpoint). Do not reach for this as a convenience escape for a route/action/script that should just call `requireActorContext()` or `runWithTenantOrganisationId()` first — prefer scoping by an already-trusted ID (`runWithTenantOrganisationId()`) over a privilege escape wherever one is available (see `recordEventForActor()`, `resolveOrgFilterForMachine()`, `scripts/bootstrap-organisation.ts` for the pattern).
 
-See ADR-0057 for the full decision record.
+`withTenantContext()` (`src/lib/tenancy/tenant-client.ts`) establishes real tenant context via `runWithTenantOrganisationId()` around the transaction it wraps — despite its pre-ADR-0087 name, it previously only wrapped a `$transaction()` and never actually set context, so callers without their own explicit `where: { organisationId }` filter ran unscoped. Do not reintroduce a "wraps a transaction but doesn't set context" helper.
+
+**`setTenantOrganisationId()` never propagates to a function's own caller once that function has itself awaited anything — this needs no concurrency to reproduce (ARR-0029 "Bug 3").** This is correct, documented Node.js `AsyncLocalStorage` behavior, not a defect: `enterWith()` scopes "the remainder of the current execution," and once an async function has awaited something, its continuation is a child of wherever it was called from, not an ancestor — a child's `enterWith()` mutation can never become visible to the parent once the child's promise resolves. `requireActorContext()`/`requirePageActorContext()` must always `await` a DB lookup before knowing the organisation, so their own `setTenantOrganisationId()` call can only ever scope their *own* remaining internal queries — never a caller's. **Every call site must therefore call `setTenantOrganisationId(ctx.organisationId)` itself, immediately after resolving `ctx`, before any other query** — this is not optional boilerplate, it is the only thing that makes tenant scoping actually work for that call site's own queries. `src/lib/db.ts`'s `tenantRLS` extension also has a defense-in-depth fallback (`getExplicitOrgId()`): when ALS context is absent, it trusts an `organisationId` already present in the query's own `where`/`data` (the "Prisma where-clause injection" pattern below) — but that only helps queries that already carry one explicitly, so it is a backstop, not a substitute for the `setTenantOrganisationId()` call at each entry point. (Never mix scoped `run()`-style calls — `runWithTenantOrganisationId()`, `withTenantContext()` — with a *later* `setTenantOrganisationId()`/`enterWith()` in the same continuation either; that composition has its own separate, real failure mode. Within a single request's auth-resolution call graph, `setTenantOrganisationId()` is called exactly once, as early as the organisation identity is known, with every later query in that graph — `requireActorContext()`, `resolveOrganisationAccess()`, `getEffectiveGroupAccess()` — relying on that single already-set context. A function that does its own `run()`-scoped work and returns without any caller-visible `enterWith()` afterward, e.g. `resolveOrgFilterForMachine()` or `recordEventForActor()` which wraps its *entire* remaining body in one `run()` call, remains safe.)
+
+Database RLS policies serve as defence-in-depth. They are **permissive when `app.current_organization_id` is not set** (null or empty), trusting application-layer filtering — this remains true at the database layer; it no longer describes the primary application-level `tenantRLS` extension, which now fails closed instead. When the session variable IS set, RLS still enforces as an additional layer.
+
+See ADR-0057 for the where-clause-injection design and ADR-0087 for the fail-closed behavior and `runWithSystemPrivilege()`.
 
 ### Production migrations
 
@@ -2107,6 +2115,13 @@ See ADR-0057 for the full decision record.
   automating the trigger does not remove the human approval checkpoint.
 - Migrations must not run as part of the Vercel build process.
 - The `postinstall` script runs `prisma generate` only — not migrations.
+- Before a migration reaches the production pipeline, CI's `migration-upgrade-from-populated-state`
+  job (ADR-0090, `scripts/verify-migration-upgrade.sh`) applies it to a disposable Neon branch
+  forked from the persistent `test` branch (which carries real, populated data at its current
+  migration state) — catching a migration that's safe against an empty schema (the separate
+  `migration-from-zero` job) but unsafe against existing rows, before it ever reaches the
+  human-approval gate below. This does not replace `check-pending-migrations.mjs`'s
+  destructive-keyword scan; both run.
 - If a migration's own SQL fails partway through applying to production, Prisma marks it FAILED
   in its bookkeeping and refuses to attempt anything else until resolved — this is a different
   state from a normal pending migration, and the pipeline's `check` job deliberately does not
@@ -2171,6 +2186,7 @@ Avoid:
 | `src/lib/selection/migrate-double-load-roles.ts` | Migration: merge standalone DOUBLE_LOAD rows into base role rows with controlledDoubleLoad=true |
 | `src/lib/selection/migrate-squad-repair-roles.ts` | Migration: role=CORE with "squad repair" explanation → role=BACKFILL |
 | `src/lib/selection/backfill-movement-ledger.ts` | Normalization: create MovementLedger entries for existing non-core selections without ledger entries |
+| `src/lib/selection/round-finalization-transitions.ts` | Owning writes for the Plan-phase finalize/un-finalize transition (ADR-0088): shared selection/movement-ledger/round-record writes called by all four functions below, scoped by `{ matchRoundId }` or `{ matchId }` |
 | `src/lib/selection/finalize-match-round.ts` | Finalize a round |
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
@@ -2454,9 +2470,12 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config) |
 | `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) |
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
-| `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action: end session and create/seed post-match report |
+| `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endLiveSession()` and `seedReportFromLiveSession()` — does not reimplement either write |
+| `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
+| `src/lib/reports/report-domain.ts` | League report transition validation: `canTransitionTo`, `isReportLocked`, `hasUnknownAttendance` |
 | `src/app/(app)/events/[eventId]/event-live-actions.ts` | Server actions: event live session lifecycle, event recording, pre-match package |
-| `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action: end event live session and create/seed event post-match report |
+| `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endEventLiveSession()` and `seedEventReportFromLiveSession()` |
+| `src/lib/reports/event-report-mutations.ts` | Event Run->Learn handoff domain mutation: `seedEventReportFromLiveSession` (ADR-0088). Report *completion* (DRAFT->LOCKED) is not yet domain-owned — see ARR-0030 |
 | `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
 | `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 

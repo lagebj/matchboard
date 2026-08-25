@@ -2,9 +2,11 @@
 
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function getGroupCompositionData(footballGroupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const group = await db.footballGroup.findUniqueOrThrow({

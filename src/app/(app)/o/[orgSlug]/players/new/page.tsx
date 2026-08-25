@@ -8,10 +8,12 @@ import { Surface } from "@/components/ui/surface";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function NewPlayerPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const teams = await db.team.findMany({
     where: { archivedAt: null, ...ctx.orgFilter.filter },

@@ -8,6 +8,7 @@ import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
 import { db } from '@/lib/db';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,7 @@ function toGameFormat(gf: string): GameFormat {
 export default async function EventDetailPage({ params }: { params: Promise<{ orgSlug: string; eventId: string }> }) {
   const { orgSlug, eventId } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
   const [event, allActivePlayers, compatibleFormations, opponentTeams] = await Promise.all([
     getEventById(eventId),

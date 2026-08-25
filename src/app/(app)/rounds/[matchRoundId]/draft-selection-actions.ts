@@ -6,6 +6,7 @@ import {
   removePlayerFromDraftMatch,
   changeDraftPlayerRole,
 } from "@/lib/selection/manual-draft-edit";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { SelectionRole } from "@/generated/prisma/client";
 import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -29,6 +30,7 @@ async function reconcileAndRevalidate(matchRoundId: string) {
 
 export async function addPlayerToMatchAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const matchId = formData.get("matchId");
@@ -71,6 +73,7 @@ export async function addPlayerToMatchAction(formData: FormData) {
 
 export async function removePlayerFromMatchAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const matchId = formData.get("matchId");
@@ -100,6 +103,7 @@ export async function removePlayerFromMatchAction(formData: FormData) {
 
 export async function changePlayerRoleAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const matchId = formData.get("matchId");
@@ -142,6 +146,7 @@ export async function changePlayerRoleAction(formData: FormData) {
 
 export async function movePlayerWithinRoundAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const matchRoundId = formData.get("matchRoundId");

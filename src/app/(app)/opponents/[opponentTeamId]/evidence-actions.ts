@@ -4,6 +4,7 @@ import {
   includeOpponentSportingEvidence as includeEvidence,
   getOpponentSportingEvidence as getEvidence,
 } from "@/lib/opponents/sporting-level-recording";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
 
 export async function excludeSportingEvidenceAction(
@@ -11,6 +12,7 @@ export async function excludeSportingEvidenceAction(
   reason: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   return excludeEvidence(evidenceId, reason, ctx.orgFilter);
 }
@@ -19,6 +21,7 @@ export async function includeSportingEvidenceAction(
   evidenceId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   return includeEvidence(evidenceId, ctx.orgFilter);
 }
@@ -49,6 +52,7 @@ export async function getOpponentSportingLevelAction(
   }>;
 }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const evidenceRecords = await getEvidence(opponentTeamId, ctx.orgFilter);
 

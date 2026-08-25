@@ -9,6 +9,7 @@ import {
   type MatchdayResponsibilityType,
   MATCHDAY_RESPONSIBILITIES,
 } from "@/lib/coaching/types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
 
 async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
@@ -33,6 +34,7 @@ export async function setMatchdayResponsibilityAction(
   responsibility: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireSelectionOrgAccess(selectionId, ctx.orgFilter);
 
@@ -107,6 +109,7 @@ export async function setTeamReflectionAction(
   },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgId = ctx.organisationId;
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
@@ -150,6 +153,7 @@ export async function getTeamReflectionAction(
   matchId: string,
 ): Promise<{ success: boolean; reflection?: { id: string; effort: string | null; teamCohesion: string | null; positionalShape: string | null; recoveryBehavior: string | null; note: string | null } | null; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   try {

@@ -6,6 +6,7 @@ import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "@/app/(app)/rounds/round-list-client";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type RoundItem = {
   id: string;
@@ -19,6 +20,7 @@ type RoundItem = {
 export default async function RoundsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const activeLeagueSeason = await db.leagueSeason.findFirst({

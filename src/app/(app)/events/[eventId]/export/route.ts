@@ -7,6 +7,7 @@ import {
   formatGoalkeeperAbility,
   formatPlayerName,
 } from '@/lib/formatters/event-labels';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { safeEventExportFilename } from '@/lib/formatters/event-export-filename';
 import { checkSupportConflicts, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
 import { computeLineupRating, formatStarRating } from '@/lib/events/event-lineup-rating';
@@ -110,6 +111,7 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const { eventId } = await params;
 
   logDataExport(ctx.email || "unknown", "xlsx", "coach", "success");

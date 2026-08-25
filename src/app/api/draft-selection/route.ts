@@ -7,9 +7,11 @@ import { NextResponse } from "next/server";
 import { draftSelectionSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const { allowed } = await rateLimit("draft-selection", 10, 60_000);
   if (!allowed) {

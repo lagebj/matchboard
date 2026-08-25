@@ -13,6 +13,7 @@ import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { logFinalization, logManualOverride } from "@/lib/security/audit-log";
 import { db } from "@/lib/db";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: string[] = []) {
   try {
@@ -43,6 +44,7 @@ async function verifyRoundAccess(matchRoundId: string, orgFilter: OrgFilterMode)
 
 export async function finalizeRoundAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
@@ -92,6 +94,7 @@ export async function finalizeRoundAction(formData: FormData) {
 
 export async function clearRoundDraftAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
@@ -106,6 +109,7 @@ export async function clearRoundDraftAction(formData: FormData) {
 
 export async function clearMatchDraftAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const matchId = formData.get("matchId");
   const matchRoundId = formData.get("matchRoundId");
@@ -134,6 +138,7 @@ export async function clearMatchDraftAction(formData: FormData) {
 
 export async function regenerateRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const matchRoundId = formData.get("matchRoundId");
@@ -159,6 +164,7 @@ export async function regenerateRoundAction(prevState: { error: string }, formDa
 
 export async function finalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const matchId = formData.get("matchId");
@@ -210,6 +216,7 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
 
 export async function unfinalizeRoundAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const matchRoundId = formData.get("matchRoundId");
@@ -236,6 +243,7 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
 
 export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const matchId = formData.get("matchId");
@@ -276,6 +284,7 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
 
 export async function regenerateMatchAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const matchId = formData.get("matchId");

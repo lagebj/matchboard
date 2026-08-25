@@ -12,6 +12,7 @@ import {
   GAME_FORMAT_PLAYERS,
   suggestSlotDefaults,
 } from "@/lib/formations/index";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 
@@ -31,6 +32,7 @@ async function requireFormationOrgAccess(formationId: string, orgFilter: OrgFilt
 
 export async function getFormationsForFormat(gameFormat: GameFormat) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgFilter = ctx.orgFilter;
   return db.formation.findMany({
     where: { gameFormat, isArchived: false, ...orgFilter.filter },
@@ -41,6 +43,7 @@ export async function getFormationsForFormat(gameFormat: GameFormat) {
 
 export async function getFormationById(formationId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgFilter = ctx.orgFilter;
   await requireFormationOrgAccess(formationId, orgFilter);
   return db.formation.findFirst({
@@ -65,6 +68,7 @@ export async function createCustomFormation(data: {
   }[];
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   if (data.teamId) await requireTeamGroupAccess(ctx, data.teamId);
   const orgFilter = ctx.orgFilter;
@@ -118,6 +122,7 @@ export async function createCustomFormation(data: {
 
 export async function duplicateFormation(formationId: string, newName?: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -180,6 +185,7 @@ export async function updateCustomFormation(
   },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -265,6 +271,7 @@ export async function updateCustomFormation(
 
 export async function archiveFormation(formationId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -291,6 +298,7 @@ export async function archiveFormation(formationId: string) {
 
 export async function deleteCustomFormation(formationId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -328,6 +336,7 @@ export async function addFormationSlot(
   gridY: number,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const formationTeamId = await requireFormationOrgAccess(formationId, orgFilter);
@@ -380,6 +389,7 @@ export async function updateFormationSlot(
   },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 
@@ -409,6 +419,7 @@ export async function updateFormationSlot(
 
 export async function removeFormationSlot(slotId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
 

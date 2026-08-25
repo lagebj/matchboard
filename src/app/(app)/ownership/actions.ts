@@ -12,6 +12,7 @@ import {
   getUnacknowledgedHandovers,
   getExpiringWorkItems,
 } from "@/lib/ownership/work-ownership";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { WorkTargetType } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { enqueueAndSendNotification } from "@/lib/email/outbox";
@@ -23,6 +24,7 @@ export async function assignWorkOwnerAction(input: {
   dueAt?: Date | null;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const ownership = await assignWorkOwnership({
@@ -75,6 +77,7 @@ export async function handoverWorkOwnerAction(input: {
   handoverNote?: string | null;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const ownership = await handoverWorkOwnership({
@@ -122,37 +125,44 @@ export async function handoverWorkOwnerAction(input: {
 
 export async function acknowledgeWorkOwnerAction(ownershipId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   return acknowledgeWorkOwnership(ownershipId, ctx.organisationId);
 }
 
 export async function completeWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   return completeWorkOwnership(targetType, targetId, ctx.organisationId);
 }
 
 export async function getWorkOwnershipsAction(targetType: WorkTargetType, targetId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getWorkOwnershipForTarget(targetType, targetId, ctx.organisationId);
 }
 
 export async function getActiveWorkOwnerAction(targetType: WorkTargetType, targetId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getActiveWorkOwnershipForTarget(targetType, targetId, ctx.organisationId);
 }
 
 export async function getOwnerWorkItemsAction(status?: "ACTIVE" | "HANDED_OVER" | "COMPLETED") {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getWorkOwnershipsForOwner(ctx.membershipId, status);
 }
 
 export async function getUnacknowledgedHandoversAction() {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getUnacknowledgedHandovers(ctx.membershipId);
 }
 
 export async function getExpiringWorkItemsAction(withinDays?: number) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getExpiringWorkItems(ctx.organisationId, withinDays);
 }

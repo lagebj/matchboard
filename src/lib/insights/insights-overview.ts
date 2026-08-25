@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightOverview } from "@/lib/insights/insights-types";
 import { toNumber, validateOverviewField, type CountRow } from "@/lib/insights/insights-overview-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export { toNumber, validateOverviewField } from "@/lib/insights/insights-overview-helpers";
 
@@ -11,6 +12,7 @@ export async function getInsightOverview(
   leagueSeasonId: string,
 ): Promise<InsightOverview> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const rounds = await db.matchRound.findMany({
     where: { leagueSeasonId, organisationId: ctx.organisationId },

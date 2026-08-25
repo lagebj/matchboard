@@ -20,30 +20,44 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: "24"
       - name: Install Semgrep
         run: pip install semgrep==1.112.0
       - name: Run Semgrep
         run: |
+          mkdir -p .security/results
           semgrep --config security/semgrep/matchboard-rules.yml \
                    --json \
                    --output .security/results/semgrep-results.json \
                    src/ || true
-      - name: Check for findings
-        run: python3 scripts/parse-semgrep-findings.py .security/results/semgrep-results.json
+      # AIP-6/ADR-0091: `|| true` above only prevents Semgrep's own "findings above threshold"
+      # exit code from failing the step (findings are advisory, not blocking, under current
+      # policy) — it must not also hide a genuine crash. check-scanner-execution.mjs fails this
+      # step if the output file itself is missing/unparseable, which only happens on a real
+      # execution failure (Semgrep always writes the file, with an empty array, on a clean run).
+      - name: Verify Semgrep actually executed (execution failure ≠ clean scan)
+        run: node scripts/check-scanner-execution.mjs --tool semgrep --file .security/results/semgrep-results.json
 
   dependency-scan:
     name: OSV Dependency Scan
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: "24"
       - name: Install OSV-Scanner
         run: |
           curl -sSL https://github.com/google/osv-scanner/releases/download/v1.9.2/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
           chmod +x /usr/local/bin/osv-scanner
       - name: Run OSV-Scanner
         run: |
-          osv-scanner scan --config=security/osv-scanner.toml . || true
-        continue-on-error: true
+          mkdir -p .security/results
+          osv-scanner scan --config=security/osv-scanner.toml --format json --output .security/results/osv.json . || true
+      - name: Verify OSV-Scanner actually executed (execution failure ≠ clean scan)
+        run: node scripts/check-scanner-execution.mjs --tool osv --file .security/results/osv.json
 
   secret-scan:
     name: Gitleaks Secret Detection
@@ -52,15 +66,23 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.5
+        with:
+          node-version: "24"
       - name: Install Gitleaks
         run: |
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.22.1/gitleaks_8.22.1_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
       - name: Run Gitleaks
         run: |
-          gitleaks detect --config security/gitleaks.toml --no-git --source . || true
+          mkdir -p .security/results
+          gitleaks detect --config security/gitleaks.toml --no-git --source . --report-format json --report-path .security/results/gitleaks.json || true
+      - name: Verify Gitleaks actually executed (execution failure ≠ clean scan)
+        run: node scripts/check-scanner-execution.mjs --tool gitleaks --file .security/results/gitleaks.json
       - name: Run Gitleaks on history
         run: |
-          gitleaks detect --config security/gitleaks.toml --source . || true
+          gitleaks detect --config security/gitleaks.toml --source . --report-format json --report-path .security/results/gitleaks-history.json || true
+      - name: Verify Gitleaks history scan actually executed (execution failure ≠ clean scan)
+        run: node scripts/check-scanner-execution.mjs --tool gitleaks --file .security/results/gitleaks-history.json
 
   authz-tests:
     name: Authorization Security Tests

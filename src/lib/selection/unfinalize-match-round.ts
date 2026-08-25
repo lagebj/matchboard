@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { unfinalizeSelectionsForScope, unfinalizeRoundRecord } from "@/lib/selection/round-finalization-transitions";
 
 export type UnfinalizeResult = {
   success: boolean;
@@ -54,39 +55,10 @@ export async function unfinalizeMatchRound(
   }
 
   await db.$transaction(async (tx) => {
-    await tx.selection.updateMany({
-      where: {
-        matchRoundId,
-        status: SelectionStatus.FINALIZED,
-      },
-      data: {
-        status: SelectionStatus.DRAFT,
-        ruleConfigVersion: null,
-        overrideReason: null,
-        overrideReasonCategory: null,
-        overrideReasonDetail: null,
-      },
-    });
-
-    await tx.movementLedger.updateMany({
-      where: {
-        matchRoundId,
-        isDraft: false,
-      },
-      data: {
-        isDraft: true,
-      },
-    });
+    await unfinalizeSelectionsForScope(tx, { matchRoundId });
   });
 
-  // The persisted status is always the literal DRAFT after un-finalizing — BLOCKED/READY/
-  // NOT_GENERATED are UI-derived display states computed live by deriveRoundStatus(), never
-  // values the database column itself should hold (see round-status.ts and the MatchRoundStatus
-  // enum this column now uses).
-  await db.matchRound.update({
-    where: { id: matchRoundId },
-    data: { status: "DRAFT" },
-  });
+  await unfinalizeRoundRecord(db, matchRoundId);
 
   return {
     success: true,

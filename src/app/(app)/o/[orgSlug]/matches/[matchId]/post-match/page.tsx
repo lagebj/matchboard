@@ -6,6 +6,7 @@ import { TeamReflectionSection } from "@/components/matches/team-reflection-sect
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { DevelopmentObservationSection } from "@/components/player-development/development-observation-section";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
   const { orgSlug, matchId } = await params;
 
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const match = await db.match.findFirst({
     where: {

@@ -20,6 +20,7 @@ import { PlayerCurrentInvolvementPanel } from "@/components/players/player-curre
 import { PlayerStatsSummaryTable } from "@/components/players/player-stats-summary-table";
 
 import { updatePlayerFieldAction } from "@/app/(app)/players/[playerId]/inline-actions";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type PlayerPageProps = {
   params: Promise<{
@@ -43,6 +44,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const [{ orgSlug, playerId }, { error, saved }] = await Promise.all([params, searchParams]);
 
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const [player, teams, orderedPlayerIds, savedInvolvementSnapshots, actualStats, categoryStats] = await Promise.all([

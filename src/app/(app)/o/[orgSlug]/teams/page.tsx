@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { TeamShield } from "@/components/ui/team-shield";
 import { RatingBadge } from "@/components/ratings/rating-badge";
 import { Download } from "lucide-react";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -87,6 +88,7 @@ function MobileTeamCard({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: 
 export default async function TeamsPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: TeamsPageProps["searchParams"] }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const { periodId, error, saved } = await searchParams;
 
   const leagueSeasons = await db.leagueSeason.findMany({

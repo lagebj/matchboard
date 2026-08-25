@@ -17,6 +17,7 @@ import {
   listGroupsForOrganisation,
   getGroupWithDetails,
 } from "@/lib/groups/group-domain";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import {
   createGroupMovementPath,
   deactivateGroupMovementPath,
@@ -31,6 +32,7 @@ const VALID_GROUP_ACCESS_ROLES: Set<string> = new Set(["GROUP_COACH", "GROUP_VIE
 
 export async function createGroupAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const name = formData.get("name") as string | null;
@@ -69,6 +71,7 @@ export async function createGroupAction(formData: FormData) {
 
 export async function updateGroupAction(groupId: string, formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -105,6 +108,7 @@ export async function updateGroupAction(groupId: string, formData: FormData) {
 
 export async function deactivateGroupAction(groupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -121,6 +125,7 @@ export async function deactivateGroupAction(groupId: string) {
 
 export async function addPlayerToGroupAction(groupId: string, playerId: string, formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -144,6 +149,7 @@ export async function addPlayerToGroupAction(groupId: string, playerId: string, 
 
 export async function removePlayerFromGroupAction(groupId: string, playerId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -166,6 +172,7 @@ export async function transferPlayerAction(
   formData: FormData,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await resolveGroupContext(ctx.organisationId, sourceGroupId, ctx.membershipId, ctx.role);
@@ -188,6 +195,7 @@ export async function transferPlayerAction(
 
 export async function addGroupAccessAction(groupId: string, membershipId: string, role: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -209,6 +217,7 @@ export async function addGroupAccessAction(groupId: string, membershipId: string
 
 export async function removeGroupAccessAction(groupId: string, membershipId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const groupCtx = await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
@@ -226,11 +235,13 @@ export async function removeGroupAccessAction(groupId: string, membershipId: str
 
 export async function listGroupsAction() {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return listGroupsForOrganisation(ctx.organisationId);
 }
 
 export async function getGroupDetailAction(groupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   await resolveGroupContext(ctx.organisationId, groupId, ctx.membershipId, ctx.role);
   return getGroupWithDetails(groupId, ctx.organisationId);
 }
@@ -242,6 +253,7 @@ export async function createGroupMovementPathAction(
   scope: string = "MATCH",
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const VALID_ROLES = ["SUPPORT", "DEVELOPMENT", "CONFIDENCE_REBUILD", "BACKFILL"];
@@ -272,6 +284,7 @@ export async function createGroupMovementPathAction(
 
 export async function deactivateGroupMovementPathAction(pathId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const path = await getGroupMovementPath(pathId, ctx.organisationId);
@@ -290,6 +303,7 @@ export async function deactivateGroupMovementPathAction(pathId: string) {
 
 export async function reactivateGroupMovementPathAction(pathId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const result = await reactivateGroupMovementPath(pathId, ctx.organisationId);
@@ -307,6 +321,7 @@ export async function listGroupMovementPathsAction(options?: {
   scope?: string;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   return listGroupMovementPaths(ctx.organisationId, {
     groupId: options?.groupId,
@@ -317,6 +332,7 @@ export async function listGroupMovementPathsAction(options?: {
 
 export async function listAvailableMembersAction(groupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const group = await db.footballGroup.findFirst({
     where: { id: groupId, organisationId: ctx.organisationId, isActive: true },

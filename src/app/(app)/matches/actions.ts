@@ -16,6 +16,7 @@ import {
   AmbiguousRoundError,
   DateOutsideLeagueSeasonError,
 } from "@/lib/matches/resolve-or-create-match-round-for-date";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import {
   getLeagueSeasonPartForDate,
   getLeagueSeasonDateRange,
@@ -89,6 +90,7 @@ const _INITIAL_STATE: MatchFormState = { error: "" };
 
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgId = ctx.organisationId;
   try {
@@ -215,6 +217,7 @@ async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: D
 
 export async function deleteMatchAction(matchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireMatchGroupAccess(ctx, matchId);
   const orgId = ctx.organisationId;
@@ -250,6 +253,7 @@ export async function updateMatchAction(
   | { success: false; error: string }
 > {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireMatchGroupAccess(ctx, matchId);
 
@@ -417,6 +421,7 @@ export async function updateMatchAction(
 
 export async function finalizeMatchAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const matchId = formData.get("matchId");
   if (typeof matchId !== "string" || !matchId) {
@@ -465,6 +470,7 @@ export async function finalizeMatchAction(formData: FormData) {
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
@@ -488,6 +494,7 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 
 export async function reopenMatchAction(matchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireMatchOrgAccess(matchId, ctx.orgFilter);

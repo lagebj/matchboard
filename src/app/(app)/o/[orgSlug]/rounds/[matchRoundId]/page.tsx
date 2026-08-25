@@ -12,6 +12,7 @@ import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 import type { CoachingIntentCategory } from "@/lib/coaching/types";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { WarningSeverity } from "@/generated/prisma/client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type RoundBoardPageProps = {
   params: Promise<{
@@ -33,6 +34,7 @@ export default async function RoundBoardPage({
   const { finalized, generated, error } = await searchParams;
 
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const matchRound = await db.matchRound.findUnique({

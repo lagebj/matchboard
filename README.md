@@ -21,16 +21,16 @@ The primary workflow is:
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
-The central operating flow is: `Assistant → Fixtures → Round Board → Match reporting → Season/History review`.
+The central operating flow is: `Today → League → Round Board → Match reporting → Season/History review`.
 
-The canonical primary navigation is: Assistant, Fixtures, Teams, Players.
+The canonical primary navigation is: Today, League, Events, Players, More.
 
-- Assistant (`/assistant`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows.
-- Fixtures (`/fixtures`) provides the league-season and round hierarchy. Completed match results are shown directly in fixture rows.
+- Today (`/today`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows. `/assistant` remains a valid deep-link alias to the same page.
+- League (`/fixtures`) provides the league-season, round, and match hierarchy with populate all/generate/finalize actions. League teams are reachable via a header link on this page, not their own primary nav item.
 - Round Board is the primary squad decision surface.
-- Teams provides selected-league-season team results and team detail workspaces. Team rules remain in team detail.
+- Events (`/events`) provides event squad planning for cups, tournaments, and friendly days.
 - Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
-- Season, History and Rules are secondary analysis/configuration destinations.
+- More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Reviews.
 
 ## Players area
 

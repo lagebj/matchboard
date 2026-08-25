@@ -190,6 +190,13 @@ type-checked as a fully separate TypeScript project (`npm run typecheck:workers`
 separate config (`npm run test:workers`) rather than the main `npm test` gate — the same
 pattern already used for `vitest.config.components.ts`.
 
+**Both scripts are mandatory delivery gates, not just local commands** (ARR-0025, AIP-1): `npm
+run validate` runs them alongside the main app's checks, and `.github/workflows/ci-checks.yml`
+runs them as their own `typecheck-workers`/`test-workers` jobs on every push/PR to `main`.
+`.github/workflows/deploy-live-match-worker.yml` only deploys after this workflow's overall run
+succeeds, so a Worker typecheck/test failure blocks its own deploy — the "CI success" that
+triggers the deploy workflow now actually covers the Worker's own code, which it did not before.
+
 Shared application protocol code (`src/lib/live-match/realtime/protocol.ts`,
 `protocol-schemas.ts`, `realtime-messages.ts`, `realtime-ticket.ts`) is imported directly by
 relative path from `workers/live-match/`, not duplicated — none of it depends on Next.js,

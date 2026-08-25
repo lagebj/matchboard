@@ -9,6 +9,7 @@ import {
   READINESS_SIGNAL_TYPES,
   READINESS_SIGNAL_VALID_VALUES,
 } from "@/lib/coaching/types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function setReadinessSignalAction(
   playerId: string,
@@ -17,6 +18,7 @@ export async function setReadinessSignalAction(
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requirePlayerGroupAccess(ctx, playerId);
 
@@ -70,6 +72,7 @@ export async function deleteReadinessSignalAction(
   signalType: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requirePlayerGroupAccess(ctx, playerId);
 
@@ -108,6 +111,7 @@ export async function getReadinessSignalsAction(
   playerId: string,
 ): Promise<{ success: boolean; signals?: Array<{ id: string; signalType: string; value: string; note: string | null }>; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   try {
     const signals = await db.playerReadinessSignal.findMany({

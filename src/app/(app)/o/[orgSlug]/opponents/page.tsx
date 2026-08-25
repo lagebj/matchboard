@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export const metadata = { title: "Opponent teams" };
 export default async function OpponentsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const opponentTeams = await db.opponentTeam.findMany({
     where: {

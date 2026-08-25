@@ -17,6 +17,7 @@ import {
   VALID_SELECTION_PATTERNS,
   parseEnum,
 } from '@/lib/events/event-validation-constants';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { BroadPosition } from '@/lib/events/event-types';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
@@ -61,6 +62,7 @@ async function requireSquadOrgAccess(squadId: string, orgFilter: OrgFilterMode):
 
 export async function getEvents() {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return db.event.findMany({
     where: {
       ...ctx.orgFilter.filter,
@@ -83,6 +85,7 @@ export async function getEvents() {
 
 export async function getEventById(id: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return db.event.findFirst({
     where: {
       id,
@@ -109,6 +112,7 @@ export async function getEventById(id: string) {
 
 export async function createEventAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
@@ -183,6 +187,7 @@ export async function createEventAction(formData: FormData) {
 
 export async function updateEventAction(id: string, formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const name = (formData.get('name') as string)?.trim() || '';
@@ -242,6 +247,7 @@ export async function updateEventAction(id: string, formData: FormData) {
 
 export async function deleteEventAction(id: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const event = await db.event.findFirst({
@@ -274,6 +280,7 @@ export async function updateEventPlayerAvailability(
   status: EventPlayerStatus,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -305,6 +312,7 @@ export async function setEventPlayerPool(
   defaultStatus: EventPlayerStatus = 'AVAILABLE',
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -338,6 +346,7 @@ export async function addPlayersToEventPoolAction(
   defaultStatus: EventPlayerStatus = 'AVAILABLE',
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -373,6 +382,7 @@ export async function addPlayersToEventPoolAction(
 
 export async function removePlayerFromEventPoolAction(eventId: string, playerId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -397,6 +407,7 @@ export async function removePlayerFromEventPoolAction(eventId: string, playerId:
 
 export async function removePlayersFromEventPoolAction(eventId: string, playerIds: string[]) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -427,6 +438,7 @@ export async function assignPlayerToEventSquadAction(
   locked: boolean = false,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -464,6 +476,7 @@ export async function assignPlayerToEventSquadAction(
 
 export async function unassignPlayerFromEventSquadAction(eventSquadPlayerId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findFirst({
@@ -492,6 +505,7 @@ export async function addEventSquadAction(
   formationId?: string,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -533,6 +547,7 @@ export async function updateEventSquadAction(
   },
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
@@ -562,6 +577,7 @@ export async function updateEventSquadAction(
 
 export async function updateEventSquadNameAction(squadId: string, name: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
@@ -579,6 +595,7 @@ export async function updateEventSquadNameAction(squadId: string, name: string) 
 
 export async function updateEventMatchDurationAction(eventId: string, matchDurationMinutes: number | null) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
 
@@ -596,6 +613,7 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
 
 export async function removeEventSquadAction(squadId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const _eventId = await requireSquadOrgAccess(squadId, ctx.orgFilter);
 
@@ -612,6 +630,7 @@ export async function movePlayerBetweenSquadsAction(
   toSquadId: string,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const fromEventId = await requireSquadOrgAccess(fromSquadId, ctx.orgFilter);
   const toEventId = await requireSquadOrgAccess(toSquadId, ctx.orgFilter);
@@ -654,6 +673,7 @@ export async function togglePlayerLockAction(
   locked: boolean,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const squadPlayer = await db.eventSquadPlayer.findFirst({
@@ -683,6 +703,7 @@ export async function togglePlayerLockAction(
 
 export async function clearEventSquadsAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   await requireEventNotFinalized(eventId, ctx.orgFilter);
@@ -705,6 +726,7 @@ export async function clearEventSquadsAction(eventId: string) {
 
 export async function getLeagueSeasons() {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return db.leagueSeason.findMany({
     where: {
       ...ctx.orgFilter.filter,
@@ -715,6 +737,7 @@ export async function getLeagueSeasons() {
 
 export async function getFormations() {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return db.formation.findMany({
     where: {
       isArchived: false,
@@ -727,6 +750,7 @@ export async function getFormations() {
 
 export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   return db.player.findMany({
     where: {
@@ -743,6 +767,7 @@ export async function getAvailablePlayersForEvent(_leagueSeasonId?: string) {
 
 export async function generateEventSquadsAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   await requireEventNotFinalized(eventId, ctx.orgFilter);

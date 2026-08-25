@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { EventLiveMatchClient } from "@/components/live-match/event-live-match-client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ interface EventLiveMatchPageProps {
 export default async function EventLiveMatchPage({ params }: EventLiveMatchPageProps) {
   const { orgSlug, eventId, eventMatchId } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const match = await db.eventMatch.findFirst({
