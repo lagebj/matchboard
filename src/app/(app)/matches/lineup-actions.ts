@@ -13,6 +13,7 @@ import {
   requireLineupExists,
   createLineupFromFormation,
 } from "@/lib/lineups/lineup-domain";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
   const match = await db.match.findFirst({
@@ -42,6 +43,7 @@ async function requireAssignmentOrgAccess(assignmentId: string, orgFilter: OrgFi
 
 export async function getMatchLineup(matchId: string, teamId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(matchId, orgFilter);
   return db.matchLineup.findFirst({
@@ -59,6 +61,7 @@ export async function createMatchLineup(data: {
   formationId: string;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   await requireMatchOrgAccess(data.matchId, orgFilter);
@@ -76,6 +79,7 @@ export async function assignPlayerToSlot(
   locked: boolean = false,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
@@ -126,6 +130,7 @@ export async function assignPlayerToSlot(
 
 export async function removePlayerFromSlot(assignmentId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
@@ -147,6 +152,7 @@ export async function removePlayerFromSlot(assignmentId: string) {
 
 export async function toggleSlotLock(assignmentId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
@@ -168,6 +174,7 @@ export async function toggleSlotLock(assignmentId: string) {
 
 export async function confirmLineup(lineupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -219,6 +226,7 @@ export async function confirmLineup(lineupId: string) {
 
 export async function archiveLineup(lineupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -235,6 +243,7 @@ export async function archiveLineup(lineupId: string) {
 
 export async function revertLineupToDraft(lineupId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -251,6 +260,7 @@ export async function revertLineupToDraft(lineupId: string) {
 
 export async function updateLineupNotes(lineupId: string, notes: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
@@ -266,6 +276,7 @@ export async function updateLineupNotes(lineupId: string, notes: string) {
 
 export async function updateBenchPlayers(lineupId: string, benchPlayerIds: string[]) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);

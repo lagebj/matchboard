@@ -4,6 +4,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getGroupDetailAction, listGroupMovementPathsAction, listAvailableMembersAction } from "@/app/(app)/o/[orgSlug]/groups/actions";
 import { notFound } from "next/navigation";
 import { GroupSettingsClient } from "./group-settings-client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function GroupSettingsPage({
   params,
@@ -12,6 +13,7 @@ export default async function GroupSettingsPage({
 }) {
   const { orgSlug, groupSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const group = await getGroupDetailAction(groupSlug);
 
   if (!group) {

@@ -5,6 +5,7 @@ import {
   unfinalizeLeagueSeason,
   validateLeagueSeasonFinalization,
 } from "@/lib/seasons/finalize-league-season";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 
 export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{
@@ -13,6 +14,7 @@ export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promis
   validation?: { canFinalize: boolean; errors: string[]; warnings: string[] };
 }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const validation = await validateLeagueSeasonFinalization(leagueSeasonId);
@@ -41,6 +43,7 @@ export async function unfinalizeLeagueSeasonAction(leagueSeasonId: string): Prom
   error?: string;
 }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const orgFilter = ctx.orgFilter.filter;
@@ -61,6 +64,7 @@ export async function getFinalizationValidationAction(leagueSeasonId: string): P
   validation: { canFinalize: boolean; errors: string[]; warnings: string[] };
 }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const orgFilter = ctx.orgFilter.filter;
   const { db } = await import("@/lib/db");

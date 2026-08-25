@@ -3,11 +3,13 @@ import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-conte
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import type { WorkbenchRunRequest } from "@/lib/workbench/workbench-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const rl = await rateLimit("workbench:run", 5, 60_000);

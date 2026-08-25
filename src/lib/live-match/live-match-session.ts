@@ -3,9 +3,11 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { LiveSessionInfo } from "./live-match-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function startLiveSession(matchId: string): Promise<LiveSessionInfo> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const match = await db.match.findUnique({
     where: { id: matchId },
@@ -62,6 +64,7 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
 
 export async function getActiveSession(matchId: string): Promise<LiveSessionInfo | null> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const session = await db.liveMatchSession.findUnique({
     where: { matchId },
@@ -88,6 +91,7 @@ export async function getActiveSession(matchId: string): Promise<LiveSessionInfo
 
 export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const session = await db.liveMatchSession.findUnique({
     where: { id: sessionId },
@@ -126,6 +130,7 @@ export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo
 
 export async function heartbeatSession(sessionId: string): Promise<void> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const session = await db.liveMatchSession.findUnique({
     where: { id: sessionId },

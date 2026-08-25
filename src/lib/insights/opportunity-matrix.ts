@@ -11,11 +11,13 @@ import type {
   OpportunityCellStatus,
   InsightAttentionFlag,
 } from "./insights-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function getOpportunityMatrix(
   filters: InsightFilters,
 ): Promise<OpportunityMatrixRow[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeRemoved

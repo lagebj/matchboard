@@ -1,9 +1,11 @@
 import { getOperationalContext, searchEntities } from "@/lib/context/get-operational-context";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const url = new URL(request.url);
   const query = url.searchParams.get("q");
 

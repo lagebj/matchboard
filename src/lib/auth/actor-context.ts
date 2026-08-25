@@ -60,9 +60,12 @@ export async function requireActorContext(
     throw new AuthorizationError("No active organisation membership");
   }
 
-  // Set context once, here, before the membership check — see getEffectiveGroupAccess()'s doc
-  // comment and ARR-0029 "Bug 2b": mixing scoped run() calls with a later
-  // setTenantOrganisationId() in the same continuation is unsafe under concurrent request load.
+  // Set context once, here, before the membership check — correctly scopes every query below
+  // (including inside getEffectiveGroupAccess()) for the *rest of this function's own
+  // execution*. It does NOT, and structurally cannot, persist for this function's caller once
+  // requireActorContext() returns — see ARR-0029 "Bug 3" and the tenantRLS extension's
+  // explicit-where-organisationId fallback in src/lib/db.ts, which is what actually protects
+  // callers.
   setTenantOrganisationId(orgFilter.organisationId);
 
   const membership = await db.organisationMembership.findFirst({

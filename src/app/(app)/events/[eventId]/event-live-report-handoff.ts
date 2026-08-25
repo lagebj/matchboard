@@ -5,9 +5,11 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { endEventLiveSession } from "@/lib/live-match/event-live-match-session";
 import { seedEventReportFromLiveSession } from "@/lib/reports/event-report-mutations";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: ctx.orgFilter.filter },
     select: { eventId: true },
@@ -26,6 +28,7 @@ async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ event
 export async function endEventLiveSessionAndCreateReportAction(sessionId: string, eventMatchId: string) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     const session = await db.eventLiveMatchSession.findUnique({

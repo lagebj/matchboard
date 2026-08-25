@@ -1,12 +1,14 @@
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { OperationalHealthClient } from "@/app/(app)/insights/operational-health/operational-health-client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
 export default async function OperationalHealthPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({

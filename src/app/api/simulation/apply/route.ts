@@ -4,6 +4,7 @@ import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-conte
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import { applySimulationAsDrafts, computeSimulationInputHash, isInputStale } from "@/lib/simulation/apply-simulation";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
   let ctx;
   try {
     ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

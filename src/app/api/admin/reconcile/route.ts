@@ -4,9 +4,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { reconcileCanonicalDerivedData } from "@/lib/data-integrity/reconcile-canonical-derived-data";
 import { reconcileSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireAdminRole(ctx);
   const { allowed } = await rateLimit("admin-reconcile", 2, 60_000);
   if (!allowed) {

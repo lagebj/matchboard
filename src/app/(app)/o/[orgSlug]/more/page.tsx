@@ -12,6 +12,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { requirePageActorContext, canAdmin } from "@/lib/auth/actor-context";
 import { PageHeader } from "@/components/ui/page-header";
 import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
@@ -33,6 +34,7 @@ type MoreSection = {
 export default async function MorePage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const prefix = `/o/${orgSlug}`;
 
   const sections: MoreSection[] = [

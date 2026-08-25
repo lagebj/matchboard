@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { excludeOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function POST(request: Request) {
   try {
     const ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     const body = await request.json();

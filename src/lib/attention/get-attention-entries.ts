@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { requireActorContext, canAdmin, hasTeamGroupAccess } from '@/lib/auth/actor-context';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export type AttentionCategory =
   | 'review_assigned'
@@ -26,6 +27,7 @@ export type AttentionEntry = {
 
 export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEntry[]> {
   const ctx = await requireActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const organisationId = ctx.organisationId;
   const isAdmin = canAdmin(ctx);

@@ -9,6 +9,7 @@ import {
   type CreateMovementCandidateInput,
   type UpdateMovementCandidateInput,
 } from "@/lib/selection/movement-candidate";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { MovementCandidateRole, MovementCandidateRationale } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
@@ -47,6 +48,7 @@ async function requireCandidateOrgAccess(candidateId: string, orgFilter: OrgFilt
 
 export async function createMovementCandidateAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const playerId = (formData.get("playerId") as string)?.trim() ?? "";
@@ -94,6 +96,7 @@ export async function createMovementCandidateAction(formData: FormData) {
 
 export async function updateMovementCandidateAction(candidateId: string, formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const fromTeamId = await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
@@ -133,6 +136,7 @@ export async function updateMovementCandidateAction(candidateId: string, formDat
 
 export async function toggleMovementCandidateStatusAction(candidateId: string, targetStatus: "ACTIVE" | "PAUSED") {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const fromTeamId = await requireCandidateOrgAccess(candidateId, ctx.orgFilter);
@@ -151,6 +155,7 @@ export async function toggleMovementCandidateStatusAction(candidateId: string, t
 
 export async function deleteMovementCandidateAction(candidateId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const fromTeamId = await requireCandidateOrgAccess(candidateId, ctx.orgFilter);

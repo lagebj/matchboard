@@ -9,6 +9,7 @@ import {
   assertLeagueMatchHelperEligible,
   getLeagueMatchHelperCandidates,
 } from "@/lib/matches/match-helper-eligibility";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // League Match helpers (ADR-0077): temporary match-level participation, independent of League
 // Round finalisation. Never touches Selection or MatchRound.status — see the ADR for the full
@@ -44,6 +45,7 @@ async function addLeagueMatchHelperInternal(input: {
   note?: string;
 }): Promise<{ success: true; assignmentId: string } | { success: false; error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, input.matchId);
@@ -132,6 +134,7 @@ async function removeLeagueMatchHelperInternal(
   assignmentId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const assignment = await db.matchHelperAssignment.findFirst({
@@ -184,6 +187,7 @@ async function removeLeagueMatchHelperInternal(
 
 export async function getLeagueMatchHelpersAction(matchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
 
   const helpers = await db.matchHelperAssignment.findMany({
@@ -209,6 +213,7 @@ export async function getLeagueMatchHelpersAction(matchId: string) {
 
 export async function getLeagueMatchHelperCandidatesAction(matchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
 

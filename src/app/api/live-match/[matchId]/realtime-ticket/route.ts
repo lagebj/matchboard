@@ -6,6 +6,7 @@ import {
   requireMatchGroupAccess,
   requireMatchGroupMutationRole,
 } from "@/lib/auth/actor-context";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/security/errors";
 import { getLiveMatchRealtimeSecret } from "@/lib/env";
@@ -53,6 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
   let ctx;
   try {
     ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     if (mode === "report") {
       requireMutationRole(ctx);
     }

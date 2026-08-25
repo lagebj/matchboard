@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export interface EventLiveSessionInfo {
   id: string;
@@ -15,6 +16,7 @@ export interface EventLiveSessionInfo {
 
 export async function startEventLiveSession(eventMatchId: string): Promise<EventLiveSessionInfo> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const match = await db.eventMatch.findUnique({
     where: { id: eventMatchId },
@@ -71,6 +73,7 @@ export async function startEventLiveSession(eventMatchId: string): Promise<Event
 
 export async function getEventActiveSession(eventMatchId: string): Promise<EventLiveSessionInfo | null> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const session = await db.eventLiveMatchSession.findUnique({
     where: { eventMatchId },
@@ -97,6 +100,7 @@ export async function getEventActiveSession(eventMatchId: string): Promise<Event
 
 export async function endEventLiveSession(sessionId: string): Promise<EventLiveSessionInfo> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const session = await db.eventLiveMatchSession.findUnique({
     where: { id: sessionId },
@@ -135,6 +139,7 @@ export async function endEventLiveSession(sessionId: string): Promise<EventLiveS
 
 export async function heartbeatEventSession(sessionId: string): Promise<void> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const session = await db.eventLiveMatchSession.findUnique({
     where: { id: sessionId },

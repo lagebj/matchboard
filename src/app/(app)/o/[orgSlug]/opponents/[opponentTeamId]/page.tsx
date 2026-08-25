@@ -8,6 +8,7 @@ import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-reco
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   const { orgSlug, opponentTeamId } = await params;
 
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const opponentTeam = await db.opponentTeam.findFirst({
     where: {

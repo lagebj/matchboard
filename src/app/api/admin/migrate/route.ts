@@ -4,9 +4,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { migrateDoubleLoadRoles } from "@/lib/selection/migrate-double-load-roles";
 import { migrateSquadRepairRoles } from "@/lib/selection/migrate-squad-repair-roles";
 import { backfillMovementLedger } from "@/lib/selection/backfill-movement-ledger";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireAdminRole(ctx);
   const { allowed } = await rateLimit("admin-migrate", 2, 60_000);
   if (!allowed) {

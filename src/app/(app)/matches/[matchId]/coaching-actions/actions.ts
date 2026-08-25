@@ -10,6 +10,7 @@ import {
   COACHING_INTENT_CATEGORIES,
   COACHING_INTENT_SCOPE_TYPES,
 } from "@/lib/coaching/types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireScopeOrgAccess(scopeType: string, scopeId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -47,6 +48,7 @@ export async function setCoachingIntentAction(
   note: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const orgId = ctx.organisationId;
 
@@ -109,6 +111,7 @@ export async function removeCoachingIntentAction(
   intentId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   try {
@@ -145,6 +148,7 @@ export async function getCoachingIntentsAction(
   scopeId: string,
 ): Promise<{ success: boolean; intents?: Array<{ id: string; category: string; note: string | null; scopeType: string; scopeId: string }>; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   try {
     const intents = await db.coachingIntent.findMany({

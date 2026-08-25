@@ -4,6 +4,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { formatDate } from "@/lib/date-utils";
 import { formatMatchVenue, formatSelectionRole } from "@/lib/match-utils";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
 type VisibilityMode = "coach" | "parent";
@@ -57,6 +58,7 @@ type ParentRow = {
 
 export async function GET(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const rl = await rateLimit("exports:finalized-selections", 5, 60_000);
   if (!rl.allowed) {
     return new Response(JSON.stringify({ error: "Too many requests. Please wait." }), { status: 429, headers: { "Content-Type": "application/json" } });

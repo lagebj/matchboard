@@ -8,6 +8,7 @@ import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/lib/selection/movement-candidate";
 import { getBestLineup, getFormationsForTeam } from "@/lib/best-lineup/best-lineup";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type TeamPageProps = {
   params: Promise<{
@@ -20,6 +21,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   const { orgSlug, teamId } = await params;
 
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const [team, orderedTeamIds] = await Promise.all([

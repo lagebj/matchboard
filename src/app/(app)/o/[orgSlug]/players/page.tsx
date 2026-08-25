@@ -6,6 +6,7 @@ import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview
 import { PlayersPageClient } from "@/components/players/players-page-client";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 import type { RatingSummary } from "@/lib/ratings/player-rating";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type PlayersPageProps = {
   searchParams: Promise<{
@@ -21,6 +22,7 @@ type PlayersPageProps = {
 export default async function PlayersPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams: PlayersPageProps["searchParams"] }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const { mode, periodId, roundId, showRemoved, error, saved } = await searchParams;
   const includeRemoved = showRemoved === "1";
 

@@ -3,9 +3,11 @@ import { db } from "@/lib/db";
 import { getPlayerMovementTimeline } from "@/lib/selection/get-season-overview";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { rateLimit } from "@/lib/rate-limit";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET(request: NextRequest) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const rl = await rateLimit("season:player-timeline", 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });

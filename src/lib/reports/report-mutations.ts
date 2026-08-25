@@ -9,6 +9,7 @@ import {
   isReportLocked,
   hasUnknownAttendance,
 } from "./report-domain";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export type ReportTransitionResult =
   | { success: true; matchId: string }
@@ -562,6 +563,7 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
   try {
     const { requireActorContext } = await import("@/lib/auth/actor-context");
     const ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     const { recordOpponentSportingEvidence } = await import("@/lib/opponents/sporting-level-recording");
     await recordOpponentSportingEvidence(report.matchId, ctx.orgFilter);
   } catch {

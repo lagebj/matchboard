@@ -9,11 +9,13 @@ import type {
   PolicyWarningSource,
 } from "./insights-types";
 import { classifyWarningSeverity } from "./policy-warning-review-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function getPolicyWarningReview(
   filters: InsightFilters,
 ): Promise<PolicyWarningGroup[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({

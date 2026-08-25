@@ -7,11 +7,13 @@ import type {
   ConflictEntry,
 } from "./insights-types";
 import { classifyConflictSeverity } from "./conflict-review-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function getConflictReview(
   filters: InsightFilters,
 ): Promise<ConflictEntry[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({

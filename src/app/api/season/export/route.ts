@@ -8,6 +8,7 @@ import { formatMatchVenue, formatSelectionRole, formatReadinessSignalType } from
 import { READINESS_VALUE_LABELS, type ReadinessSignalValue } from "@/lib/coaching/types";
 import { sanitizeSelectionForParent as _sanitizeSelection, sanitizeMovementForParent as _sanitizeMovement, sanitizePlayerStatsForParent as _sanitizeStats } from "@/lib/export/parent-safe-filter";
 import { logDataExport } from "@/lib/security/audit-log";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
 type VisibilityMode = "coach" | "parent";
@@ -41,6 +42,7 @@ function buildFilename(format: ExportFormat) {
 
 export async function GET(request: NextRequest) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const rl = await rateLimit("season:export", 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });

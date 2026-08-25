@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ opponentTeamId: string }> },
 ) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const { opponentTeamId } = await params;
   const { searchParams } = new URL(request.url);

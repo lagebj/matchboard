@@ -5,6 +5,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import type { InsightFilters, OperationalHealthGroup, OperationalHealthEntry } from "./insights-types";
 import { OPERATIONAL_HEALTH_LABELS, FINALISATION_CHECKPOINT_WINDOW_DAYS } from "./operational-health-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // I-007: Operational health — concrete grouped facts, no opaque composite score. Reuses the
 // canonical computeRoundPlanIntegrity() engine for round-level signals rather than
@@ -12,6 +13,7 @@ import { OPERATIONAL_HEALTH_LABELS, FINALISATION_CHECKPOINT_WINDOW_DAYS } from "
 // logic outside its owning module).
 export async function getOperationalHealth(filters: InsightFilters): Promise<OperationalHealthGroup[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({

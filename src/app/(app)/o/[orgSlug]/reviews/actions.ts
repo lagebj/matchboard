@@ -8,6 +8,7 @@ import {
   type CreateReviewRequestInput,
   type ResolveReviewRequestInput,
 } from '@/lib/review/review-service';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
@@ -15,6 +16,7 @@ import { enqueueAndSendNotification } from '@/lib/email/outbox';
 
 export async function requestReviewAction(input: CreateReviewRequestInput) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const review = await createReviewRequest(input, ctx.organisationId, ctx.membershipId);
 
@@ -60,6 +62,7 @@ export async function requestReviewAction(input: CreateReviewRequestInput) {
 
 export async function resolveReviewAction(reviewId: string, input: ResolveReviewRequestInput) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const { review, targetChanged } = await resolveReviewRequest(reviewId, input, ctx.organisationId, ctx.membershipId);
 
@@ -110,6 +113,7 @@ export async function resolveReviewAction(reviewId: string, input: ResolveReview
 
 export async function cancelReviewAction(reviewId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const { review } = await resolveReviewRequest(reviewId, {
     status: 'CANCELLED',
@@ -120,6 +124,7 @@ export async function cancelReviewAction(reviewId: string) {
 
 export async function getPendingReviewsAction() {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const membership = await db.organisationMembership.findFirst({
     where: {
@@ -135,5 +140,6 @@ export async function getPendingReviewsAction() {
 
 export async function getReviewHistoryAction(targetType: string, targetId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getReviewHistory(targetType as 'EVENT_SQUAD' | 'MATCH_LINEUP', targetId, ctx.organisationId);
 }

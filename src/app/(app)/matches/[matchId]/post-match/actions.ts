@@ -22,6 +22,7 @@ import {
   addAssistToReportMutation,
   removeAssistFromReportMutation,
 } from "@/lib/reports/report-mutations";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { logReportComplete, logReportReopen } from "@/lib/security/audit-log";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
@@ -93,6 +94,7 @@ export type MatchReportDetail = {
 
 export async function getMatchReport(matchId: string): Promise<MatchReportDetail> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
@@ -235,6 +237,7 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
 
 export async function seedMatchReport(matchId: string): Promise<{ success: boolean; error?: string; reportId?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireMatchGroupAccess(ctx, matchId);
   const match = await db.match.findFirst({
@@ -265,6 +268,7 @@ export async function updateMatchResult(
   data: { homeGoals?: number; awayGoals?: number; teamNote?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -287,6 +291,7 @@ export async function addActualPlayer(
   data: { playerId: string; attendanceStatus?: PostMatchAttendanceStatus; unplannedAppearanceReason?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -306,6 +311,7 @@ export async function addActualPlayer(
 
 export async function removeActualPlayer(appearanceId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const appearance = await db.postMatchPlayerActual.findFirst({
     where: { id: appearanceId, report: ctx.orgFilter.filter },
@@ -332,6 +338,7 @@ export async function updateAttendanceStatus(
   attendanceStatus: PostMatchAttendanceStatus,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const appearance = await db.postMatchPlayerActual.findFirst({
     where: { id: appearanceId, report: ctx.orgFilter.filter },
@@ -359,6 +366,7 @@ export async function markPlannedAbsence(
   data: { playerId: string; reason: PlannedAbsenceReason; note?: string },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -378,6 +386,7 @@ export async function markPlannedAbsence(
 
 export async function removePlannedAbsence(absenceId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const absence = await db.matchReportAbsence.findFirst({
     where: { id: absenceId, report: ctx.orgFilter.filter },
@@ -404,6 +413,7 @@ export async function updatePlayerStats(
   data: { playerId: string; goals?: number; assists?: number },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -423,6 +433,7 @@ export async function updatePlayerStats(
 
 export async function submitMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -447,6 +458,7 @@ export async function submitMatchReport(reportId: string): Promise<{ success: bo
 
 export async function lockMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -471,6 +483,7 @@ export async function lockMatchReport(reportId: string): Promise<{ success: bool
 
 export async function completeMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const report = await db.postMatchReport.findFirst({
     where: { id: reportId, ...ctx.orgFilter.filter },
@@ -509,6 +522,7 @@ export async function reopenMatchReport(
   targetStatus?: "DRAFT" | "REPORTED",
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const report = await db.postMatchReport.findFirst({
     where: { id: reportId, ...ctx.orgFilter.filter },
@@ -546,6 +560,7 @@ export async function addGoalToReport(
   data: { playerId?: string; minute?: number; type?: GoalType },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -566,6 +581,7 @@ export async function addGoalToReport(
 
 export async function removeGoalFromReport(goalId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const goal = await db.goal.findFirst({
     where: { id: goalId, report: ctx.orgFilter.filter },
@@ -593,6 +609,7 @@ export async function addAssistToReport(
   data: { playerId: string; type?: AssistType },
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
   if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
@@ -613,6 +630,7 @@ export async function addAssistToReport(
 
 export async function removeAssistFromReport(assistId: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const assist = await db.assist.findFirst({
     where: { id: assistId, report: ctx.orgFilter.filter },

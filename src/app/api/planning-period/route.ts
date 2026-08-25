@@ -1,9 +1,11 @@
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function PATCH(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   try {

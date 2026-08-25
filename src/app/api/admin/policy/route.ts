@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { requireActorContext, requireAdminRole } from "@/lib/auth/actor-context";
 import { isRegoEnabled, getRegoFailureMode } from "@/lib/policies/rego-policy-adapter";
 import { getActivePackDiagnostics } from "@/lib/policies/policy-pack";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireAdminRole(ctx);
   const regoEnabled = isRegoEnabled();
   const regoFailureMode = getRegoFailureMode();

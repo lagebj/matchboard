@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import { AuthorizationError } from "@/lib/auth";
 import { FollowLiveClient } from "@/components/live-match/follow-live-client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ interface FollowLivePageProps {
 export default async function FollowLivePage({ params }: FollowLivePageProps) {
   const { orgSlug, matchId } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },

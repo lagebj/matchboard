@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { getRules } from "@/lib/rules/get-rules";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -53,6 +54,7 @@ function validateRole(role: string): RotationPathRole {
 
 export async function saveRulesAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const rules = await getRules();
@@ -86,6 +88,7 @@ export async function saveRulesAction(formData: FormData) {
 
 export async function createRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const fromTeamId = readText(formData, "fromTeamId");
@@ -164,6 +167,7 @@ export async function createRotationPathAction(prevState: ActionState, formData:
 
 export async function updateRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const pathId = readText(formData, "pathId");
@@ -218,6 +222,7 @@ export async function updateRotationPathAction(prevState: ActionState, formData:
 
 export async function deleteRotationPathAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const pathId = readText(formData, "pathId");
@@ -248,6 +253,7 @@ export async function deleteRotationPathAction(prevState: ActionState, formData:
 
 export async function toggleRotationPathActiveAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const pathId = readText(formData, "pathId");

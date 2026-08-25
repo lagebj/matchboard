@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { evaluatePlayerAttributeSuggestions, decideSuggestion, getPendingSuggestions, getSuggestionHistory } from "@/lib/player-development/suggestions";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET(request: Request) {
   try {
     const ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
 
     const { searchParams } = new URL(request.url);
     const playerId = searchParams.get("playerId");
@@ -35,6 +37,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     const body = await request.json();

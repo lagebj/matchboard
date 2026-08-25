@@ -159,6 +159,34 @@ function withOrgWhereAndData(args: QueryArgs, orgId: string): QueryArgs {
   return withOrgData(withOrgWhere(args, orgId), orgId);
 }
 
+// ARR-0029 "Bug 3": AsyncLocalStorage's enterWith() (used by setTenantOrganisationId(), called
+// from requireActorContext()) can never make its mutation visible to that function's OWN caller
+// once it returns — this is correct, documented Node.js behavior (enterWith() scopes "the
+// remainder of the current execution", not an ancestor's), proven with a minimal reproduction:
+// an async function that awaits anything before calling enterWith() has its mutation invisible
+// to whoever awaits that function, even with zero concurrency. Since requireActorContext() must
+// always await a DB lookup before it knows the organisation, its own setTenantOrganisationId()
+// call can only ever scope its *own* remaining queries (verified correct) — never the ~350
+// call sites of requireActorContext()/requirePageActorContext() that read `ctx` back and then
+// issue their own queries. Retrofitting every one of those call sites to redundantly call
+// setTenantOrganisationId() themselves is the "textbook correct" fix but is an enormous,
+// security-critical surface to safely change at once.
+//
+// This is the actual protection instead: when ALS context is absent, trust an organisationId
+// the caller has *already put directly into the query's own where/data* — exactly the "Prisma
+// where-clause injection" pattern AGENTS.md documents as the primary tenant isolation mechanism,
+// already used throughout this codebase (getOperationalContext(), requireMatchGroupAccess(),
+// requireTeamGroupAccess(), etc. all explicitly merge `ctx.orgFilter.filter`/`ctx.organisationId`
+// into their queries as defense-in-depth alongside ALS). That value can only have gotten there
+// from a server-verified ActorContext.organisationId — never raw user input, by this codebase's
+// established convention — so trusting it does not reopen ARR-0027's original hole (a query with
+// *no* scoping anywhere, ALS or explicit, still throws below).
+function getExplicitOrgId(operation: string, args: QueryArgs): string | undefined {
+  const source = operation === "create" ? (args.data ?? {}) : (args.where ?? {});
+  const organisationId = (source as QueryArgs).organisationId;
+  return typeof organisationId === "string" ? organisationId : undefined;
+}
+
 // Prisma's compound-unique-key where shape (e.g. `{ userId_organisationId: { userId, organisationId } }`,
 // generated from `@@unique([userId, organisationId])`) is only valid for `findUnique`. Converting
 // findUnique -> findFirst (below) to safely add organisationId filtering must flatten any such key
@@ -259,10 +287,26 @@ const extendedClient = rawClient.$extends({
             return query(args);
           }
 
-          // Fail closed (ADR-0087): an RLS-scoped model with no trusted organisation context
-          // and no explicit system privilege must never run unscoped. This includes the case
-          // where orgId is present but fails ORG_ID_PATTERN — a malformed/tampered value is
-          // not a softer case than "absent", it is refused the same way.
+          // See getExplicitOrgId()'s doc comment (ARR-0029 "Bug 3") for why this exists: ALS
+          // context is frequently absent here for structural reasons, not because the caller
+          // forgot to scope — trust an organisationId already present in the caller's own
+          // where/data instead of refusing a query that is, in fact, correctly scoped.
+          const explicitOrgId = getExplicitOrgId(operation, args as QueryArgs);
+          if (explicitOrgId && ORG_ID_PATTERN.test(explicitOrgId)) {
+            if (RLS_DEBUG) {
+              logger.debug(
+                { model, operation, explicitOrgId },
+                "[RLS] explicit where/data organisationId trusted (no ALS context)",
+              );
+            }
+            return query(args);
+          }
+
+          // Fail closed (ADR-0087): an RLS-scoped model with no trusted organisation context,
+          // no explicit system privilege, and no explicit organisationId in the query's own
+          // where/data must never run unscoped. This includes the case where orgId is present
+          // but fails ORG_ID_PATTERN — a malformed/tampered value is not a softer case than
+          // "absent", it is refused the same way.
           throw new TenantContextError(
             `Refusing unscoped query on RLS-scoped model "${model}" (operation "${operation}"): ` +
               "no trusted organisation context is set. Call requireActorContext() / " +

@@ -1,12 +1,14 @@
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { OpportunityMatrixClient } from "@/app/(app)/insights/opportunity/opportunity-matrix-client";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
 
 export default async function OpportunityMatrixPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const leagueSeasons = await db.leagueSeason.findMany({

@@ -10,6 +10,7 @@ import {
   compareSelectionSnapshotRecency,
   getLatestSelectionSnapshots,
 } from "@/lib/selection/get-latest-selection-snapshots";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { isSelectionMovementRow } from "@/lib/selection/get-selection-movement";
 import { Surface } from "@/components/ui/surface";
 import { PageHeader } from "@/components/ui/page-header";
@@ -33,6 +34,7 @@ function formatPatternDate(matchDate: Date): string {
 export default async function HistoryPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
   const [players, rawSelectionSnapshots] = await Promise.all([

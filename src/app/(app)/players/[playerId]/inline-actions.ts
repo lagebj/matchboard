@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePageActorContext, requireMutationRole, requirePlayerGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { playerPositionValues } from "@/lib/player-form-options";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 const VALID_POSITIONS: ReadonlySet<string> = new Set(playerPositionValues);
 
@@ -13,6 +14,7 @@ export async function updatePlayerFieldAction(
   value: string,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requirePlayerGroupAccess(ctx, playerId);
 

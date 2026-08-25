@@ -12,15 +12,18 @@ import {
   copyBestLineupToMatch,
   getFormationsForTeam,
 } from '@/lib/best-lineup/best-lineup';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 
 export async function getBestLineupAction(teamId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getBestLineup(teamId, ctx.orgFilter);
 }
 
 export async function autoSelectBestLineupAction(teamId: string, formationId?: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const result = await autoSelectBestLineup(teamId, ctx.orgFilter, formationId);
   revalidatePath(`/o/${ctx.organisationSlug}/teams/${teamId}`);
@@ -29,6 +32,7 @@ export async function autoSelectBestLineupAction(teamId: string, formationId?: s
 
 export async function setBestLineupFormationAction(teamId: string, formationId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const result = await setBestLineupFormation(teamId, formationId, ctx.orgFilter);
   revalidatePath(`/o/${ctx.organisationSlug}/teams/${teamId}`);
@@ -42,6 +46,7 @@ export async function assignPlayerToBestLineupSlotAction(
   locked?: boolean,
 ) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await assignPlayerToBestLineupSlot(lineupId, slotId, playerId, ctx.orgFilter, locked);
   revalidatePath(`/o/${ctx.organisationSlug}/teams`);
@@ -49,6 +54,7 @@ export async function assignPlayerToBestLineupSlotAction(
 
 export async function clearBestLineupSlotAction(lineupId: string, slotId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await clearBestLineupSlot(lineupId, slotId, ctx.orgFilter);
   revalidatePath(`/o/${ctx.organisationSlug}/teams`);
@@ -56,6 +62,7 @@ export async function clearBestLineupSlotAction(lineupId: string, slotId: string
 
 export async function clearBestLineupAction(teamId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await clearBestLineup(teamId, ctx.orgFilter);
   revalidatePath(`/o/${ctx.organisationSlug}/teams/${teamId}`);
@@ -63,6 +70,7 @@ export async function clearBestLineupAction(teamId: string) {
 
 export async function deleteBestLineupAction(teamId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await deleteBestLineup(teamId, ctx.orgFilter);
   revalidatePath(`/o/${ctx.organisationSlug}/teams/${teamId}`);
@@ -70,6 +78,7 @@ export async function deleteBestLineupAction(teamId: string) {
 
 export async function copyBestLineupToMatchAction(teamId: string, matchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const result = await copyBestLineupToMatch(teamId, matchId, ctx.orgFilter);
   revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
@@ -78,5 +87,6 @@ export async function copyBestLineupToMatchAction(teamId: string, matchId: strin
 
 export async function getFormationsForTeamAction(teamId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   return getFormationsForTeam(teamId, ctx.orgFilter);
 }

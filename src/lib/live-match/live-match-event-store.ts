@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
-import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { runWithTenantOrganisationId, setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
@@ -122,6 +122,7 @@ export async function recordEventForActor(
 
 export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const canonical = await recordEventForActor(input, {
     userId: ctx.userId,
     organisationId: ctx.organisationId,
@@ -131,6 +132,7 @@ export async function recordEvent(input: LiveEventInput): Promise<{ eventId: str
 
 export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const events = await db.liveMatchEvent.findMany({
     where: { matchId, organisationId: ctx.organisationId },
@@ -166,6 +168,7 @@ export async function getRecentEvents(
   limit: number = 10,
 ): Promise<LiveEventSummary[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const events = await db.liveMatchEvent.findMany({
     where: { matchId, organisationId: ctx.organisationId },

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightFilters, PositionExposureRow } from "./insights-types";
 import { incrementCount } from "./position-exposure-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // I-004: Position and formation exposure. "Unused lineup assignments are not realised
 // exposure" (per spec) — planned positions come from actual MatchLineupAssignment rows (a
@@ -11,6 +12,7 @@ import { incrementCount } from "./position-exposure-helpers";
 // come only from PostMatchPlayerActual.actualPositions recorded after the match.
 export async function getPositionExposure(filters: InsightFilters): Promise<PositionExposureRow[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const playerFilter = filters.includeInactive

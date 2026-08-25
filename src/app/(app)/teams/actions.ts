@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { createOrRestoreTeam, archiveTeam } from "@/lib/teams/team-domain";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 function readText(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
@@ -43,6 +44,7 @@ function getTeamErrorMessage(error: unknown): string {
 
 export async function createTeamAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const organisationId = ctx.organisationId;
   try {
@@ -94,6 +96,7 @@ export async function createTeamAction(formData: FormData) {
 
 export async function updateTeamConfigurationAction(teamId: string, formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireTeamGroupAccess(ctx, teamId);
   const organisationId = ctx.organisationId;
@@ -203,6 +206,7 @@ export async function updateTeamConfigurationAction(teamId: string, formData: Fo
 
 export async function deleteTeamAction(teamId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireTeamGroupAccess(ctx, teamId);
   const organisationId = ctx.organisationId;

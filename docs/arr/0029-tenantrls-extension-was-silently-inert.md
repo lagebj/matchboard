@@ -106,65 +106,97 @@ Both now `await` the Prisma call *inside* an `async` callback passed to `.run()`
 `recordEventForActor()`, the internal snapshot route, and `scripts/bootstrap-organisation.ts`
 were already written with internal `await`s inside their `async` callbacks and were not affected.
 
-### Bug 2b (found 2026-08-25, live in CI, after Bug 1b was fixed): `enterWith()` does not
-### reliably persist after prior `run()` calls, under concurrent request load
+### Bug 2b (found 2026-08-25, superseded — see Bug 3): an incomplete first diagnosis
 
-The most severe finding in this ARR. After Bug 1b's fix shipped, a re-triggered CI run still
-failed — 8 Playwright tests across `accessibility.spec.ts`, `follow-live.spec.ts`,
-`live-reporting.spec.ts`, `round-mutation.spec.ts`, `smoke.spec.ts` — and Vercel's runtime-error
-log (`get_runtime_errors`, not local reasoning) showed `TenantContextError` on `LeagueSeason`,
-`Team`, `Player`, `OpponentTeam`, `Season` across nearly every `/o/{orgSlug}/...` route, each
-failing on the query *immediately following* a successful `requirePageActorContext()` call in the
-very same function body (no intervening Server Component boundary, no un-awaited promise). The
-failure was **intermittent** — 19 of 27 Playwright tests passed in the same run — ruling out "the
-mechanism never works" and pointing at a race.
+After Bug 1b's fix shipped, a re-triggered CI run still failed with the same symptom, and Vercel's
+`get_runtime_errors` showed `TenantContextError` across nearly every `/o/{orgSlug}/...` route. The
+first diagnosis pass concluded the cause was `enterWith()` failing to persist after prior `run()`
+calls specifically **under concurrent request load**, based on a standalone Node.js stress test
+that combined two `run()` calls with 20-way `Promise.all` concurrency and reproduced 100% loss.
+Fixes matching that theory (`getEffectiveGroupAccess()` no longer wrapping its own queries in
+`withTenantContext()`; both `requireActorContext()` branches and `resolveOrganisationAccess()`
+calling `setTenantOrganisationId()` once, early) were shipped and are still correct, sensible
+changes — but a subsequent CI run **still failed identically**, disproving the "requires
+concurrency" framing. See Bug 3 below for the actual, corrected root cause, found by testing the
+real production build locally (`next start` against a real seeded session) rather than continuing
+to reason from the CI logs alone. This entry is kept, rather than deleted, so the investigation
+trail stays honest: the concurrency angle was a real, reproducible property of the raw primitive
+composition tested, it just was not what was actually causing this bug.
 
-Isolated with a standalone Node.js timer-interleaving stress test (`node script.mjs`, no
-Next.js/Vercel involved — see the investigation transcript, not reproduced as a committed test
-since it does not reproduce deterministically inside vitest's own scheduler): calling
-`store.enterWith()` in a continuation that has already passed through **two or more** earlier
-`store.run()` call exits, while **20+ other independent async chains are doing the same thing
-concurrently** (`Promise.all`), loses the `enterWith()`-set value 100% of the time — the store
-reads back `undefined`, not a wrong-tenant value. A single `run()` followed by `enterWith()`, or
-`enterWith()` alone, both stayed 100% correct under the identical concurrency stress. This matches
-Node's own documented caution that `run()` "correctly restores the previous store" while
-`enterWith()` "does not automatically restore state" — but the practical failure mode (silent
-total loss, not a documented crash) only shows up under real concurrent load, which is exactly
-what Vercel Fluid Compute's function-instance reuse produces and a local/low-concurrency dev
-session does not.
+### Bug 3 (found 2026-08-25, the actual root cause): `enterWith()` never propagates to a
+### function's own caller once that function has itself awaited anything — no concurrency required
 
-`requireActorContext()`'s two branches exhibited exactly this composition:
-`resolveOrganisationAccess()` (membership lookup) and `getEffectiveGroupAccess()` (called from
-both branches) each wrapped their own query in `withTenantContext()`/`runWithTenantOrganisationId()`
-(a `run()` call) — two or three `run()` calls per request — followed by a final
-`setTenantOrganisationId()` (`enterWith()`) intended to persist context for the rest of the page
-render. Under concurrent traffic this silently failed, and every subsequent RLS-scoped query in
-that page's render saw no context at all.
+The most severe finding in this ARR, and the one that actually explains everything Bug 2b's fix
+did not. Reproduced with a byte-for-byte minimal case, in plain Node.js, zero concurrency:
 
-Fixed by eliminating the dangerous composition rather than patching around it: `getEffectiveGroupAccess()`
-(`src/lib/auth/group-context.ts`) no longer wraps its queries in `withTenantContext()` — it now
-relies on the caller having already established context, documented as an explicit precondition.
-Both `requireActorContext()` branches (`src/lib/auth/actor-context.ts`) and
-`resolveOrganisationAccess()` (`src/lib/organisations/organisation-resolver.ts`) now call
-`setTenantOrganisationId()` exactly once, as early as the organisation identity is known (right
-after it's found/not-suspended, before membership is even verified), with every later query in
-that call graph — including inside `getEffectiveGroupAccess()` — relying on that single
-already-set context. No `run()` call happens anywhere in this call graph after that point.
+```js
+async function awaitThenSet(orgId) {
+  await Promise.resolve();     // any await at all, even a no-op
+  setOrgId(orgId);              // store.enterWith(...)
+  return getOrgId();            // "orgId" — correct, from inside this function
+}
+async function main() {
+  const seenInsideFn = await awaitThenSet("org-1");  // "org-1"
+  const seenInCaller = getOrgId();                    // undefined — LOST
+}
+```
 
-`resolveOrgFilterForMachine()` (`resolve-org-filter.ts`) still uses a self-contained `run()` (safe
-— nothing after it in the same continuation calls `enterWith()`, and it has no current callers in
-application code); `recordEventForActor()` and the internal snapshot route wrap their *entire*
-remaining body in one `run()` call and never call `enterWith()` afterward — also safe, matching the
-"final `run()` wrap instead of a later `enterWith()`" pattern proven correct under the same stress
-test. Any future caller that needs "resolve context once, then use it for arbitrarily more code
-after this function returns" must follow the `setTenantOrganisationId()`-once, no-later-`run()`
-pattern established here — never mix scoped `run()` calls with a later `enterWith()` in the same
-request continuation.
+This is correct, documented Node.js `AsyncLocalStorage` behavior, not a bug in Node itself:
+`enterWith()` scopes "the remainder of the current execution" — and once an async function has
+awaited something, its "current execution" is a child continuation of wherever it was called from,
+not an ancestor of it. A child's `enterWith()` mutation can never retroactively become visible to
+the parent once the child's promise resolves and the parent resumes its own, separate
+continuation. This has nothing to do with `run()`, nothing to do with concurrency, and needs no
+Prisma, no Next.js, and no Turbopack to reproduce — verified directly against a plain
+`node script.mjs`.
 
-Regression coverage: `src/lib/tenancy/__tests__/tenant-async-storage-concurrency.test.ts` exercises
-the real `getEffectiveGroupAccess()` under `Promise.all` concurrency across 8 organisations, each
-setting context once with no prior `run()` (mirroring the fixed call path), and asserts each
-resolves only its own organisation's groups.
+`requireActorContext()` must always `await` a DB lookup before it can know the organisation, so its
+own `setTenantOrganisationId()` call — no matter how it is internally sequenced — can **only ever**
+scope its own remaining queries (verified correct by the earlier Bug 2b fixes, which are real
+improvements, just not sufficient on their own). It can never scope anything in the ~350 call sites
+across the app that do `const ctx = await requireActorContext(...)` / `requirePageActorContext(...)`
+and then issue their own queries. Confirmed live: a real `next start` build, a real seeded session,
+zero concurrency, reproduced `TenantContextError` on the very first request to `/api/context` and
+most `/o/{orgSlug}/...` pages.
+
+Fixed two ways, deliberately layered as defense-in-depth rather than relying on either alone:
+
+1. **`src/lib/db.ts`'s `tenantRLS` extension** (`getExplicitOrgId()`): when ALS context is absent,
+   trust an `organisationId` the caller has already put directly into the query's own
+   `where`/`data` — the "Prisma where-clause injection" pattern AGENTS.md already documents as
+   primary, and which many call sites (`getOperationalContext()`, `requireMatchGroupAccess()`,
+   etc.) already used as belt-and-suspenders alongside ALS. That value can only have come from a
+   server-verified `ActorContext.organisationId`, never raw user input, by this codebase's
+   established convention — so trusting it does not reopen ARR-0027's original hole (a query with
+   *no* scoping anywhere, ALS or explicit, still throws).
+2. **Every one of the ~350 call sites** of `requireActorContext()`/`requirePageActorContext()`
+   (mechanically, via a reviewed codemod — see "Related implementation") now calls
+   `setTenantOrganisationId(ctx.organisationId)` immediately after resolving `ctx`, in the *same*
+   function that will make further queries. This is not redundant with fix 1: many call sites
+   issue queries deep in a call graph (`getOperationalContext()` → `enrichMatchRound()` →
+   `db.selection.count({ where: { matchRoundId } })`, no explicit `organisationId` anywhere) that
+   fix 1 alone cannot help. Verified this composition is safe: once a frame has `enterWith()`-set
+   context, everything it calls — including further functions with their own internal awaits —
+   correctly inherits it; the propagation failure is specifically about crossing back *up* through
+   a function-return boundary into a frame that did not set the context itself.
+
+Both fixes were validated against the real production build locally (`next start`, real seeded
+session, `coach-all-a`) hitting every previously-failing route with zero `TenantContextError`
+occurrences in the server log — not just an HTTP 200, since Next.js error boundaries can mask a
+failed query inside an otherwise-200 response.
+
+Regression coverage: `src/lib/__tests__/db-tenant-fail-closed.test.ts`'s "explicit where/data
+organisationId fallback" describe block (fix 1); `src/lib/tenancy/__tests__/tenant-async-storage-concurrency.test.ts`
+exercises the real `getEffectiveGroupAccess()` under `Promise.all` concurrency across 8
+organisations, each setting context once with no prior `run()`, and asserts each resolves only its
+own organisation's groups (still a valid, useful regression test for the Bug 2b-era fixes, which
+remain in place).
+
+**The durable rule going forward** (also in AGENTS.md's "Tenant isolation" section): every new
+call site of `requireActorContext()`/`requirePageActorContext()` must call
+`setTenantOrganisationId(ctx.organisationId)` immediately after resolving `ctx`, before any other
+query. `db.ts`'s explicit-where fallback is defense-in-depth, not a substitute — it only helps
+queries that already carry an explicit `organisationId`, and plenty legitimately don't.
 
 ## Intended architecture
 
@@ -242,7 +274,7 @@ inert due to Bug 1), ADR-0087 (fail-closed tenant scoping — ships together wit
 ## Related implementation
 
 - `src/lib/db.ts` (`modelName` normalization, `findUnique` rawClient lookup fix,
-  `flattenCompoundUniqueWhere()` for Bug 1b)
+  `flattenCompoundUniqueWhere()` for Bug 1b, `getExplicitOrgId()` fallback for Bug 3)
 - `src/lib/tenancy/tenant-client.ts` (`withTenantContext` await-inside-callback fix)
 - `src/lib/tenancy/resolve-org-filter.ts` (`resolveOrgFilterForMachine` await-inside-callback fix)
 - `src/lib/auth/group-context.ts` (`getEffectiveGroupAccess` no longer wraps its own `run()` —
@@ -251,9 +283,14 @@ inert due to Bug 1), ADR-0087 (fail-closed tenant scoping — ships together wit
   Bug 2b)
 - `src/lib/organisations/organisation-resolver.ts` (`resolveOrganisationAccess` sets context once,
   early — Bug 2b)
-- `src/lib/__tests__/db-tenant-fail-closed.test.ts` (regression coverage for Bugs 1, 1b, 2)
+- ~350 call sites across `src/app/` and `src/lib/` — every `const ctx = await
+  requireActorContext(...)` / `requirePageActorContext(...)` now immediately followed by
+  `setTenantOrganisationId(ctx.organisationId)` (Bug 3, applied via a reviewed codemod, not
+  individually hand-written — see this ARR's git history for the exact commit)
+- `src/lib/__tests__/db-tenant-fail-closed.test.ts` (regression coverage for Bugs 1, 1b, 2, and the
+  Bug 3 explicit-where fallback)
 - `src/lib/tenancy/__tests__/tenant-async-storage-concurrency.test.ts` (regression coverage for
-  Bug 2b)
+  the Bug 2b-era fixes, still valid)
 
 ## Supersedes
 
@@ -283,8 +320,26 @@ app affected, and PR #351 unmerged so nothing was live in production) rather tha
 push speculative fixes unasked; the user chose to have it investigated and fixed immediately.
 Root-caused empirically (a standalone Node.js concurrency stress script, not guesswork) and fixed
 by removing the dangerous `run()`-then-`enterWith()` composition from the actual auth-resolution
-call graph. See Bug 2b for full detail. Re-validation against a fresh CI run is the natural next
-step once this fix is committed and pushed.
+call graph. See Bug 2b for full detail. Pushed, and the re-triggered CI run (`32824974172`)
+deployed cleanly but **still failed** — the user cancelled it directly ("I cancelled the workflow,
+it fails immediately"), correctly reading that the Bug 2b fix had not actually resolved it.
+
+Rather than continue reasoning from CI logs alone a third time, switched to reproducing the real
+production build locally: seeded the canonical test dataset into `TEST_DATABASE_URL`, ran `next
+start` (the same bundler/runtime Vercel uses) against it, drove the real `test-agent` Auth.js
+credentials flow to get a genuine session, and hit the failing routes directly with `curl`. This
+reproduced `TenantContextError` on the very first request, with zero concurrency — disproving Bug
+2b's "requires concurrent load" framing outright. Bisected with a series of increasingly minimal
+temporary diagnostic routes/functions (each iteration's exact code kept in this file's Bug 3
+write-up) down to a byte-for-byte minimal Node.js reproduction with no Next.js, no Prisma, and no
+concurrency involved at all — see Bug 3 above for the actual root cause. Fixed both at the
+`db.ts` extension level (explicit-where fallback) and, since that alone still left deep call
+graphs like `getOperationalContext()` → `enrichMatchRound()` unprotected, at ~350 call sites via a
+reviewed codemod. Validated by re-running the exact same real-build/real-session local smoke test
+against every previously-failing route with zero `TenantContextError` occurrences in the server
+log. Bug 2b's entry above was corrected (not deleted) to keep the investigation trail honest about
+the incomplete first diagnosis. Re-validation against a fresh CI run is the natural next step once
+this fix is committed and pushed.
 
 ### 2026-08-24
 

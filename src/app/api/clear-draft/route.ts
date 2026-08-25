@@ -5,9 +5,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { clearDraftSchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const { allowed } = await rateLimit("clear-draft", 5, 60_000);
   if (!allowed) {

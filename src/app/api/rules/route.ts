@@ -3,9 +3,11 @@ import { db } from "@/lib/db";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { getRules } from "@/lib/rules/get-rules";
 import { exportRuleConfig, validateImportedRuleConfig } from "@/lib/rules/validate-rules";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET() {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   try {
     const rules = await getRules(ctx.orgFilter);
     const exported = exportRuleConfig(rules);
@@ -22,6 +24,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   try {
     const body = await request.json();

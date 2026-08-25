@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import { endLiveSession } from "@/lib/live-match/live-match-session";
 import { seedReportFromLiveSession } from "@/lib/reports/report-mutations";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 /**
  * Run -> Learn handoff adapter (ADR-0088): validates session/match/organisation consistency for
@@ -15,6 +16,7 @@ import { seedReportFromLiveSession } from "@/lib/reports/report-mutations";
 export async function endLiveSessionAndCreateReportAction(sessionId: string, matchId: string) {
   try {
     const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     const session = await db.liveMatchSession.findUnique({

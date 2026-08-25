@@ -7,6 +7,7 @@ import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchCategory } from '@/generated/prisma/client';
 import { getDefaultEventMatchCategory } from '@/lib/stats/event-match-stats';
 import { cleanOpponentDisplayName } from '@/lib/opponents/opponent-team';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 const VALID_CATEGORIES: MatchCategory[] = ['CUP', 'OTHER'];
 
@@ -52,6 +53,7 @@ async function resolveOpponent(orgId: string, opponentName: string, opponentTeam
 
 export async function createEventMatchAction(formData: FormData) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const eventId = formData.get('eventId') as string;
@@ -119,6 +121,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
   eventSquadId?: string;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -190,6 +193,7 @@ export async function updateEventMatchAction(eventMatchId: string, data: {
 
 export async function deleteEventMatchAction(eventMatchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const { eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -215,6 +219,7 @@ export async function deleteEventMatchAction(eventMatchId: string) {
 
 export async function cancelEventMatchAction(eventMatchId: string, reason?: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -249,6 +254,7 @@ export async function cancelEventMatchAction(eventMatchId: string, reason?: stri
 
 export async function listEventMatchesAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   await requireEventOrgAccess(eventId, ctx.orgFilter);
   const { getEventMatchesForEvent } = await import('@/lib/stats/event-match-stats');
   return getEventMatchesForEvent(eventId);
@@ -256,6 +262,7 @@ export async function listEventMatchesAction(eventId: string) {
 
 export async function reopenEventMatchAction(eventMatchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const { eventId: _eventId } = await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);

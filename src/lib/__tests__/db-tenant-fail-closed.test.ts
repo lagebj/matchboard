@@ -62,6 +62,44 @@ describe("tenantRLS extension: fail-closed tenant scoping (ADR-0087)", () => {
     });
   });
 
+  describe("explicit where/data organisationId fallback (ARR-0029 Bug 3)", () => {
+    it("does not throw for a read with an explicit valid organisationId in `where`, no ALS context", async () => {
+      const org = await db.organisation.create({ data: { name: "Explicit Org", slug: `explicit-org-${Date.now()}` } });
+      await expect(db.team.findMany({ where: { organisationId: org.id } })).resolves.toEqual([]);
+    });
+
+    it("does not throw for a create with an explicit valid organisationId in `data`, no ALS context", async () => {
+      const org = await db.organisation.create({ data: { name: "Explicit Org 2", slug: `explicit-org-2-${Date.now()}` } });
+      const group = await runWithTenantOrganisationId(org.id, async () =>
+        await db.footballGroup.create({
+          data: { name: "EG", slug: `eg-${Date.now()}`, type: "AGE_GROUP", organisationId: org.id },
+        }),
+      );
+      const teamOpts = {
+        targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5,
+        minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9,
+        maxSquadSize: 14,
+      };
+      await expect(
+        db.team.create({ data: { name: "Explicit Team", organisationId: org.id, footballGroupId: group.id, ...teamOpts } }),
+      ).resolves.toMatchObject({ organisationId: org.id });
+    });
+
+    it("still throws when `where` has no organisationId at all, no ALS context", async () => {
+      await expect(db.team.findMany({ where: { name: "anything" } })).rejects.toThrow(TenantContextError);
+    });
+
+    it("still throws when `where.organisationId` is present but empty, no ALS context", async () => {
+      await expect(db.team.findMany({ where: { organisationId: "" } })).rejects.toThrow(TenantContextError);
+    });
+
+    it("an explicit organisationId only scopes that query — it does not leak into later unscoped queries", async () => {
+      const org = await db.organisation.create({ data: { name: "Leak Check Org", slug: `leak-org-${Date.now()}` } });
+      await expect(db.team.findMany({ where: { organisationId: org.id } })).resolves.toEqual([]);
+      await expect(db.team.findMany()).rejects.toThrow(TenantContextError);
+    });
+  });
+
   describe("explicit escape hatches (ADR-0087)", () => {
     it("runWithSystemPrivilege allows an unscoped query through", async () => {
       await expect(

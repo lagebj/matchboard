@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "@/generated/prisma/client";
 import type { LiveEventSummary } from "./live-match-types";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export interface EventLiveEventInput {
   eventMatchId: string;
@@ -21,6 +22,7 @@ export interface EventLiveEventInput {
 
 export async function recordEventEvent(input: EventLiveEventInput) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const match = await db.eventMatch.findUnique({
     where: { id: input.eventMatchId },
@@ -64,6 +66,7 @@ export async function recordEventEvent(input: EventLiveEventInput) {
 
 export async function getEventMatchEvents(eventMatchId: string) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const events = await db.eventLiveMatchEvent.findMany({
     where: { eventMatchId, organisationId: ctx.organisationId },
@@ -75,6 +78,7 @@ export async function getEventMatchEvents(eventMatchId: string) {
 
 export async function getRecentEventEvents(eventMatchId: string, limit = 10) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const events = await db.eventLiveMatchEvent.findMany({
     where: { eventMatchId, organisationId: ctx.organisationId },

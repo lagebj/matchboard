@@ -4,11 +4,13 @@ import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightFilters, PlayerCombinationRow } from "./insights-types";
 import { pairKey, RECENT_ROUNDS_WINDOW } from "./player-combinations-helpers";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // I-005: Player combinations. Frequency is not effectiveness (per spec) — this reports raw
 // co-occurrence counts only, no derived "good pairing" judgement.
 export async function getPlayerCombinations(filters: InsightFilters): Promise<PlayerCombinationRow[]> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgId = ctx.organisationId;
 
   const rounds = await db.matchRound.findMany({

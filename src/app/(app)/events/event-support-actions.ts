@@ -9,6 +9,7 @@ import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/e
 import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
 import { EventMatchSupportRole } from '@/generated/prisma/client';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== 'org') return;
@@ -43,6 +44,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
   note?: string;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const { eventMatchId, playerId, plannedRole, note } = input;
@@ -165,6 +167,7 @@ export async function addEventMatchSupportAssignmentAction(input: {
 
 export async function removeEventMatchSupportAssignmentAction(assignmentId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const assignment = await db.eventMatchSupportAssignment.findFirst({
@@ -200,6 +203,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
   note?: string;
 }) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
 
   const { assignmentId, plannedRole, note } = input;
@@ -233,6 +237,7 @@ export async function updateEventMatchSupportAssignmentAction(input: {
 
 export async function getEventMatchSupportAssignmentsAction(eventId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },
@@ -304,6 +309,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 
 export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
 
   const eventMatch = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: ctx.orgFilter.filter },

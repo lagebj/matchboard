@@ -4,9 +4,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { auditDataIntegrity } from "@/lib/data-integrity/audit-data-integrity";
 import { auditQuerySchema } from "@/lib/security/validation";
 import { safeErrorResponse } from "@/lib/security/errors";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function GET(request: Request) {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireAdminRole(ctx);
   const { allowed } = await rateLimit("admin-audit", 10, 60_000);
   if (!allowed) {

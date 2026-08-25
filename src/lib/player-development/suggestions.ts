@@ -4,6 +4,7 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { RATING_ATTRIBUTE_KEYS, type DevelopmentAttributeKey } from "./constants";
 import { evaluateAttributeEvidence, computeAttributeProposal, type AttributeSuggestion } from "./evidence";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export type SuggestionDecision = "ACCEPT" | "ADJUST" | "REJECT";
 
@@ -151,6 +152,7 @@ export async function decideSuggestion(
   adjustedValue?: number,
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   const orgFilter = ctx.orgFilter;
 
   if (orgFilter.type !== "org") {

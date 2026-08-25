@@ -10,6 +10,7 @@ import {
   cleanFactualSummary,
   type ObservationFormData,
 } from "@/lib/opponents/validate-observation";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { revalidatePath } from "next/cache";
 
 export type ObservationActionState = {
@@ -31,6 +32,7 @@ export async function saveObservationAction(
   formData: FormData,
 ): Promise<ObservationActionState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const matchId = formData.get("matchId") as string;
   if (!matchId) return { success: false, error: "Match ID is required." };
@@ -128,6 +130,7 @@ export async function updateMatchFitAction(
   formData: FormData,
 ): Promise<MatchFitActionState> {
   const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const matchId = formData.get("matchId") as string;
   const matchFit = formData.get("matchFit") as string;

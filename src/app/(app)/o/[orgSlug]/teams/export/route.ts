@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { logDataExport } from '@/lib/security/audit-log';
 import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 const INVALID_SHEET_NAME_CHARS = /[\\*?/:[\]]/g;
 const MAX_SHEET_NAME_LENGTH = 31;
@@ -62,6 +63,7 @@ function addSectionHeader(ws: ExcelJS.Worksheet, text: string, colSpan: number) 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
   const url = new URL(request.url);
   const leagueSeasonId = url.searchParams.get('leagueSeasonId');
 

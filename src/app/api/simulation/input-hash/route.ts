@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { computeSimulationInputHash } from "@/lib/simulation/apply-simulation";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,7 @@ export async function GET(request: NextRequest) {
   let ctx;
   try {
     ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

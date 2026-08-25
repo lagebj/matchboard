@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { createDevelopmentObservation, deleteDevelopmentObservation } from "@/lib/player-development/observations";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export async function POST(request: Request) {
   try {
     const ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     const body = await request.json();
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const ctx = await requireActorContext();
+    setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
     const { searchParams } = new URL(request.url);
