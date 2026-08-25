@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatSelectionRole, formatAttendanceStatus, formatUnplannedAppearanceReason, UNPLANNED_APPEARANCE_REASON_LABELS } from "@/lib/match-utils";
@@ -84,6 +84,18 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
   const [newGoalMinute, setNewGoalMinute] = useState("");
   const [newAssistPlayerId, setNewAssistPlayerId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const moreActionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showMoreActions) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (moreActionsRef.current && !moreActionsRef.current.contains(e.target as Node)) {
+        setShowMoreActions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMoreActions]);
 
   const report = initialReport;
   const status = report?.status ?? "NOT_STARTED";
@@ -322,33 +334,35 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
             </Button>
           )}
           {(isDraft || isReported) && !isLocked && (
-            <details className="group relative">
-              <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                <Button variant="secondary" size="sm">More actions</Button>
-              </summary>
-              <div className="absolute left-0 top-full mt-1 z-10 flex flex-col gap-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-lg">
-                {isDraft && (
-                  <button
-                    className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
-                    disabled={isPending}
-                    onClick={handleSubmit}
-                    type="button"
-                  >
-                    Submit (Draft → Reported)
-                  </button>
-                )}
-                {isReported && (
-                  <button
-                    className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
-                    disabled={isPending}
-                    onClick={handleLock}
-                    type="button"
-                  >
-                    Lock (Reported → Locked)
-                  </button>
-                )}
-              </div>
-            </details>
+            <div className="relative" ref={moreActionsRef}>
+              <Button variant="secondary" size="sm" onClick={() => setShowMoreActions((v) => !v)}>
+                More actions
+              </Button>
+              {showMoreActions && (
+                <div className="absolute left-0 top-full mt-1 z-10 flex flex-col gap-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-lg">
+                  {isDraft && (
+                    <button
+                      className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
+                      disabled={isPending}
+                      onClick={() => { setShowMoreActions(false); handleSubmit(); }}
+                      type="button"
+                    >
+                      Submit (Draft → Reported)
+                    </button>
+                  )}
+                  {isReported && (
+                    <button
+                      className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
+                      disabled={isPending}
+                      onClick={() => { setShowMoreActions(false); handleLock(); }}
+                      type="button"
+                    >
+                      Lock (Reported → Locked)
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
           {isLocked && (
             <>

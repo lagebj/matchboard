@@ -1,6 +1,7 @@
 'use server'
 
 import { resolveOrganisationOwner } from "@/lib/organisations/organisation-resolver";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import {
   createMachinePrincipal,
   revokeMachinePrincipal,
@@ -24,6 +25,7 @@ export async function createMachinePrincipalAction(
   scopes: string[],
 ) {
   const ctx = await resolveOrganisationOwner(organisationSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const { valid, invalid } = validateScopes(scopes);
   if (invalid.length > 0) {
@@ -64,6 +66,7 @@ export async function revokeMachinePrincipalAction(
   principalId: string,
 ) {
   const ctx = await resolveOrganisationOwner(organisationSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   try {
     await revokeMachinePrincipal(principalId);
@@ -79,6 +82,7 @@ export async function reactivateMachinePrincipalAction(
   principalId: string,
 ) {
   const ctx = await resolveOrganisationOwner(organisationSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   try {
     await reactivateMachinePrincipal(principalId);
@@ -94,6 +98,7 @@ export async function rotateMachinePrincipalSecretAction(
   principalId: string,
 ) {
   const ctx = await resolveOrganisationOwner(organisationSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   try {
     const result = await rotateClientSecret(principalId);
@@ -112,6 +117,7 @@ export async function rotateMachinePrincipalSecretAction(
 
 export async function listMachinePrincipalsAction(organisationSlug: string) {
   const ctx = await resolveOrganisationOwner(organisationSlug);
+  setTenantOrganisationId(ctx.organisationId);
 
   const principals = await getMachinePrincipalsForOrganisation(ctx.organisationId);
   return { success: true as const, data: principals };

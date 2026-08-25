@@ -1,6 +1,7 @@
 import { getOrgContext } from "./org-context";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { OrgDetailClient } from "./org-detail-client";
 
 export default async function OrgDetailPage({
@@ -16,6 +17,8 @@ export default async function OrgDetailPage({
   } catch {
     redirect("/organisations");
   }
+
+  setTenantOrganisationId(ctx.organisationId);
 
   const org = await db.organisation.findUnique({
     where: { id: ctx.organisationId },
