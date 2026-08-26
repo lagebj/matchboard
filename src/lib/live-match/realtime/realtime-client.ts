@@ -21,6 +21,26 @@ import { parseRawSocketMessage } from "./protocol-schemas";
 import { RealtimeVersionTracker, type VersionComparisonResult } from "./realtime-state";
 import type { ClientAck } from "./realtime-messages";
 
+const LOG_PREFIX = "[live-match:realtime]";
+
+function logDebug(message: string, ...args: unknown[]): void {
+  if (typeof console !== "undefined") {
+    console.debug(`${LOG_PREFIX} ${message}`, ...args);
+  }
+}
+
+function logWarn(message: string, ...args: unknown[]): void {
+  if (typeof console !== "undefined") {
+    console.warn(`${LOG_PREFIX} ${message}`, ...args);
+  }
+}
+
+function logError(message: string, ...args: unknown[]): void {
+  if (typeof console !== "undefined") {
+    console.error(`${LOG_PREFIX} ${message}`, ...args);
+  }
+}
+
 export type RealtimeConnectionState =
   | "disabled"
   | "connecting"
@@ -98,13 +118,16 @@ export class RealtimeMatchClient {
   async connect(): Promise<void> {
     this.intentionalDisconnect = false;
     this.clearReconnectTimer();
+    const label = this.reconnectAttempt > 0 ? "reconnecting" : "connecting";
     this.setState(this.reconnectAttempt > 0 ? "reconnecting" : "connecting");
+    logDebug("connect: %s (attempt %d, url=%s)", label, this.reconnectAttempt, this.options.url);
 
     const createSocket = this.options.createSocket ?? defaultCreateSocket;
     const socket = createSocket(this.options.url);
     this.socket = socket;
 
     socket.addEventListener("open", () => {
+      logDebug("socket opened, authenticating");
       void this.authenticate();
     });
     socket.addEventListener("message", (event) => {
@@ -114,6 +137,7 @@ export class RealtimeMatchClient {
       this.handleSocketClosed();
     });
     socket.addEventListener("error", () => {
+      logError("socket error event");
       this.setState("error");
     });
   }
@@ -121,6 +145,7 @@ export class RealtimeMatchClient {
   disconnect(): void {
     this.intentionalDisconnect = true;
     this.clearReconnectTimer();
+    logDebug("disconnect: intentional close");
     this.socket?.close(1000, "client disconnect");
     this.socket = null;
     this.setState("disabled");
@@ -141,6 +166,7 @@ export class RealtimeMatchClient {
   /** Generic RPC call, matched to its `RpcResult` reply by `id` (SPEC.md §4). */
   call(method: string, params: unknown): Promise<unknown> {
     if (!this.socket || this.socket.readyState !== WEBSOCKET_OPEN) {
+      logWarn("call %s rejected: not connected (readyState=%s)", method, this.socket?.readyState ?? "null");
       return Promise.reject({ code: "PERSISTENCE_UNAVAILABLE", message: "Not connected." });
     }
 
@@ -162,11 +188,16 @@ export class RealtimeMatchClient {
   private async authenticate(): Promise<void> {
     this.setState("authenticating");
     try {
+      logDebug("authenticate: fetching ticket");
       const ticket = await this.options.getTicket();
+      logDebug("authenticate: ticket obtained, calling authenticate RPC (clientId=%s)", this.options.clientId);
       await this.call("authenticate", { ticket, clientId: this.options.clientId });
       this.reconnectAttempt = 0;
+      logDebug("authenticate: success, connected");
       this.setState("connected");
-    } catch {
+    } catch (error) {
+      const errorInfo = error instanceof Error ? error.message : typeof error === "object" && error !== null && "code" in error ? String((error as { code: string }).code) : String(error);
+      logError("authenticate: failed — %s", errorInfo);
       this.setState("error");
       this.socket?.close();
     }
@@ -182,7 +213,10 @@ export class RealtimeMatchClient {
     if (typeof data !== "string") return;
 
     const parsed = parseRawSocketMessage(data, "toClient");
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      logWarn("handleRawMessage: parse failed — %s", parsed.reason ?? parsed.code);
+      return;
+    }
 
     if (parsed.message.kind === "call") {
       void this.handleIncomingCall(parsed.message);
@@ -194,6 +228,7 @@ export class RealtimeMatchClient {
   private async handleIncomingCall(call: RpcCall): Promise<void> {
     const handler = this.options.callbackHandlers?.[call.method as ClientMethod];
     if (!handler) {
+      logWarn("handleIncomingCall: no handler for method=%s (id=%s)", call.method, call.id);
       this.sendResult(call.id, {
         ok: false,
         error: { code: "METHOD_NOT_FOUND", message: `No handler registered for ${call.method}` },
@@ -205,6 +240,7 @@ export class RealtimeMatchClient {
       const ack = await handler(call.params);
       this.sendResult(call.id, { ok: true, result: ack });
     } catch (error) {
+      logError("handleIncomingCall: handler for %s threw — %s", call.method, error instanceof Error ? error.message : String(error));
       this.sendResult(call.id, {
         ok: false,
         error: { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message : "Callback failed." },
@@ -231,11 +267,13 @@ export class RealtimeMatchClient {
     if (result.ok) {
       pending.resolve(result.result);
     } else {
+      logWarn("handleIncomingResult: RPC error id=%s code=%s message=%s", result.id, result.error?.code, result.error?.message);
       pending.reject(result.error);
     }
   }
 
   private handleSocketClosed(): void {
+    logDebug("handleSocketClosed: connection lost (intentional=%s, pendingCalls=%d)", this.intentionalDisconnect, this.pendingCalls.size);
     this.socket = null;
     for (const pending of this.pendingCalls.values()) {
       pending.reject({ code: "SESSION_NOT_FOUND", message: "Connection closed." });
@@ -253,6 +291,7 @@ export class RealtimeMatchClient {
 
   private scheduleReconnect(): void {
     const delay = (this.options.reconnectDelayMs ?? defaultReconnectDelay)(this.reconnectAttempt);
+    logDebug("scheduleReconnect: attempt %d in %dms", this.reconnectAttempt + 1, delay);
     this.reconnectAttempt += 1;
     this.reconnectTimer = setTimeout(() => {
       void this.connect();
