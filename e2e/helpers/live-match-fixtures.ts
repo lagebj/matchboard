@@ -88,6 +88,7 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   await roundCard.getByRole("link").click();
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//, { timeout: 15_000 });
 
+  await expect(page.getByRole("button", { name: "Regenerate" })).toBeEnabled({ timeout: 30_000 });
   await page.getByRole("button", { name: "Regenerate" }).click();
   // Real persisted draft selections: at least one player chip is now on the board.
   await expect(page.locator('[aria-label^="Remove "]').first()).toBeVisible({ timeout: 45_000 });
