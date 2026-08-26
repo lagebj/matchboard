@@ -58,14 +58,20 @@ export type UpdatePlannedRotationInput = {
 
 const MAX_CHANGES_PER_ROTATION = 50;
 
+export type PlannedRotationValidationIssue = {
+  type: "error" | "warning";
+  changeIndex: number | null;
+  message: string;
+};
+
 export function validatePlannedChanges(
   changes: PlannedRotationChangeData[],
   existingPlayerIds: Set<string>,
-): string[] {
-  const errors: string[] = [];
+): PlannedRotationValidationIssue[] {
+  const issues: PlannedRotationValidationIssue[] = [];
 
   if (changes.length > MAX_CHANGES_PER_ROTATION) {
-    errors.push(`Maximum ${MAX_CHANGES_PER_ROTATION} changes per rotation plan`);
+    issues.push({ type: "error", changeIndex: null, message: `Maximum ${MAX_CHANGES_PER_ROTATION} changes per rotation plan` });
   }
 
   for (let i = 0; i < changes.length; i++) {
@@ -73,28 +79,55 @@ export function validatePlannedChanges(
 
     if (change.positionOnly && change.outPlayerId && change.inPlayerId) {
       if (change.outPlayerId === change.inPlayerId) {
-        errors.push(`Change ${i + 1}: position-only swap cannot involve the same player`);
+        issues.push({ type: "error", changeIndex: i, message: "Position-only swap cannot involve the same player" });
       }
     }
 
     if (!change.positionOnly) {
       if (!change.outPlayerId) {
-        errors.push(`Change ${i + 1}: substitution must have a player going out`);
+        issues.push({ type: "error", changeIndex: i, message: "Substitution must have a player going out" });
       }
       if (!change.inPlayerId) {
-        errors.push(`Change ${i + 1}: substitution must have a player coming in`);
+        issues.push({ type: "error", changeIndex: i, message: "Substitution must have a player coming in" });
       }
     }
 
     if (change.outPlayerId && !existingPlayerIds.has(change.outPlayerId)) {
-      errors.push(`Change ${i + 1}: out player is not in the match squad`);
+      issues.push({ type: "error", changeIndex: i, message: "Out player is not in the match squad" });
     }
     if (change.inPlayerId && !existingPlayerIds.has(change.inPlayerId)) {
-      errors.push(`Change ${i + 1}: in player is not in the match squad`);
+      issues.push({ type: "error", changeIndex: i, message: "In player is not in the match squad" });
     }
   }
 
-  return errors;
+  const outPlayerCounts = new Map<string, number[]>();
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
+    if (!change.positionOnly && change.outPlayerId) {
+      const indices = outPlayerCounts.get(change.outPlayerId) ?? [];
+      indices.push(i);
+      outPlayerCounts.set(change.outPlayerId, indices);
+    }
+  }
+
+  for (const [_playerId, indices] of outPlayerCounts) {
+    if (indices.length > 1) {
+      issues.push({
+        type: "warning",
+        changeIndex: indices[indices.length - 1],
+        message: `Same player substituted out multiple times (changes ${indices.map((idx) => idx + 1).join(", ")})`,
+      });
+    }
+  }
+
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
+    if (!change.positionOnly && change.outPlayerId && change.inPlayerId && change.outPlayerId === change.inPlayerId) {
+      issues.push({ type: "error", changeIndex: i, message: "A player cannot substitute themselves" });
+    }
+  }
+
+  return issues;
 }
 
 export async function getPlannedRotation(

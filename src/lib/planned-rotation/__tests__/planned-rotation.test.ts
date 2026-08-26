@@ -15,76 +15,105 @@ describe('validatePlannedChanges', () => {
       { outPlayerId: 'p1', inPlayerId: 'p3', outPosition: 'CM', inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
       { outPlayerId: 'p2', inPlayerId: 'p4', outPosition: 'FW', inPosition: 'FW', positionOnly: false, approximateMatchSeconds: 2400, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toEqual([]);
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toEqual([]);
   });
 
   it('returns empty errors for valid position-only changes', () => {
     const changes: PlannedRotationChangeData[] = [
       { outPlayerId: 'p1', inPlayerId: 'p2', outPosition: 'CM', inPosition: 'FW', positionOnly: true, approximateMatchSeconds: 1500, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toEqual([]);
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toEqual([]);
   });
 
   it('rejects substitution without outPlayerId', () => {
     const changes: PlannedRotationChangeData[] = [
       { outPlayerId: null, inPlayerId: 'p3', outPosition: null, inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('player going out');
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain('player going out');
+    expect(issues[0].type).toBe('error');
   });
 
   it('rejects substitution without inPlayerId', () => {
     const changes: PlannedRotationChangeData[] = [
       { outPlayerId: 'p1', inPlayerId: null, outPosition: 'CM', inPosition: null, positionOnly: false, approximateMatchSeconds: 1500, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('coming in');
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain('coming in');
   });
 
   it('rejects position-only swap with same player', () => {
     const changes: PlannedRotationChangeData[] = [
       { outPlayerId: 'p1', inPlayerId: 'p1', outPosition: 'CM', inPosition: 'FW', positionOnly: true, approximateMatchSeconds: 1500, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('same player');
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain('same player');
   });
 
   it('rejects out player not in squad', () => {
     const changes: PlannedRotationChangeData[] = [
       { outPlayerId: 'unknown', inPlayerId: 'p3', outPosition: 'CM', inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('not in the match squad');
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain('not in the match squad');
   });
 
   it('rejects in player not in squad', () => {
     const changes: PlannedRotationChangeData[] = [
       { outPlayerId: 'p1', inPlayerId: 'unknown', outPosition: 'CM', inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
     ];
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('not in the match squad');
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain('not in the match squad');
   });
 
   it('rejects exceeding max changes', () => {
     const changes = Array.from({ length: 51 }, (_, i) => ({
-      outPlayerId: 'p1',
-      inPlayerId: 'p2',
+      outPlayerId: `p${(i % 5) + 1}`,
+      inPlayerId: `p${((i + 2) % 5) + 1}`,
       outPosition: 'CM',
       inPosition: 'CM',
       positionOnly: false,
       approximateMatchSeconds: 1500 + i * 100,
       notes: null,
     }));
-    const errors = validatePlannedChanges(changes, playerIds);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('Maximum');
+    const issues = validatePlannedChanges(changes, playerIds);
+    const maxIssue = issues.find((i) => i.message.includes('Maximum'));
+    expect(maxIssue).toBeDefined();
+  });
+
+  it('warns when same player is substituted out multiple times', () => {
+    const changes: PlannedRotationChangeData[] = [
+      { outPlayerId: 'p1', inPlayerId: 'p3', outPosition: 'CM', inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
+      { outPlayerId: 'p1', inPlayerId: 'p4', outPosition: 'CM', inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 2500, notes: null },
+    ];
+    const issues = validatePlannedChanges(changes, playerIds);
+    const warning = issues.find((i) => i.type === 'warning' && i.message.includes('substituted out multiple times'));
+    expect(warning).toBeDefined();
+  });
+
+  it('rejects player substituting themselves', () => {
+    const changes: PlannedRotationChangeData[] = [
+      { outPlayerId: 'p1', inPlayerId: 'p1', outPosition: 'CM', inPosition: 'FW', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
+    ];
+    const issues = validatePlannedChanges(changes, playerIds);
+    const error = issues.find((i) => i.type === 'error' && i.message.includes('cannot substitute themselves'));
+    expect(error).toBeDefined();
+  });
+
+  it('returns structured issues with changeIndex', () => {
+    const changes: PlannedRotationChangeData[] = [
+      { outPlayerId: null, inPlayerId: 'p3', outPosition: null, inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 1500, notes: null },
+    ];
+    const issues = validatePlannedChanges(changes, playerIds);
+    expect(issues[0].changeIndex).toBe(0);
+    expect(issues[0].type).toBe('error');
   });
 });
 

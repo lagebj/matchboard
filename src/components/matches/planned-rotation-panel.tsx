@@ -10,8 +10,9 @@ import {
   createPlannedRotationAction,
   updatePlannedRotationAction,
   deletePlannedRotationAction,
+  validatePlannedChangesAction,
 } from "@/app/(app)/matches/planned-rotation-actions";
-import type { PlannedRotationWithChanges, PlannedRotationChangeData } from "@/lib/planned-rotation/planned-rotation";
+import type { PlannedRotationWithChanges, PlannedRotationChangeData, PlannedRotationValidationIssue } from "@/lib/planned-rotation/planned-rotation";
 
 type PlannedRotationPanelProps = {
   matchId: string;
@@ -254,10 +255,22 @@ function formDataToChangeData(form: ChangeFormData): PlannedRotationChangeData {
 export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, readOnly = false }: PlannedRotationPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [validationIssues, setValidationIssues] = useState<PlannedRotationValidationIssue[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingChangeId, setEditingChangeId] = useState<string | null>(null);
 
   const playerById = new Map(squadPlayers.map((p) => [p.id, p]));
+
+  async function runValidation(changes: PlannedRotationChangeData[]) {
+    try {
+      const result = await validatePlannedChangesAction(matchId, teamId, changes);
+      if (result.success) {
+        setValidationIssues(result.issues);
+      }
+    } catch {
+      // validation is advisory; don't block on failure
+    }
+  }
 
   function handleCreate() {
     setError(null);
@@ -311,6 +324,8 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       } else {
         setShowAddForm(false);
         setEditingChangeId(null);
+        setValidationIssues([]);
+        runValidation(changes);
       }
     });
   }
@@ -334,6 +349,9 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       const result = await updatePlannedRotationAction(rotation.id, { changes });
       if (!result.success) {
         setError(result.error);
+      } else {
+        setValidationIssues([]);
+        runValidation(changes);
       }
     });
   }
@@ -365,6 +383,9 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       const result = await updatePlannedRotationAction(rotation.id, { changes: updatedChanges });
       if (!result.success) {
         setError(result.error);
+      } else {
+        setValidationIssues([]);
+        runValidation(updatedChanges);
       }
     });
   }
@@ -549,6 +570,20 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       )}
 
       {error && <p className="mt-2 text-sm text-[var(--text-error)]">{error}</p>}
+
+      {validationIssues.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1">
+          {validationIssues.map((issue, index) => (
+            <p
+              key={index}
+              className={`text-sm ${issue.type === "error" ? "text-[var(--text-error)]" : "text-[var(--text-muted)]"}`}
+            >
+              {issue.changeIndex !== null ? `Change ${issue.changeIndex + 1}: ` : ""}
+              {issue.message}
+            </p>
+          ))}
+        </div>
+      )}
     </Surface>
   );
 }

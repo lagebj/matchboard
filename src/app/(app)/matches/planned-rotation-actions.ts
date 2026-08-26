@@ -13,6 +13,7 @@ import {
   validatePlannedChanges,
   type PlannedRotationWithChanges,
   type PlannedRotationChangeData,
+  type PlannedRotationValidationIssue,
 } from "@/lib/planned-rotation/planned-rotation";
 import type { CreatePlannedRotationInput, UpdatePlannedRotationInput } from "@/lib/planned-rotation/planned-rotation";
 
@@ -66,6 +67,25 @@ export async function createPlannedRotationAction(
     const result = await createPlannedRotation(input, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
 
+    if (input.changes && input.changes.length > 0) {
+      const selections = await db.selection.findMany({
+        where: {
+          matchId: input.matchId,
+          status: { in: ["DRAFT", "FINALIZED"] },
+          match: { teamId: input.teamId },
+        },
+        select: { playerId: true },
+      });
+      const squadPlayerIds = new Set(selections.map((s) => s.playerId));
+      const validationIssues = validatePlannedChanges(input.changes, squadPlayerIds);
+      if (validationIssues.some((issue) => issue.type === "error")) {
+        const errorMessages = validationIssues
+          .filter((issue) => issue.type === "error")
+          .map((issue) => issue.message);
+        return { success: false, error: `Validation failed: ${errorMessages.join("; ")}` };
+      }
+    }
+
     logMutationEvent("planned_rotation_create", ctx.email || "unknown", "planned_rotation", result.rotation.id, "success");
     revalidateMatchPaths(input.matchId);
 
@@ -88,6 +108,25 @@ export async function updatePlannedRotationAction(
 
     const result = await updatePlannedRotation(rotationId, input, ctx.orgFilter);
     if (!result.success) return { success: false, error: result.error };
+
+    if (input.changes && input.changes.length > 0) {
+      const selections = await db.selection.findMany({
+        where: {
+          matchId: result.rotation.matchId,
+          status: { in: ["DRAFT", "FINALIZED"] },
+          match: { teamId: result.rotation.teamId },
+        },
+        select: { playerId: true },
+      });
+      const squadPlayerIds = new Set(selections.map((s) => s.playerId));
+      const validationIssues = validatePlannedChanges(input.changes, squadPlayerIds);
+      if (validationIssues.some((issue) => issue.type === "error")) {
+        const errorMessages = validationIssues
+          .filter((issue) => issue.type === "error")
+          .map((issue) => issue.message);
+        return { success: false, error: `Validation failed: ${errorMessages.join("; ")}` };
+      }
+    }
 
     const matchId = result.rotation.matchId;
     logMutationEvent("planned_rotation_update", ctx.email || "unknown", "planned_rotation", rotationId, "success");
@@ -129,7 +168,7 @@ export async function validatePlannedChangesAction(
   matchId: string,
   teamId: string,
   changes: PlannedRotationChangeData[],
-): Promise<{ success: true; issues: string[] } | { success: false; error: string }> {
+): Promise<{ success: true; issues: PlannedRotationValidationIssue[] } | { success: false; error: string }> {
   try {
     const ctx = await requirePageActorContext();
     setTenantOrganisationId(ctx.organisationId);
