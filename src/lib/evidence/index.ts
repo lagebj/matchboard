@@ -84,3 +84,19 @@ export {
   captureOrganisationBaselines,
   getPlayerRatingBaseline,
 } from "./historical-baseline";
+
+export type {
+  LineupPosition,
+  LineupChangeEntry,
+  CompositeLineupChange,
+  ProjectedLineup,
+  StarterAssignment,
+} from "./lineup-state";
+
+export {
+  projectLineupFromEvents,
+  computePositionIntervals,
+  getLineupAtGoalTime,
+  validateCompositeLineupChange,
+  computeTotalMinutesByPosition,
+} from "./lineup-state";
