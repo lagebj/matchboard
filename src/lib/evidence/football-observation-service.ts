@@ -3,8 +3,6 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { FootballObservationCode, ObservationPolarity } from "./observation-vocabulary";
 import { isValidObservationCode, ALL_OBSERVATION_CODES } from "./observation-vocabulary";
-import { EVIDENCE_ENGINE_VERSION } from "./evidence-accumulator";
-import { MAPPING_VERSION } from "./observation-mapping";
 
 export type FootballObservationInput = {
   playerId: string;

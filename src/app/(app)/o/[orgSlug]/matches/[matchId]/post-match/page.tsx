@@ -4,9 +4,10 @@ import { PostMatchPage } from "@/components/assistant/post-match-page";
 import { MatchFeedbackSection } from "@/components/matches/match-feedback-section";
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { ObservationSection } from "@/components/opponents/observation-section";
-import { DevelopmentObservationSection } from "@/components/player-development/development-observation-section";
+import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { ALL_OBSERVATION_CODES } from "@/lib/evidence/observation-vocabulary";
 
 export const dynamic = "force-dynamic";
 
@@ -150,7 +151,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     plannedSelections,
   } : null;
 
-  const [feedbackEntries, teamReflection, existingObservation, devObservations] = await Promise.all([
+  const [feedbackEntries, teamReflection, existingObservation, footballObservations] = await Promise.all([
     db.matchExecutionFeedback.findMany({
       where: { matchId },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
@@ -184,19 +185,18 @@ export default async function PostMatchRoute({ params }: PageProps) {
     db.playerDevelopmentObservation.findMany({
       where: {
         matchId,
+        kind: "ATTRIBUTE",
+        attributeKey: { in: [...ALL_OBSERVATION_CODES] },
         ...ctx.orgFilter.filter,
       },
       orderBy: { observedAt: "desc" },
       select: {
         id: true,
         playerId: true,
-        kind: true,
         attributeKey: true,
-        positionId: true,
         direction: true,
         observableNote: true,
         observedAt: true,
-        player: { select: { id: true, firstName: true, lastName: true } },
       },
     }),
   ]);
@@ -245,15 +245,12 @@ export default async function PostMatchRoute({ params }: PageProps) {
       }
     : null;
 
-  const devObservationData = devObservations.map((o) => ({
+  const footballObservationData = footballObservations.map((o) => ({
     id: o.id,
     playerId: o.playerId,
-    playerName: `${o.player.firstName} ${o.player.lastName ?? ""}`.trim(),
-    kind: o.kind,
-    attributeKey: o.attributeKey,
-    positionId: o.positionId,
-    direction: o.direction,
-    observableNote: o.observableNote,
+    observationCode: o.attributeKey ?? "",
+    polarity: o.direction,
+    note: o.observableNote,
     observedAt: o.observedAt.toISOString(),
   }));
 
@@ -267,10 +264,10 @@ export default async function PostMatchRoute({ params }: PageProps) {
         matchFit={match.matchFit}
       />
       <MatchFeedbackSection matchId={matchId} feedback={feedbackData} players={playerOptions} />
-      <DevelopmentObservationSection
+      <FootballObservationSection
         matchId={matchId}
         players={playerOptions}
-        existingObservations={devObservationData}
+        existingObservations={footballObservationData}
         isLocked={initialReport?.status === "LOCKED"}
       />
       <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
