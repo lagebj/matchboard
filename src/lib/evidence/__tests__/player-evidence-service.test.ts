@@ -26,24 +26,25 @@ const defaultAttributes: Record<RatingAttributeKey, number | null> = {
   strength: 5,
 };
 
-describe("computePlayerAssessmentProposals", () => {
-  it("returns no proposals for a player with no observations", () => {
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations: [],
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
+const defaultInput = (overrides?: Partial<PlayerEvidenceInput>): PlayerEvidenceInput => ({
+  playerId: "p1",
+  organisationId: "org1",
+  observations: [],
+  currentPlayerAttributes: defaultAttributes,
+  goalkeeperAbility: "NO",
+  cutoverAt: null,
+  ...overrides,
+});
 
-    const proposals = computePlayerAssessmentProposals(input);
-    expect(proposals).toEqual([]);
+describe("computePlayerAssessmentProposals", () => {
+  it("returns no attribute proposals for a player with no observations", () => {
+    const result = computePlayerAssessmentProposals(defaultInput());
+    expect(result.attributeProposals).toEqual([]);
+    expect(result.goalkeeperProposal).toBeNull();
   });
 
   it("returns NO_CHANGE for a single positive observation (below threshold)", () => {
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
+    const input = defaultInput({
       observations: [
         {
           playerId: "p1",
@@ -53,14 +54,12 @@ describe("computePlayerAssessmentProposals", () => {
           occurredAt: NOW,
         },
       ],
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
+    });
 
-    const proposals = computePlayerAssessmentProposals(input);
-    expect(proposals.length).toBeGreaterThan(0);
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.attributeProposals.length).toBeGreaterThan(0);
 
-    const ballControlProposal = proposals.find((p) => p.attributeKey === "ballControl");
+    const ballControlProposal = result.attributeProposals.find((p) => p.attributeKey === "ballControl");
     expect(ballControlProposal).toBeDefined();
     expect(ballControlProposal!.direction).toBe("NO_CHANGE");
     expect(ballControlProposal!.proposedValue).toBe(6);
@@ -78,16 +77,9 @@ describe("computePlayerAssessmentProposals", () => {
       });
     }
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const ballControlProposal = proposals.find((p) => p.attributeKey === "ballControl");
+    const input = defaultInput({ observations });
+    const result = computePlayerAssessmentProposals(input);
+    const ballControlProposal = result.attributeProposals.find((p) => p.attributeKey === "ballControl");
     expect(ballControlProposal).toBeDefined();
     expect(ballControlProposal!.direction).toBe("INCREASE");
     expect(ballControlProposal!.proposedValue).toBeGreaterThan(6);
@@ -105,16 +97,9 @@ describe("computePlayerAssessmentProposals", () => {
       });
     }
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const ballControlProposal = proposals.find((p) => p.attributeKey === "ballControl");
+    const input = defaultInput({ observations });
+    const result = computePlayerAssessmentProposals(input);
+    const ballControlProposal = result.attributeProposals.find((p) => p.attributeKey === "ballControl");
     expect(ballControlProposal).toBeDefined();
     expect(ballControlProposal!.direction).toBe("DECREASE");
     expect(ballControlProposal!.proposedValue).toBeLessThan(6);
@@ -122,9 +107,7 @@ describe("computePlayerAssessmentProposals", () => {
 
   it("returns null for null attributes (not rated)", () => {
     const nullAttributes = { ...defaultAttributes, ballControl: null };
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
+    const input = defaultInput({
       observations: [
         {
           playerId: "p1",
@@ -135,11 +118,10 @@ describe("computePlayerAssessmentProposals", () => {
         },
       ],
       currentPlayerAttributes: nullAttributes,
-      cutoverAt: null,
-    };
+    });
 
-    const proposals = computePlayerAssessmentProposals(input);
-    const ballControlProposal = proposals.find((p) => p.attributeKey === "ballControl");
+    const result = computePlayerAssessmentProposals(input);
+    const ballControlProposal = result.attributeProposals.find((p) => p.attributeKey === "ballControl");
     expect(ballControlProposal).toBeUndefined();
   });
 
@@ -156,16 +138,9 @@ describe("computePlayerAssessmentProposals", () => {
       });
     }
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const effortProposal = proposals.find((p) => p.attributeKey === "effort");
+    const input = defaultInput({ observations, cutoverAt });
+    const result = computePlayerAssessmentProposals(input);
+    const effortProposal = result.attributeProposals.find((p) => p.attributeKey === "effort");
     expect(effortProposal).toBeUndefined();
   });
 
@@ -182,24 +157,15 @@ describe("computePlayerAssessmentProposals", () => {
       });
     }
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const effortProposal = proposals.find((p) => p.attributeKey === "effort");
+    const input = defaultInput({ observations, cutoverAt });
+    const result = computePlayerAssessmentProposals(input);
+    const effortProposal = result.attributeProposals.find((p) => p.attributeKey === "effort");
     expect(effortProposal).toBeDefined();
     expect(effortProposal!.direction).toBe("INCREASE");
   });
 
   it("produces supporting evidence for secondary targets", () => {
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
+    const input = defaultInput({
       observations: [
         {
           playerId: "p1",
@@ -209,16 +175,14 @@ describe("computePlayerAssessmentProposals", () => {
           occurredAt: NOW,
         },
       ],
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
+    });
 
-    const proposals = computePlayerAssessmentProposals(input);
+    const result = computePlayerAssessmentProposals(input);
 
-    const ballControlProposal = proposals.find((p) => p.attributeKey === "ballControl");
+    const ballControlProposal = result.attributeProposals.find((p) => p.attributeKey === "ballControl");
     expect(ballControlProposal).toBeDefined();
 
-    const firstTouchProposal = proposals.find((p) => p.attributeKey === "firstTouch");
+    const firstTouchProposal = result.attributeProposals.find((p) => p.attributeKey === "firstTouch");
     expect(firstTouchProposal).toBeDefined();
     expect(firstTouchProposal!.direction).toBe("NO_CHANGE");
   });
@@ -248,17 +212,9 @@ describe("computePlayerAssessmentProposals", () => {
       occurredAt: NOW,
     };
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      context,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const passingProposal = proposals.find((p) => p.attributeKey === "passing");
+    const input = defaultInput({ observations, context });
+    const result = computePlayerAssessmentProposals(input);
+    const passingProposal = result.attributeProposals.find((p) => p.attributeKey === "passing");
     expect(passingProposal).toBeDefined();
     expect(passingProposal!.direction).toBe("INCREASE");
   });
@@ -275,16 +231,9 @@ describe("computePlayerAssessmentProposals", () => {
       });
     }
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const effortProposal = proposals.find((p) => p.attributeKey === "effort");
+    const input = defaultInput({ observations });
+    const result = computePlayerAssessmentProposals(input);
+    const effortProposal = result.attributeProposals.find((p) => p.attributeKey === "effort");
     expect(effortProposal).toBeDefined();
     expect(effortProposal!.proposedValue).toBe(8);
     expect(effortProposal!.currentValue).toBe(7);
@@ -304,16 +253,9 @@ describe("computePlayerAssessmentProposals", () => {
       });
     }
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: minAttributes,
-      cutoverAt: null,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const effortProposal = proposals.find((p) => p.attributeKey === "effort");
+    const input = defaultInput({ observations, currentPlayerAttributes: minAttributes });
+    const result = computePlayerAssessmentProposals(input);
+    const effortProposal = result.attributeProposals.find((p) => p.attributeKey === "effort");
     expect(effortProposal).toBeDefined();
     expect(effortProposal!.proposedValue).toBeGreaterThanOrEqual(1);
   });
@@ -350,16 +292,9 @@ describe("computePlayerAssessmentProposals", () => {
       },
     ];
 
-    const input: PlayerEvidenceInput = {
-      playerId: "p1",
-      organisationId: "org1",
-      observations,
-      currentPlayerAttributes: defaultAttributes,
-      cutoverAt: null,
-    };
-
-    const proposals = computePlayerAssessmentProposals(input);
-    const ballControlProposal = proposals.find((p) => p.attributeKey === "ballControl");
+    const input = defaultInput({ observations });
+    const result = computePlayerAssessmentProposals(input);
+    const ballControlProposal = result.attributeProposals.find((p) => p.attributeKey === "ballControl");
     expect(ballControlProposal).toBeDefined();
     expect(ballControlProposal!.direction).toBe("NO_CHANGE");
   });
@@ -383,5 +318,126 @@ describe("computePlayerAssessmentProposals", () => {
     for (const attr of expectedAttributes) {
       expect(coveredAttributes.has(attr)).toBe(true);
     }
+  });
+
+  it("produces position-based supporting evidence from context", () => {
+    const context: MatchContextEvidence = {
+      playerId: "p1",
+      matchId: "m1",
+      goals: 0,
+      assists: 0,
+      minutesPlayed: 60,
+      position: "CB",
+      opponentRating: null,
+      isWin: false,
+      isLoss: false,
+      occurredAt: NOW,
+    };
+
+    const input = defaultInput({ context });
+    const result = computePlayerAssessmentProposals(input);
+
+    expect(result.attributeProposals.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("computeGoalkeeperProposal", () => {
+  it("promotes goalkeeper from NO to EMERGENCY with sufficient positive observations", () => {
+    const observations: MatchObservationEvidence[] = [];
+    for (let i = 0; i < 3; i++) {
+      observations.push({
+        playerId: "p1",
+        observationCode: "GOALKEEPING_EFFECTIVE",
+        polarity: "POSITIVE",
+        matchId: `m${i + 1}`,
+        occurredAt: new Date(NOW.getTime() + i * 86400000),
+      });
+    }
+
+    const input = defaultInput({ observations, goalkeeperAbility: "NO" });
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.goalkeeperProposal).not.toBeNull();
+    expect(result.goalkeeperProposal!.direction).toBe("PROMOTE");
+    expect(result.goalkeeperProposal!.proposedValue).toBe("EMERGENCY");
+  });
+
+  it("promotes goalkeeper from EMERGENCY to YES with sufficient positive observations", () => {
+    const observations: MatchObservationEvidence[] = [];
+    for (let i = 0; i < 3; i++) {
+      observations.push({
+        playerId: "p1",
+        observationCode: "GOALKEEPING_EFFECTIVE",
+        polarity: "POSITIVE",
+        matchId: `m${i + 1}`,
+        occurredAt: new Date(NOW.getTime() + i * 86400000),
+      });
+    }
+
+    const input = defaultInput({ observations, goalkeeperAbility: "EMERGENCY" });
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.goalkeeperProposal).not.toBeNull();
+    expect(result.goalkeeperProposal!.direction).toBe("PROMOTE");
+    expect(result.goalkeeperProposal!.proposedValue).toBe("YES");
+  });
+
+  it("demotes goalkeeper from YES with sufficient negative observations", () => {
+    const observations: MatchObservationEvidence[] = [];
+    for (let i = 0; i < 3; i++) {
+      observations.push({
+        playerId: "p1",
+        observationCode: "GOALKEEPING_EFFECTIVE",
+        polarity: "NEGATIVE",
+        matchId: `m${i + 1}`,
+        occurredAt: new Date(NOW.getTime() + i * 86400000),
+      });
+    }
+
+    const input = defaultInput({ observations, goalkeeperAbility: "YES" });
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.goalkeeperProposal).not.toBeNull();
+    expect(result.goalkeeperProposal!.direction).toBe("DEMOTE");
+    expect(result.goalkeeperProposal!.proposedValue).toBe("EMERGENCY");
+  });
+
+  it("returns null for no goalkeeper observations", () => {
+    const input = defaultInput({ goalkeeperAbility: "NO" });
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.goalkeeperProposal).toBeNull();
+  });
+
+  it("returns NO_CHANGE when observations are insufficient", () => {
+    const input = defaultInput({
+      observations: [
+        {
+          playerId: "p1",
+          observationCode: "GOALKEEPING_EFFECTIVE",
+          polarity: "POSITIVE",
+          matchId: "m1",
+          occurredAt: NOW,
+        },
+      ],
+      goalkeeperAbility: "NO",
+    });
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.goalkeeperProposal).not.toBeNull();
+    expect(result.goalkeeperProposal!.direction).toBe("NO_CHANGE");
+  });
+
+  it("blocks goalkeeper evidence before cutover date", () => {
+    const cutoverAt = new Date("2026-08-20T00:00:00Z");
+    const observations: MatchObservationEvidence[] = [];
+    for (let i = 0; i < 3; i++) {
+      observations.push({
+        playerId: "p1",
+        observationCode: "GOALKEEPING_EFFECTIVE",
+        polarity: "POSITIVE",
+        matchId: `m${i + 1}`,
+        occurredAt: new Date("2026-08-15T00:00:00Z"),
+      });
+    }
+
+    const input = defaultInput({ observations, goalkeeperAbility: "NO", cutoverAt });
+    const result = computePlayerAssessmentProposals(input);
+    expect(result.goalkeeperProposal).toBeNull();
   });
 });

@@ -38,12 +38,48 @@ export type MatchContextEvidence = {
   occurredAt: Date;
 };
 
+export type PositionEvidenceMapping = {
+  position: string;
+  attributeKey: RatingAttributeKey;
+  weight: number;
+};
+
+const POSITION_ATTRIBUTE_MAPPINGS: PositionEvidenceMapping[] = [
+  { position: "GK", attributeKey: "concentration", weight: 0.4 },
+  { position: "GK", attributeKey: "positioning", weight: 0.3 },
+  { position: "CB", attributeKey: "positioning", weight: 0.4 },
+  { position: "CB", attributeKey: "oneVOneDefending", weight: 0.3 },
+  { position: "LB", attributeKey: "positioning", weight: 0.3 },
+  { position: "LB", attributeKey: "speed", weight: 0.3 },
+  { position: "RB", attributeKey: "positioning", weight: 0.3 },
+  { position: "RB", attributeKey: "speed", weight: 0.3 },
+  { position: "CM", attributeKey: "decisionMaking", weight: 0.4 },
+  { position: "CM", attributeKey: "passing", weight: 0.3 },
+  { position: "CDM", attributeKey: "positioning", weight: 0.4 },
+  { position: "CDM", attributeKey: "oneVOneDefending", weight: 0.3 },
+  { position: "CAM", attributeKey: "decisionMaking", weight: 0.3 },
+  { position: "CAM", attributeKey: "oneVOneAttacking", weight: 0.3 },
+  { position: "LM", attributeKey: "passing", weight: 0.3 },
+  { position: "LM", attributeKey: "speed", weight: 0.3 },
+  { position: "RM", attributeKey: "passing", weight: 0.3 },
+  { position: "RM", attributeKey: "speed", weight: 0.3 },
+  { position: "LW", attributeKey: "oneVOneAttacking", weight: 0.3 },
+  { position: "LW", attributeKey: "speed", weight: 0.3 },
+  { position: "RW", attributeKey: "oneVOneAttacking", weight: 0.3 },
+  { position: "RW", attributeKey: "speed", weight: 0.3 },
+  { position: "ST", attributeKey: "oneVOneAttacking", weight: 0.4 },
+  { position: "ST", attributeKey: "positioning", weight: 0.2 },
+  { position: "CF", attributeKey: "oneVOneAttacking", weight: 0.4 },
+  { position: "CF", attributeKey: "firstTouch", weight: 0.3 },
+];
+
 export type PlayerEvidenceInput = {
   playerId: string;
   organisationId: string;
   observations: MatchObservationEvidence[];
   context?: MatchContextEvidence;
   currentPlayerAttributes: Record<RatingAttributeKey, number | null>;
+  goalkeeperAbility: string;
   cutoverAt: Date | null;
 };
 
@@ -169,17 +205,165 @@ function extractContextEvidence(
   return evidence;
 }
 
+function extractPositionEvidence(
+  context: MatchContextEvidence,
+): ExtractedEvidence[] {
+  const evidence: ExtractedEvidence[] = [];
+  if (!context.position) return evidence;
+
+  const now = new Date();
+  const positionUpper = context.position.toUpperCase();
+
+  const mappings = POSITION_ATTRIBUTE_MAPPINGS.filter(
+    (m) => m.position === positionUpper,
+  );
+
+  for (const mapping of mappings) {
+    evidence.push({
+      id: `pos-${context.matchId}-${context.position}-${mapping.attributeKey}-CONTEXT`,
+      sourceType: "POSITION_USAGE",
+      observationCode: null,
+      matchId: context.matchId,
+      matchSeconds: null,
+      playerId: context.playerId,
+      targetAttributeKey: mapping.attributeKey,
+      targetGoalkeeper: false,
+      evidenceClass: "SUPPORTING",
+      polarity: "POSITIVE",
+      mappingVersion: MAPPING_VERSION,
+      engineVersion: EVIDENCE_ENGINE_VERSION,
+      occurredAt: context.occurredAt,
+      extractedAt: now,
+      extractedById: "evidence-engine",
+      weight: mapping.weight,
+      confidence: 0.2,
+      rebasedAt: null,
+      consumedAt: null,
+    });
+  }
+
+  return evidence;
+}
+
+export type GoalkeeperAssessmentProposal = {
+  playerId: string;
+  direction: "PROMOTE" | "DEMOTE" | "NO_CHANGE";
+  currentValue: "NO" | "EMERGENCY" | "YES";
+  proposedValue: "NO" | "EMERGENCY" | "YES";
+  positiveObservations: number;
+  negativeObservations: number;
+  distinctMatchCount: number;
+  confidence: number;
+};
+
+function computeGoalkeeperProposal(
+  playerId: string,
+  observations: MatchObservationEvidence[],
+  currentValue: string,
+  cutoverAt: Date | null,
+): GoalkeeperAssessmentProposal | null {
+  const gkObs = observations.filter(
+    (o) => o.observationCode === "GOALKEEPING_EFFECTIVE" && o.playerId === playerId,
+  );
+
+  if (gkObs.length === 0) return null;
+
+  const earliestAt = gkObs.reduce(
+    (min, o) => (!min || o.occurredAt < min ? o.occurredAt : min),
+    gkObs[0].occurredAt,
+  );
+
+  if (cutoverAt && earliestAt < cutoverAt) return null;
+
+  const positiveCount = gkObs.filter((o) => o.polarity === "POSITIVE").length;
+  const negativeCount = gkObs.filter((o) => o.polarity === "NEGATIVE").length;
+  const distinctMatches = new Set(gkObs.map((o) => o.matchId)).size;
+
+  const gkValue = currentValue as "NO" | "EMERGENCY" | "YES";
+
+  if (positiveCount >= 3 && distinctMatches >= 2) {
+    if (gkValue === "NO") {
+      return {
+        playerId,
+        direction: "PROMOTE",
+        currentValue: gkValue,
+        proposedValue: "EMERGENCY",
+        positiveObservations: positiveCount,
+        negativeObservations: negativeCount,
+        distinctMatchCount: distinctMatches,
+        confidence: 0.7,
+      };
+    }
+    if (gkValue === "EMERGENCY") {
+      return {
+        playerId,
+        direction: "PROMOTE",
+        currentValue: gkValue,
+        proposedValue: "YES",
+        positiveObservations: positiveCount,
+        negativeObservations: negativeCount,
+        distinctMatchCount: distinctMatches,
+        confidence: 0.7,
+      };
+    }
+  }
+
+  if (negativeCount >= 3 && distinctMatches >= 2) {
+    if (gkValue === "YES") {
+      return {
+        playerId,
+        direction: "DEMOTE",
+        currentValue: gkValue,
+        proposedValue: "EMERGENCY",
+        positiveObservations: positiveCount,
+        negativeObservations: negativeCount,
+        distinctMatchCount: distinctMatches,
+        confidence: 0.7,
+      };
+    }
+    if (gkValue === "EMERGENCY") {
+      return {
+        playerId,
+        direction: "DEMOTE",
+        currentValue: gkValue,
+        proposedValue: "NO",
+        positiveObservations: positiveCount,
+        negativeObservations: negativeCount,
+        distinctMatchCount: distinctMatches,
+        confidence: 0.7,
+      };
+    }
+  }
+
+  return {
+    playerId,
+    direction: "NO_CHANGE",
+    currentValue: gkValue,
+    proposedValue: gkValue,
+    positiveObservations: positiveCount,
+    negativeObservations: negativeCount,
+    distinctMatchCount: distinctMatches,
+    confidence: 0.3,
+  };
+}
+
+export type PlayerAssessmentResult = {
+  attributeProposals: AssessmentProposal[];
+  goalkeeperProposal: GoalkeeperAssessmentProposal | null;
+};
+
 export function computePlayerAssessmentProposals(
   input: PlayerEvidenceInput,
-): AssessmentProposal[] {
-  const { playerId, observations, context, currentPlayerAttributes, cutoverAt } = input;
+): PlayerAssessmentResult {
+  const { playerId, observations, context, currentPlayerAttributes, goalkeeperAbility, cutoverAt } = input;
 
-  const proposals: AssessmentProposal[] = [];
+  const attributeProposals: AssessmentProposal[] = [];
 
   const observationEvidence = extractObservationEvidence(observations, playerId);
   const contextEvidence = context ? extractContextEvidence(context) : [];
+  const positionEvidence = context ? extractPositionEvidence(context) : [];
 
-  const allEvidence = [...observationEvidence, ...contextEvidence];
+  const allEvidence = [...observationEvidence, ...contextEvidence, ...positionEvidence];
 
   const affectedAttributes = new Set<RatingAttributeKey>();
   for (const e of allEvidence) {
@@ -205,11 +389,18 @@ export function computePlayerAssessmentProposals(
 
     const proposal = computeAssessmentProposal(acc, currentValue, cutoverAt);
     if (proposal) {
-      proposals.push(proposal);
+      attributeProposals.push(proposal);
     }
   }
 
-  return proposals;
+  const goalkeeperProposal = computeGoalkeeperProposal(
+    playerId,
+    observations,
+    goalkeeperAbility,
+    cutoverAt,
+  );
+
+  return { attributeProposals, goalkeeperProposal };
 }
 
 export async function applyPlayerAssessmentProposals(
@@ -326,6 +517,7 @@ export async function computeAndApplyPlayerEvidenceForMatch(
       concentration: true,
       speed: true,
       strength: true,
+      goalkeeperAbility: true,
       evidenceCutoverAt: true,
       organisationId: true,
     },
@@ -371,17 +563,45 @@ export async function computeAndApplyPlayerEvidenceForMatch(
       organisationId: player.organisationId,
       observations: playerObservations,
       currentPlayerAttributes,
+      goalkeeperAbility: player.goalkeeperAbility,
       cutoverAt: player.evidenceCutoverAt,
     };
 
-    const proposals = computePlayerAssessmentProposals(input);
-    totalProposals += proposals.length;
+    const result = computePlayerAssessmentProposals(input);
+    totalProposals += result.attributeProposals.length;
 
-    if (proposals.length > 0) {
-      const result = await applyPlayerAssessmentProposals(proposals, player.organisationId);
-      totalApplied += result.applied;
-      totalSkipped += result.skipped;
-      allErrors.push(...result.errors);
+    if (result.attributeProposals.length > 0) {
+      const applyResult = await applyPlayerAssessmentProposals(result.attributeProposals, player.organisationId);
+      totalApplied += applyResult.applied;
+      totalSkipped += applyResult.skipped;
+      allErrors.push(...applyResult.errors);
+    }
+
+    if (result.goalkeeperProposal && result.goalkeeperProposal.direction !== "NO_CHANGE") {
+      try {
+        await db.player.update({
+          where: { id: playerId },
+          data: { goalkeeperAbility: result.goalkeeperProposal.proposedValue },
+        });
+
+        await recordAssessmentChange({
+          playerId,
+          targetType: "GOALKEEPER",
+          attributeKey: null,
+          targetDescription: `Automatic ${result.goalkeeperProposal.direction.toLowerCase()}: goalkeeperAbility`,
+          beforeValue: null,
+          afterValue: null,
+          source: "AUTOMATIC",
+          reason: `${result.goalkeeperProposal.direction.toLowerCase()} from ${result.goalkeeperProposal.currentValue} to ${result.goalkeeperProposal.proposedValue} (${result.goalkeeperProposal.positiveObservations} positive, ${result.goalkeeperProposal.negativeObservations} negative observations across ${result.goalkeeperProposal.distinctMatchCount} matches)`,
+          evidenceIds: [],
+          confidence: result.goalkeeperProposal.confidence,
+          cutoverAt: null,
+        });
+
+        totalApplied++;
+      } catch (error) {
+        allErrors.push(`Failed to apply goalkeeperAbility for ${playerId}: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
     }
   }
 

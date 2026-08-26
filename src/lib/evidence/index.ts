@@ -140,6 +140,9 @@ export type {
   MatchObservationEvidence,
   MatchContextEvidence,
   PlayerEvidenceInput,
+  PlayerAssessmentResult,
+  GoalkeeperAssessmentProposal,
+  PositionEvidenceMapping,
 } from "./player-evidence-service";
 
 export {
