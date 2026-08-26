@@ -1913,6 +1913,9 @@ Rules:
 | `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` | Coach handover: compact match-operational view for mobile matchday use |
 | `src/components/matches/coach-handover-view.tsx` | Coach handover client component: squad, rotations, intent, warnings |
 | `src/lib/planned-rotation/planned-rotation-live-bridge.ts` | Plan-to-live bridge: apply/skip/modify planned changes, next change lookup |
+| `src/lib/planned-rotation/rotation-vs-actual.ts` | Rotation vs actual comparison: per-change deviation, minute deviation, unplanned substitutions |
+| `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
+| `src/lib/coaching/development-thread-categories.ts` | Shared development focus categories and labels (client/server) |
 | `src/components/matches/planned-rotation-panel.tsx` | UI: rotation plan panel on match detail (Rotations tab) |
 
 ### Team composition engine files
