@@ -12,6 +12,7 @@ import { PlayerPositionProfile } from "@/components/players/player-position-prof
 import { PlayerDetailsPanel } from "@/components/players/player-details-panel";
 import { PlayerAttributesPanel } from "@/components/players/player-attributes-panel";
 import { PlayerAvailabilityPanel } from "@/components/players/player-availability-panel";
+import { AssessmentHistoryPanel } from "@/components/players/player-assessment-history-panel";
 import { CoachContextPanel as PlayerCoachContextPanel } from "@/components/players/player-coach-context-panel";
 import { PlayerReadinessPanel } from "@/components/players/player-readiness-panel";
 import { PlayerReportSummaryPanel } from "@/components/players/player-report-summary-panel";
@@ -224,6 +225,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
               player={player}
               updateFieldAction={updatePlayerFieldAction}
             />
+            <AssessmentHistoryPanel playerId={player.id} />
           </div>
         }
         bottom={
