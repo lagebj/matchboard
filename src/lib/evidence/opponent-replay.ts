@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { classifyDataQuality, computeWholeMatchEstimate, type HistoricalDryRunResult } from "./opponent-engine";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
+import { recordOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
+import { orgFilterFromContext } from "@/lib/tenancy/resolve-org-filter";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 type MatchForReplay = {
   matchId: string;
@@ -270,4 +273,71 @@ async function getPlayerRatingsForMatch(
     secondaryPosition: a.player.secondaryPosition,
     tertiaryPosition: a.player.tertiaryPosition,
   }));
+}
+
+export type ApplyResult = {
+  totalMatches: number;
+  processed: number;
+  skipped: number;
+  recorded: number;
+  failed: number;
+  details: Array<{ matchId: string; opponentTeamId: string | null; status: string }>;
+};
+
+export async function applyOpponentEvidenceHistory(
+  organisationId: string,
+  options?: { gameFormat?: string; from?: Date; to?: Date },
+): Promise<ApplyResult> {
+  const matches = await getEligibleMatches(organisationId, options);
+  const orgFilter: OrgFilterMode = { type: "org", organisationId, filter: { organisationId }, filterNullable: { organisationId } };
+
+  const existingEvidence = await db.opponentSportingEvidence.findMany({
+    where: {
+      organisationId,
+      ...(options?.from ? { occurredAt: { gte: options.from } } : {}),
+      ...(options?.to ? { occurredAt: { lte: options.to } } : {}),
+    },
+    select: { matchId: true },
+  });
+  const alreadyRecorded = new Set(existingEvidence.map((e) => e.matchId));
+
+  let processed = 0;
+  let skipped = 0;
+  let recorded = 0;
+  let failed = 0;
+  const details: ApplyResult["details"] = [];
+
+  for (const match of matches) {
+    if (alreadyRecorded.has(match.matchId)) {
+      skipped++;
+      details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: "already_recorded" });
+      continue;
+    }
+
+    processed++;
+
+    try {
+      const result = await recordOpponentSportingEvidence(match.matchId, orgFilter);
+
+      if (result.recorded) {
+        recorded++;
+        details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: "recorded" });
+      } else {
+        skipped++;
+        details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: result.reason ?? "skipped" });
+      }
+    } catch (error) {
+      failed++;
+      details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: `error: ${error instanceof Error ? error.message : "unknown"}` });
+    }
+  }
+
+  return {
+    totalMatches: matches.length,
+    processed,
+    skipped,
+    recorded,
+    failed,
+    details,
+  };
 }

@@ -134,7 +134,7 @@ export {
   getLatestOpponentAssessment,
 } from "./opponent-assessment-change";
 
-export { dryRunOpponentEvidence } from "./opponent-replay";
+export { dryRunOpponentEvidence, applyOpponentEvidenceHistory, type ApplyResult } from "./opponent-replay";
 
 export type {
   MatchObservationEvidence,
