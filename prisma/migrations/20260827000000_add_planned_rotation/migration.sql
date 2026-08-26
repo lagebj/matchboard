@@ -94,12 +94,12 @@ ALTER TABLE "PlannedRotation" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "PlannedRotationChange" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PlannedRotationChange" FORCE ROW LEVEL SECURITY;
 
-CREATE POLICY "PlannedRotation_org_scoped_select" ON "PlannedRotation" FOR SELECT USING (organisationId = current_setting('app.current_organization_id', TRUE));
-CREATE POLICY "PlannedRotation_org_scoped_insert" ON "PlannedRotation" FOR INSERT WITH CHECK (organisationId = current_setting('app.current_organization_id', TRUE));
-CREATE POLICY "PlannedRotation_org_scoped_update" ON "PlannedRotation" FOR UPDATE USING (organisationId = current_setting('app.current_organization_id', TRUE));
-CREATE POLICY "PlannedRotation_org_scoped_delete" ON "PlannedRotation" FOR DELETE USING (organisationId = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotation_org_scoped_select" ON "PlannedRotation" FOR SELECT USING ("organisationId" = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotation_org_scoped_insert" ON "PlannedRotation" FOR INSERT WITH CHECK ("organisationId" = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotation_org_scoped_update" ON "PlannedRotation" FOR UPDATE USING ("organisationId" = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotation_org_scoped_delete" ON "PlannedRotation" FOR DELETE USING ("organisationId" = current_setting('app.current_organization_id', TRUE));
 
-CREATE POLICY "PlannedRotationChange_org_scoped_select" ON "PlannedRotationChange" FOR SELECT USING (organisationId = current_setting('app.current_organization_id', TRUE));
-CREATE POLICY "PlannedRotationChange_org_scoped_insert" ON "PlannedRotationChange" FOR INSERT WITH CHECK (organisationId = current_setting('app.current_organization_id', TRUE));
-CREATE POLICY "PlannedRotationChange_org_scoped_update" ON "PlannedRotationChange" FOR UPDATE USING (organisationId = current_setting('app.current_organization_id', TRUE));
-CREATE POLICY "PlannedRotationChange_org_scoped_delete" ON "PlannedRotationChange" FOR DELETE USING (organisationId = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotationChange_org_scoped_select" ON "PlannedRotationChange" FOR SELECT USING ("organisationId" = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotationChange_org_scoped_insert" ON "PlannedRotationChange" FOR INSERT WITH CHECK ("organisationId" = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotationChange_org_scoped_update" ON "PlannedRotationChange" FOR UPDATE USING ("organisationId" = current_setting('app.current_organization_id', TRUE));
+CREATE POLICY "PlannedRotationChange_org_scoped_delete" ON "PlannedRotationChange" FOR DELETE USING ("organisationId" = current_setting('app.current_organization_id', TRUE));
