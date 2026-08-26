@@ -64,3 +64,23 @@ export {
   setPlayerEvidenceCutover,
   getPlayerEvidenceCutover,
 } from "./assessment-change";
+
+export type {
+  FootballObservationInput,
+  BatchObservationResult,
+} from "./football-observation-service";
+
+export {
+  createFootballObservations,
+  getFootballObservationsForPlayer,
+  getFootballObservationsForMatch,
+} from "./football-observation-service";
+
+export type {
+  PlayerRatingBaseline,
+} from "./historical-baseline";
+
+export {
+  captureOrganisationBaselines,
+  getPlayerRatingBaseline,
+} from "./historical-baseline";
