@@ -583,6 +583,13 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
     // Sporting evidence recording must not block report completion
   }
 
+  try {
+    const { computeAndApplyPlayerEvidenceForMatch } = await import("@/lib/evidence/player-evidence-service");
+    await computeAndApplyPlayerEvidenceForMatch(report.matchId);
+  } catch {
+    // Player evidence assessment must not block report completion
+  }
+
   return { success: true, matchId: report.matchId };
 }
 

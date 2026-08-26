@@ -145,4 +145,5 @@ export type {
 export {
   computePlayerAssessmentProposals,
   applyPlayerAssessmentProposals,
+  computeAndApplyPlayerEvidenceForMatch,
 } from "./player-evidence-service";

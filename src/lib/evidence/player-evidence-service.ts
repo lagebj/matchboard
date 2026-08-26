@@ -262,3 +262,133 @@ export async function applyPlayerAssessmentProposals(
 
   return { applied, skipped, errors };
 }
+
+export async function computeAndApplyPlayerEvidenceForMatch(
+  matchId: string,
+  orgFilter?: { filter: Record<string, unknown> },
+): Promise<{ proposalsComputed: number; applied: number; skipped: number; errors: string[] }> {
+  const observations = await db.playerDevelopmentObservation.findMany({
+    where: {
+      matchId,
+      kind: "ATTRIBUTE",
+      attributeKey: { in: [...ALL_OBSERVATION_CODES] },
+      ...(orgFilter?.filter ?? {}),
+    },
+    select: {
+      id: true,
+      playerId: true,
+      attributeKey: true,
+      direction: true,
+      observedAt: true,
+    },
+  });
+
+  if (observations.length === 0) {
+    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: [] };
+  }
+
+  const playerIds = [...new Set(observations.map((o) => o.playerId))];
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      homeGoals: true,
+      awayGoals: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      date: true,
+      matchRound: { select: { id: true } },
+    },
+  });
+
+  if (!match) {
+    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: ["Match not found"] };
+  }
+
+  const players = await db.player.findMany({
+    where: {
+      id: { in: playerIds },
+      active: true,
+      removedAt: null,
+    },
+    select: {
+      id: true,
+      ballControl: true,
+      passing: true,
+      firstTouch: true,
+      oneVOneAttacking: true,
+      positioning: true,
+      oneVOneDefending: true,
+      decisionMaking: true,
+      effort: true,
+      teamplay: true,
+      concentration: true,
+      speed: true,
+      strength: true,
+      evidenceCutoverAt: true,
+      organisationId: true,
+    },
+  });
+
+  const playerMap = new Map(players.map((p) => [p.id, p]));
+  let totalProposals = 0;
+  let totalApplied = 0;
+  let totalSkipped = 0;
+  const allErrors: string[] = [];
+
+  for (const playerId of playerIds) {
+    const player = playerMap.get(playerId);
+    if (!player) continue;
+
+    const playerObservations: MatchObservationEvidence[] = observations
+      .filter((o) => o.playerId === playerId)
+      .map((o) => ({
+        playerId: o.playerId,
+        observationCode: o.attributeKey as FootballObservationCode,
+        polarity: o.direction as ObservationPolarity,
+        matchId,
+        occurredAt: o.observedAt,
+      }));
+
+    const currentPlayerAttributes: Record<RatingAttributeKey, number | null> = {
+      ballControl: player.ballControl,
+      passing: player.passing,
+      firstTouch: player.firstTouch,
+      oneVOneAttacking: player.oneVOneAttacking,
+      positioning: player.positioning,
+      oneVOneDefending: player.oneVOneDefending,
+      decisionMaking: player.decisionMaking,
+      effort: player.effort,
+      teamplay: player.teamplay,
+      concentration: player.concentration,
+      speed: player.speed,
+      strength: player.strength,
+    };
+
+    const input: PlayerEvidenceInput = {
+      playerId,
+      organisationId: player.organisationId,
+      observations: playerObservations,
+      currentPlayerAttributes,
+      cutoverAt: player.evidenceCutoverAt,
+    };
+
+    const proposals = computePlayerAssessmentProposals(input);
+    totalProposals += proposals.length;
+
+    if (proposals.length > 0) {
+      const result = await applyPlayerAssessmentProposals(proposals, player.organisationId);
+      totalApplied += result.applied;
+      totalSkipped += result.skipped;
+      allErrors.push(...result.errors);
+    }
+  }
+
+  return {
+    proposalsComputed: totalProposals,
+    applied: totalApplied,
+    skipped: totalSkipped,
+    errors: allErrors,
+  };
+}
