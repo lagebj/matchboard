@@ -39,6 +39,7 @@ model Team {
   matchHelperAssignments   MatchHelperAssignment[] @relation("HelperSourceTeam")
   groupPlayers             FootballGroupPlayer[]   @relation("GroupPlayerCoreTeam")
   bestLineup               TeamBestLineup?
+  plannedRotations         PlannedRotation[]
   group                    FootballGroup           @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation             Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -122,6 +123,8 @@ model Player {
   eventLiveEventsSecondary EventLiveMatchEvent[]          @relation("EventLiveEventSecondaryPlayer")
   rotationsOut             MatchRotation[]                @relation("RotationOutPlayer")
   rotationsIn              MatchRotation[]                @relation("RotationInPlayer")
+  plannedChangesOut        PlannedRotationChange[]        @relation("PlannedChangeOutPlayer")
+  plannedChangesIn         PlannedRotationChange[]        @relation("PlannedChangeInPlayer")
   fairPlayObservations     FairPlayObservation[]
   groupMemberships         FootballGroupPlayer[]
   assessmentChanges        AssessmentChange[]
@@ -163,6 +166,7 @@ model Match {
   liveSession                 LiveMatchSession?
   liveEvents                  LiveMatchEvent[]
   rotations                   MatchRotation[]
+  plannedRotations            PlannedRotation[]
   fairPlayObservations        FairPlayObservation[]
   movementLedger              MovementLedger[]
   opponentObservation         OpponentEncounterObservation?
@@ -874,6 +878,56 @@ model MatchRotation {
   organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([matchId, period])
+  @@index([outPlayerId])
+  @@index([inPlayerId])
+  @@index([organisationId])
+}
+
+model PlannedRotation {
+  id             String                @id @default(cuid())
+  organisationId String
+  matchId        String
+  teamId         String
+  status         PlannedRotationStatus @default(DRAFT)
+  notes          String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  match        Match                    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team         Team                     @relation(fields: [teamId], references: [id])
+  organisation Organisation?            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  changes      PlannedRotationChange[]
+
+  @@unique([matchId, teamId])
+  @@index([matchId])
+  @@index([teamId])
+  @@index([organisationId])
+}
+
+model PlannedRotationChange {
+  id                     String                @id @default(cuid())
+  organisationId         String
+  plannedRotationId      String
+  sequence               Int
+  outPlayerId            String?
+  inPlayerId             String?
+  outPosition            String?
+  inPosition             String?
+  positionOnly           Boolean               @default(false)
+  approximateMatchSeconds Int?
+  status                  PlannedChangeStatus   @default(PENDING)
+  liveEventId             String?
+  notes                  String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  plannedRotation PlannedRotation       @relation(fields: [plannedRotationId], references: [id], onDelete: Cascade)
+  outPlayer       Player?               @relation("PlannedChangeOutPlayer", fields: [outPlayerId], references: [id], onDelete: SetNull)
+  inPlayer        Player?               @relation("PlannedChangeInPlayer", fields: [inPlayerId], references: [id], onDelete: SetNull)
+  organisation    Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([plannedRotationId, sequence])
+  @@index([plannedRotationId])
   @@index([outPlayerId])
   @@index([inPlayerId])
   @@index([organisationId])
@@ -1914,6 +1968,19 @@ enum RotationSource {
   MANUAL
 }
 
+enum PlannedRotationStatus {
+  DRAFT
+  APPLIED
+  SUPERSEDED
+}
+
+enum PlannedChangeStatus {
+  PENDING
+  APPLIED
+  SKIPPED
+  MODIFIED
+}
+
 model Organisation {
   id              String    @id @default(cuid())
   name            String
@@ -1959,6 +2026,8 @@ model Organisation {
   liveMatchSessions             LiveMatchSession[]
   liveMatchEvents               LiveMatchEvent[]
   matchRotations                MatchRotation[]
+  plannedRotations              PlannedRotation[]
+  plannedRotationChanges        PlannedRotationChange[]
   fairPlayObservations          FairPlayObservation[]
   teamReflections               TeamReflection[]
   opponentEncounterObservations OpponentEncounterObservation[]

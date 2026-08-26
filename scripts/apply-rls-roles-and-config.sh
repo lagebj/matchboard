@@ -105,6 +105,7 @@ BEGIN
   FOR tbl IN SELECT unnest(ARRAY[
     'FairPlayObservation', 'LiveMatchEvent', 'LiveMatchSession', 'MatchRotation',
     'NotificationOutbox', 'OpponentSportingEvidence', 'PlayerDevelopmentObservation',
+    'PlannedRotation', 'PlannedRotationChange',
     'PlayerProfileSuggestion', 'ReviewRequest', 'WorkOwnership'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tbl);

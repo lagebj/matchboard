@@ -1901,6 +1901,12 @@ Rules:
 | `src/lib/formatters/event-export-filename.ts` | Safe event export filename generation |
 | `src/app/(app)/events/[eventId]/export/route.ts` | GET route: Excel workbook export with Squads, Match call-out, and optional Conflicts sheets |
 
+### Planned rotation engine files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, validation, lineup projection, minutes projection, coverage checking |
+
 ### Team composition engine files
 
 | File | Purpose |
