@@ -1,35 +1,11 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { DEVELOPMENT_FOCUS_CATEGORIES, type DevelopmentFocusCategory } from "@/lib/coaching/development-thread-categories";
+
+export type { DevelopmentFocusCategory };
+export { DEVELOPMENT_FOCUS_CATEGORIES };
 
 export type DevelopmentThreadStatus = "ACTIVE" | "COMPLETED" | "CLOSED";
-export type DevelopmentFocusCategory =
-  | "POSITIONAL_DISCIPLINE"
-  | "CONFIDENCE_REBUILD"
-  | "CHALLENGE_EXPOSURE"
-  | "TEAM_FIRST_BEHAVIOUR"
-  | "RESET_AFTER_ERROR"
-  | "SUPPORT_TEAMMATES"
-  | "PLAY_THROUGH_TEAM"
-  | "BALL_CONTROL"
-  | "DECISION_MAKING"
-  | "EFFORT_AND_INTENSITY"
-  | "POSITIONAL_LEARNING"
-  | "GOALKEEPING";
-
-export const DEVELOPMENT_FOCUS_CATEGORIES: DevelopmentFocusCategory[] = [
-  "POSITIONAL_DISCIPLINE",
-  "CONFIDENCE_REBUILD",
-  "CHALLENGE_EXPOSURE",
-  "TEAM_FIRST_BEHAVIOUR",
-  "RESET_AFTER_ERROR",
-  "SUPPORT_TEAMMATES",
-  "PLAY_THROUGH_TEAM",
-  "BALL_CONTROL",
-  "DECISION_MAKING",
-  "EFFORT_AND_INTENSITY",
-  "POSITIONAL_LEARNING",
-  "GOALKEEPING",
-];
 
 export interface CreateThreadInput {
   playerId: string;
