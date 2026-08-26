@@ -357,6 +357,8 @@ export interface ReconcilableCanonicalEvent {
   id: string;
   eventType: string;
   createdAt: string;
+  playerId?: string;
+  secondaryPlayerId?: string;
 }
 
 export interface ReconciliationResult {
@@ -393,6 +395,11 @@ export function evaluateReconciliation(params: {
       actorUserId: "",
       acceptedAt: new Date(event.createdAt).getTime(),
       eventType: event.eventType,
+      eventFields: {
+        eventType: event.eventType,
+        ...(event.playerId != null ? { playerId: event.playerId } : {}),
+        ...(event.secondaryPlayerId != null ? { secondaryPlayerId: event.secondaryPlayerId } : {}),
+      },
       persistenceStatus: "persisted",
       canonicalEventId: event.id,
       retryCount: 0,

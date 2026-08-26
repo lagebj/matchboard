@@ -89,6 +89,8 @@ export async function recordEventForActor(
           clientEventId: existing.clientEventId ?? input.clientEventId,
           eventType: existing.eventType,
           createdAt: existing.createdAt.toISOString(),
+          playerId: input.playerId ?? undefined,
+          secondaryPlayerId: input.secondaryPlayerId ?? undefined,
         };
       }
     }
@@ -116,6 +118,8 @@ export async function recordEventForActor(
       clientEventId: input.clientEventId,
       eventType: event.eventType,
       createdAt: event.createdAt.toISOString(),
+      playerId: input.playerId ?? undefined,
+      secondaryPlayerId: input.secondaryPlayerId ?? undefined,
     };
   });
 }

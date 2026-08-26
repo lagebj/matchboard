@@ -307,6 +307,8 @@ export class MatchSessionObject extends DurableObject<Env> {
         clientEventId: event.clientEventId,
         eventType: event.eventType,
         createdAt: new Date(event.acceptedAt).toISOString(),
+        playerId: typeof event.eventFields?.playerId === "string" ? event.eventFields.playerId : undefined,
+        secondaryPlayerId: typeof event.eventFields?.secondaryPlayerId === "string" ? event.eventFields.secondaryPlayerId : undefined,
       }));
 
     const snapshot: MatchSessionSnapshot = {
@@ -395,11 +397,14 @@ export class MatchSessionObject extends DurableObject<Env> {
 
         // Placeholder broadcast content, used only if persistence below fails or throws —
         // Stage 3's original unconditional broadcast, kept as the fallback shape.
+        // Includes playerId/secondaryPlayerId from the submitted event for live event display.
         let canonicalEvent: CanonicalLiveEvent = {
           id: decision.record.clientEventId,
           clientEventId: decision.record.clientEventId,
           eventType: String(eventType),
           createdAt: new Date(decision.record.acceptedAt).toISOString(),
+          playerId: typeof eventFields.playerId === "string" ? eventFields.playerId : undefined,
+          secondaryPlayerId: typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
         };
         let persistenceStatus: RecordEventResult["persistenceStatus"] = "pending";
 

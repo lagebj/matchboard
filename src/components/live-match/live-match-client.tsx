@@ -291,6 +291,13 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // Derived
   const onFieldPlayers = useMemo(() => squad.filter((p) => onFieldIds.has(p.playerId)), [squad, onFieldIds]);
   const benchPlayers = useMemo(() => squad.filter((p) => !onFieldIds.has(p.playerId)), [squad, onFieldIds]);
+  const playerMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of squad) {
+      map[p.playerId] = p.playerName;
+    }
+    return map;
+  }, [squad]);
   const sortedPlayersForScorer = useMemo(() => [...onFieldPlayers, ...benchPlayers], [onFieldPlayers, benchPlayers]);
 
   // --- Local-first event recording ---
@@ -883,23 +890,34 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           <p className="text-xs text-zinc-600">No events recorded yet.</p>
         ) : (
           <div className="space-y-1">
-            {mergedEvents.map((event) => (
-              <div key={event.id} className="flex items-center justify-between py-1.5 px-2 bg-zinc-900/80 rounded text-xs">
-                <div className="min-w-0">
-                  <span className="text-zinc-300">{getEventTypeLabel(event.eventType)}</span>
-                  {event.isReversed && <span className="text-red-400 ml-1 text-[10px]">reversed</span>}
-                  {event.isCorrected && <span className="text-amber-400 ml-1 text-[10px]">corrected</span>}
+            {mergedEvents.map((event) => {
+              const label = getEventTypeLabel(event.eventType);
+              const playerName = event.playerId ? playerMap[event.playerId] : undefined;
+              const secondaryName = event.secondaryPlayerId ? playerMap[event.secondaryPlayerId] : undefined;
+              let displayText = label;
+              if (playerName && secondaryName) {
+                displayText = `${label} — ${playerName} / ${secondaryName}`;
+              } else if (playerName) {
+                displayText = `${label} — ${playerName}`;
+              }
+              return (
+                <div key={event.id} className="flex items-center justify-between py-1.5 px-2 bg-zinc-900/80 rounded text-xs">
+                  <div className="min-w-0">
+                    <span className="text-zinc-300">{displayText}</span>
+                    {event.isReversed && <span className="text-red-400 ml-1 text-[10px]">reversed</span>}
+                    {event.isCorrected && <span className="text-amber-400 ml-1 text-[10px]">corrected</span>}
+                  </div>
+                  {!event.isReversed && LIVE_EVENT_TYPES_THAT_ARE_CORRECTABLE.has(event.eventType) && (
+                    <button
+                      onClick={() => handleUndo(event.id)}
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300 shrink-0 ml-2 min-h-[36px] px-1"
+                    >
+                      Undo
+                    </button>
+                  )}
                 </div>
-                {!event.isReversed && LIVE_EVENT_TYPES_THAT_ARE_CORRECTABLE.has(event.eventType) && (
-                  <button
-                    onClick={() => handleUndo(event.id)}
-                    className="text-[10px] text-zinc-500 hover:text-zinc-300 shrink-0 ml-2 min-h-[36px] px-1"
-                  >
-                    Undo
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

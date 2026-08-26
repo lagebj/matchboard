@@ -23,13 +23,17 @@ export interface ClockAnchor {
 }
 
 /** SPEC.md §25 — canonical event shape as reconstructed from Neon for realtime purposes.
- * Minimal for Stage 1: enough to appear in a snapshot's `events` array; Stage 4 defines the
- * exact fields once it reads real rows via `recordEventForActor`/canonical persistence. */
+ * Extended in Stage 5 to carry player context for live event display: playerId identifies
+ * who the event is about (scorer, rotated-out player, etc.), secondaryPlayerId identifies
+ * the secondary actor (assist, rotated-in player). Both are optional — some event types
+ * (FAIR_PLAY_POSITIVE, FAIR_PLAY_CONCERN) may not have either. */
 export interface CanonicalLiveEvent {
   id: string;
   clientEventId: string;
   eventType: string;
   createdAt: string;
+  playerId?: string;
+  secondaryPlayerId?: string;
 }
 
 /** SPEC.md §25 — the full active-session snapshot sent on attach/reconnect. Fully specified
