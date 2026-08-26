@@ -135,3 +135,14 @@ export {
 } from "./opponent-assessment-change";
 
 export { dryRunOpponentEvidence } from "./opponent-replay";
+
+export type {
+  MatchObservationEvidence,
+  MatchContextEvidence,
+  PlayerEvidenceInput,
+} from "./player-evidence-service";
+
+export {
+  computePlayerAssessmentProposals,
+  applyPlayerAssessmentProposals,
+} from "./player-evidence-service";
