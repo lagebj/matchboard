@@ -1906,6 +1906,8 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, validation, lineup projection, minutes projection, coverage checking |
+| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation |
+| `src/components/matches/planned-rotation-panel.tsx` | UI: rotation plan panel on match detail (Rotations tab) |
 
 ### Team composition engine files
 
