@@ -100,3 +100,24 @@ export {
   validateCompositeLineupChange,
   computeTotalMinutesByPosition,
 } from "./lineup-state";
+
+export type {
+  DataQualityTier,
+  LineupStateInterval,
+  EffectivePlayerStrength,
+  LineupStateStrength,
+  OpponentEncounterEvidenceInput,
+  OpponentEncounterEvidenceResult,
+  OpponentContextSignal,
+  HistoricalDryRunResult,
+} from "./opponent-engine";
+
+export {
+  OPPONENT_ENGINE_VERSION,
+  classifyDataQuality,
+  computePositionSuitability,
+  computeEffectivePlayerStrength,
+  computeLineupStateStrengths,
+  computeEncounterEvidenceFromLineupStates,
+  computeWholeMatchEstimate,
+} from "./opponent-engine";
