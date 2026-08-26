@@ -27,6 +27,7 @@ export async function recordOpponentSportingEvidence(
       gameFormat: true,
       startsAt: true,
       organisationId: true,
+      homeAway: true,
     },
   });
 
@@ -65,6 +66,13 @@ export async function recordOpponentSportingEvidence(
 
   const homeGoals = report.homeGoals ?? 0;
   const awayGoals = report.awayGoals ?? 0;
+
+  // homeGoals/awayGoals are venue-relative (home team's score, away team's score).
+  // goalsFor/goalsAgainst in sporting evidence are from our team's perspective.
+  // When we're the away team, our goals = awayGoals, opponent's = homeGoals.
+  const isHome = match.homeAway === "HOME";
+  const goalsFor = isHome ? homeGoals : awayGoals;
+  const goalsAgainst = isHome ? awayGoals : homeGoals;
 
   const presentActuals = report.playerActuals.filter(
     (a: { playerId: string; attendanceStatus: string; actualPositions: unknown }) =>
@@ -167,8 +175,8 @@ export async function recordOpponentSportingEvidence(
       opponentTeamId: match.opponentTeamId,
       occurredAt: match.startsAt,
       gameFormat: match.gameFormat,
-      goalsFor: homeGoals,
-      goalsAgainst: awayGoals,
+      goalsFor,
+      goalsAgainst,
       fieldedRatingSnapshot: new Prisma.Decimal(fieldedRating.toFixed(2)),
       participantCount,
       ratedParticipantCount,
@@ -185,8 +193,8 @@ export async function recordOpponentSportingEvidence(
       opponentTeamId: match.opponentTeamId,
       occurredAt: match.startsAt,
       gameFormat: match.gameFormat,
-      goalsFor: homeGoals,
-      goalsAgainst: awayGoals,
+      goalsFor,
+      goalsAgainst,
       fieldedRatingSnapshot: new Prisma.Decimal(fieldedRating.toFixed(2)),
       participantCount,
       ratedParticipantCount,

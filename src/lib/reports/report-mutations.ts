@@ -177,8 +177,21 @@ export async function seedReportFromLiveSession(
     orderBy: { createdAt: "asc" },
   });
 
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    select: { homeAway: true },
+  });
+
   const goalsFor = liveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
   const goalsAgainst = liveEvents.filter((e) => e.eventType === "GOAL_AGAINST").length;
+
+  // GOAL_FOR is always "our team" and GOAL_AGAINST is always "opponent", but
+  // PostMatchReport.homeGoals/awayGoals are venue-relative: homeGoals = home team's
+  // goals, awayGoals = away team's goals. When we're the away team, our goals go in
+  // awayGoals and the opponent's go in homeGoals.
+  const isHome = match?.homeAway === "HOME";
+  const homeGoals = isHome ? goalsFor : goalsAgainst;
+  const awayGoals = isHome ? goalsAgainst : goalsFor;
 
   const scorerEvents = liveEvents.filter((e) => e.eventType === "SCORER_SET" && e.playerId !== null);
   const assistEvents = liveEvents.filter((e) => e.eventType === "ASSIST_SET" && e.playerId !== null);
@@ -216,8 +229,8 @@ export async function seedReportFromLiveSession(
     data: {
       matchId,
       status: "DRAFT",
-      homeGoals: goalsFor,
-      awayGoals: goalsAgainst,
+      homeGoals,
+      awayGoals,
       organisationId,
       playerActuals: {
         create: selections.map((s) => ({

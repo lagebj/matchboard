@@ -401,9 +401,13 @@ export async function getGroupWithDetails(groupSlugOrId: string, organisationId:
   return { ...group, playerCount, outgoingPaths, incomingPaths };
 }
 
-export async function listGroupsForOrganisation(organisationId: string) {
+export async function listGroupsForOrganisation(organisationId: string, accessibleGroupIds?: string[]) {
   return db.footballGroup.findMany({
-    where: { organisationId, isActive: true },
+    where: {
+      organisationId,
+      isActive: true,
+      ...(accessibleGroupIds ? { id: { in: accessibleGroupIds } } : {}),
+    },
     orderBy: { name: "asc" },
     select: {
       id: true,

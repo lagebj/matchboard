@@ -20,7 +20,6 @@ import type {
   RecordEventResult,
   ApplyEventCallback,
   PresenceChangedCallback,
-  SessionEndedCallback,
   ClientAck,
 } from "@/lib/live-match/realtime/realtime-messages";
 
@@ -43,6 +42,8 @@ interface LiveMatchClientProps {
 function ack(): ClientAck {
   return { acknowledged: true };
 }
+
+const LOG_PREFIX = "[live-match:league-realtime]";
 
 /**
  * Realtime integration for the reporting coach (SPEC.md §5, §20, §22, §27, §28 — Stage 5).
@@ -85,56 +86,61 @@ export function useLiveRealtime(matchId: string) {
   function ensureConnected(): void {
     if (clientRef.current) return;
     const url = process.env.NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL;
-    if (!url) return; // No realtime endpoint configured — silently no-op (kill switch, ADR-0086).
+    if (!url) {
+      console.debug(`${LOG_PREFIX} NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL not set — realtime disabled (kill switch)`);
+      return;
+    }
+
+    console.debug(`${LOG_PREFIX} connecting (matchId=%s, url=%s)`, matchId, url);
 
     const client = new RealtimeMatchClient({
       url: `${url}/matches/${matchId}`,
       clientId: clientIdRef.current,
       getTicket: () => fetchRealtimeTicket(matchId, "report"),
-      // SPEC.md §27 reconnect sequence step 4 ("get snapshot") — re-derive the current
-      // version on (re)connect rather than trusting whatever this tab last knew, then prompt
-      // an immediate refresh (step 5's "replay unsynced local events" is handled separately,
-      // by the existing syncUnsyncedEvents() flow in live-match-client.tsx, which now goes
-      // through tryRecordEvent too since it also calls actions.recordEvent).
       onConnectionStateChange: (state) => {
         if (state !== "connected") return;
+        console.debug(`${LOG_PREFIX} connected, fetching snapshot`);
         client
           .getSnapshot()
           .then((snapshot) => {
             const version = (snapshot as { version?: unknown } | undefined)?.version;
             if (typeof version === "number") versionRef.current = version;
+            console.debug(`${LOG_PREFIX} snapshot received (version=%d)`, versionRef.current);
             notifyListeners();
           })
-          .catch(() => {
-            // Non-fatal — the connection is still usable; the next recordEvent's own
-            // response (or a STALE_STATE rejection) will realign the version instead.
+          .catch((error) => {
+            console.warn(`${LOG_PREFIX} snapshot fetch failed (non-fatal): %s`, error instanceof Error ? error.message : String(error));
           });
       },
       callbackHandlers: {
         applyEvent: (raw) => {
-          void (raw as ApplyEventCallback);
+          const params = raw as ApplyEventCallback;
+          console.debug(`${LOG_PREFIX} broadcast received: %s (version=%d)`, params.event.eventType, params.version);
           notifyListeners();
           return ack();
         },
         presenceChanged: (raw) => {
-          void (raw as PresenceChangedCallback);
+          const params = raw as PresenceChangedCallback;
+          console.debug(`${LOG_PREFIX} presence changed: connectedCount=%d`, params.connectedCount);
           notifyListeners();
           return ack();
         },
-        sessionEnded: (raw) => {
-          void (raw as SessionEndedCallback);
+        sessionEnded: (_raw) => {
+          console.warn(`${LOG_PREFIX} session ended by server`);
           notifyListeners();
           return ack();
         },
       },
     });
     clientRef.current = client;
-    void client.connect().catch(() => {
+    void client.connect().catch((error) => {
+      console.error(`${LOG_PREFIX} connect failed: %s`, error instanceof Error ? error.message : String(error));
       clientRef.current = null;
     });
   }
 
   function disconnect(): void {
+    console.debug(`${LOG_PREFIX} disconnecting`);
     clientRef.current?.disconnect();
     clientRef.current = null;
   }
@@ -144,6 +150,7 @@ export function useLiveRealtime(matchId: string) {
    * on HTTP-only for up to ~30s after connectivity actually returns). No-op if never
    * connected in the first place (nothing to reconnect). */
   function reconnectNow(): void {
+    console.debug(`${LOG_PREFIX} reconnectNow: forcing immediate reconnect`);
     void clientRef.current?.connect();
   }
 
@@ -176,14 +183,13 @@ export function useLiveRealtime(matchId: string) {
         event: input.event,
       })) as RecordEventResult;
       if (typeof result.version === "number") versionRef.current = result.version;
+      console.debug(`${LOG_PREFIX} tryRecordEvent: %s accepted (version=%d, persistence=%s)`, input.clientEventId, result.version, result.persistenceStatus);
       return result;
     } catch (error) {
-      // STALE_STATE carries the object's actual current version — realign now so the *next*
-      // state-sensitive attempt doesn't repeat the same rejection forever (a hardcoded/stale
-      // baseVersion would otherwise only ever succeed once, per the same self-heal reasoning
-      // this file already documented for the old best-effort broadcast).
       const currentVersion = (error as { currentVersion?: unknown } | null)?.currentVersion;
       if (typeof currentVersion === "number") versionRef.current = currentVersion;
+      const code = (error as { code?: string } | null)?.code ?? "unknown";
+      console.warn(`${LOG_PREFIX} tryRecordEvent: %s failed (%s, realigned version=%d)`, input.clientEventId, code, versionRef.current);
       return null;
     }
   }

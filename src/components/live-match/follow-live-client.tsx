@@ -7,6 +7,10 @@
  * kind. Server-side enforcement (the "view" ticket's capabilities, checked by
  * `workers/live-match/src/match-session-object.ts`) is the real boundary; this component's
  * read-only-ness is defense in depth, not the security mechanism.
+ *
+ * Diagnostic logging uses `console.warn`/`console.error` for failure states so they appear in
+ * browser consoles even when debug-level filtering is active. `console.debug` is used for
+ * informational connection lifecycle events.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +27,8 @@ import type {
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
 import { StatusPill } from "@/components/ui/status-pill";
+
+const LOG_PREFIX = "[live-match:follow]";
 
 interface FollowLiveClientProps {
   matchId: string;
@@ -51,27 +57,36 @@ export function FollowLiveClient({ matchId, teamName, opponentName, homeAway }: 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL;
     if (!url) {
+      console.error(`${LOG_PREFIX} NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL is not set — cannot connect.`);
       setConnectionState("error");
       return;
     }
+
+    console.debug(`${LOG_PREFIX} initializing client (matchId=%s, url=%s)`, matchId, url);
 
     const client = new RealtimeMatchClient({
       url: `${url}/matches/${matchId}`,
       clientId: crypto.randomUUID(),
       getTicket: () => fetchRealtimeTicket(matchId, "view"),
-      onConnectionStateChange: setConnectionState,
+      onConnectionStateChange: (state) => {
+        console.debug(`${LOG_PREFIX} connection state: %s → %s`, connectionState, state);
+        setConnectionState(state);
+      },
       callbackHandlers: {
         applyEvent: (raw): ClientAck => {
           const params = raw as ApplyEventCallback;
+          console.debug(`${LOG_PREFIX} event received: %s (version=%d)`, params.event.eventType, params.version);
           setEvents((prev) => [params.event, ...prev].slice(0, 50));
           return { acknowledged: true };
         },
         presenceChanged: (raw): ClientAck => {
           const params = raw as PresenceChangedCallback;
+          console.debug(`${LOG_PREFIX} presence changed: connectedCount=%d`, params.connectedCount);
           setConnectedCount(params.connectedCount);
           return { acknowledged: true };
         },
         sessionEnded: (_raw): ClientAck => {
+          console.warn(`${LOG_PREFIX} session ended by server`);
           setSessionEnded(true);
           return { acknowledged: true };
         },
@@ -82,15 +97,16 @@ export function FollowLiveClient({ matchId, teamName, opponentName, homeAway }: 
     void client.connect().then(async () => {
       try {
         const snapshot = (await client.getSnapshot()) as MatchSessionSnapshot;
+        console.debug(`${LOG_PREFIX} snapshot received: version=%d, events=%d, status=%s`, snapshot.version, snapshot.events.length, snapshot.session.status);
         setConnectedCount(snapshot.presence.connectedCount);
         if (snapshot.session.status === "ENDED") setSessionEnded(true);
-      } catch {
-        // Snapshot fetch failing doesn't prevent later broadcasts from arriving — the
-        // connection-state indicator already communicates degraded state to the coach.
+      } catch (error) {
+        console.warn(`${LOG_PREFIX} snapshot fetch failed (non-fatal): %s`, error instanceof Error ? error.message : String(error));
       }
     });
 
     return () => {
+      console.debug(`${LOG_PREFIX} cleanup: disconnecting`);
       client.disconnect();
       clientRef.current = null;
     };

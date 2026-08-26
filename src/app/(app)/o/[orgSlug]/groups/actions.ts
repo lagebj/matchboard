@@ -236,7 +236,11 @@ export async function removeGroupAccessAction(groupId: string, membershipId: str
 export async function listGroupsAction() {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
-  return listGroupsForOrganisation(ctx.organisationId);
+  // OWNER and ADMIN can see all groups; COACH/VIEWER/SUPPORT see only groups they have access to
+  if (ctx.role === "OWNER" || ctx.role === "ADMIN") {
+    return listGroupsForOrganisation(ctx.organisationId);
+  }
+  return listGroupsForOrganisation(ctx.organisationId, ctx.accessibleGroupIds);
 }
 
 export async function getGroupDetailAction(groupId: string) {
