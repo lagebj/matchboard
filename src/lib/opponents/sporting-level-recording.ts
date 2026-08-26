@@ -7,6 +7,8 @@ import {
   FORMULA_VERSION,
 } from "./sporting-level-calculation";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
+import { RATING_ATTRIBUTE_KEYS } from "@/lib/player-development/constants";
 
 export type FieldedPlayer = {
   playerId: string;
@@ -109,23 +111,9 @@ export async function recordOpponentSportingEvidence(
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
-  const RATING_ATTRS = [
-    "ballControl", "passing", "firstTouch", "oneVOneAttacking", "positioning",
-    "oneVOneDefending", "decisionMaking", "effort", "teamplay", "concentration",
-    "speed", "strength",
-  ] as const;
-
   const fieldedPlayers: FieldedPlayer[] = presentActuals.map((actual: { playerId: string; attendanceStatus: string; actualPositions: unknown }) => {
     const player = playerMap.get(actual.playerId);
-    let rating: number | null = null;
-    if (player) {
-      const values = RATING_ATTRS
-        .map((key) => player[key as keyof typeof player] as number | null)
-        .filter((v): v is number => v !== null && v >= 1 && v <= 10);
-      if (values.length > 0) {
-        rating = values.reduce((s, v) => s + v, 0) / values.length;
-      }
-    }
+    const rating = player ? getPlayerOverallRating(player).value : null;
     return { playerId: actual.playerId, rating };
   });
 
@@ -150,7 +138,7 @@ export async function recordOpponentSportingEvidence(
       const p = playerMap.get(a.playerId);
       const attrs: Record<string, number | null> = {};
       if (p) {
-        for (const key of RATING_ATTRS) {
+        for (const key of RATING_ATTRIBUTE_KEYS) {
           attrs[key] = p[key as keyof typeof p] as number | null;
         }
       }

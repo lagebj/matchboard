@@ -89,6 +89,7 @@ model Player {
   updatedAt                DateTime                       @updatedAt
   goalkeeperAbility        GoalkeeperAbility              @default(NO)
   lastRatedAt              DateTime?
+  evidenceCutoverAt       DateTime?
   assists                  Assist[]
   availabilities           Availability[]
   eventAvailability        EventPlayerAvailability[]
@@ -123,6 +124,7 @@ model Player {
   rotationsIn              MatchRotation[]                @relation("RotationInPlayer")
   fairPlayObservations     FairPlayObservation[]
   groupMemberships         FootballGroupPlayer[]
+  assessmentChanges        AssessmentChange[]
 
   @@unique([organisationId, playerCode])
   @@index([coreTeamId, active, removedAt])
@@ -587,6 +589,35 @@ model DecisionRecord {
   @@index([createdAt])
   @@index([action])
   @@index([organisationId])
+}
+
+model AssessmentChange {
+  id                  String   @id @default(cuid())
+  organisationId      String
+  playerId            String
+  targetType          String   @default("ATTRIBUTE")
+  attributeKey        String?
+  targetDescription   String?
+  beforeValue         Decimal? @db.Decimal(4, 2)
+  afterValue          Decimal? @db.Decimal(4, 2)
+  source              String
+  reason              String?
+  evidenceIds         Json?
+  engineVersion       String
+  mappingVersion      String
+  confidence          Decimal? @db.Decimal(3, 2)
+  cutoverAt           DateTime?
+  decidedAt           DateTime?
+  decidedBy           String?
+  createdAt           DateTime  @default(now())
+  player              Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation        Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, targetType, attributeKey])
+  @@index([playerId, createdAt])
+  @@index([organisationId])
+  @@index([targetType])
+  @@index([source])
 }
 
 model CoachingIntent {
@@ -1962,6 +1993,7 @@ model Organisation {
   bestLineups                   TeamBestLineup[]
   bestLineupAssignments         TeamBestLineupAssignment[]
   groupAccesses                 GroupAccess[]
+  assessmentChanges            AssessmentChange[]
 
   @@index([slug])
   @@index([name])

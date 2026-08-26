@@ -8,6 +8,7 @@ import {
   formatPlayerName,
 } from '@/lib/formatters/event-labels';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 import { safeEventExportFilename } from '@/lib/formatters/event-export-filename';
 import { checkSupportConflicts, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
 import { computeLineupRating, formatStarRating } from '@/lib/events/event-lineup-rating';
@@ -584,30 +585,6 @@ type LineupData = {
   };
 };
 
-function computeOverallLevel(player: {
-  ballControl: number | null;
-  passing: number | null;
-  firstTouch: number | null;
-  oneVOneAttacking: number | null;
-  positioning: number | null;
-  oneVOneDefending: number | null;
-  decisionMaking: number | null;
-  effort: number | null;
-  teamplay: number | null;
-  concentration: number | null;
-  speed: number | null;
-  strength: number | null;
-} | null): number | null {
-  if (!player) return null;
-  const values = [
-    player.ballControl, player.passing, player.firstTouch, player.oneVOneAttacking,
-    player.positioning, player.oneVOneDefending, player.decisionMaking,
-    player.effort, player.teamplay, player.concentration, player.speed, player.strength,
-  ].filter((v): v is number => v != null);
-  if (values.length === 0) return null;
-  return Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10;
-}
-
 function buildLineupsSheet(
   workbook: ExcelJS.Workbook,
   lineupData: LineupData[],
@@ -650,7 +627,7 @@ function buildLineupsSheet(
     const assignedSlots = lineup.assignments.filter((a) => a.playerId !== null);
     const starters = assignedSlots
       .filter((a) => a.player)
-      .map((a) => ({ overallLevel: computeOverallLevel(a.player) }));
+      .map((a) => ({ overallLevel: getPlayerOverallRating(a.player!).value }));
 
     const rating = computeLineupRating(starters, totalSlots);
     const isComplete = assignedSlots.length >= totalSlots;

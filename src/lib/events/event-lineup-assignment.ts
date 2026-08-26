@@ -3,6 +3,7 @@ import type { BroadPosition, GameFormat, FormationSlotRequirement } from './even
 import { getDefaultSlotRequirements, getRoleRelevantRating } from './event-squad-generation';
 import { getPositionFitTier } from './event-types';
 import type { PlayerWithRatings } from './event-squad-generation';
+import { mapAnyPositionToBroad } from '@/lib/players/player-position-resolver';
 
 type PlayerForLineup = {
   playerId: string;
@@ -137,23 +138,12 @@ function toPlayerWithRatings(player: PlayerForLineup): PlayerWithRatings & { pla
     },
     broadPositions: player.primaryPosition
       ? (player.secondaryPosition
-          ? [mapPositionCodeToBroad(player.primaryPosition), mapPositionCodeToBroad(player.secondaryPosition)]
+          ? [mapAnyPositionToBroad(player.primaryPosition), mapAnyPositionToBroad(player.secondaryPosition)]
               .filter((v, i, a) => a.indexOf(v) === i)
-          : [mapPositionCodeToBroad(player.primaryPosition)])
+          : [mapAnyPositionToBroad(player.primaryPosition)])
       : ['flexible' as BroadPosition],
     isGoalkeeper: player.isGK,
   };
-}
-
-function mapPositionCodeToBroad(position: string): BroadPosition {
-  const map: Record<string, BroadPosition> = {
-    GK: 'goalkeeper',
-    CB: 'defender',
-    CM: 'midfielder',
-    W: 'midfielder',
-    ST: 'forward',
-  };
-  return map[position] ?? 'flexible';
 }
 
 function findBestCandidate(

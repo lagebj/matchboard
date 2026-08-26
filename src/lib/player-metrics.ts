@@ -1,18 +1,9 @@
-type AttributeKey =
-  | "ballControl"
-  | "passing"
-  | "firstTouch"
-  | "oneVOneAttacking"
-  | "positioning"
-  | "oneVOneDefending"
-  | "decisionMaking"
-  | "effort"
-  | "teamplay"
-  | "concentration"
-  | "speed"
-  | "strength";
+import {
+  getPlayerOverallRating,
+  type RatingAttributeKey,
+} from "@/lib/ratings/player-rating";
 
-type PlayerAttributeRecord = Partial<Record<AttributeKey, number | null>>;
+type PlayerAttributeRecord = Partial<Record<RatingAttributeKey, number | null>>;
 
 type PlayerNameRecord = {
   firstName: string;
@@ -30,35 +21,33 @@ type FootPreferenceValue = "LEFT" | "RIGHT";
 type SecondaryFootValue = "LEFT" | "RIGHT" | "WEAK";
 type BestSideValue = "LEFT" | "CENTER" | "RIGHT";
 
-const technicalAttributeKeys = [
+const technicalAttributeKeys: readonly RatingAttributeKey[] = [
   "ballControl",
   "passing",
   "firstTouch",
   "oneVOneAttacking",
-] as const satisfies readonly AttributeKey[];
+];
 
-const tacticalAttributeKeys = [
+const tacticalAttributeKeys: readonly RatingAttributeKey[] = [
   "positioning",
   "oneVOneDefending",
   "decisionMaking",
-] as const satisfies readonly AttributeKey[];
+];
 
-const mentalAttributeKeys = [
+const mentalAttributeKeys: readonly RatingAttributeKey[] = [
   "effort",
   "teamplay",
   "concentration",
-] as const satisfies readonly AttributeKey[];
+];
 
-const physicalAttributeKeys = ["speed", "strength"] as const satisfies readonly AttributeKey[];
+const physicalAttributeKeys: readonly RatingAttributeKey[] = ["speed", "strength"];
 
-function averageForKeys(player: PlayerAttributeRecord, keys: readonly AttributeKey[]): number | null {
+function averageForKeys(player: PlayerAttributeRecord, keys: readonly RatingAttributeKey[]): number | null {
   const values = keys
     .map((key) => player[key])
-    .filter((v): v is number => v != null);
+    .filter((v): v is number => v != null && v >= 1 && v <= 10);
 
-  if (values.length === 0) {
-    return null;
-  }
+  if (values.length === 0) return null;
 
   const total = values.reduce((sum, v) => sum + v, 0);
   return Math.round((total / values.length) * 10) / 10;
@@ -70,12 +59,7 @@ export function getPlayerAttributeAverages(player: PlayerAttributeRecord) {
     tactical: averageForKeys(player, tacticalAttributeKeys),
     mental: averageForKeys(player, mentalAttributeKeys),
     physical: averageForKeys(player, physicalAttributeKeys),
-    overall: averageForKeys(player, [
-      ...technicalAttributeKeys,
-      ...tacticalAttributeKeys,
-      ...mentalAttributeKeys,
-      ...physicalAttributeKeys,
-    ]),
+    overall: getPlayerOverallRating(player).value,
   };
 }
 
