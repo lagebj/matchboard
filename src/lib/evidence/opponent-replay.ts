@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { classifyDataQuality, computeWholeMatchEstimate } from "./opponent-engine";
+import { classifyDataQuality, computeWholeMatchEstimate, type HistoricalDryRunResult } from "./opponent-engine";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 
 type MatchForReplay = {
