@@ -2291,6 +2291,8 @@ Avoid:
 | `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
 | `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
+| `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
+| `src/app/(app)/matches/development-thread-actions.ts` | Development thread server actions |
 
 ### Transactional email files
 

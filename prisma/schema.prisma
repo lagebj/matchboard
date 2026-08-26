@@ -125,6 +125,7 @@ model Player {
   rotationsIn              MatchRotation[]                @relation("RotationInPlayer")
   plannedChangesOut        PlannedRotationChange[]        @relation("PlannedChangeOutPlayer")
   plannedChangesIn         PlannedRotationChange[]        @relation("PlannedChangeInPlayer")
+  developmentThreads       DevelopmentThread[]
   fairPlayObservations     FairPlayObservation[]
   groupMemberships         FootballGroupPlayer[]
   assessmentChanges        AssessmentChange[]
@@ -175,6 +176,7 @@ model Match {
   selections                  Selection[]
   teamReflection              TeamReflection?
   helperAssignments           MatchHelperAssignment[]
+  threadObservations          DevelopmentThreadObservation[]
 
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
@@ -801,6 +803,49 @@ model MatchExecutionFeedback {
   @@index([matchId])
   @@index([playerId])
   @@index([category])
+  @@index([organisationId])
+}
+
+model DevelopmentThread {
+  id                String                    @id @default(cuid())
+  organisationId    String
+  playerId          String
+  focus             String
+  rationale         String?
+  status            DevelopmentThreadStatus   @default(ACTIVE)
+  category          DevelopmentFocusCategory?
+  startedAt         DateTime                  @default(now())
+  completedAt       DateTime?
+  closedAt          DateTime?
+  recordedBy        String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  player            Player                    @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation      Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  observations      DevelopmentThreadObservation[]
+
+  @@index([playerId])
+  @@index([status])
+  @@index([organisationId])
+  @@index([playerId, status])
+}
+
+model DevelopmentThreadObservation {
+  id                String                    @id @default(cuid())
+  organisationId    String
+  threadId          String
+  matchId           String?
+  evidence          String
+  context           String?
+  recordedBy        String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  thread            DevelopmentThread          @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  match             Match?                    @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  organisation      Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([matchId])
   @@index([organisationId])
 }
 
@@ -2065,6 +2110,8 @@ model Organisation {
   groupAccesses                 GroupAccess[]
   assessmentChanges            AssessmentChange[]
   opponentAssessmentChanges    OpponentAssessmentChange[]
+  developmentThreads           DevelopmentThread[]
+  threadObservations            DevelopmentThreadObservation[]
 
   @@index([slug])
   @@index([name])
@@ -2516,6 +2563,27 @@ enum GroupMovementPathRole {
 enum GroupMovementPathScope {
   MATCH
   EVENT
+}
+
+enum DevelopmentThreadStatus {
+  ACTIVE
+  COMPLETED
+  CLOSED
+}
+
+enum DevelopmentFocusCategory {
+  POSITIONAL_DISCIPLINE
+  CONFIDENCE_REBUILD
+  CHALLENGE_EXPOSURE
+  TEAM_FIRST_BEHAVIOUR
+  RESET_AFTER_ERROR
+  SUPPORT_TEAMMATES
+  PLAY_THROUGH_TEAM
+  BALL_CONTROL
+  DECISION_MAKING
+  EFFORT_AND_INTENSITY
+  POSITIONAL_LEARNING
+  GOALKEEPING
 }
 
 model WorkOwnership {

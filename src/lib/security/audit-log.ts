@@ -53,7 +53,14 @@ type SecurityEventAction =
   | "machine_token_issued"
   | "machine_token_auth_failure"
   | "notification_sent"
-  | "notification_failed";
+  | "notification_failed"
+  | "create_development_thread"
+  | "update_development_thread"
+  | "complete_development_thread"
+  | "close_development_thread"
+  | "reopen_development_thread"
+  | "add_development_observation"
+  | "remove_development_observation";
 
 interface SecurityEvent {
   category: SecurityEventCategory;
