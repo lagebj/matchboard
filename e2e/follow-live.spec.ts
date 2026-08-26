@@ -42,10 +42,10 @@ test("a second coach can follow a live match in real time via the Cloudflare rea
 
     // Confirm the connection is genuinely live, not just the initial label — an event the
     // reporter records should actually arrive over the realtime broadcast. follow-live-client.tsx
-    // renders eventType via .replaceAll("_", " ").toLowerCase(), so "GOAL_FOR" becomes "goal for"
-    // (no trailing "us" — that's the button's label, not the stored event type).
+    // now renders events using getEventTypeLabel(), so "GOAL_FOR" becomes "Goal — us" (possibly
+    // followed by " — Player Name" if the player ID resolves in the player map).
     await page.getByRole("button", { name: "Goal for us" }).click();
-    await expect(followerPage.getByText("goal for", { exact: false })).toBeVisible({ timeout: 15_000 });
+    await expect(followerPage.getByText("Goal — us", { exact: false })).toBeVisible({ timeout: 15_000 });
   } finally {
     await followerContext.close();
   }

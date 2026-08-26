@@ -63,12 +63,34 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
     );
   }
 
+  // Build playerId → playerName map for resolving player names in live event display.
+  // Uses the effective roster: normal squad + match helpers (ADR-0077).
+  const [squadPlayers, helperAssignments] = await Promise.all([
+    db.selection.findMany({
+      where: { matchId, match: { organisationId: ctx.organisationId } },
+      select: { player: { select: { id: true, firstName: true, lastName: true } } },
+    }),
+    db.matchHelperAssignment.findMany({
+      where: { matchId, match: { organisationId: ctx.organisationId } },
+      select: { player: { select: { id: true, firstName: true, lastName: true } } },
+    }),
+  ]);
+
+  const playerMap: Record<string, string> = {};
+  for (const s of squadPlayers) {
+    playerMap[s.player.id] = [s.player.firstName, s.player.lastName].filter(Boolean).join(" ");
+  }
+  for (const h of helperAssignments) {
+    playerMap[h.player.id] = [h.player.firstName, h.player.lastName].filter(Boolean).join(" ");
+  }
+
   return (
     <FollowLiveClient
       matchId={match.id}
       teamName={match.team.name}
       opponentName={match.opponent}
       homeAway={match.homeAway}
+      playerMap={playerMap}
     />
   );
 }

@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       const events = await db.liveMatchEvent.findMany({
         where: { matchId, sessionId },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        select: { id: true, clientEventId: true, eventType: true, createdAt: true },
+        select: { id: true, clientEventId: true, eventType: true, createdAt: true, playerId: true, secondaryPlayerId: true },
       });
 
       return { session, events };
@@ -67,6 +67,8 @@ export async function GET(request: Request) {
       clientEventId: event.clientEventId ?? event.id,
       eventType: event.eventType,
       createdAt: event.createdAt.toISOString(),
+      playerId: event.playerId ?? undefined,
+      secondaryPlayerId: event.secondaryPlayerId ?? undefined,
     })),
   };
 

@@ -28,6 +28,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
 import { StatusPill } from "@/components/ui/status-pill";
 
+import { getEventTypeLabel } from "@/lib/live-match/live-match-domain";
+import type { LiveMatchEventType } from "@/lib/live-match/live-match-types";
+
 const LOG_PREFIX = "[live-match:follow]";
 
 interface FollowLiveClientProps {
@@ -35,6 +38,8 @@ interface FollowLiveClientProps {
   teamName: string;
   opponentName: string;
   homeAway: string;
+  /** playerId → playerName mapping for resolving player names in live event display. */
+  playerMap: Record<string, string>;
 }
 
 const CONNECTION_LABEL: Record<RealtimeConnectionState, string> = {
@@ -47,7 +52,7 @@ const CONNECTION_LABEL: Record<RealtimeConnectionState, string> = {
   error: "Connection problem",
 };
 
-export function FollowLiveClient({ matchId, teamName, opponentName, homeAway }: FollowLiveClientProps) {
+export function FollowLiveClient({ matchId, teamName, opponentName, homeAway, playerMap }: FollowLiveClientProps) {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>("connecting");
   const [connectedCount, setConnectedCount] = useState(0);
   const [events, setEvents] = useState<CanonicalLiveEvent[]>([]);
@@ -150,11 +155,22 @@ export function FollowLiveClient({ matchId, teamName, opponentName, homeAway }: 
           <p className="text-sm text-[var(--text-muted)]">No events yet — updates will appear here as they happen.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {events.map((event) => (
-              <li key={event.id} className="text-sm text-zinc-300">
-                {event.eventType.replaceAll("_", " ").toLowerCase()}
-              </li>
-            ))}
+            {events.map((event) => {
+              const label = getEventTypeLabel(event.eventType as LiveMatchEventType);
+              const playerName = event.playerId ? playerMap[event.playerId] : undefined;
+              const secondaryName = event.secondaryPlayerId ? playerMap[event.secondaryPlayerId] : undefined;
+              let text = label;
+              if (playerName && secondaryName) {
+                text = `${label} — ${playerName} / ${secondaryName}`;
+              } else if (playerName) {
+                text = `${label} — ${playerName}`;
+              }
+              return (
+                <li key={event.id} className="text-sm text-zinc-300">
+                  {text}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Surface>
