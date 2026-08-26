@@ -264,7 +264,7 @@ describe("SEC-3: Tenant, database and machine-identity assurance", () => {
     it("resolveOrgFilterForMachine returns org-scoped filter when principal and org match", async () => {
       const org = await db.organisation.create({ data: { name: "Machine Org Match", slug: "machine-org-match" } });
 
-      const orgGroup = await createTestGroup(db, org.id);
+      const _orgGroup = await createTestGroup(db, org.id);
 
       const { principal } = await createMachinePrincipal({
         organisationId: org.id,

@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   projectLineupFromEvents,
   computePositionIntervals,
-  getLineupAtGoalTime,
   validateCompositeLineupChange,
   computeTotalMinutesByPosition,
   type StarterAssignment,

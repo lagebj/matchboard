@@ -329,7 +329,7 @@ describe("Season overview service", () => {
         },
       });
 
-      const rodMatch2 = await testDb.match.create({
+      const _rodMatch2 = await testDb.match.create({
         data: {
           matchRoundId: secondRound.id,
           teamId: rodTeamId,
