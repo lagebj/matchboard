@@ -190,6 +190,7 @@ model OpponentTeam {
   eventMatches     EventMatch[]
   observations     OpponentEncounterObservation[]
   sportingEvidence OpponentSportingEvidence[]
+  assessmentChanges OpponentAssessmentChange[]
   organisation     Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([organisationId, normalizedName])
@@ -1994,6 +1995,7 @@ model Organisation {
   bestLineupAssignments         TeamBestLineupAssignment[]
   groupAccesses                 GroupAccess[]
   assessmentChanges            AssessmentChange[]
+  opponentAssessmentChanges    OpponentAssessmentChange[]
 
   @@index([slug])
   @@index([name])
@@ -2120,6 +2122,11 @@ model OpponentSportingEvidence {
   weightingMethod       OpponentWeightingMethod @default(PARTICIPANT_AVERAGE)
   estimate              Decimal                 @db.Decimal(4, 2)
   formulaVersion        String
+  engineVersion         String?
+  dataQuality           String?
+  lineupStateCount      Int                     @default(0)
+  dominantLineupStrength Decimal?                @db.Decimal(4, 2)
+  contextSignals        Json?
   excludedAt            DateTime?
   exclusionReason       String?
   fieldedRatingDetails  Json?
@@ -2133,6 +2140,28 @@ model OpponentSportingEvidence {
   @@index([opponentTeamId, gameFormat, occurredAt])
   @@index([organisationId])
   @@index([excludedAt])
+}
+
+model OpponentAssessmentChange {
+  id               String    @id @default(cuid())
+  organisationId   String
+  opponentTeamId   String
+  beforeLevel      Decimal?  @db.Decimal(4, 2)
+  afterLevel       Decimal?  @db.Decimal(4, 2)
+  source           String    @default("AUTOMATIC")
+  reason          String?
+  evidenceMatchId String?
+  engineVersion   String
+  formulaVersion  String
+  confidence      String?
+  dataQuality     String?
+  createdAt       DateTime   @default(now())
+  opponentTeam    OpponentTeam @relation(fields: [opponentTeamId], references: [id], onDelete: Cascade)
+  organisation    Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([opponentTeamId])
+  @@index([opponentTeamId, createdAt])
+  @@index([organisationId])
 }
 
 model PlayerDevelopmentObservation {

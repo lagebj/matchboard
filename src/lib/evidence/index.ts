@@ -121,3 +121,15 @@ export {
   computeEncounterEvidenceFromLineupStates,
   computeWholeMatchEstimate,
 } from "./opponent-engine";
+
+export type {
+  OpponentAssessmentSource,
+  OpponentConfidence,
+  RecordOpponentAssessmentChangeInput,
+} from "./opponent-assessment-change";
+
+export {
+  recordOpponentAssessmentChange,
+  getOpponentAssessmentHistory,
+  getLatestOpponentAssessment,
+} from "./opponent-assessment-change";
