@@ -133,3 +133,5 @@ export {
   getOpponentAssessmentHistory,
   getLatestOpponentAssessment,
 } from "./opponent-assessment-change";
+
+export { dryRunOpponentEvidence } from "./opponent-replay";
