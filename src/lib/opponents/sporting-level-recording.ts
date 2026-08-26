@@ -7,6 +7,10 @@ import {
   FORMULA_VERSION,
 } from "./sporting-level-calculation";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
+import { RATING_ATTRIBUTE_KEYS } from "@/lib/player-development/constants";
+import { OPPONENT_ENGINE_VERSION, classifyDataQuality, computeWholeMatchEstimate } from "@/lib/evidence/opponent-engine";
+import { recordOpponentAssessmentChange } from "@/lib/evidence/opponent-assessment-change";
 
 export type FieldedPlayer = {
   playerId: string;
@@ -109,23 +113,9 @@ export async function recordOpponentSportingEvidence(
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
-  const RATING_ATTRS = [
-    "ballControl", "passing", "firstTouch", "oneVOneAttacking", "positioning",
-    "oneVOneDefending", "decisionMaking", "effort", "teamplay", "concentration",
-    "speed", "strength",
-  ] as const;
-
   const fieldedPlayers: FieldedPlayer[] = presentActuals.map((actual: { playerId: string; attendanceStatus: string; actualPositions: unknown }) => {
     const player = playerMap.get(actual.playerId);
-    let rating: number | null = null;
-    if (player) {
-      const values = RATING_ATTRS
-        .map((key) => player[key as keyof typeof player] as number | null)
-        .filter((v): v is number => v !== null && v >= 1 && v <= 10);
-      if (values.length > 0) {
-        rating = values.reduce((s, v) => s + v, 0) / values.length;
-      }
-    }
+    const rating = player ? getPlayerOverallRating(player).value : null;
     return { playerId: actual.playerId, rating };
   });
 
@@ -145,12 +135,31 @@ export async function recordOpponentSportingEvidence(
 
   const autoExclude = shouldAutoExcludeEncounter(match.matchFit);
 
+  const dataQuality = classifyDataQuality({
+    hasExactTimeline: false,
+    hasReliableMinutes: method === "MINUTE_WEIGHTED",
+    hasReliablePositions: false,
+    participantCount,
+    ratedParticipantCount,
+  });
+
+  const wholeMatchResult = computeWholeMatchEstimate(
+    fieldedRating,
+    goalsFor,
+    goalsAgainst,
+    participantCount,
+    ratedParticipantCount,
+    match.matchFit,
+    dataQuality,
+    null,
+  );
+
   const fieldedRatingDetails = {
     players: presentActuals.map((a: { playerId: string; attendanceStatus: string; actualPositions: unknown }) => {
       const p = playerMap.get(a.playerId);
       const attrs: Record<string, number | null> = {};
       if (p) {
-        for (const key of RATING_ATTRS) {
+        for (const key of RATING_ATTRIBUTE_KEYS) {
           attrs[key] = p[key as keyof typeof p] as number | null;
         }
       }
@@ -183,6 +192,11 @@ export async function recordOpponentSportingEvidence(
       weightingMethod: method === "MINUTE_WEIGHTED" ? "MINUTE_WEIGHTED" : "PARTICIPANT_AVERAGE",
       estimate: new Prisma.Decimal(estimate.toFixed(2)),
       formulaVersion: FORMULA_VERSION,
+      engineVersion: OPPONENT_ENGINE_VERSION,
+      dataQuality,
+      lineupStateCount: 0,
+      dominantLineupStrength: new Prisma.Decimal(fieldedRating.toFixed(2)),
+      contextSignals: wholeMatchResult.contextSignals as Prisma.InputJsonValue,
       excludedAt: autoExclude ? new Date() : null,
       exclusionReason: autoExclude ? `Auto-excluded: match fit ${match.matchFit}` : null,
       fieldedRatingDetails: fieldedRatingDetails as Prisma.InputJsonValue,
@@ -201,12 +215,45 @@ export async function recordOpponentSportingEvidence(
       weightingMethod: method === "MINUTE_WEIGHTED" ? "MINUTE_WEIGHTED" : "PARTICIPANT_AVERAGE",
       estimate: new Prisma.Decimal(estimate.toFixed(2)),
       formulaVersion: FORMULA_VERSION,
+      engineVersion: OPPONENT_ENGINE_VERSION,
+      dataQuality,
+      lineupStateCount: 0,
+      dominantLineupStrength: new Prisma.Decimal(fieldedRating.toFixed(2)),
+      contextSignals: wholeMatchResult.contextSignals as Prisma.InputJsonValue,
       excludedAt: autoExclude ? new Date() : null,
       exclusionReason: autoExclude ? `Auto-excluded: match fit ${match.matchFit}` : null,
       fieldedRatingDetails: fieldedRatingDetails as Prisma.InputJsonValue,
       organisationId,
     },
   });
+
+  if (!autoExclude) {
+    try {
+      const previousEstimate = await db.opponentSportingEvidence.findFirst({
+        where: {
+          opponentTeamId: match.opponentTeamId,
+          ...orgFilter.filter,
+          excludedAt: null,
+          id: { not: evidence.id },
+        },
+        orderBy: { occurredAt: "desc" },
+        select: { estimate: true },
+      });
+
+      await recordOpponentAssessmentChange({
+        opponentTeamId: match.opponentTeamId,
+        beforeLevel: previousEstimate ? Number(previousEstimate.estimate) : null,
+        afterLevel: Number(estimate.toFixed(2)),
+        source: "AUTOMATIC",
+        reason: `Match evidence recorded (${dataQuality} data)`,
+        evidenceMatchId: matchId,
+        confidence: wholeMatchResult.confidence,
+        dataQuality,
+      });
+    } catch {
+      // Assessment change recording is non-blocking — evidence is already persisted
+    }
+  }
 
   return { recorded: true, evidenceId: evidence.id };
 }

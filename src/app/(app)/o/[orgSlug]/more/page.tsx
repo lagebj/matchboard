@@ -10,6 +10,7 @@ import {
   Settings,
   FlaskConical,
   Wrench,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -70,6 +71,7 @@ export default async function MorePage({ params }: { params: Promise<{ orgSlug: 
       cards: [
         { href: `${prefix}/simulation`, label: "Simulation", description: "Dry-run season simulation using the real generation engine.", icon: FlaskConical },
         { href: `${prefix}/workbench`, label: "Policy workbench", description: "Policy evaluation workbench and fixture comparison.", icon: Wrench },
+        { href: `${prefix}/opponent-population`, label: "Populate opponent levels", description: "Backfill opponent sporting levels from historical match data (transient).", icon: Database },
       ],
     });
   }

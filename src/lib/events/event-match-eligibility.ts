@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
+import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 
 export type EligibleEventMatchPlayer = {
   playerId: string;
@@ -69,7 +70,7 @@ export async function getEligibleEventMatchPlayers(
     });
 
     const overall = attrs
-      ? computeOverall(attrs.effort, attrs.oneVOneAttacking, attrs.oneVOneDefending, attrs.ballControl, attrs.positioning, attrs.decisionMaking, attrs.concentration, attrs.teamplay)
+      ? getPlayerOverallRating(attrs).value
       : null;
 
     players.push({
@@ -124,7 +125,7 @@ export async function getEligibleEventMatchPlayers(
 
     if (!player) continue;
 
-    const overall = computeOverall(player.effort, player.oneVOneAttacking, player.oneVOneDefending, player.ballControl, player.positioning, player.decisionMaking, player.concentration, player.teamplay);
+    const overall = getPlayerOverallRating(player).value;
 
     players.push({
       playerId: sa.playerId,
@@ -189,17 +190,3 @@ export async function assertEligibleEventMatchPlayer(
   return { eligible: false, source: null, reason: 'Player is not in the squad and is not a support helper for this match' };
 }
 
-function computeOverall(
-  effort: number | null,
-  att: number | null,
-  def: number | null,
-  ball: number | null,
-  pos: number | null,
-  dec: number | null,
-  con: number | null,
-  tea: number | null,
-): number | null {
-  const values = [effort, att, def, ball, pos, dec, con, tea].filter((v): v is number => v !== null);
-  if (values.length === 0) return null;
-  return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-}
