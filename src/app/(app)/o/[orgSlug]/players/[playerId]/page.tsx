@@ -16,6 +16,7 @@ import { AssessmentHistoryPanel } from "@/components/players/player-assessment-h
 import { CoachContextPanel as PlayerCoachContextPanel } from "@/components/players/player-coach-context-panel";
 import { PlayerReadinessPanel } from "@/components/players/player-readiness-panel";
 import { PlayerDevelopmentThreadsPanel } from "@/components/players/player-development-threads-panel";
+import { PlayerQuickObservationsPanel } from "@/components/players/player-quick-observations-panel";
 import { PlayerReportSummaryPanel } from "@/components/players/player-report-summary-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
@@ -83,7 +84,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   if (!player) notFound();
 
-  const [rotationPaths, movementCandidates, readinessSignals, developmentThreads] = await Promise.all([
+  const [rotationPaths, movementCandidates, readinessSignals, developmentThreads, quickObservations] = await Promise.all([
     db.rotationPath.findMany({
       where: {
         OR: [
@@ -121,7 +122,15 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       include: { observations: { orderBy: { createdAt: "asc" } } },
       orderBy: [{ startedAt: "desc" }],
     }),
+    db.quickObservation.findMany({
+      where: { status: "OPEN", ...orgWhere },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+
+  const playerQuickObservations = quickObservations.filter((o) =>
+    Array.isArray(o.playerIds) && (o.playerIds as string[]).includes(playerId),
+  );
 
   const orderedIds = orderedPlayerIds.map((entry) => entry.id);
   const currentPlayerIndex = orderedIds.indexOf(player.id);
@@ -223,6 +232,18 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
                   recordedBy: o.recordedBy,
                   createdAt: o.createdAt,
                 })),
+              }))}
+            />
+            <PlayerQuickObservationsPanel
+              playerId={player.id}
+              observations={playerQuickObservations.map((o) => ({
+                id: o.id,
+                matchId: o.matchId,
+                playerIds: o.playerIds as string[],
+                note: o.note,
+                status: o.status as "OPEN" | "CONVERTED" | "KEPT_AS_NOTE" | "DISCARDED",
+                convertedToType: o.convertedToType,
+                createdAt: o.createdAt,
               }))}
             />
           </div>

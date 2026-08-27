@@ -108,3 +108,15 @@ export function cleanFactualSummary(summary: string | null | undefined): string 
   const trimmed = summary.trim();
   return trimmed.length === 0 ? null : trimmed;
 }
+
+export const FACTUAL_SUMMARY_MAX_LENGTH = MAX_FACTUAL_SUMMARY_LENGTH;
+
+/**
+ * Shared identifying-detail check for any free-text opponent-facing summary — the normal
+ * observation form (validateObservation above) and any other write path into
+ * OpponentEncounterObservation.factualSummary (e.g. quick-observation conversion) must both
+ * reject the same patterns, not maintain separate copies of these regexes.
+ */
+export function containsIdentifyingDetails(text: string): boolean {
+  return EMAIL_PATTERN.test(text) || PHONE_PATTERN.test(text) || URL_PATTERN.test(text);
+}
