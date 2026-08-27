@@ -590,6 +590,25 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
     // Player evidence assessment must not block report completion
   }
 
+  try {
+    const { rebuildMatchCombinationEvidence } = await import("@/lib/evidence/combination-aggregation");
+    const match = await db.match.findUnique({
+      where: { id: report.matchId },
+      select: { matchRoundId: true },
+    });
+    if (match?.matchRoundId) {
+      const round = await db.matchRound.findUnique({
+        where: { id: match.matchRoundId },
+        select: { leagueSeasonId: true },
+      });
+      if (round?.leagueSeasonId) {
+        await rebuildMatchCombinationEvidence(report.matchId, round.leagueSeasonId);
+      }
+    }
+  } catch {
+    // Combination evidence rebuild must not block report completion
+  }
+
   return { success: true, matchId: report.matchId };
 }
 

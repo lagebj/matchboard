@@ -317,6 +317,9 @@ export interface PlayerCombinationRow {
   positionPairing: string | null;
   seasonTotal: number;
   recentTotal: number;
+  partnershipSubtype?: string | null;
+  minutesTogether?: number;
+  confidence?: "INSUFFICIENT" | "EMERGING" | "ESTABLISHED";
 }
 
 // I-006: Continuity vs exploration (round-over-round comparison).

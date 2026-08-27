@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
-import { Play, SkipForward, ChevronRight } from "lucide-react";
+import { Play, SkipForward, ChevronRight, Clock, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 
@@ -31,9 +31,12 @@ type PlannedRotation = {
   changes: PlannedChange[];
 };
 
+type ApplyOverrides = { outPlayerId?: string; inPlayerId?: string; outPosition?: string | null; inPosition?: string | null; changedNote?: string };
+
 type NextChangeActions = {
-  applyChange: (rotationId: string, changeId: string, liveEventIds: { outEventId: string; inEventId?: string }) => Promise<{ success: boolean; error?: string }>;
+  applyChange: (rotationId: string, changeId: string, overrides?: ApplyOverrides) => Promise<{ success: boolean; error?: string }>;
   skipChange: (rotationId: string, changeId: string) => Promise<{ success: boolean; error?: string }>;
+  delayChange: (rotationId: string, changeId: string) => Promise<{ success: boolean; error?: string }>;
   modifyChange: (rotationId: string, changeId: string, modification: Record<string, unknown>) => Promise<{ success: boolean; change?: PlannedChange; error?: string }>;
   getNextChange: (matchId: string, teamId: string) => Promise<{ success: boolean; change?: PlannedChange | null; error?: string }>;
 };
@@ -90,15 +93,10 @@ export function PlannedRotationPrompt({
 
   const isPositionSwap = nextChange.positionOnly;
 
-  function handleApply() {
+  function handleApply(overrides?: ApplyOverrides) {
     setError(null);
     startTransition(async () => {
-      const outEventId = `live-${Date.now()}-out`;
-      const inEventId = isPositionSwap ? undefined : `live-${Date.now()}-in`;
-      const result = await actions.applyChange(rotation!.id, nextChange!.id, {
-        outEventId,
-        ...(inEventId ? { inEventId } : {}),
-      });
+      const result = await actions.applyChange(rotation!.id, nextChange!.id, overrides);
       if (!result.success) {
         setError(result.error ?? "Failed to apply change");
         return;
@@ -120,6 +118,32 @@ export function PlannedRotationPrompt({
     });
   }
 
+  function handleDelay() {
+    setError(null);
+    startTransition(async () => {
+      const result = await actions.delayChange(rotation!.id, nextChange!.id);
+      if (!result.success) {
+        setError(result.error ?? "Failed to delay change");
+        return;
+      }
+      setCurrentChange(null);
+    });
+  }
+
+  // Bounded "Change" interaction: reverse which named player goes out and which comes in, then
+  // apply that instead of the plan as authored. The original planned change record is never
+  // rewritten — see applyPlannedChangeAction's overrides contract.
+  function handleChangeDirection() {
+    if (!nextChange.outPlayerId || !nextChange.inPlayerId) return;
+    handleApply({
+      outPlayerId: nextChange.inPlayerId,
+      inPlayerId: nextChange.outPlayerId,
+      outPosition: nextChange.inPosition,
+      inPosition: nextChange.outPosition,
+      changedNote: `Changed live: reversed direction from plan (${outPlayerName} ${isPositionSwap ? "↔" : "→"} ${inPlayerName})`,
+    });
+  }
+
   const outPlayerName = playerName(nextChange.outPlayerFirstName, nextChange.outPlayerLastName);
   const inPlayerName = playerName(nextChange.inPlayerFirstName, nextChange.inPlayerLastName);
 
@@ -134,6 +158,9 @@ export function PlannedRotationPrompt({
           <span className="text-xs text-[var(--text-muted)]">
             ~{formatSeconds(nextChange.approximateMatchSeconds)}
           </span>
+        )}
+        {nextChange.status === "DELAYED" && (
+          <span className="text-xs text-[var(--text-warning,#b45309)]">Delayed</span>
         )}
       </div>
 
@@ -163,15 +190,37 @@ export function PlannedRotationPrompt({
         <div className="text-xs text-[var(--text-muted)] mb-2 italic">{nextChange.notes}</div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
-          onClick={handleApply}
+          onClick={() => handleApply()}
           disabled={isPending}
         >
           <Play className="h-3.5 w-3.5 mr-1" />
           Apply
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleDelay}
+          disabled={isPending}
+          title="Keep this change pending and revisit it shortly"
+        >
+          <Clock className="h-3.5 w-3.5 mr-1" />
+          Delay
+        </Button>
+        {nextChange.outPlayerId && nextChange.inPlayerId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleChangeDirection}
+            disabled={isPending}
+            title={`Apply the reverse instead: ${inPlayerName} ${isPositionSwap ? "↔" : "→"} ${outPlayerName}`}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
+            Change
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"

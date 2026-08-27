@@ -9,6 +9,7 @@ import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
+import { MatchLifecycleBadge } from "@/components/ui/status-badge";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
@@ -24,7 +25,6 @@ import {
   ArrowRight,
   ShieldAlert,
   Eye,
-  Radio,
   FileText,
 } from "lucide-react";
 
@@ -108,7 +108,7 @@ const groups: GroupConfig[] = [
     key: "reports",
     label: "Post-match reports",
     description: "Matches still missing a completed report.",
-    categories: ["post_match_report"],
+    categories: ["post_match_report", "planned_rotation_delayed"],
     icon: CalendarRange,
     variant: "info",
   },
@@ -244,30 +244,15 @@ function GroupedReports({ items }: { items: AssistantWorkItem[] }) {
   );
 }
 
-const SQUAD_STATUS_PILL: Record<string, { label: string; variant: "neutral" | "warning" | "danger" | "success" | "finalized" }> = {
-  not_generated: { label: "Not generated", variant: "neutral" },
-  draft: { label: "Draft", variant: "warning" },
-  blocked: { label: "Blocked", variant: "danger" },
-  ready: { label: "Ready", variant: "success" },
-  finalized: { label: "Finalised", variant: "finalized" },
-};
-
-const REPORT_STATUS_LABEL: Record<string, string> = {
-  none: "No report",
-  draft: "Draft report",
-  reported: "Reported",
-  locked: "Complete",
-};
-
 function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: string) => string }) {
   const homeAway = match.homeAway === "HOME" ? "vs" : "@";
   const timeStr = match.startsAt
     ? new Date(match.startsAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
     : "";
-  const statusConfig = SQUAD_STATUS_PILL[match.squadStatus] ?? SQUAD_STATUS_PILL.not_generated;
   const squadHref = match.squadStatus === "not_generated"
     ? orgUrl(`/fixtures`)
     : orgUrl(`/matches/${match.matchId}`);
+  const needsReport = match.lifecycleStatus === "played" || match.lifecycleStatus === "report_incomplete";
 
   return (
     <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
@@ -281,20 +266,7 @@ function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: st
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {match.hasActiveLiveSession && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-            <Radio className="h-3 w-3 animate-pulse" aria-hidden="true" />
-            Live
-          </span>
-        )}
-        <StatusPill variant={statusConfig.variant} size="sm">
-          {statusConfig.label}
-        </StatusPill>
-        {match.reportStatus && match.reportStatus !== "none" && (
-          <span className="text-[10px] text-[var(--text-muted)]">
-            {REPORT_STATUS_LABEL[match.reportStatus] ?? match.reportStatus}
-          </span>
-        )}
+        <MatchLifecycleBadge status={match.lifecycleStatus} size="sm" />
         <Button as={Link} href={squadHref} variant="ghost" size="sm">
           View
         </Button>
@@ -303,7 +275,7 @@ function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: st
             Follow live
           </Button>
         )}
-        {match.squadStatus === "finalized" && !match.hasActiveLiveSession && (
+        {needsReport && !match.hasActiveLiveSession && (
           <Button as={Link} href={orgUrl(`/matches/${match.matchId}`)} variant="ghost" size="sm" trailingIcon={<FileText className="h-3 w-3" aria-hidden="true" />}>
             Report
           </Button>

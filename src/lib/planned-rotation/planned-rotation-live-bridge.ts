@@ -26,6 +26,14 @@ export type SkipPlannedChangeResult = {
   error: string;
 };
 
+export type DelayPlannedChangeResult = {
+  success: true;
+  changeId: string;
+} | {
+  success: false;
+  error: string;
+};
+
 export type ModifyPlannedChangeResult = {
   success: true;
   change: PlannedRotationWithChanges["changes"][number];
@@ -39,6 +47,7 @@ export async function applyPlannedChange(
   changeId: string,
   liveEventIds: { outEventId: string; inEventId?: string },
   orgFilter: OrgFilterMode,
+  actualMatchSeconds?: number,
 ): Promise<ApplyPlannedChangeResult> {
   const orgId = orgFilter.filter.organisationId;
   if (!orgId) return { success: false, error: "Organisation context required" };
@@ -63,8 +72,8 @@ export async function applyPlannedChange(
 
   const change = rotation.changes.find((c) => c.id === changeId);
   if (!change) return { success: false, error: "Change not found in rotation plan" };
-  if (change.status !== "PENDING") {
-    return { success: false, error: `Change has status ${change.status}, expected PENDING` };
+  if (change.status !== "PENDING" && change.status !== "DELAYED") {
+    return { success: false, error: `Change has status ${change.status}, expected PENDING or DELAYED` };
   }
 
   const updatedChange = await db.plannedRotationChange.update({
@@ -72,6 +81,8 @@ export async function applyPlannedChange(
     data: {
       status: "APPLIED" as PlannedChangeStatus,
       liveEventId: liveEventIds.outEventId,
+      secondaryLiveEventId: liveEventIds.inEventId ?? null,
+      actualMatchSeconds: actualMatchSeconds ?? null,
     },
   });
 
@@ -112,13 +123,51 @@ export async function skipPlannedChange(
 
   const change = rotation.changes.find((c) => c.id === changeId);
   if (!change) return { success: false, error: "Change not found in rotation plan" };
+  if (change.status !== "PENDING" && change.status !== "DELAYED") {
+    return { success: false, error: `Change has status ${change.status}, expected PENDING or DELAYED` };
+  }
+
+  await db.plannedRotationChange.update({
+    where: { id: changeId },
+    data: { status: "SKIPPED" as PlannedChangeStatus },
+  });
+
+  return { success: true, changeId };
+}
+
+/**
+ * Delay is a re-visitable state, unlike SKIPPED/APPLIED — a delayed change stays actionable and
+ * is surfaced again by getNextPlannedChange() until it is eventually applied or skipped. It
+ * preserves the original planned time (approximateMatchSeconds is untouched); the actual
+ * execution time is recorded separately, on apply (see DECISIONS.md "Live execution of plan").
+ */
+export async function delayPlannedChange(
+  rotationId: string,
+  changeId: string,
+  orgFilter: OrgFilterMode,
+): Promise<DelayPlannedChangeResult> {
+  const orgId = orgFilter.filter.organisationId;
+  if (!orgId) return { success: false, error: "Organisation context required" };
+
+  const rotation = await db.plannedRotation.findFirst({
+    where: { id: rotationId, organisationId: orgId },
+    include: { changes: { orderBy: { sequence: "asc" } } },
+  });
+
+  if (!rotation) return { success: false, error: "Rotation plan not found" };
+  if (rotation.status !== "DRAFT" && rotation.status !== "APPLIED") {
+    return { success: false, error: "Only DRAFT or APPLIED rotation plans can have changes delayed" };
+  }
+
+  const change = rotation.changes.find((c) => c.id === changeId);
+  if (!change) return { success: false, error: "Change not found in rotation plan" };
   if (change.status !== "PENDING") {
     return { success: false, error: `Change has status ${change.status}, expected PENDING` };
   }
 
   await db.plannedRotationChange.update({
     where: { id: changeId },
-    data: { status: "SKIPPED" as PlannedChangeStatus },
+    data: { status: "DELAYED" as PlannedChangeStatus },
   });
 
   return { success: true, changeId };
@@ -218,10 +267,14 @@ export async function getNextPlannedChange(
   if (!rotation) return null;
   if (rotation.status !== "DRAFT" && rotation.status !== "APPLIED") return null;
 
-  const pendingChanges = rotation.changes.filter((c) => c.status === "PENDING");
-  if (pendingChanges.length === 0) return null;
+  // PENDING changes are surfaced in plan order before any DELAYED change is revisited, so a
+  // coach who delays one change still sees the next due change first, not the delayed one
+  // repeatedly.
+  const actionableChanges = rotation.changes.filter((c) => c.status === "PENDING" || c.status === "DELAYED");
+  if (actionableChanges.length === 0) return null;
 
-  return pendingChanges[0];
+  const pending = actionableChanges.filter((c) => c.status === "PENDING");
+  return pending[0] ?? actionableChanges[0]!;
 }
 
 export async function getPlannedChangesForMatch(

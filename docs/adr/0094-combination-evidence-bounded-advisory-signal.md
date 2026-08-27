@@ -1,0 +1,54 @@
+# ADR-0094: Combination Evidence as Bounded Advisory Signal
+
+## Status
+
+Accepted
+
+## Context
+
+Matchboard currently has a `PlayerCombinations` insight (I-005) that computes co-selection and co-appearance frequency. This is frequency-only, not effectiveness — it records how often two players were in the same squad or match, not how they performed together.
+
+The Evidence-Driven Coaching Loop programme introduces structured combination evidence derived from actual on-pitch positions, with six canonical families: Partnership, Triangle, Line, Corridor, Functional Unit, and Full Configuration. Each family has subtypes and evidence measures (minutes together, goals/assists while present, opponent diversity, confidence levels).
+
+## Decision
+
+1. **Combination evidence is a bounded advisory signal.** It cannot override eligibility, availability, hard conflicts, required position/GK coverage, core opportunity/fairness rules, or development constraints. It is a soft scoring preference at best.
+
+2. **No composite chemistry score.** There is no single number representing "how good" a combination is. Evidence is always presented as structured facts: "Players A and B played 96 minutes together at centre-back. The team conceded 2 goals during those minutes."
+
+3. **Confidence is about data quantity, not quality.** INSUFFICIENT, EMERGING, and ESTABLISHED confidence levels reflect how much evidence exists, not how good the combination is. Unknown combinations are neutral, not negative.
+
+4. **The existing `PlayerCombinations` insight (I-005) will be migrated.** Its co-selection frequency data is factual and will be preserved, but the insight surface will be enriched with position-level evidence from the canonical topology. The frequency-only calculation will not be removed — it will be contextualized within the richer evidence model.
+
+5. **Combination evidence is coach-facing only.** It must not appear in parent-facing exports or external AI payloads.
+
+6. **Anti-lock-in is required.** Known combinations must not dominate selection at the expense of unknown but viable alternatives. The selection engine must weight established positive evidence moderately and treat unknown combinations as neutral.
+
+## Consequences
+
+- A new `CombinationEvidence` model will store derived combination evidence per match, with family, subtype, participants, positions, minutes, context, and confidence level.
+- The existing `player-combinations.ts` insight will be extended (not replaced) to include position-level and time-based evidence.
+- Selection engine scoring will include a bounded combination evidence signal after all hard constraints and fairness rules.
+- The `/insights/player-combinations` page will be enriched with confidence levels and structural context.
+
+## Migration
+
+- Phase 3 (completed): Added `CombinationEvidence` Prisma model, `combination-topology.ts` (segment-based derivation of all six canonical families — Partnership, Triangle, Line, Corridor, Functional Unit, Full Configuration — from `line`/`lane` classification, not position-label string parsing), `combination-goal-attribution.ts` (goal-for/goal-against/direct-contribution placement from `LiveMatchEvent` when live-recorded, or `Goal.minute` as an approximate fallback for direct-entry reports), `combination-aggregation.ts` (cross-match aggregation with opponent diversity, persistence, season summaries, and reconciliation backfill), enriched I-005 `player-combinations` with partnership subtype, minutes together, and confidence level.
+- Phase 4 (completed): Integrated as a bounded signal in `src/lib/selection/combination-scoring.ts`, consumed by the single rotation-candidate scoring owner (`getRotationCandidatePriorityScore` in `rotation-candidate-ranking.ts`), wired in `generate-selection.ts`.
+- Phase 7 (completed): explanation strings surfaced via `explainCombinationEvidence()` in the Round Board player-chip tooltip (ARR-0033) and a new per-match `MatchCombinationEvidencePanel` on the post-match report page (`src/components/matches/match-combination-evidence-panel.tsx`) — factual, match-scoped PARTNERSHIP/TRIANGLE evidence shown once the report is LOCKED, deliberately without a confidence label (a single match can never reach ESTABLISHED confidence, since that requires opponent diversity — confidence remains a season-aggregate concept, shown on the I-005 insight page instead). Line-up planning (Tactics tab) and planned rotations (Rotations tab) now both surface season partnership evidence for the currently assigned/starting players via a shared `getPlannedPartnershipEvidenceAction()`/`selectRelevantPartnerships()` and `PlannedPartnershipEvidenceList` component — forward-looking planning context, not per-match evidence for a match that has not been played yet. Opponent planning surfaces evidence recorded specifically in matches against that opponent via `getOpponentCombinationEvidence()` and `OpponentCombinationEvidenceSection` on the opponent detail page — informational only, per AGENTS.md's opponent-context rules (never alters selection-engine outcomes).
+- The existing frequency-only insight remains functional throughout.
+
+### Phase 3 structural design notes
+
+- **Line/lane classification bug found and fixed during implementation.** The original draft of `combination-topology.ts` classified positions with a hand-authored map keyed on short codes ("CB", "LCB", "GK"...), but `ActualPositionInterval.position` (Phase 2, ADR-0096) is actually populated from `FormationSlot.roleType` (`GOALKEEPER`/`DEFENDER`/`DEFENSIVE_MIDFIELDER`/`MIDFIELDER`/`ATTACKING_MIDFIELDER`/`FORWARD`/`FREE`), so the map never matched and every combination's line/lane silently fell through to a wrong default. Fixed by adding canonical `line`/`lane` columns to `ActualPositionInterval` itself (migration `20260830130000_add_actual_interval_line_lane`), computed once at timeline-rebuild time from the resolved slot's `roleType` (via `ROLE_TYPE_TO_LINE` in `src/lib/formations/types.ts`, the canonical position/formation owner) and `gridX` (via `laneFromGridX`), and propagated through substitutions/position-only swaps in `lineup-state.ts`. Lane is only known where a slot can actually be resolved (starting lineup); it stays `null` (unknown, never guessed) for any position-change event that only names a free-text position string. This also fixed a latent bug in `lineup-state.ts`'s position-only-swap branch, which referenced each player's own prior position instead of swapping — unreachable in practice today since no code path yet produces a `positionOnly` rotation with populated `inPosition`/`outPosition` (Phase 5 territory), but fixed as part of the same correctness pass.
+- **Small-format structural noise.** A LINE/CORRIDOR/FUNCTIONAL_UNIT that would contain every on-pitch player in a segment is suppressed (it adds no distinction beyond FULL_CONFIGURATION) — this is what keeps a 3v3 from manufacturing a spurious "line" or "corridor" out of what is really just the whole team, without any per-format special-casing. TRIANGLE and PARTNERSHIP are exempt, since COMBINATION_TOPOLOGY.md explicitly expects a 3v3 to still produce "a meaningful triangle."
+- **Assist attribution is honestly incomplete.** `Assist` (the canonical assist model, AGENTS.md "Canonical data truth") carries no timestamp or goal linkage at all — direct assist contribution can only be placed on the timeline when the match was live-recorded (`LiveMatchEvent` `ASSIST_SET` carries `matchSeconds`, paired to the nearest `GOAL_FOR`/`SCORER_SET` within a 60s window). For a direct-entry (non-live) report, direct assist contribution is left at 0 rather than guessed — this is the "unknown is neutral" invariant applied to a genuine schema limitation, not an oversight.
+- **Tenant context.** `combination-topology.ts`/`combination-aggregation.ts` do not call `requireActorContext()`/`setTenantOrganisationId()` internally — they rely on ambient tenant context already established by the caller, matching `actual-timeline.ts`'s existing pattern (ADR-0087). An earlier draft called `requireActorContext()` internally, which would have silently resolved the wrong organisation's data when invoked from a context (e.g. background reconciliation) whose active tenant differs from the actor's own session-selected organisation.
+- **Historical backfill.** `reconcile-canonical-derived-data.ts` gained a `COMBINATION_EVIDENCE_DERIVED_PROJECTION` domain: any match with a completed report and a recorded actual position timeline but zero `CombinationEvidence` rows gets backfilled read-only from the actual timeline, never touching the completed report.
+
+### Phase 4 design notes
+
+- **Intent-dependent scoring uses the existing `CoachingIntentCategory`, not a new field.** SELECTION_INTEGRATION.md's "competitive / balanced / development" axis has no direct schema equivalent. Rather than add a new coach-facing concept, `deriveCombinationIntentMode()` maps `CHALLENGE_EXPOSURE`/`STABILIZE_WEAKER_TEAM` → COMPETITIVE (amplified bonus, ×1.5), `CONFIDENCE_REBUILD`/`RESET_AFTER_ERROR` → DEVELOPMENT (bonus suppressed to 0, so unknown pairs are never structurally disadvantaged against known ones), everything else (including no intent set) → BALANCED (unmodified bonus). This is a deliberate, minimal, documented mapping — revisit if a dedicated selection-risk field is ever introduced.
+- **Anti-lock-in is structural, not just documented.** The per-candidate bonus is capped (`MAX_COMBINATION_BONUS = 4`, scaled by intent) regardless of how many rounds confirm a pair, so a frequently-selected pair's evidence cannot compound into a runaway advantage over other viable options.
+- **Scope: league selection only.** The bounded signal is wired into the league round-generation candidate scorer only. Event squad generation (`src/lib/events/event-squad-generation.ts`) is a deliberately separate engine per AGENTS.md ("Event squad generation is separate from league round generation... does not affect league fairness metrics") with no actual-position-timeline evidence source of its own yet — extending combination evidence there is deferred, not silently dropped.
+- **Testing.** Covered at the unit level (`combination-scoring.test.ts`): bounded cap, unknown-is-neutral under every intent, intent-dependent amplification/suppression, and factual (non-scored) explanation text. The wiring into `generate-selection.ts` is covered by the full existing selection test suite passing with no regressions; a dedicated DB-backed integration test for the wiring itself was not added, consistent with this codebase's existing convention of unit-testing scoring/derivation logic directly rather than integration-testing every `generateSelection()` scoring contributor (e.g. consecutive-support-penalty testing following the same convention).

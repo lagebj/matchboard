@@ -14,6 +14,8 @@ import {
   Lock,
   RotateCcw,
 } from "lucide-react";
+import { generateEmergencyRepairOptionsAction } from "@/app/(app)/matches/emergency-repair-actions";
+import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-options";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
@@ -67,6 +69,9 @@ type PlayerInColumn = {
   warningCount?: number;
   matchdayResponsibility?: string | null;
   negativeReadinessSignals?: string[];
+  /** Why this selection — see AGENTS.md "Explanation model" (ARR-0033). Surfaced via the chip's tooltip, not a badge. */
+  selectionReason?: string;
+  explanations?: Array<{ code: string; summary: string; hardRule?: boolean }>;
 };
 
 type MatchColumn = {
@@ -148,6 +153,24 @@ function availabilityFor(player: PlayerInColumn): PlayerChipAvailability {
   }
 }
 
+// "Why this selection" (AGENTS.md Explanation model, ARR-0033) — surfaced through the chip's
+// native tooltip, the design-sanctioned place for verbose per-player metadata (see
+// player-chip.tsx's own doc comment). Not every explanation record is shown: hard-rule
+// eligibility rationale is already summarized in selectionReason; only the additional soft
+// signals a coach could not otherwise see (position-fit caveats, combination evidence) are
+// appended, to keep the tooltip short.
+function explanationTooltipFor(player: PlayerInColumn): string {
+  const lines = [`${player.name} · ${player.coreTeamName}`];
+  if (player.selectionReason) {
+    lines.push(player.selectionReason);
+  }
+  const softNotes = (player.explanations ?? [])
+    .filter((e) => !e.hardRule && e.summary && e.summary !== player.selectionReason)
+    .map((e) => e.summary);
+  lines.push(...softNotes);
+  return lines.join("\n");
+}
+
 function markersFor(player: PlayerInColumn): {
   label: string;
   title: string;
@@ -191,6 +214,7 @@ function BoardPlayerChip({
   onDragStart,
   onRemove,
   onMove,
+  onRepair,
   onTouchStart,
   isTouchDragging,
 }: {
@@ -201,6 +225,7 @@ function BoardPlayerChip({
   onDragStart?: (e: React.DragEvent) => void;
   onRemove?: () => void;
   onMove?: () => void;
+  onRepair?: () => void;
   onTouchStart?: () => void;
   isTouchDragging?: boolean;
 }) {
@@ -219,7 +244,8 @@ function BoardPlayerChip({
       isTouchDragging={isTouchDragging}
       onRemove={onRemove}
       onMove={onMove}
-      title={`${player.name} · ${player.coreTeamName}`}
+      onRepair={onRepair}
+      title={explanationTooltipFor(player)}
     />
   );
 }
@@ -232,6 +258,7 @@ function MatchColumnComponent({
   onDragStart,
   onRemovePlayer,
   onMovePlayer,
+  onRepairPlayer,
   showFinalizeMatch,
   onTouchStartPlayer,
   isTouchHighlight,
@@ -250,6 +277,7 @@ function MatchColumnComponent({
   ) => void;
   onRemovePlayer: (matchId: string, playerId: string) => void;
   onMovePlayer: (matchId: string, playerId: string, playerName: string) => void;
+  onRepairPlayer: (matchId: string, playerId: string, playerName: string) => void;
   showFinalizeMatch: (matchId: string) => void;
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
@@ -402,6 +430,9 @@ function MatchColumnComponent({
                     onDragStart={(e) => onDragStart(e, p.id, match.matchId, p.role)}
                     onRemove={() => onRemovePlayer(match.matchId, p.id)}
                     onMove={() => onMovePlayer(match.matchId, p.id, p.name)}
+                    onRepair={
+                      match.isFinalized ? undefined : () => onRepairPlayer(match.matchId, p.id, p.name)
+                    }
                     onTouchStart={
                       onTouchStartPlayer
                         ? () => onTouchStartPlayer(p.id, match.matchId, p.role)
@@ -457,6 +488,58 @@ export function RoundBoard({
     fromMatchId: string | null;
   } | null>(null);
   const isCompactViewport = useMediaQuery("(max-width: 839px)");
+
+  // Emergency repair (Phase 9, DECISIONS.md "Emergency repair"): generates ranked alternatives for
+  // a specific player without changing anything until the coach picks one.
+  const [repairTarget, setRepairTarget] = useState<{
+    matchId: string;
+    playerId: string;
+    playerName: string;
+  } | null>(null);
+  const [repairOptions, setRepairOptions] = useState<EmergencyRepairOption[] | null>(null);
+  const [repairError, setRepairError] = useState<string | null>(null);
+
+  const handleOpenRepair = useCallback((matchId: string, playerId: string, playerName: string) => {
+    setRepairTarget({ matchId, playerId, playerName });
+    setRepairOptions(null);
+    setRepairError(null);
+    startTransition(async () => {
+      const result = await generateEmergencyRepairOptionsAction(matchId, playerId);
+      if (result.success) {
+        setRepairOptions(result.options);
+      } else {
+        setRepairError(result.error);
+      }
+    });
+  }, [startTransition]);
+
+  const handleApplyRepairOption = useCallback(
+    (option: EmergencyRepairOption) => {
+      if (!repairTarget) return;
+      const { matchId, playerId, playerName } = repairTarget;
+      startTransition(async () => {
+        const rmFd = new FormData();
+        rmFd.set("matchId", matchId);
+        rmFd.set("playerId", playerId);
+        rmFd.set("matchRoundId", matchRoundId);
+        await removePlayerFromMatchAction(rmFd);
+
+        const addFd = new FormData();
+        addFd.set("matchId", matchId);
+        addFd.set("playerId", option.playerId);
+        addFd.set("role", option.role);
+        addFd.set("matchRoundId", matchRoundId);
+        addFd.set("overrideReasonCategory", "availability_changed");
+        addFd.set("overrideReasonDetail", `Emergency repair: replacing ${playerName} (generated option)`);
+        await addPlayerToMatchAction(addFd);
+
+        setRepairTarget(null);
+        setRepairOptions(null);
+        router.refresh();
+      });
+    },
+    [repairTarget, matchRoundId, startTransition, router],
+  );
 
   const touchDragRef = useRef<{
     playerId: string;
@@ -1014,6 +1097,9 @@ export function RoundBoard({
             onMovePlayer={(matchId, playerId, playerName) =>
               setMovePicker({ playerId, playerName, fromMatchId: matchId })
             }
+            onRepairPlayer={(matchId, playerId, playerName) =>
+              handleOpenRepair(matchId, playerId, playerName)
+            }
             showFinalizeMatch={(matchId: string) => {
               setFinalizingMatchId(matchId);
               setMatchOverrideReason({ category: "", detail: "" });
@@ -1174,6 +1260,86 @@ export function RoundBoard({
               />
             )}
           </>
+        )}
+      </Dialog>
+
+      <Dialog
+        isOpen={!!repairTarget}
+        onClose={() => {
+          setRepairTarget(null);
+          setRepairOptions(null);
+          setRepairError(null);
+        }}
+        title={repairTarget ? `Repair options for ${repairTarget.playerName}` : ""}
+        description="Generated alternatives, ranked most to least suitable. Nothing changes until you pick one."
+        footer={
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setRepairTarget(null);
+              setRepairOptions(null);
+              setRepairError(null);
+            }}
+          >
+            Cancel
+          </Button>
+        }
+      >
+        {repairError && <p className="text-sm text-[var(--text-error)]">{repairError}</p>}
+        {!repairError && repairOptions === null && (
+          <p className="text-sm text-[var(--text-muted)]">Generating options…</p>
+        )}
+        {!repairError && repairOptions !== null && repairOptions.length === 0 && (
+          <p className="text-sm text-[var(--text-muted)]">
+            No viable alternative found. You can still make a manual change from the Available column.
+          </p>
+        )}
+        {!repairError && repairOptions !== null && repairOptions.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {repairOptions.map((option) => (
+              <div
+                key={option.playerId}
+                className="flex flex-col gap-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-zinc-50 truncate">{option.playerName}</span>
+                    <RoleBadge role={option.role as UISelectionRole} />
+                    {option.isOwnTeam && (
+                      <span className="text-[10px] text-[var(--text-muted)]">Own team</span>
+                    )}
+                    {!option.isOwnTeam && option.coreTeamName && (
+                      <span className="text-[10px] text-[var(--text-muted)]">from {option.coreTeamName}</span>
+                    )}
+                    {option.positionMatch && (
+                      <span className="text-[10px] text-[var(--accent-strong)]">Position match</span>
+                    )}
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() => handleApplyRepairOption(option)}
+                  >
+                    Use this player
+                  </Button>
+                </div>
+                {option.combinationNotes.length > 0 && (
+                  <p className="text-[11px] text-[var(--text-muted)]">{option.combinationNotes.join(" · ")}</p>
+                )}
+                {option.resolvedSignals.length > 0 && (
+                  <p className="text-[11px] text-[var(--accent-strong)]">
+                    Resolves: {option.resolvedSignals.join(", ")}
+                  </p>
+                )}
+                {(option.newBlockedSignals.length > 0 || option.newDecisionRequiredSignals.length > 0) && (
+                  <p className="text-[11px] text-[var(--warning)]">
+                    New: {[...option.newBlockedSignals, ...option.newDecisionRequiredSignals].join(", ")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </Dialog>
 

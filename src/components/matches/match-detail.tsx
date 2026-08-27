@@ -30,6 +30,7 @@ import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
 import { PlannedRotationPanel } from "@/components/matches/planned-rotation-panel";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import { PreviousEncountersDisplay } from "@/components/opponents/previous-encounters-display";
+import { PLAYING_STYLE_TAG_LABELS, type PlayingStyleTag } from "@/lib/opponents/playing-style-tags";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,6 +39,7 @@ import { Surface } from "@/components/ui/surface";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
 import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { MatchLifecycleBadge, type MatchLifecycleStatus } from "@/components/ui/status-badge";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
@@ -93,6 +95,10 @@ type MatchData = {
   cancelledAt: Date | null;
   cancelledReason: string | null;
   postMatchStatus?: string;
+  /** The primary, football-action-oriented match status (ADR-0101) — computed server-side via
+   * deriveMatchLifecycleStatus(). Supersedes matchRoundStatus/postMatchStatus as the label shown
+   * to the coach; those remain available above for internal/legacy consumers. */
+  lifecycleStatus?: MatchLifecycleStatus;
   selections: SelectionRow[];
   warnings: WarningRow[];
   coachingIntent?: string;
@@ -111,6 +117,7 @@ type MatchData = {
   opponentHistory?: OpponentHistoryData | null;
   opponentConcernCount?: number;
   opponentLatestConcernDate?: string | null;
+  currentMatchStyleTags?: string[];
   phaseStartDate?: Date;
   phaseEndDate?: Date;
   plannedRotation?: PlannedRotationWithChanges | null;
@@ -332,14 +339,20 @@ export function MatchDetail({ match }: { match: MatchData }) {
         actions={
           <div className="flex items-center gap-2">
             <TeamShield teamName={match.teamName} size="sm" />
-            {statusPill && (
-              <StatusPill variant={statusPill.variant}>{statusPill.label}</StatusPill>
-            )}
-            {isCancelled && (
-              <StatusPill variant="danger">Cancelled</StatusPill>
-            )}
-            {postMatchPill && !isCancelled && (
-              <StatusPill variant={postMatchPill.variant}>{postMatchPill.label}</StatusPill>
+            {match.lifecycleStatus ? (
+              <MatchLifecycleBadge status={match.lifecycleStatus} />
+            ) : (
+              <>
+                {statusPill && (
+                  <StatusPill variant={statusPill.variant}>{statusPill.label}</StatusPill>
+                )}
+                {isCancelled && (
+                  <StatusPill variant="danger">Cancelled</StatusPill>
+                )}
+                {postMatchPill && !isCancelled && (
+                  <StatusPill variant={postMatchPill.variant}>{postMatchPill.label}</StatusPill>
+                )}
+              </>
             )}
             {matchFinalized && !isCancelled && (
               <Button as={Link} href={`/matches/${match.id}/live`} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
@@ -730,11 +743,34 @@ export function MatchDetail({ match }: { match: MatchData }) {
             </p>
           </Surface>
         ) : (
-          <Surface padding="md">
-            <p className="text-sm text-[var(--text-muted)]">
-              Opening post-match report…
-            </p>
-          </Surface>
+          <div className="flex flex-col gap-4">
+            <Surface padding="md">
+              <SectionHeader title="Post-match report" description="Record match results, player participation, and observations." />
+              <Button
+                as={Link}
+                href={`/matches/${match.id}/post-match`}
+                variant="primary"
+                size="md"
+                className="self-start mt-2"
+              >
+                Open post-match report
+              </Button>
+            </Surface>
+            {match.plannedRotation && (
+              <Surface padding="md">
+                <SectionHeader title="Planned vs actual rotations" description="Compare planned rotation changes with what happened during the match." />
+                <Button
+                  as={Link}
+                  href={`/matches/${match.id}/review`}
+                  variant="secondary"
+                  size="md"
+                  className="self-start mt-2"
+                >
+                  View rotation review
+                </Button>
+              </Surface>
+            )}
+          </div>
         )
       )}
 
@@ -742,6 +778,21 @@ export function MatchDetail({ match }: { match: MatchData }) {
         <div className="flex flex-col gap-4">
           {match.opponentTeamId ? (
             <>
+              {match.currentMatchStyleTags && match.currentMatchStyleTags.length > 0 && (
+                <Surface padding="md">
+                  <SectionHeader title="Opponent playing style" description="Observed style in this encounter. This describes this match, not a fixed trait." />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {match.currentMatchStyleTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-full bg-[var(--surface-raised)] border border-[var(--border-soft)] px-3 py-1 text-xs font-medium text-zinc-200"
+                      >
+                        {PLAYING_STYLE_TAG_LABELS[tag as PlayingStyleTag] ?? tag}
+                      </span>
+                    ))}
+                  </div>
+                </Surface>
+              )}
               {match.opponentHistory && (
                 <PreviousEncountersDisplay
                   history={match.opponentHistory}

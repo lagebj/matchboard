@@ -587,6 +587,32 @@ The selection engine penalizes players who have been sent as support for consecu
 - The penalty does not prevent selection when no better candidate exists — it is a ranking preference, not a hard block
 - Both the per-match generation engine and the round-level support resolver use this penalty to rotate support assignments across available players from the source team
 
+### Combination evidence (bounded advisory signal)
+
+Combination evidence describes what actually happened while a defined football relationship (partnership, triangle, line, corridor, functional unit, full configuration) existed on the pitch. It is descriptive/contextual, never a chemistry score.
+
+- Derived only from the actual position timeline (`ActualPositionInterval`, including its `line`/`lane` classification), never from planned assignment.
+- Confidence (`INSUFFICIENT`/`EMERGING`/`ESTABLISHED`) reflects how much evidence exists, not how good the combination is. Unknown is neutral, never negative.
+- Consumed by selection as a bounded, capped advisory signal (`src/lib/selection/combination-scoring.ts`) — cannot override eligibility, availability, hard conflicts, required coverage, or fairness rules.
+- Intent-dependent: amplified under `CHALLENGE_EXPOSURE`/`STABILIZE_WEAKER_TEAM` coaching intent, suppressed under `CONFIDENCE_REBUILD`/`RESET_AFTER_ERROR` so unknown pairs are never structurally disadvantaged against known ones, unmodified otherwise.
+- Direct assist contribution is only available for live-recorded matches (the canonical `Assist` model carries no timestamp) — left at 0 for direct-entry reports rather than guessed.
+- Explanations are factual sentences (minutes together, match count, confidence) — never a synthesized score or percentage. See ADR-0094.
+- Beyond selection scoring, factual season partnership evidence (`selectRelevantPartnerships()`, `src/lib/evidence/combination-aggregation.ts`) is also surfaced as read-only planning context on the Tactics tab (current line-up), the Rotations tab (current starting line-up), and the opponent detail page (evidence recorded in matches against that specific opponent, via `getOpponentCombinationEvidence()`) — never a second selection-scoring input, purely descriptive.
+
+### Quick observations
+
+A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
+
+- Minimum fields: note text, optional match/player context, timestamp, author.
+- Later, explicit coach action converts it into an existing owner (development thread observation, team reflection, opponent observation), keeps it as a plain note, or discards it — never automatically.
+- Converting to an opponent observation reuses the same identifying-detail rejection as the normal opponent-observation form. See ADR-0098.
+
+### Emergency repair options
+
+Before kickoff, a late unavailability can produce a small, ranked set of viable replacement options (`src/lib/selection/emergency-repair-options.ts`) — never applied automatically. Reuses the existing manual-edit mutation as the sole eligibility gate (a candidate needing an override reason is not "viable" here) and existing scoring primitives (readiness, recent load, combination evidence) for ranking. See ADR-0099.
+
+The Round Board surfaces this via a "Repair options" action (Wrench icon) on any player chip in a match column (not the Available column, never on a finalized match). It calls `generateEmergencyRepairOptionsAction()`, shows the ranked options in a dialog, and applies the coach's chosen option through the same remove/add manual-edit actions the board already uses for drag/drop and the non-drag Move picker — nothing is applied until the coach picks an option.
+
 ## Rule precedence
 
 Team support is priority 1.
@@ -619,6 +645,17 @@ Rules:
 - Manual override may bypass path checks but must record reason
 - No fallback can bypass path validation
 - Invalid path eligibility is a hard eligibility problem, not a ranking problem
+
+### Player locks ("Pin")
+
+`PlayerLock` is a round-scoped, explicit coach planning constraint, read directly by the selection engine (`generate-selection.ts`). It is coach-facing under the name **Pin** (DECISIONS.md: "Use `Pin` for an explicit coach planning constraint"); the underlying model/field names (`PlayerLock`, `lockType` values `LOCKED_IN`/`LOCKED_OUT`) are unchanged.
+
+- **Pin out** (`LOCKED_OUT`) excludes the player from the entire round automatically — a hard exclusion, always honored (no override needed to exclude further, since it's already the coach's explicit instruction).
+- **Pin in** (`LOCKED_IN`) forces the player into a selection for the round if they are not otherwise chosen. If a hard rule (e.g. unavailability) would block them, the pin does not override it — the round instead shows a `player_locked_in_blocked` warning explaining why.
+- One `PlayerLock` per `(matchRoundId, playerId)` — pinning a player again while already pinned replaces the existing pin (upsert), it does not create a duplicate.
+- Cannot pin a player in a `FINALIZED` round.
+- UI: `src/components/team/team-detail.tsx`'s Current Round tab (`PinControl`) — a coach can pin/unpin any player shown there (selected as core, sent as support, or dropped) for that team's current round.
+- Domain: `src/lib/selection/player-lock.ts`. Actions: `src/app/(app)/teams/player-lock-actions.ts`.
 
 ### Movement candidates
 
@@ -1406,7 +1443,7 @@ Breakpoint tokens (`globals.css`, `@theme`): `--breakpoint-medium: 600px`,
 collide with pre-existing `xl:` usage elsewhere in the app. Compact is the unprefixed base
 (<600px); there is no token for it.
 
-Status vocabulary: The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.
+Status vocabulary (superseded by ADR-0101 — evidence-driven-coaching-loop programme, explicit maintainer decision): **Not generated, Draft, Blocked, Ready, Finalized** remain the internal selection-planning-completeness vocabulary (round/match plan integrity, override requirements) and the `RoundStatus` enum/type is unchanged. They are no longer the primary label shown for a single match's status. The primary, football-action-oriented match lifecycle status is one of: **Planning open, Planning closed, Live, Played, Report incomplete, Done, Cancelled** (`deriveMatchLifecycleStatus()`, `src/lib/selection/planning-boundary.ts`; `MatchLifecycleBadge`, `src/components/ui/status-badge.tsx`). Report status wins over round-finalization status: a finalized-but-unplayed match shows "Planning closed", never "Done" — finalizing the plan and completing the report are different facts (see the pre-existing "Fixtures result display rules": "Finalized does not mean the match has been played or reported"). Round-level or aggregate contexts (Rounds list, Round Board) may still show Draft/Blocked/Ready/Finalized as a secondary/internal detail alongside the primary lifecycle status, never as the only label.
 
 Warning and signal hierarchy: Blocked conditions must be visually dominant and placed beside the affected round or match. Decision required conditions must be visible without opening hidden technical detail. Planning notes may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
 
@@ -1619,6 +1656,10 @@ Note: BACKFILL remains the internal code role and rotation path role. Use "squad
 | BLOCKED | Draft with Blocked conditions |
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
+
+### Round progress (aggregate, not a per-match replacement)
+
+`src/lib/rounds/round-progress.ts`'s `deriveRoundProgress()` computes a round-level aggregate fact — whether the round's matches have actually been played and reported yet. Stages: Planning, Partially played, All matches played, Reporting, Complete (derived from each non-cancelled match's played-date and post-match report status). A round aggregates multiple matches that can each be at a different lifecycle stage, so this remains a distinct, coarser summary alongside the round status above. For a single match, use the primary lifecycle status (`deriveMatchLifecycleStatus()`) described under "Status vocabulary" above instead — see ADR-0100 (round progress) and ADR-0101 (match lifecycle status supersession).
 
 ### Match status model (2 states)
 
@@ -1907,12 +1948,16 @@ Rules:
 
 | File | Purpose |
 |------|---------|
-| `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking |
-| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation |
-| `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply, skip, modify planned change during live match |
+| `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking (`checkPlannedRotationCoverage`) |
+| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation; `checkPlannedRotationCoverageAction` (starters read from the team's current match line-up, never fabricated from the full squad) plus its planned partnership evidence |
+| `src/app/(app)/matches/lineup-combination-evidence-actions.ts` | Server action: season partnership evidence relevant to a specific set of planned-together players — shared by the Tactics and Rotations tabs |
+| `src/components/matches/planned-partnership-evidence.tsx` | Presentational: factual season partnership evidence list, shared by the Tactics and Rotations tabs |
+| `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply (writes real actual-timeline events server-side), skip, delay, modify planned change during live match |
 | `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` | Coach handover: compact match-operational view for mobile matchday use |
 | `src/components/matches/coach-handover-view.tsx` | Coach handover client component: squad, rotations, intent, warnings |
-| `src/lib/planned-rotation/planned-rotation-live-bridge.ts` | Plan-to-live bridge: apply/skip/modify planned changes, next change lookup |
+| `src/lib/planned-rotation/planned-rotation-live-bridge.ts` | Plan-to-live bridge: apply/skip/delay/modify planned changes (DELAYED is re-visitable, not terminal), next change lookup |
+| `src/lib/evidence/actual-timeline.ts` | Canonical actual position timeline: `rebuildActualTimeline()`, line/lane classification, interval queries |
+| `src/lib/evidence/lineup-state.ts` | Pure position-interval computation from starters/rotations/position-changes (used by actual-timeline.ts) |
 | `src/lib/planned-rotation/rotation-vs-actual.ts` | Rotation vs actual comparison: per-change deviation, minute deviation, unplanned substitutions |
 | `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
 | `src/lib/coaching/development-thread-categories.ts` | Shared development focus categories and labels (client/server) |
@@ -2208,6 +2253,10 @@ Avoid:
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
 | `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
+| `src/lib/selection/availability-impact.ts` | Availability change impact analysis (affected rounds, unfinalization needed) |
+| `src/lib/selection/edit-impact-preview.ts` | Manual edit consequence preview (dry-run add/remove, plan integrity diff) |
+| `src/app/(app)/matches/emergency-repair-actions.ts` | Server actions: availability impact, manual edit preview, emergency repair options |
+| `src/lib/selection/emergency-repair-options.ts` | Pre-kickoff emergency repair options generator (ranked, reuses manual-edit mutation as eligibility gate) |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
 | `src/lib/seasons/league-season.ts` | Date-derived SPRING/FALL assignment, labels, date ranges |
 | `src/lib/rounds/round-engagement.ts` | Round engagement enforcement and override validation |
@@ -2230,7 +2279,12 @@ Avoid:
 | `src/lib/selection/get-core-match-drop-history.ts` | Core match drop history data |
 | `src/lib/selection/selection-fairness.ts` | Fairness scoring logic |
 | `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
-| `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking |
+| `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
+| `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
+| `src/lib/evidence/combination-topology.ts` | Derives all six canonical combination families (Partnership/Triangle/Line/Corridor/Functional Unit/Full Configuration) from the actual position timeline |
+| `src/lib/evidence/combination-goal-attribution.ts` | Places goals/assists on the timeline (live events when available, `Goal.minute` as approximate fallback) for combination evidence |
+| `src/lib/evidence/combination-aggregation.ts` | Cross-match combination evidence aggregation, persistence, season summaries, historical backfill, opponent-scoped evidence (`getOpponentCombinationEvidence`), planned-pairing filtering (`selectRelevantPartnerships`) |
+| `src/components/opponents/opponent-combination-evidence-section.tsx` | Factual combination evidence recorded in matches against one opponent, shown on the opponent detail page |
 | `src/lib/policies/types.ts` | Policy input/result type definitions |
 | `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
@@ -2257,7 +2311,10 @@ Avoid:
 | `src/app/(app)/matches/match-helper-actions.ts` | Server actions: add/remove League Match helper, list helpers/candidates |
 | `src/components/matches/match-helpers-panel.tsx` | "Add helper" UI on the League match detail Squad tab |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
-| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items) |
+| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items, delayed planned rotation changes) |
+| `src/lib/rounds/round-progress.ts` | Derives additive round progress (Planning/Partially played/All matches played/Reporting/Complete) from round matches — never a replacement for the mandatory round status labels |
+| `src/lib/selection/player-lock.ts` | Player lock ("Pin") domain service: create/list/delete, read by generate-selection.ts |
+| `src/app/(app)/teams/player-lock-actions.ts` | Player lock ("Pin") server actions |
 | `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |
@@ -2297,9 +2354,15 @@ Avoid:
 | `src/components/matches/matchday-responsibility-selector.tsx` | Matchday responsibility dropdown selector |
 | `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
 | `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
+| `src/components/matches/match-combination-evidence-panel.tsx` | Factual, match-scoped combination evidence (Partnership/Triangle) shown on the post-match page once the report is LOCKED — no confidence label (single-match confidence can never reach ESTABLISHED) |
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
 | `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
 | `src/app/(app)/matches/development-thread-actions.ts` | Development thread server actions |
+| `src/lib/coaching/team-focus.ts` | Team focus domain service (CRUD, lifecycle, max 3 active per team) |
+| `src/components/team/team-focus-panel.tsx` | Team focus editor panel on team workspace |
+| `src/lib/coaching/quick-observation.ts` | Quick observation domain service: capture-first/classify-later CRUD, convert to development thread/team reflection/opponent observation, keep-as-note, discard |
+| `src/app/(app)/matches/quick-observation-actions.ts` | Quick observation server actions |
+| `src/components/players/player-quick-observations-panel.tsx` | Quick observation capture/list panel on player profile |
 
 ### Transactional email files
 
@@ -2445,7 +2508,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/app/api/insights/position-exposure/route.ts` | GET `/api/insights/position-exposure` — position exposure API |
 | `src/app/(app)/insights/position-exposure/page.tsx` | Position & Formation Exposure page |
 | `src/app/(app)/insights/position-exposure/position-exposure-client.tsx` | Position & Formation Exposure interactive client component |
-| `src/lib/insights/player-combinations.ts` | I-005: `getPlayerCombinations()` — co-selection/co-appearance frequency per player pair; frequency is not effectiveness |
+| `src/lib/insights/player-combinations.ts` | I-005: `getPlayerCombinations()` — co-selection/co-appearance frequency per player pair; frequency is not effectiveness. Enriched with partnership subtype, minutes together, and confidence from `CombinationEvidence` when available |
 | `src/lib/insights/player-combinations-helpers.ts` | Pure helpers: order-independent pair keying |
 | `src/app/api/insights/player-combinations/route.ts` | GET `/api/insights/player-combinations` — player combinations API |
 | `src/app/(app)/insights/player-combinations/page.tsx` | Player Combinations page |
@@ -2479,7 +2542,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
 | `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
 | `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions |
-| `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events |
+| `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events, `estimateCurrentMatchSeconds()` (server-side match-time estimate, no clock anchor is persisted) |
 | `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
 | `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |
 | `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |

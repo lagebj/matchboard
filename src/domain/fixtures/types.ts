@@ -1,3 +1,5 @@
+import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+
 export type SelectionState = "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED";
 
 export type SelectionAction = "createDraft" | "recreateDraft" | "clearDraft" | "finalize" | "unfinalize";
@@ -73,4 +75,8 @@ export interface FixtureMatch {
   availableActions: SelectionAction[];
   matchStatus: "SCHEDULED" | "CANCELLED";
   cancelledReason?: string | null;
+  /** The primary, football-action-oriented match status (ADR-0101). Supersedes selectionState/
+   * postMatchStatus as the label shown to the coach for this single match; those remain
+   * available above for round-level aggregation and internal logic. */
+  lifecycleStatus: MatchLifecycleStatus;
 }

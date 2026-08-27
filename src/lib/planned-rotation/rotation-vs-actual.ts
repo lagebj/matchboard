@@ -10,10 +10,11 @@ export type RotationChangeComparison = {
   inPosition: string | null;
   positionOnly: boolean;
   approximateMatchSeconds: number | null;
+  actualMatchSeconds: number | null;
   plannedStatus: string;
   outPlayerName: string;
   inPlayerName: string;
-  deviation: "applied" | "skipped" | "modified" | "pending" | "unplanned";
+  deviation: "applied" | "skipped" | "modified" | "pending" | "delayed" | "unplanned";
   deviationNote: string | null;
 };
 
@@ -27,6 +28,7 @@ export type RotationVsActualSummary = {
   skipped: number;
   modified: number;
   pending: number;
+  delayed: number;
   unplannedSubstitutions: number;
   changes: RotationChangeComparison[];
   minuteDeviations: MinuteDeviation[];
@@ -79,12 +81,21 @@ export async function getRotationVsActual(
       c.status === "APPLIED" ? "applied" :
       c.status === "SKIPPED" ? "skipped" :
       c.status === "MODIFIED" ? "modified" :
+      c.status === "DELAYED" ? "delayed" :
       "pending";
 
     let deviationNote: string | null = null;
     if (c.status === "SKIPPED") deviationNote = "Planned change was skipped during live match";
     if (c.status === "MODIFIED") deviationNote = "Planned change was modified during live match";
     if (c.status === "PENDING") deviationNote = "Planned change was not resolved during live match";
+    if (c.status === "DELAYED") deviationNote = "Planned change was delayed and not yet resolved during live match";
+    if (c.status === "APPLIED" && c.actualMatchSeconds !== null && c.approximateMatchSeconds !== null) {
+      const deviationSeconds = c.actualMatchSeconds - c.approximateMatchSeconds;
+      if (Math.abs(deviationSeconds) >= 60) {
+        const deviationMinutes = Math.round(deviationSeconds / 60);
+        deviationNote = `Applied ${Math.abs(deviationMinutes)} min ${deviationMinutes > 0 ? "later" : "earlier"} than planned`;
+      }
+    }
 
     return {
       changeId: c.id,
@@ -95,6 +106,7 @@ export async function getRotationVsActual(
       inPosition: c.inPosition,
       positionOnly: c.positionOnly,
       approximateMatchSeconds: c.approximateMatchSeconds,
+      actualMatchSeconds: c.actualMatchSeconds,
       plannedStatus: c.status,
       outPlayerName: c.outPlayer ? `${c.outPlayer.firstName}${c.outPlayer.lastName ? ` ${c.outPlayer.lastName}` : ""}` : "—",
       inPlayerName: c.inPlayer ? `${c.inPlayer.firstName}${c.inPlayer.lastName ? ` ${c.inPlayer.lastName}` : ""}` : "—",
@@ -206,6 +218,7 @@ export async function getRotationVsActual(
     skipped: rotation.changes.filter((c) => c.status === "SKIPPED").length,
     modified: rotation.changes.filter((c) => c.status === "MODIFIED").length,
     pending: rotation.changes.filter((c) => c.status === "PENDING").length,
+    delayed: rotation.changes.filter((c) => c.status === "DELAYED").length,
     unplannedSubstitutions: unplannedCount,
     changes,
     minuteDeviations,

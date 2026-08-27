@@ -1,6 +1,7 @@
 import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotation-paths";
+import { isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -27,6 +28,11 @@ export async function movePlannedSelectionWithinRound(input: {
 
   if (fromMatchId === toMatchId) {
     return { success: false, errors: ["Source and target match are the same. No move needed."] };
+  }
+
+  const planningBoundary = await isMatchRoundPlanningEditable(matchRoundId);
+  if (!planningBoundary.editable) {
+    return { success: false, errors: [planningBoundary.reason ?? "Planning is closed for this round."] };
   }
 
   const round = await db.matchRound.findFirst({

@@ -133,11 +133,15 @@ export const RLS_TABLES = new Set([
   "eventLiveMatchSession",
   "eventLiveMatchEvent",
   "assessmentChange",
+  "actualPositionInterval",
+  "combinationEvidence",
+  "quickObservation",
   "opponentAssessmentChange",
   "plannedRotation",
   "plannedRotationChange",
   "developmentThread",
   "developmentThreadObservation",
+  "teamFocus",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;

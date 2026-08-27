@@ -9,6 +9,7 @@ import {
   cleanOpponentDisplayName,
   validateOpponentTeamInput,
 } from "./opponent-team";
+import { validatePlayingStyleTags, type PlayingStyleTag } from "./playing-style-tags";
 import { getMatchFitAdvisoryOrdinal } from "./match-fit-labels";
 import { MatchFit, OpponentConcernCategory, OpponentObservationFollowUp, MatchEnvironmentObservation } from "@/generated/prisma/client";
 import { isParentExcludedField } from "@/lib/export/parent-safe-filter";
@@ -27,6 +28,28 @@ describe("validateObservation", () => {
   it("accepts a valid observation with no concerns", () => {
     const result = validateObservation(validBase);
     expect(result.valid).toBe(true);
+  });
+
+  it("accepts a valid observation with playing style tags", () => {
+    const result = validateObservation({
+      ...validBase,
+      playingStyleTags: ["HIGH_PRESSING", "POSSESSION_BASED"] as PlayingStyleTag[],
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects more than 5 playing style tags in observation", () => {
+    const result = validateObservation({
+      ...validBase,
+      playingStyleTags: [
+        "HIGH_PRESSING", "POSSESSION_BASED", "COUNTER_ATTACKING",
+        "DIRECT_PLAY", "PHYSICAL_AND_DIRECT", "SLOW_BUILD_UP",
+      ] as PlayingStyleTag[],
+    });
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.includes("style tag"))).toBe(true);
+    }
   });
 
   it("accepts a positive observation", () => {
@@ -350,5 +373,55 @@ describe("isParentExcludedField", () => {
     expect(isParentExcludedField("role")).toBe(false);
     expect(isParentExcludedField("team")).toBe(false);
     expect(isParentExcludedField("date")).toBe(false);
+  });
+});
+
+describe("validatePlayingStyleTags", () => {
+  it("accepts valid style tags within limit", () => {
+    const result = validatePlayingStyleTags(["HIGH_PRESSING", "POSSESSION_BASED", "COUNTER_ATTACKING"]);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.tags).toEqual(["HIGH_PRESSING", "POSSESSION_BASED", "COUNTER_ATTACKING"]);
+    }
+  });
+
+  it("accepts empty style tags", () => {
+    const result = validatePlayingStyleTags([]);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.tags).toEqual([]);
+    }
+  });
+
+  it("rejects more than 5 style tags", () => {
+    const result = validatePlayingStyleTags([
+      "HIGH_PRESSING", "POSSESSION_BASED", "COUNTER_ATTACKING",
+      "DIRECT_PLAY", "PHYSICAL_AND_DIRECT", "SLOW_BUILD_UP",
+    ] as PlayingStyleTag[]);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.error).toContain("at most 5");
+    }
+  });
+
+  it("deduplicates style tags", () => {
+    const result = validatePlayingStyleTags(["HIGH_PRESSING", "HIGH_PRESSING"]);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.tags).toEqual(["HIGH_PRESSING"]);
+    }
+  });
+
+  it("rejects invalid style tags", () => {
+    const result = validatePlayingStyleTags(["INVALID_TAG"] as unknown as PlayingStyleTag[]);
+    expect(result.valid).toBe(false);
+  });
+
+  it("accepts exactly 5 style tags", () => {
+    const result = validatePlayingStyleTags([
+      "HIGH_PRESSING", "POSSESSION_BASED", "COUNTER_ATTACKING",
+      "DIRECT_PLAY", "PHYSICAL_AND_DIRECT",
+    ]);
+    expect(result.valid).toBe(true);
   });
 });

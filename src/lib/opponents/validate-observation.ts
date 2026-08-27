@@ -1,4 +1,5 @@
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp } from "@/generated/prisma/client";
+import { type PlayingStyleTag, validatePlayingStyleTags as validateStyleTags } from "./playing-style-tags";
 
 export type ObservationFormData = {
   overallEnvironment: MatchEnvironmentObservation;
@@ -6,6 +7,7 @@ export type ObservationFormData = {
   opponentStaffContext: MatchEnvironmentObservation;
   spectatorSidelineContext: MatchEnvironmentObservation;
   concernCategories: OpponentConcernCategory[];
+  playingStyleTags?: PlayingStyleTag[];
   factualSummary: string | null;
   followUp: OpponentObservationFollowUp;
 };
@@ -64,6 +66,12 @@ export function validateObservation(data: ObservationFormData): { valid: true } 
     errors.push("Select at least one observable concern category when a concern is recorded.");
   }
 
+  if (data.playingStyleTags && data.playingStyleTags.length > 0) {
+    const styleResult = validateStyleTags(data.playingStyleTags);
+    if (!styleResult.valid) {
+      errors.push(styleResult.error);
+    }
+  }
   if (data.overallEnvironment === "SERIOUS_CONCERN" && (!data.factualSummary || data.factualSummary.trim().length === 0)) {
     errors.push("Add a brief factual summary for a serious concern. Do not include names or identifying details.");
   }
@@ -99,4 +107,16 @@ export function cleanFactualSummary(summary: string | null | undefined): string 
   if (!summary) return null;
   const trimmed = summary.trim();
   return trimmed.length === 0 ? null : trimmed;
+}
+
+export const FACTUAL_SUMMARY_MAX_LENGTH = MAX_FACTUAL_SUMMARY_LENGTH;
+
+/**
+ * Shared identifying-detail check for any free-text opponent-facing summary — the normal
+ * observation form (validateObservation above) and any other write path into
+ * OpponentEncounterObservation.factualSummary (e.g. quick-observation conversion) must both
+ * reject the same patterns, not maintain separate copies of these regexes.
+ */
+export function containsIdentifyingDetails(text: string): boolean {
+  return EMAIL_PATTERN.test(text) || PHONE_PATTERN.test(text) || URL_PATTERN.test(text);
 }

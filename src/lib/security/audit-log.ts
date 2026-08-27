@@ -60,7 +60,16 @@ type SecurityEventAction =
   | "close_development_thread"
   | "reopen_development_thread"
   | "add_development_observation"
-  | "remove_development_observation";
+  | "remove_development_observation"
+  | "create_team_focus"
+  | "update_team_focus"
+  | "complete_team_focus"
+  | "close_team_focus"
+  | "reopen_team_focus"
+  | "create_quick_observation"
+  | "discard_quick_observation"
+  | "keep_quick_observation_as_note"
+  | "convert_quick_observation";
 
 interface SecurityEvent {
   category: SecurityEventCategory;

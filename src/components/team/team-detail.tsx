@@ -31,9 +31,12 @@ import {
   deleteMovementCandidateAction,
   toggleMovementCandidateStatusAction,
 } from "@/app/(app)/teams/movement-candidate-actions";
+import { pinPlayerAction, unpinPlayerAction } from "@/app/(app)/teams/player-lock-actions";
 import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import { BestLineupTab } from "@/components/team/best-lineup-tab";
+import { TeamFocusPanel } from "@/components/team/team-focus-panel";
+import type { TeamFocusStatus } from "@/lib/coaching/team-focus";
 
 type PlayerSummary = {
   id: string;
@@ -148,6 +151,7 @@ type TeamDetailData = {
     playerName: string;
     role: string;
     explanation: string | null;
+    pin: "LOCKED_IN" | "LOCKED_OUT" | null;
   }>;
   sentPlayers: Array<{
     playerId: string;
@@ -155,6 +159,7 @@ type TeamDetailData = {
     role: string;
     destinationTeamName: string;
     explanation: string | null;
+    pin: "LOCKED_IN" | "LOCKED_OUT" | null;
   }>;
   receivedPlayers: Array<{
     playerId: string;
@@ -168,6 +173,7 @@ type TeamDetailData = {
     playerName: string;
     role: string;
     explanation: string | null;
+    pin: "LOCKED_IN" | "LOCKED_OUT" | null;
   }>;
   roundWarnings: RoundWarning[];
   movementHistory: MovementEntry[];
@@ -183,9 +189,19 @@ type TeamDetailData = {
   bestLineup: import('@/lib/best-lineup/best-lineup').BestLineupData | null;
   bestLineupFormations: Array<{ id: string; name: string; gameFormat: string; source: string; isArchived: boolean }>;
   bestLineupPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string; secondaryPosition: string | null; tertiaryPosition: string | null; goalkeeperAbility: string }>;
+  teamFocuses: Array<{
+    id: string;
+    statement: string;
+    context: string | null;
+    status: TeamFocusStatus;
+    startedAt: string;
+    completedAt: string | null;
+    closedAt: string | null;
+    linkedIntentId: string | null;
+  }>;
 };
 
-type TabKey = "squad" | "current-round" | "movement" | "candidates" | "history" | "rules" | "best-lineup";
+type TabKey = "squad" | "current-round" | "best-lineup" | "movement" | "candidates" | "focus" | "history" | "rules";
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
@@ -193,6 +209,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "best-lineup", label: "Best lineup" },
   { key: "movement", label: "Movement" },
   { key: "candidates", label: "Possible movement" },
+  { key: "focus", label: "Focus" },
   { key: "history", label: "History" },
   { key: "rules", label: "Rules & Links" },
 ];
@@ -390,6 +407,73 @@ function SquadTab({ corePlayers, teamId, unassignedPlayers }: { corePlayers: Pla
   );
 }
 
+/**
+ * "Pin" — the coach-facing name for an explicit, round-scoped planning constraint (DECISIONS.md
+ * "Use `Pin` for an explicit coach planning constraint"). Pin in forces the player into this
+ * round's selection; Pin out excludes them entirely — both are read directly by the selection
+ * engine (`generate-selection.ts`) via the underlying `PlayerLock` model.
+ */
+function PinControl({ roundId, playerId, pin }: { roundId: string; playerId: string; pin: "LOCKED_IN" | "LOCKED_OUT" | null }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function pinIn() {
+    startTransition(async () => {
+      await pinPlayerAction(roundId, playerId, "LOCKED_IN");
+      router.refresh();
+    });
+  }
+  function pinOut() {
+    startTransition(async () => {
+      await pinPlayerAction(roundId, playerId, "LOCKED_OUT");
+      router.refresh();
+    });
+  }
+  function unpin() {
+    startTransition(async () => {
+      await unpinPlayerAction(roundId, playerId);
+      router.refresh();
+    });
+  }
+
+  if (pin) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); unpin(); }}
+        disabled={isPending}
+        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-strong)] hover:bg-[var(--surface-hover)]"
+        title={pin === "LOCKED_IN" ? "Pinned in — click to unpin" : "Pinned out — click to unpin"}
+      >
+        {pin === "LOCKED_IN" ? "Pinned in" : "Pinned out"}
+      </button>
+    );
+  }
+
+  return (
+    <span className="flex shrink-0 gap-1">
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); pinIn(); }}
+        disabled={isPending}
+        className="rounded px-1 py-0.5 text-[10px] text-[var(--text-muted)] opacity-0 hover:bg-[var(--surface-hover)] group-hover/item:opacity-100"
+        title="Pin in — force this player into the round"
+      >
+        Pin in
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); pinOut(); }}
+        disabled={isPending}
+        className="rounded px-1 py-0.5 text-[10px] text-[var(--text-muted)] opacity-0 hover:bg-[var(--surface-hover)] group-hover/item:opacity-100"
+        title="Pin out — exclude this player from the round"
+      >
+        Pin out
+      </button>
+    </span>
+  );
+}
+
 function CurrentRoundTab({
   selectedPlayers,
   sentPlayers,
@@ -424,15 +508,18 @@ function CurrentRoundTab({
             {selectedPlayers.length > 0 ? selectedPlayers.map((p) => (
               <Link
                 key={p.playerId}
-                className="group/item rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
+                className="group/item flex items-start justify-between gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 href={`/players/${p.playerId}`}
               >
-                <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
-                  {p.playerName}
-                </span>
-                {p.explanation && (
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
-                )}
+                <div>
+                  <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
+                    {p.playerName}
+                  </span>
+                  {p.explanation && (
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
+                  )}
+                </div>
+                {roundId && <PinControl roundId={roundId} playerId={p.playerId} pin={p.pin} />}
               </Link>
             )) : (
               <p className="text-sm text-[var(--text-soft)]">No core players selected in this round.</p>
@@ -453,7 +540,10 @@ function CurrentRoundTab({
                   <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
                     {p.playerName}
                   </span>
-                  <span className="shrink-0 text-[10px] text-[var(--text-muted)]">→ {p.destinationTeamName}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-[10px] text-[var(--text-muted)]">→ {p.destinationTeamName}</span>
+                    {roundId && <PinControl roundId={roundId} playerId={p.playerId} pin={p.pin} />}
+                  </div>
                 </div>
                 {p.explanation && (
                   <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
@@ -471,16 +561,19 @@ function CurrentRoundTab({
             {droppedPlayers.length > 0 ? droppedPlayers.map((p) => (
               <Link
                 key={p.playerId}
-                className="group/item rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
+                className="group/item flex items-start justify-between gap-2 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 href={`/players/${p.playerId}`}
               >
-                <span className="font-medium text-[var(--danger)] group-hover/item:text-[var(--accent-strong)]">
-                  {p.playerName}
-                </span>
-                <span className="ml-2 text-[10px] text-[var(--text-muted)]">{formatRoleLabel(p.role)}</span>
-                {p.explanation && (
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
-                )}
+                <div>
+                  <span className="font-medium text-[var(--danger)] group-hover/item:text-[var(--accent-strong)]">
+                    {p.playerName}
+                  </span>
+                  <span className="ml-2 text-[10px] text-[var(--text-muted)]">{formatRoleLabel(p.role)}</span>
+                  {p.explanation && (
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{p.explanation}</p>
+                  )}
+                </div>
+                {roundId && <PinControl roundId={roundId} playerId={p.playerId} pin={p.pin} />}
               </Link>
             )) : (
               <p className="text-sm text-[var(--text-soft)]">No players dropped this round.</p>
@@ -1107,6 +1200,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
           />
         )}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}
+        {activeTab === "focus" && <TeamFocusPanel teamId={data.teamId} initialFocuses={data.teamFocuses} />}
         {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} teamOptions={data.teamOptions} />}
       </Surface>
     </div>

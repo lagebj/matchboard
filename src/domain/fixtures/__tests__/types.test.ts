@@ -70,6 +70,7 @@ describe("Fixtures Service unit tests", () => {
         reportState: { state: "NO_REPORT" },
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
         matchStatus: "SCHEDULED",
+        lifecycleStatus: "planning_open",
       };
       expect(match.teamId).toBe("team-1");
       expect(match.selectionState).toBe("DRAFT");

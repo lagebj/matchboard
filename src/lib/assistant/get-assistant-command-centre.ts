@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
+import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import type {
   AssistantCommandCentre,
   AssistantWorkCategory,
@@ -120,6 +121,20 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     : new Map<string, { matchId: string; status: string; playerActuals: { attendanceStatus: string }[] }>();
 
   const existingReports = new Set(reportStatuses.keys());
+
+  // A planned rotation change left DELAYED after the match has been played is a loose end the
+  // coach needs to resolve (apply or skip) — it is re-visitable, not a permanent record, so it
+  // must not be silently forgotten (see ADR-0097).
+  const delayedRotationMatchIds = finalizedMatchIds.length > 0
+    ? new Set(
+        (
+          await db.plannedRotationChange.findMany({
+            where: { status: "DELAYED", plannedRotation: { matchId: { in: finalizedMatchIds } } },
+            select: { plannedRotation: { select: { matchId: true } } },
+          })
+        ).map((c) => c.plannedRotation.matchId),
+      )
+    : new Set<string>();
 
   const items: AssistantWorkItem[] = [];
 
@@ -331,6 +346,22 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
             }
           }
         }
+
+        if (delayedRotationMatchIds.has(match.id)) {
+          items.push(
+            makeItem({
+              category: "planned_rotation_delayed",
+              matchRoundId: round.id,
+              matchId: match.id,
+              title: `${round.name} — Resolve delayed rotation change`,
+              summary: "A planned rotation change was delayed during the match and still needs to be applied or skipped.",
+              primaryActionLabel: "Review rotation plan",
+              primaryActionHref: `/matches/${match.id}`,
+              affectedTeamIds: match.teamId ? [match.teamId] : [],
+              affectedPlayerIds: [],
+            }),
+          );
+        }
       }
       continue;
     }
@@ -352,10 +383,12 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       opponent: true,
       homeAway: true,
       startsAt: true,
+      status: true,
+      planningClosedAt: true,
       teamId: true,
       matchRoundId: true,
       team: { select: { name: true } },
-      matchRound: { select: { id: true, name: true } },
+      matchRound: { select: { id: true, name: true, status: true } },
     },
     orderBy: { startsAt: "asc" },
   });
@@ -412,6 +445,8 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     }
 
     const reportStatus = matchReportMap.get(match.id);
+    const isLive = matchesWithSession.has(match.id);
+
     return {
       matchId: match.id,
       matchRoundId: match.matchRoundId,
@@ -421,8 +456,22 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       homeAway: match.homeAway,
       startsAt: match.startsAt?.toISOString() ?? null,
       squadStatus,
-      hasActiveLiveSession: matchesWithSession.has(match.id),
-      reportStatus: (reportStatus as TodayMatch["reportStatus"]) ?? null,
+      hasActiveLiveSession: isLive,
+      reportStatus: (reportStatus?.toLowerCase() as TodayMatch["reportStatus"]) ?? null,
+      // Primary, football-action-oriented status (ADR-0101). The league Match model has no
+      // duration field to compute an exact end time, so hasLeagueMatchPassed's day-boundary
+      // comparison is the most precise signal available — a same-day match that has already
+      // finished will still read as a pre-match state until the calendar day passes. That is an
+      // honest data-model limitation (no fabricated precision), not a bug to paper over here.
+      lifecycleStatus: deriveMatchLifecycleStatus({
+        matchStatus: match.status,
+        reportStatus: (reportStatus as "DRAFT" | "REPORTED" | "LOCKED" | undefined) ?? "NONE",
+        hasPassed: hasLeagueMatchPassed({ startsAt: match.startsAt, status: match.status }),
+        isLive,
+        roundStatus: match.matchRound.status,
+        planningClosedAt: match.planningClosedAt,
+        startsAt: match.startsAt,
+      }),
     };
   });
 

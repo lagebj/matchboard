@@ -175,6 +175,22 @@ Suggestion lifecycle: Accept (apply +1 or -1 to attribute), Adjust (set a specif
 
 Development observations and profile suggestions are coach-facing only. They must not appear in parent-facing exports or external AI payloads.
 
+## Combination evidence
+
+Matchboard derives combination evidence — what actually happened while a defined football relationship (partnership, triangle, line, corridor, functional unit, full configuration) existed on the pitch — from the actual position timeline only, never from planned assignment. It is descriptive: minutes together, matches, distinct opponents, team goals for/against while present, and direct contribution where attribution supports it. There is no composite chemistry score, and an unknown combination is neutral, never negative.
+
+Confidence (Insufficient/Emerging/Established) reflects how much evidence exists, not how good the combination is. The selection engine uses it as a bounded, capped advisory signal that cannot override eligibility, availability, conflicts, coverage, or fairness rules — amplified under a challenging/stabilising coaching intent, suppressed under a confidence-rebuild/reset intent so unknown pairs are never disadvantaged, unmodified otherwise. The Player Combinations insight (I-005) shows the same evidence alongside its existing co-selection frequency data, the Round Board explains a selection's combination context via the player chip's tooltip, and the post-match page shows factual per-match combination evidence once the report is locked.
+
+Beyond selection, the same season partnership evidence is shown as read-only planning context: on the Tactics tab for the currently assigned line-up, on the Rotations tab for the team's current starters, and on an opponent's detail page for evidence recorded specifically in matches against that opponent. All three are purely informational — they never feed back into selection scoring or any plan integrity signal.
+
+## Quick observations
+
+A capture-first, classify-later note (text, optional match/player context, timestamp, author) the coach can jot down without deciding up front which existing evidence owner it belongs to. No AI classification. Later, an explicit coach action converts it into a development thread observation, a team reflection, or an opponent observation — or keeps it as a plain note, or discards it.
+
+## Emergency repair options
+
+Before kickoff, when a selected player becomes unavailable, the coach can request a small, ranked set of viable replacement options with their consequences (plan-integrity impact, combination evidence, recent load) via a "Repair options" action on the player's chip in the Round Board. Nothing is applied automatically — the coach reviews the options and applies their choice as a separate, explicit action, using the same manual-edit mutation the board already uses for drag-and-drop and the non-drag Move picker.
+
 ## Coach-facing vs parent-facing exports
 
 Internal planning reasons, readiness notes, support burden, confidence rebuild, effort concerns, and execution feedback must not leak into parent-facing exports.
@@ -217,6 +233,28 @@ Low readiness cannot automatically exclude a player. Feedback cannot be shown in
 
 BLOCKED and READY are derived status values — they are not stored in the database. BLOCKED = draft + Blocked condition. READY = draft + no Blocked or Decision required conditions.
 
+## Match lifecycle status (primary per-match status)
+
+The round status model above remains the round-level and internal selection-planning-completeness
+vocabulary — Round Board and the Rounds list still show it unchanged. For a single match, though,
+it is superseded as the primary displayed status by a football-action-oriented match lifecycle
+status (ADR-0101), shown on Today, the Fixtures/League page, and the match detail page header:
+
+| Status | Meaning |
+|--------|---------|
+| Planning open | Kickoff hasn't passed, planning isn't closed |
+| Planning closed | Round finalized, an explicit planning-closed timestamp is set, or kickoff has passed with no report yet |
+| Live | An active live match session exists |
+| Played | Kickoff has passed, no report and no live session |
+| Report incomplete | A post-match report exists in DRAFT or REPORTED status |
+| Done | The post-match report is LOCKED |
+| Cancelled | The match's `matchStatus` is CANCELLED |
+
+Precedence, highest first: Cancelled, Done, Report incomplete, Live, Played, Planning
+closed/open. A finalized round does not by itself make an unplayed match show "Done" — report
+status wins over round-finalization status for this per-match label. See `deriveMatchLifecycleStatus()`
+in `src/lib/selection/planning-boundary.ts` and ADR-0101 for the full rationale and rollout scope.
+
 ## How populate all works
 
 Populate all generates draft selections for all non-finalized rounds in the active league season in one action. It groups matches by round and generates per round using round-level orchestration. It processes rounds in chronological order. Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same run. Populate all does not finalize any round. On partial failure, successful round generations are kept and failures are reported.
@@ -224,6 +262,12 @@ Populate all generates draft selections for all non-finalized rounds in the acti
 ## How round review works
 
 After populate all, each round has draft selections, plan integrity signals, and explanations. The coach reviews plan integrity signals by round, fixes issues per match, and may manually adjust draft squads before finalization. Rounds with Blocked conditions require conscious override to finalize. Rounds with Decision required conditions can be finalized with a recorded reason.
+
+## Round progress and Pin
+
+Alongside the required round status (Not generated/Draft/Blocked/Ready/Finalized), the Rounds list shows an additive round progress line — Planning, Partially played, All matches played, Reporting, or Complete — derived from whether the round's matches have actually been played and reported. It never replaces or relabels the required round-level status (per-match display uses the separate match lifecycle status described above instead).
+
+A coach can **Pin** a player to a round from the team workspace's Current Round tab: Pin in forces the player into the round's selection (unless a hard rule blocks them, which shows as a warning rather than being silently overridden); Pin out excludes them from the round entirely. Pins are round-scoped and cannot be set on a finalized round.
 
 ## How manual draft editing works
 

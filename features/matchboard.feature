@@ -4506,7 +4506,7 @@ Feature: Matchboard football operations workspace
     Matchboard uses one consistent visible status vocabulary across all surfaces.
 
     Scenario: Status badges use documented vocabulary
-      Given the app displays a round or match status
+      Given the app displays a round status, or a match's selection-planning-completeness state
       Then the visible label must be one of:
         | status        | label           |
         | NOT_GENERATED | Not generated   |
@@ -4515,6 +4515,62 @@ Feature: Matchboard football operations workspace
         | READY         | Ready           |
         | FINALIZED     | Finalized       |
       And the app must not introduce alternative visible status terms for the same state
+
+
+  Rule: Match lifecycle status supersedes round status as the primary per-match label (ADR-0101)
+
+    The Not generated/Draft/Blocked/Ready/Finalized vocabulary remains the round-level and
+    internal selection-planning-completeness vocabulary. It is no longer the primary label shown
+    for a single match. The primary, football-action-oriented match lifecycle status is derived
+    from report status, kickoff/live state, and planning-boundary state, in that priority order.
+
+    Scenario: Match lifecycle status labels
+      Given the app displays a single match's primary status
+      Then the visible label must be one of:
+        | status            | label              |
+        | cancelled         | Cancelled          |
+        | done              | Done               |
+        | report_incomplete | Report incomplete  |
+        | live              | Live               |
+        | played            | Played             |
+        | planning_closed   | Planning closed    |
+        | planning_open     | Planning open      |
+
+    Scenario: A cancelled match always shows Cancelled regardless of report or round state
+      Given a match has matchStatus "CANCELLED"
+      Then its lifecycle status must be "cancelled" regardless of report status or round status
+
+    Scenario: A locked report always shows Done regardless of round finalization
+      Given a match has a LOCKED post-match report
+      Then its lifecycle status must be "done" even if its match round has never been finalized
+
+    Scenario: A finalized round does not make an unplayed match look Done
+      Given match round "R1" is FINALIZED
+      And a match in "R1" has no post-match report and has not been played yet
+      Then that match's lifecycle status must be "planning_closed", not "done"
+
+    Scenario: A draft or reported post-match report shows Report incomplete
+      Given a match has a post-match report with status DRAFT or REPORTED
+      Then its lifecycle status must be "report_incomplete"
+
+    Scenario: An active live session shows Live ahead of a played-but-unreported match
+      Given a match has an active live match session
+      And the match's kickoff time has passed
+      Then its lifecycle status must be "live", not "played"
+
+    Scenario: A match past kickoff with no report and no live session shows Played
+      Given a match's kickoff time has passed
+      And the match has no post-match report and no active live session
+      Then its lifecycle status must be "played"
+
+    Scenario: Round-level surfaces retain the existing status vocabulary
+      Given the coach views the Rounds list or the Round Board
+      Then the round-level status badge must still use Not generated, Draft, Blocked, Ready, or Finalized
+      And it must not be replaced by the match lifecycle status, which describes a single match
+
+    Scenario: Match lifecycle status is applied on Today, Fixtures, and match detail
+      Given the coach views the Today page, the Fixtures/League page, or a match detail page
+      Then the primary status shown for each individual match must be its lifecycle status
 
 
   Rule: Warning and action hierarchy
@@ -7421,3 +7477,227 @@ Feature: Matchboard football operations workspace
         Then the app must apply parent-export restrictions
         And the app must apply child-safe language rules
         And these restrictions must not affect adult teams
+
+  # --- Evidence-driven coaching loop ---
+
+  Feature: Evidence-driven coaching loop
+
+    Matchboard closes the loop from plan to actual evidence to future decision: intent -> plan -> execution -> actual evidence -> development -> next decision. Combination evidence is descriptive, bounded, and never a chemistry score.
+
+    Rule: Combination evidence is derived only from actual on-pitch relationships
+
+      Scenario: Combination evidence uses actual positions, not planned assignment
+        Given a player's actual on-pitch position differs from their planned position
+        When combination evidence is derived for the match
+        Then the actual position must be used
+        And the planned position must not be used as a substitute for missing actual data
+
+      Scenario: Unknown combination is neutral
+        Given two players have no recorded shared actual playing time
+        When the coach views combination evidence for a candidate squad
+        Then the pairing must show as having insufficient evidence
+        And it must not be shown or scored as a negative signal
+
+      Scenario: Combination evidence has no composite score
+        Given established combination evidence exists for two players
+        When the coach views the evidence
+        Then it must be shown as minutes together, matches, and team goals for/against while present
+        And it must not be shown as a single synthesized score or percentage
+
+    Rule: Combination evidence reaches the coach where decisions and reflection happen
+
+      Scenario: The Round Board explains a selection using combination evidence
+        Given a candidate has established combination evidence with an already-selected player
+        When the coach views that candidate's chip on the Round Board
+        Then the explanation must be visible without leaving the Round Board
+        And it must not show a synthesized score or percentage
+
+      Scenario: The post-match page shows factual per-match combination evidence
+        Given a match's post-match report has been completed
+        When the coach views the post-match page
+        Then partnerships and triangles with meaningful shared minutes must be listed
+        And each entry must show minutes together and team outcomes while present
+        And no confidence label must be shown for a single match
+
+      Scenario: The Tactics tab shows season partnership evidence for the current line-up
+        Given two players with recorded season partnership evidence are both assigned in the current line-up
+        When the coach views the Tactics tab
+        Then the partnership evidence must be shown as factual context
+        And it must not be shown as a chemistry score
+
+      Scenario: The Rotations tab shows season partnership evidence for the current starters
+        Given two players with recorded season partnership evidence are both starters in the team's current match line-up
+        When the coach views the Rotations tab
+        Then the partnership evidence must be shown as factual context
+
+      Scenario: Opponent detail shows combination evidence recorded against that opponent
+        Given combination evidence was recorded in matches against a specific opponent team
+        When the coach views that opponent's detail page
+        Then the combination evidence must be shown as factual context scoped to that opponent
+        And it must not change any selection-engine outcome
+
+    Rule: Combination evidence is a bounded advisory signal in selection
+
+      Scenario: Combination evidence cannot override hard eligibility
+        Given a candidate has established positive combination evidence
+        And the candidate is not eligible under availability, rotation-path, or conflict rules
+        When the round is generated
+        Then the candidate must not be selected on the strength of combination evidence alone
+
+      Scenario: Development intent allows exploring unknown combinations
+        Given the match's coaching intent favours development
+        And a candidate has no recorded combination evidence with the current squad
+        When candidates are ranked
+        Then the unknown combination must not be treated as a disadvantage relative to a known pair
+
+      Scenario: Competitive intent can favour established evidence
+        Given the match's coaching intent favours challenge exposure or stabilising a weaker team
+        And two otherwise-viable candidates differ only in combination evidence
+        When candidates are ranked
+        Then the candidate with established positive evidence may be preferred
+
+    Rule: Planned rotation changes execute as real actual-timeline events
+
+      Scenario: Applying a planned change during live play records a real event
+        Given a planned rotation change is due during a live match
+        When the coach applies the change
+        Then a real actual substitution or position-change event must be recorded
+        And the change must be reflected in the match's actual position timeline
+
+      Scenario: Delaying a planned change keeps it actionable
+        Given a planned rotation change is due during a live match
+        When the coach delays the change
+        Then the change must remain visible as the next planned change
+        And the original planned time must not be altered
+
+      Scenario: Skipping a planned change creates no actual event
+        Given a planned rotation change is due during a live match
+        When the coach skips the change
+        Then no actual substitution or position-change event must be recorded
+
+    Rule: Quick observations are captured first and classified later
+
+      Scenario: A quick observation can be captured with minimal fields
+        Given the coach wants to record something noticed during or after a match
+        When the coach captures a quick observation
+        Then only a note, optional match/player context, timestamp, and author are required
+        And no classification decision is required at capture time
+
+      Scenario: A quick observation can be converted to an existing development thread
+        Given an open quick observation references a player
+        And that player has an active development thread
+        When the coach converts the observation to that thread
+        Then the note must become a development thread observation
+        And the quick observation must be marked converted
+
+      Scenario: A quick observation can be kept as a note or discarded
+        Given an open quick observation exists
+        When the coach chooses to keep it as a note or discard it
+        Then no existing evidence owner must be modified
+        And the quick observation must move to a resolved state
+
+    Rule: Pre-kickoff emergency repair offers viable alternatives, never an automatic change
+
+      Scenario: A late absence produces ranked repair options
+        Given a selected player becomes unavailable before kickoff
+        When the coach requests repair options for that match
+        Then a small set of viable replacement candidates must be shown
+        And each option must show its plan-integrity consequences
+        And no option must be applied automatically
+
+      Scenario: Generating repair options does not change the draft
+        Given the coach requests repair options for a match
+        When the options are generated
+        Then the draft squad must be unchanged afterward
+        And applying a chosen replacement must remain a separate, explicit action
+
+      Scenario: The Round Board offers a Repair options action on a selected player
+        Given the coach views a player chip in a draft (non-finalized) match column on the Round Board
+        Then a Repair options action must be available on that chip
+
+      Scenario: The Round Board does not offer repair options on a finalized match
+        Given a match in a round is finalized
+        When the coach views a player chip in that match's column
+        Then no Repair options action must be shown
+
+      Scenario: Applying a chosen repair option updates the draft using the normal manual-edit path
+        Given the coach has opened repair options for a selected player and reviewed the ranked alternatives
+        When the coach chooses one option
+        Then the originally selected player must be removed from the match
+        And the chosen alternative must be added to the match with the option's role
+        And no other draft mutation path is used for this application
+
+    Rule: Planned rotation coverage checking is surfaced on the Rotations tab
+
+      Scenario: A rotation plan without a set line-up shows no coverage claim
+        Given a team has not yet set a starting line-up for a match
+        When the coach views that match's Rotations tab
+        Then the app must say coverage checking needs a line-up first
+        And it must not guess who is starting
+
+      Scenario: A rotation plan missing a goalkeeper is flagged
+        Given a team's current match line-up has no goalkeeper assigned
+        When the coach views that match's Rotations tab
+        Then a coverage note must say no goalkeeper is covered
+
+      Scenario: An untimed planned change is flagged as unable to be checked
+        Given a planned rotation change has no approximate match time
+        When the coach views that match's Rotations tab
+        Then a coverage note must say that change cannot be checked
+
+  # --- Lifecycle consolidation (Phase 6) ---
+
+  Feature: Lifecycle consolidation
+
+    Round progress is derived and additive; the required round status vocabulary is never replaced. Explicit coach planning constraints use concrete "Pin" language.
+
+    Rule: Round progress is additive to, never a replacement for, the required round status
+
+      Scenario: A round with no matches played yet shows Planning progress
+        Given a round has only upcoming, unplayed matches
+        When the coach views the Rounds list
+        Then the round progress must show "Planning"
+        And the required round status label must still be shown unchanged
+
+      Scenario: A round with all matches played and reported shows Complete progress
+        Given every non-cancelled match in a round has a completed post-match report
+        When the coach views the Rounds list
+        Then the round progress must show "Complete"
+
+      Scenario: Cancelled matches do not block round progress from completing
+        Given a round has one cancelled match and all other matches have completed reports
+        When the coach views the Rounds list
+        Then the round progress must show "Complete"
+
+    Rule: A coach can pin a player as an explicit round-scoped planning constraint
+
+      Scenario: Pinning a player in forces their inclusion in the round
+        Given a player is pinned in for a match round
+        And the player is otherwise eligible
+        When the round is generated
+        Then the player must be included in the round's selection
+
+      Scenario: Pinning a player out excludes them from the round
+        Given a player is pinned out for a match round
+        When the round is generated
+        Then the player must not be selected anywhere in that round
+
+      Scenario: A pin cannot override a hard eligibility rule
+        Given a player is pinned in for a match round
+        And the player is unavailable
+        When the round is generated
+        Then the player must not be force-selected
+        And a decision-required warning must explain why the pin could not be honored
+
+      Scenario: A player cannot be pinned in a finalized round
+        Given a match round is finalized
+        When the coach attempts to pin a player for that round
+        Then the pin must be rejected
+
+    Rule: Today surfaces a delayed planned rotation change as a real work item
+
+      Scenario: A delayed rotation change after a played match appears on Today
+        Given a match has been played
+        And a planned rotation change for that match is still in the delayed state
+        When the coach views Today
+        Then a work item must prompt the coach to resolve the delayed change

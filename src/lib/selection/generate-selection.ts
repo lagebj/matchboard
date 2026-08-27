@@ -39,6 +39,9 @@ import {
   getPositionMatchLevel,
   getRankedRotationCandidates,
 } from "@/lib/selection/rotation-candidate-ranking";
+import { deriveCombinationIntentMode, explainCombinationEvidence, type CombinationScoringInput } from "@/lib/selection/combination-scoring";
+import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
+import { getSeasonCombinationEvidence, aggregateSeasonCombinations } from "@/lib/evidence/combination-aggregation";
 import type {
   AutomaticSelectionCategory,
   ExcludedPlayer,
@@ -332,6 +335,24 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     }
   }
 
+  // Bounded advisory signal (Phase 4, SELECTION_INTEGRATION.md) — season partnership evidence
+  // and the match's coaching intent, fetched once and passed into candidate scoring below.
+  let combinationScoringInputs: CombinationScoringInput[] = [];
+  if (matchRound?.leagueSeasonId) {
+    const seasonEvidence = await getSeasonCombinationEvidence(matchRound.leagueSeasonId);
+    combinationScoringInputs = aggregateSeasonCombinations(seasonEvidence).map((summary) => ({
+      playerIds: summary.playerIds,
+      family: summary.family,
+      subtype: summary.subtype,
+      confidence: summary.confidence,
+      totalMinutesTogether: summary.totalMinutesTogether,
+      matchCount: summary.matchCount,
+    }));
+  }
+  const orgFilterForIntent = { type: "org" as const, organisationId, filter: { organisationId }, filterNullable: { organisationId } };
+  const activeCoachingIntent = await getActiveCoachingIntentForMatch(matchId, orgFilterForIntent);
+  const combinationIntentMode = deriveCombinationIntentMode(activeCoachingIntent?.category ?? null);
+
   const lockedOutPlayerIds = new Set<string>();
   const lockedInPlayerIds = new Set<string>();
 
@@ -509,7 +530,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     if (lockedOutPlayerIds.has(player.id)) {
       const lockRecord = playerLocks.find((lock) => lock.playerId === player.id && lock.lockType === "LOCKED_OUT");
       const lockReason = lockRecord?.reason ? ` ${lockRecord.reason}` : "";
-      const exclusionReason = `Excluded because the player is manually locked out of this match round.${lockReason}`;
+      const exclusionReason = `Excluded because the coach pinned this player out of this match round.${lockReason}`;
       excludedPlayers.push({
         autoSelected: false,
         coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
@@ -1151,6 +1172,14 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       });
     }
 
+    for (const combinationNote of explainCombinationEvidence(
+      candidate.player.id,
+      selectedPlayers.map((p) => p.playerId),
+      combinationScoringInputs,
+    )) {
+      explanations.push(buildExplanation("combination_evidence", combinationNote, false));
+    }
+
     selectedPlayers.push({
       autoSelected: true,
       chosenPosition: candidate.chosenPosition,
@@ -1178,6 +1207,8 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       selectedPlayers,
       leagueSeasonCounts,
       consecutiveSupportByPlayer,
+      combinationScoringInputs,
+      combinationIntentMode,
     )[0];
 
     if (!candidate) {
@@ -1410,7 +1441,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         warnings.push({
           severity: "WARNING",
           code: "player_locked_in_blocked",
-          message: `${getPlayerName(playerRecord)} is locked in but was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
+          message: `${getPlayerName(playerRecord)} is pinned in but was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
           playerId,
         });
         continue;
@@ -1429,7 +1460,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       coreTeamName: playerRecord.coreTeam?.name ?? "Unknown",
       eligibility: eligibility.allowed,
       explanations: [
-        buildExplanation("player_locked_in", `${playerName} was included because the player is manually locked in for this match round.`, true),
+        buildExplanation("player_locked_in", `${playerName} was included because the coach pinned this player in for this match round.`, true),
       ],
       finalSelected: false,
       manualOverride: false,
@@ -1439,7 +1470,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       playerPosition: playerRecord.primaryPosition,
       priorityScore: 200,
       selectionCategory,
-      selectionReason: `Selected because ${playerName} is manually locked in for this match round.`,
+      selectionReason: `Selected because the coach pinned ${playerName} in for this match round.`,
     });
 
     const excludedIndex = excludedPlayers.findIndex((p) => p.playerId === playerId);

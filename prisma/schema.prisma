@@ -40,6 +40,7 @@ model Team {
   groupPlayers             FootballGroupPlayer[]   @relation("GroupPlayerCoreTeam")
   bestLineup               TeamBestLineup?
   plannedRotations         PlannedRotation[]
+  teamFocuses              TeamFocus[]
   group                    FootballGroup           @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation             Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -129,6 +130,7 @@ model Player {
   fairPlayObservations     FairPlayObservation[]
   groupMemberships         FootballGroupPlayer[]
   assessmentChanges        AssessmentChange[]
+  actualPositionIntervals ActualPositionInterval[]
 
   @@unique([organisationId, playerCode])
   @@index([coreTeamId, active, removedAt])
@@ -154,9 +156,10 @@ model Match {
   createdAt                   DateTime                       @default(now())
   updatedAt                   DateTime                       @updatedAt
   opponentTeamId              String?
-  status                      MatchStatus                    @default(SCHEDULED)
-  cancelledAt                 DateTime?
-  cancelledReason             String?
+   status                      MatchStatus                    @default(SCHEDULED)
+   planningClosedAt            DateTime?
+   cancelledAt                 DateTime?
+   cancelledReason             String?
   category                    MatchCategory                  @default(LEAGUE)
   matchRound                  MatchRound                     @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   opponentTeam                OpponentTeam?                  @relation(fields: [opponentTeamId], references: [id])
@@ -177,6 +180,9 @@ model Match {
   teamReflection              TeamReflection?
   helperAssignments           MatchHelperAssignment[]
   threadObservations          DevelopmentThreadObservation[]
+  actualPositionIntervals     ActualPositionInterval[]
+  combinationEvidences        CombinationEvidence[]
+  quickObservations           QuickObservation[]
 
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
@@ -638,6 +644,7 @@ model CoachingIntent {
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
   organisation   Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  linkedTeamFocuses TeamFocus[]
 
   @@index([scopeType, scopeId])
   @@index([category])
@@ -687,6 +694,30 @@ model PostMatchPlayerActual {
   @@index([matchId])
   @@index([playerId])
   @@index([attendanceStatus])
+  @@index([organisationId])
+}
+
+model ActualPositionInterval {
+  id              String   @id @default(cuid())
+  organisationId  String
+  matchId         String
+  playerId        String
+  position        String
+  line            String?
+  lane            String?
+  startedAtMs     Int
+  endedAtMs       Int?
+  source          ActualIntervalSource
+  approximateTiming Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player        Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation  Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, playerId])
+  @@index([matchId, startedAtMs])
   @@index([organisationId])
 }
 
@@ -849,6 +880,70 @@ model DevelopmentThreadObservation {
   @@index([organisationId])
 }
 
+model TeamFocus {
+  id                String                    @id @default(cuid())
+  organisationId    String
+  teamId            String
+  statement         String
+  context           String?
+  status            TeamFocusStatus            @default(ACTIVE)
+  startedAt         DateTime                  @default(now())
+  completedAt       DateTime?
+  closedAt          DateTime?
+  linkedIntentId    String?
+  recordedBy        String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  team              Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  linkedIntent      CoachingIntent?           @relation(fields: [linkedIntentId], references: [id], onDelete: SetNull)
+  organisation      Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([status])
+  @@index([organisationId])
+  @@index([teamId, status])
+}
+
+// Capture-first, classify-later quick observation (Phase 8, DECISIONS.md "Quick observations").
+// Deliberately minimal at capture time: note text, optional match/player context, timestamp,
+// author. Classification into an existing evidence/observation owner (development thread, team
+// reflection, opponent observation) — or keeping as a plain note, or discarding — happens later
+// and is a separate, explicit coach action. No AI classification.
+model QuickObservation {
+  id              String                          @id @default(cuid())
+  organisationId  String
+  matchId         String?
+  playerIds       Json                            @default("[]")
+  note            String
+  status          QuickObservationStatus          @default(OPEN)
+  convertedToType QuickObservationConversionType?
+  convertedToId   String?
+  convertedAt     DateTime?
+  recordedBy      String?
+  createdAt       DateTime                        @default(now())
+  updatedAt       DateTime                        @updatedAt
+
+  match        Match?        @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([organisationId])
+  @@index([status])
+}
+
+enum QuickObservationStatus {
+  OPEN
+  CONVERTED
+  KEPT_AS_NOTE
+  DISCARDED
+}
+
+enum QuickObservationConversionType {
+  DEVELOPMENT_THREAD
+  TEAM_REFLECTION
+  OPPONENT_OBSERVATION
+}
+
 model LiveMatchSession {
   id              String            @id @default(cuid())
   organisationId  String
@@ -960,8 +1055,10 @@ model PlannedRotationChange {
   inPosition             String?
   positionOnly           Boolean               @default(false)
   approximateMatchSeconds Int?
+  actualMatchSeconds      Int?
   status                  PlannedChangeStatus   @default(PENDING)
   liveEventId             String?
+  secondaryLiveEventId    String?
   notes                  String?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
@@ -1032,6 +1129,7 @@ model OpponentEncounterObservation {
   sportingLevel            Decimal?                    @db.Decimal(3, 1)
   sportingLevelNote        String?
   factualSummary           String?
+  playingStyleTags         OpponentPlayingStyleTag[]
   followUp                 OpponentObservationFollowUp @default(NONE)
   recordedBy               String?
   createdAt                DateTime                    @default(now())
@@ -1470,6 +1568,7 @@ model LeagueSeason {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   matchRounds     MatchRound[]
+  combinationEvidences CombinationEvidence[]
   season          Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   periodSnapshot  SeasonPeriodSnapshot?
   group           FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
@@ -1644,6 +1743,26 @@ enum OpponentObservationFollowUp {
   NO_FURTHER_ACTION_REQUIRED
 }
 
+enum OpponentPlayingStyleTag {
+  HIGH_PRESSING
+  LOW_BLOCK
+  POSSESSION_BASED
+  DIRECT_PLAY
+  COUNTER_ATTACKING
+  PHYSICAL_AND_DIRECT
+  TECHNICAL_AND_PATIENT
+  FAST_PACED_TRANSITIONS
+  SLOW_BUILD_UP
+  DISCIPLINED_DEFENSIVE_SHAPE
+  MAN_TO_MAN_MARKING
+  ZONAL_PRESSING
+  MIXED_TRANSITIONS
+  SET_PIECE_ORIENTED
+  INDIVIDUAL_DRIBBLING
+  COMPACT_MIDFIELD
+  WIDE_PLAY_ORIENTED
+}
+
 enum GameFormat {
   SEVEN_A_SIDE
   NINE_A_SIDE
@@ -1726,6 +1845,14 @@ enum ParticipationSource {
   EMERGENCY_BACKFILL
   PLANNED_DRAFT
   PLANNED_FINALIZED
+}
+
+enum ActualIntervalSource {
+  STARTING_LINEUP
+  SUBSTITUTION
+  POSITION_SWAP
+  POST_MATCH_CORRECTION
+  LIVE_RECORDED
 }
 
 enum GoalType {
@@ -2021,6 +2148,7 @@ enum PlannedRotationStatus {
 
 enum PlannedChangeStatus {
   PENDING
+  DELAYED
   APPLIED
   SKIPPED
   MODIFIED
@@ -2112,6 +2240,10 @@ model Organisation {
   opponentAssessmentChanges    OpponentAssessmentChange[]
   developmentThreads           DevelopmentThread[]
   threadObservations            DevelopmentThreadObservation[]
+  teamFocuses                   TeamFocus[]
+  actualPositionIntervals       ActualPositionInterval[]
+  combinationEvidences          CombinationEvidence[]
+  quickObservations             QuickObservation[]
 
   @@index([slug])
   @@index([name])
@@ -2220,6 +2352,36 @@ model PolicyDecisionLog {
   @@index([relatedEventId])
   @@index([relatedLeagueMatchId])
   @@index([createdAt])
+  @@index([organisationId])
+}
+
+model CombinationEvidence {
+  id                        String               @id @default(cuid())
+  organisationId            String
+  matchId                   String
+  family                    String
+  subtype                   String?
+  playerIds                  Json
+  positions                  Json
+  minutesTogether           Float                @default(0)
+  goalsForWhilePresent      Int                  @default(0)
+  goalsAgainstWhilePresent  Int                  @default(0)
+  directGoalContributions   Int                  @default(0)
+  directAssistContributions Int                  @default(0)
+  opponentDiversity         Int                  @default(1)
+  confidence                String               @default("INSUFFICIENT")
+  approximateTiming         Boolean              @default(false)
+  leagueSeasonId            String
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  match          Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  leagueSeason   LeagueSeason   @relation(fields: [leagueSeasonId], references: [id])
+  organisation   Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, family])
+  @@index([matchId, playerIds])
+  @@index([leagueSeasonId])
   @@index([organisationId])
 }
 
@@ -2584,6 +2746,12 @@ enum DevelopmentFocusCategory {
   EFFORT_AND_INTENSITY
   POSITIONAL_LEARNING
   GOALKEEPING
+}
+
+enum TeamFocusStatus {
+  ACTIVE
+  COMPLETED
+  CLOSED
 }
 
 model WorkOwnership {

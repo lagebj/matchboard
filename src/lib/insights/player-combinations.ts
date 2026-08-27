@@ -5,9 +5,12 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import type { InsightFilters, PlayerCombinationRow } from "./insights-types";
 import { pairKey, RECENT_ROUNDS_WINDOW } from "./player-combinations-helpers";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { aggregateSeasonCombinations, getSeasonCombinationEvidenceWithOpponents } from "@/lib/evidence/combination-aggregation";
 
 // I-005: Player combinations. Frequency is not effectiveness (per spec) — this reports raw
-// co-occurrence counts only, no derived "good pairing" judgement.
+// co-occurrence counts only, no derived "good pairing" judgement. When CombinationEvidence
+// data exists for the league season, position-aware partnership data enriches the rows with
+// time-based partnership type, minutes together, and confidence level.
 export async function getPlayerCombinations(filters: InsightFilters): Promise<PlayerCombinationRow[]> {
   const ctx = await requireActorContext();
   setTenantOrganisationId(ctx.organisationId);
@@ -88,11 +91,33 @@ export async function getPlayerCombinations(filters: InsightFilters): Promise<Pl
     }
   }
 
+  // Enrich with CombinationEvidence when available (position-aware partnerships)
+  const partnershipEnrichment = new Map<string, { subtype: string | null; minutes: number; confidence: "INSUFFICIENT" | "EMERGING" | "ESTABLISHED" }>();
+  try {
+    const { evidence, opponentByMatch } = await getSeasonCombinationEvidenceWithOpponents(filters.leagueSeasonId);
+    if (evidence.length > 0) {
+      const summaries = aggregateSeasonCombinations(evidence, opponentByMatch);
+      for (const summary of summaries) {
+        if (summary.family === "PARTNERSHIP" && summary.playerIds.length === 2) {
+          const key = pairKey(summary.playerIds[0]!, summary.playerIds[1]!);
+          partnershipEnrichment.set(key, {
+            subtype: summary.subtype,
+            minutes: summary.totalMinutesTogether,
+            confidence: summary.confidence,
+          });
+        }
+      }
+    }
+  } catch {
+    // CombinationEvidence may not exist yet — fall back to co-selection-only data
+  }
+
   const rows: PlayerCombinationRow[] = [];
   for (const [key, count] of coSelection) {
     const [playerAId, playerBId] = key.split(":") as [string, string];
     const positionA = playerPositionById.get(playerAId);
     const positionB = playerPositionById.get(playerBId);
+    const enrichment = partnershipEnrichment.get(key);
     rows.push({
       playerAId,
       playerAName: playerNameById.get(playerAId) ?? playerAId,
@@ -103,6 +128,9 @@ export async function getPlayerCombinations(filters: InsightFilters): Promise<Pl
       positionPairing: positionA && positionB ? `${positionA} + ${positionB}` : null,
       seasonTotal: seasonTotal.get(key) ?? 0,
       recentTotal: recentTotal.get(key) ?? 0,
+      partnershipSubtype: enrichment?.subtype ?? null,
+      minutesTogether: enrichment?.minutes,
+      confidence: enrichment?.confidence,
     });
   }
 

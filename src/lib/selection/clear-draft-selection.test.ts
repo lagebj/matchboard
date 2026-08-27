@@ -421,7 +421,7 @@ describe("clear-draft-selection", () => {
       );
       await expect(
         clearRoundDraftSelection(fx.matchRoundId),
-      ).rejects.toThrow("Cannot clear draft for a finalised round.");
+      ).rejects.toThrow("finalised round");
     });
   });
 

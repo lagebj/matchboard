@@ -51,6 +51,11 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
     },
   });
 
+  await db.match.updateMany({
+    where: { id: matchId, planningClosedAt: null },
+    data: { planningClosedAt: new Date() },
+  });
+
   return {
     id: session.id,
     matchId: session.matchId,

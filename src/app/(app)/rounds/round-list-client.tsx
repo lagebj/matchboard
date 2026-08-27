@@ -18,6 +18,13 @@ type RoundListItem = {
   matchCount: number;
   teamNames: string[];
   derivedStatus: "NOT_GENERATED" | "DRAFT" | "BLOCKED" | "READY" | "FINALIZED";
+  /**
+   * Additive to derivedStatus, never a replacement — derivedStatus is the mandatory planning-
+   * completeness vocabulary (AGENTS.md "Status vocabulary"). progress describes whether the
+   * round has actually been played and reported yet (DECISIONS.md's Planning/Partially
+   * played/All matches played/Reporting/Complete lifecycle axis).
+   */
+  progress?: { label: string };
 };
 
 type FilterState = "all" | "needs_action" | "draft" | "ready" | "finalized";
@@ -193,6 +200,11 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                       <p className="mt-2 text-xs app-copy-muted">
                         {round.teamNames.join(" · ")}
                       </p>
+                      {round.progress && (
+                        <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                          {round.progress.label}
+                        </p>
+                      )}
                     </div>
                     <StatusBadge status={round.derivedStatus} />
                   </div>

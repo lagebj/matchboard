@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
+import { PLAYING_STYLE_TAG_LABELS } from "@/lib/opponents/playing-style-tags";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
+import { getOpponentCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
+import { OpponentCombinationEvidenceSection } from "@/components/opponents/opponent-combination-evidence-section";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
@@ -53,6 +56,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         select: {
           overallEnvironment: true,
           concernCategories: true,
+          playingStyleTags: true,
           factualSummary: true,
           followUp: true,
         },
@@ -67,6 +71,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
       id: true,
       overallEnvironment: true,
       concernCategories: true,
+      playingStyleTags: true,
       factualSummary: true,
       followUp: true,
       createdAt: true,
@@ -114,6 +119,18 @@ export default async function OpponentDetailPage({ params }: PageProps) {
       formulaVersion: string;
     }>;
   } = { aggregate: null, evidence: [] };
+
+  const combinationSummaries = await getOpponentCombinationEvidence(opponentTeamId);
+  const combinationPlayerIds = [...new Set(combinationSummaries.flatMap((s) => s.playerIds))];
+  const combinationPlayers = combinationPlayerIds.length > 0
+    ? await db.player.findMany({
+        where: { id: { in: combinationPlayerIds } },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : [];
+  const combinationPlayerNameById = new Map(
+    combinationPlayers.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
+  );
 
   const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
   const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
@@ -186,6 +203,11 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         initialEvidence={sportingLevelData.evidence}
       />
 
+      <OpponentCombinationEvidenceSection
+        summaries={combinationSummaries}
+        playerNameById={Object.fromEntries(combinationPlayerNameById)}
+      />
+
       {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No encounter observations recorded for this opponent.</p>
       ) : (
@@ -206,8 +228,9 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                       <th className="pb-2 pr-4">Result</th>
                       <th className="pb-2 pr-4">Sporting fit</th>
                       <th className="pb-2 pr-4">Environment</th>
-                      <th className="pb-2 pr-4">Concerns</th>
-                      <th className="pb-2 pr-4">Follow-up</th>
+                        <th className="pb-2 pr-4">Concerns</th>
+                        <th className="pb-2 pr-4">Style</th>
+                        <th className="pb-2 pr-4">Follow-up</th>
                       <th className="pb-2">Summary</th>
                     </tr>
                   </thead>
@@ -239,6 +262,11 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                           <td className="py-2 pr-4">
                             {obs && obs.concernCategories.length > 0
                               ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
+                              : "\u2014"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {obs && obs.playingStyleTags.length > 0
+                              ? obs.playingStyleTags.map((t) => PLAYING_STYLE_TAG_LABELS[t as keyof typeof PLAYING_STYLE_TAG_LABELS] ?? t).join(", ")
                               : "\u2014"}
                           </td>
                           <td className="py-2 pr-4">
@@ -282,6 +310,13 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                       value:
                         obs && obs.concernCategories.length > 0
                           ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
+                          : "\u2014",
+                    },
+                    {
+                      label: "Style",
+                      value:
+                        obs && obs.playingStyleTags.length > 0
+                          ? obs.playingStyleTags.map((t) => PLAYING_STYLE_TAG_LABELS[t as keyof typeof PLAYING_STYLE_TAG_LABELS] ?? t).join(", ")
                           : "\u2014",
                     },
                     {

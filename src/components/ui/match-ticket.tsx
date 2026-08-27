@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { TeamShield } from "@/components/ui/team-shield";
 import { ScoreCapsule, type ScoreCapsuleResult } from "@/components/ui/score-capsule";
 import { StatusRail } from "@/components/ui/status-rail";
+import { MatchLifecycleBadge, type MatchLifecycleStatus } from "@/components/ui/status-badge";
 import { IntentCard } from "@/components/ui/intent-card";
 import {
   Home,
@@ -29,6 +30,10 @@ type MatchTicketProps = {
   format?: string | null;
   status?: string | null;
   reportStatus?: string | null;
+  /** Primary, football-action-oriented status (ADR-0101). When provided, this replaces the
+   * legacy selection/report StatusRail pair as the badge shown on the ticket — the legacy
+   * `status`/`reportStatus` props remain for callers that have not migrated. */
+  lifecycleStatus?: MatchLifecycleStatus;
   homeScore?: number | null;
   awayScore?: number | null;
   result?: ScoreCapsuleResult;
@@ -66,6 +71,7 @@ export function MatchTicket({
   format,
   status,
   reportStatus,
+  lifecycleStatus,
   homeScore,
   awayScore,
   result = "unknown",
@@ -89,8 +95,14 @@ export function MatchTicket({
       {/* Header: status + date */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <StatusRail status={statusToRail(status)} />
-          <StatusRail status={reportStatusToRail(reportStatus)} />
+          {lifecycleStatus ? (
+            <MatchLifecycleBadge status={lifecycleStatus} size="sm" />
+          ) : (
+            <>
+              <StatusRail status={statusToRail(status)} />
+              <StatusRail status={reportStatusToRail(reportStatus)} />
+            </>
+          )}
         </div>
         {dateLabel && (
           <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-[var(--text-muted)]">

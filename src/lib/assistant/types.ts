@@ -1,3 +1,5 @@
+import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+
 export type AssistantWorkCategory =
   | "setup_missing"
   | "availability_missing"
@@ -19,7 +21,8 @@ export type AssistantWorkCategory =
   | "event_report_incomplete"
   | "upcoming_round"
   | "live_report_available"
-  | "pending_profile_suggestions";
+  | "pending_profile_suggestions"
+  | "planned_rotation_delayed";
 
 export type AssistantWorkItem = {
   id: string;
@@ -51,6 +54,10 @@ export type TodayMatch = {
   squadStatus: TodayMatchStatus;
   hasActiveLiveSession: boolean;
   reportStatus: "none" | "draft" | "reported" | "locked" | null;
+  /** The primary, football-action-oriented match status (ADR-0101). Supersedes squadStatus/
+   * reportStatus/hasActiveLiveSession as the label shown to the coach; those remain available
+   * above since hasActiveLiveSession also gates the separate "Follow live" action. */
+  lifecycleStatus: MatchLifecycleStatus;
 };
 
 export type AssistantCommandCentre = {
@@ -83,4 +90,5 @@ export const CATEGORY_PRIORITY: Record<AssistantWorkCategory, number> = {
   upcoming_round: 18,
   live_report_available: 19,
   pending_profile_suggestions: 20,
+  planned_rotation_delayed: 21,
 };
