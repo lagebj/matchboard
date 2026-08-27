@@ -381,29 +381,49 @@ Rules:
 - Low readiness cannot automatically exclude an eligible player.
 - Strong readiness cannot automatically override hard eligibility rules.
 
-### Post-match reflection and feedback
+### Post-match reflection and feedback (consolidated into Football observations)
 
-Matchboard supports lightweight post-match feedback based on observable behavior.
+**Football observations is the canonical player-development observation concept.** The earlier
+"Post-match feedback" concept (`MatchExecutionFeedback`, 5 fixed categories below) was a
+narrower, largely-overlapping predecessor — both asked the coach to describe the same match in
+different vocabularies, on the same post-match page, back to back. There is now exactly one
+active write path: `FootballObservationSection` (`src/components/player-development/`,
+`PlayerDevelopmentObservation` model), which already feeds the evidence engine
+(`player-evidence-service.ts`) with its 14 football-skill-code vocabulary. "Post-match feedback"
+is no longer an active input:
+- `MatchExecutionFeedback` rows and the `MatchExecutionFeedback` table are preserved — historical
+  data is never deleted.
+- Existing rows display read-only via `LegacyMatchFeedbackSection`
+  (`src/components/matches/legacy-match-feedback-section.tsx`), shown only when a match already
+  has legacy rows, labeled "Post-match feedback (legacy)", positioned after the canonical Football
+  observations section.
+- There is no remaining create/update/delete action for `MatchExecutionFeedback` — the former
+  active write path (`match-feedback-section.tsx`, `post-match/feedback-actions.ts`) was removed.
+- `src/lib/coaching/match-execution-feedback.ts`'s CRUD functions were already unreachable before
+  this consolidation (the removed action file inlined its own `db.matchExecutionFeedback.*` calls
+  instead of calling them) and remain unused; flagged as residue for a future cleanup pass rather
+  than removed in the same change that touched the active UI surface.
 
-Feedback categories (initial set):
-- effort
-- team help
-- reset after mistake
-- positional discipline
-- teammate involvement
+Original feedback categories (historical data only, no longer an input path): effort, team help,
+reset after mistake, positional discipline, teammate involvement.
 
-Rules:
-- Feedback is coach-facing by default.
-- Feedback describes behavior, not character.
-- Feedback is optional and lightweight.
-- Feedback should be recorded only where useful.
-- Feedback must not shame players.
-- Feedback must not become automatic punishment.
-- Feedback can inform future plan integrity signals, readiness signals, and planning suggestions.
-- Feedback must not mutate finalized planned selections.
+Rules (apply to Football observations as the active concept; legacy feedback display keeps the
+same coach-facing/observable-behavior/no-shaming constraints for historical rows):
+- Feedback/observations are coach-facing by default.
+- Feedback/observations describe behavior, not character.
+- Feedback/observations are optional and lightweight.
+- Feedback/observations should be recorded only where useful.
+- Feedback/observations must not shame players.
+- Feedback/observations must not become automatic punishment.
+- Football observations can inform future plan integrity signals, readiness signals, and planning
+  suggestions (the historical `FEEDBACK_TO_READINESS` readiness-suggestion mapping in
+  `src/lib/coaching/types.ts` is now unreferenced outside its own test now that its only caller —
+  the removed feedback-creation form — is gone; left in place pending an equivalent wired into
+  Football observations, rather than deleted).
+- Feedback/observations must not mutate finalized planned selections.
 - Actual participation belongs to post-match reality/history and must stay separate from planned selection.
-- Feedback must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
-- Feedback must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
+- Feedback/observations must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
+- Feedback/observations must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
 
 ### Canonical data truth
 
@@ -2353,7 +2373,7 @@ Avoid:
 | `src/lib/coaching/types.ts` | Coaching domain constants and types: intent categories, readiness signals, matchday responsibilities, feedback categories, disallowed language |
 | `src/lib/coaching/coaching-intent.ts` | Coaching intent CRUD and scope resolution (match → round → league season cascade) |
 | `src/lib/coaching/readiness-signals.ts` | Readiness signal CRUD, validation, and warnings |
-| `src/lib/coaching/match-execution-feedback.ts` | Match execution feedback CRUD, validation, and disallowed-language guard |
+| `src/lib/coaching/match-execution-feedback.ts` | Legacy match execution feedback validation/disallowed-language helpers — CRUD functions are unreachable residue (see "Post-match reflection and feedback") |
 | `src/lib/coaching/team-reflection.ts` | Team reflection CRUD and upsert |
 | `src/lib/coaching/matchday-responsibility.ts` | Matchday responsibility assignment, validation, and description |
 | `src/lib/coaching/index.ts` | Barrel export for coaching domain |
@@ -2361,7 +2381,8 @@ Avoid:
 | `src/components/players/player-readiness-panel.tsx` | Readiness signals editor panel on player profile |
 | `src/components/matches/coaching-intent-selector.tsx` | Coaching intent dropdown selector |
 | `src/components/matches/matchday-responsibility-selector.tsx` | Matchday responsibility dropdown selector |
-| `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
+| `src/components/matches/legacy-match-feedback-section.tsx` | Read-only historical display of legacy Post-match feedback rows — no active write path; renders nothing when a match has no legacy rows |
+| `src/components/player-development/football-observation-section.tsx` | Football observations — the canonical player-development observation write path (post-match) |
 | `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
 | `src/components/matches/match-combination-evidence-panel.tsx` | Factual, match-scoped combination evidence (Partnership/Triangle) shown on the post-match page once the report is LOCKED — no confidence label (single-match confidence can never reach ESTABLISHED) |
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
