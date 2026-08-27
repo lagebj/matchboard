@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -43,6 +43,8 @@ model ActualPositionInterval {
   matchId         String
   playerId        String
   position        String
+  line            String?  // GK/DEF/MID/ATT, added Phase 3 — see below
+  lane            String?  // LEFT/CENTRE/RIGHT, added Phase 3 — see below
   startedAtMs     Int      // match seconds (0 = start of match)
   endedAtMs       Int?     // null = ongoing until end of match
   source          ActualIntervalSource
@@ -67,6 +69,28 @@ enum ActualIntervalSource {
   LIVE_RECORDED
 }
 ```
+
+### Amendment (Phase 3): `line`/`lane` columns
+
+`position` alone (the resolved `FormationSlot.roleType`, e.g. `DEFENDER`) is not enough to
+classify a football relationship's line (GK/DEF/MID/ATT) or lane (LEFT/CENTRE/RIGHT) — an earlier
+draft of the combination-topology engine tried to parse `position` against a table of short
+football codes ("CB", "LB", ...) that never actually appear in this column, silently
+misclassifying every combination. `line`/`lane` are computed once at timeline-rebuild time from
+the resolved slot's `roleType` and `gridX` (see `src/lib/formations/types.ts`'s
+`ROLE_TYPE_TO_LINE`/`laneFromGridX`, the canonical position/formation owner) and persisted
+alongside `position`, rather than re-derived from a label string by every consumer. `lane` stays
+`null` (unknown, never guessed) wherever a resolved slot isn't available (e.g. a bare
+`POSITIONS_CHANGED` position-change event with no slot linkage).
+
+### Amendment (Phase 5): `POSITIONS_CHANGED` now has a real emitter
+
+This ADR originally noted "`POSITIONS_CHANGED` live events have no emitter" as a known gap.
+`applyPlannedChangeAction` (`src/app/(app)/matches/planned-rotation-live-actions.ts`) is now the
+first real producer: applying a planned position-only swap records one `POSITIONS_CHANGED` event
+per player (both at the same estimated `matchSeconds`, so the swap takes effect atomically). See
+the planned-rotation live-execution ADR for the surrounding fix (a prior version of "Apply" wrote
+no real event at all — client-fabricated placeholder ids were stored with nothing behind them).
 
 ## Consequences
 

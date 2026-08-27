@@ -1014,8 +1014,10 @@ model PlannedRotationChange {
   inPosition             String?
   positionOnly           Boolean               @default(false)
   approximateMatchSeconds Int?
+  actualMatchSeconds      Int?
   status                  PlannedChangeStatus   @default(PENDING)
   liveEventId             String?
+  secondaryLiveEventId    String?
   notes                  String?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
@@ -2105,6 +2107,7 @@ enum PlannedRotationStatus {
 
 enum PlannedChangeStatus {
   PENDING
+  DELAYED
   APPLIED
   SKIPPED
   MODIFIED

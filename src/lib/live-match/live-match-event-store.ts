@@ -203,3 +203,41 @@ export async function getRecentEvents(
     isReversed: e.correctionType === "REVERSAL",
   }));
 }
+
+/**
+ * The live match clock (period, elapsed time, pause state) is reconstructed client-side from the
+ * event log — no clock anchor is persisted server-side (see `LiveMatchSession`). A server action
+ * that needs to record an event on the coach's behalf without a client-supplied timestamp (e.g.
+ * applying a planned rotation change) has no way to know the exact current time, so this
+ * estimates it: the most recent event's own `matchSeconds` plus wall-clock time elapsed since it
+ * was recorded, or elapsed time since session start if no timed event exists yet. This is
+ * necessarily approximate — see DECISIONS.md "Support exact and approximate timestamps. Preserve
+ * uncertainty rather than inventing precision" — callers should treat the result as an estimate,
+ * not an exact timestamp.
+ */
+export async function estimateCurrentMatchSeconds(
+  matchId: string,
+  sessionId: string,
+): Promise<{ matchSeconds: number; period: MatchPeriod | null }> {
+  const lastTimedEvent = await db.liveMatchEvent.findFirst({
+    where: { matchId, sessionId, matchSeconds: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { matchSeconds: true, period: true, createdAt: true },
+  });
+
+  if (lastTimedEvent?.matchSeconds != null) {
+    const elapsedSinceEventMs = Date.now() - lastTimedEvent.createdAt.getTime();
+    return {
+      matchSeconds: lastTimedEvent.matchSeconds + Math.max(0, Math.round(elapsedSinceEventMs / 1000)),
+      period: (lastTimedEvent.period as MatchPeriod | null) ?? null,
+    };
+  }
+
+  const session = await db.liveMatchSession.findUnique({
+    where: { id: sessionId },
+    select: { startedAt: true },
+  });
+
+  const elapsedSinceStartMs = session ? Date.now() - session.startedAt.getTime() : 0;
+  return { matchSeconds: Math.max(0, Math.round(elapsedSinceStartMs / 1000)), period: null };
+}

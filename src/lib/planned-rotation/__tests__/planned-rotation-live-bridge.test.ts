@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   applyPlannedChange,
   skipPlannedChange,
+  delayPlannedChange,
   modifyPlannedChange,
   getNextPlannedChange,
 } from "../planned-rotation-live-bridge";
@@ -186,6 +187,54 @@ describe("applyPlannedChange", () => {
       expect(result.error).toContain("Organisation context");
     }
   });
+
+  it("applies a DELAYED change (re-visitable, not terminal)", async () => {
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue({
+      ...MOCK_DRAFT_ROTATION,
+      changes: [{ ...MOCK_PENDING_CHANGE, status: "DELAYED" }],
+    } as any);
+    vi.mocked(db.plannedRotationChange.update).mockResolvedValue({
+      ...MOCK_PENDING_CHANGE,
+      status: "APPLIED",
+    } as any);
+    vi.mocked(db.plannedRotation.update).mockResolvedValue({ ...MOCK_DRAFT_ROTATION, status: "APPLIED" } as any);
+
+    const result = await applyPlannedChange(
+      "rotation-1",
+      "change-1",
+      { outEventId: "event-out-1", inEventId: "event-in-1" },
+      ORG_FILTER,
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it("persists actualMatchSeconds and secondaryLiveEventId when applying", async () => {
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(MOCK_DRAFT_ROTATION as any);
+    vi.mocked(db.plannedRotationChange.update).mockResolvedValue({
+      ...MOCK_PENDING_CHANGE,
+      status: "APPLIED",
+    } as any);
+    vi.mocked(db.plannedRotation.update).mockResolvedValue({ ...MOCK_DRAFT_ROTATION, status: "APPLIED" } as any);
+
+    await applyPlannedChange(
+      "rotation-1",
+      "change-1",
+      { outEventId: "event-out-1", inEventId: "event-in-1" },
+      ORG_FILTER,
+      1620,
+    );
+
+    expect(db.plannedRotationChange.update).toHaveBeenCalledWith({
+      where: { id: "change-1" },
+      data: {
+        status: "APPLIED",
+        liveEventId: "event-out-1",
+        secondaryLiveEventId: "event-in-1",
+        actualMatchSeconds: 1620,
+      },
+    });
+  });
 });
 
 describe("skipPlannedChange", () => {
@@ -220,6 +269,53 @@ describe("skipPlannedChange", () => {
     if (!result.success) {
       expect(result.error).toContain("APPLIED");
     }
+  });
+});
+
+describe("delayPlannedChange", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("marks a pending change as delayed", async () => {
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(MOCK_DRAFT_ROTATION as any);
+    vi.mocked(db.plannedRotationChange.update).mockResolvedValue({
+      ...MOCK_PENDING_CHANGE,
+      status: "DELAYED",
+    } as any);
+
+    const result = await delayPlannedChange("rotation-1", "change-1", ORG_FILTER);
+
+    expect(result.success).toBe(true);
+    expect(db.plannedRotationChange.update).toHaveBeenCalledWith({
+      where: { id: "change-1" },
+      data: { status: "DELAYED" },
+    });
+  });
+
+  it("rejects delaying a non-pending change", async () => {
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue({
+      ...MOCK_DRAFT_ROTATION,
+      changes: [{ ...MOCK_PENDING_CHANGE, status: "APPLIED" }],
+    } as any);
+
+    const result = await delayPlannedChange("rotation-1", "change-1", ORG_FILTER);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("APPLIED");
+    }
+  });
+
+  it("does not allow delaying an already-delayed change (not idempotent — only PENDING can be delayed)", async () => {
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue({
+      ...MOCK_DRAFT_ROTATION,
+      changes: [{ ...MOCK_PENDING_CHANGE, status: "DELAYED" }],
+    } as any);
+
+    const result = await delayPlannedChange("rotation-1", "change-1", ORG_FILTER);
+
+    expect(result.success).toBe(false);
   });
 });
 
@@ -308,5 +404,31 @@ describe("getNextPlannedChange", () => {
 
     const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
     expect(result).toBeNull();
+  });
+
+  it("still surfaces a DELAYED change so it can be revisited", async () => {
+    const rotationWithDelayedChange = {
+      ...MOCK_DRAFT_ROTATION,
+      changes: [{ ...MOCK_PENDING_CHANGE, id: "change-1", sequence: 1, status: "DELAYED" }],
+    };
+    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(rotationWithDelayedChange as any);
+
+    const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("change-1");
+  });
+
+  it("prioritises a PENDING change over a DELAYED one earlier in sequence", async () => {
+    const rotationWithMixedChanges = {
+      ...MOCK_DRAFT_ROTATION,
+      changes: [
+        { ...MOCK_PENDING_CHANGE, id: "change-1", sequence: 1, status: "DELAYED" },
+        { ...MOCK_PENDING_CHANGE, id: "change-2", sequence: 2, status: "PENDING" },
+      ],
+    };
+    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(rotationWithMixedChanges as any);
+
+    const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
+    expect(result!.id).toBe("change-2");
   });
 });

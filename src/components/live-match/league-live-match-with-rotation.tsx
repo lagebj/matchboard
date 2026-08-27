@@ -7,6 +7,7 @@ import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-
 import {
   applyPlannedChangeAction,
   skipPlannedChangeAction,
+  delayPlannedChangeAction,
   modifyPlannedChangeAction,
   getNextPlannedChangeAction,
 } from "@/app/(app)/matches/planned-rotation-live-actions";
@@ -14,13 +15,17 @@ import {
 import type { MatchType } from "@/generated/prisma/client";
 
 const plannedChangeActions = {
-  applyChange: async (rotationId: string, changeId: string, liveEventIds: { outEventId: string; inEventId?: string }) => {
-    const result = await applyPlannedChangeAction(rotationId, changeId, liveEventIds);
+  applyChange: async (rotationId: string, changeId: string, overrides?: { outPlayerId?: string; inPlayerId?: string; outPosition?: string | null; inPosition?: string | null; changedNote?: string }) => {
+    const result = await applyPlannedChangeAction(rotationId, changeId, overrides);
     if (result.success) return { success: true as const, data: { outEventId: result.outEventId, inEventId: result.inEventId } };
     return { success: false as const, error: result.success === false ? result.error : "Unknown error" };
   },
   skipChange: async (rotationId: string, changeId: string) => {
     const result = await skipPlannedChangeAction(rotationId, changeId);
+    return result;
+  },
+  delayChange: async (rotationId: string, changeId: string) => {
+    const result = await delayPlannedChangeAction(rotationId, changeId);
     return result;
   },
   modifyChange: async (rotationId: string, changeId: string, modification: Record<string, unknown>) => {
