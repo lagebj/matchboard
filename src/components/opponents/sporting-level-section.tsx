@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatGameFormatShort } from "@/lib/formations/types";
 
 type EvidenceRow = {
   id: string;
@@ -163,11 +164,11 @@ export function SportingLevelSection({ initialAggregate, initialEvidence }: Prop
                     <td className="py-2 pr-4 whitespace-nowrap">
                       {new Date(e.occurredAt).toLocaleDateString()}
                     </td>
-                    <td className="py-2 pr-4">{e.gameFormat ?? "\u2014"}</td>
-                    <td className="py-2 pr-4">{e.goalsFor}\u2013{e.goalsAgainst}</td>
+                    <td className="py-2 pr-4">{e.gameFormat ? formatGameFormatShort(e.gameFormat) : "\u2014"}</td>
+                    <td className="py-2 pr-4">{`${e.goalsFor}\u2013${e.goalsAgainst}`}</td>
                     <td className="py-2 pr-4">{e.fieldedRatingSnapshot?.toFixed(2) ?? "\u2014"}</td>
                     <td className="py-2 pr-4 font-medium">{e.estimate.toFixed(2)}</td>
-                    <td className="py-2 pr-4 text-xs text-zinc-400">{e.weightingMethod.replace("_", " ").toLowerCase()}</td>
+                    <td className="py-2 pr-4 text-xs text-zinc-400">{e.weightingMethod.replaceAll("_", " ").toLowerCase()}</td>
                     <td className="py-2">
                       <button
                         onClick={() => handleExclude(e.id)}
@@ -205,7 +206,7 @@ export function SportingLevelSection({ initialAggregate, initialEvidence }: Prop
                     <td className="py-2 pr-4 whitespace-nowrap">
                       {new Date(e.occurredAt).toLocaleDateString()}
                     </td>
-                    <td className="py-2 pr-4">{e.goalsFor}\u2013{e.goalsAgainst}</td>
+                    <td className="py-2 pr-4">{`${e.goalsFor}\u2013${e.goalsAgainst}`}</td>
                     <td className="py-2 pr-4">{e.estimate.toFixed(2)}</td>
                     <td className="py-2 pr-4 text-xs max-w-[200px] truncate" title={e.exclusionReason ?? undefined}>
                       {e.exclusionReason ?? "\u2014"}

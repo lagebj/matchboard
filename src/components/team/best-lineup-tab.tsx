@@ -14,7 +14,7 @@ import {
   clearBestLineupAction,
 } from '@/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions';
 import type { BestLineupData, BestLineupSlot } from '@/lib/best-lineup/best-lineup';
-import { formatGameFormatLabel } from '@/lib/formations/types';
+import { formatGameFormatShort } from '@/lib/formations/types';
 import { RefreshCw, Trash2, X, Lock, Unlock } from 'lucide-react';
 
 type FormationOption = {
@@ -194,7 +194,7 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
                   <option value="">Select formation</option>
                   {formations.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} ({formatGameFormatLabel(f.gameFormat)})
+                      {f.name} ({formatGameFormatShort(f.gameFormat)})
                     </option>
                   ))}
                 </select>
