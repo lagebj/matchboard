@@ -54,6 +54,7 @@ describe("Run -> Learn report seeding invariants (ARR-0028)", () => {
     await testDb.postMatchReport.deleteMany({});
     await testDb.liveMatchEvent.deleteMany({});
     await testDb.liveMatchSession.deleteMany({});
+    await testDb.matchHelperAssignment.deleteMany({});
     await testDb.selection.deleteMany({});
   });
 
@@ -166,5 +167,85 @@ describe("Run -> Learn report seeding invariants (ARR-0028)", () => {
 
     const reportCount = await testDb.postMatchReport.count({ where: { matchId: match.id } });
     expect(reportCount).toBe(1);
+  });
+
+  it("seedReportFromLiveSession includes League Match helpers in the seeded player list (regression)", async () => {
+    const matches = await testDb.match.findMany({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true },
+    });
+    const [matchA, matchB] = matches;
+    const teamAPlayers = fixtureIds.players.filter((p) => p.coreTeamId === matchA!.teamId).slice(0, 3);
+    const helperPlayer = fixtureIds.players.find((p) => p.coreTeamId === matchB!.teamId)!;
+
+    await finalizeMatchSelections(testDb, matchA!.id, fixtureIds.matchRoundId, teamAPlayers.map((p) => p.id), fixtureIds.organisationId);
+
+    await testDb.matchHelperAssignment.create({
+      data: {
+        matchId: matchA!.id,
+        playerId: helperPlayer.id,
+        sourceTeamId: matchB!.teamId,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const result = await seedReportFromLiveSession(matchA!.id, fixtureIds.organisationId);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const report = await testDb.postMatchReport.findUnique({
+      where: { matchId: matchA!.id },
+      select: {
+        playerActuals: {
+          select: { playerId: true, source: true, attendanceStatus: true, unplannedAppearanceReason: true },
+        },
+      },
+    });
+    expect(report).not.toBeNull();
+
+    const helperActual = report!.playerActuals.find((pa) => pa.playerId === helperPlayer.id);
+    expect(helperActual).toBeDefined();
+    expect(helperActual!.source).toBe("EMERGENCY_BACKFILL");
+    expect(helperActual!.attendanceStatus).toBe("PRESENT");
+    expect(helperActual!.unplannedAppearanceReason).toBe("EMERGENCY_SQUAD_COVER");
+
+    // No duplicate row, and the planned players are still present alongside the helper.
+    const playerIdCounts = new Map<string, number>();
+    for (const pa of report!.playerActuals) {
+      playerIdCounts.set(pa.playerId, (playerIdCounts.get(pa.playerId) ?? 0) + 1);
+    }
+    expect([...playerIdCounts.values()].every((count) => count === 1)).toBe(true);
+    expect(report!.playerActuals.length).toBe(teamAPlayers.length + 1);
+  });
+
+  it("seedReportFromLiveSession does not duplicate a player who is both a Selection and a helper", async () => {
+    const match = (await testDb.match.findFirst({ where: { matchRoundId: fixtureIds.matchRoundId }, select: { id: true, teamId: true } }))!;
+    const player = fixtureIds.players.find((p) => p.coreTeamId === match.teamId)!;
+
+    await finalizeMatchSelections(testDb, match.id, fixtureIds.matchRoundId, [player.id], fixtureIds.organisationId);
+
+    // Defensive scenario only — assertLeagueMatchHelperEligible already refuses this in the
+    // normal add-helper flow, but the seed function's own guard must still hold if it ever
+    // happens (e.g. legacy data).
+    await testDb.matchHelperAssignment.create({
+      data: {
+        matchId: match.id,
+        playerId: player.id,
+        sourceTeamId: match.teamId,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const result = await seedReportFromLiveSession(match.id, fixtureIds.organisationId);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const report = await testDb.postMatchReport.findUnique({
+      where: { matchId: match.id },
+      select: { playerActuals: { select: { playerId: true, source: true } } },
+    });
+    const rowsForPlayer = report!.playerActuals.filter((pa) => pa.playerId === player.id);
+    expect(rowsForPlayer.length).toBe(1);
+    expect(rowsForPlayer[0]!.source).toBe("PLANNED");
   });
 });

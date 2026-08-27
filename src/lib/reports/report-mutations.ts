@@ -156,6 +156,20 @@ export async function seedReportFromLiveSession(
     select: { playerId: true },
   });
 
+  // League Match helpers (ADR-0077): unioned in the same way seedReportFromFinalizedSquad
+  // does, so a helper added before or during the match is already present here instead of
+  // requiring the coach to add them again retroactively. The `plannedPlayerIds` guard is
+  // defensive only — a player can never be both a FINALIZED Selection and a helper for the
+  // same match (assertLeagueMatchHelperEligible already rejects that combination).
+  const helperAssignments = await db.matchHelperAssignment.findMany({
+    where: { matchId },
+    select: { playerId: true },
+  });
+  const plannedPlayerIds = new Set(selections.map((s) => s.playerId));
+  const helperPlayerIds = helperAssignments
+    .map((h) => h.playerId)
+    .filter((playerId) => !plannedPlayerIds.has(playerId));
+
   const liveEvents = await db.liveMatchEvent.findMany({
     where: {
       matchId,
@@ -233,13 +247,23 @@ export async function seedReportFromLiveSession(
       awayGoals,
       organisationId,
       playerActuals: {
-        create: selections.map((s) => ({
-          matchId,
-          playerId: s.playerId,
-          source: "PLANNED",
-          attendanceStatus: "PRESENT",
-          organisationId,
-        })),
+        create: [
+          ...selections.map((s) => ({
+            matchId,
+            playerId: s.playerId,
+            source: "PLANNED" as const,
+            attendanceStatus: "PRESENT" as const,
+            organisationId,
+          })),
+          ...helperPlayerIds.map((playerId) => ({
+            matchId,
+            playerId,
+            source: "EMERGENCY_BACKFILL" as const,
+            attendanceStatus: "PRESENT" as const,
+            unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
+            organisationId,
+          })),
+        ],
       },
       goals: {
         create: scorerEvents.map((e) => ({
